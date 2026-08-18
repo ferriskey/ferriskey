@@ -1,8 +1,9 @@
 use super::auth::root_scoped_base_url;
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE};
 use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
+use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::decoded_token::OptionalToken;
@@ -20,6 +21,8 @@ use uuid::Uuid;
 use validator::Validate;
 
 pub use ferriskey_api_core::authentication::{AuthenticateResponse, AuthenticationStatus};
+
+pub const LOGIN_ACTION_COOKIE: &str = "FERRISKEY_LOGIN_ACTION";
 
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
@@ -127,6 +130,26 @@ pub async fn authenticate(
         }
     }
 
+    let step_token = result.temporary_token.clone();
     let response: AuthenticateResponse = result.into();
-    Ok((StatusCode::OK, axum::Json(response)).into_response())
+
+    let mut headers = HeaderMap::new();
+    if let Some(token) = step_token {
+        let mut flow_cookie = Cookie::build((LOGIN_ACTION_COOKIE, token))
+            .path(format!("/realms/{realm_name}/login-actions"))
+            .http_only(true)
+            .same_site(SameSite::Strict);
+
+        if base_url.starts_with("https") {
+            flow_cookie = flow_cookie.secure(true)
+        }
+
+        headers.insert(
+            SET_COOKIE,
+            HeaderValue::from_str(&flow_cookie.to_string())
+                .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?,
+        );
+    }
+
+    Ok((StatusCode::OK, headers, axum::Json(response)).into_response())
 }

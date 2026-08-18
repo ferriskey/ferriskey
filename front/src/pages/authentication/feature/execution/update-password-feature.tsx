@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router.ts'
 import UpdatePassword from '@/pages/authentication/ui/execution/update-password.tsx'
 import { useUpdatePassword } from '@/api/trident.api'
@@ -7,23 +7,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { updatePasswordSchema, UpdatePasswordSchema } from '../../schemas/update-password.schema'
 import { Form } from '@/components/ui/form'
 import { useEffect } from 'react'
+import { toast } from 'sonner'
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { AuthenticationStatus } from '@/api/api.interface'
 
 
 export default function UpdatePasswordFeature() {
   const { realm_name } = useParams<RouterParams>()
-  const [searchParams] = useSearchParams()
   const { mutate: updatePassword, data: responseUpdatePassword } = useUpdatePassword()
   const { mutate: authenticate, data: authenticateResponse } = useAuthenticateMutation()
   const navigate = useNavigate()
-  const token = searchParams.get('client_data')
-
-  useEffect(() => {
-    if (!token) {
-      navigate(`/realms/${realm_name}/authentication/login`, { replace: true })
-    }
-  }, [token, navigate, realm_name])
 
   const form = useForm<UpdatePasswordSchema>({
     resolver: zodResolver(updatePasswordSchema),
@@ -34,14 +27,19 @@ export default function UpdatePasswordFeature() {
   })
 
   const handleClick = form.handleSubmit((payload) => {
-    if (!token) return
-    updatePassword({
-      realm: realm_name ?? 'master',
-      data: {
-        value: payload.password,
+    updatePassword(
+      {
+        realm: realm_name ?? 'master',
+        data: {
+          value: payload.password,
+        },
       },
-      token,
-    })
+      {
+        onError: (error) => {
+          toast.error(error.message || 'Failed to update your password')
+        },
+      }
+    )
   })
 
   useEffect(() => {
@@ -50,10 +48,9 @@ export default function UpdatePasswordFeature() {
         clientId: 'security-admin-console',
         realm: realm_name ?? 'master',
         data: {},
-        token: token ?? undefined
       })
     }
-  }, [responseUpdatePassword, authenticate, realm_name, token])
+  }, [responseUpdatePassword, authenticate, realm_name])
 
   useEffect(() => {
     if (!authenticateResponse) return
@@ -64,13 +61,12 @@ export default function UpdatePasswordFeature() {
     if (
       authenticateResponse.status === AuthenticationStatus.RequiresActions &&
       authenticateResponse.required_actions &&
-      authenticateResponse.required_actions.length > 0 &&
-      authenticateResponse.token
+      authenticateResponse.required_actions.length > 0
     ) {
       const firstRequiredAction = authenticateResponse.required_actions[0]
 
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateResponse.token}`
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
       )
     }
   }, [authenticateResponse, navigate, realm_name])

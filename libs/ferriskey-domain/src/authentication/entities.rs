@@ -292,6 +292,7 @@ pub struct AuthenticateOutput {
     pub required_actions: Vec<RequiredAction>,
     pub redirect_url: Option<String>,
     pub session_state: Option<String>,
+    pub email: Option<String>,
 }
 
 impl AuthenticateOutput {
@@ -308,6 +309,7 @@ impl AuthenticateOutput {
             required_actions: Vec::new(),
             redirect_url: Some(redirect_url),
             session_state: None,
+            email: None,
         }
     }
 
@@ -324,10 +326,15 @@ impl AuthenticateOutput {
             required_actions,
             redirect_url: None,
             session_state: None,
+            email: None,
         }
     }
 
-    pub fn requires_otp_challenge(user_id: Uuid, temporary_token: String) -> Self {
+    pub fn requires_otp_challenge(
+        user_id: Uuid,
+        temporary_token: String,
+        email: Option<String>,
+    ) -> Self {
         Self {
             user_id,
             status: AuthenticationStepStatus::RequiresOtpChallenge,
@@ -336,6 +343,7 @@ impl AuthenticateOutput {
             required_actions: Vec::new(),
             redirect_url: None,
             session_state: None,
+            email,
         }
     }
 }

@@ -122,6 +122,7 @@ use crate::{
             device_auth_repository::PostgresDeviceAuthRepository,
             email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            login_action_token_repository::PostgresLoginActionTokenRepository,
             magic_link_repository::PostgresMagicLinkRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             portal_layouts_repository::PostgresPortalLayoutsRepository,
@@ -302,7 +303,10 @@ type ApplicationAuthService = AuthServiceImpl<
     WebhookRepo,
     SecurityEventRepo,
     UserSessionRepo,
+    LoginActionTokenRepo,
 >;
+
+type LoginActionTokenRepo = PostgresLoginActionTokenRepository;
 
 type DeviceAuthRepo = PostgresDeviceAuthRepository;
 
@@ -716,6 +720,16 @@ impl ApplicationService {
 
     /// Verification page: bind the authenticated user to the device session
     /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
+    pub async fn consume_login_action_token(&self, jti: uuid::Uuid) -> bool {
+        use crate::domain::authentication::ports::LoginActionTokenRepository;
+
+        self.auth_service
+            .login_action_token_repository
+            .consume(jti)
+            .await
+            .unwrap_or(false)
+    }
+
     pub async fn purge_expired_device_sessions(&self) -> Result<u64, DeviceFlowError> {
         self.device_flow_service.purge_expired_sessions().await
     }

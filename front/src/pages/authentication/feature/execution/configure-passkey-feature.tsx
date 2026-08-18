@@ -1,6 +1,6 @@
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
@@ -9,41 +9,28 @@ import { isWebAuthnAvailable, startRegistration } from '@/lib/webauthn'
 
 export default function ConfigurePasskeyFeature() {
   const { realm_name } = useParams<RouterParams>()
-  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const {
     mutate: authenticate,
     data: authenticateData,
   } = useAuthenticateMutation()
 
-  const token = searchParams.get('client_data')
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-
-  useEffect(() => {
-    if (!token) {
-      toast.error('Token is missing')
-      navigate(`/realms/${realm_name}/authentication/login`)
-    }
-  }, [token, navigate, realm_name])
 
   const completeAuth = useCallback(() => {
     authenticate({
       clientId: 'security-admin-console',
       realm: realm_name ?? 'master',
       data: {},
-      useToken: true,
-      token: token ?? undefined,
     })
-  }, [authenticate, realm_name, token])
+  }, [authenticate, realm_name])
 
   const onRegister = useCallback(async () => {
     if (!isWebAuthnAvailable()) {
       toast.error('WebAuthn is not supported in this browser')
       return
     }
-
-    if (!token) return
 
     setIsLoading(true)
     try {
@@ -52,7 +39,6 @@ export default function ConfigurePasskeyFeature() {
         '/realms/{realm_name}/login-actions/webauthn-public-key-create-options',
         {
           path: { realm_name: realm_name ?? 'master' },
-          header: { Authorization: `Bearer ${token}` },
         } as never,
       )
 
@@ -65,7 +51,6 @@ export default function ConfigurePasskeyFeature() {
         {
           path: { realm_name: realm_name ?? 'master' },
           body: credential,
-          header: { Authorization: `Bearer ${token}` },
         } as never,
       )
 
@@ -85,7 +70,7 @@ export default function ConfigurePasskeyFeature() {
     } finally {
       setIsLoading(false)
     }
-  }, [realm_name, token, completeAuth])
+  }, [realm_name, completeAuth])
 
   useEffect(() => {
     if (!authenticateData) return
@@ -96,13 +81,12 @@ export default function ConfigurePasskeyFeature() {
     if (
       authenticateData.status === AuthenticationStatus.RequiresActions &&
       authenticateData.required_actions &&
-      authenticateData.required_actions.length > 0 &&
-      authenticateData.token
+      authenticateData.required_actions.length > 0
     ) {
       const firstRequiredAction = authenticateData.required_actions[0]
 
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateData.token}`
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
       )
     }
   }, [authenticateData, navigate, realm_name])

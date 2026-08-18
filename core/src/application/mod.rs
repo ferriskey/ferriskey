@@ -97,6 +97,7 @@ use crate::{
             device_auth_repository::PostgresDeviceAuthRepository,
             email_verification_token_repository::PostgresEmailVerificationTokenRepository,
             keystore_repository::PostgresKeyStoreRepository,
+            login_action_token_repository::PostgresLoginActionTokenRepository,
             magic_link_repository::PostgresMagicLinkRepository,
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
@@ -173,6 +174,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let hasher = Arc::new(Argon2HasherRepository::new());
     let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
     let device_auth = Arc::new(PostgresDeviceAuthRepository::new(postgres.get_db()));
+    let login_action_token = Arc::new(PostgresLoginActionTokenRepository::new(postgres.get_db()));
     let redirect_uri = Arc::new(PostgresRedirectUriRepository::new(postgres.get_db()));
     let post_logout_redirect_uri = Arc::new(PostgresPostLogoutRedirectUriRepository::new(
         postgres.get_db(),
@@ -301,6 +303,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         webhook.clone(),
         security_event.clone(),
         user_session.clone(),
+        login_action_token.clone(),
         Arc::new(MapperEngine::new()),
         flow_recorder.clone(),
     );

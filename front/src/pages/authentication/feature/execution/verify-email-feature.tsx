@@ -3,13 +3,12 @@ import { Button } from '@/components/ui/button'
 import { RouterParams } from '@/routes/router'
 import { Mail, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useParams } from 'react-router'
 import { toast } from 'sonner'
 
 const VERIFY_EMAIL_CONTEXT_KEY = 'ferriskey_verify_email_context'
 
 export interface VerifyEmailContext {
-  token: string
   realm: string
   clientId: string
   timestamp: number
@@ -45,22 +44,19 @@ export function clearVerifyEmailContext() {
 
 export default function VerifyEmailFeature() {
   const { realm_name } = useParams<RouterParams>()
-  const [searchParams] = useSearchParams()
-  const token = searchParams.get('client_data')
   const [cooldown, setCooldown] = useState(0)
 
   const { mutate: resendEmail, isPending } = useResendVerificationEmailMutation()
 
   // Store auth context for use after email verification
   useEffect(() => {
-    if (token && realm_name) {
+    if (realm_name) {
       storeVerifyEmailContext({
-        token,
         realm: realm_name,
         clientId: 'security-admin-console', // TODO: get from URL params if needed
       })
     }
-  }, [token, realm_name])
+  }, [realm_name])
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -70,13 +66,13 @@ export default function VerifyEmailFeature() {
   }, [cooldown])
 
   const handleResend = () => {
-    if (!token || !realm_name) {
+    if (!realm_name) {
       toast.error('Unable to resend email: missing authentication context')
       return
     }
 
     resendEmail(
-      { realm: realm_name, token },
+      { realm: realm_name },
       {
         onSuccess: () => {
           toast.success('Verification email sent! Check your inbox.')
@@ -111,7 +107,7 @@ export default function VerifyEmailFeature() {
           <Button
             variant='outline'
             onClick={handleResend}
-            disabled={isPending || cooldown > 0 || !token}
+            disabled={isPending || cooldown > 0}
           >
             {isPending ? (
               <>

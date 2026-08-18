@@ -15,10 +15,10 @@ import {
  *
  *  1. Calls the verify endpoint via `useVerifyEmail` (state machine:
  *     loading / success / expired / error).
- *  2. On success, optionally chains an `authenticate({ useToken: true })`
- *     if the user still has a verify-email context cookie (registration
- *     was on this same browser session) — that lets the backend resume
- *     the auth flow without bouncing through login.
+ *  2. On success, optionally chains an `authenticate()` call if the user
+ *     still has a verify-email context (registration was on this same
+ *     browser session) — that lets the backend resume the auth flow
+ *     without bouncing through login.
  *  3. Once everything resolves, redirects to `/email-verified` (a
  *     customisable success page) so the user never sits indefinitely on
  *     the verification screen.
@@ -64,8 +64,6 @@ export default function VerifyEmailRoute() {
       clientId: context.clientId,
       realm: context.realm,
       data: {},
-      useToken: true,
-      token: context.token,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, realm_name, authenticate])
@@ -87,11 +85,10 @@ export default function VerifyEmailRoute() {
     if (
       authenticateData.status === AuthenticationStatus.RequiresActions &&
       authenticateData.required_actions &&
-      authenticateData.required_actions.length > 0 &&
-      authenticateData.token
+      authenticateData.required_actions.length > 0
     ) {
       const first = authenticateData.required_actions[0]
-      window.location.href = `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}&client_data=${authenticateData.token}`
+      window.location.href = `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}`
       return
     }
 

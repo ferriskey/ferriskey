@@ -36,7 +36,7 @@ use crate::domain::{
             TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
-        ports::{AuthService, AuthSessionRepository},
+        ports::{AuthService, AuthSessionRepository, LoginActionToken, LoginActionTokenRepository},
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
             EvaluateClientScopesInput, EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles,
@@ -290,6 +290,8 @@ fn refuse_token_issuance_when_actions_pending(
 /// realm may have widened to hours. Realms expose a dedicated
 /// `temporary_token_lifetime`; when a realm has no settings row we fall back to
 /// `DEFAULT_TEMPORARY_TOKEN_LIFETIME` rather than to the access-token default.
+pub(crate) const LOGIN_ACTION_SESSION_CLAIM: &str = "afs";
+
 fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
     realm_settings
         .map(|s| s.temporary_token_lifetime)
@@ -499,6 +501,7 @@ pub struct AuthServiceImpl<
     WR,
     SER,
     USR,
+    LAT,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -527,6 +530,7 @@ pub struct AuthServiceImpl<
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -555,6 +559,7 @@ pub struct AuthServiceImpl<
     pub(crate) webhook_repository: Arc<WR>,
     pub(crate) security_event_repository: Arc<SER>,
     pub(crate) user_session_repository: Arc<USR>,
+    pub(crate) login_action_token_repository: Arc<LAT>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
@@ -588,6 +593,7 @@ impl<
     WR,
     SER,
     USR,
+    LAT,
 >
     AuthServiceImpl<
         R,
@@ -617,6 +623,7 @@ impl<
         WR,
         SER,
         USR,
+        LAT,
     >
 where
     R: RealmRepository,
@@ -646,6 +653,7 @@ where
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -676,6 +684,7 @@ where
         webhook_repository: Arc<WR>,
         security_event_repository: Arc<SER>,
         user_session_repository: Arc<USR>,
+        login_action_token_repository: Arc<LAT>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -707,6 +716,7 @@ where
             webhook_repository,
             security_event_repository,
             user_session_repository,
+            login_action_token_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -742,6 +752,7 @@ impl<
     WR,
     SER,
     USR,
+    LAT,
 >
     AuthServiceImpl<
         R,
@@ -771,6 +782,7 @@ impl<
         WR,
         SER,
         USR,
+        LAT,
     >
 where
     R: RealmRepository,
@@ -800,6 +812,7 @@ where
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -2516,9 +2529,16 @@ where
                 );
             }
             let token = auth_result.token.ok_or(CoreError::InternalServerError)?;
+            let email = self
+                .user_repository
+                .get_by_id(auth_result.user_id)
+                .await
+                .ok()
+                .and_then(|user| user.email);
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
                 token,
+                email,
             ));
         }
 
@@ -2801,7 +2821,8 @@ This is a server error that should be investigated. Do not forward back this mes
         // lifetime — it only has to survive the next hop of the login flow.
         let temporary_lifetime = temporary_token_lifetime(realm_settings.as_ref());
 
-        let jwt_claim = JwtClaim::new(
+        let auth_session_id = auth_session.id;
+        let mut jwt_claim = JwtClaim::new(
             user.id,
             user.username.clone(),
             iss,
@@ -2812,6 +2833,22 @@ This is a server error that should be investigated. Do not forward back this mes
             Some(auth_session.scope),
             temporary_lifetime,
         );
+        jwt_claim.additional_claims.insert(
+            LOGIN_ACTION_SESSION_CLAIM.to_string(),
+            serde_json::Value::String(auth_session_id.to_string()),
+        );
+
+        self.login_action_token_repository
+            .create(LoginActionToken {
+                jti: jwt_claim.jti,
+                user_id: user.id,
+                realm_id: realm.id.into(),
+                auth_session_id,
+                expires_at: Utc::now() + Duration::seconds(temporary_lifetime),
+                consumed_at: None,
+            })
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         // Resolve MFA enforcement: realm-level or role-level require_mfa.
         let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
@@ -3096,6 +3133,7 @@ impl<
     WR,
     SER,
     USR,
+    LAT,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -3125,6 +3163,7 @@ impl<
         WR,
         SER,
         USR,
+        LAT,
     >
 where
     R: RealmRepository,
@@ -3154,6 +3193,7 @@ where
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
@@ -3437,6 +3477,52 @@ where
         }
 
         let user = self.user_repository.get_by_id(input.claims.sub).await?;
+
+        if let Some(realm_name) = input.realm_name.as_deref() {
+            let realm = self
+                .realm_repository
+                .get_by_name(realm_name)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?;
+
+            if realm.id != user.realm_id {
+                return Err(CoreError::InvalidToken);
+            }
+        }
+
+        let session_id = input
+            .claims
+            .additional_claims
+            .get(LOGIN_ACTION_SESSION_CLAIM)
+            .and_then(|value| value.as_str())
+            .and_then(|raw| Uuid::parse_str(raw).ok())
+            .ok_or(CoreError::InvalidToken)?;
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_id)
+            .await
+            .map_err(|_| CoreError::InvalidToken)?;
+
+        if auth_session.user_id.is_some_and(|owner| owner != user.id) {
+            return Err(CoreError::InvalidToken);
+        }
+
+        if auth_session.expires_at <= Utc::now() {
+            return Err(CoreError::InvalidToken);
+        }
+
+        let jti = input.claims.jti;
+        let persisted = self
+            .login_action_token_repository
+            .get_by_jti(jti)
+            .await
+            .map_err(|_| CoreError::InvalidToken)?
+            .ok_or(CoreError::InvalidToken)?;
+
+        if persisted.consumed_at.is_some() || persisted.user_id != user.id {
+            return Err(CoreError::InvalidToken);
+        }
 
         self.verify_token(input.token, user.realm_id).await?;
 

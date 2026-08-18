@@ -85,7 +85,11 @@ pub async fn device_preview(
 
     let output = state
         .service
-        .authorize_request(AuthorizeRequestInput { claims, token })
+        .authorize_request(AuthorizeRequestInput {
+            claims,
+            token,
+            realm_name: None,
+        })
         .await
         .map_err(|error| {
             warn!(error = ?error, "Device preview: identity token rejected");
@@ -195,7 +199,11 @@ pub async fn device_verify(
 
     let output = state
         .service
-        .authorize_request(AuthorizeRequestInput { claims, token })
+        .authorize_request(AuthorizeRequestInput {
+            claims,
+            token,
+            realm_name: None,
+        })
         .await
         .map_err(|error| {
             warn!(error = ?error, "Device verify: identity token rejected");

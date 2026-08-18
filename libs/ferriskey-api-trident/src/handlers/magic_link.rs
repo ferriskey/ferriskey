@@ -128,7 +128,7 @@ pub async fn verify_magic_link(
         status: AuthenticationStatus::Success,
         url: Some(login_url),
         required_actions: None,
-        token: None,
+        email: None,
         message: Some("Magic link authentication successful".to_string()),
     };
 

@@ -21,6 +21,7 @@ pub mod email_verification_tokens;
 pub mod identity_provider_links;
 pub mod identity_providers;
 pub mod jwt_keys;
+pub mod login_action_tokens;
 pub mod magic_links;
 pub mod organization_attributes;
 pub mod organization_group_attributes;
