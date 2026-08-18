@@ -726,6 +726,15 @@ mod tests {
                 refresh["azp"], client_id,
                 "the refresh token must carry the same client: {refresh:?}"
             );
+
+            let id_token = body["id_token"]
+                .as_str()
+                .expect("an openid grant must yield an id_token");
+            let id_claims = decode_jwt_payload(id_token);
+            assert_eq!(
+                id_claims["aud"], client_id,
+                "the id_token must be audienced to the client: {id_claims:?}"
+            );
         });
     }
 
