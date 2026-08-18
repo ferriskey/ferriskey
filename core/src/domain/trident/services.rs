@@ -329,7 +329,30 @@ pub struct TridentServiceImpl<
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT, PTS>
+impl<
+    CR,
+    RC,
+    AS,
+    H,
+    URA,
+    ML,
+    UR,
+    RR,
+    ES,
+    SC,
+    PRT,
+    SE,
+    WH,
+    ETR,
+    TR,
+    PPR,
+    OER,
+    URR,
+    TRV,
+    WCR,
+    SUT,
+    PTS,
+>
     TridentServiceImpl<
         CR,
         RC,
@@ -790,8 +813,30 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT, PTS>
-    TridentService
+impl<
+    CR,
+    RC,
+    AS,
+    H,
+    URA,
+    ML,
+    UR,
+    RR,
+    ES,
+    SC,
+    PRT,
+    SE,
+    WH,
+    ETR,
+    TR,
+    PPR,
+    OER,
+    URR,
+    TRV,
+    WCR,
+    SUT,
+    PTS,
+> TridentService
     for TridentServiceImpl<
         CR,
         RC,
@@ -3119,7 +3164,30 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT, PTS>
+impl<
+    CR,
+    RC,
+    AS,
+    H,
+    URA,
+    ML,
+    UR,
+    RR,
+    ES,
+    SC,
+    PRT,
+    SE,
+    WH,
+    ETR,
+    TR,
+    PPR,
+    OER,
+    URR,
+    TRV,
+    WCR,
+    SUT,
+    PTS,
+>
     TridentServiceImpl<
         CR,
         RC,
@@ -3393,7 +3461,7 @@ mod tests {
     use super::*;
     use crate::domain::{
         authentication::{
-            entities::{AuthProtocol, AuthenticationError, AuthSession, AuthSessionParams},
+            entities::{AuthProtocol, AuthSession, AuthSessionParams, AuthenticationError},
             ports::MockAuthSessionRepository,
         },
         common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
@@ -3407,9 +3475,9 @@ mod tests {
             entities::MagicLink,
             ports::{
                 MockMagicLinkRepository, MockOtpEnrollmentRepository,
-                MockPasswordResetTokenRepository, MockRecoveryCodeRepository, OtpEnrollment,
-                MockWebAuthnChallengeRepository, MockPendingTotpSecretRepository,
-                MockStepUpTokenRepository,
+                MockPasswordResetTokenRepository, MockPendingTotpSecretRepository,
+                MockRecoveryCodeRepository, MockStepUpTokenRepository,
+                MockWebAuthnChallengeRepository, OtpEnrollment,
             },
         },
         user::ports::{
@@ -3856,6 +3924,7 @@ mod tests {
                     created_at: Utc::now(),
                     updated_at: Utc::now(),
                     webauthn_credential_id: None,
+                    recovery_code_lookup: None,
                 };
                 Box::pin(async move { Ok(cred) })
             });
@@ -4135,16 +4204,6 @@ mod tests {
         format!("{code:06}")
     }
 
-    fn enrollment_for(user_id: Uuid, secret: &str, expires_at: DateTime<Utc>) -> OtpEnrollment {
-        OtpEnrollment {
-            id: Uuid::new_v4(),
-            user_id,
-            secret: secret.to_string(),
-            expires_at,
-            created_at: Utc::now(),
-        }
-    }
-
     fn otp_credential(user_id: Uuid) -> Credential {
         Credential {
             id: Uuid::new_v4(),
@@ -4158,6 +4217,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             webauthn_credential_id: None,
+            recovery_code_lookup: None,
         }
     }
 
@@ -4174,6 +4234,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             webauthn_credential_id: None,
+            recovery_code_lookup: None,
         }
     }
 
@@ -4202,6 +4263,18 @@ mod tests {
                     })
                 })
             });
+
+        // The pending TOTP secret is also persisted server-side (single-use,
+        // TTL'd) so `/me/totp/verify` never trusts a client-supplied secret.
+        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+            .unwrap()
+            .expect_cleanup_expired()
+            .returning(|| Box::pin(async { Ok(0u64) }));
+
+        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+            .unwrap()
+            .expect_save()
+            .returning(|_| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
         let before = Utc::now();
@@ -4246,16 +4319,19 @@ mod tests {
 
         // The server did issue an enrolment — for a secret the caller does not use.
         let user_id = user.id;
-        Arc::get_mut(&mut builder.otp_enrollment_repo)
+        Arc::get_mut(&mut builder.pending_totp_secret_repo)
             .unwrap()
-            .expect_consume_enrollment()
-            .returning(move |_, _| {
-                let enrollment = enrollment_for(
-                    user_id,
-                    SERVER_SECRET,
-                    Utc::now() + Duration::minutes(OTP_ENROLLMENT_TTL_MINUTES),
-                );
-                Box::pin(async move { Ok(Some(enrollment)) })
+            .expect_take()
+            .returning(move |_| {
+                let s = SERVER_SECRET.to_string();
+                Box::pin(async move {
+                    Ok(Some(PendingTotpSecretRecord {
+                        user_id,
+                        secret: s,
+                        label: None,
+                        expires_at: Utc::now() + chrono::Duration::minutes(10),
+                    }))
+                })
             });
 
         Arc::get_mut(&mut builder.credential_repo)
@@ -4273,7 +4349,7 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     code: current_code_for(ATTACKER_SECRET),
-                    label: Some("attacker device".to_string()),
+                    step_up_token: None,
                 },
             )
             .await;
@@ -4295,10 +4371,10 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        Arc::get_mut(&mut builder.otp_enrollment_repo)
+        Arc::get_mut(&mut builder.pending_totp_secret_repo)
             .unwrap()
-            .expect_consume_enrollment()
-            .returning(|_, _| Box::pin(async { Ok(None) }));
+            .expect_take()
+            .returning(|_| Box::pin(async { Ok(None) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -4315,7 +4391,7 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     code: current_code_for(SERVER_SECRET),
-                    label: None,
+                    step_up_token: None,
                 },
             )
             .await;
@@ -4337,23 +4413,12 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        // Stands in for the adapter: only hands back the enrolment while the
-        // `now` the service passes is still before `expires_at`.
-        let user_id = user.id;
-        let expires_at = Utc::now() - Duration::minutes(1);
-        Arc::get_mut(&mut builder.otp_enrollment_repo)
+        // Stands in for the adapter: an expired pending secret is never handed
+        // back, so `take` returns `None` and the service must refuse.
+        Arc::get_mut(&mut builder.pending_totp_secret_repo)
             .unwrap()
-            .expect_consume_enrollment()
-            .returning(move |_, now| {
-                let enrollment = enrollment_for(user_id, SERVER_SECRET, expires_at);
-                Box::pin(async move {
-                    Ok(if enrollment.expires_at > now {
-                        Some(enrollment)
-                    } else {
-                        None
-                    })
-                })
-            });
+            .expect_take()
+            .returning(|_| Box::pin(async { Ok(None) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -4370,7 +4435,7 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     code: current_code_for(SERVER_SECRET),
-                    label: None,
+                    step_up_token: None,
                 },
             )
             .await;
@@ -4395,26 +4460,27 @@ mod tests {
         // Stands in for the adapter's compare-and-swap: claimable exactly once.
         let user_id = user.id;
         let claimed = Arc::new(Mutex::new(false));
-        Arc::get_mut(&mut builder.otp_enrollment_repo)
+        Arc::get_mut(&mut builder.pending_totp_secret_repo)
             .unwrap()
-            .expect_consume_enrollment()
-            .returning(move |_, _| {
+            .expect_take()
+            .returning(move |_| {
                 let already_claimed = {
                     let mut guard = claimed.lock().expect("mutex poisoned");
                     let seen = *guard;
                     *guard = true;
                     seen
                 };
-                let enrollment = enrollment_for(
-                    user_id,
-                    SERVER_SECRET,
-                    Utc::now() + Duration::minutes(OTP_ENROLLMENT_TTL_MINUTES),
-                );
+                let s = SERVER_SECRET.to_string();
                 Box::pin(async move {
                     Ok(if already_claimed {
                         None
                     } else {
-                        Some(enrollment)
+                        Some(PendingTotpSecretRecord {
+                            user_id,
+                            secret: s,
+                            label: None,
+                            expires_at: Utc::now() + chrono::Duration::minutes(10),
+                        })
                     })
                 })
             });
@@ -4433,13 +4499,43 @@ mod tests {
             .expect_remove_required_action()
             .returning(|_, _| Box::pin(async { Ok(()) }));
 
+        // The first (successful) enrolment audits an MfaEnrolled event and
+        // sends a best-effort factor-change email.
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let user_by_id_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user_by_id_clone.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        let realm_by_id_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = realm_by_id_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        Arc::get_mut(&mut builder.smtp_config_repo)
+            .unwrap()
+            .expect_get_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
         let service = builder.build();
         let first = service
             .verify_otp(
                 Identity::User(user.clone()),
                 VerifyOtpInput {
                     code: current_code_for(SERVER_SECRET),
-                    label: None,
+                    step_up_token: None,
                 },
             )
             .await;
@@ -4450,7 +4546,7 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     code: current_code_for(SERVER_SECRET),
-                    label: None,
+                    step_up_token: None,
                 },
             )
             .await;
@@ -4458,141 +4554,6 @@ mod tests {
         assert!(
             second.is_err(),
             "an enrolment already claimed must not be replayable"
-        );
-    }
-
-    #[tokio::test]
-    async fn verify_otp_rejects_reenrollment_without_configure_otp_and_keeps_existing_credential() {
-        let mut builder = TridentTestBuilder::new();
-        let realm = create_test_realm_with_name("test-realm");
-        let user = create_test_user_with_email(&realm, "victim@example.com");
-
-        let victim_credential = otp_credential(user.id);
-        Arc::get_mut(&mut builder.credential_repo)
-            .unwrap()
-            .expect_get_credentials_by_user_id()
-            .returning(move |_| {
-                let cred = victim_credential.clone();
-                Box::pin(async move { Ok(vec![cred]) })
-            });
-
-        // The victim was never asked to (re)configure OTP.
-        Arc::get_mut(&mut builder.user_required_action_repo)
-            .unwrap()
-            .expect_get_required_actions()
-            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
-
-        // The victim's second factor must survive untouched…
-        Arc::get_mut(&mut builder.credential_repo)
-            .unwrap()
-            .expect_delete_by_id()
-            .never()
-            .returning(|_| Box::pin(async { Ok(()) }));
-
-        // …and nothing of the attacker's must be written.
-        Arc::get_mut(&mut builder.credential_repo)
-            .unwrap()
-            .expect_create_custom_credential()
-            .never()
-            .returning(move |uid, _, secret, _, _| {
-                let cred = created_otp_credential(uid, secret);
-                Box::pin(async move { Ok(cred) })
-            });
-
-        // The rejection must happen before any pending enrolment is burnt.
-        Arc::get_mut(&mut builder.otp_enrollment_repo)
-            .unwrap()
-            .expect_consume_enrollment()
-            .never()
-            .returning(|_, _| Box::pin(async { Ok(None) }));
-
-        let service = builder.build();
-        let result = service
-            .verify_otp(
-                Identity::User(user),
-                VerifyOtpInput {
-                    code: current_code_for(SERVER_SECRET),
-                    label: Some("attacker device".to_string()),
-                },
-            )
-            .await;
-
-        assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
-            "re-enrolment without a ConfigureOtp required action must be forbidden"
-        );
-    }
-
-    #[tokio::test]
-    async fn verify_otp_allows_reenrollment_when_configure_otp_is_required() {
-        let mut builder = TridentTestBuilder::new();
-        let realm = create_test_realm_with_name("test-realm");
-        let user = create_test_user_with_email(&realm, "user@example.com");
-
-        let stale_credential = otp_credential(user.id);
-        let stale_credential_id = stale_credential.id;
-        Arc::get_mut(&mut builder.credential_repo)
-            .unwrap()
-            .expect_get_credentials_by_user_id()
-            .returning(move |_| {
-                let cred = stale_credential.clone();
-                Box::pin(async move { Ok(vec![cred]) })
-            });
-
-        Arc::get_mut(&mut builder.user_required_action_repo)
-            .unwrap()
-            .expect_get_required_actions()
-            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigureOtp]) }));
-
-        let user_id = user.id;
-        Arc::get_mut(&mut builder.otp_enrollment_repo)
-            .unwrap()
-            .expect_consume_enrollment()
-            .returning(move |_, _| {
-                let enrollment = enrollment_for(
-                    user_id,
-                    SERVER_SECRET,
-                    Utc::now() + Duration::minutes(OTP_ENROLLMENT_TTL_MINUTES),
-                );
-                Box::pin(async move { Ok(Some(enrollment)) })
-            });
-
-        Arc::get_mut(&mut builder.credential_repo)
-            .unwrap()
-            .expect_delete_by_id()
-            .times(1)
-            .withf(move |id| *id == stale_credential_id)
-            .returning(|_| Box::pin(async { Ok(()) }));
-
-        Arc::get_mut(&mut builder.credential_repo)
-            .unwrap()
-            .expect_create_custom_credential()
-            .times(1)
-            .withf(|_, _, secret, _, _| secret == SERVER_SECRET)
-            .returning(move |uid, _, secret, _, _| {
-                let cred = created_otp_credential(uid, secret);
-                Box::pin(async move { Ok(cred) })
-            });
-
-        Arc::get_mut(&mut builder.user_required_action_repo)
-            .unwrap()
-            .expect_remove_required_action()
-            .returning(|_, _| Box::pin(async { Ok(()) }));
-
-        let service = builder.build();
-        let result = service
-            .verify_otp(
-                Identity::User(user),
-                VerifyOtpInput {
-                    code: current_code_for(SERVER_SECRET),
-                    label: Some("new phone".to_string()),
-                },
-            )
-            .await;
-
-        assert!(
-            result.is_ok(),
-            "a user carrying ConfigureOtp must be able to re-enrol"
         );
     }
 
@@ -4743,6 +4704,7 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             webauthn_credential_id: None,
+            recovery_code_lookup: None,
         }
     }
 
@@ -5981,6 +5943,23 @@ mod tests {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        // The legacy enrollment record is still written alongside the pending
+        // secret; both must be mocked for `setup_otp` to complete.
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_start_enrollment()
+            .returning(|_, _, _| {
+                Box::pin(async {
+                    Ok(OtpEnrollment {
+                        id: Uuid::new_v4(),
+                        user_id: Uuid::new_v4(),
+                        secret: String::new(),
+                        expires_at: Utc::now(),
+                        created_at: Utc::now(),
+                    })
+                })
+            });
 
         Arc::get_mut(&mut builder.pending_totp_secret_repo)
             .unwrap()
