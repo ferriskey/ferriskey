@@ -1,3 +1,4 @@
+use axum::Extension;
 use axum::extract::{Path, State};
 use ferriskey_core::domain::abyss::federation::ports::FederationService;
 use uuid::Uuid;
@@ -5,6 +6,7 @@ use uuid::Uuid;
 use crate::federation::dto::TestConnectionResponse;
 use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 
 #[utoipa::path(
     post,
@@ -24,12 +26,13 @@ use ferriskey_api_core::app_state::AppState;
     tag = "federation"
 )]
 pub async fn test_connection(
-    Path((_, id)): Path<(String, Uuid)>,
+    Path((realm_name, id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<TestConnectionResponse>, ApiError> {
     let result = state
         .service
-        .test_federation_connection(id)
+        .test_federation_connection(identity, realm_name, id)
         .await
         .map_err(ApiError::from)?;
 

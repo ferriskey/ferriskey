@@ -1,3 +1,4 @@
+use axum::Extension;
 use axum::extract::{Path, State};
 use ferriskey_core::domain::abyss::federation::{entities::SyncMode, ports::FederationService};
 use uuid::Uuid;
@@ -5,6 +6,7 @@ use uuid::Uuid;
 use crate::federation::dto::SyncUsersResponse;
 use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::authentication::value_objects::Identity;
 
 #[utoipa::path(
     post,
@@ -25,13 +27,14 @@ use ferriskey_api_core::app_state::AppState;
     tag = "federation"
 )]
 pub async fn sync_users(
-    Path((_, id)): Path<(String, Uuid)>,
+    Path((realm_name, id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
+    Extension(identity): Extension<Identity>,
 ) -> Result<Response<SyncUsersResponse>, ApiError> {
     // Default to Import mode for safety (Force would disable missing users)
     let result = state
         .service
-        .sync_federation_users(id, SyncMode::Import)
+        .sync_federation_users(identity, realm_name, id, SyncMode::Import)
         .await
         .map_err(ApiError::from)?;
 

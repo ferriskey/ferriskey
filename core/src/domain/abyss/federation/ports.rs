@@ -115,10 +115,14 @@ pub trait FederationService: Send + Sync {
 
     fn test_federation_connection(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
     ) -> impl Future<Output = Result<TestConnectionResult, CoreError>> + Send;
     fn sync_federation_users(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
         mode: SyncMode,
     ) -> impl Future<Output = Result<SyncResult, CoreError>> + Send;
