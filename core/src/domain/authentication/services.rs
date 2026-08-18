@@ -4056,6 +4056,14 @@ where
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
+        if !user.enabled {
+            warn!(
+                user_id = %user.id,
+                "Refusing to mint tokens: the account is disabled"
+            );
+            return Err(CoreError::Forbidden("account is disabled".to_string()));
+        }
+
         let pending_step = self.resolve_pending_auth_step(user.id, realm.id).await?;
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
@@ -4071,19 +4079,51 @@ where
             .create_user_session(user.id, realm.id, lifetimes.refresh_token)
             .await?;
 
-        let (azp, scope) = match input.client_id {
-            Some(client_uuid) => {
-                let client = self
-                    .client_repository
-                    .get_by_id(realm.id, client_uuid)
-                    .await?;
-                let scope = self
-                    .resolve_scopes_for_client(client_uuid, input.scope.clone())
-                    .await?;
-                (client.client_id, Some(scope))
-            }
-            None => ("".to_string(), None),
-        };
+        if let Some(client_uuid) = input.client_id {
+            let client = self
+                .client_repository
+                .get_by_id(realm.id, client_uuid)
+                .await?;
+            let scope = self
+                .resolve_scopes_for_client(client_uuid, input.scope.clone())
+                .await?;
+
+            let (jwt, refresh_token, id_token) = self
+                .create_jwt(GenerateTokenInput {
+                    base_url: input.base_url.clone(),
+                    realm_name: realm.name.clone(),
+                    user_id: user.id,
+                    username: user.username.clone(),
+                    firstname: user.firstname.clone().unwrap_or_default(),
+                    lastname: user.lastname.clone().unwrap_or_default(),
+                    email_verified: user.email_verified,
+                    client_id: client.client_id,
+                    client_uuid,
+                    email: user.email.clone().unwrap_or_default(),
+                    realm_id: realm.id,
+                    scope: Some(scope),
+                    access_token_lifetime: lifetimes.access_token,
+                    refresh_token_lifetime: lifetimes.refresh_token,
+                    id_token_lifetime: lifetimes.id_token,
+                    nonce: None,
+                    refresh_jti_override: None,
+                    session_id: Some(user_session.id),
+                })
+                .await?;
+
+            return Ok(JwtToken::new(
+                jwt.token,
+                "Bearer".to_string(),
+                refresh_token.token,
+                lifetimes.access_token as u32,
+                lifetimes.refresh_token as u32,
+                None,
+                id_token.map(|token| token.token),
+            ));
+        }
+
+        let azp = String::new();
+        let scope = None;
 
         let iss = format!("{}/realms/{}", input.base_url, realm.name);
         let mut claims = JwtClaim::new(
