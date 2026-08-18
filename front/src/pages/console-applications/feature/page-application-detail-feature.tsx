@@ -161,7 +161,7 @@ export default function PageApplicationDetailFeature() {
           />
         )
       case 'credentials':
-        return <CredentialsTab client={client} />
+        return <CredentialsTab client={client} realm={realm} />
       case 'api-access':
         return <ApiAccessTab realm={realm} clientId={client.id} />
       case 'maintenance':

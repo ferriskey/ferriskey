@@ -338,9 +338,7 @@ fn validate_authorization_code_request(
 
     // Confidential clients must authenticate. Skipping this let anyone redeem a
     // code without ever proving they are the client it belongs to.
-    if !client.public_client
-        && !client_secret_matches(client.secret.as_deref(), request_client_secret)
-    {
+    if !client.public_client && !client_secret_matches(client.secret_str(), request_client_secret) {
         warn!(
             client_id = %client.client_id,
             "authorization_code: client secret mismatch for confidential client"
@@ -2046,7 +2044,7 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if !Self::verify_client_secret(client.secret.as_deref(), params.client_secret.as_deref()) {
+        if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
         }
 
@@ -2135,17 +2133,14 @@ where
             }
 
             // Confidential clients are still allowed when authenticating with a valid secret.
-            if !Self::verify_client_secret(
-                client.secret.as_deref(),
-                params.client_secret.as_deref(),
-            ) {
+            if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
                 return Err(CoreError::InvalidClientSecret);
             }
         } else if !client.public_client {
             // When direct access grants are enabled, confidential clients may call
             // password flow without a secret; if one is provided, it must be valid.
             if let Some(provided_secret) = &params.client_secret
-                && !Self::verify_client_secret(client.secret.as_deref(), Some(provided_secret))
+                && !Self::verify_client_secret(client.secret_str(), Some(provided_secret))
             {
                 return Err(CoreError::InvalidClientSecret);
             }
@@ -3824,7 +3819,7 @@ where
             return Err(CoreError::InvalidClient);
         }
 
-        if !Self::verify_client_secret(client.secret.as_deref(), Some(&input.client_secret)) {
+        if !Self::verify_client_secret(client.secret_str(), Some(&input.client_secret)) {
             return Err(CoreError::InvalidClientSecret);
         }
 
@@ -4550,7 +4545,7 @@ mod tests {
             id,
             enabled: true,
             client_id: "app".to_string(),
-            secret: Some("s3cr3t".to_string()),
+            secret: Some(maskass::Masked::new("s3cr3t".to_string())),
             realm_id,
             protocol: "openid-connect".to_string(),
             public_client: false,

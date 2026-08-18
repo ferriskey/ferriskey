@@ -161,6 +161,7 @@ export namespace Schemas {
   };
   export type ClientScopeMapping = { client_id: string; default_scope_type: ScopeType; scope_id: string };
   export type ClientScopesResponse = { data: Array<ClientScope> };
+  export type ClientSecretResponse = { client_secret?: (string | null) | undefined };
   export type ClientsResponse = { data: Array<Client> };
   export type CodeChallengeMethod = "S256" | "PLAIN";
   export type FlowId = string;
@@ -226,6 +227,7 @@ export namespace Schemas {
     public_client?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
   };
+  export type CreatedClientResponse = Client & Partial<{ client_secret: string | null }>;
   export type EmailType = "reset_password" | "magic_link" | "email_verification";
   export type EmailTemplate = {
     created_at: string;
@@ -1356,7 +1358,7 @@ export namespace Endpoints {
       body: Schemas.CreateClientValidator;
     };
     responses: {
-      201: Schemas.Client;
+      201: Schemas.CreatedClientResponse;
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
@@ -1457,6 +1459,19 @@ export namespace Endpoints {
     responses: {
       200: Array<Schemas.ClientScope>;
       401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_client_secret = {
+    method: "GET";
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Schemas.ClientSecretResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
     };
@@ -3759,6 +3774,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/settings/maintenance/whitelist": Endpoints.get_Get_realm_whitelist;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.get_Get_client;
     "/realms/{realm_name}/clients/{client_id}/client-scopes": Endpoints.get_Get_client_client_scopes;
+    "/realms/{realm_name}/clients/{client_id}/client-secret": Endpoints.get_Get_client_secret;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.get_Get_client_whitelist;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.get_Get_post_logout_redirect_uris;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.get_Get_redirect_uris;

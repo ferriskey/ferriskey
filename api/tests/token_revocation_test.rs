@@ -307,7 +307,7 @@ mod tests {
             created.text()
         );
 
-        let secret = created.json::<Value>()["secret"]
+        let secret = created.json::<Value>()["client_secret"]
             .as_str()
             .expect("a confidential client must be given a secret")
             .to_string();

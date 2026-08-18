@@ -1948,6 +1948,7 @@ name = "ferriskey-domain"
 version = "0.7.0"
 dependencies = [
  "chrono",
+ "maskass",
  "mockall 0.14.0",
  "rand 0.8.5",
  "regex",

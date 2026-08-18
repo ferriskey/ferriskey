@@ -647,7 +647,7 @@ impl ApplicationService {
             .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         if !client.public_client
-            && !client_secret_matches(client.secret.as_deref(), input.client_secret.as_deref())
+            && !client_secret_matches(client.secret_str(), input.client_secret.as_deref())
         {
             return Err(DeviceFlowError::InvalidClient);
         }
@@ -704,7 +704,7 @@ impl ApplicationService {
             .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         if !client.public_client
-            && !client_secret_matches(client.secret.as_deref(), input.client_secret.as_deref())
+            && !client_secret_matches(client.secret_str(), input.client_secret.as_deref())
         {
             return Err(DeviceFlowError::InvalidClient);
         }

@@ -169,7 +169,7 @@ mod tests {
 
         assert_eq!(response.status_code(), 201, "client creation failed");
         let body: Value = response.json();
-        let secret = body["secret"]
+        let secret = body["client_secret"]
             .as_str()
             .expect("confidential client has a secret")
             .to_string();

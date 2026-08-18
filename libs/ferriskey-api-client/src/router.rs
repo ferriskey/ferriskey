@@ -19,6 +19,7 @@ use super::handlers::{
     evaluate_scopes::{__path_evaluate_scopes, evaluate_scopes},
     get_client::{__path_get_client, get_client},
     get_client_roles::{__path_get_client_roles, get_client_roles},
+    get_client_secret::{__path_get_client_secret, get_client_secret},
     get_clients::{__path_get_clients, get_clients},
     get_post_logout_redirect_uris::{
         __path_get_post_logout_redirect_uris, get_post_logout_redirect_uris,
@@ -37,6 +38,7 @@ use ferriskey_api_core::auth::auth;
 #[openapi(
     paths(
         get_client,
+        get_client_secret,
         get_clients,
         create_client,
         delete_client,
@@ -75,6 +77,13 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_client),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/client-secret",
+                state.args.server.root_path
+            ),
+            get(get_client_secret),
         )
         .route(
             &format!(

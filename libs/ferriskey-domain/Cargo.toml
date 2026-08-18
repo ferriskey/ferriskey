@@ -5,6 +5,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+maskass = { path = "../maskass" }
 chrono = { version = "0.4.43", features = ["serde"] }
 rand = "0.8"
 regex = "1.11.2"

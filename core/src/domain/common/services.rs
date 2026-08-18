@@ -685,7 +685,7 @@ pub mod tests {
         let client = Client {
             id: Uuid::new_v4(),
             client_id: "test-client".to_string(),
-            secret: Some("secret".to_string()),
+            secret: Some(maskass::Masked::new("secret".to_string())),
             name: "Test Client".to_string(),
             realm_id,
             enabled: true,

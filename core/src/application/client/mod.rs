@@ -91,6 +91,16 @@ impl ClientService for ApplicationService {
         self.client_service.get_client_by_id(identity, input).await
     }
 
+    async fn reveal_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<Option<String>, CoreError> {
+        self.client_service
+            .reveal_client_secret(identity, input)
+            .await
+    }
+
     async fn get_client_roles(
         &self,
         identity: Identity,
