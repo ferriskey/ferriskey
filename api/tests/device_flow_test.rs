@@ -65,6 +65,7 @@ mod tests {
         realm_name: String,
         /// Pool in the isolated test schema (for direct SQL in the expiry test).
         pool: sqlx::PgPool,
+        service: ferriskey_core::application::services::ApplicationService,
     }
 
     /// Single long-lived multi-threaded runtime shared by all tests.
@@ -168,13 +169,14 @@ mod tests {
             .expect("initialize application");
 
         let args = Arc::new(Args::default());
-        let state = AppState::new(args, service);
+        let state = AppState::new(args, service.clone());
         let app = router(state).expect("build router");
 
         SharedContext {
             app: std::sync::Mutex::new(app),
             realm_name,
             pool,
+            service,
         }
     }
 
@@ -565,6 +567,51 @@ mod tests {
             assert_eq!(
                 body["error"], "authorization_pending",
                 "the refused approval must not have advanced the session: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_purge_removes_expired_sessions_and_spares_the_others() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let live = initiate(&server, &client_id, Some("openid")).await;
+            let live_code = live["device_code"].as_str().expect("device_code").to_string();
+
+            let stale = initiate(&server, &client_id, Some("openid")).await;
+            let stale_code = stale["device_code"].as_str().expect("device_code").to_string();
+
+            sqlx::query(
+                "UPDATE device_auth_sessions SET expires_at = now() - interval '1 hour'                  WHERE device_code = $1::uuid",
+            )
+            .bind(&stale_code)
+            .execute(&shared_ctx().pool)
+            .await
+            .expect("backdate the stale session");
+
+            let removed = shared_ctx()
+                .service
+                .purge_expired_device_sessions()
+                .await
+                .expect("purge should succeed");
+            assert!(removed >= 1, "the expired session must be removed");
+
+            let resp = poll(&server, &client_id, &stale_code).await;
+            let body: Value = resp.json();
+            assert_eq!(
+                body["error"], "invalid_grant",
+                "a purged session must be unknown, not merely expired: {body:?}"
+            );
+
+            let resp = poll(&server, &client_id, &live_code).await;
+            let body: Value = resp.json();
+            assert_eq!(
+                body["error"], "authorization_pending",
+                "a live session must survive the purge: {body:?}"
             );
         });
     }

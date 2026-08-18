@@ -156,6 +156,10 @@ where
         })
     }
 
+    async fn purge_expired_sessions(&self) -> Result<u64, DeviceFlowError> {
+        Ok(self.device_auth_repository.purge_expired().await?)
+    }
+
     async fn preview_user_code(
         &self,
         user_code: String,
@@ -338,6 +342,27 @@ where
                     .await?;
 
                 Err(DeviceFlowError::AuthorizationPending)
+            }
+        }
+    }
+}
+
+pub async fn purge_expired_device_sessions_task<S>(service: S, period: std::time::Duration)
+where
+    S: DeviceFlowService,
+{
+    let mut ticker = tokio::time::interval(period);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    loop {
+        ticker.tick().await;
+        match service.purge_expired_sessions().await {
+            Ok(0) => {}
+            Ok(removed) => {
+                tracing::info!(removed, "Purged expired device authorization sessions")
+            }
+            Err(error) => {
+                warn!(error = ?error, "Failed to purge expired device authorization sessions")
             }
         }
     }
