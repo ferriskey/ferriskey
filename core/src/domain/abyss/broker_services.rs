@@ -30,6 +30,17 @@ use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
 use crate::domain::user::value_objects::CreateUserRequest;
 
+const ID_TOKEN_ALGORITHMS: &[jsonwebtoken::Algorithm] = &[
+    jsonwebtoken::Algorithm::RS256,
+    jsonwebtoken::Algorithm::RS384,
+    jsonwebtoken::Algorithm::RS512,
+    jsonwebtoken::Algorithm::PS256,
+    jsonwebtoken::Algorithm::PS384,
+    jsonwebtoken::Algorithm::PS512,
+    jsonwebtoken::Algorithm::ES256,
+    jsonwebtoken::Algorithm::ES384,
+];
+
 /// Implementation of the BrokerService trait
 #[derive(Clone, Debug)]
 pub struct BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC>
@@ -333,6 +344,14 @@ where
             CoreError::InvalidIdToken
         })?;
 
+        if !ID_TOKEN_ALGORITHMS.contains(&header.alg) {
+            warn!(
+                "id_token declares algorithm {:?}, which is not accepted",
+                header.alg
+            );
+            return Err(CoreError::InvalidIdToken);
+        }
+
         let jwk = match header.kid.as_deref() {
             Some(kid) => jwk_set.find(kid),
             None => jwk_set.keys.first(),
@@ -341,6 +360,13 @@ where
             warn!("no JWKS key matches the id_token header");
             CoreError::InvalidIdToken
         })?;
+
+        if let Some(key_alg) = jwk.common.key_algorithm
+            && key_alg.to_string() != format!("{:?}", header.alg)
+        {
+            warn!("id_token algorithm does not match the JWKS key it selected");
+            return Err(CoreError::InvalidIdToken);
+        }
 
         let key = jsonwebtoken::DecodingKey::from_jwk(jwk).map_err(|e| {
             warn!("JWKS key is unusable: {e}");
@@ -440,13 +466,21 @@ where
             return Err(CoreError::ProviderDisabled);
         }
 
-        if client.require_pkce {
-            let has_s256 = input.code_challenge.is_some()
-                && input.code_challenge_method.as_deref() == Some("S256");
+        let challenge_method = input
+            .code_challenge_method
+            .as_deref()
+            .map(|method| {
+                method
+                    .parse::<CodeChallengeMethod>()
+                    .map_err(|_| CoreError::InvalidRequest)
+            })
+            .transpose()?;
 
-            if !has_s256 {
-                return Err(CoreError::PkceRequired);
-            }
+        if client.require_pkce
+            && !(input.code_challenge.is_some()
+                && challenge_method == Some(CodeChallengeMethod::S256))
+        {
+            return Err(CoreError::PkceRequired);
         }
 
         // 4. Parse OAuth config from idp.config
@@ -711,6 +745,17 @@ where
                 .update_compass_flow_id(auth_session_id, flow_id.0)
                 .await?;
         } else {
+            let challenge_method = broker_session
+                .code_challenge_method
+                .as_deref()
+                .map(|method| {
+                    method.parse::<CodeChallengeMethod>().map_err(|_| {
+                        warn!("broker session carries an unusable code_challenge_method");
+                        CoreError::InvalidRequest
+                    })
+                })
+                .transpose()?;
+
             let auth_session = AuthSession::new(AuthSessionParams {
                 realm_id: realm.id,
                 client_id: broker_session.client_id,
@@ -726,10 +771,7 @@ where
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: Some(flow_id.0),
                 code_challenge: broker_session.code_challenge.clone(),
-                code_challenge_method: broker_session
-                    .code_challenge_method
-                    .as_deref()
-                    .and_then(|method| method.parse::<CodeChallengeMethod>().ok()),
+                code_challenge_method: challenge_method,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }

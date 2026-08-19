@@ -189,14 +189,20 @@ mod tests {
             nonce: Some("nonce123".to_string()),
             broker_state: "random-broker-state".to_string(),
             code_verifier: Some("pkce-verifier".to_string()),
-            code_challenge: None,
-            code_challenge_method: None,
+            code_challenge: Some("inbound-challenge".to_string()),
+            code_challenge_method: Some("S256".to_string()),
             auth_session_id: None,
         };
 
         let session = BrokerAuthSession::new(params);
 
         assert_eq!(session.response_type, "code");
+        assert_eq!(
+            session.code_challenge.as_deref(),
+            Some("inbound-challenge"),
+            "the inbound PKCE challenge must survive the broker round trip"
+        );
+        assert_eq!(session.code_challenge_method.as_deref(), Some("S256"));
         assert!(!session.is_expired());
     }
 
