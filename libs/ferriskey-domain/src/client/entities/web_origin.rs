@@ -150,10 +150,6 @@ pub enum WebOriginValue {
     Explicit(Origin),
 }
 
-/// Hand-written because the `serde` attributes above flatten this enum to a
-/// plain string on the wire, and a derived schema would keep documenting the
-/// externally-tagged shape. A generated client built from that schema would send
-/// `{"Explicit": "…"}` and be rejected.
 impl PartialSchema for WebOriginValue {
     fn schema() -> RefOr<Schema> {
         String::schema()
