@@ -8,6 +8,7 @@ pub use super::client_scope_attributes::Entity as ClientScopeAttributes;
 pub use super::client_scope_mappings::Entity as ClientScopeMappings;
 pub use super::client_scope_protocol_mappers::Entity as ClientScopeProtocolMappers;
 pub use super::client_scopes::Entity as ClientScopes;
+pub use super::client_web_origins::Entity as ClientWebOrigins;
 pub use super::clients::Entity as Clients;
 pub use super::compass_flow_steps::Entity as CompassFlowSteps;
 pub use super::compass_flows::Entity as CompassFlows;

@@ -87,6 +87,7 @@ use crate::{
             client_postgres_repository::PostgresClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
+            web_origin_postgres_repository::PostgresWebOriginRepository,
         },
         compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
         email::SmtpEmailPort,
@@ -155,6 +156,7 @@ type CredentialRepo = PostgresCredentialRepository;
 type WebhookRepo = PostgresWebhookRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
 type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
+type WebOriginRepo = PostgresWebOriginRepository;
 type RoleRepo = PostgresRoleRepository;
 type HealthCheckRepo = PostgresHealthCheckRepository;
 type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>;
@@ -338,6 +340,7 @@ pub struct ApplicationService {
         WebhookRepo,
         RedirectUriRepo,
         PostLogoutRedirectUriRepo,
+        WebOriginRepo,
         RoleRepo,
         SecurityEventRepo,
         ClientScopeRepo,

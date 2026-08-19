@@ -46,6 +46,10 @@ pub enum WebhookTrigger {
     RedirectUriUpdated,
     #[serde(rename = "redirect_uri.deleted")]
     RedirectUriDeleted,
+    #[serde(rename = "web_origin.created")]
+    WebOriginCreated,
+    #[serde(rename = "web_origin.deleted")]
+    WebOriginDeleted,
     #[serde(rename = "role.created")]
     RoleCreated,
     #[serde(rename = "role.updated")]
@@ -97,6 +101,8 @@ impl Display for WebhookTrigger {
             WebhookTrigger::RedirectUriCreated => write!(f, "redirect_uri.created"),
             WebhookTrigger::RedirectUriUpdated => write!(f, "redirect_uri.updated"),
             WebhookTrigger::RedirectUriDeleted => write!(f, "redirect_uri.deleted"),
+            WebhookTrigger::WebOriginCreated => write!(f, "web_origin.created"),
+            WebhookTrigger::WebOriginDeleted => write!(f, "web_origin.deleted"),
             WebhookTrigger::RoleCreated => write!(f, "role.created"),
             WebhookTrigger::RoleUpdated => write!(f, "role.updated"),
             WebhookTrigger::RolePermissionUpdated => write!(f, "role.permission.updated"),
@@ -143,6 +149,8 @@ impl TryFrom<String> for WebhookTrigger {
             "redirect_uri.created" => Ok(WebhookTrigger::RedirectUriCreated),
             "redirect_uri.updated" => Ok(WebhookTrigger::RedirectUriUpdated),
             "redirect_uri.deleted" => Ok(WebhookTrigger::RedirectUriDeleted),
+            "web_origin.created" => Ok(WebhookTrigger::WebOriginCreated),
+            "web_origin.deleted" => Ok(WebhookTrigger::WebOriginDeleted),
             "role.created" => Ok(WebhookTrigger::RoleCreated),
             "role.updated" => Ok(WebhookTrigger::RoleUpdated),
             "role.permission.updated" => Ok(WebhookTrigger::RolePermissionUpdated),

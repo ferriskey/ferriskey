@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::client::entities::ClientType;
-use crate::client::value_objects::UpdateClientRequest;
+use crate::client::value_objects::{CreateWebOriginRequest, UpdateClientRequest};
 
 pub struct CreateClientInput {
     pub realm_name: String,
@@ -95,4 +95,21 @@ pub struct UpdatePostLogoutRedirectUriInput {
     pub client_id: Uuid,
     pub redirect_uri_id: Uuid,
     pub enabled: bool,
+}
+
+pub struct CreateWebOriginInput {
+    pub client_id: Uuid,
+    pub realm_name: String,
+    pub payload: CreateWebOriginRequest,
+}
+
+pub struct GetWebOriginsInput {
+    pub client_id: Uuid,
+    pub realm_name: String,
+}
+
+pub struct DeleteWebOriginInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub web_origin_id: Uuid,
 }

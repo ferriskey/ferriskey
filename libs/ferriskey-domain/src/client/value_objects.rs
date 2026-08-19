@@ -65,3 +65,8 @@ pub struct CreateRedirectUriRequest {
     pub value: String,
     pub enabled: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateWebOriginRequest {
+    pub value: String,
+}

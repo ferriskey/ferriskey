@@ -5,11 +5,12 @@ use crate::{
         client::{
             entities::{
                 Client, CreateClientInput, CreatePostLogoutRedirectUriInput,
-                CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
-                DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, GetClientInput,
-                GetClientRolesInput, GetClientsInput, GetPostLogoutRedirectUrisInput,
-                GetRedirectUrisInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
-                UpdateRedirectUriInput, redirect_uri::RedirectUri,
+                CreateRedirectUriInput, CreateRoleInput, CreateWebOriginInput, DeleteClientInput,
+                DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, DeleteWebOriginInput,
+                GetClientInput, GetClientRolesInput, GetClientsInput,
+                GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetWebOriginsInput,
+                UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+                redirect_uri::RedirectUri, web_origin::WebOrigin,
             },
             ports::ClientService,
         },
@@ -35,6 +36,30 @@ impl ClientService for ApplicationService {
         self.client_service
             .create_redirect_uri(identity, input)
             .await
+    }
+
+    async fn create_web_origin(
+        &self,
+        identity: Identity,
+        input: CreateWebOriginInput,
+    ) -> Result<WebOrigin, CoreError> {
+        self.client_service.create_web_origin(identity, input).await
+    }
+
+    async fn get_web_origins(
+        &self,
+        identity: Identity,
+        input: GetWebOriginsInput,
+    ) -> Result<Vec<WebOrigin>, CoreError> {
+        self.client_service.get_web_origins(identity, input).await
+    }
+
+    async fn delete_web_origin(
+        &self,
+        identity: Identity,
+        input: DeleteWebOriginInput,
+    ) -> Result<(), CoreError> {
+        self.client_service.delete_web_origin(identity, input).await
     }
 
     async fn create_post_logout_redirect_uri(
