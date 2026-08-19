@@ -462,14 +462,9 @@ export function usePortalPageSubmit(
       }
       // The server reads back the enrollment it issued, so the client submits only
       // the current OTP code here.
-      if (!totpSetupToken) {
-        toast.error('TOTP setup context is missing. Please restart the flow.')
-        return
-      }
       verifyOtp(
         {
           data: { code },
-          token: totpSetupToken,
           realm: realm_name,
         },
         {
@@ -478,7 +473,7 @@ export function usePortalPageSubmit(
         },
       )
     },
-    [realm_name, totpSetupToken, verifyOtp],
+    [realm_name, verifyOtp],
   )
 
   // All hooks above run unconditionally so the order stays stable across
