@@ -2125,9 +2125,16 @@ version = "0.7.0"
 dependencies = [
  "chrono",
  "ferriskey-domain",
+ "hex",
+ "hmac",
  "mockall 0.14.0",
+ "rand 0.8.5",
  "serde",
+ "serde_json",
+ "sha2",
  "thiserror 2.0.18",
+ "tokio",
+ "url",
  "utoipa",
  "uuid",
 ]
