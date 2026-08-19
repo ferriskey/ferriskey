@@ -7,10 +7,9 @@ import { Switch } from '@/components/ui/switch'
 import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientSchema } from '../schemas/update-client.schema'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { DangerZone } from '@/components/danger-zone'
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 export interface PageClientSettingsProps {
   client: Client
   form: UseFormReturn<UpdateClientSchema>

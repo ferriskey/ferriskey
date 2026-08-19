@@ -7,4 +7,5 @@ ALTER TABLE credentials
     ADD COLUMN recovery_code_lookup TEXT;
 
 CREATE INDEX idx_credentials_recovery_code_lookup
-    ON credentials (user_id, recovery_code_lookup);
+    ON credentials (user_id, recovery_code_lookup)
+    WHERE recovery_code_lookup IS NOT NULL;

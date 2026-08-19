@@ -1,11 +1,10 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useGetClientSecret } from '@/api/client.api'
 import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
 import { useState } from 'react'
 import { CopyRow, Field, Section } from './primitives'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 export default function CredentialsTab({ client, realm }: { client: Client; realm: string }) {
   const isConfidential = client.client_type === 'confidential'
 

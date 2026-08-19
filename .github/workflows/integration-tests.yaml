@@ -58,6 +58,9 @@ jobs:
           restore-keys: |
             it-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
 
+      - name: run workspace library tests
+        run: cargo test --workspace --lib
+
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
 

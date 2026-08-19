@@ -1,6 +1,6 @@
 import { Fragment } from 'react/jsx-runtime'
 import { useState, useMemo } from 'react'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
@@ -9,8 +9,7 @@ import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { AlertTriangle } from 'lucide-react'
 import { isServiceAccount } from '@/utils'
 
-import User = Schemas.User
-
+type User = Schemas.User
 interface Statistics {
   totalUsers: number
   enabledUsers: number

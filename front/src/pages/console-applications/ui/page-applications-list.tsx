@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApplicationType } from '@/routes/sub-router/applications.router'
 import { Boxes, ChevronDown, Plus, Search, ShieldOff } from 'lucide-react'
@@ -10,8 +10,7 @@ import {
   inferApplicationType,
 } from '../types'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 interface Props {
   applications: Client[]
   isLoading: boolean

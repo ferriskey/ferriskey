@@ -1,5 +1,5 @@
 import { Realm } from './core.interface'
-import { Schemas } from './api.client'
+import type { Schemas } from './api.client'
 
 export const mapRealms = (realm: Schemas.Realm[]): Realm[] => {
   return realm.map((item) => ({

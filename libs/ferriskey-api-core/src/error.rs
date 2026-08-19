@@ -113,7 +113,7 @@ impl From<CoreError> for ApiError {
                     }
             CoreError::InvalidOtpCode => Self::BadRequest("Invalid OTP code".into()),
             CoreError::PendingTotpSecretMissing => {
-                Self::BadRequest("No pending TOTP secret for this user".into())
+                Self::BadRequest("No pending OTP enrollment for this user".into())
             }
             CoreError::StepUpTokenInvalid => {
                 Self::Unauthorized("Step-up re-authentication token is invalid or expired".into())

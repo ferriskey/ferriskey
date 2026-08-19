@@ -44,27 +44,43 @@ impl StepUpTokenRepository for PostgresStepUpTokenRepository {
         Ok(())
     }
 
-    async fn take(&self, user_id: Uuid) -> Result<Option<String>, CoreError> {
+    async fn find_active(&self, user_id: Uuid) -> Result<Vec<StepUpTokenRecord>, CoreError> {
         let now = Utc::now().fixed_offset();
 
-        // Atomically delete and return one unexpired token. A single
-        // DELETE ... RETURNING guarantees an expired token is never consumed
-        // and a concurrent request can never reuse the same row.
-        let models = SutEntity::delete_many()
+        let models = SutEntity::find()
             .filter(SutColumn::UserId.eq(user_id))
             .filter(SutColumn::ExpiresAt.gt(now))
-            .exec_with_returning(&self.db)
+            .all(&self.db)
             .await
             .map_err(|e| {
-                error!("Failed to consume step-up token: {e}");
+                error!("Failed to load active step-up tokens: {e}");
                 CoreError::InternalServerError
             })?;
 
-        let Some(model) = models.into_iter().next() else {
-            return Ok(None);
-        };
+        Ok(models
+            .into_iter()
+            .map(|model| StepUpTokenRecord {
+                id: model.id,
+                user_id: model.user_id,
+                token_hash: model.token_hash,
+                expires_at: model.expires_at.into(),
+            })
+            .collect())
+    }
 
-        Ok(Some(model.token_hash))
+    async fn delete_by_id(&self, token_id: Uuid) -> Result<bool, CoreError> {
+        let now = Utc::now().fixed_offset();
+        let result = SutEntity::delete_many()
+            .filter(SutColumn::Id.eq(token_id))
+            .filter(SutColumn::ExpiresAt.gt(now))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to delete step-up token: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(result.rows_affected > 0)
     }
 
     async fn cleanup_expired(&self) -> Result<u64, CoreError> {

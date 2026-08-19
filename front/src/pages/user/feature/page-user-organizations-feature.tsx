@@ -3,9 +3,8 @@ import { useGetOrganizations, useGetUserOrganizations, useRemoveUserFromOrganiza
 import { UserRouterParams } from '@/routes/sub-router/user.router'
 import PageUserOrganizations from '../ui/page-user-organizations'
 import { useMemo } from 'react'
-import { Schemas } from '@/api/api.client'
-import Organization = Schemas.Organization
-
+import type { Schemas } from '@/api/api.client'
+type Organization = Schemas.Organization
 export default function PageUserOrganizationsFeature() {
   const { realm_name, user_id } = useParams<UserRouterParams>()
 

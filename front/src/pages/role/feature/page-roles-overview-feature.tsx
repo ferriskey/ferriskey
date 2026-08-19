@@ -3,13 +3,12 @@ import { useNavigate, useParams } from 'react-router'
 import { useDeleteRole, useGetRoles } from '../../../api/role.api'
 import PageRolesOverview from '../ui/page-roles-overview'
 import { ROLE_SETTINGS_URL, ROLE_URL } from '@/routes/sub-router/role.router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useMemo, useState } from 'react'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 
-import Role = Schemas.Role
-
+type Role = Schemas.Role
 export default function PageRolesOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()

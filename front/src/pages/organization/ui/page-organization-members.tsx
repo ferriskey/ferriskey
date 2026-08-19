@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { AlertTriangle, Shield, Trash2 } from 'lucide-react'
 
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { OverviewList } from '@/components/ui/overview-list'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { Button } from '@/components/ui/button'
@@ -9,8 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { isServiceAccount } from '@/utils'
 import ManageMemberRolesModalFeature from '../feature/modals/manage-member-roles-modal-feature'
 
-import User = Schemas.User
-
+type User = Schemas.User
 interface PageOrganizationMembersProps {
   realm?: string
   organizationId?: string

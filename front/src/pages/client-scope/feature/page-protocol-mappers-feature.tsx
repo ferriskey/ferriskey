@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useDeleteProtocolMapper, useGetClientScope } from '@/api/client-scope.api'
 import { RouterParams } from '@/routes/router'
 import { useMemo, useState } from 'react'
@@ -10,8 +10,7 @@ import {
   CLIENT_SCOPE_URL,
 } from '@/routes/sub-router/client-scope.router'
 
-import ProtocolMapper = Schemas.ProtocolMapper
-
+type ProtocolMapper = Schemas.ProtocolMapper
 interface ConfirmState {
   title: string
   description: string

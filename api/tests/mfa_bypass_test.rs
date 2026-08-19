@@ -470,15 +470,14 @@ mod tests {
 
             // The step token is exactly what `auth_login_actions` accepts, so this is
             // the enrolment endpoint an attacker holding only the password can reach.
-            // No `setup_otp` was called, so there is no enrolment to claim — and the
-            // request body no longer carries a secret to fall back on.
+            // No `setup_otp` was called, so there is no enrolment to claim.
             let enrol = server
                 .post(&format!("/realms/{}/login-actions/verify-otp", realm()))
                 .add_header(
                     "Cookie",
                     HeaderValue::from_str(&format!("FERRISKEY_LOGIN_ACTION={step_token}")).unwrap(),
                 )
-                .json(&json!({ "code": "000000", "label": "attacker-device" }))
+                .json(&json!({ "code": "000000" }))
                 .await;
 
             assert_ne!(

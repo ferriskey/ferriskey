@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +16,7 @@ import { useMemo, useState } from 'react'
 import { inferApplicationType } from '../../types'
 import { Field, Section } from './primitives'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 export interface ApplicationSettingsValues {
   name: string
   enabled: boolean

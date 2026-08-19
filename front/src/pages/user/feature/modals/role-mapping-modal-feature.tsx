@@ -9,9 +9,8 @@ import { assignRoleSchema, AssignRoleSchema } from '../../schemas/assign-role.sc
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { toast } from 'sonner'
-import { Schemas } from '@/api/api.client'
-import Role = Schemas.Role
-
+import type { Schemas } from '@/api/api.client'
+type Role = Schemas.Role
 export default function RoleMappingModalFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
   const [open, setOpen] = useState(false)

@@ -32,7 +32,7 @@ pub struct VerifyOtpResponse {
     responses(
         (status = 200, description = "OTP verified successfully", body = VerifyOtpResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
-        (status = 401, description = "No pending enrollment, or the code does not match it", body = ApiErrorResponse),
+        (status = 400, description = "No pending OTP enrollment, or the code does not match it", body = ApiErrorResponse),
         (status = 403, description = "OTP is already configured and no re-configuration was requested", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
