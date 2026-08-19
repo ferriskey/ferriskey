@@ -453,10 +453,6 @@ where
             .find(|(link, _)| link.id == input.link_id)
             .ok_or(CoreError::NotFound)?;
 
-        self.identity_provider_link_repository
-            .delete(link.id)
-            .await?;
-
         self.security_event_repository
             .store_event(
                 SecurityEvent::new(
@@ -471,6 +467,10 @@ where
                     "identity_provider_id": link.identity_provider_id.as_uuid(),
                 })),
             )
+            .await?;
+
+        self.identity_provider_link_repository
+            .delete(link.id)
             .await?;
 
         Ok(())
