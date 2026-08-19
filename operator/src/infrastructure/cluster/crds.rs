@@ -35,7 +35,10 @@ pub struct ApiSpec {
     /// URL for the API service
     pub api_url: String,
 
-    /// Allowed origins for CORS
+    /// Origins always allowed to call the API from a browser. Per-client web origins declared in
+    /// the database are added to this list, never replaced by it, so it can be left empty once a
+    /// realm declares its own.
+    #[serde(default)]
     pub allowed_origins: Vec<String>,
 }
 

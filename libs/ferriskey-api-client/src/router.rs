@@ -11,11 +11,13 @@ use super::handlers::{
     },
     create_redirect_uri::{__path_create_redirect_uri, create_redirect_uri},
     create_role::{__path_create_role, create_role},
+    create_web_origin::{__path_create_web_origin, create_web_origin},
     delete_client::{__path_delete_client, delete_client},
     delete_post_logout_redirect_uri::{
         __path_delete_post_logout_redirect_uri, delete_post_logout_redirect_uri,
     },
     delete_redirect_uri::{__path_delete_redirect_uri, delete_redirect_uri},
+    delete_web_origin::{__path_delete_web_origin, delete_web_origin},
     evaluate_scopes::{__path_evaluate_scopes, evaluate_scopes},
     get_client::{__path_get_client, get_client},
     get_client_roles::{__path_get_client_roles, get_client_roles},
@@ -25,6 +27,7 @@ use super::handlers::{
         __path_get_post_logout_redirect_uris, get_post_logout_redirect_uris,
     },
     get_redirect_uris::{__path_get_redirect_uris, get_redirect_uris},
+    get_web_origins::{__path_get_web_origins, get_web_origins},
     update_client::{__path_update_client, update_client},
     update_post_logout_redirect_uri::{
         __path_update_post_logout_redirect_uri, update_post_logout_redirect_uri,
@@ -53,7 +56,10 @@ use ferriskey_api_core::auth::auth;
         delete_redirect_uri,
         delete_post_logout_redirect_uri,
         get_client_roles,
-        evaluate_scopes
+        evaluate_scopes,
+        create_web_origin,
+        get_web_origins,
+        delete_web_origin
     ),
 
     tags(
@@ -182,6 +188,27 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(evaluate_scopes),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/web-origins",
+                state.args.server.root_path
+            ),
+            post(create_web_origin),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/web-origins",
+                state.args.server.root_path
+            ),
+            get(get_web_origins),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/web-origins/{{web_origin_id}}",
+                state.args.server.root_path
+            ),
+            delete(delete_web_origin),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

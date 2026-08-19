@@ -179,6 +179,8 @@ ADMIN_EMAIL=admin@ferriskey.rs
 ALLOWED_ORIGINS=http://localhost:5555
 ```
 
+`ALLOWED_ORIGINS` is the bootstrap escape hatch for browser access: origins listed there are accepted on every route. Beyond it, each client declares its own web origins at runtime, and those are enforced per realm — see the `web-origins` endpoints under a client.
+
 By default, the API will listen on port 3333 and the frontend on port 5555.
 
 ## 🗄️ Database Migrations

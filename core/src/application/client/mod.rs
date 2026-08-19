@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     application::services::ApplicationService,
     domain::{
@@ -10,9 +12,10 @@ use crate::{
                 GetClientInput, GetClientRolesInput, GetClientsInput,
                 GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetWebOriginsInput,
                 UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
-                redirect_uri::RedirectUri, web_origin::WebOrigin,
+                redirect_uri::RedirectUri,
+                web_origin::{Origin, WebOrigin},
             },
-            ports::ClientService,
+            ports::{ClientService, WebOriginResolver},
         },
         common::entities::app_errors::CoreError,
         role::entities::Role,
@@ -186,5 +189,14 @@ impl ClientService for ApplicationService {
         self.client_service
             .update_post_logout_redirect_uri(identity, input)
             .await
+    }
+}
+
+impl WebOriginResolver for ApplicationService {
+    async fn resolve_realm_origins(
+        &self,
+        realm_name: String,
+    ) -> Result<HashSet<Origin>, CoreError> {
+        self.client_service.resolve_realm_origins(realm_name).await
     }
 }

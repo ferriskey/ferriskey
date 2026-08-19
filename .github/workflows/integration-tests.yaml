@@ -99,3 +99,6 @@ jobs:
 
       - name: run cross-realm organization isolation integration tests
         run: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored
+
+      - name: run web origin integration tests
+        run: cargo test -p ferriskey-api --test web_origin_test -- --ignored

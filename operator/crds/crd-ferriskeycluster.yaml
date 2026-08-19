@@ -40,7 +40,7 @@ spec:
               api:
                 properties:
                   allowedOrigins:
-                    description: Allowed origins for CORS
+                    description: Origins always allowed to call the API from a browser. Per-client web origins declared in the database are added to this list, never replaced by it, so it can be left empty once a realm declares its own.
                     items:
                       type: string
                     type: array
@@ -51,7 +51,6 @@ spec:
                     description: URL for the web application
                     type: string
                 required:
-                - allowedOrigins
                 - apiUrl
                 - webappUrl
                 type: object
