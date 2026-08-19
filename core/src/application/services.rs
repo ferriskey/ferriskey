@@ -391,6 +391,9 @@ pub struct ApplicationService {
         IdentityProviderRepo,
         crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>,
         RealmRepo,
+        UserRepo,
+        IdentityProviderLinkRepo,
+        SecurityEventRepo,
     >,
     pub(crate) federation_service:
         crate::domain::abyss::federation::services::FederationServiceImpl<

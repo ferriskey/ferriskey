@@ -14,9 +14,10 @@ impl BrokerService for ApplicationService {
         &self,
         config: &OAuthProviderConfig,
         token_response: &OAuthTokenResponse,
+        expected_nonce: Option<&str>,
     ) -> Result<BrokeredUserInfo, CoreError> {
         self.broker_service
-            .extract_user_info(config, token_response)
+            .extract_user_info(config, token_response, expected_nonce)
             .await
     }
 

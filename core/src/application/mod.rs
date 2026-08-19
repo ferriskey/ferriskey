@@ -449,6 +449,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             identity_provider.clone(),
             policy.clone(),
             realm.clone(),
+            user.clone(),
+            identity_provider_link.clone(),
+            security_event.clone(),
         ),
         federation_service: FederationServiceImpl::new(
             realm.clone(),
