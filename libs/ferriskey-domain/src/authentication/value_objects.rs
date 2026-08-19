@@ -203,7 +203,9 @@ pub struct EvaluateClientScopesRequest {
     pub client_id: Uuid,
     /// Realm-scoped issuer base URL, already root-path scoped by the HTTP layer.
     pub base_url: String,
-    pub user_id: Uuid,
+    /// When `Some`, resolves user-attribute mappers against the real user.
+    /// When `None`, user-attribute mappers use placeholder values.
+    pub user_id: Option<Uuid>,
     pub scope: Option<String>,
 }
 
@@ -216,7 +218,9 @@ pub struct EvaluateClientScopesInput {
     pub client_uuid: Uuid,
     /// The client's string `client_id` (e.g. `"backend"`), used as the token `azp`.
     pub client_id: String,
-    pub user_id: Uuid,
+    /// When `Some`, resolves user-attribute mappers against the real user.
+    /// When `None`, user-attribute mappers use placeholder values.
+    pub user_id: Option<Uuid>,
     /// Requested scope string (default scopes are always applied; optional scopes apply when named here).
     pub scope: Option<String>,
 }
@@ -230,6 +234,8 @@ pub struct EvaluatedScope {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct EvaluatedMapper {
+    /// Name of the client scope that contributed this mapper.
+    pub scope: String,
     pub name: String,
     pub mapper_type: String,
     pub config: serde_json::Value,
@@ -251,6 +257,63 @@ pub struct EvaluateClientScopesResult {
     pub access_token: serde_json::Value,
     pub id_token: Option<serde_json::Value>,
     pub userinfo: serde_json::Value,
+}
+
+/// A scope that applied to the previewed token, in the ticket-defined shape.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PreviewedScope {
+    pub name: String,
+    /// `Default`, `Optional` or `None`.
+    #[serde(rename = "type")]
+    pub scope_type: String,
+}
+
+/// A protocol mapper applied to the previewed token, in the ticket-defined shape.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct PreviewedMapper {
+    /// Name of the client scope that contributed this mapper.
+    pub scope: String,
+    pub mapper: String,
+    #[serde(rename = "type")]
+    pub mapper_type: String,
+}
+
+/// Token preview response, exactly as specified by the ticket: decoded (unsigned,
+/// non-persisted) token claims plus the active scopes and applied mappers.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TokenPreviewResult {
+    pub access_token_claims: serde_json::Value,
+    pub id_token_claims: Option<serde_json::Value>,
+    pub userinfo_claims: serde_json::Value,
+    pub active_scopes: Vec<PreviewedScope>,
+    pub applied_mappers: Vec<PreviewedMapper>,
+}
+
+impl From<EvaluateClientScopesResult> for TokenPreviewResult {
+    fn from(result: EvaluateClientScopesResult) -> Self {
+        Self {
+            access_token_claims: result.access_token,
+            id_token_claims: result.id_token,
+            userinfo_claims: result.userinfo,
+            active_scopes: result
+                .effective_scopes
+                .into_iter()
+                .map(|s| PreviewedScope {
+                    name: s.name,
+                    scope_type: s.default_scope_type,
+                })
+                .collect(),
+            applied_mappers: result
+                .effective_mappers
+                .into_iter()
+                .map(|m| PreviewedMapper {
+                    scope: m.scope,
+                    mapper: m.name,
+                    mapper_type: m.mapper_type,
+                })
+                .collect(),
+        }
+    }
 }
 
 pub struct IntrospectTokenInput {
@@ -318,5 +381,135 @@ impl UserInfoResponse {
             )),
             preferred_username: Some(user.username.to_string()),
         }
+    }
+}
+
+#[cfg(test)]
+mod token_preview_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn sample_result() -> EvaluateClientScopesResult {
+        EvaluateClientScopesResult {
+            effective_scopes: vec![
+                EvaluatedScope {
+                    name: "openid".to_string(),
+                    protocol: "openid-connect".to_string(),
+                    default_scope_type: "Default".to_string(),
+                },
+                EvaluatedScope {
+                    name: "custom_scope".to_string(),
+                    protocol: "openid-connect".to_string(),
+                    default_scope_type: "Optional".to_string(),
+                },
+            ],
+            effective_mappers: vec![
+                EvaluatedMapper {
+                    scope: "profile".to_string(),
+                    name: "given_name".to_string(),
+                    mapper_type: "user-attribute".to_string(),
+                    config: json!({ "attribute": "firstname" }),
+                },
+                EvaluatedMapper {
+                    scope: "custom_scope".to_string(),
+                    name: "custom_claim".to_string(),
+                    mapper_type: "hardcoded-claim".to_string(),
+                    config: json!({ "value": "custom_value" }),
+                },
+            ],
+            effective_roles: EvaluatedRoles {
+                realm_roles: vec!["admin".to_string()],
+                client_roles: std::collections::HashMap::new(),
+            },
+            access_token: json!({ "sub": "11111111-1111-1111-1111-111111111111", "scope": "openid custom_scope" }),
+            id_token: Some(json!({ "sub": "11111111-1111-1111-1111-111111111111" })),
+            userinfo: json!({ "sub": "11111111-1111-1111-1111-111111111111" }),
+        }
+    }
+
+    /// The ticket defines the preview response as exactly five fields:
+    /// access_token_claims, id_token_claims, userinfo_claims, active_scopes, applied_mappers.
+    /// The effective-roles section must NOT leak into the wire shape.
+    #[test]
+    fn conversion_produces_exactly_the_ticket_shape() {
+        let preview: TokenPreviewResult = sample_result().into();
+
+        let serialized = serde_json::to_value(&preview).expect("serialize preview");
+        let obj = serialized.as_object().expect("preview is an object");
+
+        let mut keys: Vec<&String> = obj.keys().collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            vec![
+                "access_token_claims",
+                "active_scopes",
+                "applied_mappers",
+                "id_token_claims",
+                "userinfo_claims",
+            ],
+            "response must contain exactly the five ticket fields (no effective_roles)"
+        );
+    }
+
+    /// active_scopes items are `{ name, type }` — the scope's default_scope_type is
+    /// surfaced under the `type` key and the `protocol` field is dropped.
+    #[test]
+    fn active_scopes_map_to_name_and_type() {
+        let preview: TokenPreviewResult = sample_result().into();
+
+        let serialized = serde_json::to_value(&preview).expect("serialize preview");
+        let scopes = serialized["active_scopes"]
+            .as_array()
+            .expect("active_scopes array");
+
+        assert_eq!(scopes.len(), 2);
+        assert_eq!(scopes[0], json!({ "name": "openid", "type": "Default" }));
+        assert_eq!(
+            scopes[1],
+            json!({ "name": "custom_scope", "type": "Optional" })
+        );
+    }
+
+    /// applied_mappers items are `{ scope, mapper, type }` — mapper name → `mapper`,
+    /// mapper_type → `type`, and the `config` field is dropped.
+    #[test]
+    fn applied_mappers_map_to_scope_mapper_and_type() {
+        let preview: TokenPreviewResult = sample_result().into();
+
+        let serialized = serde_json::to_value(&preview).expect("serialize preview");
+        let mappers = serialized["applied_mappers"]
+            .as_array()
+            .expect("applied_mappers array");
+
+        assert_eq!(mappers.len(), 2);
+        assert_eq!(
+            mappers[0],
+            json!({ "scope": "profile", "mapper": "given_name", "type": "user-attribute" })
+        );
+        assert_eq!(
+            mappers[1],
+            json!({ "scope": "custom_scope", "mapper": "custom_claim", "type": "hardcoded-claim" })
+        );
+    }
+
+    /// The decoded claim objects are carried through unchanged.
+    #[test]
+    fn claim_objects_are_carried_through() {
+        let preview: TokenPreviewResult = sample_result().into();
+
+        let serialized = serde_json::to_value(&preview).expect("serialize preview");
+        assert_eq!(
+            serialized["access_token_claims"],
+            json!({ "sub": "11111111-1111-1111-1111-111111111111", "scope": "openid custom_scope" })
+        );
+        assert_eq!(
+            serialized["id_token_claims"],
+            json!({ "sub": "11111111-1111-1111-1111-111111111111" })
+        );
+        assert_eq!(
+            serialized["userinfo_claims"],
+            json!({ "sub": "11111111-1111-1111-1111-111111111111" })
+        );
     }
 }

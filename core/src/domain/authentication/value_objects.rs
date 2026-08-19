@@ -10,8 +10,8 @@ pub use ferriskey_domain::authentication::value_objects::{
     EndSessionInput, EndSessionOutput, EvaluateClientScopesInput, EvaluateClientScopesRequest,
     EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles, EvaluatedScope,
     GenerateTokenInput, GenerateTokensForUserInput, GrantTypeParams, IntrospectTokenInput,
-    RegisterUserInput, RegisterUserOutput, RegisterUserUrlContext, RevokeTokenInput,
-    UserInfoResponse,
+    PreviewedMapper, PreviewedScope, RegisterUserInput, RegisterUserOutput, RegisterUserUrlContext,
+    RevokeTokenInput, TokenPreviewResult, UserInfoResponse,
 };
 
 pub struct GetUserInfoInput {

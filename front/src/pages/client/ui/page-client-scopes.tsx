@@ -40,7 +40,7 @@ export default function PageClientScopes() {
     <Tabs defaultValue='assigned' className='flex flex-col gap-6'>
       <TabsList>
         <TabsTrigger value='assigned'>Assigned scopes</TabsTrigger>
-        <TabsTrigger value='evaluate'>Evaluate</TabsTrigger>
+        <TabsTrigger value='evaluate'>Preview Token</TabsTrigger>
       </TabsList>
 
       <TabsContent value='assigned' className='flex flex-col gap-6'>

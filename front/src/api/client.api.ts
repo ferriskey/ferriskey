@@ -116,18 +116,19 @@ export const useGetClientRoles = ({ realm, clientId }: BaseQuery & { clientId?: 
   })
 }
 
-export interface EvaluateClientScopesParams {
+export interface PreviewTokenParams {
   realm: string
   clientId: string
-  userId: string
+  /** Optional user id. When omitted, user-attribute mappers resolve to placeholder values. */
+  userId?: string
   scope?: string
 }
 
-export const useEvaluateClientScopes = () => {
+export const usePreviewToken = () => {
   return useMutation({
-    mutationFn: async ({ realm, clientId, userId, scope }: EvaluateClientScopesParams) =>
+    mutationFn: async ({ realm, clientId, userId, scope }: PreviewTokenParams) =>
       window.tanstackApi
-        .mutation('post', '/realms/{realm_name}/clients/{client_id}/evaluate-scopes')
+        .mutation('post', '/realms/{realm_name}/clients/{client_id}/token-preview')
         .mutationOptions.mutationFn({
           path: {
             realm_name: realm,

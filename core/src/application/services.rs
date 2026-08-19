@@ -11,8 +11,11 @@ use crate::{
     application::migrate::{build_runner, context::MigrationContext},
     domain::{
         abyss::{BrokerServiceImpl, IdentityProviderServiceImpl},
-        aegis::services::{
-            ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+        aegis::{
+            ports::ClientScopePolicy,
+            services::{
+                ClientScopeServiceImpl, ProtocolMapperServiceImpl, ScopeMappingServiceImpl,
+            },
         },
         authentication::{
             device_flow::{
@@ -29,7 +32,7 @@ use crate::{
             services::AuthServiceImpl,
             value_objects::{
                 EvaluateClientScopesInput, EvaluateClientScopesRequest, EvaluateClientScopesResult,
-                GenerateTokensForUserInput, Identity,
+                GenerateTokensForUserInput, Identity, TokenPreviewResult,
             },
         },
         client::{
@@ -39,6 +42,7 @@ use crate::{
         },
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
+            policies::ensure_policy,
             ports::CoreService,
             services::CoreServiceImpl,
         },
@@ -490,6 +494,8 @@ pub struct ApplicationService {
     >,
     #[allow(dead_code)]
     pub(crate) flow_recorder: FlowRecorder,
+    pub(crate) policy:
+        Arc<crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>>,
     pub(crate) db: DatabaseConnection,
     pub email_verification_service: ApplicationEmailVerificationService,
     pub(crate) user_session_management_service: ApplicationUserSessionManagementService,
@@ -617,6 +623,55 @@ impl ApplicationService {
                 scope: request.scope,
             })
             .await
+    }
+
+    /// Preview the token claims a client's scope set would produce, per the ticket:
+    /// the same unsigned claim assembly as `evaluate_client_scopes`, but authorization
+    /// requires `ManageClientScopes` or `ManageRealm` (see `ClientScopePolicy`), and the
+    /// response is the ticket-defined shape (decoded claims + active scopes + applied mappers).
+    /// Never signs or persists a token.
+    pub async fn preview_token_claims(
+        &self,
+        identity: Identity,
+        request: EvaluateClientScopesRequest,
+    ) -> Result<TokenPreviewResult, CoreError> {
+        // Token preview is gated by `can_preview_scope` (ManageRealm | ManageClientScopes),
+        // not `can_view_client` (ManageRealm | ViewClients). Resolve the realm and authorize
+        // BEFORE looking the client up directly: going through `get_client_by_id` would reject
+        // an identity holding only ManageClientScopes at its `can_view_client` check.
+        let realm = self
+            .realm_service
+            .realm_repository
+            .get_by_name(&request.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_preview_scope(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_id(request.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        let result = self
+            .auth_service
+            .evaluate_client_scopes(EvaluateClientScopesInput {
+                base_url: request.base_url,
+                realm_id: realm.id,
+                realm_name: realm.name,
+                client_uuid: client.id,
+                client_id: client.client_id,
+                user_id: request.user_id,
+                scope: request.scope,
+            })
+            .await?;
+
+        Ok(result.into())
     }
 
     /// Device authorization endpoint (RFC 8628 §3.1).
