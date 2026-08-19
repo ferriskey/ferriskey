@@ -57,14 +57,13 @@ use crate::{
                 PasskeyRequestOptionsInput, PasswordResetTokenRepository, ReauthenticateInput,
                 ReauthenticateOutput, RecoveryCodeFormatter, RecoveryCodeRepository,
                 RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, StepUpTokenRecord,
-                StepUpTokenRepository, TridentService, UpdatePasswordInput,
-                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
-                WebAuthnChallengeRecord, WebAuthnChallengeRepository,
-                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
-                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
-                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput,
-                WebAuthnValidatePublicKeyOutput,
+                StepUpTokenRepository, TridentService, UpdatePasswordInput, VerifyMagicLinkInput,
+                VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput, WebAuthnChallengeRecord,
+                WebAuthnChallengeRepository, WebAuthnPublicKeyAuthenticateInput,
+                WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
+                WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
+                WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
+                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
@@ -306,29 +305,7 @@ pub struct TridentServiceImpl<
     pub(crate) step_up_token_repository: Arc<SUT>,
 }
 
-impl<
-    CR,
-    RC,
-    AS,
-    H,
-    URA,
-    ML,
-    UR,
-    RR,
-    ES,
-    SC,
-    PRT,
-    SE,
-    WH,
-    ETR,
-    TR,
-    PPR,
-    OER,
-    URR,
-    TRV,
-    WCR,
-    SUT,
->
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT>
     TridentServiceImpl<
         CR,
         RC,
@@ -513,7 +490,9 @@ where
                 algorithm,
             } => (*hash_iterations, algorithm.clone()),
             _ => {
-                error!("A recovery code credential has no Hash credential data. This is a server bug.");
+                error!(
+                    "A recovery code credential has no Hash credential data. This is a server bug."
+                );
                 return Err(CoreError::InternalServerError);
             }
         };
@@ -545,11 +524,10 @@ where
             .await
             .map_err(|_| CoreError::GetUserCredentialsError)?
         {
-            return Ok(
-                self.verify_recovery_code_candidate(user_code, &candidate)
-                    .await?
-                    .then_some(candidate),
-            );
+            return Ok(self
+                .verify_recovery_code_candidate(user_code, &candidate)
+                .await?
+                .then_some(candidate));
         }
 
         // Rows created before the lookup column existed have NULL in
@@ -868,29 +846,8 @@ where
     }
 }
 
-impl<
-    CR,
-    RC,
-    AS,
-    H,
-    URA,
-    ML,
-    UR,
-    RR,
-    ES,
-    SC,
-    PRT,
-    SE,
-    WH,
-    ETR,
-    TR,
-    PPR,
-    OER,
-    URR,
-    TRV,
-    WCR,
-    SUT,
-> TridentService
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT>
+    TridentService
     for TridentServiceImpl<
         CR,
         RC,
@@ -1721,7 +1678,9 @@ where
             .collect::<Vec<_>>();
 
         if !existing_otp_credentials.is_empty()
-            && !user.required_actions.contains(&RequiredAction::ConfigureOtp)
+            && !user
+                .required_actions
+                .contains(&RequiredAction::ConfigureOtp)
         {
             return Err(CoreError::Forbidden(
                 "OTP is already configured for this user".into(),
@@ -3139,51 +3098,30 @@ where
     }
 }
 
-impl<
-    CR,
-    RC,
-    AS,
-    H,
-    URA,
-    ML,
-    UR,
-    RR,
-    ES,
-    SC,
-    PRT,
-    SE,
-    WH,
-    ETR,
-    TR,
-    PPR,
-    OER,
-    URR,
-    TRV,
-    WCR,
-    SUT,
-> TridentServiceImpl<
-    CR,
-    RC,
-    AS,
-    H,
-    URA,
-    ML,
-    UR,
-    RR,
-    ES,
-    SC,
-    PRT,
-    SE,
-    WH,
-    ETR,
-    TR,
-    PPR,
-    OER,
-    URR,
-    TRV,
-    WCR,
-    SUT,
->
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, WCR, SUT>
+    TridentServiceImpl<
+        CR,
+        RC,
+        AS,
+        H,
+        URA,
+        ML,
+        UR,
+        RR,
+        ES,
+        SC,
+        PRT,
+        SE,
+        WH,
+        ETR,
+        TR,
+        PPR,
+        OER,
+        URR,
+        TRV,
+        WCR,
+        SUT,
+    >
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,

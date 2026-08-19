@@ -103,10 +103,7 @@ pub trait StepUpTokenRepository: Send + Sync {
 
     /// Delete one active step-up token by its row id. Returns `true` when the
     /// row was deleted and `false` when it was already gone or expired.
-    fn delete_by_id(
-        &self,
-        token_id: Uuid,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    fn delete_by_id(&self, token_id: Uuid) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Drop any expired tokens.
     fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
