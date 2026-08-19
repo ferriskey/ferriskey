@@ -13,9 +13,8 @@ import { addMemberSchema, AddMemberSchema } from '../../schemas/add-member.schem
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { toast } from 'sonner'
-import { Schemas } from '@/api/api.client'
-import User = Schemas.User
-
+import type { Schemas } from '@/api/api.client'
+type User = Schemas.User
 export default function AddMemberModalFeature() {
   const { realm_name, organizationId } = useParams<RouterParams & { organizationId: string }>()
   const [open, setOpen] = useState(false)

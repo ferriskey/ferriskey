@@ -4,9 +4,8 @@ import { ColumnDef } from '@/components/ui/data-table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { isServiceAccount } from '@/utils'
 import { Info } from 'lucide-react'
-import { Schemas } from '@/api/api.client.ts'
-import User = Schemas.User
-
+import type { Schemas } from '@/api/api.client.ts'
+type User = Schemas.User
 export const columns: ColumnDef<User>[] = [
   {
     id: 'name',

@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useGetClientScopes, useAssignScope, useUnassignScope } from '@/api/client.api'
 import { useGetClientScopes as useGetRealmScopes } from '@/api/client-scope.api'
 import MultipleSelector, { type Option } from '@/components/ui/multiselect'

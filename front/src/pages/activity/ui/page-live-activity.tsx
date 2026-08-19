@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   ChartConfig,
@@ -11,8 +11,7 @@ import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 
-import DailyActivityStats = Schemas.DailyActivityStats
-
+type DailyActivityStats = Schemas.DailyActivityStats
 type Range = '7d' | '30d' | '90d'
 
 const rangeLabels: Record<Range, string> = {

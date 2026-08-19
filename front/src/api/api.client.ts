@@ -728,7 +728,7 @@ export namespace Schemas {
     state: string | null;
   }>;
   export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
-  export type OtpVerifyRequest = { code: string; label: string };
+  export type OtpVerifyRequest = { code: string };
   export type PortalPageType =
     | "login"
     | "register"

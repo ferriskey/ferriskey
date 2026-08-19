@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useEvaluateClientScopes } from '@/api/client.api'
 import { useGetUsers } from '@/api/user.api'
 import { Button } from '@/components/ui/button'

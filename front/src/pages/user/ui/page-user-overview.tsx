@@ -8,10 +8,9 @@ import { RequiredAction } from '@/api/core.interface'
 import MultipleSelector from '@/components/ui/multiselect'
 import { Label } from '@/components/ui/label'
 import { formatRequiredAction, formatSnakeCaseToTitleCase } from '@/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { DangerZone } from '@/components/danger-zone'
-import User = Schemas.User
-
+type User = Schemas.User
 type Props = {
   onSubmit: (data: UpdateUserSchema) => void
   hasChanges: boolean

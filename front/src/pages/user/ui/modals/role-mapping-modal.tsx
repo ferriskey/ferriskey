@@ -6,10 +6,9 @@ import { columns } from '../../columns/role-mapping.column'
 import { FormField } from '@/components/ui/form'
 import { UseFormReturn } from 'react-hook-form'
 import { AssignRoleSchema } from '../../schemas/assign-role.schema'
-import { Schemas } from '@/api/api.client'
-import User = Schemas.User
-import Role = Schemas.Role
-
+import type { Schemas } from '@/api/api.client'
+type User = Schemas.User
+type Role = Schemas.Role
 export interface RoleMappingModalProps {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>

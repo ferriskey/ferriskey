@@ -15,18 +15,10 @@ use serde::{Deserialize, Serialize};
 pub struct OtpVerifyRequest {
     #[serde(rename = "code")]
     pub code: String,
-    #[serde(rename = "label")]
-    pub label: String,
-    #[serde(rename = "secret")]
-    pub secret: String,
 }
 
 impl OtpVerifyRequest {
-    pub fn new(code: String, label: String, secret: String) -> OtpVerifyRequest {
-        OtpVerifyRequest {
-            code,
-            label,
-            secret,
-        }
+    pub fn new(code: String) -> OtpVerifyRequest {
+        OtpVerifyRequest { code }
     }
 }

@@ -5,8 +5,8 @@ import PageRealmSettingsCreateWebhook from '../ui/page-realm-settings-create-web
 import { CreateWebhookSchema, createWebhookValidator } from '../validators'
 import { useCreateWebhook } from '@/api/webhook.api'
 import { useEffect, useState } from 'react'
-import { Schemas } from '@/api/api.client'
-import WebhookTrigger = Schemas.WebhookTrigger
+import type { Schemas } from '@/api/api.client'
+type WebhookTrigger = Schemas.WebhookTrigger
 import { getWebhookCategoriesForUI } from '@/utils/webhook-utils'
 import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'

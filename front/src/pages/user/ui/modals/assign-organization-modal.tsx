@@ -6,10 +6,9 @@ import { columns } from '../../columns/assign-organization.column'
 import { FormField } from '@/components/ui/form'
 import { UseFormReturn } from 'react-hook-form'
 import { AssignOrganizationSchema } from '../../schemas/assign-organization.schema'
-import { Schemas } from '@/api/api.client'
-import Organization = Schemas.Organization
-import User = Schemas.User
-
+import type { Schemas } from '@/api/api.client'
+type Organization = Schemas.Organization
+type User = Schemas.User
 export interface AssignOrganizationModalProps {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>

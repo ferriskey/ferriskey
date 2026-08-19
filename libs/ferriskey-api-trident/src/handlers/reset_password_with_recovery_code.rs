@@ -5,7 +5,6 @@ use axum::{
 use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson},
     app_state::AppState,
-    url::FullUrl,
 };
 use ferriskey_core::domain::trident::ports::{
     CompletePasswordResetWithRecoveryCodeInput, TridentService,
@@ -46,17 +45,18 @@ pub struct ResetPasswordWithRecoveryCodeResponse {
     responses(
         (status = 200, description = "Recovery code accepted, password reset email sent", body = ResetPasswordWithRecoveryCodeResponse),
         (status = 400, description = "Invalid or expired recovery code", body = ApiErrorResponse),
+        (status = 401, description = "Account is temporarily locked due to too many failed attempts", body = ApiErrorResponse),
         (status = 404, description = "No account found for the email", body = ApiErrorResponse),
-        (status = 423, description = "Account is temporarily locked due to too many failed attempts", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
 pub async fn reset_password_with_recovery_code(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
     ValidateJson(payload): ValidateJson<ResetPasswordWithRecoveryCodeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let base_url = state.args.webapp_url.trim_end_matches('/').to_string();
+
     state
         .service
         .complete_password_reset_with_recovery_code(CompletePasswordResetWithRecoveryCodeInput {

@@ -13,10 +13,7 @@ use ferriskey_core::domain::{
     },
 };
 use serde::Deserialize;
-use utoipa::{
-    PartialSchema, ToSchema,
-    openapi::{ObjectBuilder, RefOr, Schema},
-};
+use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::{
@@ -26,32 +23,15 @@ use crate::{
 
 /// Request for the self-service `/me/passkey/registration` flow. Wraps the
 /// WebAuthn credential plus the step-up token minted by `/me/reauthenticate`.
-#[derive(Debug, Deserialize, Validate)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct MePasskeyRegisterRequest {
     #[serde(flatten)]
+    #[schema(value_type = Object)]
     pub credential: RegisterPublicKeyCredential,
     /// Step-up token minted by `/me/reauthenticate`.
     #[validate(length(min = 1))]
+    #[serde(alias = "stepUpToken")]
     pub step_up_token: String,
-}
-
-impl ToSchema for MePasskeyRegisterRequest {
-    fn name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("MePasskeyRegisterRequest")
-    }
-}
-
-impl PartialSchema for MePasskeyRegisterRequest {
-    fn schema() -> RefOr<Schema> {
-        RefOr::T(Schema::Object(
-            ObjectBuilder::new()
-                .description(Some(
-                    "WebAuthn credential plus step-up token. See https://w3c.github.io/webauthn/#dictdef-publickeycredentialjson",
-                ))
-                .build(),
-        ))
-    }
 }
 
 #[utoipa::path(

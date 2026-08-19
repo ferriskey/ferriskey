@@ -7,8 +7,8 @@ import { MagicLinkSchema } from '@/pages/authentication/schemas/magic-link.schem
 import { cn } from '@/lib/utils'
 import { InputText } from '@/components/ui/input-text'
 import { Link, useParams } from 'react-router'
-import { Schemas } from '@/api/api.client'
-import RealmLoginSetting = Schemas.RealmLoginSetting
+import type { Schemas } from '@/api/api.client'
+type RealmLoginSetting = Schemas.RealmLoginSetting
 import { LoginProviders } from './login-providers'
 import './page-login.css'
 import LoaderSpinner from '@/components/ui/loader-spinner'

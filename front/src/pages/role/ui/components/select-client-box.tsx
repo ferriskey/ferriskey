@@ -4,9 +4,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { useState } from 'react'
-import { Schemas } from '@/api/api.client.ts'
-import Client = Schemas.Client
-
+import type { Schemas } from '@/api/api.client.ts'
+type Client = Schemas.Client
 export interface SelectClientBoxProps {
   clients: Client[]
   onValueChange: (value: string) => void

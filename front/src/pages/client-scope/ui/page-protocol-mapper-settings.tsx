@@ -14,10 +14,9 @@ import BlockContent from '@/components/ui/block-content'
 import { MapperConfigFields } from '../components/mapper-config-fields'
 import { MapperTemplate } from '../constants/protocol-mapper-templates'
 import { MapperSettingsSchema } from '../schemas/mapper-settings.schema'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import ProtocolMapper = Schemas.ProtocolMapper
-
+type ProtocolMapper = Schemas.ProtocolMapper
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PageProtocolMapperSettingsProps {

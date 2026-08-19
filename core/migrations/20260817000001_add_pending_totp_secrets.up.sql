@@ -1,14 +1,8 @@
--- Pending TOTP secret for the self-service /me/totp/setup -> /me/totp/verify
--- flow. The secret is generated and persisted server-side at setup time and
--- consumed (single-use) at verify time, so a caller can never supply their own
--- secret or silently replace an existing authenticator. Keyed by user id so a
--- user has at most one pending secret.
-CREATE TABLE pending_totp_secrets (
-    user_id    UUID PRIMARY KEY,
-    secret     TEXT NOT NULL,
-    label      TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX idx_pending_totp_secrets_expires_at ON pending_totp_secrets (expires_at);
+-- Back-compat no-op migration.
+--
+-- Version 20260817000001 previously introduced `pending_totp_secrets`, but the
+-- OTP flow has since been consolidated onto the older `otp_enrollments`
+-- storage. Keep this migration slot present so databases that already recorded
+-- the version can still migrate cleanly and fresh installs preserve the
+-- historical sequence without recreating the obsolete table.
+SELECT 1;

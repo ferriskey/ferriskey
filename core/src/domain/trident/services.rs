@@ -54,21 +54,21 @@ use crate::{
                 GenerateRecoveryCodeOutput, MagicLinkInput, MagicLinkRepository,
                 OtpEnrollmentRepository, PasskeyAuthenticateInput, PasskeyAuthenticateOutput,
                 PasskeyRegisterOptionsSelfServiceInput, PasskeyRegisterSelfServiceInput,
-                PasskeyRequestOptionsInput, PasswordResetTokenRepository, PendingTotpSecretRecord,
-                PendingTotpSecretRepository, ReauthenticateInput, ReauthenticateOutput,
-                RecoveryCodeFormatter, RecoveryCodeRepository, RequestPasswordResetInput,
-                SetupOtpInput, SetupOtpOutput, StepUpTokenRecord, StepUpTokenRepository,
-                TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
-                VerifyOtpOutput, VerifyResetTokenInput, WebAuthnChallengeRecord,
-                WebAuthnChallengeRepository, WebAuthnPublicKeyAuthenticateInput,
-                WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
-                WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
-                WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
-                WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+                PasskeyRequestOptionsInput, PasswordResetTokenRepository, ReauthenticateInput,
+                ReauthenticateOutput, RecoveryCodeFormatter, RecoveryCodeRepository,
+                RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, StepUpTokenRecord,
+                StepUpTokenRepository, TridentService, UpdatePasswordInput,
+                VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
+                WebAuthnChallengeRecord, WebAuthnChallengeRepository,
+                WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
+                WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
+                WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
+                WebAuthnRpInfo, WebAuthnValidatePublicKeyInput,
+                WebAuthnValidatePublicKeyOutput,
             },
         },
         user::{
-            entities::RequiredAction,
+            entities::{RequiredAction, RequiredActionError},
             ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         },
         webhook::{
@@ -94,10 +94,6 @@ const WEBAUTHN_CHALLENGE_TTL_MINUTES: i64 = 5;
 
 /// How long a self-service passkey registration challenge stays valid.
 const PENDING_REGISTRATION_TTL: chrono::Duration = chrono::Duration::seconds(600);
-
-/// How long a pending self-service TOTP secret stays valid between
-/// `/me/totp/setup` and `/me/totp/verify`.
-const PENDING_TOTP_TTL: chrono::Duration = chrono::Duration::seconds(600);
 
 /// How long a step-up token minted by `/me/reauthenticate` stays valid.
 const STEP_UP_TOKEN_TTL: chrono::Duration = chrono::Duration::seconds(300);
@@ -264,7 +260,6 @@ pub struct TridentServiceImpl<
     TRV,
     WCR,
     SUT,
-    PTS,
 > where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -287,7 +282,6 @@ pub struct TridentServiceImpl<
     TRV: TokenRevocationPort,
     WCR: WebAuthnChallengeRepository,
     SUT: StepUpTokenRepository,
-    PTS: PendingTotpSecretRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -310,7 +304,6 @@ pub struct TridentServiceImpl<
     pub(crate) token_revocation: Arc<TRV>,
     pub(crate) webauthn_challenge_repository: Arc<WCR>,
     pub(crate) step_up_token_repository: Arc<SUT>,
-    pub(crate) pending_totp_secret_repository: Arc<PTS>,
 }
 
 impl<
@@ -335,7 +328,6 @@ impl<
     TRV,
     WCR,
     SUT,
-    PTS,
 >
     TridentServiceImpl<
         CR,
@@ -359,7 +351,6 @@ impl<
         TRV,
         WCR,
         SUT,
-        PTS,
     >
 where
     CR: CredentialRepository,
@@ -383,7 +374,6 @@ where
     TRV: TokenRevocationPort,
     WCR: WebAuthnChallengeRepository,
     SUT: StepUpTokenRepository,
-    PTS: PendingTotpSecretRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -408,7 +398,6 @@ where
         token_revocation: Arc<TRV>,
         webauthn_challenge_repository: Arc<WCR>,
         step_up_token_repository: Arc<SUT>,
-        pending_totp_secret_repository: Arc<PTS>,
     ) -> Self {
         Self {
             credential_repository,
@@ -432,7 +421,6 @@ where
             token_revocation,
             webauthn_challenge_repository,
             step_up_token_repository,
-            pending_totp_secret_repository,
         }
     }
 
@@ -472,29 +460,120 @@ where
     /// so it cannot be reused. Returns `StepUpTokenInvalid` when the token is
     /// missing, expired, or does not match.
     async fn consume_step_up_token(&self, user_id: Uuid, presented: &str) -> Result<(), CoreError> {
-        let stored_hash = self
+        let candidates = self
             .step_up_token_repository
-            .take(user_id)
+            .find_active(user_id)
             .await
             .map_err(|e| {
-                error!("Failed to consume step-up token: {e:?}");
-                CoreError::InternalServerError
-            })?
-            .ok_or(CoreError::StepUpTokenInvalid)?;
-
-        let valid = self
-            .hasher_repository
-            .verify_magic_token(presented, &stored_hash)
-            .await
-            .map_err(|e| {
-                error!("Failed to verify step-up token: {e:?}");
+                error!("Failed to load active step-up tokens: {e:?}");
                 CoreError::InternalServerError
             })?;
 
-        if !valid {
+        for candidate in candidates {
+            let valid = self
+                .hasher_repository
+                .verify_magic_token(presented, &candidate.token_hash)
+                .await
+                .map_err(|e| {
+                    error!("Failed to verify step-up token: {e:?}");
+                    CoreError::InternalServerError
+                })?;
+
+            if !valid {
+                continue;
+            }
+
+            let deleted = self
+                .step_up_token_repository
+                .delete_by_id(candidate.id)
+                .await
+                .map_err(|e| {
+                    error!("Failed to delete matched step-up token: {e:?}");
+                    CoreError::InternalServerError
+                })?;
+
+            if deleted {
+                return Ok(());
+            }
+
             return Err(CoreError::StepUpTokenInvalid);
         }
-        Ok(())
+
+        Err(CoreError::StepUpTokenInvalid)
+    }
+
+    async fn verify_recovery_code_candidate(
+        &self,
+        user_code: &MfaRecoveryCode,
+        code_cred: &Credential,
+    ) -> Result<bool, CoreError> {
+        let (hash_iterations, algorithm) = match &code_cred.credential_data {
+            CredentialData::Hash {
+                hash_iterations,
+                algorithm,
+            } => (*hash_iterations, algorithm.clone()),
+            _ => {
+                error!("A recovery code credential has no Hash credential data. This is a server bug.");
+                return Err(CoreError::InternalServerError);
+            }
+        };
+        let salt = code_cred
+            .salt
+            .as_ref()
+            .ok_or(CoreError::InternalServerError)?;
+
+        self.recovery_code_repository
+            .verify(
+                user_code,
+                &code_cred.secret_data,
+                hash_iterations,
+                &algorithm,
+                salt,
+            )
+            .await
+    }
+
+    async fn find_matching_recovery_code(
+        &self,
+        user_id: Uuid,
+        user_code: &MfaRecoveryCode,
+        lookup: &str,
+    ) -> Result<Option<Credential>, CoreError> {
+        if let Some(candidate) = self
+            .credential_repository
+            .find_recovery_code_by_lookup(user_id, lookup)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?
+        {
+            return Ok(
+                self.verify_recovery_code_candidate(user_code, &candidate)
+                    .await?
+                    .then_some(candidate),
+            );
+        }
+
+        // Rows created before the lookup column existed have NULL in
+        // `recovery_code_lookup`. Keep them working by scanning only those
+        // legacy rows as a bounded fallback until they are rotated away.
+        let legacy_candidates = self
+            .credential_repository
+            .get_credentials_by_user_id(user_id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        for candidate in legacy_candidates.into_iter().filter(|credential| {
+            credential.credential_type == CredentialType::RecoveryCode
+                && credential.recovery_code_lookup.is_none()
+        }) {
+            if self
+                .verify_recovery_code_candidate(user_code, &candidate)
+                .await?
+            {
+                return Ok(Some(candidate));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Compute the lockout deadline for a given number of failed attempts.
@@ -811,7 +890,6 @@ impl<
     TRV,
     WCR,
     SUT,
-    PTS,
 > TridentService
     for TridentServiceImpl<
         CR,
@@ -835,7 +913,6 @@ impl<
         TRV,
         WCR,
         SUT,
-        PTS,
     >
 where
     CR: CredentialRepository,
@@ -859,7 +936,6 @@ where
     TRV: TokenRevocationPort,
     WCR: WebAuthnChallengeRepository,
     SUT: StepUpTokenRepository,
-    PTS: PendingTotpSecretRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -951,46 +1027,9 @@ where
         // Locate the single candidate recovery-code row via the fast lookup key
         // and run Argon2 only once, instead of scanning every stored code.
         let lookup = self.recovery_code_repository.lookup_of(&user_code);
-        let candidate = self
-            .credential_repository
-            .find_recovery_code_by_lookup(user.id, &lookup)
-            .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?;
-
-        let burnt_code = match candidate {
-            Some(code_cred) => {
-                let (hash_iterations, algorithm) = match &code_cred.credential_data {
-                    CredentialData::Hash {
-                        hash_iterations,
-                        algorithm,
-                    } => (*hash_iterations, algorithm.clone()),
-                    _ => {
-                        error!(
-                            "A recovery code credential has no Hash credential data. This is a server bug."
-                        );
-                        return Err(CoreError::InternalServerError);
-                    }
-                };
-                let salt = code_cred
-                    .salt
-                    .as_ref()
-                    .ok_or(CoreError::InternalServerError)?;
-
-                let result = self
-                    .recovery_code_repository
-                    .verify(
-                        &user_code,
-                        &code_cred.secret_data,
-                        hash_iterations,
-                        &algorithm,
-                        salt,
-                    )
-                    .await?;
-
-                if result { Some(code_cred) } else { None }
-            }
-            None => None,
-        };
+        let burnt_code = self
+            .find_matching_recovery_code(user.id, &user_code, &lookup)
+            .await?;
 
         // This doesn't check if there are multiple matches because it is not necessarly a bug
         // It is highly unlikely but a user may have multiple identical recovery codes
@@ -1581,26 +1620,6 @@ where
             )
             .await?;
 
-        // Persist the pending secret server-side so `/me/totp/verify` can
-        // consume it (single-use, TTL'd) instead of trusting a client-supplied
-        // secret. This prevents an attacker with a stolen token from enrolling
-        // their own authenticator.
-        let expires_at = Utc::now() + PENDING_TOTP_TTL;
-        // Drop any expired pending secrets so the table does not grow unbounded.
-        let _ = self.pending_totp_secret_repository.cleanup_expired().await;
-        self.pending_totp_secret_repository
-            .save(PendingTotpSecretRecord {
-                user_id: user.id,
-                secret: secret.clone(),
-                label: None,
-                expires_at,
-            })
-            .await
-            .map_err(|e| {
-                error!("Failed to persist pending TOTP secret: {e:?}");
-                CoreError::InternalServerError
-            })?;
-
         Ok(SetupOtpOutput {
             otpauth_uri,
             secret,
@@ -1691,26 +1710,57 @@ where
             self.consume_step_up_token(user.id, step_up_token).await?;
         }
 
-        // 2. Consume the pending TOTP secret persisted server-side by
-        //    `/me/totp/setup`. The caller can never supply their own secret,
-        //    so an attacker cannot silently replace the victim's authenticator.
-        let pending = self
-            .pending_totp_secret_repository
-            .take(user.id)
+        let existing_credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+        let existing_otp_credentials = existing_credentials
+            .iter()
+            .filter(|credential| credential.credential_type == CredentialType::Otp)
+            .collect::<Vec<_>>();
+
+        if !existing_otp_credentials.is_empty()
+            && !user.required_actions.contains(&RequiredAction::ConfigureOtp)
+        {
+            return Err(CoreError::Forbidden(
+                "OTP is already configured for this user".into(),
+            ));
+        }
+
+        // 2. Read the newest active enrollment persisted by `/me/totp/setup`.
+        //    The caller can never supply their own secret, so an attacker
+        //    cannot silently replace the victim's authenticator.
+        let enrollment = self
+            .otp_enrollment_repository
+            .get_active_enrollment(user.id, Utc::now())
             .await
             .map_err(|e| {
-                error!("Failed to consume pending TOTP secret: {e:?}");
+                error!("Failed to load OTP enrollment: {e:?}");
                 CoreError::InternalServerError
             })?
             .ok_or(CoreError::PendingTotpSecretMissing)?;
 
-        let secret = TotpSecret::from_base32(&pending.secret);
+        let secret = TotpSecret::from_base32(&enrollment.secret);
 
-        // 3. Verify the code against the pending secret.
+        // 3. Verify the code before claiming the enrollment. A mistyped digit
+        //    must not destroy the user's enrollment attempt.
         let is_valid = verify(&secret, &input.code)?;
         if !is_valid {
             error!(user_id = %user.id, "invalid OTP code during TOTP enrollment");
             return Err(CoreError::InvalidOtpCode);
+        }
+
+        let claimed = self
+            .otp_enrollment_repository
+            .claim_enrollment(enrollment.id, Utc::now())
+            .await
+            .map_err(|e| {
+                error!("Failed to claim OTP enrollment: {e:?}");
+                CoreError::InternalServerError
+            })?;
+        if !claimed {
+            return Err(CoreError::PendingTotpSecretMissing);
         }
 
         let credential_data = serde_json::json!({
@@ -1718,20 +1768,11 @@ where
           "digits": 6,
           "counter": 0,
           "period": 30,
-          "algorithm": "HmacSha256",
+          "algorithm": "SHA1",
         });
 
         // 4. Replace any existing OTP credential with the newly verified one.
-        let existing_credentials = self
-            .credential_repository
-            .get_credentials_by_user_id(user.id)
-            .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?;
-
-        for cred in existing_credentials
-            .iter()
-            .filter(|c| c.credential_type == CredentialType::Otp)
-        {
+        for cred in existing_otp_credentials {
             self.credential_repository
                 .delete_by_id(cred.id)
                 .await
@@ -1750,7 +1791,7 @@ where
                 user.id,
                 "otp".to_string(),
                 secret.base32_encoded().to_string(),
-                pending.label,
+                None,
                 credential_data,
             )
             .await
@@ -1761,10 +1802,20 @@ where
             .remove_required_action(user.id, RequiredAction::ConfigureOtp)
             .await
         {
-            warn!(
-                user_id = %user.id,
-                "Failed to remove ConfigureOtp required action after OTP setup: {e:?}"
-            );
+            match e {
+                RequiredActionError::NotFound => {
+                    debug!(
+                        user_id = %user.id,
+                        "ConfigureOtp required action was already absent after OTP setup"
+                    );
+                }
+                other => {
+                    warn!(
+                        user_id = %user.id,
+                        "Failed to remove ConfigureOtp required action after OTP setup: {other:?}"
+                    );
+                }
+            }
         }
 
         // 5. Audit the enrollment so a compromised token cannot silently add
@@ -2712,46 +2763,9 @@ where
         let user_code = decode_string(input.code, format)?;
         let lookup = self.recovery_code_repository.lookup_of(&user_code);
 
-        let candidate = self
-            .credential_repository
-            .find_recovery_code_by_lookup(user.id, &lookup)
-            .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?;
-
-        let burnt_code = match candidate {
-            Some(code_cred) => {
-                let (hash_iterations, algorithm) = match &code_cred.credential_data {
-                    CredentialData::Hash {
-                        hash_iterations,
-                        algorithm,
-                    } => (*hash_iterations, algorithm.clone()),
-                    _ => {
-                        error!(
-                            "A recovery code credential has no Hash credential data. This is a server bug."
-                        );
-                        return Err(CoreError::InternalServerError);
-                    }
-                };
-                let salt = code_cred
-                    .salt
-                    .as_ref()
-                    .ok_or(CoreError::InternalServerError)?;
-
-                let result = self
-                    .recovery_code_repository
-                    .verify(
-                        &user_code,
-                        &code_cred.secret_data,
-                        hash_iterations,
-                        &algorithm,
-                        salt,
-                    )
-                    .await?;
-
-                if result { Some(code_cred) } else { None }
-            }
-            None => None,
-        };
+        let burnt_code = self
+            .find_matching_recovery_code(user.id, &user_code, &lookup)
+            .await?;
 
         let burnt_code = match burnt_code {
             Some(code) => code,
@@ -3147,32 +3161,29 @@ impl<
     TRV,
     WCR,
     SUT,
-    PTS,
+> TridentServiceImpl<
+    CR,
+    RC,
+    AS,
+    H,
+    URA,
+    ML,
+    UR,
+    RR,
+    ES,
+    SC,
+    PRT,
+    SE,
+    WH,
+    ETR,
+    TR,
+    PPR,
+    OER,
+    URR,
+    TRV,
+    WCR,
+    SUT,
 >
-    TridentServiceImpl<
-        CR,
-        RC,
-        AS,
-        H,
-        URA,
-        ML,
-        UR,
-        RR,
-        ES,
-        SC,
-        PRT,
-        SE,
-        WH,
-        ETR,
-        TR,
-        PPR,
-        OER,
-        URR,
-        TRV,
-        WCR,
-        SUT,
-        PTS,
-    >
 where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -3195,9 +3206,7 @@ where
     TRV: TokenRevocationPort,
     WCR: WebAuthnChallengeRepository,
     SUT: StepUpTokenRepository,
-    PTS: PendingTotpSecretRepository,
 {
-    /// Issue a password-reset token for `user_id` and email the reset link,
     /// mirroring the standard email-reset flow. Used after a recovery code is
     /// burned so that a recovery code (a *second* factor) never mints a session
     /// on its own — the new password is only applied when the user completes
@@ -3436,9 +3445,8 @@ mod tests {
             entities::MagicLink,
             ports::{
                 MockMagicLinkRepository, MockOtpEnrollmentRepository,
-                MockPasswordResetTokenRepository, MockPendingTotpSecretRepository,
-                MockRecoveryCodeRepository, MockStepUpTokenRepository,
-                MockWebAuthnChallengeRepository, OtpEnrollment,
+                MockPasswordResetTokenRepository, MockRecoveryCodeRepository,
+                MockStepUpTokenRepository, MockWebAuthnChallengeRepository, OtpEnrollment,
             },
         },
         user::ports::{
@@ -3489,7 +3497,6 @@ mod tests {
         MockTokenRevocationPort,
         MockWebAuthnChallengeRepository,
         MockStepUpTokenRepository,
-        MockPendingTotpSecretRepository,
     >;
 
     /// `(user_id, secret, expires_at)` as handed to `start_enrollment`.
@@ -3517,7 +3524,6 @@ mod tests {
         token_revocation: Arc<MockTokenRevocationPort>,
         webauthn_challenge_repo: Arc<MockWebAuthnChallengeRepository>,
         step_up_token_repo: Arc<MockStepUpTokenRepository>,
-        pending_totp_secret_repo: Arc<MockPendingTotpSecretRepository>,
     }
 
     impl TridentTestBuilder {
@@ -3544,7 +3550,6 @@ mod tests {
                 token_revocation: Arc::new(MockTokenRevocationPort::new()),
                 webauthn_challenge_repo: Arc::new(MockWebAuthnChallengeRepository::new()),
                 step_up_token_repo: Arc::new(MockStepUpTokenRepository::new()),
-                pending_totp_secret_repo: Arc::new(MockPendingTotpSecretRepository::new()),
             }
         }
 
@@ -3580,7 +3585,6 @@ mod tests {
                 self.token_revocation,
                 self.webauthn_challenge_repo,
                 self.step_up_token_repo,
-                self.pending_totp_secret_repo,
             )
         }
     }
@@ -3673,10 +3677,38 @@ mod tests {
             .expect_get_by_realm_id()
             .returning(|_| Box::pin(async { Ok(None) }));
 
+        let user_by_id = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user_by_id.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        let realm_by_id = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = realm_by_id.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
         Arc::get_mut(&mut builder.security_event_repo)
             .unwrap()
             .expect_store_event()
             .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
         let result = service
@@ -4194,6 +4226,36 @@ mod tests {
         }
     }
 
+    fn active_otp_enrollment(user_id: Uuid, secret: String) -> OtpEnrollment {
+        OtpEnrollment {
+            id: Uuid::new_v4(),
+            user_id,
+            secret,
+            expires_at: Utc::now() + Duration::minutes(10),
+            created_at: Utc::now(),
+        }
+    }
+
+    fn expect_active_otp_enrollment(
+        builder: &mut TridentTestBuilder,
+        user_id: Uuid,
+        secret: String,
+    ) {
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_get_active_enrollment()
+            .returning(move |requested_user_id, _| {
+                let enrollment = active_otp_enrollment(user_id, secret.clone());
+                Box::pin(async move {
+                    if requested_user_id == enrollment.user_id {
+                        Ok(Some(enrollment))
+                    } else {
+                        Ok(None)
+                    }
+                })
+            });
+    }
+
     #[tokio::test]
     async fn setup_otp_persists_candidate_secret_server_side() {
         let mut builder = TridentTestBuilder::new();
@@ -4219,18 +4281,6 @@ mod tests {
                     })
                 })
             });
-
-        // The pending TOTP secret is also persisted server-side (single-use,
-        // TTL'd) so `/me/totp/verify` never trusts a client-supplied secret.
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
-            .unwrap()
-            .expect_cleanup_expired()
-            .returning(|| Box::pin(async { Ok(0u64) }));
-
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
-            .unwrap()
-            .expect_save()
-            .returning(|_| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
         let before = Utc::now();
@@ -4274,21 +4324,7 @@ mod tests {
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
         // The server did issue an enrolment — for a secret the caller does not use.
-        let user_id = user.id;
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
-            .unwrap()
-            .expect_take()
-            .returning(move |_| {
-                let s = SERVER_SECRET.to_string();
-                Box::pin(async move {
-                    Ok(Some(PendingTotpSecretRecord {
-                        user_id,
-                        secret: s,
-                        label: None,
-                        expires_at: Utc::now() + chrono::Duration::minutes(10),
-                    }))
-                })
-            });
+        expect_active_otp_enrollment(&mut builder, user.id, SERVER_SECRET.to_string());
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -4327,10 +4363,10 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
-            .expect_take()
-            .returning(|_| Box::pin(async { Ok(None) }));
+            .expect_get_active_enrollment()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -4369,12 +4405,12 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        // Stands in for the adapter: an expired pending secret is never handed
-        // back, so `take` returns `None` and the service must refuse.
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        // Stands in for the adapter: an expired enrollment is never handed
+        // back, so `get_active_enrollment` returns `None` and the service must refuse.
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
-            .expect_take()
-            .returning(|_| Box::pin(async { Ok(None) }));
+            .expect_get_active_enrollment()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -4413,32 +4449,21 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        // Stands in for the adapter's compare-and-swap: claimable exactly once.
-        let user_id = user.id;
+        expect_active_otp_enrollment(&mut builder, user.id, SERVER_SECRET.to_string());
         let claimed = Arc::new(Mutex::new(false));
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        let claimed_clone = Arc::clone(&claimed);
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
-            .expect_take()
-            .returning(move |_| {
+            .expect_claim_enrollment()
+            .times(2)
+            .returning(move |_, _| {
                 let already_claimed = {
-                    let mut guard = claimed.lock().expect("mutex poisoned");
+                    let mut guard = claimed_clone.lock().expect("mutex poisoned");
                     let seen = *guard;
                     *guard = true;
                     seen
                 };
-                let s = SERVER_SECRET.to_string();
-                Box::pin(async move {
-                    Ok(if already_claimed {
-                        None
-                    } else {
-                        Some(PendingTotpSecretRecord {
-                            user_id,
-                            secret: s,
-                            label: None,
-                            expires_at: Utc::now() + chrono::Duration::minutes(10),
-                        })
-                    })
-                })
+                Box::pin(async move { Ok(!already_claimed) })
             });
 
         Arc::get_mut(&mut builder.credential_repo)
@@ -4510,6 +4535,147 @@ mod tests {
         assert!(
             second.is_err(),
             "an enrolment already claimed must not be replayable"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_otp_rejects_reenrollment_without_configure_otp_and_keeps_existing_credential() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let existing_otp = created_otp_credential(user.id, "EXISTINGSECRET".to_string());
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = vec![existing_otp.clone()];
+                Box::pin(async move { Ok(creds) })
+            });
+
+        expect_active_otp_enrollment(&mut builder, user.id, SERVER_SECRET.to_string());
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .never()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_custom_credential()
+            .never()
+            .returning(move |uid, _, secret, _, _| {
+                let cred = created_otp_credential(uid, secret);
+                Box::pin(async move { Ok(cred) })
+            });
+
+        let service = builder.build();
+        let result = service
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    code: current_code_for(SERVER_SECRET),
+                    step_up_token: None,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "verify_otp must reject re-enrollment unless ConfigureOtp is required"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_otp_allows_reenrollment_when_configure_otp_is_required() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::ConfigureOtp];
+
+        let existing_otp = created_otp_credential(user.id, "EXISTINGSECRET".to_string());
+        let existing_id = existing_otp.id;
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = vec![existing_otp.clone()];
+                Box::pin(async move { Ok(creds) })
+            });
+
+        expect_active_otp_enrollment(&mut builder, user.id, SERVER_SECRET.to_string());
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_claim_enrollment()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .times(1)
+            .returning(move |id| {
+                assert_eq!(id, existing_id);
+                Box::pin(async { Ok(()) })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_custom_credential()
+            .times(1)
+            .returning(move |uid, _, secret, _, _| {
+                let cred = created_otp_credential(uid, secret);
+                Box::pin(async move { Ok(cred) })
+            });
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let user_by_id_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user_by_id_clone.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        let realm_by_id_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = realm_by_id_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        Arc::get_mut(&mut builder.smtp_config_repo)
+            .unwrap()
+            .expect_get_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        let service = builder.build();
+        let result = service
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    code: current_code_for(SERVER_SECRET),
+                    step_up_token: None,
+                },
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "verify_otp must still allow re-enrollment when ConfigureOtp is required"
         );
     }
 
@@ -5179,11 +5345,22 @@ mod tests {
         let stored = token.to_string();
         Arc::get_mut(&mut builder.step_up_token_repo)
             .unwrap()
-            .expect_take()
+            .expect_find_active()
             .returning(move |_| {
                 let s = stored.clone();
-                Box::pin(async move { Ok(Some(s)) })
+                Box::pin(async move {
+                    Ok(vec![StepUpTokenRecord {
+                        id: Uuid::new_v4(),
+                        user_id: Uuid::new_v4(),
+                        token_hash: s,
+                        expires_at: Utc::now() + Duration::minutes(5),
+                    }])
+                })
             });
+        Arc::get_mut(&mut builder.step_up_token_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .returning(|_| Box::pin(async { Ok(true) }));
         Arc::get_mut(&mut builder.hasher_repo)
             .unwrap()
             .expect_verify_magic_token()
@@ -5627,6 +5804,11 @@ mod tests {
             .expect_store_event()
             .returning(|_| Box::pin(async { Ok(()) }));
 
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
         let service = builder.build();
         let result = service
             .reauthenticate(
@@ -5821,8 +6003,6 @@ mod tests {
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
 
-        // The legacy enrollment record is still written alongside the pending
-        // secret; both must be mocked for `setup_otp` to complete.
         Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
             .expect_start_enrollment()
@@ -5837,16 +6017,6 @@ mod tests {
                     })
                 })
             });
-
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
-            .unwrap()
-            .expect_cleanup_expired()
-            .returning(|| Box::pin(async { Ok(0u64) }));
-
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
-            .unwrap()
-            .expect_save()
-            .returning(|_| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
         let result = service
@@ -5885,23 +6055,11 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        // The pending TOTP secret is persisted server-side at setup time and
-        // consumed here (single-use). Provide it via the repository mock.
-        let pending_secret = secret.base32_encoded().to_string();
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        expect_active_otp_enrollment(&mut builder, user.id, secret.base32_encoded().to_string());
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
-            .expect_take()
-            .returning(move |_| {
-                let s = pending_secret.clone();
-                Box::pin(async move {
-                    Ok(Some(PendingTotpSecretRecord {
-                        user_id: user.id,
-                        secret: s,
-                        label: None,
-                        expires_at: Utc::now() + chrono::Duration::minutes(10),
-                    }))
-                })
-            });
+            .expect_claim_enrollment()
+            .returning(|_, _| Box::pin(async { Ok(true) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -5998,21 +6156,11 @@ mod tests {
             .expect_get_credentials_by_user_id()
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
-        let pending_secret = secret.base32_encoded().to_string();
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        expect_active_otp_enrollment(&mut builder, user.id, secret.base32_encoded().to_string());
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
-            .expect_take()
-            .returning(move |_| {
-                let s = pending_secret.clone();
-                Box::pin(async move {
-                    Ok(Some(PendingTotpSecretRecord {
-                        user_id: user.id,
-                        secret: s,
-                        label: None,
-                        expires_at: Utc::now() + chrono::Duration::minutes(10),
-                    }))
-                })
-            });
+            .expect_claim_enrollment()
+            .returning(|_, _| Box::pin(async { Ok(true) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -6245,6 +6393,24 @@ mod tests {
             .expect_get_by_realm_id()
             .returning(|_| Box::pin(async { Ok(None) }));
 
+        let user_by_id = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user_by_id.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        let realm_by_id = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = realm_by_id.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
         Arc::get_mut(&mut builder.security_event_repo)
             .unwrap()
             .expect_store_event()
@@ -6318,6 +6484,11 @@ mod tests {
             .expect_find_recovery_code_by_lookup()
             .returning(|_, _| Box::pin(async { Ok(None) }));
 
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
         expect_recovery_code_lookup(&mut builder);
 
         // A failed attempt must bump the account's failed-login counter.
@@ -6385,19 +6556,175 @@ mod tests {
         assert!(matches!(result, Err(CoreError::NotFound)));
     }
 
-    // ── verify_otp: server-side pending secret enforcement (finding #2) ───
-
     #[tokio::test]
-    async fn verify_otp_self_service_fails_without_pending_secret() {
+    async fn complete_password_reset_with_recovery_code_falls_back_to_legacy_rows_without_lookup() {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
 
-        // No pending secret was stored by /me/totp/setup → cannot enroll.
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
             .unwrap()
-            .expect_take()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let realm_settings_clone = create_test_realm_setting(realm.id, true);
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = realm_settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
+        let user_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(move |_, _| {
+                let u = user_clone.clone();
+                Box::pin(async move { Ok(Some(u)) })
+            });
+
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
             .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_find_recovery_code_by_lookup()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+
+        let legacy_cred = test_recovery_credential(user.id);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = vec![legacy_cred.clone()];
+                Box::pin(async move { Ok(creds) })
+            });
+
+        expect_recovery_code_lookup(&mut builder);
+
+        Arc::get_mut(&mut builder.recovery_code_repo)
+            .unwrap()
+            .expect_verify()
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_reset_failed_login_attempts()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_count_active_by_user_id()
+            .returning(|_| Box::pin(async { Ok(0) }));
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_cleanup_expired()
+            .returning(|| Box::pin(async { Ok(0) }));
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_magic_token()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "hashed-reset-token".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.prt_repo)
+            .unwrap()
+            .expect_create()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.smtp_config_repo)
+            .unwrap()
+            .expect_get_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        let user_by_id = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user_by_id.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        let realm_by_id = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = realm_by_id.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset_with_recovery_code(
+                CompletePasswordResetWithRecoveryCodeInput {
+                    realm_name: "test-realm".to_string(),
+                    email: "alice@example.com".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                    format: "b32-split-4".to_string(),
+                    new_password: "Str0ng!P@ssword#2024".to_string(),
+                    base_url: "http://localhost:5555".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "legacy recovery-code rows without lookup must remain usable after deploy"
+        );
+    }
+
+    // ── verify_otp: server-side pending secret enforcement (finding #2) ───
+
+    #[tokio::test]
+    async fn verify_otp_self_service_fails_without_pending_enrollment() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        // No enrollment was stored by /me/totp/setup -> cannot enroll.
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_get_active_enrollment()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
 
         let service = builder.build();
         let result = service
@@ -6425,8 +6752,8 @@ mod tests {
         // before any pending secret is consumed.
         Arc::get_mut(&mut builder.step_up_token_repo)
             .unwrap()
-            .expect_take()
-            .returning(|_| Box::pin(async { Ok(None) }));
+            .expect_find_active()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
         let service = builder.build();
         let result = service
@@ -6443,28 +6770,110 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn verify_otp_self_service_invalid_step_up_token_does_not_consume_other_valid_tokens() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let take_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let take_calls_clone = Arc::clone(&take_calls);
+        Arc::get_mut(&mut builder.step_up_token_repo)
+            .unwrap()
+            .expect_find_active()
+            .times(2)
+            .returning(move |_| {
+                let call = take_calls_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Box::pin(async move {
+                    Ok(if call == 0 || call == 1 {
+                        vec![StepUpTokenRecord {
+                            id: Uuid::new_v4(),
+                            user_id: Uuid::new_v4(),
+                            token_hash: "stored-good-token".to_string(),
+                            expires_at: Utc::now() + Duration::minutes(5),
+                        }]
+                    } else {
+                        Vec::new()
+                    })
+                })
+            });
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_verify_magic_token()
+            .times(2)
+            .returning(|presented, stored| {
+                let valid = presented == stored;
+                Box::pin(async move { Ok(valid) })
+            });
+
+        Arc::get_mut(&mut builder.step_up_token_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_get_active_enrollment()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+
+        let service = builder.build();
+        let first = service
+            .verify_otp(
+                Identity::User(user.clone()),
+                VerifyOtpInput {
+                    code: "123456".to_string(),
+                    step_up_token: Some("wrong-token".to_string()),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(first, Err(CoreError::StepUpTokenInvalid)),
+            "an invalid presented step-up token must be rejected"
+        );
+
+        let second = service
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    code: "123456".to_string(),
+                    step_up_token: Some("stored-good-token".to_string()),
+                },
+            )
+            .await;
+
+        assert!(
+            !matches!(second, Err(CoreError::StepUpTokenInvalid)),
+            "rejecting one invalid token must not destroy a different valid token for the user"
+        );
+    }
+
+    #[tokio::test]
     async fn verify_otp_self_service_rejects_wrong_code() {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
 
-        // Provide a pending secret that does NOT match the submitted code.
-        let pending_secret = generate_secret().expect("generate totp secret");
-        let pending_b32 = pending_secret.base32_encoded().to_string();
-        Arc::get_mut(&mut builder.pending_totp_secret_repo)
+        Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
-            .expect_take()
-            .returning(move |_| {
-                let s = pending_b32.clone();
-                Box::pin(async move {
-                    Ok(Some(PendingTotpSecretRecord {
-                        user_id: user.id,
-                        secret: s,
-                        label: None,
-                        expires_at: Utc::now() + chrono::Duration::minutes(10),
-                    }))
-                })
-            });
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        // Provide an active enrollment that does NOT match the submitted code.
+        let pending_secret = generate_secret().expect("generate totp secret");
+        expect_active_otp_enrollment(
+            &mut builder,
+            user.id,
+            pending_secret.base32_encoded().to_string(),
+        );
 
         let service = builder.build();
         let result = service
@@ -6492,8 +6901,8 @@ mod tests {
         // No stored step-up token → consume fails before any WebAuthn work.
         Arc::get_mut(&mut builder.step_up_token_repo)
             .unwrap()
-            .expect_take()
-            .returning(|_| Box::pin(async { Ok(None) }));
+            .expect_find_active()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
         let service = builder.build();
         let result = service
@@ -6520,8 +6929,8 @@ mod tests {
         // factor.
         Arc::get_mut(&mut builder.step_up_token_repo)
             .unwrap()
-            .expect_take()
-            .returning(|_| Box::pin(async { Ok(None) }));
+            .expect_find_active()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
         let service = builder.build();
         let result = service
