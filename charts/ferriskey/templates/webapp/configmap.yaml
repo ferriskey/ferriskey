@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ferriskey.webapp.configJsonName" . }}
+  labels:
+    {{- include "ferriskey.webapp.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {
+      "api_url": {{ (.Values.webapp.api.url | default (and .Values.publicHost (printf "%s://%s%s" .Values.webapp.api.protocol .Values.publicHost .Values.api.server.rootPath)) | default "") | quote }}
+    }
