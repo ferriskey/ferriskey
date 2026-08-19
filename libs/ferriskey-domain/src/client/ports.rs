@@ -4,10 +4,10 @@ use crate::auth::Identity;
 use crate::client::{
     commands::{
         CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
-        CreateRoleInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
-        DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
-        GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, UpdateClientInput,
-        UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+        CreateRoleInput, CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
+        DeleteRedirectUriInput, DeleteWebOriginInput, GetClientInput, GetClientRolesInput,
+        GetClientsInput, GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetWebOriginsInput,
+        UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
     },
     entities::{
         Client,
@@ -37,6 +37,11 @@ pub trait ClientService: Send + Sync {
         identity: Identity,
         input: CreatePostLogoutRedirectUriInput,
     ) -> impl Future<Output = Result<RedirectUri, CoreError>> + Send;
+    fn create_web_origin(
+        &self,
+        identity: Identity,
+        input: CreateWebOriginInput,
+    ) -> impl Future<Output = Result<WebOrigin, CoreError>> + Send;
     fn create_role(
         &self,
         identity: Identity,
@@ -57,6 +62,16 @@ pub trait ClientService: Send + Sync {
         identity: Identity,
         input: DeletePostLogoutRedirectUriInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_web_origin(
+        &self,
+        identity: Identity,
+        input: DeleteWebOriginInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_web_origins(
+        &self,
+        identity: Identity,
+        input: GetWebOriginsInput,
+    ) -> impl Future<Output = Result<Vec<WebOrigin>, CoreError>> + Send;
     fn get_client_roles(
         &self,
         identity: Identity,

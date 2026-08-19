@@ -10,6 +10,7 @@ pub mod client_scope_attributes;
 pub mod client_scope_mappings;
 pub mod client_scope_protocol_mappers;
 pub mod client_scopes;
+pub mod client_web_origins;
 pub mod clients;
 pub mod compass_flow_steps;
 pub mod compass_flows;

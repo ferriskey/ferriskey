@@ -81,6 +81,7 @@ pub enum Relation {
     BrokerAuthSessions,
     ClientMaintenanceWhitelist,
     ClientScopeMappings,
+    ClientWebOrigins,
     DeviceAuthSessions,
     PostLogoutRedirectUris,
     Realms,
@@ -134,6 +135,7 @@ impl RelationTrait for Relation {
             Self::ClientScopeMappings => {
                 Entity::has_many(super::client_scope_mappings::Entity).into()
             }
+            Self::ClientWebOrigins => Entity::has_many(super::client_web_origins::Entity).into(),
             Self::DeviceAuthSessions => {
                 Entity::has_many(super::device_auth_sessions::Entity).into()
             }
@@ -172,6 +174,12 @@ impl Related<super::client_maintenance_whitelist::Entity> for Entity {
 impl Related<super::client_scope_mappings::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ClientScopeMappings.def()
+    }
+}
+
+impl Related<super::client_web_origins::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientWebOrigins.def()
     }
 }
 

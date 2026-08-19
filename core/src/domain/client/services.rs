@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::domain::{
@@ -5,14 +6,17 @@ use crate::domain::{
     client::{
         entities::{
             Client, CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
-            CreateRoleInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
-            DeleteRedirectUriInput, GetClientInput, GetClientRolesInput, GetClientsInput,
-            GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, UpdateClientInput,
-            UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput, redirect_uri::RedirectUri,
+            CreateRoleInput, CreateWebOriginInput, DeleteClientInput,
+            DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, DeleteWebOriginInput,
+            GetClientInput, GetClientRolesInput, GetClientsInput, GetPostLogoutRedirectUrisInput,
+            GetRedirectUrisInput, GetWebOriginsInput, UpdateClientInput,
+            UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+            redirect_uri::RedirectUri,
+            web_origin::{WebOrigin, WebOriginValue},
         },
         ports::{
             ClientPolicy, ClientRepository, ClientService, PostLogoutRedirectUriRepository,
-            RedirectUriRepository,
+            RedirectUriRepository, WebOriginRepository,
         },
         value_objects::CreateClientRequest,
     },
@@ -41,7 +45,7 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ClientScopeRepository
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
-pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
+pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -50,6 +54,7 @@ where
     W: WebhookRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
+    WO: WebOriginRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,
@@ -61,6 +66,7 @@ where
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) redirect_uri_repository: Arc<RU>,
     pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
+    pub(crate) web_origin_repository: Arc<WO>,
     pub(crate) role_repository: Arc<RO>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) client_scope_repository: Arc<CS>,
@@ -69,8 +75,8 @@ where
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
-    ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
+impl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
+    ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -79,6 +85,7 @@ where
     W: WebhookRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
+    WO: WebOriginRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,
@@ -92,6 +99,7 @@ where
         webhook_repository: Arc<W>,
         redirect_uri_repository: Arc<RU>,
         post_logout_redirect_uri_repository: Arc<PLRU>,
+        web_origin_repository: Arc<WO>,
         role_repository: Arc<RO>,
         security_event_repository: Arc<SE>,
         client_scope_repository: Arc<CS>,
@@ -105,6 +113,7 @@ where
             webhook_repository,
             redirect_uri_repository,
             post_logout_redirect_uri_repository,
+            web_origin_repository,
             role_repository,
             security_event_repository,
             client_scope_repository,
@@ -125,8 +134,8 @@ where
     }
 }
 
-impl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM> ClientService
-    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, RO, SE, CS, CSM>
+impl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM> ClientService
+    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -135,6 +144,7 @@ where
     W: WebhookRepository,
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
+    WO: WebOriginRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,
@@ -312,6 +322,106 @@ where
             .await?;
 
         Ok(redirect_uri)
+    }
+
+    async fn create_web_origin(
+        &self,
+        identity: Identity,
+        input: CreateWebOriginInput,
+    ) -> Result<WebOrigin, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_create_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        let value = WebOriginValue::from_str(&input.payload.value)?;
+
+        let web_origin = self
+            .web_origin_repository
+            .create(input.client_id, value)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::WebOriginCreated,
+                    realm_id.into(),
+                    Some(web_origin.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(web_origin)
+    }
+
+    async fn get_web_origins(
+        &self,
+        identity: Identity,
+        input: GetWebOriginsInput,
+    ) -> Result<Vec<WebOrigin>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        self.web_origin_repository
+            .get_by_client_id(input.client_id)
+            .await
+    }
+
+    async fn delete_web_origin(
+        &self,
+        identity: Identity,
+        input: DeleteWebOriginInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        self.web_origin_repository
+            .delete(input.client_id, input.web_origin_id)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::WebOriginDeleted,
+                    realm_id.into(),
+                    Some(input.web_origin_id),
+                ),
+            )
+            .await?;
+
+        Ok(())
     }
 
     async fn create_role(
