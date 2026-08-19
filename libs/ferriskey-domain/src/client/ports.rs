@@ -9,8 +9,13 @@ use crate::client::{
         GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, UpdateClientInput,
         UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
     },
-    entities::{Client, redirect_uri::RedirectUri},
+    entities::{
+        Client,
+        redirect_uri::RedirectUri,
+        web_origin::{WebOrigin, WebOriginValue},
+    },
     value_objects::{CreateClientRequest, UpdateClientRequest},
+    web_origin_resolution::ClientOriginSources,
 };
 use crate::common::app_errors::CoreError;
 use crate::realm::{Realm, RealmId};
@@ -193,4 +198,37 @@ pub trait RedirectUriRepository: Send + Sync {
         client_id: Uuid,
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait WebOriginRepository: Send + Sync {
+    fn create(
+        &self,
+        client_id: Uuid,
+        value: WebOriginValue,
+    ) -> impl Future<Output = Result<WebOrigin, CoreError>> + Send;
+
+    fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<WebOrigin>, CoreError>> + Send;
+
+    fn delete(
+        &self,
+        client_id: Uuid,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Every client of `realm_name` that could contribute an origin, with the
+    /// redirect URIs needed to expand [`WebOriginValue::DerivedFromRedirectUris`].
+    ///
+    /// Implementations must supply only *enabled* redirect URIs, and only clients
+    /// that are themselves enabled: whatever comes back here is granted CORS.
+    ///
+    /// This sits on the CORS path, so callers are required to cache it per realm
+    /// rather than call it per request.
+    fn get_origin_sources_by_realm_name(
+        &self,
+        realm_name: String,
+    ) -> impl Future<Output = Result<Vec<ClientOriginSources>, CoreError>> + Send;
 }

@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
 pub mod redirect_uri;
+pub mod web_origin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
 #[serde(rename_all = "lowercase")]

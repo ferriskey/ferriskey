@@ -37,6 +37,12 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidRedirectUri => {
                 Self::BadRequest("Redirect URI is not allowed for this client".into())
             }
+            CoreError::WebOriginNotFound => {
+                Self::NotFound("No web origin is registered under this identifier".into())
+            }
+            CoreError::InvalidWebOrigin(reason) => {
+                Self::BadRequest(CoreError::InvalidWebOrigin(reason).to_string().into())
+            }
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
             CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
             CoreError::InvalidUser => Self::Unauthorized("Invalid user".into()),

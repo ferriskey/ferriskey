@@ -34,6 +34,12 @@ pub enum CoreError {
     #[error("Redirect URI is not allowed for this client")]
     InvalidRedirectUri,
 
+    #[error("No web origin is registered under this identifier")]
+    WebOriginNotFound,
+
+    #[error("Invalid web origin: {0}")]
+    InvalidWebOrigin(String),
+
     #[error("Invalid client")]
     InvalidClient,
 
