@@ -78,8 +78,10 @@ pub trait WebhookRepository: Send + Sync {
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
+    #[allow(clippy::too_many_arguments)]
     fn update_webhook(
         &self,
+        realm_id: RealmId,
         id: Uuid,
         name: Option<String>,
         description: Option<String>,
@@ -88,7 +90,11 @@ pub trait WebhookRepository: Send + Sync {
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
-    fn delete_webhook(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_webhook(
+        &self,
+        realm_id: RealmId,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
