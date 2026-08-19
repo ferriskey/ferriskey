@@ -117,6 +117,14 @@ mod tests {
     }
 
     #[test]
+    fn does_not_derive_from_a_wildcard_shaped_redirect_uri() {
+        assert_eq!(
+            origin_of_redirect_uri("https://*.example.com/callback"),
+            None
+        );
+    }
+
+    #[test]
     fn does_not_derive_from_a_malformed_redirect_uri() {
         assert_eq!(origin_of_redirect_uri("not a uri"), None);
     }

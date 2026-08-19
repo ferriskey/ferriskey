@@ -31,7 +31,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
-use utoipa::ToSchema;
+use utoipa::openapi::{RefOr, schema::Schema};
+use utoipa::{PartialSchema, ToSchema};
 use uuid::Uuid;
 
 use crate::common::app_errors::CoreError;
@@ -51,7 +52,7 @@ pub enum InvalidOrigin {
     #[error("an origin carries no credentials")]
     HasCredentials,
 
-    #[error("`*` cannot be allowed while credentials are allowed")]
+    #[error("`*` cannot appear in an allowed origin while credentials are allowed")]
     Wildcard,
 }
 
@@ -77,9 +78,15 @@ impl Origin {
     /// refused rather than allowed to serialize to the opaque `"null"`.
     pub(crate) fn from_url(url: &Url) -> Result<Self, InvalidOrigin> {
         match url.scheme() {
-            "http" | "https" => Ok(Self(url.origin().ascii_serialization())),
-            other => Err(InvalidOrigin::UnsupportedScheme(other.to_string())),
+            "http" | "https" => {}
+            other => return Err(InvalidOrigin::UnsupportedScheme(other.to_string())),
         }
+
+        if url.host_str().is_some_and(|host| host.contains('*')) {
+            return Err(InvalidOrigin::Wildcard);
+        }
+
+        Ok(Self(url.origin().ascii_serialization()))
     }
 }
 
@@ -136,12 +143,24 @@ impl fmt::Display for Origin {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub enum WebOriginValue {
     DerivedFromRedirectUris,
     Explicit(Origin),
 }
+
+/// Hand-written because the `serde` attributes above flatten this enum to a
+/// plain string on the wire, and a derived schema would keep documenting the
+/// externally-tagged shape. A generated client built from that schema would send
+/// `{"Explicit": "…"}` and be rejected.
+impl PartialSchema for WebOriginValue {
+    fn schema() -> RefOr<Schema> {
+        String::schema()
+    }
+}
+
+impl ToSchema for WebOriginValue {}
 
 impl WebOriginValue {
     /// Keycloak spells "derive my origins from my redirect URIs" as `+`, and
@@ -154,7 +173,7 @@ impl FromStr for WebOriginValue {
     type Err = InvalidOrigin;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == Self::DERIVED_SENTINEL {
+        if s.trim() == Self::DERIVED_SENTINEL {
             return Ok(Self::DerivedFromRedirectUris);
         }
 
@@ -304,6 +323,35 @@ mod tests {
     #[test]
     fn rejects_the_wildcard_padded_with_whitespace() {
         assert_eq!(Origin::try_from("  *  "), Err(InvalidOrigin::Wildcard));
+    }
+
+    #[test]
+    fn rejects_a_subdomain_wildcard() {
+        assert_eq!(
+            Origin::try_from("https://*.example.com"),
+            Err(InvalidOrigin::Wildcard)
+        );
+    }
+
+    #[test]
+    fn rejects_a_wildcard_standing_alone_as_the_host() {
+        assert_eq!(Origin::try_from("https://*"), Err(InvalidOrigin::Wildcard));
+    }
+
+    #[test]
+    fn the_sentinel_survives_surrounding_whitespace() {
+        assert_eq!(
+            WebOriginValue::from_str(" + "),
+            Ok(WebOriginValue::DerivedFromRedirectUris)
+        );
+    }
+
+    #[test]
+    fn a_value_is_documented_as_the_string_it_serializes_to() {
+        let schema = serde_json::to_value(WebOriginValue::schema())
+            .expect("a utoipa schema serializes to json");
+
+        assert_eq!(schema["type"], "string");
     }
 
     #[test]
