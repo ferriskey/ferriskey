@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatSnakeCaseToTitleCase } from '@/utils'
 import {
@@ -18,8 +18,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import SecurityEvent = Schemas.SecurityEvent
-
+type SecurityEvent = Schemas.SecurityEvent
 interface Props {
   events: SecurityEvent[]
   isLoading: boolean

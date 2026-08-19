@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useUpdateProtocolMapper } from '@/api/client-scope.api'
 import { Form } from '@/components/ui/form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,8 +12,7 @@ import {
 } from '../../schemas/update-protocol-mapper.schema'
 import EditProtocolMapperModal from '../../ui/modals/edit-protocol-mapper-modal'
 
-import ProtocolMapper = Schemas.ProtocolMapper
-
+type ProtocolMapper = Schemas.ProtocolMapper
 interface EditProtocolMapperModalFeatureProps {
   open: boolean
   onOpenChange: (open: boolean) => void

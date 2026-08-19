@@ -5,12 +5,11 @@ import { useBulkDeleteUser, useGetUsers } from '../../../api/user.api'
 import PageUsersOverview from '../ui/page-users-overview'
 import { USER_OVERVIEW_URL, USER_URL } from '@/routes/sub-router/user.router'
 import { useMemo, useState } from 'react'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 
-import User = Schemas.User
-
+type User = Schemas.User
 export default function PageUsersOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { data: responseGetUsers, isLoading } = useGetUsers({ realm: realm_name ?? 'master' })

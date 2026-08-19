@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertTriangle,
@@ -13,8 +13,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import User = Schemas.User
-
+type User = Schemas.User
 interface Props {
   identities: User[]
   isLoading: boolean

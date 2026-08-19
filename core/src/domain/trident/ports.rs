@@ -95,45 +95,20 @@ pub trait StepUpTokenRepository: Send + Sync {
     fn save(&self, record: StepUpTokenRecord)
     -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    /// Take the step-up token for a user, removing it so it cannot be reused.
-    /// Returns `None` when no (unexpired) token exists.
-    fn take(&self, user_id: Uuid)
-    -> impl Future<Output = Result<Option<String>, CoreError>> + Send;
-
-    /// Drop any expired tokens.
-    fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
-}
-
-/// A persisted, single-use, TTL'd TOTP secret for the self-service
-/// `/me/totp/setup` -> `/me/totp/verify` flow. The secret is generated and
-/// stored server-side at setup time and consumed at verify time, so a caller
-/// can never supply their own secret or silently replace an existing
-/// authenticator.
-#[derive(Debug, Clone)]
-pub struct PendingTotpSecretRecord {
-    pub user_id: Uuid,
-    pub secret: String,
-    pub label: Option<String>,
-    pub expires_at: DateTime<Utc>,
-}
-
-/// Persistence for pending self-service TOTP secrets.
-#[cfg_attr(test, mockall::automock)]
-pub trait PendingTotpSecretRepository: Send + Sync {
-    /// Store (or replace) the pending TOTP secret for a user.
-    fn save(
-        &self,
-        record: PendingTotpSecretRecord,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-
-    /// Take the pending TOTP secret for a user, removing it so it cannot be
-    /// reused. Returns `None` when no (unexpired) secret exists.
-    fn take(
+    /// List the currently active step-up tokens for a user.
+    fn find_active(
         &self,
         user_id: Uuid,
-    ) -> impl Future<Output = Result<Option<PendingTotpSecretRecord>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Vec<StepUpTokenRecord>, CoreError>> + Send;
 
-    /// Drop any expired secrets.
+    /// Delete one active step-up token by its row id. Returns `true` when the
+    /// row was deleted and `false` when it was already gone or expired.
+    fn delete_by_id(
+        &self,
+        token_id: Uuid,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    /// Drop any expired tokens.
     fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
@@ -314,16 +289,22 @@ pub trait OtpEnrollmentRepository: Send + Sync {
         expires_at: DateTime<Utc>,
     ) -> impl Future<Output = Result<OtpEnrollment, CoreError>> + Send;
 
-    /// Atomically claim the live enrolment for this user, or return `None` when there
-    /// is none, it has expired, or it has already been claimed.
-    ///
-    /// Single-use is enforced here rather than by the caller: two concurrent
-    /// `verify_otp` calls must not both succeed against the same candidate secret.
-    fn consume_enrollment(
+    /// Return the newest live enrolment for this user, or `None` when there is none,
+    /// it has expired, or it has already been claimed.
+    fn get_active_enrollment(
         &self,
         user_id: Uuid,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Option<OtpEnrollment>, CoreError>> + Send;
+
+    /// Atomically claim one enrolment by id once the caller has verified the OTP
+    /// code. Returns `true` when the enrolment was claimed and `false` when it was
+    /// already gone, expired, or had already been claimed.
+    fn claim_enrollment(
+        &self,
+        enrollment_id: Uuid,
+        now: DateTime<Utc>,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Drop any pending enrolment for this user, used when an enrolment is abandoned.
     fn clear_enrollments(

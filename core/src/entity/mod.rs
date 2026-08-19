@@ -38,7 +38,6 @@ pub mod organizations;
 pub mod otp_enrollments;
 pub mod password_policy;
 pub mod password_reset_tokens;
-pub mod pending_totp_secrets;
 pub mod portal_layouts;
 pub mod portal_themes;
 pub mod post_logout_redirect_uris;

@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
 import StatisticsCard from '../components/statistics-card'
@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 type QuickFilter = 'all' | 'confidential' | 'deprecated'
 
 interface Statistics {

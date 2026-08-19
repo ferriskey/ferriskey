@@ -9,8 +9,8 @@ use validator::Validate;
 /// own choosing and verify a code against it (FK-003).
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct OtpVerifyRequest {
+    #[validate(length(min = 1, max = 8))]
     pub code: String,
-    pub label: String,
 }
 
 /// Request for the self-service `/me/totp/verify` flow. The TOTP secret is

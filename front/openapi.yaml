@@ -5950,14 +5950,8 @@ components:
       type: object
       required:
       - code
-      - label
-      - secret
       properties:
         code:
-          type: string
-        label:
-          type: string
-        secret:
           type: string
     PasswordPolicy:
       type: object

@@ -393,10 +393,10 @@ export function usePortalPageSubmit(
     onFormError?.(null)
   }, [onFormError])
 
-  // TOTP setup: submit reads the 6-digit code + optional device label from
-  // the form, pulls the `secret` from the cached `useSetupOtp` query
-  // (already prefetched by `PortalLayoutWrapper`), and posts to verify.
-  // On success the backend redirects via a chained `authenticate()`
+  // TOTP setup: submit reads the 6-digit code from the form and posts it to
+  // verify. The QR code / fallback secret still come from the cached
+  // `useSetupOtp` query that `PortalLayoutWrapper` prefetched for display.
+  // On success the backend redirects via `authenticate({ useToken: true })`
   // — same chained pattern as the React `ConfigureOtpFeature`.
   //
   // All hooks for this branch run unconditionally (rules-of-hooks); the
@@ -456,16 +456,20 @@ export function usePortalPageSubmit(
   const totpSetupSubmit = useCallback(
     (data: FormData) => {
       const code = String(data.get('totp') ?? '').trim()
-      const label = String(data.get('device_name') ?? '').trim() || 'Authenticator'
       if (!code) {
         toast.error('Enter the 6-digit code from your authenticator app.')
         return
       }
-      // The secret is no longer sent: the server reads back the enrolment it issued
-      // itself, so a client-supplied secret is neither needed nor accepted (FK-003).
+      // The server reads back the enrollment it issued, so the client submits only
+      // the current OTP code here.
+      if (!totpSetupToken) {
+        toast.error('TOTP setup context is missing. Please restart the flow.')
+        return
+      }
       verifyOtp(
         {
-          data: { code, label },
+          data: { code },
+          token: totpSetupToken,
           realm: realm_name,
         },
         {
@@ -474,7 +478,7 @@ export function usePortalPageSubmit(
         },
       )
     },
-    [realm_name, verifyOtp],
+    [realm_name, totpSetupToken, verifyOtp],
   )
 
   // All hooks above run unconditionally so the order stays stable across

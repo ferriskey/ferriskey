@@ -13,7 +13,7 @@ Endpoints covered:
 | Endpoint | AuthN | Sensitive? |
 |---|---|---|
 | `POST /realms/{r}/me/reauthenticate` | Bearer | Mints step-up token |
-| `POST /realms/{r}/me/totp/setup` | Bearer | Generates pending TOTP secret |
+| `POST /realms/{r}/me/totp/setup` | Bearer | Generates pending OTP enrollment |
 | `POST /realms/{r}/me/totp/verify` | Bearer + step-up token | Enrolls OTP factor |
 | `POST /realms/{r}/me/passkey/registration` (options + complete) | Bearer + step-up token | Enrolls passkey factor |
 | `DELETE /realms/{r}/me/credentials/{id}` | Bearer + step-up token | Removes a factor |
@@ -37,8 +37,10 @@ configured, the current OTP code. On success it mints a **short-lived
 (`STEP_UP_TOKEN_TTL` = 5 min), single-use, user-bound** step-up token:
 
 - The raw token is returned once; only a hash is stored (`step_up_tokens`).
-- `consume_step_up_token` atomically deletes the row via `take`, so it cannot
-  be replayed.
+- `consume_step_up_token` loads the active candidate rows for the user, matches
+  the presented token against the stored hashes, and deletes only the matched
+  row, so it cannot be replayed and does not invalidate unrelated in-flight
+  step-up tokens.
 - It is required on `/me/totp/verify`, `/me/passkey/registration`, and
   `DELETE /me/credentials/{id}`.
 
@@ -53,14 +55,16 @@ to the existing account lockout (`lockout_compute_locked_until`, thresholds in
 `reauthentication_failed` / `recovery_code_burned` (failure) `SecurityEvent`
 so SeaWatch can detect guessing.
 
-## TOTP enrollment (server-side pending secret)
+## TOTP enrollment (server-side enrollment record)
 
 `/me/totp/setup` generates the secret **server-side** and persists it in
-`pending_totp_secrets` (single-use, TTL'd). `/me/totp/verify` takes **only the
-code** and consumes the pending secret via `take`. Consequences:
+`otp_enrollments` (single-use, TTL'd). `/me/totp/verify` takes **only the
+code** and reads back the active enrollment the server issued. Consequences:
 
 - The client can never supply its own secret, so an attacker holding a token
   cannot silently replace the victim's authenticator.
+- An invalid OTP code does not burn the enrollment; the row is claimed only
+  after the code is verified, so users can retry within the enrollment TTL.
 - Enrollment still requires the step-up token (above).
 
 ## Recovery codes are a *second* factor, never a login path (finding #3)
@@ -123,6 +127,6 @@ the wrong realm.
 
 - TOTP codes remain valid for their standard 30s window (inherent to TOTP);
   the `counter` field stored on the OTP credential is unused for TOTP.
-- `pending_totp_secrets` / `step_up_tokens` / `webauthn_challenges` rows are
-  purged via `cleanup_expired()` on write; a periodic sweeper is recommended for
+- `otp_enrollments` / `step_up_tokens` / `webauthn_challenges` rows are purged
+  via `cleanup_expired()` on write; a periodic sweeper is recommended for
   environments with high churn.

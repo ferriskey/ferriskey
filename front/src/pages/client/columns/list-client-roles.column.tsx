@@ -1,7 +1,6 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ColumnDef } from '@/components/ui/data-table'
-import Role = Schemas.Role
-
+type Role = Schemas.Role
 export const columns: ColumnDef<Role>[] = [
   {
     id: 'Name',

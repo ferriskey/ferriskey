@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,8 +13,7 @@ import { Input } from '@/components/ui/input'
 import { UseFormReturn } from 'react-hook-form'
 import { UpdateProtocolMapperSchema } from '../../schemas/update-protocol-mapper.schema'
 
-import ProtocolMapper = Schemas.ProtocolMapper
-
+type ProtocolMapper = Schemas.ProtocolMapper
 interface EditProtocolMapperModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void

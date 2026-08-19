@@ -7,10 +7,9 @@ import SetPasswordFeature from '../feature/modals/set-password-feature'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import CredentialOverview = Schemas.CredentialOverview
-
+type CredentialOverview = Schemas.CredentialOverview
 export interface PageCredentialsProps {
   credentials: CredentialOverview[]
   handleDeleteUserCredential: (credentialId: string) => void

@@ -1,12 +1,11 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatSnakeCaseToTitleCase } from '@/utils'
 import { AlertTriangle, Shield, TrendingUp } from 'lucide-react'
 import { useMemo } from 'react'
 
-import SecurityEvent = Schemas.SecurityEvent
-
+type SecurityEvent = Schemas.SecurityEvent
 export interface StrangeEventsAnalysisProps {
   events: SecurityEvent[]
 }

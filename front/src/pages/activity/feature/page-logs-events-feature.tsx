@@ -1,11 +1,10 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useGetSecurityEvents } from '@/api/sea-watch.api'
 import { RouterParams } from '@/routes/router'
 import { useParams } from 'react-router'
 import PageLogsEvents from '../ui/page-logs-events'
 
-import SecurityEvent = Schemas.SecurityEvent
-
+type SecurityEvent = Schemas.SecurityEvent
 const mockSecurityEvents: SecurityEvent[] = [
   {
     id: 'sew_evt_01',

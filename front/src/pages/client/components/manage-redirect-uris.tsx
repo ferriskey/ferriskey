@@ -6,15 +6,14 @@ import { Trash2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Form, FormField } from '@/components/ui/form'
-import RedirectUri = Schemas.RedirectUri
-
+type RedirectUri = Schemas.RedirectUri
 export interface ManageRedirectUrisProps {
   redirectUris: RedirectUri[]
   refetch: () => void

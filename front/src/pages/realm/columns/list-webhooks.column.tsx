@@ -1,6 +1,6 @@
 import { ColumnDef } from '@/components/ui/data-table'
-import { Schemas } from '@/api/api.client'
-import Webhook = Schemas.Webhook
+import type { Schemas } from '@/api/api.client'
+type Webhook = Schemas.Webhook
 import BadgeColor from '@/components/ui/badge-color'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 

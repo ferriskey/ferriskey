@@ -16,7 +16,7 @@ import {
   CLIENT_SCOPE_DETAILS_URL,
   CLIENT_SCOPE_URL,
 } from '@/routes/sub-router/client-scope.router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 interface AssignedScopesTableProps {
   realm: string | undefined

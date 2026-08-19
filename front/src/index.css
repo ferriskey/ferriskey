@@ -124,18 +124,23 @@
 
 /* time input styling */
 input[type="time"], input[type="date"], input[type="datetime-local"] {
-  &::-webkit-calendar-picker-indicator {
-    background: none;
-    display: none;
-  }
+  background: none;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  background: none;
+  display: none;
 }
 
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
 
-  &::-webkit-outer-spin-button, &::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

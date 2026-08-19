@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,8 +24,7 @@ import { FlaggedUsers } from './flagged-users'
 import { SecurityMetrics } from './security-metrics'
 import { StrangeEventsAnalysis } from './strange-events-analysis'
 
-import SecurityEvent = Schemas.SecurityEvent
-
+type SecurityEvent = Schemas.SecurityEvent
 interface PageOverviewProps {
   events: SecurityEvent[]
   isLoading: boolean

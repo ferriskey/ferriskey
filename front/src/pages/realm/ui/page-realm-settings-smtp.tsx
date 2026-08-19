@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { DangerZone } from '@/components/danger-zone'
 import { Button } from '@/components/ui/button'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 interface PageRealmSettingsSmtpProps {
   form: UseFormReturn<SmtpConfigSchema>

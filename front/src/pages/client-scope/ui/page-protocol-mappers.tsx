@@ -1,5 +1,5 @@
 import { Fragment } from 'react/jsx-runtime'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { OverviewList } from '@/components/ui/overview-list'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import StatisticsCard from '../components/statistics-card'
 
-import ProtocolMapper = Schemas.ProtocolMapper
-
+type ProtocolMapper = Schemas.ProtocolMapper
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
 function MapperCategoryBadge({ mapperType }: { mapperType: string }) {

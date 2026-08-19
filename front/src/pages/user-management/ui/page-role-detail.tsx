@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Permissions } from '@/api/core.interface'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -16,8 +16,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-import Role = Schemas.Role
-
+type Role = Schemas.Role
 const roleDetailSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   description: z.string().trim(),

@@ -11,10 +11,9 @@ import { InputText } from '@/components/ui/input-text.tsx'
 import BadgeColor from '@/components/ui/badge-color.tsx'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { DangerZone } from '@/components/danger-zone'
-import Role = Schemas.Role
-
+type Role = Schemas.Role
 export interface PageRoleSettingsProps {
   role?: Role
   form: UseFormReturn<UpdateRoleSchema>

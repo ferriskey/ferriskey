@@ -15,9 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import SelectClientBox from './components/select-client-box'
 import { permissionGroups } from '@/pages/role/types/permission-groups.ts'
-import { Schemas } from '@/api/api.client.ts'
-import Client = Schemas.Client
-
+import type { Schemas } from '@/api/api.client.ts'
+type Client = Schemas.Client
 export interface PageCreateRoleProps {
   form: UseFormReturn<CreateRoleSchema>
   handleSubmit: () => void

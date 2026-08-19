@@ -105,7 +105,6 @@ use crate::{
             magic_link_repository::PostgresMagicLinkRepository,
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
-            pending_totp_secret_repository::PostgresPendingTotpSecretRepository,
             portal_layouts_repository::PostgresPortalLayoutsRepository,
             portal_theme_repository::PostgresPortalThemeRepository,
             random_bytes_recovery_code::RandBytesRecoveryCodeRepository,
@@ -228,7 +227,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
     let webauthn_challenge = Arc::new(PostgresWebAuthnChallengeRepository::new(postgres.get_db()));
     let step_up_token = Arc::new(PostgresStepUpTokenRepository::new(postgres.get_db()));
-    let pending_totp_secret = Arc::new(PostgresPendingTotpSecretRepository::new(postgres.get_db()));
 
     let email_template = Arc::new(PostgresEmailTemplateRepository::new(postgres.get_db()));
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());

@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { ChevronDown, ChevronRight, Plus, Search, Trash2 } from 'lucide-react'
 
 import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'

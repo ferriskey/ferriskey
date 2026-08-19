@@ -18,7 +18,7 @@ import {
 import { useGetClientScopes as useGetRealmClientScopes } from '@/api/client-scope.api'
 import { useAssignScope } from '@/api/client.api'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 interface AddScopeModalProps {
   realm: string | undefined
