@@ -1,29 +1,3 @@
-//! Web origins registered for a client, and the CORS decision they feed.
-//!
-//! An origin is not a URL. `https://app.example.com/callback` is a redirect URI;
-//! the origin a browser sends in the `Origin` header is `https://app.example.com`
-//! — scheme, host, and port only, serialized per the URL Standard. Storing one
-//! where the other is expected produces a value that never matches any preflight,
-//! silently, which is why [`Origin`] cannot be built by any route that skips
-//! validation — `serde` included, via `try_from`.
-//!
-//! Normalization follows the browser's own serialization, since that is what the
-//! comparison is against: lowercased scheme and host, default port omitted
-//! (`:443` for https, `:80` for http), nothing after the authority.
-//!
-//! `*` is rejected rather than accepted-and-ignored. The Fetch standard forbids
-//! `Access-Control-Allow-Origin: *` alongside `Access-Control-Allow-Credentials:
-//! true`, and FerrisKey sets the latter, so a stored `*` could never be honoured.
-//! Refusing it at the boundary turns a silently dead configuration into an error
-//! the administrator sees while typing it.
-//!
-//! Two doors lead in, and they validate differently on purpose.
-//! [`Origin::try_from`] takes what an administrator typed and demands it already
-//! *be* an origin — credentials, path, query or fragment are all refusals.
-//! [`Origin::from_url`] takes a URL that legitimately has more than an origin, a
-//! redirect URI, and extracts the origin a browser would send for it; there,
-//! credentials and path belong to the URI and are discarded rather than refused.
-
 use std::fmt;
 use std::str::FromStr;
 
@@ -71,11 +45,6 @@ impl Origin {
         &self.0
     }
 
-    /// The origin a browser would send for `url`, discarding everything the
-    /// origin does not carry.
-    ///
-    /// Only http and https have a serializable origin here; every other scheme is
-    /// refused rather than allowed to serialize to the opaque `"null"`.
     pub(crate) fn from_url(url: &Url) -> Result<Self, InvalidOrigin> {
         match url.scheme() {
             "http" | "https" => {}
@@ -159,9 +128,6 @@ impl PartialSchema for WebOriginValue {
 impl ToSchema for WebOriginValue {}
 
 impl WebOriginValue {
-    /// Keycloak spells "derive my origins from my redirect URIs" as `+`, and
-    /// administrators migrating from it type that. Kept as a stored value rather
-    /// than a boolean on the client so it stays visible in the list and auditable.
     pub const DERIVED_SENTINEL: &'static str = "+";
 }
 

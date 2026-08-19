@@ -219,14 +219,6 @@ pub trait WebOriginRepository: Send + Sync {
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    /// Every client of `realm_name` that could contribute an origin, with the
-    /// redirect URIs needed to expand [`WebOriginValue::DerivedFromRedirectUris`].
-    ///
-    /// Implementations must supply only *enabled* redirect URIs, and only clients
-    /// that are themselves enabled: whatever comes back here is granted CORS.
-    ///
-    /// This sits on the CORS path, so callers are required to cache it per realm
-    /// rather than call it per request.
     fn get_origin_sources_by_realm_name(
         &self,
         realm_name: String,

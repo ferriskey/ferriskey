@@ -1,54 +1,21 @@
-//! Turning the web origins stored against a realm's clients into the allowlist
-//! the CORS layer answers preflights with.
-//!
-//! A preflight `OPTIONS` carries no body and no `Authorization` header, so the
-//! `client_id` a browser later sends to `/token` is not available when permission
-//! is asked for. CORS therefore cannot be decided per client, only per realm — the
-//! realm being in the path for essentially the whole API surface. Origins are
-//! nonetheless *stored* per client, which is finer to administer and audit; this
-//! module is where the two meet, by unioning the origins of one realm's clients.
-//!
-//! The consequence is worth stating rather than discovering: within one realm, an
-//! origin registered by one client is accepted on requests aimed at another. That
-//! is inherent to the preflight, not a shortcut taken here.
-//!
-//! [`WebOriginValue::DerivedFromRedirectUris`] — Keycloak's `+` — expands to the
-//! origins of its own client's redirect URIs, never another's. It expands *literal*
-//! redirect URIs only: FerrisKey also accepts anchored regex patterns
-//! (see [`crate::client::redirect_uri_matching`]), and an origin cannot be derived
-//! from a pattern. Those are skipped, so an administrator who registered a regex
-//! redirect URI and then relied on `+` is not covered — the UI has to say so.
-
 use std::collections::HashSet;
 
 use url::Url;
 
 use crate::client::entities::web_origin::{Origin, WebOriginValue};
 
-/// The origin material stored against one client, as the CORS resolver reads it.
-///
-/// `enabled_redirect_uris` is named for the guarantee its producer owes: a
-/// disabled redirect URI must never reach here, or disabling one would leave the
-/// origin it derives still allowed.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ClientOriginSources {
     pub web_origins: Vec<WebOriginValue>,
     pub enabled_redirect_uris: Vec<String>,
 }
 
-/// The origin a redirect URI is served from, when it is a literal URL.
-///
-/// `None` for anchored regex patterns and for anything that does not parse. The
-/// credentials and path a redirect URI may legitimately carry are discarded here
-/// rather than refused — unlike [`Origin::try_from`], whose input is expected to
-/// already be an origin.
 pub fn origin_of_redirect_uri(redirect_uri: &str) -> Option<Origin> {
     let url = Url::parse(redirect_uri).ok()?;
 
     Origin::from_url(&url).ok()
 }
 
-/// Every origin allowed for the realm whose clients these are.
 pub fn resolve_allowed_origins(sources: &[ClientOriginSources]) -> HashSet<Origin> {
     let mut allowed = HashSet::new();
 
