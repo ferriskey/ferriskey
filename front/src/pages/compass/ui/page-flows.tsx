@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Heading } from '@/components/ui/heading'
@@ -8,9 +8,8 @@ import { useMemo, useState } from 'react'
 import { FlowList } from './flow-list'
 import { StatsCards } from './stats-cards'
 
-import CompassFlow = Schemas.CompassFlow
-import FlowStats = Schemas.FlowStats
-
+type CompassFlow = Schemas.CompassFlow
+type FlowStats = Schemas.FlowStats
 interface PageFlowsProps {
   flows: CompassFlow[]
   stats: FlowStats | null

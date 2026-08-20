@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
 import { ChartContainer } from '@/components/ui/chart'
 import { Area, AreaChart } from 'recharts'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 interface ClientTrendChartProps {
   clients: Client[]
   days?: number

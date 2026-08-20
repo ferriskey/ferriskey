@@ -1543,6 +1543,8 @@ dependencies = [
  "ferriskey-api-user",
  "ferriskey-api-webhook",
  "ferriskey-core",
+ "hmac",
+ "libc",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",
@@ -1552,6 +1554,7 @@ dependencies = [
  "sea-orm",
  "serde",
  "serde_json",
+ "sha1",
  "sqlx",
  "test-context",
  "thiserror 2.0.18",
@@ -1823,12 +1826,14 @@ dependencies = [
  "axum-extra",
  "ferriskey-api-core",
  "ferriskey-core",
+ "psl",
  "serde",
  "tracing",
  "url",
  "utoipa",
  "uuid",
  "validator",
+ "zeroize",
 ]
 
 [[package]]
@@ -1941,6 +1946,7 @@ dependencies = [
  "uuid",
  "webauthn-rs",
  "x509-parser 0.18.0",
+ "zeroize",
 ]
 
 [[package]]
@@ -4256,6 +4262,21 @@ dependencies = [
  "quote",
  "syn 2.0.111",
 ]
+
+[[package]]
+name = "psl"
+version = "2.1.224"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6fd4be744906217175e617ecbaff30e1d4574954e5ab2ad6ac0fead0e9abc3a"
+dependencies = [
+ "psl-types",
+]
+
+[[package]]
+name = "psl-types"
+version = "2.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33cb294fe86a74cbcf50d4445b37da762029549ebeea341421c7c70370f86cac"
 
 [[package]]
 name = "psm"

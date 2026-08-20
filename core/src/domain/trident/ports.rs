@@ -1,11 +1,15 @@
 use chrono::{DateTime, Utc};
 use ferriskey_trident::entities::{MagicLink, PasswordResetToken};
 use uuid::Uuid;
+use zeroize::Zeroize;
 
 use crate::domain::{
+    authentication::entities::WebAuthnChallenge,
     authentication::value_objects::Identity,
     common::entities::app_errors::CoreError,
+    credential::entities::CredentialOverview,
     crypto::HashResult,
+    realm::entities::RealmId,
     trident::entities::{MfaRecoveryCode, TotpSecret},
     user::entities::RequiredAction,
 };
@@ -35,6 +39,74 @@ pub struct WebAuthnRpInfo {
     /// payload doesn't match, then no further verification is done and the payload is rejected.
     /// Must be a valid origin format string ! (scheme://host[:port])
     pub allowed_origin: String,
+}
+
+/// A persisted WebAuthn challenge for the self-service (Bearer) passkey
+/// registration flow.
+///
+/// The login flow keeps its challenge on the `auth_sessions` row, but the
+/// self-service flow has no auth session (it is keyed by the authenticated
+/// user id instead). Storing it in a repository — rather than a process-local
+/// map — keeps it consistent across instances and lets it expire via
+/// `expires_at`.
+#[derive(Debug, Clone)]
+pub struct WebAuthnChallengeRecord {
+    pub user_id: Uuid,
+    pub challenge: WebAuthnChallenge,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// Persistence for self-service WebAuthn registration challenges.
+#[cfg_attr(test, mockall::automock)]
+pub trait WebAuthnChallengeRepository: Send + Sync {
+    /// Store (or replace) the pending registration challenge for a user.
+    fn save(
+        &self,
+        record: WebAuthnChallengeRecord,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Take the pending registration challenge for a user, removing it so it
+    /// cannot be reused. Returns `None` when no (unexpired) challenge exists.
+    fn take(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Option<WebAuthnChallenge>, CoreError>> + Send;
+
+    /// Drop any expired challenges.
+    fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
+}
+
+/// A persisted, short-lived, single-use step-up token minted by
+/// `/me/reauthenticate` and required before sensitive self-service operations
+/// (TOTP re-enrollment, passkey registration, credential deletion).
+#[derive(Debug, Clone)]
+pub struct StepUpTokenRecord {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    /// Hash of the raw token, so a leaked database never exposes usable tokens.
+    pub token_hash: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+/// Persistence for self-service step-up tokens.
+#[cfg_attr(test, mockall::automock)]
+pub trait StepUpTokenRepository: Send + Sync {
+    /// Store a step-up token for a user.
+    fn save(&self, record: StepUpTokenRecord)
+    -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// List the currently active step-up tokens for a user.
+    fn find_active(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<StepUpTokenRecord>, CoreError>> + Send;
+
+    /// Delete one active step-up token by its row id. Returns `true` when the
+    /// row was deleted and `false` when it was already gone or expired.
+    fn delete_by_id(&self, token_id: Uuid) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    /// Drop any expired tokens.
+    fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
 pub struct WebAuthnPublicKeyCreateOptionsInput {
@@ -114,7 +186,11 @@ pub struct UpdatePasswordInput {
 /// verification a tautology and let a caller enrol a secret of their choosing (FK-003).
 pub struct VerifyOtpInput {
     pub code: String,
-    pub label: Option<String>,
+    /// Step-up token minted by `/me/reauthenticate`. Required for the
+    /// self-service `/me/totp/verify` flow; `None` for the login-flow
+    /// `/login-actions/verify-otp` which is already protected by a temporary
+    /// login token.
+    pub step_up_token: Option<String>,
 }
 
 pub struct VerifyOtpOutput {
@@ -210,22 +286,83 @@ pub trait OtpEnrollmentRepository: Send + Sync {
         expires_at: DateTime<Utc>,
     ) -> impl Future<Output = Result<OtpEnrollment, CoreError>> + Send;
 
-    /// Atomically claim the live enrolment for this user, or return `None` when there
-    /// is none, it has expired, or it has already been claimed.
-    ///
-    /// Single-use is enforced here rather than by the caller: two concurrent
-    /// `verify_otp` calls must not both succeed against the same candidate secret.
-    fn consume_enrollment(
+    /// Return the newest live enrolment for this user, or `None` when there is none,
+    /// it has expired, or it has already been claimed.
+    fn get_active_enrollment(
         &self,
         user_id: Uuid,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Option<OtpEnrollment>, CoreError>> + Send;
+
+    /// Atomically claim one enrolment by id once the caller has verified the OTP
+    /// code. Returns `true` when the enrolment was claimed and `false` when it was
+    /// already gone, expired, or had already been claimed.
+    fn claim_enrollment(
+        &self,
+        enrollment_id: Uuid,
+        now: DateTime<Utc>,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Drop any pending enrolment for this user, used when an enrolment is abandoned.
     fn clear_enrollments(
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+}
+
+/// Input for self-service (Bearer-authenticated) passkey registration options.
+/// Unlike the login-flow variant it does not carry a session code: the pending
+/// challenge is keyed by user id instead of an auth session.
+pub struct PasskeyRegisterOptionsSelfServiceInput {
+    pub rp_info: WebAuthnRpInfo,
+}
+
+/// Input for self-service (Bearer-authenticated) passkey registration
+/// completion.
+pub struct PasskeyRegisterSelfServiceInput {
+    pub rp_info: WebAuthnRpInfo,
+    pub credential: RegisterPublicKeyCredential,
+    /// Step-up token minted by `/me/reauthenticate`, required to enroll a new
+    /// factor.
+    pub step_up_token: String,
+}
+
+/// Input for completing a password reset using a recovery code instead of the
+/// email reset token. A recovery code is a *second* factor: verifying it unlocks
+/// a password reset (proving email control via the reset link we email), it does
+/// NOT itself mint a session. This prevents a single leaked recovery code from
+/// becoming full account takeover with MFA bypassed.
+pub struct CompletePasswordResetWithRecoveryCodeInput {
+    pub realm_name: String,
+    pub email: String,
+    pub code: String,
+    pub format: String,
+    pub new_password: String,
+    /// Base URL used to build the password-reset link emailed to the user after
+    /// the recovery code is burned.
+    pub base_url: String,
+}
+
+/// Input for re-authenticating a signed-in user before a sensitive operation
+/// (e.g. re-setting up 2FA). Requires the account password, and the current
+/// OTP code when the user already has an authenticator configured.
+pub struct ReauthenticateInput {
+    pub password: String,
+    pub otp_code: Option<String>,
+}
+
+impl Zeroize for ReauthenticateInput {
+    fn zeroize(&mut self) {
+        self.password.zeroize();
+        self.otp_code.zeroize();
+    }
+}
+
+/// Output of a successful re-authentication: a short-lived, single-use,
+/// user-bound step-up token that must be presented on the sensitive
+/// self-service operations it unlocks.
+pub struct ReauthenticateOutput {
+    pub step_up_token: String,
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -239,12 +376,19 @@ pub trait RecoveryCodeRepository: Send + Sync {
         out
     }
 
-    /// Returns a string safe for long term storage
-    /// Generally this is just hashing the code using an internal hasher
+    /// Returns a string safe for long term storage together with a fast lookup
+    /// key (first 16 hex chars of SHA-256 of the code's hex representation). The
+    /// lookup key is persisted on the credential row so verification can locate
+    /// the single candidate without running Argon2 against every stored code.
     fn secure_for_storage(
         &self,
         code: &MfaRecoveryCode,
-    ) -> impl Future<Output = Result<HashResult, CoreError>> + Send;
+    ) -> impl Future<Output = Result<(HashResult, String), CoreError>> + Send;
+
+    /// Derive the fast lookup key for a plaintext recovery code, matching the
+    /// one computed by `secure_for_storage`. Used to locate the candidate
+    /// credential row before the single Argon2 verification.
+    fn lookup_of(&self, code: &MfaRecoveryCode) -> String;
 
     /// Compares the given human-readable formatted code against a stored credential
     fn verify(
@@ -353,6 +497,68 @@ pub trait TridentService: Send + Sync {
         &self,
         input: VerifyResetTokenInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Start a passkey registration from an authenticated (Bearer) workspace,
+    /// without requiring a `FERRISKEY_SESSION` cookie or a temporary
+    /// login-action token. The pending challenge is stored keyed by user id.
+    fn passkey_register_options_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterOptionsSelfServiceInput,
+    ) -> impl Future<Output = Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError>> + Send;
+
+    /// Complete a passkey registration started via
+    /// `passkey_register_options_self_service`.
+    fn passkey_register_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterSelfServiceInput,
+    ) -> impl Future<Output = Result<WebAuthnValidatePublicKeyOutput, CoreError>> + Send;
+
+    /// Complete a password reset using a recovery code instead of the email
+    /// reset token. Consumes the matched recovery code and returns the same
+    /// output as `complete_password_reset`.
+    fn complete_password_reset_with_recovery_code(
+        &self,
+        input: CompletePasswordResetWithRecoveryCodeInput,
+    ) -> impl Future<Output = Result<CompletePasswordResetOutput, CoreError>> + Send;
+
+    /// Re-authenticate a signed-in user by verifying the account password and,
+    /// when an authenticator is configured, the current OTP code. On success
+    /// mints a short-lived, single-use, user-bound step-up token that must be
+    /// presented on the sensitive self-service operations it unlocks.
+    fn reauthenticate(
+        &self,
+        identity: Identity,
+        input: ReauthenticateInput,
+    ) -> impl Future<Output = Result<ReauthenticateOutput, CoreError>> + Send;
+
+    /// List the signed-in user's own credentials (otp, passkey, recovery
+    /// codes). Bearer self-service variant that does not require realm admin
+    /// permissions, unlike the admin `GET /users/{id}/credentials` endpoint.
+    fn list_credentials_self_service(
+        &self,
+        identity: Identity,
+    ) -> impl Future<Output = Result<Vec<CredentialOverview>, CoreError>> + Send;
+
+    /// Delete one of the signed-in user's own credentials. Bearer self-service
+    /// variant; the credential must belong to the authenticated user. Requires
+    /// a step-up token minted by `/me/reauthenticate`.
+    fn delete_credential_self_service(
+        &self,
+        identity: Identity,
+        credential_id: Uuid,
+        step_up_token: String,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    /// Resolve a realm *name* (from the URL path) to its authoritative
+    /// `RealmId`. Used by self-service handlers to compare the path realm
+    /// against the token's realm id (carried by `AuthenticatedRealm`) without
+    /// trusting the issuer claim. Policy-free: it only maps a name to an id.
+    fn realm_id_for_name(
+        &self,
+        realm_name: &str,
+    ) -> impl Future<Output = Result<RealmId, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]

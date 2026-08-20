@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { OverviewList } from '@/components/ui/overview-list'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
@@ -6,8 +6,7 @@ import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-import Role = Schemas.Role
-
+type Role = Schemas.Role
 interface PageClientRolesProps {
   roles: Role[]
   isLoading: boolean

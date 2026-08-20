@@ -55,6 +55,18 @@ impl CredentialRepository for CredentialRepoAny {
         }
     }
 
+    async fn find_recovery_code_by_lookup(
+        &self,
+        user_id: Uuid,
+        lookup: &str,
+    ) -> Result<Option<Credential>, CredentialError> {
+        match self {
+            CredentialRepoAny::Postgres(repo) => {
+                repo.find_recovery_code_by_lookup(user_id, lookup).await
+            }
+        }
+    }
+
     async fn create_custom_credential(
         &self,
         user_id: Uuid,
@@ -80,11 +92,12 @@ impl CredentialRepository for CredentialRepoAny {
     async fn create_recovery_code_credentials(
         &self,
         user_id: Uuid,
-        hashes: Vec<HashResult>,
+        credentials: Vec<(HashResult, String)>,
     ) -> Result<(), CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => {
-                repo.create_recovery_code_credentials(user_id, hashes).await
+                repo.create_recovery_code_credentials(user_id, credentials)
+                    .await
             }
         }
     }

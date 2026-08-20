@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { InputText } from '@/components/ui/input-text'
 import { Copy, Check, Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { useGetClientSecret } from '@/api/client.api.ts'
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 export interface PageClientCredentialsProps {
   client: Client
   realm: string

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Pencil, Trash2 } from 'lucide-react'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
@@ -7,8 +7,7 @@ import { OverviewList } from '@/components/ui/overview-list'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { Button } from '@/components/ui/button'
 
-import WebhookType = Schemas.Webhook
-
+type WebhookType = Schemas.Webhook
 export interface PageRealmSettingsWebhooksProps {
   webhooks: WebhookType[]
   handleDeleteWebhook: (webhookId: string) => void

@@ -8,7 +8,7 @@ import {
   IDENTITY_PROVIDER_CREATE_URL,
 } from '@/routes/sub-router/identity-provider.router'
 import PageOverview from '../ui/page-overview'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { IdentityProviderListItem } from '../types'
 
 export default function PageOverviewFeature() {

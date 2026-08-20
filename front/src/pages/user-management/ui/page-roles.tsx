@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ChevronDown,
@@ -12,8 +12,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import Role = Schemas.Role
-
+type Role = Schemas.Role
 interface Props {
   roles: Role[]
   isLoading: boolean

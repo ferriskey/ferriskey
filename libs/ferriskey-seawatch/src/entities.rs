@@ -81,6 +81,21 @@ pub enum SecurityEventType {
 
     #[serde(rename = "identity_provider_link_removed")]
     IdentityProviderLinkRemoved,
+
+    #[serde(rename = "mfa_enrolled")]
+    MfaEnrolled,
+
+    #[serde(rename = "mfa_removed")]
+    MfaRemoved,
+
+    #[serde(rename = "credential_deleted")]
+    CredentialDeleted,
+
+    #[serde(rename = "reauthentication_failed")]
+    ReauthenticationFailed,
+
+    #[serde(rename = "recovery_code_burned")]
+    RecoveryCodeBurned,
 }
 
 impl Display for SecurityEventType {
@@ -116,6 +131,11 @@ impl Display for SecurityEventType {
             SecurityEventType::IdentityProviderLinkRemoved => {
                 write!(f, "identity_provider_link_removed")
             }
+            SecurityEventType::MfaEnrolled => write!(f, "mfa_enrolled"),
+            SecurityEventType::MfaRemoved => write!(f, "mfa_removed"),
+            SecurityEventType::CredentialDeleted => write!(f, "credential_deleted"),
+            SecurityEventType::ReauthenticationFailed => write!(f, "reauthentication_failed"),
+            SecurityEventType::RecoveryCodeBurned => write!(f, "recovery_code_burned"),
         }
     }
 }

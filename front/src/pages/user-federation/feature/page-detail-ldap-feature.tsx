@@ -9,7 +9,7 @@ import { Form } from '@/components/ui/form'
 import LdapFormUi from '../ui/ldap-form-ui'
 import { useGetUserFederation, useUpdateUserFederation, useTestUserFederationConnection, useSyncUsers } from '@/api/user-federation.api'
 import { useFormChanges } from '@/hooks/use-form-changes'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { useConfettiFireworks } from '@/hooks/use-confetti-fireworks'
 import { useEffect } from 'react'
 

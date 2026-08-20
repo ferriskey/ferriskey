@@ -1,11 +1,10 @@
 import { Button } from '@/components/ui/button'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
 } from '@/pages/identity-providers/components/provider-icon'
 
-import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
-
+type IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 export type LoginProvidersProps = {
   providers: IdentityProviderPresentation[]
 }
