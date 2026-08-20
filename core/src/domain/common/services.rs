@@ -348,22 +348,35 @@ where
             }
         }
 
-        let hash = self
-            .hasher_repository
-            .hash_password(&config.admin_password)
-            .await
-            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
-
-        match self
+        let password_credential_exists = self
             .credential_repository
-            .create_credential(user.id, "password".to_string(), hash, "".into(), false)
+            .get_password_credential(user.id)
             .await
-        {
-            Ok(_) => {
-                tracing::info!("credential created for user {:}", user.username);
-            }
-            Err(_) => {
-                tracing::info!("credential already exists for user {:}", user.username);
+            .is_ok();
+
+        if password_credential_exists {
+            tracing::info!("credential already exists for user {:}", user.username);
+        } else {
+            let hash = self
+                .hasher_repository
+                .hash_password(&config.admin_password)
+                .await
+                .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+            match self
+                .credential_repository
+                .create_credential(user.id, "password".to_string(), hash, "".into(), false)
+                .await
+            {
+                Ok(_) => {
+                    tracing::info!("credential created for user {:}", user.username);
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "failed to create credential for user {:}: {e:?}",
+                        user.username
+                    );
+                }
             }
         }
 
