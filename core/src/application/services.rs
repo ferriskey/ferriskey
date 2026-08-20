@@ -558,14 +558,28 @@ impl ApplicationService {
         realm_name: String,
         password: &str,
     ) -> Result<(), CoreError> {
+        self.validate_password_policy_for_identity(realm_name, password, None, None)
+            .await
+    }
+
+    pub async fn validate_password_policy_for_identity(
+        &self,
+        realm_name: String,
+        password: &str,
+        username: Option<&str>,
+        email: Option<&str>,
+    ) -> Result<(), CoreError> {
         let realm = self
             .realm_service
             .realm_repository
             .get_by_name(&realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
+
+        let email_local = email.and_then(|value| value.split('@').next());
+
         self.password_policy_service
-            .enforce(realm.id.into(), password)
+            .enforce_for_identity(realm.id.into(), password, username, email_local)
             .await
     }
 

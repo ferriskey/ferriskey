@@ -25,14 +25,19 @@ use ferriskey_api_core::{
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegistrationRequest {
-    #[serde(default)]
+    #[validate(length(min = 1, max = 255, message = "username is required"))]
     pub username: String,
-    #[serde(default)]
+    #[validate(
+        email(message = "email must be a valid address"),
+        length(max = 255, message = "email is too long")
+    )]
     pub email: String,
-    #[serde(default)]
+    #[validate(length(min = 1, message = "password is required"))]
     pub password: String,
 
+    #[validate(length(max = 255, message = "first_name is too long"))]
     pub first_name: Option<String>,
+    #[validate(length(max = 255, message = "last_name is too long"))]
     pub last_name: Option<String>,
 }
 
@@ -107,7 +112,12 @@ pub async fn registration_handler(
 
     state
         .service
-        .validate_password_policy(realm_name.clone(), &req.password)
+        .validate_password_policy_for_identity(
+            realm_name.clone(),
+            &req.password,
+            Some(req.username.trim()),
+            Some(req.email.trim()),
+        )
         .await?;
 
     let url_context = registration_url_context(
@@ -169,15 +179,26 @@ mod tests {
     }
 
     #[test]
-    fn test_registration_request_deserialization_with_defaults() {
-        let json = r#"{}"#;
+    fn an_empty_body_is_rejected_rather_than_defaulted() {
+        let parsed = serde_json::from_str::<RegistrationRequest>(r#"{}"#);
 
-        let request: RegistrationRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(request.username, "");
-        assert_eq!(request.email, "");
-        assert_eq!(request.password, "");
-        assert_eq!(request.first_name, None);
-        assert_eq!(request.last_name, None);
+        assert!(
+            parsed.is_err(),
+            "username, email and password are required: a bare body must not deserialize into empty strings"
+        );
+    }
+
+    #[test]
+    fn a_blank_username_or_malformed_email_is_refused() {
+        let request: RegistrationRequest =
+            serde_json::from_str(r#"{"username": "", "email": "not-an-address", "password": "x"}"#)
+                .expect("the shape is valid, the values are not");
+
+        let errors = request.validate().expect_err("validation must reject this");
+        let fields = errors.field_errors();
+
+        assert!(fields.contains_key("username"), "errors: {fields:?}");
+        assert!(fields.contains_key("email"), "errors: {fields:?}");
     }
 
     #[test]
