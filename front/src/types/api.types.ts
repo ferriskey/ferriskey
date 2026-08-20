@@ -40,6 +40,7 @@ export type RealmLoginSetting = Schemas.RealmLoginSetting
 
 // Other commonly used types
 export type RedirectUri = Schemas.RedirectUri
+export type WebOrigin = Schemas.WebOrigin
 export type JwtToken = Schemas.JwtToken
 export type RequiredAction = Schemas.RequiredAction
 export type GrantType = Schemas.GrantType

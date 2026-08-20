@@ -14,9 +14,11 @@ import { Switch } from '@/components/ui/switch'
 import { Loader2, Plus, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { inferApplicationType } from '../../types'
+import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import { Field, Section } from './primitives'
 
 import Client = Schemas.Client
+import WebOrigin = Schemas.WebOrigin
 
 export interface ApplicationSettingsValues {
   name: string
@@ -54,6 +56,9 @@ interface Props {
   onDelete: () => void
   onAddRedirectUri: (value: string) => void
   onDeleteRedirectUri: (redirectUriId: string) => void
+  webOrigins: WebOrigin[]
+  onAddWebOrigin: (value: string) => void
+  onDeleteWebOrigin: (webOriginId: string) => void
 }
 
 export default function SettingsTab({
@@ -64,9 +69,13 @@ export default function SettingsTab({
   onDelete,
   onAddRedirectUri,
   onDeleteRedirectUri,
+  webOrigins,
+  onAddWebOrigin,
+  onDeleteWebOrigin,
 }: Props) {
   const [values, setValues] = useState<ApplicationSettingsValues>(() => settingsFromClient(client))
   const [newUri, setNewUri] = useState('')
+  const [newOrigin, setNewOrigin] = useState('')
 
   const baseline = useMemo(() => settingsFromClient(client), [client])
   const hasChanges = useMemo(
@@ -98,6 +107,13 @@ export default function SettingsTab({
     if (!v || !isValidUrl(v)) return
     onAddRedirectUri(v)
     setNewUri('')
+  }
+
+  const handleAddOrigin = () => {
+    const v = newOrigin.trim()
+    if (!isWebOriginValue(v)) return
+    onAddWebOrigin(v)
+    setNewOrigin('')
   }
 
   return (
@@ -163,6 +179,63 @@ export default function SettingsTab({
                 type='button'
                 onClick={handleAddUri}
                 disabled={uriPending || !newUri.trim() || !isValidUrl(newUri)}
+                className='inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+              >
+                {uriPending ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Plus className='h-3.5 w-3.5' />}
+                Add
+              </button>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {usesAuthorizationCode && (
+        <Section
+          title='Web origins'
+          description='Origins this application may call FerrisKey from in a browser. Enter + to derive them from the redirect URIs above — literal ones only, regex patterns are skipped.'
+        >
+          <div className='flex flex-col gap-2'>
+            {webOrigins.length === 0 && (
+              <p className='text-xs text-muted-foreground'>No web origins registered yet.</p>
+            )}
+            {webOrigins.map((origin) => (
+              <div
+                key={origin.id}
+                className='flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2'
+              >
+                <span className='flex-1 text-sm font-mono truncate'>{origin.value}</span>
+                {origin.value === DERIVED_ORIGIN_SENTINEL && (
+                  <span className='text-xs text-muted-foreground'>derived from redirect URIs</span>
+                )}
+                <button
+                  type='button'
+                  onClick={() => onDeleteWebOrigin(origin.id)}
+                  disabled={uriPending}
+                  className='inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-red-500 hover:bg-muted transition-colors disabled:opacity-40'
+                  aria-label='Remove web origin'
+                >
+                  <X className='h-3.5 w-3.5' />
+                </button>
+              </div>
+            ))}
+            <div className='flex items-center gap-2'>
+              <input
+                type='text'
+                value={newOrigin}
+                onChange={(e) => setNewOrigin(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddOrigin()
+                  }
+                }}
+                placeholder='https://app.acme.com'
+                className='flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
+              />
+              <button
+                type='button'
+                onClick={handleAddOrigin}
+                disabled={uriPending || !isWebOriginValue(newOrigin)}
                 className='inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
               >
                 {uriPending ? <Loader2 className='h-3.5 w-3.5 animate-spin' /> : <Plus className='h-3.5 w-3.5' />}
