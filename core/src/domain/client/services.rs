@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -12,13 +13,14 @@ use crate::domain::{
             GetRedirectUrisInput, GetWebOriginsInput, UpdateClientInput,
             UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
             redirect_uri::RedirectUri,
-            web_origin::{WebOrigin, WebOriginValue},
+            web_origin::{Origin, WebOrigin, WebOriginValue},
         },
         ports::{
             ClientPolicy, ClientRepository, ClientService, PostLogoutRedirectUriRepository,
-            RedirectUriRepository, WebOriginRepository,
+            RedirectUriRepository, WebOriginRepository, WebOriginResolver,
         },
         value_objects::CreateClientRequest,
+        web_origin_resolution::resolve_allowed_origins,
     },
     common::{
         entities::app_errors::CoreError,
@@ -874,5 +876,34 @@ where
             .await?;
 
         Ok(redirect_uri)
+    }
+}
+
+impl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM> WebOriginResolver
+    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
+where
+    R: RealmRepository,
+    U: UserRepository,
+    C: ClientRepository,
+    UR: UserRoleRepository,
+    W: WebhookRepository,
+    RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
+    WO: WebOriginRepository,
+    RO: RoleRepository,
+    SE: SecurityEventRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
+{
+    async fn resolve_realm_origins(
+        &self,
+        realm_name: String,
+    ) -> Result<HashSet<Origin>, CoreError> {
+        let sources = self
+            .web_origin_repository
+            .get_origin_sources_by_realm_name(realm_name)
+            .await?;
+
+        Ok(resolve_allowed_origins(&sources))
     }
 }

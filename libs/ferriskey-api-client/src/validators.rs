@@ -85,3 +85,10 @@ pub struct UpdateRedirectUriValidator {
     #[serde(default)]
     pub enabled: bool,
 }
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateWebOriginValidator {
+    #[validate(length(min = 1, message = "Origin value is required"))]
+    #[serde(default)]
+    pub value: String,
+}

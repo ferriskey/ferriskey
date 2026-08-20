@@ -35,7 +35,11 @@ pub struct ApiSpec {
     /// URL for the API service
     pub api_url: String,
 
-    /// Allowed origins for CORS
+    /// Origins always allowed to call the API from a browser, on every route. Per-client web
+    /// origins only cover realm-scoped routes, so a console served from a different origin than
+    /// the API must keep its origin here: /config, the health probes and the API docs carry no
+    /// realm and can be allowed by nothing else.
+    #[serde(default)]
     pub allowed_origins: Vec<String>,
 }
 

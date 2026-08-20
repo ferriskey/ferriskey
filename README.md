@@ -179,6 +179,8 @@ ADMIN_EMAIL=admin@ferriskey.rs
 ALLOWED_ORIGINS=http://localhost:5555
 ```
 
+`ALLOWED_ORIGINS` lists the origins accepted on **every** route. Beyond it, each client declares its own web origins at runtime, enforced per realm — see the `web-origins` endpoints under a client. Those per-client origins never replace `ALLOWED_ORIGINS`: `/config`, the health probes and the API docs carry no realm, so an admin console served from a different origin than the API must keep its origin in `ALLOWED_ORIGINS`.
+
 By default, the API will listen on port 3333 and the frontend on port 5555.
 
 ## 🗄️ Database Migrations

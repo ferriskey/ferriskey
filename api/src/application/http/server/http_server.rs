@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
@@ -22,23 +23,25 @@ use ferriskey_api_user::router::user_routes;
 use ferriskey_api_webhook::router::webhook_routes;
 
 use super::config::get_config;
-use anyhow::Context;
 use axum::Router;
+use axum::http::Method;
 use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
-use axum::http::{HeaderValue, Method};
 use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
+use ferriskey_api_core::cors::CorsOriginResolver;
 use ferriskey_api_health::health_routes;
 use ferriskey_core::application::create_service;
 use ferriskey_core::domain::common::FerriskeyConfig;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::{debug, info_span};
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
+
+const PREFLIGHT_MAX_AGE: Duration = Duration::from_secs(600);
 
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
@@ -63,18 +66,20 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         },
     );
 
-    let allowed_origins = state
-        .args
-        .server
-        .allowed_origins
-        .iter()
-        .map(|origin| {
-            HeaderValue::from_str(origin)
-                .with_context(|| format!("Invalid origin in configuration: '{}'", origin))
-        })
-        .collect::<anyhow::Result<Vec<HeaderValue>>>()?;
+    let resolver = Arc::new(
+        CorsOriginResolver::new(
+            Arc::new(state.service.clone()),
+            state.args.server.root_path.clone(),
+            &state.args.server.allowed_origins,
+            state.web_origin_cache.clone(),
+        )
+        .map_err(|error| anyhow::anyhow!("Invalid origin in ALLOWED_ORIGINS: {error}"))?,
+    );
 
-    debug!("Allowed origins: {:?}", allowed_origins);
+    debug!(
+        "Bootstrap allowed origins: {:?}",
+        state.args.server.allowed_origins
+    );
 
     let cors = CorsLayer::new()
         .allow_methods([
@@ -85,7 +90,17 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
             Method::PATCH,
             Method::OPTIONS,
         ])
-        .allow_origin(allowed_origins)
+        .allow_origin(AllowOrigin::async_predicate(move |origin, parts| {
+            let resolver = Arc::clone(&resolver);
+            let path = parts.uri.path().to_owned();
+
+            async move {
+                match origin.to_str() {
+                    Ok(origin) => resolver.is_allowed(&path, origin).await,
+                    Err(_) => false,
+                }
+            }
+        }))
         .allow_headers([
             AUTHORIZATION,
             CONTENT_TYPE,
@@ -93,7 +108,8 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
             ACCEPT,
             LOCATION,
         ])
-        .allow_credentials(true);
+        .allow_credentials(true)
+        .max_age(PREFLIGHT_MAX_AGE);
 
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 

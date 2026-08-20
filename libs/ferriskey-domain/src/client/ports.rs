@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use uuid::Uuid;
 
 use crate::auth::Identity;
@@ -12,7 +14,7 @@ use crate::client::{
     entities::{
         Client,
         redirect_uri::RedirectUri,
-        web_origin::{WebOrigin, WebOriginValue},
+        web_origin::{Origin, WebOrigin, WebOriginValue},
     },
     value_objects::{CreateClientRequest, UpdateClientRequest},
     web_origin_resolution::ClientOriginSources,
@@ -238,4 +240,11 @@ pub trait WebOriginRepository: Send + Sync {
         &self,
         realm_name: String,
     ) -> impl Future<Output = Result<Vec<ClientOriginSources>, CoreError>> + Send;
+}
+
+pub trait WebOriginResolver: Send + Sync {
+    fn resolve_realm_origins(
+        &self,
+        realm_name: String,
+    ) -> impl Future<Output = Result<HashSet<Origin>, CoreError>> + Send;
 }

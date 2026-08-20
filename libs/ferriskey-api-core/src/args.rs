@@ -253,7 +253,7 @@ pub struct ServerArgs {
         env,
         num_args = 0..,
         value_delimiter = ',',
-        long_help = "The port to run the application on",
+        long_help = "Origins always allowed to call the API from a browser, comma-separated, on every route. Per-client web origins only cover realm-scoped routes, so a console served from a different origin than the API must keep its origin here: /config, the health probes and the API docs carry no realm and can be allowed by nothing else. Each entry must be a serialized origin (scheme://host[:port]), with no path and no wildcard.",
     )]
     pub allowed_origins: Vec<String>,
     #[arg(
