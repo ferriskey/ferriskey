@@ -57,7 +57,7 @@ interface Props {
   onAddRedirectUri: (value: string) => void
   onDeleteRedirectUri: (redirectUriId: string) => void
   webOrigins: WebOrigin[]
-  onAddWebOrigin: (value: string) => void
+  onAddWebOrigin: (value: string) => Promise<boolean>
   onDeleteWebOrigin: (webOriginId: string) => void
 }
 
@@ -109,11 +109,12 @@ export default function SettingsTab({
     setNewUri('')
   }
 
-  const handleAddOrigin = () => {
+  const handleAddOrigin = async () => {
     const v = newOrigin.trim()
     if (!isWebOriginValue(v)) return
-    onAddWebOrigin(v)
-    setNewOrigin('')
+    if (await onAddWebOrigin(v)) {
+      setNewOrigin('')
+    }
   }
 
   return (
@@ -226,15 +227,16 @@ export default function SettingsTab({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    handleAddOrigin()
+                    void handleAddOrigin()
                   }
                 }}
                 placeholder='https://app.acme.com'
+                aria-label='Web origin'
                 className='flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-1 focus:ring-primary/30'
               />
               <button
                 type='button'
-                onClick={handleAddOrigin}
+                onClick={() => void handleAddOrigin()}
                 disabled={uriPending || !isWebOriginValue(newOrigin)}
                 className='inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
               >

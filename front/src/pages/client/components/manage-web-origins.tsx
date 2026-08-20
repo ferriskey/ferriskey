@@ -107,6 +107,7 @@ export default function ManageWebOrigins() {
                 className='text-red-500'
                 variant='ghost'
                 size='icon'
+                aria-label={`Remove web origin ${origin.value}`}
                 onClick={() => {
                   handleDeleteWebOrigin(origin.id)
                 }}

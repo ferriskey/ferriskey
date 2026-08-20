@@ -90,15 +90,17 @@ export default function PageApplicationDetailFeature() {
     }
   }
 
-  async function handleAddWebOrigin(value: string) {
-    if (!client) return
+  async function handleAddWebOrigin(value: string): Promise<boolean> {
+    if (!client) return false
     setUriPending(true)
     try {
       await createWebOrigin({ realmName: realm, clientId: client.id, payload: { value } })
       await refetchWebOrigins()
       toast.success('Web origin added')
+      return true
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add web origin')
+      return false
     } finally {
       setUriPending(false)
     }

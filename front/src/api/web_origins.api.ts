@@ -16,14 +16,10 @@ export const useGetWebOrigins = ({
 }) => {
   return useQuery({
     queryKey: webOriginsQueryKey(realmName ?? '', clientId ?? ''),
-    queryFn: async () => {
-      if (!realmName || !clientId) return []
-
-      return window.tanstackApi.client.get(
-        '/realms/{realm_name}/clients/{client_id}/web-origins',
-        { path: { realm_name: realmName, client_id: clientId } }
-      ) as Promise<Schemas.WebOrigin[]>
-    },
+    queryFn: async () =>
+      window.tanstackApi.client.get('/realms/{realm_name}/clients/{client_id}/web-origins', {
+        path: { realm_name: realmName!, client_id: clientId! },
+      }) as Promise<Schemas.WebOrigin[]>,
     enabled: !!realmName && !!clientId,
   })
 }
