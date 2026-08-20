@@ -1094,6 +1094,15 @@ export namespace Schemas {
   export type VerifyOtpResponse = { message: string };
   export type VerifyResetTokenRequest = { token_id: string };
   export type VerifyResetTokenResponse = { valid: boolean };
+  export type WebOriginValue = string;
+  export type WebOrigin = {
+    client_id: string;
+    created_at: string;
+    id: string;
+    updated_at: string;
+    value: WebOriginValue;
+  };
+  export type CreateWebOriginValidator = Partial<{ value: string }>;
 
   // </Schemas>
 }
@@ -1676,6 +1685,53 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; client_id: string; uri_id: string };
+    };
+    responses: {
+      200: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_web_origins = {
+    method: "GET";
+    path: "/realms/{realm_name}/clients/{client_id}/web-origins";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Array<Schemas.WebOrigin>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_web_origin = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/web-origins";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.CreateWebOriginValidator;
+    };
+    responses: {
+      201: Schemas.WebOrigin;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_web_origin = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/clients/{client_id}/web-origins/{web_origin_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string; web_origin_id: string };
     };
     responses: {
       200: unknown;
@@ -3779,6 +3835,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.get_Get_post_logout_redirect_uris;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.get_Get_redirect_uris;
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.get_Get_client_roles;
+    "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.get_Get_web_origins;
     "/realms/{realm_name}/compass/v1/activity/daily": Endpoints.get_Get_daily_activity_stats;
     "/realms/{realm_name}/compass/v1/flows": Endpoints.get_Get_flows;
     "/realms/{realm_name}/compass/v1/flows/{flow_id}": Endpoints.get_Get_flow;
@@ -3847,6 +3904,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.post_Create_client_role;
+    "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.post_Create_web_origin;
     "/realms/{realm_name}/device/verify": Endpoints.post_Device_verify;
     "/realms/{realm_name}/email-templates": Endpoints.post_Create_template;
     "/realms/{realm_name}/federation/providers": Endpoints.post_Create_provider;
@@ -3931,6 +3989,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.delete_Delete_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.delete_Delete_redirect_uri;
+    "/realms/{realm_name}/clients/{client_id}/web-origins/{web_origin_id}": Endpoints.delete_Delete_web_origin;
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.delete_Delete_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.delete_Delete_identity_provider;

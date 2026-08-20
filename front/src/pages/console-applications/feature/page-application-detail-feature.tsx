@@ -1,5 +1,6 @@
 import { useDeleteClient, useGetClient, useUpdateClient } from '@/api/client.api'
 import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.api'
+import { useCreateWebOrigin, useDeleteWebOrigin, useGetWebOrigins } from '@/api/web_origins.api'
 import { Skeleton } from '@/components/ui/skeleton'
 import PageClientMaintenanceFeature from '@/pages/client/feature/page-client-maintenance-feature'
 import { RouterParams } from '@/routes/router'
@@ -31,6 +32,12 @@ export default function PageApplicationDetailFeature() {
   const { mutateAsync: deleteClient } = useDeleteClient()
   const { mutateAsync: createRedirectUri } = useCreateRedirectUri()
   const { mutateAsync: deleteRedirectUri } = useDeleteRedirectUri()
+  const { mutateAsync: createWebOrigin } = useCreateWebOrigin()
+  const { mutateAsync: deleteWebOrigin } = useDeleteWebOrigin()
+  const { data: webOrigins = [], refetch: refetchWebOrigins } = useGetWebOrigins({
+    realmName: realm,
+    clientId: client_id,
+  })
   const [uriPending, setUriPending] = useState(false)
 
   const client = clientResponse?.data
@@ -78,6 +85,36 @@ export default function PageApplicationDetailFeature() {
       toast.success('Redirect URI added')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add redirect URI')
+    } finally {
+      setUriPending(false)
+    }
+  }
+
+  async function handleAddWebOrigin(value: string): Promise<boolean> {
+    if (!client) return false
+    setUriPending(true)
+    try {
+      await createWebOrigin({ realmName: realm, clientId: client.id, payload: { value } })
+      await refetchWebOrigins()
+      toast.success('Web origin added')
+      return true
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add web origin')
+      return false
+    } finally {
+      setUriPending(false)
+    }
+  }
+
+  async function handleDeleteWebOrigin(webOriginId: string) {
+    if (!client) return
+    setUriPending(true)
+    try {
+      await deleteWebOrigin({ realmName: realm, clientId: client.id, webOriginId })
+      await refetchWebOrigins()
+      toast.success('Web origin removed')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove web origin')
     } finally {
       setUriPending(false)
     }
@@ -158,6 +195,9 @@ export default function PageApplicationDetailFeature() {
             onDelete={handleDelete}
             onAddRedirectUri={handleAddRedirectUri}
             onDeleteRedirectUri={handleDeleteRedirectUri}
+            webOrigins={webOrigins}
+            onAddWebOrigin={handleAddWebOrigin}
+            onDeleteWebOrigin={handleDeleteWebOrigin}
           />
         )
       case 'credentials':

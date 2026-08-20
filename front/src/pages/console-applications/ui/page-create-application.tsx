@@ -1,3 +1,4 @@
+import { isWebOriginValue } from '@/lib/web-origin'
 import { ApplicationType } from '@/routes/sub-router/applications.router'
 import { ArrowLeft, Loader2, Plus, Sparkles, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -55,7 +56,8 @@ const FIELDS_BY_TYPE: Record<ApplicationType, FieldsConfig> = {
     callbacksPlaceholder: 'https://app.acme.com/callback',
     showOrigins: true,
     originsLabel: 'Allowed web origins',
-    originsHint: 'Origins allowed to call FerrisKey from the browser (CORS).',
+    originsHint:
+      'Origins allowed to call FerrisKey from the browser (CORS). Scheme, host and port only — no path. Enter + to derive them from the callback URLs above.',
     originsPlaceholder: 'https://app.acme.com',
     callbackRequired: true,
   },
@@ -113,7 +115,7 @@ export default function PageCreateApplication({ type, onCancel, onBack, onSubmit
   const originUrls = useMemo(() => origins.map((s) => s.trim()).filter(Boolean), [origins])
 
   const callbacksValid = !fields.showCallbacks || callbackUrls.every(isValidUrl)
-  const originsValid = !fields.showOrigins || originUrls.every(isValidUrl)
+  const originsValid = !fields.showOrigins || originUrls.every(isWebOriginValue)
   const callbackRequirementMet = !fields.callbackRequired || callbackUrls.length > 0
 
   const canSubmit =
@@ -242,7 +244,7 @@ export default function PageCreateApplication({ type, onCancel, onBack, onSubmit
           onChange={setOrigins}
           onAdd={() => addAt(origins, setOrigins)}
           onRemove={(i) => removeAt(origins, setOrigins, i)}
-          validate={isValidUrl}
+          validate={isWebOriginValue}
         />
       )}
 

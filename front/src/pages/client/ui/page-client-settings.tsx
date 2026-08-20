@@ -1,6 +1,7 @@
 import { InputText } from '@/components/ui/input-text'
 import { DurationInput } from '@/components/ui/duration-input'
 import ManageRedirectUris from '../components/manage-redirect-uris'
+import ManageWebOrigins from '../components/manage-web-origins'
 import ManagePostLogoutRedirectUris from '../components/manage-post-logout-redirect-uris'
 import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
@@ -236,6 +237,20 @@ export default function PageClientSettings({
           </div>
           <div className='w-1/2'>
             <ManageRedirectUris redirectUris={client.redirect_uris ?? []} refetch={refetch} />
+          </div>
+        </div>
+
+        <div className='flex items-start justify-between py-4 border-t'>
+          <div className='w-1/3'>
+            <p className='text-sm font-medium'>Web Origins</p>
+            <p className='text-sm text-muted-foreground mt-0.5'>
+              Origins this application may call FerrisKey from in a browser. Enter{' '}
+              <code>+</code> to derive them from the redirect URIs above — literal ones only,
+              regex patterns are skipped.
+            </p>
+          </div>
+          <div className='w-1/2'>
+            <ManageWebOrigins />
           </div>
         </div>
       </div>
