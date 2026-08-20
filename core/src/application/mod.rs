@@ -562,6 +562,8 @@ mod tests {
                 ports::ClientService,
             },
             common::FerriskeyConfig,
+            common::entities::StartupConfig,
+            common::ports::CoreService,
             realm::entities::Realm,
             realm::ports::{RealmRepository, RealmService},
             role::{
@@ -756,6 +758,112 @@ mod tests {
         .expect("count optional mappings");
 
         assert_eq!(optional_count.0, 0);
+
+        admin_pool
+            .execute(format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema).as_str())
+            .await
+            .expect("drop schema");
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn seeding_twice_keeps_one_admin_password_and_does_not_rotate_it() {
+        let db_host = env_or("DATABASE_HOST", "localhost");
+        let db_port = env_u16_or("DATABASE_PORT", 5432);
+        let db_name = env_or("DATABASE_NAME", "ferriskey");
+        let db_user = env_or("DATABASE_USER", "ferriskey");
+        let db_password = env_or("DATABASE_PASSWORD", "ferriskey");
+
+        let schema = format!("seed_idempotence_{}", Uuid::new_v4().simple());
+
+        let admin_url = format!(
+            "postgres://{}:{}@{}:{}/{}",
+            db_user, db_password, db_host, db_port, db_name
+        );
+        let admin_pool = sqlx::PgPool::connect(&admin_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(format!("CREATE SCHEMA IF NOT EXISTS \"{}\"", schema).as_str())
+            .await
+            .expect("create schema");
+
+        let schema_url = format!(
+            "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
+            db_user,
+            db_password,
+            db_host,
+            db_port,
+            db_name,
+            urlencoding::encode(&schema)
+        );
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let app = create_service(FerriskeyConfig {
+            database: crate::domain::common::DatabaseConfig {
+                host: db_host,
+                port: db_port,
+                username: db_user,
+                password: db_password,
+                name: db_name,
+                schema: schema.clone(),
+            },
+            webapp_url: "http://localhost:5555".to_string(),
+        })
+        .await
+        .expect("create service");
+
+        let realm_name = format!("realm-{}", Uuid::new_v4().simple());
+        let startup = || StartupConfig {
+            webapp_url: "http://localhost:5555".to_string(),
+            master_realm_name: realm_name.clone(),
+            admin_username: "admin".to_string(),
+            admin_password: "admin".to_string(),
+            admin_email: "admin@test.local".to_string(),
+            default_client_id: "ferriskey-admin".to_string(),
+        };
+
+        app.initialize_application(startup())
+            .await
+            .expect("first seeding");
+
+        let after_first: (uuid::Uuid, String) = sqlx::query_as(
+            "SELECT c.id, c.secret_data FROM credentials c \
+             JOIN users u ON u.id = c.user_id \
+             WHERE u.username = 'admin' AND c.credential_type = 'password'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("exactly one password credential after the first seeding");
+
+        app.initialize_application(startup())
+            .await
+            .expect("second seeding");
+
+        let after_second: Vec<(uuid::Uuid, String)> = sqlx::query_as(
+            "SELECT c.id, c.secret_data FROM credentials c \
+             JOIN users u ON u.id = c.user_id \
+             WHERE u.username = 'admin' AND c.credential_type = 'password'",
+        )
+        .fetch_all(&pool)
+        .await
+        .expect("query password credentials");
+
+        assert_eq!(
+            after_second.len(),
+            1,
+            "seeding a second time must not add a password credential"
+        );
+        assert_eq!(
+            after_second[0], after_first,
+            "seeding a second time must leave the stored password untouched"
+        );
 
         admin_pool
             .execute(format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema).as_str())
