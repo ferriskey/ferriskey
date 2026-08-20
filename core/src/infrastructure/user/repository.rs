@@ -26,12 +26,16 @@ fn classify_user_unique_violation_message(message: &str) -> Option<UserUniqueVio
     let err_str = message.to_lowercase();
 
     if err_str.contains("unique_username_realm_id")
+        || err_str.contains("unique_lower_username_per_realm")
         || err_str.contains("key (username")
+        || err_str.contains("key (realm_id, lower(username")
         || err_str.contains("username, realm_id")
     {
         Some(UserUniqueViolation::Username)
     } else if err_str.contains("unique_email_per_realm")
+        || err_str.contains("unique_lower_email_per_realm")
         || err_str.contains("key (email")
+        || err_str.contains("key (realm_id, lower(email")
         || err_str.contains("email, realm_id")
     {
         Some(UserUniqueViolation::Email)
@@ -113,7 +117,12 @@ impl UserRepository for PostgresUserRepository {
         realm_id: RealmId,
     ) -> Result<Option<User>, CoreError> {
         let users_model = crate::entity::users::Entity::find()
-            .filter(crate::entity::users::Column::Username.eq(username.clone()))
+            .filter(
+                sea_orm::sea_query::Expr::expr(sea_orm::sea_query::Func::lower(
+                    sea_orm::sea_query::Expr::col(crate::entity::users::Column::Username),
+                ))
+                .eq(username.trim().to_lowercase()),
+            )
             .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .find_also_related(crate::entity::realms::Entity)
             .all(&self.db)
@@ -231,7 +240,12 @@ impl UserRepository for PostgresUserRepository {
         realm_id: RealmId,
     ) -> Result<Option<User>, CoreError> {
         let user = crate::entity::users::Entity::find()
-            .filter(crate::entity::users::Column::Email.eq(email))
+            .filter(
+                sea_orm::sea_query::Expr::expr(sea_orm::sea_query::Func::lower(
+                    sea_orm::sea_query::Expr::col(crate::entity::users::Column::Email),
+                ))
+                .eq(email.trim().to_lowercase()),
+            )
             .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
@@ -406,6 +420,23 @@ mod tests {
 
         assert_eq!(
             classify_user_unique_violation_message(message),
+            Some(UserUniqueViolation::Email)
+        );
+    }
+
+    #[test]
+    fn classifies_the_case_insensitive_indexes() {
+        assert_eq!(
+            classify_user_unique_violation_message(
+                r#"ERROR: duplicate key value violates unique constraint "unique_lower_username_per_realm""#
+            ),
+            Some(UserUniqueViolation::Username)
+        );
+
+        assert_eq!(
+            classify_user_unique_violation_message(
+                r#"ERROR: duplicate key value violates unique constraint "unique_lower_email_per_realm""#
+            ),
             Some(UserUniqueViolation::Email)
         );
     }

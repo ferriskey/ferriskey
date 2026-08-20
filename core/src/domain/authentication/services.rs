@@ -301,6 +301,10 @@ fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
 /// Constant-time comparison of a configured client secret against the one
 /// presented on the token endpoint. `(None, None)` means "no secret configured
 /// and none presented", which is only ever reached for public clients.
+pub(crate) fn normalize_login_email(email: &str) -> String {
+    email.trim().to_lowercase()
+}
+
 pub(crate) fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
     match (stored, provided) {
         (Some(s), Some(p)) => {
@@ -1691,6 +1695,43 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(is_valid)
+    }
+
+    async fn refuse_login_identifier_collision(
+        &self,
+        realm: &crate::domain::realm::entities::Realm,
+        username: &str,
+        email: &str,
+    ) -> Result<(), CoreError> {
+        let aliases = realm
+            .settings
+            .as_ref()
+            .map(|settings| settings.login_aliases.clone())
+            .unwrap_or_default();
+
+        if aliases.as_slice().len() < 2 {
+            return Ok(());
+        }
+
+        if self
+            .user_repository
+            .get_by_email(username, realm.id)
+            .await?
+            .is_some()
+        {
+            return Err(CoreError::UsernameAlreadyExists);
+        }
+
+        if self
+            .user_repository
+            .find_by_username(email.to_string(), realm.id)
+            .await?
+            .is_some()
+        {
+            return Err(CoreError::EmailAlreadyExists);
+        }
+
+        Ok(())
     }
 
     async fn resolve_pending_auth_step(
@@ -3594,23 +3635,33 @@ where
         let firstname = input.first_name;
         let lastname = input.last_name;
 
+        let email = normalize_login_email(&input.email);
+        let username = input.username.trim().to_string();
+
+        if email.is_empty() || username.is_empty() {
+            return Err(CoreError::InvalidRequest);
+        }
+
         let email_verification_enabled = realm
             .settings
             .as_ref()
             .map(|s| s.email_verification_enabled)
             .unwrap_or(false);
 
+        self.refuse_login_identifier_collision(&realm, &username, &email)
+            .await?;
+
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
                 client_id: None,
-                email: Some(input.email),
-                email_verified: !email_verification_enabled,
+                email: Some(email),
+                email_verified: false,
                 enabled: true,
                 firstname,
                 lastname,
                 realm_id: realm.id,
-                username: input.username,
+                username,
             })
             .await?;
 
