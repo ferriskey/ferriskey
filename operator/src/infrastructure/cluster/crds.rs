@@ -35,9 +35,10 @@ pub struct ApiSpec {
     /// URL for the API service
     pub api_url: String,
 
-    /// Origins always allowed to call the API from a browser. Per-client web origins declared in
-    /// the database are added to this list, never replaced by it, so it can be left empty once a
-    /// realm declares its own.
+    /// Origins always allowed to call the API from a browser, on every route. Per-client web
+    /// origins only cover realm-scoped routes, so a console served from a different origin than
+    /// the API must keep its origin here: /config, the health probes and the API docs carry no
+    /// realm and can be allowed by nothing else.
     #[serde(default)]
     pub allowed_origins: Vec<String>,
 }

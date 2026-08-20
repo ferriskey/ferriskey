@@ -141,7 +141,7 @@ Example:
 | api.runtimeClassName | string | `nil` | Runtime class name for the API pods. |
 | api.schedulerName | string | `nil` | Scheduler name for the API pods. |
 | api.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true}` | Security context for the API container. https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#securitycontext-v1-core |
-| api.server.allowedOrigins | list | `[]` | Origins always allowed to call the API from a browser. Per-client web origins declared in the database are added to this list, never replaced by it, so it can be left empty once a realm declares its own. |
+| api.server.allowedOrigins | list | `[]` | Origins always allowed to call the API from a browser, on every route. Per-client web origins only cover realm-scoped routes, so a console served from a different origin than the API must keep its origin here: /config, the health probes and the API docs carry no realm and can be allowed by nothing else. |
 | api.server.port | int | `3333` | Port for the server. |
 | api.server.rootPath | string | `"/api"` | Root path for the server. If you edit it, you need to update the liveness and readiness probes. |
 | api.service.annotations | object | `{}` | Annotations on the service for the API pods. |
