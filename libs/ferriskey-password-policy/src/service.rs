@@ -72,16 +72,23 @@ where
     }
 
     pub async fn enforce(&self, realm_id: Uuid, password: &str) -> Result<(), CoreError> {
+        self.enforce_for_identity(realm_id, password, None, None)
+            .await
+    }
+
+    pub async fn enforce_for_identity(
+        &self,
+        realm_id: Uuid,
+        password: &str,
+        username: Option<&str>,
+        email_local: Option<&str>,
+    ) -> Result<(), CoreError> {
         let policy = self
             .repository
             .find_by_realm_id(realm_id)
             .await?
             .unwrap_or_else(|| PasswordPolicy::default(realm_id));
-        // Use the full validator (entropy + common-password checks) so the pre-flight
-        // check matches the enforcement done later in `reset_password`. Username/email
-        // context is unavailable here, so those similarity checks run only in the
-        // credential flow where the target user is known.
-        validator::validate(password, &policy, None, None).map_err(|errors| {
+        validator::validate(password, &policy, username, email_local).map_err(|errors| {
             let violations: Vec<PasswordPolicyViolation> = errors.iter().map(Into::into).collect();
             CoreError::PasswordPolicyViolation(
                 serde_json::to_string(&violations).unwrap_or_default(),
