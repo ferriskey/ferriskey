@@ -50,6 +50,12 @@ pub enum WebhookTrigger {
     WebOriginCreated,
     #[serde(rename = "web_origin.deleted")]
     WebOriginDeleted,
+    #[serde(rename = "client.saml_config.updated")]
+    ClientSamlConfigUpdated,
+    #[serde(rename = "client.saml_attribute_mapper.created")]
+    SamlAttributeMapperCreated,
+    #[serde(rename = "client.saml_attribute_mapper.deleted")]
+    SamlAttributeMapperDeleted,
     #[serde(rename = "role.created")]
     RoleCreated,
     #[serde(rename = "role.updated")]
@@ -103,6 +109,13 @@ impl Display for WebhookTrigger {
             WebhookTrigger::RedirectUriDeleted => write!(f, "redirect_uri.deleted"),
             WebhookTrigger::WebOriginCreated => write!(f, "web_origin.created"),
             WebhookTrigger::WebOriginDeleted => write!(f, "web_origin.deleted"),
+            WebhookTrigger::ClientSamlConfigUpdated => write!(f, "client.saml_config.updated"),
+            WebhookTrigger::SamlAttributeMapperCreated => {
+                write!(f, "client.saml_attribute_mapper.created")
+            }
+            WebhookTrigger::SamlAttributeMapperDeleted => {
+                write!(f, "client.saml_attribute_mapper.deleted")
+            }
             WebhookTrigger::RoleCreated => write!(f, "role.created"),
             WebhookTrigger::RoleUpdated => write!(f, "role.updated"),
             WebhookTrigger::RolePermissionUpdated => write!(f, "role.permission.updated"),
@@ -151,6 +164,13 @@ impl TryFrom<String> for WebhookTrigger {
             "redirect_uri.deleted" => Ok(WebhookTrigger::RedirectUriDeleted),
             "web_origin.created" => Ok(WebhookTrigger::WebOriginCreated),
             "web_origin.deleted" => Ok(WebhookTrigger::WebOriginDeleted),
+            "client.saml_config.updated" => Ok(WebhookTrigger::ClientSamlConfigUpdated),
+            "client.saml_attribute_mapper.created" => {
+                Ok(WebhookTrigger::SamlAttributeMapperCreated)
+            }
+            "client.saml_attribute_mapper.deleted" => {
+                Ok(WebhookTrigger::SamlAttributeMapperDeleted)
+            }
             "role.created" => Ok(WebhookTrigger::RoleCreated),
             "role.updated" => Ok(WebhookTrigger::RoleUpdated),
             "role.permission.updated" => Ok(WebhookTrigger::RolePermissionUpdated),

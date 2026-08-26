@@ -1,7 +1,10 @@
 use uuid::Uuid;
 
 use crate::client::entities::ClientType;
-use crate::client::value_objects::{CreateWebOriginRequest, UpdateClientRequest};
+use crate::client::value_objects::{
+    CreateSamlAttributeMapperRequest, CreateWebOriginRequest, SetClientSamlConfigRequest,
+    UpdateClientRequest,
+};
 
 pub struct CreateClientInput {
     pub realm_name: String,
@@ -112,4 +115,32 @@ pub struct DeleteWebOriginInput {
     pub realm_name: String,
     pub client_id: Uuid,
     pub web_origin_id: Uuid,
+}
+
+pub struct GetClientSamlConfigInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+}
+
+pub struct SetClientSamlConfigInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub payload: SetClientSamlConfigRequest,
+}
+
+pub struct CreateSamlAttributeMapperInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub payload: CreateSamlAttributeMapperRequest,
+}
+
+pub struct GetSamlAttributeMappersInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+}
+
+pub struct DeleteSamlAttributeMapperInput {
+    pub realm_name: String,
+    pub client_id: Uuid,
+    pub mapper_id: Uuid,
 }

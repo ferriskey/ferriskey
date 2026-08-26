@@ -6,6 +6,8 @@ pub mod access_tokens;
 pub mod auth_sessions;
 pub mod broker_auth_sessions;
 pub mod client_maintenance_whitelist;
+pub mod client_saml_attribute_mappers;
+pub mod client_saml_configs;
 pub mod client_scope_attributes;
 pub mod client_scope_mappings;
 pub mod client_scope_protocol_mappers;

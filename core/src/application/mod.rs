@@ -54,6 +54,7 @@ use crate::{
             client_postgres_repository::PostgresClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
+            saml_postgres_repository::PostgresClientSamlRepository,
             web_origin_postgres_repository::PostgresWebOriginRepository,
         },
         compass::{
@@ -181,6 +182,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let web_origin = Arc::new(PostgresWebOriginRepository::new(postgres.get_db()));
+    let client_saml = Arc::new(PostgresClientSamlRepository::new(postgres.get_db()));
     let role = Arc::new(PostgresRoleRepository::new(postgres.get_db()));
     let keystore = Arc::new(PostgresKeyStoreRepository::new(postgres.get_db()));
     let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
@@ -343,6 +345,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             redirect_uri.clone(),
             post_logout_redirect_uri.clone(),
             web_origin.clone(),
+            client_saml.clone(),
             role.clone(),
             security_event.clone(),
             client_scope.clone(),

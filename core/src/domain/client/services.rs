@@ -7,17 +7,25 @@ use crate::domain::{
     client::{
         entities::{
             Client, CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
-            CreateRoleInput, CreateWebOriginInput, DeleteClientInput,
-            DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, DeleteWebOriginInput,
-            GetClientInput, GetClientRolesInput, GetClientsInput, GetPostLogoutRedirectUrisInput,
-            GetRedirectUrisInput, GetWebOriginsInput, UpdateClientInput,
+            CreateRoleInput, CreateSamlAttributeMapperInput, CreateWebOriginInput,
+            DeleteClientInput, DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput,
+            DeleteSamlAttributeMapperInput, DeleteWebOriginInput, GetClientInput,
+            GetClientRolesInput, GetClientSamlConfigInput, GetClientsInput,
+            GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
+            GetWebOriginsInput, SetClientSamlConfigInput, UpdateClientInput,
             UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
             redirect_uri::RedirectUri,
+            saml::{
+                AcsUrl, ClientSamlConfig, NameIdFormat, SamlAttributeMapper,
+                SamlAttributeMapperDefinition, SamlAttributeName, SamlAttributeNameFormat,
+                SamlAttributeSource, SamlConfigSettings, SpEntityId,
+            },
             web_origin::{Origin, WebOrigin, WebOriginValue},
         },
         ports::{
-            ClientPolicy, ClientRepository, ClientService, PostLogoutRedirectUriRepository,
-            RedirectUriRepository, WebOriginRepository, WebOriginResolver,
+            ClientPolicy, ClientRepository, ClientSamlRepository, ClientService,
+            PostLogoutRedirectUriRepository, RedirectUriRepository, WebOriginRepository,
+            WebOriginResolver,
         },
         value_objects::CreateClientRequest,
         web_origin_resolution::resolve_allowed_origins,
@@ -47,7 +55,7 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ClientScopeRepository
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
-pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
+pub struct ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -57,6 +65,7 @@ where
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     WO: WebOriginRepository,
+    SA: ClientSamlRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,
@@ -69,6 +78,7 @@ where
     pub(crate) redirect_uri_repository: Arc<RU>,
     pub(crate) post_logout_redirect_uri_repository: Arc<PLRU>,
     pub(crate) web_origin_repository: Arc<WO>,
+    pub(crate) client_saml_repository: Arc<SA>,
     pub(crate) role_repository: Arc<RO>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) client_scope_repository: Arc<CS>,
@@ -77,8 +87,8 @@ where
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
-    ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
+impl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
+    ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -88,6 +98,7 @@ where
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     WO: WebOriginRepository,
+    SA: ClientSamlRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,
@@ -102,6 +113,7 @@ where
         redirect_uri_repository: Arc<RU>,
         post_logout_redirect_uri_repository: Arc<PLRU>,
         web_origin_repository: Arc<WO>,
+        client_saml_repository: Arc<SA>,
         role_repository: Arc<RO>,
         security_event_repository: Arc<SE>,
         client_scope_repository: Arc<CS>,
@@ -116,6 +128,7 @@ where
             redirect_uri_repository,
             post_logout_redirect_uri_repository,
             web_origin_repository,
+            client_saml_repository,
             role_repository,
             security_event_repository,
             client_scope_repository,
@@ -136,8 +149,8 @@ where
     }
 }
 
-impl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM> ClientService
-    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
+impl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM> ClientService
+    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -147,6 +160,7 @@ where
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     WO: WebOriginRepository,
+    SA: ClientSamlRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,
@@ -419,6 +433,181 @@ where
                     WebhookTrigger::WebOriginDeleted,
                     realm_id.into(),
                     Some(input.web_origin_id),
+                ),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_client_saml_config(
+        &self,
+        identity: Identity,
+        input: GetClientSamlConfigInput,
+    ) -> Result<ClientSamlConfig, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        self.client_saml_repository
+            .get_config_by_client_id(input.client_id)
+            .await?
+            .ok_or(CoreError::SamlConfigNotFound)
+    }
+
+    async fn set_client_saml_config(
+        &self,
+        identity: Identity,
+        input: SetClientSamlConfigInput,
+    ) -> Result<ClientSamlConfig, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        let settings = SamlConfigSettings {
+            sp_entity_id: SpEntityId::from_str(&input.payload.sp_entity_id)?,
+            acs_url: AcsUrl::from_str(&input.payload.acs_url)?,
+            name_id_format: NameIdFormat::from_str(&input.payload.name_id_format)?,
+            sign_assertions: input.payload.sign_assertions,
+            sign_documents: input.payload.sign_documents,
+            want_authn_requests_signed: input.payload.want_authn_requests_signed,
+        };
+
+        let config = self
+            .client_saml_repository
+            .upsert_config(realm_id, input.client_id, settings)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::ClientSamlConfigUpdated,
+                    realm_id.into(),
+                    Some(config.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(config)
+    }
+
+    async fn create_saml_attribute_mapper(
+        &self,
+        identity: Identity,
+        input: CreateSamlAttributeMapperInput,
+    ) -> Result<SamlAttributeMapper, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        let definition = SamlAttributeMapperDefinition {
+            name: SamlAttributeName::from_str(&input.payload.name)?,
+            name_format: SamlAttributeNameFormat::from_str(&input.payload.name_format)?,
+            source: SamlAttributeSource::from_str(&input.payload.source)?,
+        };
+
+        let mapper = self
+            .client_saml_repository
+            .create_attribute_mapper(input.client_id, definition)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::SamlAttributeMapperCreated,
+                    realm_id.into(),
+                    Some(mapper.clone()),
+                ),
+            )
+            .await?;
+
+        Ok(mapper)
+    }
+
+    async fn get_saml_attribute_mappers(
+        &self,
+        identity: Identity,
+        input: GetSamlAttributeMappersInput,
+    ) -> Result<Vec<SamlAttributeMapper>, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        self.client_saml_repository
+            .get_attribute_mappers_by_client_id(input.client_id)
+            .await
+    }
+
+    async fn delete_saml_attribute_mapper(
+        &self,
+        identity: Identity,
+        input: DeleteSamlAttributeMapperInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let realm_id = realm.id;
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+        self.load_client_in_realm(input.client_id, &realm).await?;
+
+        self.client_saml_repository
+            .delete_attribute_mapper(input.client_id, input.mapper_id)
+            .await?;
+
+        self.webhook_repository
+            .notify(
+                realm_id,
+                WebhookPayload::new(
+                    WebhookTrigger::SamlAttributeMapperDeleted,
+                    realm_id.into(),
+                    Some(input.mapper_id),
                 ),
             )
             .await?;
@@ -879,8 +1068,8 @@ where
     }
 }
 
-impl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM> WebOriginResolver
-    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, RO, SE, CS, CSM>
+impl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM> WebOriginResolver
+    for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
 where
     R: RealmRepository,
     U: UserRepository,
@@ -890,6 +1079,7 @@ where
     RU: RedirectUriRepository,
     PLRU: PostLogoutRedirectUriRepository,
     WO: WebOriginRepository,
+    SA: ClientSamlRepository,
     RO: RoleRepository,
     SE: SecurityEventRepository,
     CS: ClientScopeRepository,

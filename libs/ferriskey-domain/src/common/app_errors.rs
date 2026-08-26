@@ -40,6 +40,18 @@ pub enum CoreError {
     #[error("Invalid web origin: {0}")]
     InvalidWebOrigin(String),
 
+    #[error("No SAML configuration is registered for this client")]
+    SamlConfigNotFound,
+
+    #[error("Invalid SAML configuration: {0}")]
+    InvalidSamlConfig(String),
+
+    #[error("No SAML attribute mapper is registered under this identifier")]
+    SamlAttributeMapperNotFound,
+
+    #[error("Invalid SAML attribute mapper: {0}")]
+    InvalidSamlAttributeMapper(String),
+
     #[error("Invalid client")]
     InvalidClient,
 

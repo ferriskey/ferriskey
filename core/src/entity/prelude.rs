@@ -4,6 +4,8 @@ pub use super::access_tokens::Entity as AccessTokens;
 pub use super::auth_sessions::Entity as AuthSessions;
 pub use super::broker_auth_sessions::Entity as BrokerAuthSessions;
 pub use super::client_maintenance_whitelist::Entity as ClientMaintenanceWhitelist;
+pub use super::client_saml_attribute_mappers::Entity as ClientSamlAttributeMappers;
+pub use super::client_saml_configs::Entity as ClientSamlConfigs;
 pub use super::client_scope_attributes::Entity as ClientScopeAttributes;
 pub use super::client_scope_mappings::Entity as ClientScopeMappings;
 pub use super::client_scope_protocol_mappers::Entity as ClientScopeProtocolMappers;

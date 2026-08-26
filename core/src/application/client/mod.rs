@@ -7,12 +7,15 @@ use crate::{
         client::{
             entities::{
                 Client, CreateClientInput, CreatePostLogoutRedirectUriInput,
-                CreateRedirectUriInput, CreateRoleInput, CreateWebOriginInput, DeleteClientInput,
-                DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, DeleteWebOriginInput,
-                GetClientInput, GetClientRolesInput, GetClientsInput,
-                GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetWebOriginsInput,
-                UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+                CreateRedirectUriInput, CreateRoleInput, CreateSamlAttributeMapperInput,
+                CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
+                DeleteRedirectUriInput, DeleteSamlAttributeMapperInput, DeleteWebOriginInput,
+                GetClientInput, GetClientRolesInput, GetClientSamlConfigInput, GetClientsInput,
+                GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
+                GetWebOriginsInput, SetClientSamlConfigInput, UpdateClientInput,
+                UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
                 redirect_uri::RedirectUri,
+                saml::{ClientSamlConfig, SamlAttributeMapper},
                 web_origin::{Origin, WebOrigin},
             },
             ports::{ClientService, WebOriginResolver},
@@ -63,6 +66,56 @@ impl ClientService for ApplicationService {
         input: DeleteWebOriginInput,
     ) -> Result<(), CoreError> {
         self.client_service.delete_web_origin(identity, input).await
+    }
+
+    async fn get_client_saml_config(
+        &self,
+        identity: Identity,
+        input: GetClientSamlConfigInput,
+    ) -> Result<ClientSamlConfig, CoreError> {
+        self.client_service
+            .get_client_saml_config(identity, input)
+            .await
+    }
+
+    async fn set_client_saml_config(
+        &self,
+        identity: Identity,
+        input: SetClientSamlConfigInput,
+    ) -> Result<ClientSamlConfig, CoreError> {
+        self.client_service
+            .set_client_saml_config(identity, input)
+            .await
+    }
+
+    async fn create_saml_attribute_mapper(
+        &self,
+        identity: Identity,
+        input: CreateSamlAttributeMapperInput,
+    ) -> Result<SamlAttributeMapper, CoreError> {
+        self.client_service
+            .create_saml_attribute_mapper(identity, input)
+            .await
+    }
+
+    async fn get_saml_attribute_mappers(
+        &self,
+        identity: Identity,
+        input: GetSamlAttributeMappersInput,
+    ) -> Result<Vec<SamlAttributeMapper>, CoreError> {
+        self.client_service
+            .get_saml_attribute_mappers(identity, input)
+            .await
+    }
+
+    async fn delete_saml_attribute_mapper(
+        &self,
+        identity: Identity,
+        input: DeleteSamlAttributeMapperInput,
+    ) -> Result<(), CoreError> {
+        self.client_service
+            .delete_saml_attribute_mapper(identity, input)
+            .await
     }
 
     async fn create_post_logout_redirect_uri(
