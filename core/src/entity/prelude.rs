@@ -20,6 +20,7 @@ pub use super::email_verification_tokens::Entity as EmailVerificationTokens;
 pub use super::identity_provider_links::Entity as IdentityProviderLinks;
 pub use super::identity_providers::Entity as IdentityProviders;
 pub use super::jwt_keys::Entity as JwtKeys;
+pub use super::jwt_keys_superseded::Entity as JwtKeysSuperseded;
 pub use super::magic_links::Entity as MagicLinks;
 pub use super::organization_attributes::Entity as OrganizationAttributes;
 pub use super::organization_members::Entity as OrganizationMembers;
