@@ -43,6 +43,18 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidWebOrigin(reason) => {
                 Self::BadRequest(CoreError::InvalidWebOrigin(reason).to_string().into())
             }
+            CoreError::SamlConfigNotFound => {
+                Self::NotFound("No SAML configuration is registered for this client".into())
+            }
+            CoreError::InvalidSamlConfig(reason) => {
+                Self::BadRequest(CoreError::InvalidSamlConfig(reason).to_string().into())
+            }
+            CoreError::SamlAttributeMapperNotFound => Self::NotFound(
+                "No SAML attribute mapper is registered under this identifier".into(),
+            ),
+            CoreError::InvalidSamlAttributeMapper(reason) => Self::BadRequest(
+                CoreError::InvalidSamlAttributeMapper(reason).to_string().into(),
+            ),
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
             CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
             CoreError::InvalidUser => Self::Unauthorized("Invalid user".into()),
@@ -137,9 +149,7 @@ impl From<CoreError> for ApiError {
             CoreError::AuthorizationCodeStorageFailed => {
                 Self::InternalServerError("".into())
             },
-            CoreError::AuthSessionExpectedState => {
-                Self::InternalServerError("".into())
-            },
+            CoreError::AuthSessionExpectedState => Self::InternalServerError("".into()),
             CoreError::WebAuthnMissingChallenge => {
                 Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".into())
             },

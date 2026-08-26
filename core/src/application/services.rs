@@ -87,6 +87,7 @@ use crate::{
             client_postgres_repository::PostgresClientRepository,
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
+            saml_postgres_repository::PostgresClientSamlRepository,
             web_origin_postgres_repository::PostgresWebOriginRepository,
         },
         compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
@@ -157,6 +158,23 @@ type WebhookRepo = PostgresWebhookRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
 type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type WebOriginRepo = PostgresWebOriginRepository;
+type ClientSamlRepo = PostgresClientSamlRepository;
+
+type ApplicationClientService = ClientServiceImpl<
+    RealmRepo,
+    UserRepo,
+    ClientRepo,
+    UserRoleRepo,
+    WebhookRepo,
+    RedirectUriRepo,
+    PostLogoutRedirectUriRepo,
+    WebOriginRepo,
+    ClientSamlRepo,
+    RoleRepo,
+    SecurityEventRepo,
+    ClientScopeRepo,
+    ScopeMappingRepo,
+>;
 type RoleRepo = PostgresRoleRepository;
 type HealthCheckRepo = PostgresHealthCheckRepository;
 type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>;
@@ -332,20 +350,7 @@ pub struct ApplicationService {
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,
     pub(crate) credential_service:
         CredentialServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, CredentialRepo>,
-    pub(crate) client_service: ClientServiceImpl<
-        RealmRepo,
-        UserRepo,
-        ClientRepo,
-        UserRoleRepo,
-        WebhookRepo,
-        RedirectUriRepo,
-        PostLogoutRedirectUriRepo,
-        WebOriginRepo,
-        RoleRepo,
-        SecurityEventRepo,
-        ClientScopeRepo,
-        ScopeMappingRepo,
-    >,
+    pub(crate) client_service: ApplicationClientService,
     pub(crate) realm_service: RealmServiceImpl<
         RealmRepo,
         UserRepo,
