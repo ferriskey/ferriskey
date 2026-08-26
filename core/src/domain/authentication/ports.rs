@@ -8,8 +8,8 @@ use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::{
         entities::{
-            AuthInput, AuthOutput, AuthSession, AuthenticateInput, AuthenticateOutput,
-            AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
+            AuthCompletion, AuthInput, AuthOutput, AuthSession, AuthenticateInput,
+            AuthenticateOutput, AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
             CredentialsAuthParams, ExchangeTokenInput, JwtToken, TokenIntrospectionResponse,
             WebAuthnChallenge,
         },
@@ -207,11 +207,11 @@ pub trait AuthenticatePort: Send + Sync {
         auth_session: AuthSession,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
 
-    fn build_redirect_url(
+    fn build_auth_completion(
         &self,
         auth_session: &AuthSession,
         authorization_code: &str,
-    ) -> Result<String, CoreError>;
+    ) -> Result<AuthCompletion, CoreError>;
 
     fn using_session_code(
         &self,

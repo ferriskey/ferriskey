@@ -30,9 +30,9 @@ use crate::domain::{
     authentication::{
         OidcScope,
         entities::{
-            AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
-            AuthenticationMethod, AuthorizeRequestInput, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            AuthCompletion, AuthInput, AuthOutput, AuthProtocol, AuthSession, AuthSessionParams,
+            AuthenticateOutput, AuthenticationMethod, AuthorizeRequestInput,
+            AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
             TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
@@ -136,6 +136,27 @@ fn format_authorization_redirect_url(
             format!("{url}&state={}", urlencoding::encode(state))
         }
         _ => url,
+    }
+}
+
+pub(crate) fn format_auth_completion(
+    auth_session: &AuthSession,
+    authorization_code: &str,
+) -> Result<AuthCompletion, CoreError> {
+    match auth_session.protocol {
+        AuthProtocol::OpenIdConnect => Ok(AuthCompletion::Redirect {
+            url: format_authorization_redirect_url(auth_session, authorization_code),
+        }),
+        AuthProtocol::Saml => {
+            error!(
+                auth_session_id = %auth_session.id,
+                "no assertion delivery is wired for a saml auth session yet"
+            );
+
+            Err(CoreError::ServiceUnavailable(
+                "saml assertion delivery is not available".to_string(),
+            ))
+        }
     }
 }
 
@@ -1974,7 +1995,7 @@ where
         }
 
         let final_scope = self
-            .resolve_scopes_for_client(auth_session.client_id, Some(auth_session.scope.clone()))
+            .resolve_scopes_for_client(auth_session.client_id, auth_session.scope.clone())
             .await?;
 
         info!("Final scope for authorization code grant: {}", final_scope);
@@ -2601,12 +2622,12 @@ where
                 CoreError::SessionNotFound
             })?;
 
-        let redirect_uri = self.build_redirect_url(&auth_session, &authorization_code)?;
+        let completion = self.build_auth_completion(&auth_session, &authorization_code)?;
 
-        Ok(AuthenticateOutput::complete_with_redirect(
+        Ok(AuthenticateOutput::complete(
             user_id,
             authorization_code,
-            redirect_uri,
+            completion,
         ))
     }
 
@@ -2866,7 +2887,7 @@ This is a server error that should be investigated. Do not forward back this mes
             ClaimsTyp::Temporary,
             client_id.clone(),
             user.email.clone(),
-            Some(auth_session.scope),
+            auth_session.scope,
             temporary_lifetime,
         );
         jwt_claim.additional_claims.insert(
@@ -3053,15 +3074,12 @@ This is a server error that should be investigated. Do not forward back this mes
             .await
     }
 
-    fn build_redirect_url(
+    fn build_auth_completion(
         &self,
         auth_session: &AuthSession,
         authorization_code: &str,
-    ) -> Result<String, CoreError> {
-        Ok(format_authorization_redirect_url(
-            auth_session,
-            authorization_code,
-        ))
+    ) -> Result<AuthCompletion, CoreError> {
+        format_auth_completion(auth_session, authorization_code)
     }
 
     fn claims_to_introspection_response(
@@ -3243,6 +3261,26 @@ where
             .get_by_client_id(input.client_id.clone(), realm.id)
             .await?;
 
+        let protocol = client.protocol.parse::<AuthProtocol>().map_err(|reason| {
+            warn!(
+                client_id = %input.client_id,
+                %reason,
+                "rejecting an authorization request for a client whose protocol is unknown"
+            );
+
+            CoreError::InvalidClient
+        })?;
+
+        if protocol != AuthProtocol::OpenIdConnect {
+            warn!(
+                client_id = %input.client_id,
+                %protocol,
+                "rejecting an authorization request: this endpoint only serves openid-connect clients"
+            );
+
+            return Err(CoreError::InvalidClient);
+        }
+
         let redirect_uri = input.redirect_uri.clone();
 
         let client_redirect_uris = self
@@ -3286,9 +3324,10 @@ where
         let params = AuthSessionParams {
             realm_id: realm.id,
             client_id: client.id,
+            protocol,
             redirect_uri,
-            response_type: input.response_type,
-            scope: input.scope.unwrap_or_default(),
+            response_type: Some(input.response_type),
+            scope: Some(input.scope.unwrap_or_default()),
             state: input.state.clone(),
             nonce: input.nonce,
             user_id: None,
@@ -4252,13 +4291,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        auth_session_can_resume, format_authorization_redirect_url, lockout_compute_locked_until,
-        validate_authorization_code_request,
+        auth_session_can_resume, format_auth_completion, format_authorization_redirect_url,
+        lockout_compute_locked_until, validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
     use uuid::Uuid;
 
-    use crate::domain::authentication::entities::AuthSession;
+    use crate::domain::authentication::entities::{AuthCompletion, AuthProtocol, AuthSession};
     use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
@@ -4276,9 +4315,10 @@ mod tests {
             id: Uuid::new_v4(),
             realm_id: RealmId::from(Uuid::new_v4()),
             client_id: Uuid::new_v4(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uri: redirect_uri.to_string(),
-            response_type: "code".to_string(),
-            scope: "openid".to_string(),
+            response_type: Some("code".to_string()),
+            scope: Some("openid".to_string()),
             state: state.map(str::to_string),
             nonce: None,
             user_id,
@@ -4396,6 +4436,46 @@ mod tests {
         assert_eq!(
             format_authorization_redirect_url(&session, "C"),
             "https://client.example/callback?code=C&state=a%20b%26next%3Dhttps%3A%2F%2Fevil.example"
+        );
+    }
+
+    #[test]
+    fn an_openid_connect_session_completes_with_the_untouched_redirect_url() {
+        let session = auth_session(
+            Some("xyz-state"),
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_auth_completion(&session, "AUTH_CODE").expect("openid-connect must complete"),
+            AuthCompletion::Redirect {
+                url: format_authorization_redirect_url(&session, "AUTH_CODE"),
+            }
+        );
+    }
+
+    #[test]
+    fn a_saml_session_is_never_completed_as_an_openid_connect_redirect() {
+        let session = AuthSession {
+            protocol: AuthProtocol::Saml,
+            ..auth_session(
+                Some("relay"),
+                "https://sp.example/acs",
+                Utc::now(),
+                None,
+                false,
+            )
+        };
+
+        assert!(
+            matches!(
+                format_auth_completion(&session, "AUTH_CODE"),
+                Err(CoreError::ServiceUnavailable(_))
+            ),
+            "a saml session must not borrow the authorization-code redirect"
         );
     }
 

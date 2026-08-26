@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -195,6 +196,73 @@ impl Display for GrantType {
     }
 }
 
+pub const OPENID_CONNECT_PROTOCOL: &str = "openid-connect";
+pub const SAML_PROTOCOL: &str = "saml";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum AuthProtocol {
+    #[default]
+    #[serde(rename = "openid-connect")]
+    OpenIdConnect,
+    #[serde(rename = "saml")]
+    Saml,
+}
+
+impl AuthProtocol {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AuthProtocol::OpenIdConnect => OPENID_CONNECT_PROTOCOL,
+            AuthProtocol::Saml => SAML_PROTOCOL,
+        }
+    }
+}
+
+impl Display for AuthProtocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for AuthProtocol {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            OPENID_CONNECT_PROTOCOL => Ok(AuthProtocol::OpenIdConnect),
+            SAML_PROTOCOL => Ok(AuthProtocol::Saml),
+            other => Err(format!("unsupported authentication protocol: {other}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuthCompletion {
+    Redirect {
+        url: String,
+    },
+    FormPost {
+        action_url: String,
+        body: String,
+        relay_state: Option<String>,
+    },
+}
+
+impl AuthCompletion {
+    pub fn redirect_url(&self) -> Option<&str> {
+        match self {
+            AuthCompletion::Redirect { url } => Some(url),
+            AuthCompletion::FormPost { .. } => None,
+        }
+    }
+
+    pub fn into_redirect_url(self) -> Option<String> {
+        match self {
+            AuthCompletion::Redirect { url } => Some(url),
+            AuthCompletion::FormPost { .. } => None,
+        }
+    }
+}
+
 pub struct AuthInput {
     pub client_id: String,
     pub realm_name: String,
@@ -291,23 +359,21 @@ pub struct AuthenticateOutput {
     pub temporary_token: Option<String>,
     pub required_actions: Vec<RequiredAction>,
     pub redirect_url: Option<String>,
+    pub completion: Option<AuthCompletion>,
     pub session_state: Option<String>,
     pub email: Option<String>,
 }
 
 impl AuthenticateOutput {
-    pub fn complete_with_redirect(
-        user_id: Uuid,
-        authorization_code: String,
-        redirect_url: String,
-    ) -> Self {
+    pub fn complete(user_id: Uuid, authorization_code: String, completion: AuthCompletion) -> Self {
         Self {
             user_id,
             status: AuthenticationStepStatus::Success,
             authorization_code: Some(authorization_code),
             temporary_token: None,
             required_actions: Vec::new(),
-            redirect_url: Some(redirect_url),
+            redirect_url: completion.redirect_url().map(str::to_string),
+            completion: Some(completion),
             session_state: None,
             email: None,
         }
@@ -325,6 +391,7 @@ impl AuthenticateOutput {
             temporary_token: Some(temporary_token),
             required_actions,
             redirect_url: None,
+            completion: None,
             session_state: None,
             email: None,
         }
@@ -342,6 +409,7 @@ impl AuthenticateOutput {
             temporary_token: Some(temporary_token),
             required_actions: Vec::new(),
             redirect_url: None,
+            completion: None,
             session_state: None,
             email,
         }
@@ -392,5 +460,50 @@ mod grant_type_tests {
         let parsed: GrantType = serde_json::from_str(&json)
             .expect("token-exchange URN should deserialize into GrantType");
         assert_eq!(parsed.to_string(), TOKEN_EXCHANGE_URN);
+    }
+}
+
+#[cfg(test)]
+mod auth_protocol_tests {
+    use super::*;
+
+    #[test]
+    fn auth_protocol_round_trips_through_the_value_stored_in_the_client_row() {
+        for protocol in [AuthProtocol::OpenIdConnect, AuthProtocol::Saml] {
+            assert_eq!(
+                protocol.to_string().parse::<AuthProtocol>(),
+                Ok(protocol),
+                "{protocol} must survive a database round trip"
+            );
+        }
+    }
+
+    #[test]
+    fn auth_protocol_defaults_to_the_value_every_existing_row_carries() {
+        assert_eq!(AuthProtocol::default().as_str(), "openid-connect");
+    }
+
+    #[test]
+    fn an_unknown_protocol_is_rejected_rather_than_treated_as_openid_connect() {
+        assert!("ws-federation".parse::<AuthProtocol>().is_err());
+    }
+
+    #[test]
+    fn only_a_redirect_completion_yields_a_redirect_url() {
+        let redirect = AuthCompletion::Redirect {
+            url: "https://client.example/cb?code=C".to_string(),
+        };
+        assert_eq!(
+            redirect.redirect_url(),
+            Some("https://client.example/cb?code=C")
+        );
+
+        let form_post = AuthCompletion::FormPost {
+            action_url: "https://sp.example/acs".to_string(),
+            body: "PHNhbWxwOlJlc3BvbnNlLz4=".to_string(),
+            relay_state: Some("relay".to_string()),
+        };
+        assert_eq!(form_post.redirect_url(), None);
+        assert_eq!(form_post.into_redirect_url(), None);
     }
 }

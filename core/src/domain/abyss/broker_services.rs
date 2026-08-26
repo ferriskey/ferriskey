@@ -18,7 +18,7 @@ use crate::domain::abyss::identity_provider::broker::{
     OAuthClient, OAuthProviderConfig, OAuthTokenResponse,
 };
 use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProviderRepository};
-use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
+use crate::domain::authentication::entities::{AuthProtocol, AuthSession, AuthSessionParams};
 use crate::domain::authentication::ports::AuthSessionRepository;
 use crate::domain::authentication::value_objects::CodeChallengeMethod;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
@@ -769,9 +769,10 @@ where
             let auth_session = AuthSession::new(AuthSessionParams {
                 realm_id: realm.id,
                 client_id: broker_session.client_id,
+                protocol: AuthProtocol::OpenIdConnect,
                 redirect_uri: broker_session.redirect_uri.clone(),
-                response_type: broker_session.response_type.clone(),
-                scope: broker_session.scope.clone(),
+                response_type: Some(broker_session.response_type.clone()),
+                scope: Some(broker_session.scope.clone()),
                 state: broker_session.state.clone(),
                 nonce: broker_session.nonce.clone(),
                 user_id: Some(user.id),
