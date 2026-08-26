@@ -12,6 +12,7 @@ pub enum C14nError {
 
 pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
     let mut reader = Reader::from_str(xml);
+    reader.config_mut().check_comments = true;
     let mut out = String::new();
     let mut declared: Vec<BTreeMap<String, String>> = Vec::new();
     let mut rendered: Vec<BTreeMap<String, String>> = Vec::new();
@@ -53,7 +54,7 @@ pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
                     .resolve_char_ref()
                     .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
                 let character = match resolved {
-                    Some(character) => character,
+                    Some(character) => ensure_legal_xml_char(character)?,
                     None => {
                         let name = reference
                             .decode()
@@ -221,8 +222,25 @@ fn resolve_reference(name: &str, context: &str) -> Result<char, C14nError> {
                 Some(hex) => u32::from_str_radix(hex, 16).map_err(|_| malformed())?,
                 None => digits.parse::<u32>().map_err(|_| malformed())?,
             };
-            char::from_u32(code).ok_or_else(malformed)
+            let character = char::from_u32(code).ok_or_else(malformed)?;
+            ensure_legal_xml_char(character)
         }
+    }
+}
+
+fn ensure_legal_xml_char(character: char) -> Result<char, C14nError> {
+    let code = character as u32;
+    let legal = matches!(code, 0x9 | 0xA | 0xD)
+        || (0x20..=0xD7FF).contains(&code)
+        || (0xE000..=0xFFFD).contains(&code)
+        || (0x10000..=0x10FFFF).contains(&code);
+
+    if legal {
+        Ok(character)
+    } else {
+        Err(C14nError::MalformedXml(format!(
+            "character reference U+{code:04X} is outside the xml 1.0 character range"
+        )))
     }
 }
 
@@ -396,6 +414,29 @@ mod tests {
             canonicalize_exclusive("<a>&lt;&gt;&amp;&quot;&apos;</a>").expect("canonicalise"),
             "<a>&lt;&gt;&amp;\"'</a>"
         );
+    }
+
+    #[test]
+    fn a_character_reference_outside_the_xml_1_0_range_is_refused() {
+        assert!(canonicalize_exclusive("<a>&#x1;</a>").is_err());
+    }
+
+    #[test]
+    fn a_character_reference_outside_the_range_is_refused_in_attributes_too() {
+        assert!(canonicalize_exclusive(r#"<a v="&#x1;">t</a>"#).is_err());
+    }
+
+    #[test]
+    fn a_tab_reference_is_legal_and_survives() {
+        assert_eq!(
+            canonicalize_exclusive("<a>&#x9;</a>").expect("canonicalise"),
+            "<a>\t</a>"
+        );
+    }
+
+    #[test]
+    fn a_comment_carrying_a_double_hyphen_is_refused() {
+        assert!(canonicalize_exclusive("<a>t<!-- a -- b --></a>").is_err());
     }
 
     #[test]
