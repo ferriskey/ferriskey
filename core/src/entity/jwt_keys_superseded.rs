@@ -7,7 +7,7 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "jwt_keys"
+        "jwt_keys_superseded"
     }
 }
 
@@ -18,7 +18,7 @@ pub struct Model {
     pub private_key: String,
     pub public_key: String,
     pub created_at: DateTime,
-    pub certificate: Option<String>,
+    pub superseded_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -28,7 +28,7 @@ pub enum Column {
     PrivateKey,
     PublicKey,
     CreatedAt,
-    Certificate,
+    SupersededAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -53,11 +53,11 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::RealmId => ColumnType::Uuid.def().unique(),
+            Self::RealmId => ColumnType::Uuid.def(),
             Self::PrivateKey => ColumnType::Text.def(),
             Self::PublicKey => ColumnType::Text.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
-            Self::Certificate => ColumnType::Text.def().null(),
+            Self::SupersededAt => ColumnType::DateTime.def(),
         }
     }
 }
