@@ -23,7 +23,7 @@ mod tests {
     #[test]
     fn digest_is_the_base64_sha256_of_the_canonical_form() {
         assert_eq!(
-            digest_of("<a>t</a>").unwrap(),
+            digest_of("<a>t</a>").expect("digest"),
             "n657antSFi6O3meIa2JZ1/Wp7aoBQJ1j9ixVLDSLL4w="
         );
     }
@@ -31,8 +31,8 @@ mod tests {
     #[test]
     fn digest_covers_the_canonical_form_not_the_source_bytes() {
         assert_eq!(
-            digest_of("<a><b   >x</b></a>").unwrap(),
-            digest_of("<a><b>x</b></a>").unwrap()
+            digest_of("<a><b   >x</b></a>").expect("digest"),
+            digest_of("<a><b>x</b></a>").expect("digest")
         );
     }
 }

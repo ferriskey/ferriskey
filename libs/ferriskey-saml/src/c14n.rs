@@ -15,6 +15,7 @@ pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
     let mut out = String::new();
     let mut declared: Vec<BTreeMap<String, String>> = Vec::new();
     let mut rendered: Vec<BTreeMap<String, String>> = Vec::new();
+    let mut depth = 0usize;
 
     loop {
         match reader
@@ -23,6 +24,7 @@ pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
         {
             Event::Start(tag) => {
                 out.push_str(&render_start_tag(&tag, &mut declared, &mut rendered)?);
+                depth += 1;
             }
             Event::Empty(tag) => {
                 out.push_str(&render_start_tag(&tag, &mut declared, &mut rendered)?);
@@ -36,33 +38,44 @@ pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
                 out.push_str("</");
                 out.push_str(&utf8(tag.name().as_ref())?);
                 out.push('>');
+                depth = depth.saturating_sub(1);
                 declared.pop();
                 rendered.pop();
             }
-            Event::Text(text) => {
+            Event::Text(text) if depth > 0 => {
                 let decoded = text
                     .xml10_content()
                     .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
                 out.push_str(&escape_text(&decoded));
             }
-            Event::GeneralRef(reference) => {
+            Event::GeneralRef(reference) if depth > 0 => {
                 let resolved = reference
                     .resolve_char_ref()
                     .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
-                match resolved {
-                    Some(character) => out.push_str(&escape_text(&character.to_string())),
+                let character = match resolved {
+                    Some(character) => character,
                     None => {
-                        let named = reference
-                            .xml10_content()
+                        let name = reference
+                            .decode()
                             .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
-                        out.push_str(&escape_text(&named));
+                        resolve_reference(&name, &name)?
                     }
-                }
+                };
+                out.push_str(&escape_text(&character.to_string()));
             }
-            Event::CData(data) => {
-                out.push_str(&escape_text(&utf8(data.as_ref())?));
+            Event::CData(data) if depth > 0 => {
+                let decoded = data
+                    .xml10_content()
+                    .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
+                out.push_str(&escape_text(&decoded));
             }
-            Event::Comment(_) | Event::Decl(_) | Event::DocType(_) | Event::PI(_) => {}
+            Event::PI(instruction) => {
+                out.push_str("<?");
+                out.push_str(&utf8(instruction.as_ref())?);
+                out.push_str("?>");
+            }
+            Event::Text(_) | Event::GeneralRef(_) | Event::CData(_) => {}
+            Event::Comment(_) | Event::Decl(_) | Event::DocType(_) => {}
             Event::Eof => break,
         }
     }
@@ -104,7 +117,7 @@ fn render_start_tag(
     utilized.insert(prefix_of(&name).to_owned());
     for (key, _) in &attributes {
         let prefix = prefix_of(key);
-        if !prefix.is_empty() {
+        if !prefix.is_empty() && prefix != "xml" {
             utilized.insert(prefix.to_owned());
         }
     }
@@ -257,7 +270,12 @@ fn local_of(name: &str) -> &str {
     }
 }
 
+const XML_NAMESPACE_URI: &str = "http://www.w3.org/XML/1998/namespace";
+
 fn lookup(scopes: &[BTreeMap<String, String>], prefix: &str) -> Option<String> {
+    if prefix == "xml" {
+        return Some(XML_NAMESPACE_URI.to_owned());
+    }
     scopes
         .iter()
         .rev()
@@ -283,13 +301,16 @@ mod tests {
 
     #[test]
     fn plain_element_is_unchanged() {
-        assert_eq!(canonicalize_exclusive("<a>t</a>").unwrap(), "<a>t</a>");
+        assert_eq!(
+            canonicalize_exclusive("<a>t</a>").expect("canonicalise"),
+            "<a>t</a>"
+        );
     }
 
     #[test]
     fn namespace_is_emitted_on_the_element_that_uses_it_not_where_it_is_declared() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a xmlns:x="urn:x"><x:b>t</x:b></a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a xmlns:x="urn:x"><x:b>t</x:b></a>"#).expect("canonicalise"),
             r#"<a><x:b xmlns:x="urn:x">t</x:b></a>"#
         );
     }
@@ -297,7 +318,7 @@ mod tests {
     #[test]
     fn attributes_are_sorted_by_name() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a z="2" a="1" m="3">t</a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a z="2" a="1" m="3">t</a>"#).expect("canonicalise"),
             r#"<a a="1" m="3" z="2">t</a>"#
         );
     }
@@ -306,7 +327,7 @@ mod tests {
     fn attributes_are_sorted_by_namespace_uri_before_local_name() {
         assert_eq!(
             canonicalize_exclusive(r#"<a xmlns:b="urn:z" xmlns:z="urn:a" b:p="1" z:q="2">t</a>"#)
-                .unwrap(),
+                .expect("canonicalise"),
             r#"<a xmlns:b="urn:z" xmlns:z="urn:a" z:q="2" b:p="1">t</a>"#
         );
     }
@@ -314,7 +335,8 @@ mod tests {
     #[test]
     fn unprefixed_attributes_sort_before_prefixed_ones() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a xmlns:x="urn:x" x:p="1" q="2">t</a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a xmlns:x="urn:x" x:p="1" q="2">t</a>"#)
+                .expect("canonicalise"),
             r#"<a xmlns:x="urn:x" q="2" x:p="1">t</a>"#
         );
     }
@@ -322,7 +344,7 @@ mod tests {
     #[test]
     fn a_literal_tab_in_an_attribute_is_normalised_to_a_space() {
         assert_eq!(
-            canonicalize_exclusive("<a v=\"x\ty\">t</a>").unwrap(),
+            canonicalize_exclusive("<a v=\"x\ty\">t</a>").expect("canonicalise"),
             r#"<a v="x y">t</a>"#
         );
     }
@@ -330,7 +352,7 @@ mod tests {
     #[test]
     fn a_tab_written_as_a_character_reference_survives_as_one() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a v="x&#x9;y">t</a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a v="x&#x9;y">t</a>"#).expect("canonicalise"),
             r#"<a v="x&#x9;y">t</a>"#
         );
     }
@@ -338,7 +360,7 @@ mod tests {
     #[test]
     fn an_ampersand_reference_in_an_attribute_becomes_its_named_entity() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a v="a &#38; b">t</a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a v="a &#38; b">t</a>"#).expect("canonicalise"),
             r#"<a v="a &amp; b">t</a>"#
         );
     }
@@ -346,7 +368,7 @@ mod tests {
     #[test]
     fn a_greater_than_in_an_attribute_is_left_alone() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a v="a > b">t</a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a v="a > b">t</a>"#).expect("canonicalise"),
             r#"<a v="a > b">t</a>"#
         );
     }
@@ -355,15 +377,69 @@ mod tests {
     fn an_unused_namespace_declaration_is_dropped() {
         assert_eq!(
             canonicalize_exclusive(r#"<a xmlns:x="urn:x" xmlns:unused="urn:u"><x:b>t</x:b></a>"#)
-                .unwrap(),
+                .expect("canonicalise"),
             r#"<a><x:b xmlns:x="urn:x">t</x:b></a>"#
+        );
+    }
+
+    #[test]
+    fn a_named_entity_in_text_is_expanded_then_re_escaped() {
+        assert_eq!(
+            canonicalize_exclusive("<a>a &amp; b</a>").expect("canonicalise"),
+            "<a>a &amp; b</a>"
+        );
+    }
+
+    #[test]
+    fn every_predefined_entity_survives_a_round_trip() {
+        assert_eq!(
+            canonicalize_exclusive("<a>&lt;&gt;&amp;&quot;&apos;</a>").expect("canonicalise"),
+            "<a>&lt;&gt;&amp;\"'</a>"
+        );
+    }
+
+    #[test]
+    fn an_unknown_named_entity_is_refused() {
+        assert!(canonicalize_exclusive("<a>&nbsp;</a>").is_err());
+    }
+
+    #[test]
+    fn whitespace_outside_the_document_element_is_discarded() {
+        assert_eq!(
+            canonicalize_exclusive("  <a>t</a>  ").expect("canonicalise"),
+            "<a>t</a>"
+        );
+    }
+
+    #[test]
+    fn cdata_line_endings_are_normalised() {
+        assert_eq!(
+            canonicalize_exclusive("<a><![CDATA[x\r\ny]]></a>").expect("canonicalise"),
+            "<a>x\ny</a>"
+        );
+    }
+
+    #[test]
+    fn the_xml_prefix_sorts_by_its_implicit_namespace_uri() {
+        assert_eq!(
+            canonicalize_exclusive(r#"<a xmlns:p="http://a" p:x="1" xml:lang="en">t</a>"#)
+                .expect("canonicalise"),
+            r#"<a xmlns:p="http://a" p:x="1" xml:lang="en">t</a>"#
+        );
+    }
+
+    #[test]
+    fn processing_instructions_are_preserved() {
+        assert_eq!(
+            canonicalize_exclusive("<a>t<?target data?></a>").expect("canonicalise"),
+            "<a>t<?target data?></a>"
         );
     }
 
     #[test]
     fn comments_are_removed() {
         assert_eq!(
-            canonicalize_exclusive("<a>t<!--c--></a>").unwrap(),
+            canonicalize_exclusive("<a>t<!--c--></a>").expect("canonicalise"),
             "<a>t</a>"
         );
     }
@@ -371,7 +447,7 @@ mod tests {
     #[test]
     fn a_default_namespace_stays_on_the_element_that_declares_it() {
         assert_eq!(
-            canonicalize_exclusive(r#"<a xmlns="urn:d"><b>t</b></a>"#).unwrap(),
+            canonicalize_exclusive(r#"<a xmlns="urn:d"><b>t</b></a>"#).expect("canonicalise"),
             r#"<a xmlns="urn:d"><b>t</b></a>"#
         );
     }
@@ -379,7 +455,7 @@ mod tests {
     #[test]
     fn a_literal_greater_than_in_text_is_escaped() {
         assert_eq!(
-            canonicalize_exclusive("<a>a > b</a>").unwrap(),
+            canonicalize_exclusive("<a>a > b</a>").expect("canonicalise"),
             "<a>a &gt; b</a>"
         );
     }
@@ -387,7 +463,7 @@ mod tests {
     #[test]
     fn a_numeric_character_reference_becomes_its_named_entity() {
         assert_eq!(
-            canonicalize_exclusive("<a>a &#60; b</a>").unwrap(),
+            canonicalize_exclusive("<a>a &#60; b</a>").expect("canonicalise"),
             "<a>a &lt; b</a>"
         );
     }
@@ -395,7 +471,7 @@ mod tests {
     #[test]
     fn a_carriage_return_in_text_stays_a_numeric_reference() {
         assert_eq!(
-            canonicalize_exclusive("<a>line1&#xD;line2</a>").unwrap(),
+            canonicalize_exclusive("<a>line1&#xD;line2</a>").expect("canonicalise"),
             "<a>line1&#xD;line2</a>"
         );
     }
@@ -403,7 +479,7 @@ mod tests {
     #[test]
     fn empty_element_is_expanded_to_a_start_and_end_tag() {
         assert_eq!(
-            canonicalize_exclusive("<a><b/></a>").unwrap(),
+            canonicalize_exclusive("<a><b/></a>").expect("canonicalise"),
             "<a><b></b></a>"
         );
     }
