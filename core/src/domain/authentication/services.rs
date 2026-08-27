@@ -91,7 +91,7 @@ use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 /// Feeds the org-scoped role claim in token assembly.
 type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
 
-fn lockout_compute_locked_until(
+pub(crate) fn lockout_compute_locked_until(
     new_attempts: i32,
     threshold: i32,
     duration_seconds: i32,

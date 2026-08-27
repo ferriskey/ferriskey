@@ -514,6 +514,20 @@ mod tests {
             let admin_token = get_admin_token(&server).await;
             let (_user_id, username, _password) = create_user(&server, &admin_token).await;
 
+            // The recovery-code reset is gated on the realm's forgot-password
+            // setting; enable it so the request reaches code comparison.
+            let settings_resp = server
+                .put(&format!("/realms/{}/settings", realm()))
+                .authorization(format!("Bearer {admin_token}"))
+                .json(&json!({ "forgot_password_enabled": true }))
+                .await;
+            assert_eq!(
+                settings_resp.status_code(),
+                200,
+                "failed to enable forgot-password: {}",
+                settings_resp.text()
+            );
+
             let resp = server
                 .post(&format!(
                     "/realms/{}/login-actions/reset-password-with-recovery-code",
@@ -526,7 +540,6 @@ mod tests {
                     // rejected as an unmatched code (HTTP 400).
                     "recovery_code": "aaaa-bbbb-cccc-dddd",
                     "recovery_code_format": "b32-split-4",
-                    "new_password": "New-Str0ng!P@ssword#2024",
                 }))
                 .await;
             // No matching recovery code → 400 (BadRequest via RecoveryCodeBurnError).

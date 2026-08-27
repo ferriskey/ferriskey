@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::SystemTime, time::UNIX_EPOCH};
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
@@ -16,6 +16,7 @@ use crate::{
         authentication::{
             entities::{AuthSession, WebAuthnChallenge},
             ports::AuthSessionRepository,
+            services::lockout_compute_locked_until,
             value_objects::Identity,
         },
         common::{
@@ -554,29 +555,17 @@ where
         Ok(None)
     }
 
-    /// Compute the lockout deadline for a given number of failed attempts.
-    /// Mirrors the authentication service's lockout policy.
-    fn compute_locked_until(
-        new_attempts: i32,
-        threshold: i32,
-        duration_seconds: i32,
-        now: DateTime<Utc>,
-    ) -> Option<DateTime<Utc>> {
-        if new_attempts >= threshold {
-            Some(now + Duration::seconds(duration_seconds as i64))
-        } else {
-            None
-        }
-    }
-
     /// Emit a `ReauthenticationFailed` security event so SeaWatch can detect
-    /// brute-force attempts on the step-up endpoint.
-    async fn emit_reauthentication_failed(&self, user_id: Uuid) {
+    /// brute-force attempts on the step-up endpoint. The caller passes the
+    /// realm it already resolved from the authenticated user: a nil fallback
+    /// would violate the `security_events.realm_id` foreign key and silently
+    /// drop the event.
+    async fn emit_reauthentication_failed(&self, realm_id: RealmId, user_id: Uuid) {
         let _ = self
             .security_event_repository
             .store_event(
                 SecurityEvent::new(
-                    self.user_realm_id(user_id).await,
+                    realm_id,
                     SecurityEventType::ReauthenticationFailed,
                     EventStatus::Failure,
                     user_id,
@@ -585,15 +574,6 @@ where
             )
             .await
             .inspect_err(|e| warn!("Failed to log reauthentication failure event: {e}"));
-    }
-
-    /// Resolve a user's realm id for security-event attribution.
-    async fn user_realm_id(&self, user_id: Uuid) -> RealmId {
-        self.user_repository
-            .get_by_id(user_id)
-            .await
-            .map(|u| u.realm_id)
-            .unwrap_or_else(|_| RealmId::from(uuid::Uuid::nil()))
     }
 
     /// Notify the account owner by email when an authentication factor is
@@ -904,6 +884,18 @@ where
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
+        // Regenerating recovery codes invalidates the victim's real codes and
+        // hands the caller a fresh set, so it is the fourth operation of the
+        // same sensitivity class as enrolling/removing factors: require the
+        // same proof of knowledge (a valid, single-use step-up token) instead
+        // of trusting the bearer token alone.
+        let step_up_token = input.step_up_token.ok_or_else(|| {
+            CoreError::Forbidden(
+                "re-authentication is required to generate recovery codes".to_string(),
+            )
+        })?;
+        self.consume_step_up_token(user.id, &step_up_token).await?;
+
         let format =
             RecoveryCodeFormat::try_from(input.format).map_err(CoreError::RecoveryCodeGenError)?;
 
@@ -981,6 +973,26 @@ where
             .await
             .map_err(|_| CoreError::SessionNotFound)?;
 
+        // Enforce account lockout so the MFA login fallback cannot be used as
+        // an unlimited recovery-code oracle (same policy as the unauthenticated
+        // recovery-code reset endpoint).
+        let realm_settings = self
+            .realm_repository
+            .get_realm_settings(user.realm_id)
+            .await?;
+        let lockout_threshold = realm_settings
+            .as_ref()
+            .map(|s| s.lockout_threshold)
+            .unwrap_or(10);
+        let lockout_duration_seconds = realm_settings
+            .as_ref()
+            .map(|s| s.lockout_duration_seconds)
+            .unwrap_or(900);
+        let now = Utc::now();
+        if user.is_locked(now) {
+            return Err(CoreError::AccountLocked);
+        }
+
         // Locate the single candidate recovery-code row via the fast lookup key
         // and run Argon2 only once, instead of scanning every stored code.
         let lookup = self.recovery_code_repository.lookup_of(&user_code);
@@ -992,11 +1004,40 @@ where
         // It is highly unlikely but a user may have multiple identical recovery codes
         // or it could also be a duplicate storage bug.
         // Anyway, this is not the place to check such a bug
-        let burnt_code = burnt_code.ok_or_else(|| {
-            CoreError::RecoveryCodeBurnError(
-                "The provided code is invalid or has already been used".to_string(),
-            )
-        })?;
+        let burnt_code = match burnt_code {
+            Some(code) => code,
+            None => {
+                // Failed attempt: bump the lockout counter and emit a failure
+                // event so SeaWatch can detect brute-force guessing (mirrors
+                // the recovery-code reset endpoint).
+                let locked_until = lockout_compute_locked_until(
+                    user.failed_login_attempts + 1,
+                    lockout_threshold,
+                    lockout_duration_seconds,
+                    now,
+                );
+                let _ = self
+                    .user_repository
+                    .increment_failed_login_attempts(user.id, locked_until)
+                    .await;
+                let _ = self
+                    .security_event_repository
+                    .store_event(
+                        SecurityEvent::new(
+                            user.realm_id,
+                            SecurityEventType::RecoveryCodeBurned,
+                            EventStatus::Failure,
+                            user.id,
+                        )
+                        .with_target("user".to_string(), user.id, None),
+                    )
+                    .await
+                    .inspect_err(|e| warn!("Failed to log recovery code burn failure event: {e}"));
+                return Err(CoreError::RecoveryCodeBurnError(
+                    "The provided code is invalid or has already been used".to_string(),
+                ));
+            }
+        };
 
         self
             .credential_repository
@@ -1006,6 +1047,13 @@ where
                 error!("Failed to delete a credential even though it was just fetched with the same repository: {e}");
                 CoreError::InternalServerError
             })?;
+
+        // A valid code proves possession, so clear any accumulated lockout
+        // counter from prior failed guesses.
+        let _ = self
+            .user_repository
+            .reset_failed_login_attempts(user.id)
+            .await;
 
         // Audit the burn so a recovery code used to bypass MFA is visible to
         // SeaWatch and the user can be notified.
@@ -1179,6 +1227,30 @@ where
                 "Failed to remove ConfigurePasskey required action after passkey enrolment: {e:?}"
             );
         }
+
+        // Audit the enrolment and notify the account owner, matching the
+        // self-service passkey route: a compromised temporary login token must
+        // not be able to add a factor invisibly.
+        let _ = self
+            .security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    user.realm_id,
+                    SecurityEventType::MfaEnrolled,
+                    EventStatus::Success,
+                    user.id,
+                )
+                .with_target(
+                    "user".to_string(),
+                    user.id,
+                    Some("passkey".to_string()),
+                ),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to log MFA enrollment event: {e}"));
+
+        self.notify_factor_change(user.id, user.realm_id, "passkey", "enrolled")
+            .await;
 
         Ok(WebAuthnValidatePublicKeyOutput {})
     }
@@ -1569,6 +1641,10 @@ where
         // Handing the secret to the user is fine — they must type it into their
         // authenticator. What is not fine is taking it back from them on the next call,
         // so record it here and let `verify_otp` read it from this side of the wire.
+        // Sweep consumed/expired enrolments first so rows holding a plaintext
+        // candidate secret do not accumulate (same pattern as the WebAuthn
+        // challenge and step-up token tables).
+        let _ = self.otp_enrollment_repository.cleanup_expired().await;
         self.otp_enrollment_repository
             .start_enrollment(
                 user.id,
@@ -1658,15 +1734,12 @@ where
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
-        // 1. The self-service flow requires a valid step-up token minted by
-        //    `/me/reauthenticate`. This prevents a stolen access token from
-        //    enrolling a new authenticator without the account password. The
-        //    login-flow `/login-actions/verify-otp` passes `None` because it is
-        //    already protected by a temporary login token.
-        if let Some(step_up_token) = &input.step_up_token {
-            self.consume_step_up_token(user.id, step_up_token).await?;
-        }
-
+        // 1. Replacing an existing authenticator requires either the server to
+        //    have asked for it (the `ConfigureOtp` required action, set by the
+        //    login flow) or a fresh proof of knowledge (a step-up token minted
+        //    by `/me/reauthenticate`, presented by the self-service flow). The
+        //    login-flow `/login-actions/verify-otp` passes no token, so it can
+        //    never opt out of this guard by omitting it.
         let existing_credentials = self
             .credential_repository
             .get_credentials_by_user_id(user.id)
@@ -1681,13 +1754,23 @@ where
             && !user
                 .required_actions
                 .contains(&RequiredAction::ConfigureOtp)
+            && input.step_up_token.is_none()
         {
             return Err(CoreError::Forbidden(
                 "OTP is already configured for this user".into(),
             ));
         }
 
-        // 2. Read the newest active enrollment persisted by `/me/totp/setup`.
+        // 2. Consume the step-up token only after the guard: a rejected request
+        //    (403) must not burn it, otherwise the user would have to redo
+        //    `/me/reauthenticate` for every attempt. From here on the token is
+        //    spent, so the replacement below is bound to a fresh proof of
+        //    knowledge.
+        if let Some(step_up_token) = &input.step_up_token {
+            self.consume_step_up_token(user.id, step_up_token).await?;
+        }
+
+        // 3. Read the newest active enrollment persisted by `/me/totp/setup`.
         //    The caller can never supply their own secret, so an attacker
         //    cannot silently replace the victim's authenticator.
         let enrollment = self
@@ -1702,7 +1785,7 @@ where
 
         let secret = TotpSecret::from_base32(&enrollment.secret);
 
-        // 3. Verify the code before claiming the enrollment. A mistyped digit
+        // 4. Verify the code before claiming the enrollment. A mistyped digit
         //    must not destroy the user's enrollment attempt.
         let is_valid = verify(&secret, &input.code)?;
         if !is_valid {
@@ -2662,51 +2745,45 @@ where
         &self,
         input: CompletePasswordResetWithRecoveryCodeInput,
     ) -> Result<CompletePasswordResetOutput, CoreError> {
-        // 1. Resolve the realm and user from the email.
+        // 1. Resolve the realm and honour its forgot-password setting before
+        //    anything else, exactly like `request_password_reset`: a realm that
+        //    disabled password reset must not expose this path either.
         let realm = self
             .realm_repository
             .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        let realm_settings = self
+            .realm_repository
+            .get_realm_settings(realm.id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        if !realm_settings.forgot_password_enabled {
+            return Err(CoreError::Forbidden(
+                "Password reset is not enabled for this realm".to_string(),
+            ));
+        }
+
+        // 2. Resolve the user. An unknown email is answered with the same error
+        //    as a bad code so this anonymous endpoint cannot be used to
+        //    enumerate accounts (`request_password_reset` masks it the same way).
         let user = self
             .user_repository
             .get_by_email(&input.email, realm.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::NotFound)?;
-
-        // 2. Enforce the realm password policy on the submitted new password
-        //    before burning the code, so a weak password is rejected up front.
-        let policy = self
-            .password_policy_repository
-            .find_by_realm_id(realm.id.into())
-            .await?
-            .unwrap_or_else(|| PasswordPolicy::default(realm.id.into()));
-        let email_local_buf = user
-            .email
-            .as_deref()
-            .and_then(|e| e.split('@').next())
-            .map(str::to_string);
-        validator::validate(
-            &input.new_password,
-            &policy,
-            Some(user.username.as_str()),
-            email_local_buf.as_deref(),
-        )
-        .map_err(violations_to_core_error)?;
+            .ok_or_else(|| {
+                CoreError::RecoveryCodeBurnError(
+                    "The provided code is invalid or has already been used".to_string(),
+                )
+            })?;
 
         // 3. Enforce account lockout so the unauthenticated endpoint cannot be
         //    used as an unlimited recovery-code oracle (per-account rate limit).
-        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
-        let lockout_threshold = realm_settings
-            .as_ref()
-            .map(|s| s.lockout_threshold)
-            .unwrap_or(10);
-        let lockout_duration_seconds = realm_settings
-            .as_ref()
-            .map(|s| s.lockout_duration_seconds)
-            .unwrap_or(900);
+        let lockout_threshold = realm_settings.lockout_threshold;
+        let lockout_duration_seconds = realm_settings.lockout_duration_seconds;
         let now = Utc::now();
         if user.is_locked(now) {
             return Err(CoreError::AccountLocked);
@@ -2731,7 +2808,7 @@ where
             None => {
                 // Failed attempt: bump the lockout counter and emit a failure
                 // event so SeaWatch can detect brute-force guessing.
-                let locked_until = Self::compute_locked_until(
+                let locked_until = lockout_compute_locked_until(
                     user.failed_login_attempts + 1,
                     lockout_threshold,
                     lockout_duration_seconds,
@@ -2879,7 +2956,7 @@ where
             .map_err(|_| CoreError::InvalidPassword)?;
 
         if !valid {
-            let locked_until = Self::compute_locked_until(
+            let locked_until = lockout_compute_locked_until(
                 user.failed_login_attempts + 1,
                 lockout_threshold,
                 lockout_duration_seconds,
@@ -2889,7 +2966,8 @@ where
                 .user_repository
                 .increment_failed_login_attempts(user.id, locked_until)
                 .await;
-            self.emit_reauthentication_failed(user.id).await;
+            self.emit_reauthentication_failed(user.realm_id, user.id)
+                .await;
             input.password.zeroize();
             return Err(CoreError::InvalidPassword);
         }
@@ -2919,7 +2997,7 @@ where
                     "invalid OTP code during reauthentication for user: {}",
                     user.id
                 );
-                let locked_until = Self::compute_locked_until(
+                let locked_until = lockout_compute_locked_until(
                     user.failed_login_attempts + 1,
                     lockout_threshold,
                     lockout_duration_seconds,
@@ -2929,7 +3007,8 @@ where
                     .user_repository
                     .increment_failed_login_attempts(user.id, locked_until)
                     .await;
-                self.emit_reauthentication_failed(user.id).await;
+                self.emit_reauthentication_failed(user.realm_id, user.id)
+                    .await;
                 return Err(CoreError::TotpVerificationFailed(
                     "failed to verify OTP".to_string(),
                 ));
@@ -3016,22 +3095,46 @@ where
             ));
         }
 
-        // Reject removal only when the target is a primary factor (Password,
-        // Otp or WebAuthn) and deleting it would leave the user with no primary
-        // factor at all. Recovery codes are not primary factors — they only
-        // help regain access — so deleting one can never lock the user out.
-        let primary_factors = credentials
+        // Reject removal only when the target is a login factor (Password,
+        // Otp or WebAuthn) and deleting it would leave the user with no login
+        // factor at all. Recovery codes are not login factors — they only help
+        // regain access — so deleting one can never lock the user out.
+        let login_factors = credentials
             .iter()
             .filter(|c| c.credential_type != CredentialType::RecoveryCode)
             .count();
-        if target.credential_type != CredentialType::RecoveryCode && primary_factors <= 1 {
+        if target.credential_type != CredentialType::RecoveryCode && login_factors <= 1 {
             return Err(CoreError::Forbidden(
                 "cannot remove the last remaining credential".to_string(),
             ));
         }
 
-        let is_otp = target.credential_type == CredentialType::Otp;
+        let is_second_factor = matches!(
+            target.credential_type,
+            CredentialType::Otp | CredentialType::WebAuthnPublicKeyCredential
+        );
+        let remaining_second_factors = credentials
+            .iter()
+            .filter(|c| c.id != credential_id)
+            .filter(|c| {
+                matches!(
+                    c.credential_type,
+                    CredentialType::Otp | CredentialType::WebAuthnPublicKeyCredential
+                )
+            })
+            .count();
         let is_primary = target.credential_type != CredentialType::RecoveryCode;
+
+        // Resolve the realm policy *before* mutating anything: if it mandates
+        // MFA and the user is removing their last second factor, the relevant
+        // required action must be queued so the assurance level is not silently
+        // downgraded — and a transient DB error must not surface with the
+        // credential already gone and no event/email emitted.
+        let realm_settings = self
+            .realm_repository
+            .get_realm_settings(user.realm_id)
+            .await?;
+        let require_mfa = realm_settings.is_some_and(|s| s.require_mfa);
 
         self.credential_repository
             .delete_by_id(credential_id)
@@ -3039,24 +3142,19 @@ where
             .map_err(|_| CoreError::DeleteCredentialError)?;
 
         // 1. If the realm mandates MFA and the user just removed their last
-        //    OTP authenticator, re-add ConfigureOtp so the assurance level is
-        //    not silently downgraded.
-        if is_otp {
-            let realm_settings = self
-                .realm_repository
-                .get_realm_settings(user.realm_id)
-                .await?;
-            let remaining_otp = self
-                .credential_repository
-                .get_credentials_by_user_id(user.id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?
-                .iter()
-                .any(|c| c.credential_type == CredentialType::Otp);
-            if !remaining_otp && realm_settings.is_some_and(|s| s.require_mfa) {
+        //    second factor, queue the matching re-enrolment action.
+        if require_mfa && is_second_factor && remaining_second_factors == 0 {
+            let required_action = match target.credential_type {
+                CredentialType::Otp => Some(RequiredAction::ConfigureOtp),
+                CredentialType::WebAuthnPublicKeyCredential => {
+                    Some(RequiredAction::ConfigurePasskey)
+                }
+                _ => None,
+            };
+            if let Some(action) = required_action {
                 let _ = self
                     .user_required_action_repository
-                    .add_required_action(user.id, RequiredAction::ConfigureOtp)
+                    .add_required_action(user.id, action)
                     .await;
             }
         }
@@ -3076,7 +3174,18 @@ where
             .await
             .inspect_err(|e| warn!("Failed to log credential deletion event: {e}"));
 
-        // 3. Notify the account owner that a sign-in method was removed.
+        // 3. Emit the user.credentials.deleted webhook so external systems can
+        //    react to factor removal.
+        let _ = self
+            .webhook_repository
+            .notify(
+                user.realm_id,
+                WebhookPayload::new(WebhookTrigger::UserDeleteCredentials, user.id, None::<()>),
+            )
+            .await
+            .inspect_err(|e| warn!("Failed to emit credential-deleted webhook: {e}"));
+
+        // 4. Notify the account owner that a sign-in method was removed.
         let factor = match target.credential_type {
             CredentialType::Otp => "TOTP",
             CredentialType::WebAuthnPublicKeyCredential => "passkey",
@@ -4205,6 +4314,12 @@ mod tests {
 
         Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
+            .expect_cleanup_expired()
+            .times(1)
+            .returning(|| Box::pin(async { Ok(0u64) }));
+
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
             .expect_start_enrollment()
             .times(1)
             .returning(move |user_id, secret, expires_at| {
@@ -4614,6 +4729,133 @@ mod tests {
         assert!(
             result.is_ok(),
             "verify_otp must still allow re-enrollment when ConfigureOtp is required"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_otp_allows_reenrollment_with_valid_step_up_token() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        // No ConfigureOtp action: only the step-up token authorises the
+        // replacement of the existing authenticator (e.g. the user changed
+        // phone and walked /me/reauthenticate → /me/totp/setup → verify).
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let existing_otp = created_otp_credential(user.id, "EXISTINGSECRET".to_string());
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = vec![existing_otp.clone()];
+                Box::pin(async move { Ok(creds) })
+            });
+
+        expect_active_otp_enrollment(&mut builder, user.id, SERVER_SECRET.to_string());
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_claim_enrollment()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(true) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_by_id()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_custom_credential()
+            .times(1)
+            .returning(move |uid, _, secret, _, _| {
+                let cred = created_otp_credential(uid, secret);
+                Box::pin(async move { Ok(cred) })
+            });
+
+        expect_valid_step_up_token(&mut builder, "valid-step-up-token");
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let user_by_id_clone = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let u = user_by_id_clone.clone();
+                Box::pin(async move { Ok(u) })
+            });
+
+        let realm_by_id_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = realm_by_id_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        Arc::get_mut(&mut builder.smtp_config_repo)
+            .unwrap()
+            .expect_get_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        let service = builder.build();
+        let result = service
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    code: current_code_for(SERVER_SECRET),
+                    step_up_token: Some("valid-step-up-token".to_string()),
+                },
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "a consumed step-up token must authorise replacing an existing authenticator"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_otp_guard_rejection_does_not_touch_step_up_token_store() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let existing_otp = created_otp_credential(user.id, "EXISTINGSECRET".to_string());
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let creds = vec![existing_otp.clone()];
+                Box::pin(async move { Ok(creds) })
+            });
+
+        // Deliberately NO expectations on step_up_token_repo: the guard must
+        // reject before any token logic runs, so any call would panic the mock
+        // and fail this test.
+        let service = builder.build();
+        let result = service
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    code: current_code_for(SERVER_SECRET),
+                    step_up_token: None,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "the login-flow guard must still reject without ConfigureOtp"
         );
     }
 
@@ -5421,6 +5663,13 @@ mod tests {
 
         expect_realm_settings(&mut builder, &realm);
 
+        // The removal emits the user.credentials.deleted webhook.
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .times(1)
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
+
         // The factor-change notification email looks up the user and realm SMTP
         // config (best-effort; no SMTP configured → EmailNotSent event logged).
         let user_by_id_clone = user.clone();
@@ -5519,10 +5768,21 @@ mod tests {
 
         expect_valid_step_up_token(&mut builder, "valid-step-up-token");
 
+        // The realm policy is resolved before the deletion (require_mfa=false
+        // by default, so no re-enrolment action is queued).
+        expect_realm_settings(&mut builder, &realm);
+
         Arc::get_mut(&mut builder.security_event_repo)
             .unwrap()
             .expect_store_event()
             .returning(|_| Box::pin(async { Ok(()) }));
+
+        // The removal emits the user.credentials.deleted webhook.
+        Arc::get_mut(&mut builder.webhook_repo)
+            .unwrap()
+            .expect_notify()
+            .times(1)
+            .returning(|_, _: WebhookPayload<()>| Box::pin(async { Ok(()) }));
 
         // The factor-change notification email looks up the user and realm SMTP
         // config (best-effort; no SMTP configured → EmailNotSent event logged).
@@ -5943,6 +6203,11 @@ mod tests {
 
         Arc::get_mut(&mut builder.otp_enrollment_repo)
             .unwrap()
+            .expect_cleanup_expired()
+            .returning(|| Box::pin(async { Ok(0u64) }));
+
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
             .expect_start_enrollment()
             .returning(|_, _, _| {
                 Box::pin(async {
@@ -6180,6 +6445,7 @@ mod tests {
         Arc::get_mut(&mut builder.email_port)
             .unwrap()
             .expect_send_email()
+            .times(1)
             .returning(|_, _, _, _, _| Box::pin(async { Ok(()) }));
 
         let service = builder.build();
@@ -6193,7 +6459,10 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_ok(), "expected Ok from verify_otp");
+        assert!(
+            result.is_ok(),
+            "expected Ok from verify_otp with a factor-change email sent"
+        );
     }
 
     // ── complete_password_reset_with_recovery_code ──────────────────────
@@ -6367,7 +6636,6 @@ mod tests {
                     email: "alice@example.com".to_string(),
                     code: "abcd-efgh-ij9m-nopq".to_string(),
                     format: "b32-split-4".to_string(),
-                    new_password: "Str0ng!P@ssword#2024".to_string(),
                     base_url: "http://localhost:5555".to_string(),
                 },
             )
@@ -6449,7 +6717,6 @@ mod tests {
                     email: "alice@example.com".to_string(),
                     code: "abcd-efgh-ij9m-nopq".to_string(),
                     format: "b32-split-4".to_string(),
-                    new_password: "Str0ng!P@ssword#2024".to_string(),
                     base_url: "http://localhost:5555".to_string(),
                 },
             )
@@ -6472,6 +6739,15 @@ mod tests {
                 Box::pin(async move { Ok(Some(r)) })
             });
 
+        let realm_settings_clone = create_test_realm_setting(realm.id, true);
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = realm_settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
         Arc::get_mut(&mut builder.user_repo)
             .unwrap()
             .expect_get_by_email()
@@ -6485,13 +6761,63 @@ mod tests {
                     email: "unknown@example.com".to_string(),
                     code: "abcd-efgh-ij9m-nopq".to_string(),
                     format: "b32-split-4".to_string(),
-                    new_password: "Str0ng!P@ssword#2024".to_string(),
                     base_url: "http://localhost:5555".to_string(),
                 },
             )
             .await;
 
-        assert!(matches!(result, Err(CoreError::NotFound)));
+        // The unknown-email answer must be indistinguishable from a bad code so
+        // the anonymous endpoint cannot enumerate accounts.
+        assert!(
+            matches!(result, Err(CoreError::RecoveryCodeBurnError(_))),
+            "unknown email must be masked as a bad-code failure"
+        );
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_with_recovery_code_requires_forgot_password_enabled() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        // forgot_password disabled → the recovery-code path must refuse before
+        // touching users or codes.
+        let realm_settings_clone = create_test_realm_setting(realm.id, false);
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = realm_settings_clone.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .never();
+
+        let service = builder.build();
+        let result = service
+            .complete_password_reset_with_recovery_code(
+                CompletePasswordResetWithRecoveryCodeInput {
+                    realm_name: "test-realm".to_string(),
+                    email: "alice@example.com".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                    format: "b32-split-4".to_string(),
+                    base_url: "http://localhost:5555".to_string(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }
 
     #[tokio::test]
@@ -6633,7 +6959,6 @@ mod tests {
                     email: "alice@example.com".to_string(),
                     code: "abcd-efgh-ij9m-nopq".to_string(),
                     format: "b32-split-4".to_string(),
-                    new_password: "Str0ng!P@ssword#2024".to_string(),
                     base_url: "http://localhost:5555".to_string(),
                 },
             )
@@ -6685,6 +7010,13 @@ mod tests {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        // No pre-existing OTP credential, so the guard passes and the presented
+        // token is the next gate.
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
         // A valid step-up token must be presented; an invalid one is rejected
         // before any pending secret is consumed.
@@ -6753,7 +7085,7 @@ mod tests {
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_get_credentials_by_user_id()
-            .times(1)
+            .times(2)
             .returning(|_| Box::pin(async { Ok(Vec::new()) }));
 
         Arc::get_mut(&mut builder.otp_enrollment_repo)
@@ -6934,7 +7266,6 @@ mod tests {
                     email: "alice@example.com".to_string(),
                     code: "abcd-efgh-ij9m-nopq".to_string(),
                     format: "b32-split-4".to_string(),
-                    new_password: "Str0ng!P@ssword#2024".to_string(),
                     base_url: "http://localhost:5555".to_string(),
                 },
             )
@@ -7006,6 +7337,14 @@ mod tests {
             .expect_delete_by_id()
             .returning(|_| Box::pin(async { Ok(()) }));
 
+        expect_realm_settings(&mut builder, &realm);
+
+        // Success resets the accumulated failure counter.
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_reset_failed_login_attempts()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
         Arc::get_mut(&mut builder.security_event_repo)
             .unwrap()
             .expect_store_event()
@@ -7038,6 +7377,138 @@ mod tests {
             1,
             "Argon2 should run once per burn, not per stored code"
         );
+    }
+
+    #[tokio::test]
+    async fn burn_recovery_code_failure_increments_lockout_and_emits_failure_event() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "alice@example.com");
+
+        let session_code = Uuid::new_v4().to_string();
+        let auth_session = AuthSession::new(AuthSessionParams {
+            realm_id: realm.id,
+            client_id: Uuid::new_v4(),
+            redirect_uri: "http://localhost:5555/callback".to_string(),
+            response_type: "code".to_string(),
+            scope: "openid".to_string(),
+            state: Some("state".to_string()),
+            nonce: None,
+            user_id: Some(user.id),
+            code: None,
+            authenticated: false,
+            webauthn_challenge: None,
+            webauthn_challenge_issued_at: None,
+            compass_flow_id: None,
+            code_challenge: None,
+            code_challenge_method: None,
+        });
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = auth_session.clone();
+                Box::pin(async move { Ok(s) })
+            });
+
+        expect_realm_settings(&mut builder, &realm);
+        expect_recovery_code_lookup(&mut builder);
+
+        // No candidate matches the submitted code.
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_find_recovery_code_by_lookup()
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        // The failed guess must bump the lockout counter…
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_increment_failed_login_attempts()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        // …and be audited as a RecoveryCodeBurned *failure* event.
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let service = builder.build();
+        let result = service
+            .burn_recovery_code(
+                Identity::User(user),
+                BurnRecoveryCodeInput {
+                    session_code,
+                    format: "b32-split-4".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::RecoveryCodeBurnError(_))));
+    }
+
+    #[tokio::test]
+    async fn burn_recovery_code_locked_account_rejected() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "alice@example.com");
+        user.failed_login_attempts = 99;
+        user.locked_until = Some(Utc::now() + chrono::Duration::minutes(15));
+
+        let session_code = Uuid::new_v4().to_string();
+        let auth_session = AuthSession::new(AuthSessionParams {
+            realm_id: realm.id,
+            client_id: Uuid::new_v4(),
+            redirect_uri: "http://localhost:5555/callback".to_string(),
+            response_type: "code".to_string(),
+            scope: "openid".to_string(),
+            state: Some("state".to_string()),
+            nonce: None,
+            user_id: Some(user.id),
+            code: None,
+            authenticated: false,
+            webauthn_challenge: None,
+            webauthn_challenge_issued_at: None,
+            compass_flow_id: None,
+            code_challenge: None,
+            code_challenge_method: None,
+        });
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = auth_session.clone();
+                Box::pin(async move { Ok(s) })
+            });
+
+        expect_realm_settings(&mut builder, &realm);
+
+        // A locked account cannot be used to brute-force recovery codes during
+        // the MFA login fallback either.
+        Arc::get_mut(&mut builder.recovery_code_repo)
+            .unwrap()
+            .expect_lookup_of()
+            .never();
+
+        let service = builder.build();
+        let result = service
+            .burn_recovery_code(
+                Identity::User(user),
+                BurnRecoveryCodeInput {
+                    session_code,
+                    format: "b32-split-4".to_string(),
+                    code: "abcd-efgh-ij9m-nopq".to_string(),
+                },
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::AccountLocked)));
     }
 
     // ── issue_password_reset_token_and_notify behaviour (finding #3) ──────
@@ -7182,7 +7653,6 @@ mod tests {
                     email: "alice@example.com".to_string(),
                     code: "abcd-efgh-ij9m-nopq".to_string(),
                     format: "b32-split-4".to_string(),
-                    new_password: "Str0ng!P@ssword#2024".to_string(),
                     base_url: "http://localhost:5555".to_string(),
                 },
             )

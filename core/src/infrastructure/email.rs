@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use ferriskey_mail::{
     adapters::smtp::SmtpEmailSender,
     entities::{EmailAddress, EmailFrom, EmailMessage, EmailSubject, SmtpEncryption},
@@ -8,6 +10,11 @@ use crate::domain::{
     common::{email::EmailPort, entities::app_errors::CoreError},
     realm::entities::SmtpConfig,
 };
+
+/// Upper bound on a single SMTP send. Without it a blackholed SMTP host stalls
+/// every email-driven operation (factor-change notifications, password resets)
+/// for the full TCP timeout.
+const SMTP_SEND_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Default)]
 pub struct SmtpEmailPort;
@@ -54,9 +61,14 @@ impl EmailPort for SmtpEmailPort {
         let message = EmailMessage::new(from, vec![to], email_subject, body.to_string(), html_body)
             .map_err(|e| CoreError::External(format!("Failed to build email: {e}")))?;
 
-        sender
-            .send(message)
+        tokio::time::timeout(SMTP_SEND_TIMEOUT, sender.send(message))
             .await
+            .map_err(|_| {
+                CoreError::External(format!(
+                    "SMTP send timed out after {}s",
+                    SMTP_SEND_TIMEOUT.as_secs()
+                ))
+            })?
             .map_err(|e| CoreError::External(format!("Failed to send email: {e}")))?;
 
         Ok(())

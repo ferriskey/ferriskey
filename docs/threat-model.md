@@ -50,8 +50,10 @@ without ever knowing the password.
 ### Brute-force protection
 
 Both reauthentication and the unauthenticated recovery-code endpoint are wired
-to the existing account lockout (`lockout_compute_locked_until`, thresholds in
-`RealmSetting`). Failed attempts increment `failed_login_attempts` and emit a
+to the existing account lockout (the authentication service's
+`lockout_compute_locked_until`, thresholds in `RealmSetting`). The MFA login
+fallback (`burn_recovery_code`) applies the same lockout and failure-event
+handling. Failed attempts increment `failed_login_attempts` and emit a
 `reauthentication_failed` / `recovery_code_burned` (failure) `SecurityEvent`
 so SeaWatch can detect guessing.
 
@@ -93,12 +95,15 @@ longer full account takeover.
 
 ## Audit trail
 
-Every sensitive self-service operation emits a `SecurityEvent` (SeaWatch) and,
-where relevant, an `auth.*` webhook:
+Every sensitive self-service operation emits a `SecurityEvent` (SeaWatch), and
+two flows additionally emit a webhook — `user.credentials.deleted`
+(`WebhookTrigger::UserDeleteCredentials`) on credential deletion and
+`auth.reset_password` (`WebhookTrigger::AuthResetPassword`) on the recovery-code
+reset. No `auth.*` webhook exists for factor enrollment/removal yet.
 
 | Event | Trigger |
 |---|---|
-| `mfa_enrolled` | OTP or passkey factor added |
+| `mfa_enrolled` | OTP or passkey factor added (login-flow and self-service routes) |
 | `mfa_removed` | Primary factor (passkey/OTP) removed |
 | `credential_deleted` | Recovery code removed |
 | `reauthentication_failed` | Step-up password/OTP check failed |
@@ -107,13 +112,14 @@ where relevant, an `auth.*` webhook:
 ### Compensating control: factor-change email
 
 In addition to the audit trail, the account owner is emailed whenever a factor
-is added or removed (`notify_factor_change`): OTP/passkey enrollment and
-credential deletion all send a "a sign-in method was added/removed" email. This
-is the compensating control for the self-service MFA endpoints — even if a
-stolen access token passes the step-up check, the legitimate user is alerted to
-the change. The email is best-effort: if SMTP is not configured for the realm an
-`EmailNotSent` event is logged and the factor operation still succeeds, so a
-misconfigured realm never blocks enrollment/removal.
+is added or removed (`notify_factor_change`): OTP/passkey enrollment (both the
+login-flow and self-service routes) and credential deletion all send a "a
+sign-in method was added/removed" email. This is the compensating control for
+the self-service MFA endpoints — even if a stolen access token passes the
+step-up check, the legitimate user is alerted to the change. The email is
+best-effort: if SMTP is not configured for the realm an `EmailNotSent` event is
+logged and the factor operation still succeeds, so a misconfigured realm never
+blocks enrollment/removal.
 
 ## Realm binding (token ↔ URL)
 
