@@ -11,6 +11,7 @@ use crate::domain::{
         value_objects::CreateClientRequest,
     },
     common::{
+        console_callback_uri,
         entities::app_errors::CoreError,
         generate_random_string,
         policies::{FerriskeyPolicy, ensure_policy},
@@ -68,6 +69,9 @@ where
     pub(crate) redirect_uri_repository: Arc<RU>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
+
+    /// Public origin of the admin console, used to seed its callback redirect URI.
+    pub(crate) webapp_url: String,
 }
 
 impl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU>
@@ -99,8 +103,10 @@ where
         client_scope_mapping_repository: Arc<CSM>,
         redirect_uri_repository: Arc<RU>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
+        webapp_url: String,
     ) -> Self {
         Self {
+            webapp_url,
             realm_repository,
             user_repository,
             user_role_repository,
@@ -384,6 +390,7 @@ where
                 realm_id: realm.id,
                 secret: None,
                 service_account_enabled: false,
+                require_pkce: false,
             })
             .await?;
 
@@ -401,6 +408,7 @@ where
                 realm_id: realm.id,
                 secret: None,
                 service_account_enabled: false,
+                require_pkce: false,
             })
             .await?;
 
@@ -409,45 +417,44 @@ where
 
         // Create the security-admin-console client for this realm so that the
         // FerrisKey webapp can initiate the OAuth flow for this realm.
+        //
+        // It is a browser SPA: it cannot keep a secret, so it is a public client
+        // and relies on PKCE to bind authorization codes to the browser that
+        // started the flow.
         let console_client = self
             .client_repository
             .create_client(CreateClientRequest {
                 client_id: "security-admin-console".to_string(),
-                client_type: ClientType::Confidential,
+                client_type: ClientType::Public,
                 direct_access_grants_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 enabled: true,
                 name: "security-admin-console".to_string(),
                 protocol: "openid-connect".to_string(),
-                public_client: false,
+                public_client: true,
                 realm_id: realm.id,
-                secret: Some(generate_random_string()),
+                secret: None,
                 service_account_enabled: false,
+                require_pkce: true,
             })
             .await?;
 
-        // Seed the same redirect-URI patterns used for master so that the webapp
-        // callback URL is accepted for every realm.
-        let console_redirect_patterns = vec![
-            "^http://localhost:[0-9]+/.*",
-            "^/*",
-            "http://localhost:3000/admin",
-            "http://localhost:5173/admin",
-        ];
+        // The console's callback URL is fully determined by the deployment origin and
+        // the realm name, so it is registered as an exact URI. Anything broader would
+        // let an authorization code be redirected off-origin (FK-002).
+        let callback_uri = console_callback_uri(&self.webapp_url, &realm.name);
 
-        for pattern in console_redirect_patterns {
-            if let Err(e) = self
-                .redirect_uri_repository
-                .create_redirect_uri(console_client.id, pattern.to_string(), true)
-                .await
-            {
-                tracing::error!(
-                    "Failed to create redirect URI '{}' for security-admin-console in realm '{}': {}",
-                    pattern,
-                    realm.name,
-                    e
-                );
-            }
+        if let Err(e) = self
+            .redirect_uri_repository
+            .create_redirect_uri(console_client.id, callback_uri.clone(), true)
+            .await
+        {
+            tracing::error!(
+                "Failed to create redirect URI '{}' for security-admin-console in realm '{}': {}",
+                callback_uri,
+                realm.name,
+                e
+            );
         }
 
         Ok(realm)
@@ -512,6 +519,7 @@ where
                 direct_access_grants_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 client_type: ClientType::Public,
+                require_pkce: false,
             })
             .await?;
 
@@ -593,7 +601,9 @@ where
             .delete_by_name(&input.realm_name)
             .await?;
 
-        self.client_repository.delete_by_id(client.id).await?;
+        self.client_repository
+            .delete_by_id(realm_id, client.id)
+            .await?;
 
         Ok(())
     }
@@ -1291,8 +1301,13 @@ mod tests {
             Arc::get_mut(&mut self.redirect_uri_repo)
                 .unwrap()
                 .expect_create_redirect_uri()
-                .withf(|_, _, _| true)
-                .times(4)
+                // The console gets exactly one redirect URI: its own callback on this
+                // deployment's origin, registered as an exact literal.
+                .withf(|_, value, _| {
+                    value.starts_with("https://console.example/realms/")
+                        && value.ends_with("/authentication/callback")
+                })
+                .times(1)
                 .returning(|client_id, value, enabled| {
                     Box::pin(async move {
                         Ok(
@@ -1350,7 +1365,7 @@ mod tests {
                 .unwrap()
                 .expect_create()
                 .withf(move |req| req.realm_id == new_realm_id)
-                .times(7)
+                .times(8)
                 .returning(move |req| {
                     let req = req.clone();
                     Box::pin(async move {
@@ -1367,7 +1382,7 @@ mod tests {
                 .unwrap()
                 .expect_create()
                 .withf(|_| true)
-                .times(8)
+                .times(10)
                 .returning(|req| {
                     let req = req.clone();
                     Box::pin(async move {
@@ -1384,7 +1399,7 @@ mod tests {
                 .unwrap()
                 .expect_assign_scope_to_client()
                 .withf(|_, _, is_default, is_optional| *is_optional != *is_default)
-                .times(7)
+                .times(8)
                 .returning(|client_id, scope_id, is_default, _is_optional| {
                     Box::pin(async move {
                         Ok(ClientScopeMapping {
@@ -1467,6 +1482,7 @@ mod tests {
                 self.client_scope_mapping_repo,
                 self.redirect_uri_repo,
                 policy,
+                "https://console.example".to_string(),
             )
         }
     }

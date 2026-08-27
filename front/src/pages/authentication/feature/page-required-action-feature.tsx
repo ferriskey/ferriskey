@@ -4,15 +4,14 @@ import PageRequiredAction from '../ui/page-required-action'
 export default function PageRequiredActionFeature() {
   const [searchParams] = useSearchParams()
   const execution = searchParams.get('execution')
-  const token = searchParams.get('client_data')
 
-  if (!token) {
+  if (!execution) {
     return <div>Loading ...</div>
   }
 
   return (
     <div>
-      <PageRequiredAction execution={execution ?? ''} />
+      <PageRequiredAction execution={execution} />
     </div>
   )
 }

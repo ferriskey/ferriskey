@@ -84,6 +84,7 @@ pub async fn exchange_token(
         scope: payload.scope,
         device_code: payload.device_code,
         code_verifier: payload.code_verifier,
+        redirect_uri: payload.redirect_uri,
     };
 
     // The device_code grant is served by the device flow polling path so its

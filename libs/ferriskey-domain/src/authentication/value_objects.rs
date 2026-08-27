@@ -106,9 +106,13 @@ pub enum RegisterUserOutput {
     /// Normal registration - returns JWT tokens
     Authenticated(JwtToken),
     /// Registration completed inside an OIDC flow - redirect to the original client
-    Redirect { url: String },
-    /// Email verification required - no tokens
-    PendingVerification { message: String, user_id: Uuid },
+    Redirect {
+        url: String,
+    },
+    PendingAction {
+        message: String,
+        user_id: Uuid,
+    },
 }
 
 pub struct GenerateTokensForUserInput {
@@ -116,6 +120,7 @@ pub struct GenerateTokensForUserInput {
     pub realm_id: Uuid,
     pub base_url: String,
     pub client_id: Option<Uuid>,
+    pub scope: Option<String>,
 }
 
 impl CreateAuthSessionRequest {

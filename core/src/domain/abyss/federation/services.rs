@@ -205,7 +205,7 @@ where
         self.federation_repository.delete(id).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, identity))]
     async fn list_federation_providers(
         &self,
         identity: Identity,
@@ -217,21 +217,28 @@ where
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
+        ensure_policy(
+            self.policy
+                .can_view_federation_provider(&identity, &realm)
+                .await,
+            "insufficient permissions to list providers",
+        )?;
+
         self.federation_repository
             .list_by_realm(realm.id.into())
             .await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, identity))]
     async fn test_federation_connection(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
     ) -> Result<TestConnectionResult, CoreError> {
         let provider = self
-            .federation_repository
-            .get_by_id(id)
-            .await?
-            .ok_or(CoreError::NotFound)?;
+            .resolve_provider_for_management(&identity, &realm_name, id)
+            .await?;
 
         match provider.provider_type {
             FederationType::Ldap | FederationType::ActiveDirectory => {
@@ -245,17 +252,17 @@ where
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, identity))]
     async fn sync_federation_users(
         &self,
+        identity: Identity,
+        realm_name: String,
         id: Uuid,
         mode: SyncMode,
     ) -> Result<SyncResult, CoreError> {
         let provider = self
-            .federation_repository
-            .get_by_id(id)
-            .await?
-            .ok_or(CoreError::NotFound)?;
+            .resolve_provider_for_management(&identity, &realm_name, id)
+            .await?;
 
         info!(
             "Starting federation sync for provider '{}' (ID: {}), mode: {:?}",
@@ -281,6 +288,39 @@ where
     U: UserRepository,
     CR: CredentialRepository,
 {
+    async fn resolve_provider_for_management(
+        &self,
+        identity: &Identity,
+        realm_name: &str,
+        id: Uuid,
+    ) -> Result<FederationProvider, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy
+                .can_update_federation_provider(identity, &realm)
+                .await,
+            "insufficient permissions to operate this provider",
+        )?;
+
+        let provider = self
+            .federation_repository
+            .get_by_id(id)
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        if provider.realm_id != Into::<Uuid>::into(realm.id) {
+            error!("Provider realm ID does not match requested realm");
+            return Err(CoreError::NotFound);
+        }
+
+        Ok(provider)
+    }
+
     /// Comprehensive LDAP user synchronization with reconciliation
     ///
     /// This method performs a "diff" between LDAP and the local database:
@@ -397,6 +437,14 @@ where
                     }
                     ReconcileAction::NoChange => {
                         // User exists and is up to date
+                    }
+                    ReconcileAction::Skipped => {
+                        result.failed += 1;
+                        result.errors.push(SyncError {
+                            username: Some(ldap_user.username.clone()),
+                            external_id: ldap_user.external_id.clone(),
+                            error: "a local account with this username already exists and is not federated; link it explicitly before syncing".to_string(),
+                        });
                     }
                 },
                 Err(e) => {
@@ -650,25 +698,11 @@ where
                     Ok(user) => {
                         // User exists but has no mapping - link it (orphan user case)
                         warn!(
-                            "Found existing user '{}' (ID: {}) without federation mapping, linking to LDAP provider '{}'",
+                            "Refusing to link local user '{}' (ID: {}) to LDAP provider '{}': the account exists locally with no federation mapping, so claiming it from the directory would hand it to whoever controls that username",
                             user.username, user.id, provider.name
                         );
 
-                        // Update user attributes from LDAP
-                        let update_request = UpdateUserRequest {
-                            email: ldap_user.email.clone().or(user.email.clone()),
-                            firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
-                            lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
-                            enabled: true,
-                            email_verified: user.email_verified,
-                            required_actions: None,
-                        };
-
-                        self.user_repository
-                            .update_user(user.id, update_request)
-                            .await?;
-
-                        user
+                        return Ok(ReconcileAction::Skipped);
                     }
                     Err(_) => {
                         // User doesn't exist - create new user
@@ -842,4 +876,5 @@ enum ReconcileAction {
     Created,
     Updated,
     NoChange,
+    Skipped,
 }

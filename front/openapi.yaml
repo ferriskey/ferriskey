@@ -4868,6 +4868,10 @@ components:
       required:
       - status
       properties:
+        email:
+          type:
+          - string
+          - 'null'
         message:
           type:
           - string
@@ -4880,10 +4884,6 @@ components:
             $ref: '#/components/schemas/RequiredAction'
         status:
           $ref: '#/components/schemas/AuthenticationStatus'
-        token:
-          type:
-          - string
-          - 'null'
         url:
           type:
           - string

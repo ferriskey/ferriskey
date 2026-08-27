@@ -33,6 +33,19 @@ pub struct PollDeviceTokenParams {
 pub struct InitiateDeviceFlowInput {
     pub realm_name: String,
     pub client_id: String,
+    pub client_secret: Option<String>,
+    pub scope: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct DeviceVerificationPreview {
+    pub client_id: String,
+    pub client_name: String,
+    pub scopes: Vec<String>,
+}
+
+pub struct DeviceSessionPreview {
+    pub client_id: Uuid,
     pub scope: Option<String>,
 }
 
@@ -50,20 +63,4 @@ pub struct InitiateDeviceFlowOutput {
     /// Minimum polling interval, in seconds.
     #[schema(example = 5)]
     pub interval: i64,
-}
-
-/// Input used when the end user submits a code on the verification page
-/// (RFC 8628 §3.3).
-pub struct VerifyUserCodeInput {
-    pub realm_name: String,
-    pub user_code: String,
-}
-
-/// Input for the token endpoint when polling with the device code
-/// (RFC 8628 §3.4).
-pub struct PollDeviceTokenInput {
-    pub realm_name: String,
-    pub client_id: String,
-    pub client_secret: Option<String>,
-    pub device_code: String,
 }

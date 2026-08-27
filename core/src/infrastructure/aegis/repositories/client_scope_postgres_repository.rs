@@ -56,9 +56,14 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
     }
 
     #[instrument(skip(self))]
-    async fn get_by_id(&self, id: Uuid) -> Result<Option<ClientScope>, CoreError> {
+    async fn get_by_id(
+        &self,
+        realm_id: RealmId,
+        id: Uuid,
+    ) -> Result<Option<ClientScope>, CoreError> {
         let model = client_scopes::Entity::find()
             .filter(client_scopes::Column::Id.eq(id))
+            .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -105,11 +110,13 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
     #[instrument(skip(self, payload))]
     async fn update_by_id(
         &self,
+        realm_id: RealmId,
         id: Uuid,
         payload: UpdateClientScopeRequest,
     ) -> Result<ClientScope, CoreError> {
         let model = client_scopes::Entity::find()
             .filter(client_scopes::Column::Id.eq(id))
+            .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -151,9 +158,10 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
     }
 
     #[instrument(skip(self))]
-    async fn delete_by_id(&self, id: Uuid) -> Result<(), CoreError> {
+    async fn delete_by_id(&self, realm_id: RealmId, id: Uuid) -> Result<(), CoreError> {
         let result = client_scopes::Entity::delete_many()
             .filter(client_scopes::Column::Id.eq(id))
+            .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
             .exec(&self.db)
             .await
             .map_err(|e| {

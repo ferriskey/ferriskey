@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    prelude::Expr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    PaginatorTrait, QueryFilter, prelude::Expr,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -11,6 +11,7 @@ use crate::domain::authentication::device_flow::entities::{
 };
 use crate::domain::authentication::device_flow::ports::DeviceAuthRepository;
 use crate::domain::authentication::entities::AuthenticationError;
+use crate::domain::realm::entities::RealmId;
 use crate::entity::device_auth_sessions::{
     ActiveModel as DasActiveModel, Column as DasColumn, Entity as DasEntity, Model as DasModel,
 };
@@ -31,7 +32,7 @@ impl From<DasModel> for DeviceAuthSession {
             user_code: UserCode::new(model.user_code),
             scope: model.scope,
             status: DeviceAuthStatus::from_db_value(&model.status)
-                .unwrap_or(DeviceAuthStatus::Pending),
+                .unwrap_or(DeviceAuthStatus::Expired),
             user_id: model.user_id,
             interval: i64::from(model.interval_seconds),
             created_at,
@@ -49,23 +50,6 @@ pub struct PostgresDeviceAuthRepository {
 impl PostgresDeviceAuthRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
-    }
-
-    /// Delete all sessions whose lifetime has elapsed. Returns the number of
-    /// rows removed. Intended to be run periodically by a background job.
-    #[allow(dead_code)]
-    pub async fn purge_expired(&self) -> Result<u64, AuthenticationError> {
-        let now = Utc::now().fixed_offset();
-        let result = DasEntity::delete_many()
-            .filter(DasColumn::ExpiresAt.lt(now))
-            .exec(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Error purging expired device auth sessions: {e:?}");
-                AuthenticationError::InternalServerError
-            })?;
-
-        Ok(result.rows_affected)
     }
 }
 
@@ -114,9 +98,11 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
     async fn find_by_user_code(
         &self,
         user_code: String,
+        realm_id: RealmId,
     ) -> Result<Option<DeviceAuthSession>, AuthenticationError> {
         let model = DasEntity::find()
             .filter(DasColumn::UserCode.eq(user_code))
+            .filter(DasColumn::RealmId.eq(Uuid::from(realm_id)))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -127,9 +113,23 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
         Ok(model.map(Into::into))
     }
 
+    async fn user_code_exists(&self, user_code: String) -> Result<bool, AuthenticationError> {
+        let count = DasEntity::find()
+            .filter(DasColumn::UserCode.eq(user_code))
+            .count(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error checking device auth user_code uniqueness: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+        Ok(count > 0)
+    }
+
     async fn update_status(
         &self,
         device_code: Uuid,
+        expected: DeviceAuthStatus,
         status: DeviceAuthStatus,
         user_id: Option<Uuid>,
     ) -> Result<DeviceAuthSession, AuthenticationError> {
@@ -142,6 +142,7 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
 
         let model = update
             .filter(DasColumn::DeviceCode.eq(device_code))
+            .filter(DasColumn::Status.eq(expected.as_str()))
             .exec_with_returning(&self.db)
             .await
             .map_err(|e| {
@@ -153,6 +154,20 @@ impl DeviceAuthRepository for PostgresDeviceAuthRepository {
             .ok_or(AuthenticationError::NotFound)?;
 
         Ok(model.into())
+    }
+
+    async fn purge_expired(&self) -> Result<u64, AuthenticationError> {
+        let now = Utc::now().fixed_offset();
+        let result = DasEntity::delete_many()
+            .filter(DasColumn::ExpiresAt.lt(now))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error purging expired device auth sessions: {e:?}");
+                AuthenticationError::InternalServerError
+            })?;
+
+        Ok(result.rows_affected)
     }
 
     async fn mark_polled(&self, device_code: Uuid) -> Result<(), AuthenticationError> {

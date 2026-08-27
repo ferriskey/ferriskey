@@ -15,6 +15,9 @@ pub struct AppConfig {
 #[derive(Clone, Debug)]
 pub struct FerriskeyConfig {
     pub database: DatabaseConfig,
+    /// Public origin the admin console is served from. Seeding needs it to register
+    /// the console's callback as an exact redirect URI — see [`console_callback_uri`].
+    pub webapp_url: String,
 }
 
 #[derive(Clone, Debug)]
@@ -25,6 +28,19 @@ pub struct DatabaseConfig {
     pub password: String,
     pub name: String,
     pub schema: String,
+}
+
+/// The one redirect URI the admin console ever needs, for a given realm.
+///
+/// Seeded as an exact literal rather than a pattern: the console's callback route is
+/// `/realms/{realm}/authentication/callback` (see `front/src/pages/authentication`),
+/// so the full URI is known at seeding time and no wildcard is warranted. FerrisKey
+/// used to seed `^/*` here, which matched every URI on earth (FK-002).
+pub fn console_callback_uri(webapp_url: &str, realm_name: &str) -> String {
+    format!(
+        "{}/realms/{realm_name}/authentication/callback",
+        webapp_url.trim_end_matches('/')
+    )
 }
 
 pub fn generate_timestamp() -> (DateTime<Utc>, Timestamp) {

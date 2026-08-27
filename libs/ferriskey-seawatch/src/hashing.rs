@@ -199,7 +199,7 @@ mod tests {
         let mut prev = GENESIS_PREV_HASH;
         let mut events = Vec::with_capacity(count);
         for _ in 0..count {
-            let mut e = make_event(realm_id.clone());
+            let mut e = make_event(realm_id);
             let hash = compute_event_hash(&e, &prev);
             e.prev_hash = Some(prev);
             e.event_hash = Some(hash);

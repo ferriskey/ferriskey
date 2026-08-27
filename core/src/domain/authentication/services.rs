@@ -31,12 +31,12 @@ use crate::domain::{
         OidcScope,
         entities::{
             AuthInput, AuthOutput, AuthSession, AuthSessionParams, AuthenticateOutput,
-            AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestInput,
-            AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
+            AuthenticationMethod, AuthorizeRequestInput, AuthorizeRequestOutput,
+            CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
             TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
-        ports::{AuthService, AuthSessionRepository},
+        ports::{AuthService, AuthSessionRepository, LoginActionToken, LoginActionTokenRepository},
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
             EvaluateClientScopesInput, EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles,
@@ -45,9 +45,16 @@ use crate::domain::{
             RegisterUserUrlContext, RevokeTokenInput, UserInfoResponse,
         },
     },
-    client::ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
+    client::{
+        entities::Client,
+        ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
+        redirect_uri_matching::redirect_uri_matches_any,
+    },
     common::{entities::app_errors::CoreError, generate_random_string},
-    credential::{entities::CredentialData, ports::CredentialRepository},
+    credential::{
+        entities::{CredentialData, CredentialType},
+        ports::CredentialRepository,
+    },
     crypto::HasherRepository,
     email_verification::ports::EmailVerificationService,
     jwt::{
@@ -55,7 +62,11 @@ use crate::domain::{
         entities::{ClaimsTyp, IdTokenClaims, JwkKey, Jwt, JwtClaim, JwtKeyPair},
         ports::{AccessTokenRepository, RefreshTokenRepository, RotateOutcome},
     },
-    realm::{entities::RealmId, ports::RealmRepository},
+    realm::{
+        entities::{RealmId, RealmSetting},
+        ports::RealmRepository,
+    },
+    role::entities::Role,
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     session::{entities::UserSession, ports::UserSessionRepository},
     user::{
@@ -72,7 +83,7 @@ use crate::domain::{
     },
 };
 use ferriskey_domain::token_lifetime::TokenLifetimes;
-use ferriskey_security::jwt::entities::DEFAULT_ACCESS_TOKEN_LIFETIME;
+use ferriskey_security::jwt::entities::DEFAULT_TEMPORARY_TOKEN_LIFETIME;
 
 use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 
@@ -105,12 +116,26 @@ fn format_authorization_redirect_url(
     auth_session: &AuthSession,
     authorization_code: &str,
 ) -> String {
+    // A registered redirect URI may already carry a query string
+    // (`https://app.example/cb?tenant=acme`), so the separator has to be chosen
+    // rather than assumed, and `state` echoed back percent-encoded.
+    let separator = if auth_session.redirect_uri.contains('?') {
+        '&'
+    } else {
+        '?'
+    };
+
+    let url = format!(
+        "{}{separator}code={}",
+        auth_session.redirect_uri,
+        urlencoding::encode(authorization_code)
+    );
+
     match auth_session.state.as_deref() {
-        Some(state) if !state.is_empty() => format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, state
-        ),
-        _ => format!("{}?code={}", auth_session.redirect_uri, authorization_code),
+        Some(state) if !state.is_empty() => {
+            format!("{url}&state={}", urlencoding::encode(state))
+        }
+        _ => url,
     }
 }
 
@@ -126,6 +151,250 @@ fn format_authorization_redirect_url(
 fn auth_session_can_resume(auth_session: &AuthSession, now: DateTime<Utc>) -> bool {
     auth_session.expires_at >= now
         && !(auth_session.user_id.is_some() && auth_session.authenticated)
+}
+
+/// Gate the `ExistingToken` branch of `POST /login-actions/authenticate`
+/// (FK-003).
+///
+/// That branch skips the whole interactive login and finalizes the flow on the
+/// strength of the presented token alone, so the token must be one that already
+/// *stands for* a completed authentication — i.e. a `Bearer` access token.
+///
+/// Every other `typ` is a mid-flow artifact and replaying it here would let the
+/// holder jump the step it was minted for. The `Temporary` token is the sharp
+/// case: `using_session_code` hands it out right after the password check and
+/// right *before* the OTP challenge, so accepting it here completes login with
+/// the password alone. `Refresh` and `Id` tokens are rejected for the same
+/// reason — they are not proof of a finished login at this endpoint.
+///
+/// The `AuthSession` freshness check is repeated here (it also lives in
+/// `authenticate`) so this path can never outlive its authorization request,
+/// whatever future caller reaches it. `now` is injected so expiry is testable.
+fn validate_token_refresh_request(
+    claims_typ: &ClaimsTyp,
+    auth_session: &AuthSession,
+    now: DateTime<Utc>,
+) -> Result<(), CoreError> {
+    if auth_session.expires_at < now {
+        return Err(CoreError::SessionExpired);
+    }
+
+    if *claims_typ != ClaimsTyp::Bearer {
+        return Err(CoreError::InvalidToken);
+    }
+
+    Ok(())
+}
+
+fn validate_session_binding(
+    claimed_sid: Option<Uuid>,
+    session: Option<&UserSession>,
+    now: DateTime<Utc>,
+) -> Result<(), CoreError> {
+    let Some(sid) = claimed_sid else {
+        return Ok(());
+    };
+
+    let Some(session) = session else {
+        warn!(session_id = %sid, "Rejecting token: the session it names no longer exists");
+        return Err(CoreError::InvalidToken);
+    };
+
+    if session.expires_at < now {
+        warn!(session_id = %sid, "Rejecting token: the session it names has expired");
+        return Err(CoreError::InvalidToken);
+    }
+
+    Ok(())
+}
+
+/// Re-derive the required actions that gate the token-refresh path (FK-003).
+///
+/// `ConfigureOtp` is *computed*, never written to `user_required_actions`: the
+/// credentials path builds it on the fly in `using_session_code`. So a path
+/// that only reads the persisted `user.required_actions` sees an empty list and
+/// finalizes, silently bypassing mandatory MFA enrolment. Replaying the same
+/// policy here closes that hole.
+///
+/// Unlike the credentials path we do not suspend enforcement for a temporary
+/// password: no password is presented on this path, so there is nothing to make
+/// the exception for, and defaulting to "enforce" is the safe direction.
+fn resolve_refresh_required_actions(
+    persisted_actions: &[RequiredAction],
+    realm_settings: Option<&RealmSetting>,
+    user_roles: &[Role],
+    has_otp_credential: bool,
+) -> Vec<RequiredAction> {
+    let mut actions = persisted_actions.to_vec();
+
+    let mfa_required_action = mfa_policy::user_requires_mfa(realm_settings, user_roles)
+        .then(|| {
+            mfa_policy::required_action_for_mfa(has_otp_credential).filter(|a| !actions.contains(a))
+        })
+        .flatten();
+
+    if let Some(action) = mfa_required_action {
+        actions.push(action);
+    }
+
+    actions
+}
+
+fn pending_step_message(step: &mfa_policy::PendingAuthStep) -> String {
+    match step {
+        mfa_policy::PendingAuthStep::RequiredActions(actions) => format!(
+            "the required action(s) {} are still owed",
+            actions
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        mfa_policy::PendingAuthStep::OtpChallenge => {
+            "a second authentication factor is still owed".to_string()
+        }
+    }
+}
+
+fn pending_step_refusal(step: &mfa_policy::PendingAuthStep) -> CoreError {
+    CoreError::Forbidden(format!(
+        "Tokens cannot be issued for this account because {}. Sign in through the browser-based authorization_code flow to complete the remaining step.",
+        pending_step_message(step)
+    ))
+}
+
+fn refuse_token_issuance_when_step_pending(
+    step: Option<&mfa_policy::PendingAuthStep>,
+) -> Result<(), CoreError> {
+    match step {
+        Some(step) => Err(pending_step_refusal(step)),
+        None => Ok(()),
+    }
+}
+
+fn refuse_token_issuance_when_actions_pending(
+    step: Option<&mfa_policy::PendingAuthStep>,
+) -> Result<(), CoreError> {
+    match step {
+        Some(step @ mfa_policy::PendingAuthStep::RequiredActions(_)) => {
+            Err(pending_step_refusal(step))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Lifetime, in seconds, of a `Temporary` step token.
+///
+/// A step token only has to survive one hop of the login flow (OTP challenge,
+/// required-action screen), so it must not borrow the access-token lifetime a
+/// realm may have widened to hours. Realms expose a dedicated
+/// `temporary_token_lifetime`; when a realm has no settings row we fall back to
+/// `DEFAULT_TEMPORARY_TOKEN_LIFETIME` rather than to the access-token default.
+pub(crate) const LOGIN_ACTION_SESSION_CLAIM: &str = "afs";
+
+fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
+    realm_settings
+        .map(|s| s.temporary_token_lifetime)
+        .unwrap_or(DEFAULT_TEMPORARY_TOKEN_LIFETIME)
+}
+
+/// Constant-time comparison of a configured client secret against the one
+/// presented on the token endpoint. `(None, None)` means "no secret configured
+/// and none presented", which is only ever reached for public clients.
+pub(crate) fn normalize_login_email(email: &str) -> String {
+    email.trim().to_lowercase()
+}
+
+pub(crate) fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
+    match (stored, provided) {
+        (Some(s), Some(p)) => {
+            let s_hash = Sha256::digest(s.as_bytes());
+            let p_hash = Sha256::digest(p.as_bytes());
+            s_hash.ct_eq(&p_hash).into()
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+/// Bind an incoming `authorization_code` token request back to the authorization
+/// request that minted the code (RFC 6749 §4.1.3, §10.5).
+///
+/// A bearer authorization code is not a credential on its own: it only proves
+/// that *someone* completed a login, not that the caller is the client the code
+/// was issued to. Every check below re-establishes one half of that binding, so
+/// a code obtained out-of-band (referrer leak, browser history, open redirect)
+/// cannot be redeemed by a different client, against a different realm, at a
+/// different redirect target, or indefinitely.
+///
+/// `now` is injected so the expiry branch is testable.
+fn validate_authorization_code_request(
+    auth_session: &AuthSession,
+    client: &Client,
+    request_realm_id: RealmId,
+    request_redirect_uri: Option<&str>,
+    request_client_secret: Option<&str>,
+    now: DateTime<Utc>,
+) -> Result<(), CoreError> {
+    if !client.enabled {
+        return Err(CoreError::InvalidClient);
+    }
+
+    // Confidential clients must authenticate. Skipping this let anyone redeem a
+    // code without ever proving they are the client it belongs to.
+    if !client.public_client && !client_secret_matches(client.secret_str(), request_client_secret) {
+        warn!(
+            client_id = %client.client_id,
+            "authorization_code: client secret mismatch for confidential client"
+        );
+        return Err(CoreError::InvalidClientSecret);
+    }
+
+    // The code belongs to one client. Without this, any client_id in the realm
+    // could redeem another client's code and receive tokens minted under its own
+    // `azp`, crossing the client boundary.
+    if client.id != auth_session.client_id {
+        warn!(
+            client_id = %client.client_id,
+            expected_client = %auth_session.client_id,
+            "authorization_code: code was issued to a different client"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    // Codes are looked up globally by value, so without a realm check a code
+    // could be redeemed at another realm's token endpoint and come back signed
+    // with that realm's key — a tenant-isolation break.
+    if auth_session.realm_id != request_realm_id {
+        warn!(
+            session_realm = ?auth_session.realm_id,
+            request_realm = ?request_realm_id,
+            "authorization_code: code was issued for a different realm"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    // RFC 6749 §4.1.3: `redirect_uri` is REQUIRED when the authorization request
+    // carried one, and must be identical. Our /auth endpoint always requires it,
+    // so an absent value here is a mismatch.
+    if request_redirect_uri != Some(auth_session.redirect_uri.as_str()) {
+        warn!(
+            client_id = %client.client_id,
+            "authorization_code: redirect_uri does not match the authorization request"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    if now >= auth_session.expires_at {
+        warn!(
+            client_id = %client.client_id,
+            expires_at = %auth_session.expires_at,
+            "authorization_code: code has expired"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
+    Ok(())
 }
 
 /// Verify a PKCE `code_verifier` against the stored `code_challenge`.
@@ -234,6 +503,7 @@ pub struct AuthServiceImpl<
     WR,
     SER,
     USR,
+    LAT,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -262,6 +532,7 @@ pub struct AuthServiceImpl<
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -290,6 +561,7 @@ pub struct AuthServiceImpl<
     pub(crate) webhook_repository: Arc<WR>,
     pub(crate) security_event_repository: Arc<SER>,
     pub(crate) user_session_repository: Arc<USR>,
+    pub(crate) login_action_token_repository: Arc<LAT>,
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
@@ -323,6 +595,7 @@ impl<
     WR,
     SER,
     USR,
+    LAT,
 >
     AuthServiceImpl<
         R,
@@ -352,6 +625,7 @@ impl<
         WR,
         SER,
         USR,
+        LAT,
     >
 where
     R: RealmRepository,
@@ -381,6 +655,7 @@ where
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -411,6 +686,7 @@ where
         webhook_repository: Arc<WR>,
         security_event_repository: Arc<SER>,
         user_session_repository: Arc<USR>,
+        login_action_token_repository: Arc<LAT>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
     ) -> Self {
@@ -442,6 +718,7 @@ where
             webhook_repository,
             security_event_repository,
             user_session_repository,
+            login_action_token_repository,
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
@@ -477,6 +754,7 @@ impl<
     WR,
     SER,
     USR,
+    LAT,
 >
     AuthServiceImpl<
         R,
@@ -506,6 +784,7 @@ impl<
         WR,
         SER,
         USR,
+        LAT,
     >
 where
     R: RealmRepository,
@@ -535,6 +814,7 @@ where
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -565,7 +845,7 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(client_uuid)
+            .get_by_id(realm_id, client_uuid)
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
@@ -779,7 +1059,7 @@ where
         // Load user organization memberships with their attributes
         let org_memberships = self
             .organization_member_repository
-            .list_organizations_for_user(input.user_id)
+            .list_organizations_for_user(input.realm_id, input.user_id)
             .await
             .unwrap_or_default();
 
@@ -1111,6 +1391,18 @@ where
                 CoreError::SessionCreateError
             })?;
 
+        if let Err(e) = self
+            .user_session_repository
+            .delete_expired_for_user(user_id, realm_id.into(), Utc::now())
+            .await
+        {
+            warn!(
+                user_id = %user_id,
+                error = ?e,
+                "Failed to purge expired sessions before opening a new one"
+            );
+        }
+
         let session =
             UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
 
@@ -1138,6 +1430,59 @@ where
             .await?;
 
         Ok(session)
+    }
+
+    async fn revoke_session_cascade(
+        &self,
+        session_id: Uuid,
+        realm_id: RealmId,
+        user_id: Uuid,
+    ) -> Result<(), CoreError> {
+        let (access_revoked, refresh_revoked) = tokio::try_join!(
+            self.access_token_repository
+                .revoke_by_session_id(session_id),
+            self.refresh_token_repository
+                .revoke_by_session_id(session_id),
+        )
+        .map_err(|e| {
+            warn!(
+                session_id = %session_id,
+                error = ?e,
+                "Failed to revoke the tokens minted against a session"
+            );
+            CoreError::InternalServerError
+        })?;
+
+        if let Err(e) = self.user_session_repository.delete(&session_id).await {
+            warn!(
+                session_id = %session_id,
+                error = ?e,
+                "Tokens revoked but the session row could not be deleted"
+            );
+        }
+
+        info!(
+            session_id = %session_id,
+            access_revoked,
+            refresh_revoked,
+            "Revoked a session and every token minted against it"
+        );
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::SessionRevoked,
+                    EventStatus::Success,
+                    user_id,
+                )
+                .with_target("session".to_string(), session_id, None),
+            )
+            .await
+            .map_err(|err| warn!("Failed to store SessionRevoked security event: {}", err))
+            .ok();
+
+        Ok(())
     }
 
     async fn create_jwt(
@@ -1251,6 +1596,7 @@ where
                     refresh_claims.jti,
                     input.user_id,
                     Some(refresh_token_expires_at),
+                    input.session_id,
                 )
             )
             .map_err(|_| CoreError::InternalServerError)?;
@@ -1281,6 +1627,20 @@ where
         {
             return Err(CoreError::ExpiredToken);
         }
+
+        let session = match token_data.claims.sid {
+            Some(sid) => self
+                .user_session_repository
+                .find_by_id(sid)
+                .await
+                .map_err(|e| {
+                    warn!(session_id = %sid, error = ?e, "Failed to load the session backing a token");
+                    CoreError::InternalServerError
+                })?,
+            None => None,
+        };
+
+        validate_session_binding(token_data.claims.sid, session.as_ref(), Utc::now())?;
 
         // Enforce immediate access token revocation when a persisted token has been marked revoked.
         if token_data.claims.typ == ClaimsTyp::Bearer {
@@ -1337,6 +1697,85 @@ where
         Ok(is_valid)
     }
 
+    async fn refuse_login_identifier_collision(
+        &self,
+        realm: &crate::domain::realm::entities::Realm,
+        username: &str,
+        email: &str,
+    ) -> Result<(), CoreError> {
+        let aliases = realm
+            .settings
+            .as_ref()
+            .map(|settings| settings.login_aliases.clone())
+            .unwrap_or_default();
+
+        if aliases.as_slice().len() < 2 {
+            return Ok(());
+        }
+
+        if self
+            .user_repository
+            .get_by_email(username, realm.id)
+            .await?
+            .is_some()
+        {
+            return Err(CoreError::UsernameAlreadyExists);
+        }
+
+        if self
+            .user_repository
+            .find_by_username(email.to_string(), realm.id)
+            .await?
+            .is_some()
+        {
+            return Err(CoreError::EmailAlreadyExists);
+        }
+
+        Ok(())
+    }
+
+    async fn resolve_pending_auth_step(
+        &self,
+        user_id: Uuid,
+        realm_id: RealmId,
+    ) -> Result<Option<mfa_policy::PendingAuthStep>, CoreError> {
+        let persisted_actions = self
+            .user_required_action_repository
+            .get_required_actions(user_id)
+            .await
+            .map_err(|e| {
+                warn!(user_id = %user_id, error = ?e, "Failed to load required actions");
+                CoreError::InternalServerError
+            })?;
+
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user_id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        let has_otp_credential = credentials
+            .iter()
+            .any(|credential| matches!(credential.credential_type, CredentialType::Otp));
+        let has_temporary_password = credentials.iter().any(|credential| credential.temporary);
+
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+
+        Ok(mfa_policy::pending_auth_step(
+            &persisted_actions,
+            realm_settings.as_ref(),
+            &user_roles,
+            has_otp_credential,
+            has_temporary_password,
+        ))
+    }
+
     async fn verify_refresh_token(
         &self,
         token: String,
@@ -1370,7 +1809,7 @@ where
     /// - Standard OIDC scopes (openid, profile, email, etc.) are always permitted.
     /// - Any requested scope not in the above sets returns `CoreError::InvalidScope`.
     /// - Falls back to `profile email` defaults when the client has no configured scopes.
-    async fn resolve_scopes_for_client(
+    pub(crate) async fn resolve_scopes_for_client(
         &self,
         client_uuid: Uuid,
         requested_scope: Option<String>,
@@ -1451,21 +1890,43 @@ where
         let code = params.code.ok_or(CoreError::InternalServerError)?;
         let step_start = Utc::now();
 
+        // Authenticate the caller before touching the code, so an unauthenticated
+        // request can never reach the code lookup at all.
+        let client = self
+            .client_repository
+            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        // The code itself is a secret: never log it, since log exposure is one of
+        // the ways it gets into an attacker's hands in the first place.
         let auth_session = self
             .auth_session_repository
             .get_by_code(code.clone())
             .await
             .map_err(|e| {
-                warn!("Auth session not found for code {}: {:?}", code, e);
+                warn!(client_id = %params.client_id, error = ?e, "Auth session lookup failed");
 
                 CoreError::MissingAuthorizationCode
             })?
-            .ok_or(CoreError::NotFound)?;
+            .ok_or(CoreError::InvalidAuthorizationCode)?;
 
         if auth_session.authenticated {
-            warn!("Authorization code {} has already been used", code);
-            return Err(CoreError::InvalidToken);
+            warn!(
+                client_id = %params.client_id,
+                "Authorization code has already been used"
+            );
+            return Err(CoreError::InvalidAuthorizationCode);
         }
+
+        validate_authorization_code_request(
+            &auth_session,
+            &client,
+            params.realm_id,
+            params.redirect_uri.as_deref(),
+            params.client_secret.as_deref(),
+            Utc::now(),
+        )?;
 
         // PKCE verification (RFC 7636 §4.6).
         match (
@@ -1484,7 +1945,7 @@ where
 
                 let method = method.as_ref().unwrap_or(&CodeChallengeMethod::Plain);
                 if !Self::verify_pkce(verifier, challenge, method) {
-                    warn!("PKCE verification failed for code {}", code);
+                    warn!(client_id = %params.client_id, "PKCE verification failed");
                     return Err(CoreError::InvalidCodeVerifier);
                 }
             }
@@ -1497,6 +1958,20 @@ where
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
+
+        let pending_step = self
+            .resolve_pending_auth_step(user_id, params.realm_id)
+            .await?;
+
+        if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
+            warn!(
+                user_id = %user_id,
+                client_id = %params.client_id,
+                step = ?pending_step,
+                "Refusing an authorization code: the account still owes a required action"
+            );
+            return Err(error);
+        }
 
         let final_scope = self
             .resolve_scopes_for_client(auth_session.client_id, Some(auth_session.scope.clone()))
@@ -1610,7 +2085,7 @@ where
             .await
             .map_err(|_| CoreError::InvalidClient)?;
 
-        if !Self::verify_client_secret(client.secret.as_deref(), params.client_secret.as_deref()) {
+        if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
         }
 
@@ -1699,17 +2174,14 @@ where
             }
 
             // Confidential clients are still allowed when authenticating with a valid secret.
-            if !Self::verify_client_secret(
-                client.secret.as_deref(),
-                params.client_secret.as_deref(),
-            ) {
+            if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
                 return Err(CoreError::InvalidClientSecret);
             }
         } else if !client.public_client {
             // When direct access grants are enabled, confidential clients may call
             // password flow without a secret; if one is provided, it must be valid.
             if let Some(provided_secret) = &params.client_secret
-                && !Self::verify_client_secret(client.secret.as_deref(), Some(provided_secret))
+                && !Self::verify_client_secret(client.secret_str(), Some(provided_secret))
             {
                 return Err(CoreError::InvalidClientSecret);
             }
@@ -1796,12 +2268,31 @@ where
             .reset_failed_login_attempts(user.id)
             .await;
 
+        let pending_step = self
+            .resolve_pending_auth_step(user.id, params.realm_id)
+            .instrument(info_span!("auth.password.pending_step"))
+            .await?;
+
+        if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
+            warn!(
+                user_id = %user.id,
+                client_id = %params.client_id,
+                step = ?pending_step,
+                "Refusing a direct grant: the account still owes an authentication step"
+            );
+            return Err(error);
+        }
+
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
             .await?;
 
         let lifetimes = self
             .resolve_token_lifetimes(params.realm_id, client.id)
+            .await?;
+
+        let user_session = self
+            .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
             .await?;
 
         let (jwt, refresh_token, id_token) = self
@@ -1823,10 +2314,7 @@ where
                 id_token_lifetime: lifetimes.id_token,
                 nonce: None,
                 refresh_jti_override: None,
-                // The direct access grant establishes no browser SSO session, so
-                // its tokens are not session-bound. Scoped to the authorization
-                // code flow per #1143; extending it here is a separate decision.
-                session_id: None,
+                session_id: Some(user_session.id),
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -2077,9 +2565,16 @@ where
                 );
             }
             let token = auth_result.token.ok_or(CoreError::InternalServerError)?;
+            let email = self
+                .user_repository
+                .get_by_id(auth_result.user_id)
+                .await
+                .ok()
+                .and_then(|user| user.email);
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
                 token,
+                email,
             ));
         }
 
@@ -2358,12 +2853,12 @@ This is a server error that should be investigated. Do not forward back this mes
 
         let iss = format!("{}/realms/{}", base_url, realm.name);
 
-        let access_lifetime = realm_settings
-            .as_ref()
-            .map(|s| s.access_token_lifetime)
-            .unwrap_or(DEFAULT_ACCESS_TOKEN_LIFETIME);
+        // A step token must not borrow the (possibly hours-long) access-token
+        // lifetime — it only has to survive the next hop of the login flow.
+        let temporary_lifetime = temporary_token_lifetime(realm_settings.as_ref());
 
-        let jwt_claim = JwtClaim::new(
+        let auth_session_id = auth_session.id;
+        let mut jwt_claim = JwtClaim::new(
             user.id,
             user.username.clone(),
             iss,
@@ -2372,8 +2867,24 @@ This is a server error that should be investigated. Do not forward back this mes
             client_id.clone(),
             user.email.clone(),
             Some(auth_session.scope),
-            access_lifetime,
+            temporary_lifetime,
         );
+        jwt_claim.additional_claims.insert(
+            LOGIN_ACTION_SESSION_CLAIM.to_string(),
+            serde_json::Value::String(auth_session_id.to_string()),
+        );
+
+        self.login_action_token_repository
+            .create(LoginActionToken {
+                jti: jwt_claim.jti,
+                user_id: user.id,
+                realm_id: realm.id.into(),
+                auth_session_id,
+                expires_at: Utc::now() + Duration::seconds(temporary_lifetime),
+                consumed_at: None,
+            })
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         // Resolve MFA enforcement: realm-level or role-level require_mfa.
         let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
@@ -2471,24 +2982,71 @@ This is a server error that should be investigated. Do not forward back this mes
                 e
             })?;
 
+        // FK-003: only a `Bearer` access token stands for a completed login.
+        // Checked here — the earliest point at which `typ` is known, and before
+        // any repository lookup — so a replayed `Temporary` step token cannot
+        // skip the OTP challenge it was minted in front of.
+        validate_token_refresh_request(&claims.typ, &auth_session, Utc::now()).inspect_err(
+            |e| {
+                warn!(
+                    token_fingerprint = %token_fingerprint,
+                    claims_typ = ?claims.typ,
+                    realm_id = %Uuid::from(realm_id),
+                    session_code = %session_code,
+                    error = ?e,
+                    "Rejected token-refresh authentication attempt"
+                );
+            },
+        )?;
+
         let user = self
             .user_repository
             .get_by_id(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        if !user.required_actions.is_empty() {
-            let jwt_token = self.generate_token(claims, realm_id).await?;
+        // `ConfigureOtp` is never persisted (see `resolve_refresh_required_actions`),
+        // so the MFA policy has to be re-evaluated here instead of trusting the
+        // stored `user.required_actions` alone.
+        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
 
-            return Ok(AuthenticateOutput {
-                status: AuthenticationStepStatus::RequiresActions,
-                user_id: user.id,
-                authorization_code: None,
-                redirect_url: None,
-                required_actions: user.required_actions,
-                session_state: None,
-                temporary_token: Some(jwt_token.token),
-            });
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let has_otp_credential = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?
+            .iter()
+            .any(|cred| cred.credential_type == CredentialType::Otp);
+
+        let required_actions = resolve_refresh_required_actions(
+            &user.required_actions,
+            realm_settings.as_ref(),
+            &user_roles,
+            has_otp_credential,
+        );
+
+        if !required_actions.is_empty() {
+            // Re-sign as an explicitly `Temporary` step token: re-signing the
+            // incoming claims verbatim would carry the caller's `typ` through,
+            // so the field named `temporary_token` could hand back a full
+            // `Bearer` token.
+            let temporary_claims = JwtClaim::new_temporary_token(
+                claims,
+                temporary_token_lifetime(realm_settings.as_ref()),
+            );
+            let jwt_token = self.generate_token(temporary_claims, realm_id).await?;
+
+            return Ok(AuthenticateOutput::requires_actions(
+                user.id,
+                required_actions,
+                jwt_token.token,
+            ));
         }
 
         self.finalize_authentication(claims.sub, session_code, auth_session)
@@ -2533,15 +3091,7 @@ This is a server error that should be investigated. Do not forward back this mes
     }
 
     fn verify_client_secret(stored: Option<&str>, provided: Option<&str>) -> bool {
-        match (stored, provided) {
-            (Some(s), Some(p)) => {
-                let s_hash = Sha256::digest(s.as_bytes());
-                let p_hash = Sha256::digest(p.as_bytes());
-                s_hash.ct_eq(&p_hash).into()
-            }
-            (None, None) => true,
-            _ => false,
-        }
+        client_secret_matches(stored, provided)
     }
 
     async fn verify_id_token_hint(
@@ -2619,6 +3169,7 @@ impl<
     WR,
     SER,
     USR,
+    LAT,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -2648,6 +3199,7 @@ impl<
         WR,
         SER,
         USR,
+        LAT,
     >
 where
     R: RealmRepository,
@@ -2677,6 +3229,7 @@ where
     WR: WebhookRepository,
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let realm = self
@@ -2697,17 +3250,10 @@ where
             .get_enabled_by_client_id(client.id)
             .await?;
 
-        if !client_redirect_uris.iter().any(|uri| {
-            if uri.value == redirect_uri {
-                return true;
-            }
-
-            if let Ok(regex) = regex::Regex::new(&uri.value) {
-                return regex.is_match(&redirect_uri);
-            }
-
-            false
-        }) {
+        if !redirect_uri_matches_any(
+            client_redirect_uris.iter().map(|uri| uri.value.as_str()),
+            &redirect_uri,
+        ) {
             return Err(CoreError::InvalidRedirectUri);
         }
 
@@ -2864,7 +3410,7 @@ where
             username: input.username,
             password: input.password,
             refresh_token: input.refresh_token,
-            redirect_uri: None,
+            redirect_uri: input.redirect_uri,
             scope: input.scope,
             code_verifier: input.code_verifier,
         };
@@ -2945,7 +3491,10 @@ where
                     CoreError::InvalidClient
                 })?;
 
-                let client = self.client_repository.get_by_id(client_id).await?;
+                let client = self
+                    .client_repository
+                    .get_by_id(user.realm_id, client_id)
+                    .await?;
 
                 Identity::Client(client)
             }
@@ -2964,6 +3513,52 @@ where
         }
 
         let user = self.user_repository.get_by_id(input.claims.sub).await?;
+
+        if let Some(realm_name) = input.realm_name.as_deref() {
+            let realm = self
+                .realm_repository
+                .get_by_name(realm_name)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?;
+
+            if realm.id != user.realm_id {
+                return Err(CoreError::InvalidToken);
+            }
+        }
+
+        let session_id = input
+            .claims
+            .additional_claims
+            .get(LOGIN_ACTION_SESSION_CLAIM)
+            .and_then(|value| value.as_str())
+            .and_then(|raw| Uuid::parse_str(raw).ok())
+            .ok_or(CoreError::InvalidToken)?;
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_id)
+            .await
+            .map_err(|_| CoreError::InvalidToken)?;
+
+        if auth_session.user_id.is_some_and(|owner| owner != user.id) {
+            return Err(CoreError::InvalidToken);
+        }
+
+        if auth_session.expires_at <= Utc::now() {
+            return Err(CoreError::InvalidToken);
+        }
+
+        let jti = input.claims.jti;
+        let persisted = self
+            .login_action_token_repository
+            .get_by_jti(jti)
+            .await
+            .map_err(|_| CoreError::InvalidToken)?
+            .ok_or(CoreError::InvalidToken)?;
+
+        if persisted.consumed_at.is_some() || persisted.user_id != user.id {
+            return Err(CoreError::InvalidToken);
+        }
 
         self.verify_token(input.token, user.realm_id).await?;
 
@@ -3040,23 +3635,33 @@ where
         let firstname = input.first_name;
         let lastname = input.last_name;
 
+        let email = normalize_login_email(&input.email);
+        let username = input.username.trim().to_string();
+
+        if email.is_empty() || username.is_empty() {
+            return Err(CoreError::InvalidRequest);
+        }
+
         let email_verification_enabled = realm
             .settings
             .as_ref()
             .map(|s| s.email_verification_enabled)
             .unwrap_or(false);
 
+        self.refuse_login_identifier_collision(&realm, &username, &email)
+            .await?;
+
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
                 client_id: None,
-                email: Some(input.email),
-                email_verified: !email_verification_enabled,
+                email: Some(email),
+                email_verified: false,
                 enabled: true,
                 firstname,
                 lastname,
                 realm_id: realm.id,
-                username: input.username,
+                username,
             })
             .await?;
 
@@ -3126,7 +3731,7 @@ where
                 .map_err(|err| warn!("Failed to notify UserCreated webhook: {}", err))
                 .ok();
 
-            return Ok(RegisterUserOutput::PendingVerification {
+            return Ok(RegisterUserOutput::PendingAction {
                 message: "Please check your email to verify your account.".to_string(),
                 user_id: user.id,
             });
@@ -3177,12 +3782,20 @@ where
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
 
+        if let Some(step) = self.resolve_pending_auth_step(user.id, realm.id).await? {
+            return Ok(RegisterUserOutput::PendingAction {
+                message: pending_step_message(&step),
+                user_id: user.id,
+            });
+        }
+
         let token = self
             .generate_tokens_for_user(GenerateTokensForUserInput {
                 user_id: user.id,
                 realm_id: realm.id.into(),
                 base_url: issuer_base_url,
                 client_id: None,
+                scope: None,
             })
             .await?;
 
@@ -3257,7 +3870,7 @@ where
             return Err(CoreError::InvalidClient);
         }
 
-        if !Self::verify_client_secret(client.secret.as_deref(), Some(&input.client_secret)) {
+        if !Self::verify_client_secret(client.secret_str(), Some(&input.client_secret)) {
             return Err(CoreError::InvalidClientSecret);
         }
 
@@ -3415,6 +4028,16 @@ where
             return Err(CoreError::InvalidRequest);
         }
 
+        if let Some(claims) = id_token_claims.as_ref()
+            && let Some(session_id) = claims
+                .sid
+                .as_deref()
+                .and_then(|sid| Uuid::parse_str(sid).ok())
+        {
+            self.revoke_session_cascade(session_id, realm.id, claims.sub)
+                .await?;
+        }
+
         if let Some(post_logout_redirect_uri) = input.post_logout_redirect_uri {
             let resolved_client_id = input
                 .client_id
@@ -3479,33 +4102,140 @@ where
 
         let user = self.user_repository.get_by_id(input.user_id).await?;
 
+        if !user.enabled {
+            warn!(
+                user_id = %user.id,
+                "Refusing to mint tokens: the account is disabled"
+            );
+            return Err(CoreError::Forbidden("account is disabled".to_string()));
+        }
+
+        let pending_step = self.resolve_pending_auth_step(user.id, realm.id).await?;
+
+        if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
+            warn!(
+                user_id = %user.id,
+                step = ?pending_step,
+                "Refusing to mint tokens: the account still owes an authentication step"
+            );
+            return Err(error);
+        }
+
+        let user_session = self
+            .create_user_session(user.id, realm.id, lifetimes.refresh_token)
+            .await?;
+
+        if let Some(client_uuid) = input.client_id {
+            let client = self
+                .client_repository
+                .get_by_id(realm.id, client_uuid)
+                .await?;
+            let scope = self
+                .resolve_scopes_for_client(client_uuid, input.scope.clone())
+                .await?;
+
+            let (jwt, refresh_token, id_token) = self
+                .create_jwt(GenerateTokenInput {
+                    base_url: input.base_url.clone(),
+                    realm_name: realm.name.clone(),
+                    user_id: user.id,
+                    username: user.username.clone(),
+                    firstname: user.firstname.clone().unwrap_or_default(),
+                    lastname: user.lastname.clone().unwrap_or_default(),
+                    email_verified: user.email_verified,
+                    client_id: client.client_id,
+                    client_uuid,
+                    email: user.email.clone().unwrap_or_default(),
+                    realm_id: realm.id,
+                    scope: Some(scope),
+                    access_token_lifetime: lifetimes.access_token,
+                    refresh_token_lifetime: lifetimes.refresh_token,
+                    id_token_lifetime: lifetimes.id_token,
+                    nonce: None,
+                    refresh_jti_override: None,
+                    session_id: Some(user_session.id),
+                })
+                .await?;
+
+            return Ok(JwtToken::new(
+                jwt.token,
+                "Bearer".to_string(),
+                refresh_token.token,
+                lifetimes.access_token as u32,
+                lifetimes.refresh_token as u32,
+                None,
+                id_token.map(|token| token.token),
+            ));
+        }
+
+        let azp = String::new();
+        let scope = None;
+
         let iss = format!("{}/realms/{}", input.base_url, realm.name);
-        let claims = JwtClaim::new(
+        let mut claims = JwtClaim::new(
             user.id,
             user.username.clone(),
             iss.clone(),
             vec![format!("{}-realm", realm.name), "account".to_string()],
             ClaimsTyp::Bearer,
-            "".to_string(),
+            azp,
             user.email.clone(),
-            None,
+            scope.clone(),
             lifetimes.access_token,
         );
+        claims.sid = Some(user_session.id);
 
         let jwt = self.generate_token(claims.clone(), realm.id).await?;
 
-        let refresh_claims = JwtClaim::new_refresh_token(
+        let mut refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
-            claims.iss,
-            claims.aud,
-            claims.azp,
-            None,
+            claims.iss.clone(),
+            claims.aud.clone(),
+            claims.azp.clone(),
+            scope,
             lifetimes.refresh_token,
         );
+        refresh_claims.sid = Some(user_session.id);
 
         let refresh_token = self
             .generate_token(refresh_claims.clone(), realm.id)
             .await?;
+
+        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_claims =
+            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
+        let access_token_expires_at = claims
+            .exp
+            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+        let refresh_token_expires_at = Utc
+            .timestamp_opt(refresh_token.expires_at, 0)
+            .single()
+            .ok_or(CoreError::InternalServerError)?;
+
+        tokio::try_join!(
+            self.access_token_repository.create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                realm.id,
+                access_token_expires_at,
+                access_token_claims,
+            ),
+            self.refresh_token_repository.create(
+                refresh_claims.jti,
+                user.id,
+                Some(refresh_token_expires_at),
+                Some(user_session.id),
+            )
+        )
+        .map_err(|e| {
+            warn!(
+                user_id = %user.id,
+                error = ?e,
+                "Failed to persist tokens generated for a user"
+            );
+            CoreError::InternalServerError
+        })?;
 
         Ok(JwtToken::new(
             jwt.token,
@@ -3523,11 +4253,14 @@ where
 mod tests {
     use super::{
         auth_session_can_resume, format_authorization_redirect_url, lockout_compute_locked_until,
+        validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
     use uuid::Uuid;
 
     use crate::domain::authentication::entities::AuthSession;
+    use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
+    use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
 
     /// Build an [`AuthSession`] with only the fields these helpers read, so the
@@ -3626,6 +4359,43 @@ mod tests {
         assert_eq!(
             format_authorization_redirect_url(&session, "C"),
             "https://client.example/app/oidc?code=C&state=s"
+        );
+    }
+
+    #[test]
+    fn redirect_url_appends_to_an_existing_query_string() {
+        // A registered redirect URI may legitimately carry query parameters. Joining
+        // with `?` unconditionally produced `...?tenant=acme?code=...`, which no
+        // client can parse.
+        let session = auth_session(
+            Some("s"),
+            "https://client.example/callback?tenant=acme",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "C"),
+            "https://client.example/callback?tenant=acme&code=C&state=s"
+        );
+    }
+
+    #[test]
+    fn redirect_url_percent_encodes_state() {
+        // `state` is echoed back verbatim from the client, so it has to be encoded
+        // or it can inject extra query parameters into the callback.
+        let session = auth_session(
+            Some("a b&next=https://evil.example"),
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "C"),
+            "https://client.example/callback?code=C&state=a%20b%26next%3Dhttps%3A%2F%2Fevil.example"
         );
     }
 
@@ -3815,5 +4585,666 @@ mod tests {
         let now = Utc::now();
         let result = lockout_compute_locked_until(10, 5, 300, now);
         assert!(result.is_some());
+    }
+
+    // ---- validate_authorization_code_request -----------------------------
+
+    const REDIRECT_URI: &str = "https://client.example/callback";
+
+    fn confidential_client(id: Uuid, realm_id: RealmId) -> Client {
+        Client {
+            id,
+            enabled: true,
+            client_id: "app".to_string(),
+            secret: Some(maskass::Masked::new("s3cr3t".to_string())),
+            realm_id,
+            protocol: "openid-connect".to_string(),
+            public_client: false,
+            service_account_enabled: false,
+            direct_access_grants_enabled: false,
+            oauth_device_code_grant_enabled: false,
+            require_pkce: false,
+            client_type: ClientType::Confidential,
+            name: "app".to_string(),
+            redirect_uris: None,
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
+            maintenance_enabled: false,
+            maintenance_reason: None,
+            maintenance_session_strategy: MaintenanceSessionStrategy::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// A session and a client that agree on realm, client and redirect_uri, so
+    /// each test can break exactly one binding.
+    fn matching_pair() -> (AuthSession, Client) {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let client_uuid = Uuid::new_v4();
+
+        let mut session = auth_session(
+            Some("state"),
+            REDIRECT_URI,
+            Utc::now() + Duration::minutes(5),
+            Some(Uuid::new_v4()),
+            false,
+        );
+        session.realm_id = realm_id;
+        session.client_id = client_uuid;
+
+        (session, confidential_client(client_uuid, realm_id))
+    }
+
+    #[test]
+    fn code_request_accepted_when_every_binding_matches() {
+        let (session, client) = matching_pair();
+
+        assert!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn code_request_rejected_without_client_secret() {
+        // The core of the CVE: a confidential client's code was redeemable with
+        // no client authentication at all.
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                None,
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidClientSecret)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_with_wrong_client_secret() {
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("wrong"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidClientSecret)
+        ));
+    }
+
+    #[test]
+    fn public_client_needs_no_secret() {
+        let (session, mut client) = matching_pair();
+        client.public_client = true;
+        client.secret = None;
+        client.client_type = ClientType::Public;
+
+        assert!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                None,
+                Utc::now(),
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn code_request_rejected_for_a_different_client() {
+        // Another client in the same realm presenting someone else's code.
+        let (session, mut client) = matching_pair();
+        client.id = Uuid::new_v4();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_for_a_different_realm() {
+        // Cross-tenant redemption: the code would come back signed with the
+        // target realm's key.
+        let (session, client) = matching_pair();
+        let other_realm = RealmId::from(Uuid::new_v4());
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                other_realm,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_on_redirect_uri_mismatch() {
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some("https://attacker.example/callback"),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_when_redirect_uri_is_absent() {
+        // RFC 6749 §4.1.3: the authorization request always carries a
+        // redirect_uri here, so omitting it at the token endpoint is a mismatch.
+        let (session, client) = matching_pair();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                None,
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_once_expired() {
+        let (mut session, client) = matching_pair();
+        session.expires_at = Utc::now() - Duration::seconds(1);
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn code_request_rejected_for_disabled_client() {
+        let (session, mut client) = matching_pair();
+        client.enabled = false;
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidClient)
+        ));
+    }
+
+    // ---- FK-003: token-refresh guards ------------------------------------
+    //
+    // `POST /login-actions/authenticate` accepts an `Authorization: Bearer`
+    // token and short-circuits the interactive login. The mid-flow `Temporary`
+    // token minted by `using_session_code` (right before the OTP challenge)
+    // must never be usable there: replaying it would complete authentication
+    // with the password alone, skipping the second factor entirely.
+
+    use super::{
+        resolve_refresh_required_actions, temporary_token_lifetime, validate_token_refresh_request,
+    };
+    use crate::domain::authentication::entities::{AuthenticateOutput, AuthenticationStepStatus};
+    use crate::domain::jwt::entities::ClaimsTyp;
+    use crate::domain::realm::entities::RealmSetting;
+    use crate::domain::role::entities::Role;
+    use crate::domain::user::entities::RequiredAction;
+    use ferriskey_security::jwt::entities::DEFAULT_TEMPORARY_TOKEN_LIFETIME;
+
+    /// A session that is still live, so only the token `typ` can fail a test.
+    fn live_session() -> AuthSession {
+        auth_session(
+            Some("s"),
+            REDIRECT_URI,
+            Utc::now() + Duration::minutes(5),
+            None,
+            false,
+        )
+    }
+
+    fn realm_setting(require_mfa: bool) -> RealmSetting {
+        let mut s = RealmSetting::new(RealmId::from(Uuid::new_v4()), None);
+        s.require_mfa = require_mfa;
+        s
+    }
+
+    fn role(require_mfa: bool) -> Role {
+        Role {
+            id: Uuid::new_v4(),
+            name: "r".to_string(),
+            description: None,
+            permissions: vec![],
+            realm_id: RealmId::from(Uuid::new_v4()),
+            client_id: None,
+            client: None,
+            require_mfa,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn token_refresh_rejects_a_replayed_temporary_token() {
+        // FK-003 path A: the step token handed to the client just before the
+        // OTP challenge, replayed on /login-actions/authenticate.
+        assert!(matches!(
+            validate_token_refresh_request(&ClaimsTyp::Temporary, &live_session(), Utc::now()),
+            Err(CoreError::InvalidToken)
+        ));
+    }
+
+    #[test]
+    fn token_refresh_rejects_refresh_and_id_tokens() {
+        // Only a fully-minted access token stands for a completed login.
+        for typ in [ClaimsTyp::Refresh, ClaimsTyp::Id] {
+            assert!(
+                matches!(
+                    validate_token_refresh_request(&typ, &live_session(), Utc::now()),
+                    Err(CoreError::InvalidToken)
+                ),
+                "{typ:?} must not short-circuit an interactive login"
+            );
+        }
+    }
+
+    #[test]
+    fn token_refresh_accepts_a_bearer_token() {
+        assert!(
+            validate_token_refresh_request(&ClaimsTyp::Bearer, &live_session(), Utc::now()).is_ok()
+        );
+    }
+
+    #[test]
+    fn token_refresh_rejects_an_expired_auth_session() {
+        // `authenticate` guards this, `handle_token_refresh` did not.
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            REDIRECT_URI,
+            now - Duration::seconds(1),
+            None,
+            false,
+        );
+
+        assert!(matches!(
+            validate_token_refresh_request(&ClaimsTyp::Bearer, &session, now),
+            Err(CoreError::SessionExpired)
+        ));
+    }
+
+    #[test]
+    fn token_refresh_expired_session_beats_a_valid_bearer_token() {
+        // An expired session is fatal regardless of how good the token is.
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            REDIRECT_URI,
+            now - Duration::hours(1),
+            None,
+            false,
+        );
+
+        assert!(validate_token_refresh_request(&ClaimsTyp::Bearer, &session, now).is_err());
+    }
+
+    // ---- FK-003: MFA policy re-evaluated on the refresh path --------------
+
+    #[test]
+    fn refresh_injects_configure_otp_when_realm_requires_mfa() {
+        // `ConfigureOtp` is computed, never persisted, so reading
+        // `user.required_actions` alone lets mandatory enrolment be skipped.
+        let actions = resolve_refresh_required_actions(&[], Some(&realm_setting(true)), &[], false);
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_injects_configure_otp_when_a_role_requires_mfa() {
+        let actions = resolve_refresh_required_actions(
+            &[],
+            Some(&realm_setting(false)),
+            &[role(true)],
+            false,
+        );
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_requires_actions_output_carries_no_authorization_code() {
+        // The security property: an enrolment-pending user gets a step token,
+        // never an authorization code.
+        let actions = resolve_refresh_required_actions(&[], Some(&realm_setting(true)), &[], false);
+        assert!(!actions.is_empty());
+
+        let output =
+            AuthenticateOutput::requires_actions(Uuid::new_v4(), actions, "step-token".to_string());
+
+        assert_eq!(output.status, AuthenticationStepStatus::RequiresActions);
+        assert!(output.authorization_code.is_none());
+        assert!(output.redirect_url.is_none());
+        assert_eq!(output.required_actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_keeps_persisted_actions_when_mfa_is_not_enforced() {
+        let actions = resolve_refresh_required_actions(
+            &[RequiredAction::VerifyEmail],
+            Some(&realm_setting(false)),
+            &[role(false)],
+            false,
+        );
+
+        assert_eq!(actions, vec![RequiredAction::VerifyEmail]);
+    }
+
+    #[test]
+    fn refresh_does_not_duplicate_an_already_persisted_configure_otp() {
+        let actions = resolve_refresh_required_actions(
+            &[RequiredAction::ConfigureOtp],
+            Some(&realm_setting(true)),
+            &[],
+            false,
+        );
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    #[test]
+    fn refresh_adds_no_action_when_the_user_already_enrolled_an_authenticator() {
+        // Enrolment is done; the OTP-challenge gate owns the prompt from here.
+        let actions = resolve_refresh_required_actions(&[], Some(&realm_setting(true)), &[], true);
+
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn refresh_enforces_mfa_even_without_realm_settings() {
+        let actions = resolve_refresh_required_actions(&[], None, &[role(true)], false);
+
+        assert_eq!(actions, vec![RequiredAction::ConfigureOtp]);
+    }
+
+    // ---- FK-003: step tokens are short-lived ------------------------------
+
+    #[test]
+    fn temporary_lifetime_uses_the_realm_temporary_setting_not_the_access_one() {
+        let mut settings = realm_setting(false);
+        settings.access_token_lifetime = 3600;
+        settings.temporary_token_lifetime = 120;
+
+        assert_eq!(temporary_token_lifetime(Some(&settings)), 120);
+    }
+
+    #[test]
+    fn temporary_lifetime_falls_back_to_the_temporary_default() {
+        assert_eq!(
+            temporary_token_lifetime(None),
+            DEFAULT_TEMPORARY_TOKEN_LIFETIME
+        );
+    }
+
+    use super::validate_session_binding;
+    use ferriskey_domain::session::entities::UserSession;
+
+    fn user_session(expires_at: chrono::DateTime<Utc>) -> UserSession {
+        UserSession {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            realm_id: Uuid::new_v4(),
+            user_agent: None,
+            ip_address: None,
+            created_at: Utc::now(),
+            expires_at,
+            last_seen_at: None,
+            soft_expiry_duration: None,
+        }
+    }
+
+    #[test]
+    fn token_rejected_when_its_session_was_revoked() {
+        let now = Utc::now();
+
+        assert!(
+            matches!(
+                validate_session_binding(Some(Uuid::new_v4()), None, now),
+                Err(CoreError::InvalidToken)
+            ),
+            "a token naming a session that no longer exists must not validate"
+        );
+    }
+
+    #[test]
+    fn token_rejected_when_its_session_expired() {
+        let now = Utc::now();
+        let session = user_session(now - Duration::seconds(1));
+
+        assert!(
+            matches!(
+                validate_session_binding(Some(session.id), Some(&session), now),
+                Err(CoreError::InvalidToken)
+            ),
+            "a token naming an expired session must not validate"
+        );
+    }
+
+    #[test]
+    fn token_without_a_sid_is_still_accepted() {
+        assert!(
+            validate_session_binding(None, None, Utc::now()).is_ok(),
+            "a token that never claimed a session must keep working"
+        );
+    }
+
+    #[test]
+    fn token_accepted_while_its_session_lives() {
+        let now = Utc::now();
+        let session = user_session(now + Duration::hours(1));
+
+        assert!(
+            validate_session_binding(Some(session.id), Some(&session), now).is_ok(),
+            "the normal path must not regress"
+        );
+    }
+
+    #[test]
+    fn session_binding_holds_at_the_exact_expiry_boundary() {
+        let now = Utc::now();
+        let session = user_session(now);
+
+        assert!(validate_session_binding(Some(session.id), Some(&session), now).is_ok());
+    }
+
+    use super::{
+        refuse_token_issuance_when_actions_pending, refuse_token_issuance_when_step_pending,
+    };
+    use crate::domain::trident::mfa_policy::{PendingAuthStep, pending_auth_step};
+
+    fn step(
+        persisted: &[RequiredAction],
+        require_mfa: bool,
+        has_otp_credential: bool,
+        has_temporary_password: bool,
+    ) -> Option<PendingAuthStep> {
+        let settings = realm_setting(require_mfa);
+        pending_auth_step(
+            persisted,
+            Some(&settings),
+            &[role(false)],
+            has_otp_credential,
+            has_temporary_password,
+        )
+    }
+
+    #[test]
+    fn an_admin_owing_nothing_still_gets_a_direct_grant() {
+        let pending = step(&[], false, false, false);
+
+        assert_eq!(pending, None);
+        assert!(refuse_token_issuance_when_step_pending(pending.as_ref()).is_ok());
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_for_a_temporary_password() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], false, false, true).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_for_an_enrolled_authenticator() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], false, true, false).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_when_the_realm_mandates_mfa_enrolment() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], true, false, false).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_when_a_role_mandates_mfa_enrolment() {
+        let pending = pending_auth_step(&[], None, &[role(true)], false, false);
+
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(pending.as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_direct_grant_is_refused_for_a_persisted_action() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(
+                step(&[RequiredAction::VerifyEmail], false, false, false).as_ref()
+            ),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_refusal_names_the_step_and_sends_the_client_to_the_browser() {
+        let Err(CoreError::Forbidden(message)) =
+            refuse_token_issuance_when_step_pending(step(&[], false, false, true).as_ref())
+        else {
+            panic!("a temporary password must be refused");
+        };
+
+        assert!(
+            message.contains("update_password"),
+            "the client must learn which step is owed: {message}"
+        );
+        assert!(
+            message.contains("authorization_code"),
+            "the client must be told where to continue: {message}"
+        );
+
+        let Err(CoreError::Forbidden(otp_message)) =
+            refuse_token_issuance_when_step_pending(step(&[], false, true, false).as_ref())
+        else {
+            panic!("an enrolled authenticator must be refused");
+        };
+
+        assert!(
+            otp_message.contains("authorization_code"),
+            "the client must be told where to continue: {otp_message}"
+        );
+    }
+
+    #[test]
+    fn auto_login_survives_a_reset_that_leaves_nothing_pending() {
+        assert!(
+            refuse_token_issuance_when_step_pending(step(&[], false, false, false).as_ref())
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn auto_login_is_refused_when_a_second_factor_is_enrolled() {
+        assert!(matches!(
+            refuse_token_issuance_when_step_pending(step(&[], false, true, false).as_ref()),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_code_grant_survives_an_otp_challenge() {
+        assert!(
+            refuse_token_issuance_when_actions_pending(step(&[], false, true, false).as_ref())
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn a_code_grant_is_refused_while_actions_are_owed() {
+        assert!(matches!(
+            refuse_token_issuance_when_actions_pending(
+                step(&[RequiredAction::VerifyEmail], false, false, false).as_ref()
+            ),
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[test]
+    fn a_code_grant_survives_an_empty_slate() {
+        assert!(
+            refuse_token_issuance_when_actions_pending(step(&[], false, false, false).as_ref())
+                .is_ok()
+        );
     }
 }

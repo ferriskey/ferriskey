@@ -109,8 +109,10 @@ pub struct UpdatePasswordInput {
     pub value: String,
 }
 
+/// Deliberately carries no secret. The secret is read back from the pending
+/// `OtpEnrollment` the server itself issued; taking it from the request body made the
+/// verification a tautology and let a caller enrol a secret of their choosing (FK-003).
 pub struct VerifyOtpInput {
-    pub secret: String,
     pub code: String,
     pub label: Option<String>,
 }
@@ -179,6 +181,51 @@ pub struct CompletePasswordResetOutput {
 
 pub struct VerifyResetTokenInput {
     pub token_id: Uuid,
+}
+
+/// A TOTP secret proposed by `setup_otp` and awaiting confirmation by `verify_otp`.
+///
+/// It exists because the server previously kept no record of the secret it had just
+/// generated: `verify_otp` took the secret back from the request body and checked the
+/// submitted code against it, which is a tautology that always succeeds. The
+/// enrolment is the server-side state that makes the check meaningful (FK-003).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OtpEnrollment {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    /// Base32, as stored for active OTP credentials.
+    pub secret: String,
+    pub expires_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait OtpEnrollmentRepository: Send + Sync {
+    /// Record a candidate secret, replacing any enrolment already pending for this
+    /// user. Restarting the setup flow must invalidate the previous candidate.
+    fn start_enrollment(
+        &self,
+        user_id: Uuid,
+        secret: String,
+        expires_at: DateTime<Utc>,
+    ) -> impl Future<Output = Result<OtpEnrollment, CoreError>> + Send;
+
+    /// Atomically claim the live enrolment for this user, or return `None` when there
+    /// is none, it has expired, or it has already been claimed.
+    ///
+    /// Single-use is enforced here rather than by the caller: two concurrent
+    /// `verify_otp` calls must not both succeed against the same candidate secret.
+    fn consume_enrollment(
+        &self,
+        user_id: Uuid,
+        now: DateTime<Utc>,
+    ) -> impl Future<Output = Result<Option<OtpEnrollment>, CoreError>> + Send;
+
+    /// Drop any pending enrolment for this user, used when an enrolment is abandoned.
+    fn clear_enrollments(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
 #[cfg_attr(test, mockall::automock)]

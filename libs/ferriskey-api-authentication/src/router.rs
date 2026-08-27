@@ -10,8 +10,8 @@ use super::handlers::{
     authentificate::{__path_authenticate, authenticate},
     device_authorization::{__path_device_authorization, device_authorization},
     device_verify::{
-        __path_device_verification_page, __path_device_verify, device_verification_page,
-        device_verify,
+        __path_device_preview, __path_device_verification_page, __path_device_verify,
+        device_preview, device_verification_page, device_verify,
     },
     get_certs::{__path_get_certs, __path_get_jwks_json, get_certs, get_jwks_json},
     introspect::{__path_introspect_token, introspect_token},
@@ -37,6 +37,7 @@ use ferriskey_api_core::{app_state::AppState, auth::auth};
         introspect_token,
         authenticate,
         device_authorization,
+        device_preview,
         device_verification_page,
         device_verify,
         get_certs,
@@ -81,6 +82,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/device"),
             get(device_verification_page),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/device/preview"),
+            get(device_preview),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/device/verify"),

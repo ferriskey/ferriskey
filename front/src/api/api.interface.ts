@@ -40,7 +40,7 @@ export interface AuthenticateResponse {
   status: AuthenticationStatus
   url?: string
   required_actions?: RequiredAction[]
-  token?: string
+  email?: string
   message?: string
 }
 

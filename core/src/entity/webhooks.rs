@@ -22,6 +22,9 @@ pub struct Model {
     pub name: Option<String>,
     pub description: Option<String>,
     pub headers: Json,
+    pub secret: String,
+    pub last_delivery_status: Option<String>,
+    pub last_delivery_error: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -35,6 +38,9 @@ pub enum Column {
     Name,
     Description,
     Headers,
+    Secret,
+    LastDeliveryStatus,
+    LastDeliveryError,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -68,6 +74,9 @@ impl ColumnTrait for Column {
             Self::Name => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::Description => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::Headers => ColumnType::JsonBinary.def(),
+            Self::Secret => ColumnType::Text.def(),
+            Self::LastDeliveryStatus => ColumnType::String(StringLen::N(16u32)).def().null(),
+            Self::LastDeliveryError => ColumnType::String(StringLen::N(255u32)).def().null(),
         }
     }
 }

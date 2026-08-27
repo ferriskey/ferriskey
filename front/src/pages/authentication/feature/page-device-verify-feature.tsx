@@ -1,9 +1,9 @@
-import { useDeviceVerify } from '@/api/device.api'
+import { useDevicePreview, useDeviceVerify } from '@/api/device.api'
 import { Form } from '@/components/ui/form'
 import { useAuth } from '@/hooks/use-auth'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
@@ -61,6 +61,14 @@ export default function PageDeviceVerifyFeature() {
   const redirectingToLogin = useRef(false)
 
   const { mutateAsync: verifyDevice } = useDeviceVerify()
+
+  const watchedCode = useWatch({ control: form.control, name: 'user_code' }) ?? ''
+  const normalisedCode = normalisePrefill(watchedCode)
+  const { data: preview } = useDevicePreview({
+    realm,
+    userCode: normalisedCode,
+    enabled: isAuthenticated && normalisedCode.length > 0 && status === 'idle',
+  })
 
   const onSubmit = async (
     values: DeviceVerifySchema,
@@ -143,6 +151,7 @@ export default function PageDeviceVerifyFeature() {
   return (
     <Form {...form}>
       <PageDeviceVerify
+        preview={preview}
         status={status}
         errorMessage={errorMessage}
         pendingAction={pendingAction}

@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 type Options = {
   isRedirecting: boolean
   isSessionError: boolean
-  getOAuthParams: () => { query: string; realm: string }
+  getOAuthParams: () => Promise<{ query: string; realm: string }>
   getAuthParamsFromUrl: () => { clientId: string; redirectUri: string }
   resetAuthenticate: () => void
 }
@@ -49,7 +49,7 @@ export function useSessionRefresh({
   const restartAuthFlow = useCallback(async () => {
     cancelAutoRefresh()
 
-    const { query, realm } = getOAuthParams()
+    const { query, realm } = await getOAuthParams()
 
     await fetch(`${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`, {
       credentials: 'include',

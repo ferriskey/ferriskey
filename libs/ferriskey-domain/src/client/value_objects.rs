@@ -16,6 +16,9 @@ pub struct CreateClientRequest {
     pub direct_access_grants_enabled: bool,
     pub oauth_device_code_grant_enabled: bool,
     pub client_type: ClientType,
+    /// Public clients have no secret to authenticate with, so PKCE is the only
+    /// thing binding an authorization code to the instance that requested it.
+    pub require_pkce: bool,
 }
 
 impl CreateClientRequest {
@@ -35,6 +38,7 @@ impl CreateClientRequest {
             public_client: true,
             secret: None,
             service_account_enabled: false,
+            require_pkce: false,
         }
     }
 }
@@ -60,4 +64,26 @@ pub struct UpdateClientRequest {
 pub struct CreateRedirectUriRequest {
     pub value: String,
     pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateWebOriginRequest {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetClientSamlConfigRequest {
+    pub sp_entity_id: String,
+    pub acs_url: String,
+    pub name_id_format: String,
+    pub sign_assertions: bool,
+    pub sign_documents: bool,
+    pub want_authn_requests_signed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSamlAttributeMapperRequest {
+    pub name: String,
+    pub name_format: String,
+    pub source: String,
 }

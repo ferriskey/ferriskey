@@ -1,4 +1,5 @@
 use ferriskey_core::domain::client::entities::ClientType;
+use ferriskey_core::domain::client::entities::saml::{NameIdFormat, SamlAttributeNameFormat};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -84,4 +85,62 @@ pub struct CreateRedirectUriValidator {
 pub struct UpdateRedirectUriValidator {
     #[serde(default)]
     pub enabled: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateWebOriginValidator {
+    #[validate(length(min = 1, message = "Origin value is required"))]
+    #[serde(default)]
+    pub value: String,
+}
+
+fn assertions_are_signed_by_default() -> bool {
+    true
+}
+
+fn default_name_id_format() -> String {
+    NameIdFormat::default().to_string()
+}
+
+fn default_attribute_name_format() -> String {
+    SamlAttributeNameFormat::default().to_string()
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct SetClientSamlConfigValidator {
+    #[validate(length(min = 1, message = "sp_entity_id is required"))]
+    #[serde(default)]
+    pub sp_entity_id: String,
+
+    #[validate(length(min = 1, message = "acs_url is required"))]
+    #[serde(default)]
+    pub acs_url: String,
+
+    #[validate(length(min = 1, message = "name_id_format is required"))]
+    #[serde(default = "default_name_id_format")]
+    pub name_id_format: String,
+
+    #[serde(default = "assertions_are_signed_by_default")]
+    pub sign_assertions: bool,
+
+    #[serde(default)]
+    pub sign_documents: bool,
+
+    #[serde(default)]
+    pub want_authn_requests_signed: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateSamlAttributeMapperValidator {
+    #[validate(length(min = 1, message = "name is required"))]
+    #[serde(default)]
+    pub name: String,
+
+    #[validate(length(min = 1, message = "name_format is required"))]
+    #[serde(default = "default_attribute_name_format")]
+    pub name_format: String,
+
+    #[validate(length(min = 1, message = "source is required"))]
+    #[serde(default)]
+    pub source: String,
 }

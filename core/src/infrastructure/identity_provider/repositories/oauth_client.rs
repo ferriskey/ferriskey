@@ -92,6 +92,24 @@ impl OAuthClient for ReqwestOAuthClient {
         Ok(token_response)
     }
 
+    #[instrument(skip(self), fields(jwks_url = %jwks_url))]
+    async fn fetch_jwks(&self, jwks_url: &str) -> Result<serde_json::Value, CoreError> {
+        let response = self.client.get(jwks_url).send().await.map_err(|e| {
+            tracing::error!("JWKS request failed: {}", e);
+            CoreError::InvalidIdToken
+        })?;
+
+        if !response.status().is_success() {
+            tracing::error!("JWKS request failed with status {}", response.status());
+            return Err(CoreError::InvalidIdToken);
+        }
+
+        response.json().await.map_err(|e| {
+            tracing::error!("Failed to parse JWKS document: {}", e);
+            CoreError::InvalidIdToken
+        })
+    }
+
     #[instrument(skip(self, access_token), fields(userinfo_url = %userinfo_url))]
     async fn fetch_userinfo(
         &self,

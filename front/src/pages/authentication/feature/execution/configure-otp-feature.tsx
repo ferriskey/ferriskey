@@ -1,6 +1,6 @@
 import { useSetupOtp, useVerifyOtp } from '@/api/trident.api'
 import ConfigureOtp from '../../ui/execution/configure-otp'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { useCallback, useEffect } from 'react'
@@ -13,7 +13,6 @@ import { AuthenticationStatus } from '@/api/api.interface'
 
 export default function ConfigureOtpFeature() {
   const { realm_name } = useParams<RouterParams>()
-  const [searchParams] = useSearchParams()
   const {
     mutate: authenticate,
     data: authenticateData,
@@ -21,19 +20,9 @@ export default function ConfigureOtpFeature() {
   const navigate = useNavigate()
   const { mutate: verifyOtp, data: verifyOtpData, status: verifyOtpStatus } = useVerifyOtp()
 
-  const token = searchParams.get('client_data')
-
   const { data, isError, error } = useSetupOtp({
     realm: realm_name ?? 'master',
-    token: token,
   })
-
-  useEffect(() => {
-    if (!token) {
-      toast.error('Token is missing')
-      navigate(`/realms/${realm_name}/authentication/login`)
-    }
-  }, [token, navigate, realm_name])
 
   useEffect(() => {
     if (isError) {
@@ -55,24 +44,22 @@ export default function ConfigureOtpFeature() {
       clientId: 'security-admin-console',
       realm: realm_name ?? 'master',
       data: {},
-      useToken: true,
-      token: token ?? undefined,
     })
-  }, [authenticate, realm_name, token])
+  }, [authenticate, realm_name])
 
   const handleSubmit = (values: VerifyOtpSchema) => {
-    if (!token || !data) {
-      toast.error('Token is missing')
+    if (!data) {
+      toast.error('OTP setup is not ready yet')
       return
     }
 
+    // The secret is never sent back: the server verifies the code against the
+    // enrollment it recorded when it issued the secret.
     verifyOtp({
       data: {
         code: values.pin,
         label: values.deviceName,
-        secret: data.secret,
       },
-      token,
       realm: realm_name,
     })
   }
@@ -92,13 +79,12 @@ export default function ConfigureOtpFeature() {
     if (
       authenticateData.status === AuthenticationStatus.RequiresActions &&
       authenticateData.required_actions &&
-      authenticateData.required_actions.length > 0 &&
-      authenticateData.token
+      authenticateData.required_actions.length > 0
     ) {
       const firstRequiredAction = authenticateData.required_actions[0]
 
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}&client_data=${authenticateData.token}`
+        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
       )
     }
   }, [authenticateData, navigate, realm_name])

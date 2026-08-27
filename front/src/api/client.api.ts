@@ -25,6 +25,28 @@ export const useGetClient = ({ realm, clientId }: BaseQuery & { clientId?: strin
   })
 }
 
+export const useGetClientSecret = ({
+  realm,
+  clientId,
+  enabled,
+}: BaseQuery & { clientId?: string; enabled?: boolean }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/clients/{client_id}/client-secret', {
+      path: {
+        realm_name: realm!,
+        client_id: clientId!,
+      },
+    }).queryOptions,
+    enabled: !!clientId && !!realm && !!enabled,
+    gcTime: 0,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+}
+
 export interface CreateClientMutate {
   realm: string
   payload: CreateClientSchema

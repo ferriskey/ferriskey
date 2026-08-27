@@ -223,3 +223,26 @@ pub trait AuthenticatePort: Send + Sync {
         base_url: String,
     ) -> impl Future<Output = Result<AuthenticationResult, CoreError>> + Send;
 }
+
+pub struct LoginActionToken {
+    pub jti: Uuid,
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub auth_session_id: Uuid,
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+    pub consumed_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+pub trait LoginActionTokenRepository: Send + Sync {
+    fn create(
+        &self,
+        token: LoginActionToken,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    fn get_by_jti(
+        &self,
+        jti: Uuid,
+    ) -> impl Future<Output = Result<Option<LoginActionToken>, AuthenticationError>> + Send;
+
+    fn consume(&self, jti: Uuid) -> impl Future<Output = Result<bool, AuthenticationError>> + Send;
+}

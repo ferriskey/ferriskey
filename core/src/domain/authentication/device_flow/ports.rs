@@ -3,11 +3,12 @@ use uuid::Uuid;
 use crate::domain::authentication::device_flow::entities::{DeviceAuthSession, DeviceAuthStatus};
 use crate::domain::authentication::device_flow::error::DeviceFlowError;
 use crate::domain::authentication::device_flow::value_objects::{
-    InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
+    DeviceSessionPreview, InitiateDeviceFlowOutput, InitiateDeviceFlowParams, PollDeviceTokenParams,
 };
 use crate::domain::authentication::entities::{AuthenticationError, JwtToken};
 use crate::domain::authentication::value_objects::GenerateTokensForUserInput;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::realm::entities::RealmId;
 
 /// Persistence contract for device authorization sessions (RFC 8628).
 #[cfg_attr(test, mockall::automock)]
@@ -28,13 +29,20 @@ pub trait DeviceAuthRepository: Send + Sync {
     fn find_by_user_code(
         &self,
         user_code: String,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<DeviceAuthSession>, AuthenticationError>> + Send;
+
+    fn user_code_exists(
+        &self,
+        user_code: String,
+    ) -> impl Future<Output = Result<bool, AuthenticationError>> + Send;
 
     /// Transition a session to a new status, optionally binding the approving
     /// user.
     fn update_status(
         &self,
         device_code: Uuid,
+        expected: DeviceAuthStatus,
         status: DeviceAuthStatus,
         user_id: Option<Uuid>,
     ) -> impl Future<Output = Result<DeviceAuthSession, AuthenticationError>> + Send;
@@ -44,6 +52,8 @@ pub trait DeviceAuthRepository: Send + Sync {
         &self,
         device_code: Uuid,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    fn purge_expired(&self) -> impl Future<Output = Result<u64, AuthenticationError>> + Send;
 }
 
 /// Token issuance seam for the device flow.
@@ -71,10 +81,19 @@ pub trait DeviceFlowService: Send + Sync {
 
     /// Verification page: bind the approving user and mark the session
     /// approved.
+    fn purge_expired_sessions(&self) -> impl Future<Output = Result<u64, DeviceFlowError>> + Send;
+
+    fn preview_user_code(
+        &self,
+        user_code: String,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<DeviceSessionPreview, DeviceFlowError>> + Send;
+
     fn verify_user_code(
         &self,
         user_code: String,
         user_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<(), DeviceFlowError>> + Send;
 
     /// Verification page: mark the session denied and fire
@@ -83,6 +102,7 @@ pub trait DeviceFlowService: Send + Sync {
         &self,
         user_code: String,
         user_id: Uuid,
+        realm_id: RealmId,
     ) -> impl Future<Output = Result<(), DeviceFlowError>> + Send;
 
     /// Token endpoint: advance the polling state machine, returning a

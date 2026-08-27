@@ -10,6 +10,7 @@ import {
   validateCallbackParams,
 } from './callback-helpers'
 import { POST_LOGIN_RETURN_KEY } from './page-device-verify-feature'
+import { takeOAuthFlow } from '../utils/pkce'
 
 // Only allow returning to in-app paths to avoid an open-redirect via the
 // sessionStorage channel.
@@ -71,12 +72,18 @@ export default function PageCallbackFeature() {
     hasStartedExchange.current = true
     if (state) localStorage.removeItem(`oauth_state:${state}`)
 
+    // The console is a public client: the token endpoint accepts the code only
+    // with the matching PKCE verifier and the exact redirect_uri used at /auth.
+    const flow = takeOAuthFlow(state)
+
     void exchangeToken({
       realm: realm_name ?? 'master',
       data: {
         client_id: 'security-admin-console',
         code,
         grant_type: GrantType.Code,
+        code_verifier: flow?.codeVerifier,
+        redirect_uri: flow?.redirectUri,
       },
     })
       .then((data) => {

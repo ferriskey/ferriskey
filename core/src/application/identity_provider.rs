@@ -1,8 +1,10 @@
 use crate::domain::{
     abyss::identity_provider::{
         entities::{
-            CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
-            IdentityProvider, ListIdentityProvidersInput, UpdateIdentityProviderInput,
+            CreateIdentityProviderInput, DeleteIdentityProviderInput,
+            DeleteIdentityProviderLinkInput, GetIdentityProviderInput, IdentityProvider,
+            IdentityProviderLinkView, ListIdentityProviderLinksInput, ListIdentityProvidersInput,
+            UpdateIdentityProviderInput,
         },
         ports::IdentityProviderService,
     },
@@ -60,6 +62,26 @@ impl IdentityProviderService for ApplicationService {
     ) -> Result<(), CoreError> {
         self.identity_provider_service
             .delete_identity_provider(identity, input)
+            .await
+    }
+
+    async fn list_identity_provider_links(
+        &self,
+        identity: Identity,
+        input: ListIdentityProviderLinksInput,
+    ) -> Result<Vec<IdentityProviderLinkView>, CoreError> {
+        self.identity_provider_service
+            .list_identity_provider_links(identity, input)
+            .await
+    }
+
+    async fn delete_identity_provider_link(
+        &self,
+        identity: Identity,
+        input: DeleteIdentityProviderLinkInput,
+    ) -> Result<(), CoreError> {
+        self.identity_provider_service
+            .delete_identity_provider_link(identity, input)
             .await
     }
 }

@@ -15,6 +15,8 @@ use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use axum::extract::Path;
+
 use crate::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -94,35 +96,74 @@ where
         _: &S,
     ) -> Result<Self, Self::Rejection> {
         let token = extract_token_from_bearer(parts).await?;
+        decode_jwt(token)
+    }
+}
 
-        let t: Vec<&str> = token.split('.').collect();
-        if t.len() != 3 {
-            return Err(AuthError::InvalidToken);
-        }
+pub const LOGIN_ACTION_COOKIE: &str = "FERRISKEY_LOGIN_ACTION";
 
-        let payload = t[1];
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LoginActionJwt {
+    pub(crate) claims: JwtClaim,
+    pub(crate) token: String,
+}
 
-        let decoded = general_purpose::URL_SAFE_NO_PAD
-            .decode(payload)
-            .map_err(|e| {
-                tracing::error!("Failed to decode JWT payload: {:?}", e);
-                AuthError::InvalidToken
-            })?;
+impl<S> FromRequestParts<S> for LoginActionJwt
+where
+    S: Send + Sync,
+    AppState: FromRef<S>,
+{
+    type Rejection = AuthError;
 
-        let payload_str = String::from_utf8(decoded).map_err(|e| {
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let token = parts
+            .headers
+            .get(axum::http::header::COOKIE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|raw| {
+                raw.split(';').find_map(|part| {
+                    let (name, value) = part.trim().split_once('=')?;
+                    (name == LOGIN_ACTION_COOKIE).then(|| value.to_string())
+                })
+            })
+            .ok_or(AuthError::TokenNotFound)?;
+
+        let Jwt { claims, token } = decode_jwt(token)?;
+        Ok(LoginActionJwt { claims, token })
+    }
+}
+
+fn decode_jwt(token: String) -> Result<Jwt, AuthError> {
+    let t: Vec<&str> = token.split('.').collect();
+    if t.len() != 3 {
+        return Err(AuthError::InvalidToken);
+    }
+
+    let payload = t[1];
+
+    let decoded = general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .map_err(|e| {
             tracing::error!("Failed to decode JWT payload: {:?}", e);
             AuthError::InvalidToken
         })?;
-        let claims: JwtClaim = serde_json::from_str(&payload_str).map_err(|e| {
-            tracing::error!("Failed to deserialize JWT claims: {:?}", e);
-            AuthError::InvalidToken
-        })?;
 
-        Ok(Jwt {
-            claims,
-            token: token.clone(),
-        })
-    }
+    let payload_str = String::from_utf8(decoded).map_err(|e| {
+        tracing::error!("Failed to decode JWT payload: {:?}", e);
+        AuthError::InvalidToken
+    })?;
+    let claims: JwtClaim = serde_json::from_str(&payload_str).map_err(|e| {
+        tracing::error!("Failed to deserialize JWT claims: {:?}", e);
+        AuthError::InvalidToken
+    })?;
+
+    Ok(Jwt {
+        claims,
+        token: token.clone(),
+    })
 }
 
 pub async fn extract_token_from_bearer(parts: &mut Parts) -> Result<String, AuthError> {
@@ -148,6 +189,7 @@ pub async fn auth(
         .authorize_request(AuthorizeRequestInput {
             claims,
             token: jwt.token,
+            realm_name: None,
         })
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
@@ -157,24 +199,44 @@ pub async fn auth(
     Ok(next.run(req).await)
 }
 
+const STEP_COMPLETING_ACTIONS: [&str; 4] = [
+    "/login-actions/verify-otp",
+    "/login-actions/challenge-otp",
+    "/login-actions/update-password",
+    "/login-actions/webauthn-public-key-create",
+];
+
 pub async fn auth_login_actions(
     State(state): State<AppState>,
-    jwt: Jwt,
+    Path(realm_name): Path<String>,
+    jwt: LoginActionJwt,
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
+    let jti = claims.jti;
 
     let output = state
         .service
         .authorize_login_action_request(AuthorizeRequestInput {
             claims,
             token: jwt.token,
+            realm_name: Some(realm_name),
         })
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     req.extensions_mut().insert(output.identity);
 
-    Ok(next.run(req).await)
+    let completes_step = STEP_COMPLETING_ACTIONS
+        .iter()
+        .any(|suffix| req.uri().path().ends_with(suffix));
+
+    let response = next.run(req).await;
+
+    if completes_step && response.status().is_success() {
+        state.service.consume_login_action_token(jti).await;
+    }
+
+    Ok(response)
 }

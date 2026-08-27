@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     application::services::ApplicationService,
     domain::{
@@ -5,13 +7,18 @@ use crate::{
         client::{
             entities::{
                 Client, CreateClientInput, CreatePostLogoutRedirectUriInput,
-                CreateRedirectUriInput, CreateRoleInput, DeleteClientInput,
-                DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, GetClientInput,
-                GetClientRolesInput, GetClientsInput, GetPostLogoutRedirectUrisInput,
-                GetRedirectUrisInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
-                UpdateRedirectUriInput, redirect_uri::RedirectUri,
+                CreateRedirectUriInput, CreateRoleInput, CreateSamlAttributeMapperInput,
+                CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
+                DeleteRedirectUriInput, DeleteSamlAttributeMapperInput, DeleteWebOriginInput,
+                GetClientInput, GetClientRolesInput, GetClientSamlConfigInput, GetClientsInput,
+                GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
+                GetWebOriginsInput, SetClientSamlConfigInput, UpdateClientInput,
+                UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+                redirect_uri::RedirectUri,
+                saml::{ClientSamlConfig, SamlAttributeMapper},
+                web_origin::{Origin, WebOrigin},
             },
-            ports::ClientService,
+            ports::{ClientService, WebOriginResolver},
         },
         common::entities::app_errors::CoreError,
         role::entities::Role,
@@ -34,6 +41,80 @@ impl ClientService for ApplicationService {
     ) -> Result<RedirectUri, CoreError> {
         self.client_service
             .create_redirect_uri(identity, input)
+            .await
+    }
+
+    async fn create_web_origin(
+        &self,
+        identity: Identity,
+        input: CreateWebOriginInput,
+    ) -> Result<WebOrigin, CoreError> {
+        self.client_service.create_web_origin(identity, input).await
+    }
+
+    async fn get_web_origins(
+        &self,
+        identity: Identity,
+        input: GetWebOriginsInput,
+    ) -> Result<Vec<WebOrigin>, CoreError> {
+        self.client_service.get_web_origins(identity, input).await
+    }
+
+    async fn delete_web_origin(
+        &self,
+        identity: Identity,
+        input: DeleteWebOriginInput,
+    ) -> Result<(), CoreError> {
+        self.client_service.delete_web_origin(identity, input).await
+    }
+
+    async fn get_client_saml_config(
+        &self,
+        identity: Identity,
+        input: GetClientSamlConfigInput,
+    ) -> Result<ClientSamlConfig, CoreError> {
+        self.client_service
+            .get_client_saml_config(identity, input)
+            .await
+    }
+
+    async fn set_client_saml_config(
+        &self,
+        identity: Identity,
+        input: SetClientSamlConfigInput,
+    ) -> Result<ClientSamlConfig, CoreError> {
+        self.client_service
+            .set_client_saml_config(identity, input)
+            .await
+    }
+
+    async fn create_saml_attribute_mapper(
+        &self,
+        identity: Identity,
+        input: CreateSamlAttributeMapperInput,
+    ) -> Result<SamlAttributeMapper, CoreError> {
+        self.client_service
+            .create_saml_attribute_mapper(identity, input)
+            .await
+    }
+
+    async fn get_saml_attribute_mappers(
+        &self,
+        identity: Identity,
+        input: GetSamlAttributeMappersInput,
+    ) -> Result<Vec<SamlAttributeMapper>, CoreError> {
+        self.client_service
+            .get_saml_attribute_mappers(identity, input)
+            .await
+    }
+
+    async fn delete_saml_attribute_mapper(
+        &self,
+        identity: Identity,
+        input: DeleteSamlAttributeMapperInput,
+    ) -> Result<(), CoreError> {
+        self.client_service
+            .delete_saml_attribute_mapper(identity, input)
             .await
     }
 
@@ -89,6 +170,16 @@ impl ClientService for ApplicationService {
         input: GetClientInput,
     ) -> Result<Client, CoreError> {
         self.client_service.get_client_by_id(identity, input).await
+    }
+
+    async fn reveal_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<Option<String>, CoreError> {
+        self.client_service
+            .reveal_client_secret(identity, input)
+            .await
     }
 
     async fn get_client_roles(
@@ -151,5 +242,14 @@ impl ClientService for ApplicationService {
         self.client_service
             .update_post_logout_redirect_uri(identity, input)
             .await
+    }
+}
+
+impl WebOriginResolver for ApplicationService {
+    async fn resolve_realm_origins(
+        &self,
+        realm_name: String,
+    ) -> Result<HashSet<Origin>, CoreError> {
+        self.client_service.resolve_realm_origins(realm_name).await
     }
 }

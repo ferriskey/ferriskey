@@ -70,7 +70,13 @@ mod tests {
     }
 
     fn shared_ctx() -> &'static SharedContext {
-        CTX.get_or_init(|| rt().block_on(init_shared_ctx()))
+        CTX.get_or_init(|| match tokio::runtime::Handle::try_current() {
+            // Tests call this from inside `rt().block_on(..)`, where a plain
+            // nested `block_on` would panic. `block_in_place` moves the current
+            // task off the worker thread so the init future can be driven there.
+            Ok(handle) => tokio::task::block_in_place(|| handle.block_on(init_shared_ctx())),
+            Err(_) => rt().block_on(init_shared_ctx()),
+        })
     }
 
     async fn init_shared_ctx() -> SharedContext {
@@ -119,6 +125,7 @@ mod tests {
             .expect("run migrations");
 
         let service = create_service(FerriskeyConfig {
+            webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -135,6 +142,7 @@ mod tests {
 
         service
             .initialize_application(StartupConfig {
+                webapp_url: "http://localhost:5555".to_string(),
                 master_realm_name: realm_name.clone(),
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
@@ -284,7 +292,7 @@ mod tests {
                 .add_query_param("client_id", &ctx.plain_client_id)
                 .add_query_param("redirect_uri", "http://localhost/callback")
                 .add_query_param("scope", "openid")
-                .add_query_param("code_challenge", &challenge)
+                .add_query_param("code_challenge", challenge)
                 .add_query_param("code_challenge_method", "S256")
                 .await;
 
@@ -340,7 +348,7 @@ mod tests {
             let token_resp = server
                 .post(&token_url(realm()))
                 .content_type("application/x-www-form-urlencoded")
-                .text(&format!(
+                .text(format!(
                     "grant_type=authorization_code&client_id={}&code={}&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&code_verifier={}",
                     ctx.plain_client_id, code, verifier
                 ))
@@ -370,7 +378,7 @@ mod tests {
                 .add_query_param("client_id", &ctx.plain_client_id)
                 .add_query_param("redirect_uri", "http://localhost/callback")
                 .add_query_param("scope", "openid")
-                .add_query_param("code_challenge", &challenge)
+                .add_query_param("code_challenge", challenge)
                 .add_query_param("code_challenge_method", "S256")
                 .await;
 
@@ -401,7 +409,7 @@ mod tests {
             let token_resp = server
                 .post(&token_url(realm()))
                 .content_type("application/x-www-form-urlencoded")
-                .text(&format!(
+                .text(format!(
                     "grant_type=authorization_code&client_id={}&code={}&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&code_verifier={}",
                     ctx.plain_client_id, code, wrong_verifier
                 ))

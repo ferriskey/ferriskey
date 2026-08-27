@@ -65,6 +65,7 @@ mod tests {
         realm_name: String,
         /// Pool in the isolated test schema (for direct SQL in the expiry test).
         pool: sqlx::PgPool,
+        service: ferriskey_core::application::services::ApplicationService,
     }
 
     /// Single long-lived multi-threaded runtime shared by all tests.
@@ -135,6 +136,7 @@ mod tests {
             .expect("run migrations");
 
         let service = create_service(FerriskeyConfig {
+            webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -156,6 +158,7 @@ mod tests {
         // (see #1086).
         service
             .initialize_application(StartupConfig {
+                webapp_url: "http://localhost:5555".to_string(),
                 master_realm_name: realm_name.clone(),
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
@@ -166,13 +169,14 @@ mod tests {
             .expect("initialize application");
 
         let args = Arc::new(Args::default());
-        let state = AppState::new(args, service);
+        let state = AppState::new(args, service.clone());
         let app = router(state).expect("build router");
 
         SharedContext {
             app: std::sync::Mutex::new(app),
             realm_name,
             pool,
+            service,
         }
     }
 
@@ -253,6 +257,55 @@ mod tests {
         client_id
     }
 
+    async fn create_confidential_device_client(
+        server: &TestServer,
+        admin_token: &str,
+    ) -> (String, String) {
+        let client_id = format!("device-conf-{}", Uuid::new_v4().simple());
+
+        let response = server
+            .post(&format!("/realms/{}/clients", realm()))
+            .add_header("Authorization", auth_header(admin_token))
+            .json(&json!({
+                "client_id": client_id,
+                "name": "Confidential Device Test Client",
+                "client_type": "confidential",
+                "protocol": "openid-connect",
+                "public_client": false,
+                "service_account_enabled": false,
+                "direct_access_grants_enabled": false,
+                "enabled": true,
+                "oauth_device_code_grant_enabled": true
+            }))
+            .await;
+
+        assert_eq!(
+            response.status_code(),
+            201,
+            "confidential client creation failed: {}",
+            response.text()
+        );
+
+        let body: Value = response.json();
+        let secret = body["client_secret"]
+            .as_str()
+            .unwrap_or_else(|| panic!("a confidential client carries a secret: {body}"))
+            .to_string();
+        assert!(!secret.is_empty(), "the client secret must not be empty");
+
+        (client_id, secret)
+    }
+
+    async fn initiate_raw(server: &TestServer, fields: &[(&str, &str)]) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/protocol/openid-connect/auth/device",
+                realm()
+            ))
+            .form(fields)
+            .await
+    }
+
     /// POST to the device authorization endpoint. Returns the parsed JSON body.
     async fn initiate(server: &TestServer, client_id: &str, scope: Option<&str>) -> Value {
         let mut fields = vec![("client_id", client_id)];
@@ -316,6 +369,35 @@ mod tests {
             .await
     }
 
+    async fn verify_in_realm(
+        server: &TestServer,
+        realm_name: &str,
+        admin_token: &str,
+        user_code: &str,
+        action: &str,
+    ) -> TestResponse {
+        server
+            .post(&format!("/realms/{}/device/verify", realm_name))
+            .add_header(
+                "Cookie",
+                HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
+            )
+            .json(&json!({
+                "user_code": user_code,
+                "action": action
+            }))
+            .await
+    }
+
+    fn decode_jwt_payload(token: &str) -> Value {
+        use base64::Engine;
+        let payload = token.split('.').nth(1).expect("a JWT has three parts");
+        let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .expect("JWT payload is base64url");
+        serde_json::from_slice(&bytes).expect("JWT payload is JSON")
+    }
+
     // -------------------------------------------------------------------------
     // Tests
     // -------------------------------------------------------------------------
@@ -355,6 +437,375 @@ mod tests {
                 .as_str()
                 .expect("access_token in poll response");
             assert!(!access_token.is_empty(), "access_token must not be empty");
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn a_confidential_client_cannot_initiate_without_its_secret() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let (client_id, secret) =
+                create_confidential_device_client(&server, &admin_token).await;
+
+            let resp = initiate_raw(&server, &[("client_id", client_id.as_str())]).await;
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "a confidential client must not initiate without its secret: {}",
+                resp.text()
+            );
+            let body: Value = resp.json();
+            assert_eq!(body["error"], "invalid_client", "body: {body:?}");
+
+            let resp = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("client_secret", "not-the-secret"),
+                ],
+            )
+            .await;
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "a wrong secret must not be accepted: {}",
+                resp.text()
+            );
+
+            let resp = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("client_secret", secret.as_str()),
+                ],
+            )
+            .await;
+            assert_eq!(
+                resp.status_code(),
+                200,
+                "the correct secret must be accepted: {}",
+                resp.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn a_confidential_client_cannot_poll_without_its_secret() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let (client_id, secret) =
+                create_confidential_device_client(&server, &admin_token).await;
+
+            let init = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("client_secret", secret.as_str()),
+                ],
+            )
+            .await;
+            assert_eq!(init.status_code(), 200, "initiate failed: {}", init.text());
+            let init_body: Value = init.json();
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                verify_resp.status_code(),
+                200,
+                "approve failed: {}",
+                verify_resp.text()
+            );
+
+            let resp = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "polling without the client secret must be refused: {}",
+                resp.text()
+            );
+            let body: Value = resp.json();
+            assert_eq!(body["error"], "invalid_client", "body: {body:?}");
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn approval_through_another_realm_path_is_refused() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let other_realm = format!("other-{}", Uuid::new_v4().simple());
+
+            let resp =
+                verify_in_realm(&server, &other_realm, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                resp.status_code(),
+                403,
+                "approval must be refused when the caller does not belong to the realm in the path: {}",
+                resp.text()
+            );
+
+            let poll_resp = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                poll_resp.status_code(),
+                400,
+                "the session must still be pending: {}",
+                poll_resp.text()
+            );
+            let body: Value = poll_resp.json();
+            assert_eq!(
+                body["error"], "authorization_pending",
+                "the refused approval must not have advanced the session: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_purge_removes_expired_sessions_and_spares_the_others() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let live = initiate(&server, &client_id, Some("openid")).await;
+            let live_code = live["device_code"].as_str().expect("device_code").to_string();
+
+            let stale = initiate(&server, &client_id, Some("openid")).await;
+            let stale_code = stale["device_code"].as_str().expect("device_code").to_string();
+
+            sqlx::query(
+                "UPDATE device_auth_sessions SET expires_at = now() - interval '1 hour'                  WHERE device_code = $1::uuid",
+            )
+            .bind(&stale_code)
+            .execute(&shared_ctx().pool)
+            .await
+            .expect("backdate the stale session");
+
+            let removed = shared_ctx()
+                .service
+                .purge_expired_device_sessions()
+                .await
+                .expect("purge should succeed");
+            assert!(removed >= 1, "the expired session must be removed");
+
+            let resp = poll(&server, &client_id, &stale_code).await;
+            let body: Value = resp.json();
+            assert_eq!(
+                body["error"], "invalid_grant",
+                "a purged session must be unknown, not merely expired: {body:?}"
+            );
+
+            let resp = poll(&server, &client_id, &live_code).await;
+            let body: Value = resp.json();
+            assert_eq!(
+                body["error"], "authorization_pending",
+                "a live session must survive the purge: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_consent_preview_names_the_client_and_the_requested_scopes() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let resp = server
+                .get(&format!("/realms/{}/device/preview", realm()))
+                .add_query_param("user_code", user_code)
+                .add_header(
+                    "Cookie",
+                    HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
+                )
+                .await;
+
+            assert_eq!(resp.status_code(), 200, "preview failed: {}", resp.text());
+            let body: Value = resp.json();
+            assert_eq!(
+                body["client_id"], client_id,
+                "the preview must name the requesting client: {body:?}"
+            );
+            let scopes: Vec<String> = body["scopes"]
+                .as_array()
+                .expect("scopes array")
+                .iter()
+                .map(|v| v.as_str().unwrap_or_default().to_string())
+                .collect();
+            assert!(
+                scopes.iter().any(|s| s == "openid"),
+                "the preview must list what is being granted: {body:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_consent_preview_requires_an_identity() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let resp = server
+                .get(&format!("/realms/{}/device/preview", realm()))
+                .add_query_param("user_code", user_code)
+                .await;
+
+            assert_eq!(
+                resp.status_code(),
+                401,
+                "the preview must not be an anonymous oracle over user codes: {}",
+                resp.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn the_issued_token_carries_the_client_and_the_granted_scope() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                verify_resp.status_code(),
+                200,
+                "approve failed: {}",
+                verify_resp.text()
+            );
+
+            let poll_resp = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                poll_resp.status_code(),
+                200,
+                "poll failed: {}",
+                poll_resp.text()
+            );
+            let body: Value = poll_resp.json();
+
+            let claims = decode_jwt_payload(body["access_token"].as_str().expect("access_token"));
+            assert_eq!(
+                claims["azp"], client_id,
+                "the token must name the client it was issued to: {claims:?}"
+            );
+            let scope = claims["scope"].as_str().unwrap_or("");
+            assert!(
+                scope.contains("openid"),
+                "the granted scope must reach the token: {claims:?}"
+            );
+
+            let refresh =
+                decode_jwt_payload(body["refresh_token"].as_str().expect("refresh_token"));
+            assert_eq!(
+                refresh["azp"], client_id,
+                "the refresh token must carry the same client: {refresh:?}"
+            );
+
+            let id_token = body["id_token"]
+                .as_str()
+                .expect("an openid grant must yield an id_token");
+            let id_claims = decode_jwt_payload(id_token);
+            assert_eq!(
+                id_claims["aud"], client_id,
+                "the id_token must be audienced to the client: {id_claims:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn a_scope_the_client_does_not_have_is_refused_at_initiation() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let resp = initiate_raw(
+                &server,
+                &[
+                    ("client_id", client_id.as_str()),
+                    ("scope", "openid not-a-scope-of-this-client"),
+                ],
+            )
+            .await;
+
+            assert_eq!(
+                resp.status_code(),
+                400,
+                "an unassigned scope must be refused before any user is prompted: {}",
+                resp.text()
+            );
+            let body: Value = resp.json();
+            assert_eq!(body["error"], "invalid_scope", "body: {body:?}");
+        });
+    }
+
+    #[test]
+    #[ignore]
+    fn second_poll_after_token_issuance_returns_invalid_grant() {
+        let server = make_server();
+        rt().block_on(async {
+            let admin_token = get_admin_token(&server).await;
+            let client_id = create_device_client(&server, &admin_token).await;
+
+            let init_body = initiate(&server, &client_id, Some("openid")).await;
+            let device_code = init_body["device_code"].as_str().expect("device_code");
+            let user_code = init_body["user_code"].as_str().expect("user_code");
+
+            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            assert_eq!(
+                verify_resp.status_code(),
+                200,
+                "approve failed: {}",
+                verify_resp.text()
+            );
+
+            let first = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                first.status_code(),
+                200,
+                "first poll must issue a token: {}",
+                first.text()
+            );
+
+            let second = poll(&server, &client_id, device_code).await;
+            assert_eq!(
+                second.status_code(),
+                400,
+                "a device_code must not be replayable: {}",
+                second.text()
+            );
+            let body: Value = second.json();
+            assert_eq!(
+                body["error"], "invalid_grant",
+                "replay must be refused as invalid_grant: {body:?}"
+            );
         });
     }
 

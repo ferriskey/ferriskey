@@ -136,6 +136,7 @@ pub trait UserRepository: Send + Sync {
 
     fn bulk_delete_user(
         &self,
+        realm_id: RealmId,
         ids: Vec<Uuid>,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 
@@ -184,33 +185,6 @@ pub trait UserRequiredActionRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<u64, RequiredActionError>> + Send;
-}
-
-pub trait UserRoleService: Send + Sync {
-    fn assign_role(
-        &self,
-        realm_name: String,
-        user_id: Uuid,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-
-    fn revoke_role(
-        &self,
-        realm_id: RealmId,
-        user_id: Uuid,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-
-    fn get_user_roles(
-        &self,
-        user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
-
-    fn has_role(
-        &self,
-        user_id: Uuid,
-        role_id: Uuid,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait UserPolicy: Send + Sync {

@@ -18,7 +18,6 @@ mod tests {
     use std::{env, sync::Arc};
 
     use axum::Router;
-    use axum::http::HeaderValue;
     use axum_test::{TestResponse, TestServer};
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
@@ -30,7 +29,7 @@ mod tests {
             DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
         },
     };
-    use serde_json::{Value, json};
+    use serde_json::Value;
     use sqlx::Executor;
     use uuid::Uuid;
 
@@ -48,7 +47,7 @@ mod tests {
     struct SharedContext {
         app: std::sync::Mutex<Router>,
         realm_name: String,
-        pool: sqlx::PgPool,
+        _pool: sqlx::PgPool,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -113,6 +112,7 @@ mod tests {
             .expect("run migrations");
 
         let service = create_service(FerriskeyConfig {
+            webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -129,6 +129,7 @@ mod tests {
 
         service
             .initialize_application(StartupConfig {
+                webapp_url: "http://localhost:5555".to_string(),
                 master_realm_name: realm_name.clone(),
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
@@ -145,7 +146,7 @@ mod tests {
         SharedContext {
             app: std::sync::Mutex::new(app),
             realm_name,
-            pool,
+            _pool: pool,
         }
     }
 

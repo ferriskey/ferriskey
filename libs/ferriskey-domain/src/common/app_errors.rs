@@ -34,6 +34,24 @@ pub enum CoreError {
     #[error("Redirect URI is not allowed for this client")]
     InvalidRedirectUri,
 
+    #[error("No web origin is registered under this identifier")]
+    WebOriginNotFound,
+
+    #[error("Invalid web origin: {0}")]
+    InvalidWebOrigin(String),
+
+    #[error("No SAML configuration is registered for this client")]
+    SamlConfigNotFound,
+
+    #[error("Invalid SAML configuration: {0}")]
+    InvalidSamlConfig(String),
+
+    #[error("No SAML attribute mapper is registered under this identifier")]
+    SamlAttributeMapperNotFound,
+
+    #[error("Invalid SAML attribute mapper: {0}")]
+    InvalidSamlAttributeMapper(String),
+
     #[error("Invalid client")]
     InvalidClient,
 
@@ -249,6 +267,13 @@ pub enum CoreError {
 
     #[error("Missing authorization code")]
     MissingAuthorizationCode,
+
+    /// Deliberately covers every authorization-code binding failure (unknown,
+    /// replayed, expired, wrong client, wrong realm, redirect_uri mismatch) so
+    /// the token endpoint cannot be used as an oracle to probe which of them
+    /// tripped. The specific cause is logged server-side instead.
+    #[error("Invalid authorization code")]
+    InvalidAuthorizationCode,
 
     #[error("PKCE is required for this client")]
     PkceRequired,

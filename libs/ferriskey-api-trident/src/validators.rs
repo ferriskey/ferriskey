@@ -4,11 +4,13 @@ use url::Url;
 use utoipa::ToSchema;
 use validator::Validate;
 
+/// The TOTP secret is deliberately absent: it is read from the enrollment the server
+/// recorded during `setup-otp`. Accepting it here let a caller enroll a secret of their
+/// own choosing and verify a code against it (FK-003).
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct OtpVerifyRequest {
     pub code: String,
     pub label: String,
-    pub secret: String,
 }
 
 /// Derives the WebAuthn Relying Party info from the webapp URL.

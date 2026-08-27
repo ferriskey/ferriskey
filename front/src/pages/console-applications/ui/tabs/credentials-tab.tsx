@@ -1,11 +1,12 @@
 import { Schemas } from '@/api/api.client'
-import { Check, Copy, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { useGetClientSecret } from '@/api/client.api'
+import { Check, Copy, Eye, EyeOff, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
 import { useState } from 'react'
 import { CopyRow, Field, Section } from './primitives'
 
 import Client = Schemas.Client
 
-export default function CredentialsTab({ client }: { client: Client }) {
+export default function CredentialsTab({ client, realm }: { client: Client; realm: string }) {
   const isConfidential = client.client_type === 'confidential'
 
   return (
@@ -20,7 +21,7 @@ export default function CredentialsTab({ client }: { client: Client }) {
           description='Confidential credential used to authenticate this application to FerrisKey.'
         >
           {client.secret ? (
-            <SecretField value={client.secret} />
+            <SecretField realm={realm} clientId={client.id} />
           ) : (
             <p className='text-xs text-muted-foreground'>
               The client secret is hidden for this view.
@@ -59,40 +60,86 @@ export default function CredentialsTab({ client }: { client: Client }) {
   )
 }
 
-function SecretField({ value }: { value: string }) {
+const MASKED_SECRET = '••••••••••••••••••••••••'
+
+function SecretField({ realm, clientId }: { realm: string; clientId: string }) {
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  const { data, error, isFetching } = useGetClientSecret({
+    realm,
+    clientId,
+    enabled: revealed,
+  })
+
+  const secret = revealed ? (data?.client_secret ?? null) : null
+  const status = (error as { status?: number } | null)?.status
+  const forbidden = revealed && status === 403
+  const failed = revealed && !!error && !forbidden
+
   const copy = () => {
-    void navigator.clipboard.writeText(value)
+    if (!secret) return
+    void navigator.clipboard.writeText(secret)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1500)
   }
+
   return (
-    <Field label='Secret' hint='Keep this safe — it grants full access on behalf of the application.'>
+    <Field
+      label='Secret'
+      hint='Keep this safe — it grants full access on behalf of the application. Revealing it is recorded as a security event.'
+    >
       <div className='flex items-center gap-2'>
         <input
           readOnly
-          type={revealed ? 'text' : 'password'}
-          value={value}
+          type='text'
+          value={secret ?? MASKED_SECRET}
           className='flex-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm font-mono outline-none'
         />
         <button
           type='button'
           onClick={() => setRevealed((r) => !r)}
-          className='inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
+          disabled={isFetching}
+          className='inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed'
           aria-label={revealed ? 'Hide secret' : 'Reveal secret'}
         >
-          {revealed ? <EyeOff className='h-3.5 w-3.5' /> : <Eye className='h-3.5 w-3.5' />}
+          {isFetching ? (
+            <Loader2 className='h-3.5 w-3.5 animate-spin' />
+          ) : revealed ? (
+            <EyeOff className='h-3.5 w-3.5' />
+          ) : (
+            <Eye className='h-3.5 w-3.5' />
+          )}
+          {revealed ? 'Hide' : 'Reveal'}
         </button>
         <button
           type='button'
           onClick={copy}
-          className='inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
+          disabled={!secret}
+          className='inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-muted-foreground'
           aria-label='Copy secret'
         >
-          {copied ? <Check className='h-3.5 w-3.5 text-emerald-500' /> : <Copy className='h-3.5 w-3.5' />}
+          {copied ? (
+            <Check className='h-3.5 w-3.5 text-emerald-500' />
+          ) : (
+            <Copy className='h-3.5 w-3.5' />
+          )}
         </button>
       </div>
+
+      {forbidden && (
+        <p className='flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500'>
+          <ShieldAlert className='h-3.5 w-3.5 shrink-0 mt-0.5' />
+          You need the manage-clients permission to reveal this secret. Ask a realm administrator
+          for access.
+        </p>
+      )}
+      {failed && (
+        <p className='flex items-start gap-1.5 text-xs text-destructive'>
+          <ShieldAlert className='h-3.5 w-3.5 shrink-0 mt-0.5' />
+          The secret could not be revealed. Please try again.
+        </p>
+      )}
     </Field>
   )
 }

@@ -234,6 +234,27 @@ pub struct DeleteIdentityProviderInput {
     pub alias: String,
 }
 
+pub struct ListIdentityProviderLinksInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+}
+
+pub struct DeleteIdentityProviderLinkInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+    pub link_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
+pub struct IdentityProviderLinkView {
+    pub id: Uuid,
+    pub identity_provider_id: IdentityProviderId,
+    pub identity_provider_alias: String,
+    pub identity_provider_user_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

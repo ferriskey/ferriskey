@@ -24,6 +24,7 @@ export type {
   RealmSetting,
   RealmLoginSetting,
   RedirectUri,
+  WebOrigin,
   JwtToken,
   RequiredAction,
   GrantType,

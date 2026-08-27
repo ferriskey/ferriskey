@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait ClientScopeRepository: Send + Sync {
     fn create(
         &self,
@@ -27,6 +27,7 @@ pub trait ClientScopeRepository: Send + Sync {
 
     fn get_by_id(
         &self,
+        realm_id: RealmId,
         id: Uuid,
     ) -> impl Future<Output = Result<Option<ClientScope>, CoreError>> + Send;
 
@@ -43,14 +44,19 @@ pub trait ClientScopeRepository: Send + Sync {
 
     fn update_by_id(
         &self,
+        realm_id: RealmId,
         id: Uuid,
         payload: UpdateClientScopeRequest,
     ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
 
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_by_id(
+        &self,
+        realm_id: RealmId,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait ClientScopeAttributeRepository: Send + Sync {
     fn set_attribute(
         &self,
@@ -71,7 +77,7 @@ pub trait ClientScopeAttributeRepository: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait ProtocolMapperRepository: Send + Sync {
     fn create(
         &self,
@@ -80,6 +86,7 @@ pub trait ProtocolMapperRepository: Send + Sync {
 
     fn get_by_id(
         &self,
+        client_scope_id: Uuid,
         id: Uuid,
     ) -> impl Future<Output = Result<Option<ProtocolMapper>, CoreError>> + Send;
 
@@ -90,14 +97,19 @@ pub trait ProtocolMapperRepository: Send + Sync {
 
     fn update_by_id(
         &self,
+        client_scope_id: Uuid,
         id: Uuid,
         payload: UpdateProtocolMapperRequest,
     ) -> impl Future<Output = Result<ProtocolMapper, CoreError>> + Send;
 
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_by_id(
+        &self,
+        client_scope_id: Uuid,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
-#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait ClientScopeMappingRepository: Send + Sync {
     fn assign_scope_to_client(
         &self,

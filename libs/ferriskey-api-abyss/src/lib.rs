@@ -2,6 +2,7 @@ use utoipa::OpenApi;
 
 pub mod federation;
 pub mod identity_provider;
+pub mod identity_provider_link;
 pub mod routes;
 
 #[derive(OpenApi)]
@@ -20,12 +21,18 @@ pub mod routes;
         identity_provider::handlers::get_identity_provider::get_identity_provider,
         identity_provider::handlers::update_identity_provider::update_identity_provider,
         identity_provider::handlers::delete_identity_provider::delete_identity_provider,
+
+        identity_provider_link::handlers::list_identity_provider_links::list_identity_provider_links,
+        identity_provider_link::handlers::delete_identity_provider_link::delete_identity_provider_link,
     ),
     components(
         schemas(
             federation::dto::CreateProviderRequest,
             federation::dto::UpdateProviderRequest,
             federation::dto::ProviderResponse,
+            identity_provider_link::dto::IdentityProviderLinkResponse,
+            identity_provider_link::dto::IdentityProviderLinksResponse,
+            identity_provider_link::dto::DeleteIdentityProviderLinkResponse,
         )
     ),
     tags(

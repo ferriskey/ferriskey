@@ -36,6 +36,14 @@
     </picture>
   </a>
   &nbsp;&nbsp;&nbsp;
+  <a href="https://france-nuage.fr">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./docs/logos/france-nuage-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="./docs/logos/france-nuage-light.png">
+      <img src="./docs/logos/france-nuage-light.png" alt="France Nuage" height="40">
+    </picture>
+  </a>
+  &nbsp;&nbsp;&nbsp;
   <a href="https://www.gilded.ch/">
     <img src="./docs/logos/gilded_health.svg" alt="Gilded Health" height="40">
   </a>
@@ -170,6 +178,8 @@ ADMIN_EMAIL=admin@ferriskey.rs
 
 ALLOWED_ORIGINS=http://localhost:5555
 ```
+
+`ALLOWED_ORIGINS` lists the origins accepted on **every** route. Beyond it, each client declares its own web origins at runtime, enforced per realm — see the `web-origins` endpoints under a client. Those per-client origins never replace `ALLOWED_ORIGINS`: `/config`, the health probes and the API docs carry no realm, so an admin console served from a different origin than the API must keep its origin in `ALLOWED_ORIGINS`.
 
 By default, the API will listen on port 3333 and the frontend on port 5555.
 

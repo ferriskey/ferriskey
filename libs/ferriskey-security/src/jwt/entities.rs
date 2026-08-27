@@ -1,8 +1,15 @@
 use std::collections::HashMap;
 
-use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
-use chrono::{DateTime, Utc};
+use base64::{
+    Engine,
+    prelude::{BASE64_STANDARD, BASE64_URL_SAFE_NO_PAD},
+};
+use chrono::{DateTime, Datelike, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey};
+use rcgen::{
+    CertificateParams, DistinguishedName, DnType, KeyPair as CertificateKeyPair, KeyUsagePurpose,
+    date_time_ymd,
+};
 use rsa::{
     RsaPrivateKey, RsaPublicKey,
     pkcs8::{DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding},
@@ -210,13 +217,17 @@ pub struct Jwt {
     pub expires_at: i64,
 }
 
+pub const CERTIFICATE_VALIDITY_YEARS: i32 = 10;
+
 #[derive(Clone)]
 pub struct JwtKeyPair {
     pub id: Uuid,
     pub realm_id: Uuid,
     pub encoding_key: EncodingKey,
     pub decoding_key: DecodingKey,
+    pub private_key: String,
     pub public_key: String,
+    pub certificate: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
@@ -352,6 +363,7 @@ impl JwtKeyPair {
     pub fn from_pem(
         private_pem: &str,
         public_pem: &str,
+        certificate_pem: &str,
         realm_id: Uuid,
         id: Uuid,
     ) -> Result<Self, SecurityError> {
@@ -366,8 +378,52 @@ impl JwtKeyPair {
             realm_id,
             encoding_key,
             decoding_key,
+            private_key: private_pem.to_string(),
             public_key: public_pem.to_string(),
+            certificate: certificate_pem.to_string(),
         })
+    }
+
+    pub fn self_signed_certificate(
+        private_pem: &str,
+        common_name: &str,
+    ) -> Result<String, SecurityError> {
+        let signing_key = CertificateKeyPair::from_pem(private_pem)
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
+
+        let mut params = CertificateParams::new(vec![common_name.to_string()])
+            .or_else(|_| CertificateParams::new(Vec::new()))
+            .map_err(|e| SecurityError::GenerationError(e.to_string()))?;
+
+        let mut distinguished_name = DistinguishedName::new();
+        distinguished_name.push(DnType::CommonName, common_name);
+        params.distinguished_name = distinguished_name;
+
+        params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+
+        let current_year = Utc::now().year();
+        params.not_before = date_time_ymd(current_year - 1, 1, 1);
+        params.not_after = date_time_ymd(current_year + CERTIFICATE_VALIDITY_YEARS, 1, 1);
+
+        let certificate = params
+            .self_signed(&signing_key)
+            .map_err(|e| SecurityError::GenerationError(e.to_string()))?;
+
+        Ok(certificate.pem())
+    }
+
+    pub fn certificate_base64_der(&self) -> Result<String, SecurityError> {
+        let body = self
+            .certificate
+            .lines()
+            .filter(|line| !line.starts_with("-----"))
+            .collect::<String>();
+
+        BASE64_STANDARD
+            .decode(&body)
+            .map_err(|e| SecurityError::ParsingError(e.to_string()))?;
+
+        Ok(body)
     }
 
     pub fn generate() -> Result<(String, String), SecurityError> {
@@ -415,7 +471,110 @@ impl JwtKeyPair {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rsa::pkcs8::EncodePublicKey;
     use uuid::Uuid;
+    use x509_parser::pem::parse_x509_pem;
+
+    #[test]
+    fn certificate_binds_the_existing_realm_key() {
+        let (private_pem, public_pem) = JwtKeyPair::generate().expect("generate realm key");
+        let certificate_pem = JwtKeyPair::self_signed_certificate(&private_pem, "master")
+            .expect("derive certificate");
+
+        let (_, pem) =
+            parse_x509_pem(certificate_pem.as_bytes()).expect("certificate is valid PEM");
+        assert_eq!(pem.label, "CERTIFICATE");
+
+        let certificate = pem.parse_x509().expect("certificate is valid X.509");
+
+        let expected_spki = RsaPublicKey::from_public_key_pem(&public_pem)
+            .expect("realm public key")
+            .to_public_key_der()
+            .expect("realm public key DER");
+
+        assert_eq!(certificate.public_key().raw, expected_spki.as_bytes());
+    }
+
+    #[test]
+    fn certificate_is_self_issued_to_the_realm_and_currently_valid() {
+        let (private_pem, _) = JwtKeyPair::generate().expect("generate realm key");
+        let certificate_pem = JwtKeyPair::self_signed_certificate(&private_pem, "acme-realm")
+            .expect("derive certificate");
+
+        let (_, pem) =
+            parse_x509_pem(certificate_pem.as_bytes()).expect("certificate is valid PEM");
+        let certificate = pem.parse_x509().expect("certificate is valid X.509");
+
+        assert_eq!(certificate.subject().to_string(), "CN=acme-realm");
+        assert_eq!(
+            certificate.subject().to_string(),
+            certificate.issuer().to_string()
+        );
+        assert!(certificate.validity().is_valid());
+    }
+
+    #[test]
+    fn certificate_survives_a_realm_name_that_is_not_a_dns_name() {
+        let (private_pem, _) = JwtKeyPair::generate().expect("generate realm key");
+        let certificate_pem = JwtKeyPair::self_signed_certificate(&private_pem, "réalm dé test")
+            .expect("derive certificate");
+
+        let (_, pem) =
+            parse_x509_pem(certificate_pem.as_bytes()).expect("certificate is valid PEM");
+        let certificate = pem.parse_x509().expect("certificate is valid X.509");
+
+        assert_eq!(certificate.subject().to_string(), "CN=réalm dé test");
+    }
+
+    #[test]
+    fn key_pair_carries_its_private_key_and_certificate() {
+        let (private_pem, public_pem) = JwtKeyPair::generate().expect("generate realm key");
+        let certificate_pem = JwtKeyPair::self_signed_certificate(&private_pem, "master")
+            .expect("derive certificate");
+
+        let key_pair = JwtKeyPair::from_pem(
+            &private_pem,
+            &public_pem,
+            &certificate_pem,
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        )
+        .expect("build key pair");
+
+        assert_eq!(key_pair.private_key, private_pem);
+        assert_eq!(key_pair.public_key, public_pem);
+        assert_eq!(key_pair.certificate, certificate_pem);
+    }
+
+    #[test]
+    fn certificate_der_is_the_unarmored_base64_body() {
+        let (private_pem, public_pem) = JwtKeyPair::generate().expect("generate realm key");
+        let certificate_pem = JwtKeyPair::self_signed_certificate(&private_pem, "master")
+            .expect("derive certificate");
+
+        let key_pair = JwtKeyPair::from_pem(
+            &private_pem,
+            &public_pem,
+            &certificate_pem,
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        )
+        .expect("build key pair");
+
+        let encoded = key_pair
+            .certificate_base64_der()
+            .expect("encode certificate for metadata");
+
+        assert!(!encoded.contains("-----"));
+        assert!(!encoded.contains('\n'));
+
+        let (_, pem) =
+            parse_x509_pem(certificate_pem.as_bytes()).expect("certificate is valid PEM");
+        assert_eq!(
+            BASE64_STANDARD.decode(&encoded).expect("decode"),
+            pem.contents
+        );
+    }
 
     #[test]
     fn refresh_claims_keep_scope() {

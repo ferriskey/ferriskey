@@ -435,8 +435,7 @@ function verifyEmailCard(): BuilderNode[] {
           children: [
             // The submit button now resends the verification email. The
             // portal-page submit hook wires `verify_email` → resend
-            // mutation (token read from URL `client_data`), so a click
-            // here calls the API and toasts the result.
+            // mutation, so a click here calls the API and toasts the result.
             node('submit_button', { content: 'Resend verification email' }),
             node('back_to_login_link'),
           ],

@@ -53,7 +53,9 @@ pub enum Relation {
     EmailTemplates,
     EmailVerificationTokens,
     IdentityProviders,
+    ClientSamlConfigs,
     JwtKeys,
+    JwtKeysSuperseded,
     MagicLinks,
     Organizations,
     PasswordPolicy,
@@ -104,7 +106,9 @@ impl RelationTrait for Relation {
                 Entity::has_many(super::email_verification_tokens::Entity).into()
             }
             Self::IdentityProviders => Entity::has_many(super::identity_providers::Entity).into(),
+            Self::ClientSamlConfigs => Entity::has_many(super::client_saml_configs::Entity).into(),
             Self::JwtKeys => Entity::has_many(super::jwt_keys::Entity).into(),
+            Self::JwtKeysSuperseded => Entity::has_many(super::jwt_keys_superseded::Entity).into(),
             Self::MagicLinks => Entity::has_many(super::magic_links::Entity).into(),
             Self::Organizations => Entity::has_many(super::organizations::Entity).into(),
             Self::PasswordPolicy => Entity::has_one(super::password_policy::Entity).into(),
@@ -188,6 +192,18 @@ impl Related<super::email_verification_tokens::Entity> for Entity {
 impl Related<super::identity_providers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::IdentityProviders.def()
+    }
+}
+
+impl Related<super::client_saml_configs::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientSamlConfigs.def()
+    }
+}
+
+impl Related<super::jwt_keys_superseded::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::JwtKeysSuperseded.def()
     }
 }
 

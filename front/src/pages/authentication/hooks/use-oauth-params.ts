@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useLocation, useParams } from 'react-router'
+import { deriveCodeChallenge, generateCodeVerifier, storeOAuthFlow } from '../utils/pkce'
 
 export function useOAuthParams() {
   const { realm_name } = useParams()
@@ -39,10 +40,16 @@ export function useOAuthParams() {
     }
   }, [clientId, redirectUri, realmCallbackUri])
 
-  const getOAuthParams = useCallback(() => {
+  const getOAuthParams = useCallback(async () => {
     const state = crypto.randomUUID()
     localStorage.setItem(`oauth_state:${state}`, state)
     const { clientId, redirectUri } = getAuthParamsFromUrl()
+
+    // The console is a public client, so PKCE is what binds the resulting
+    // authorization code to this browser.
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = await deriveCodeChallenge(codeVerifier)
+    storeOAuthFlow(state, { codeVerifier, redirectUri })
 
     return {
       query: new URLSearchParams({
@@ -51,6 +58,8 @@ export function useOAuthParams() {
         redirect_uri: redirectUri,
         scope: 'openid profile email',
         state,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
       }).toString(),
       realm: currentRealm,
     }

@@ -37,6 +37,24 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidRedirectUri => {
                 Self::BadRequest("Redirect URI is not allowed for this client".into())
             }
+            CoreError::WebOriginNotFound => {
+                Self::NotFound("No web origin is registered under this identifier".into())
+            }
+            CoreError::InvalidWebOrigin(reason) => {
+                Self::BadRequest(CoreError::InvalidWebOrigin(reason).to_string().into())
+            }
+            CoreError::SamlConfigNotFound => {
+                Self::NotFound("No SAML configuration is registered for this client".into())
+            }
+            CoreError::InvalidSamlConfig(reason) => {
+                Self::BadRequest(CoreError::InvalidSamlConfig(reason).to_string().into())
+            }
+            CoreError::SamlAttributeMapperNotFound => Self::NotFound(
+                "No SAML attribute mapper is registered under this identifier".into(),
+            ),
+            CoreError::InvalidSamlAttributeMapper(reason) => Self::BadRequest(
+                CoreError::InvalidSamlAttributeMapper(reason).to_string().into(),
+            ),
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
             CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
             CoreError::InvalidUser => Self::Unauthorized("Invalid user".into()),
@@ -131,9 +149,7 @@ impl From<CoreError> for ApiError {
             CoreError::AuthorizationCodeStorageFailed => {
                 Self::InternalServerError("".into())
             },
-            CoreError::AuthSessionExpectedState => {
-                Self::InternalServerError("".into())
-            },
+            CoreError::AuthSessionExpectedState => Self::InternalServerError("".into()),
             CoreError::WebAuthnMissingChallenge => {
                 Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".into())
             },
@@ -298,6 +314,10 @@ impl From<CoreError> for ApiError {
                 error: "invalid_request".into(),
                 error_description: "PKCE is required for this client. Send code_challenge (S256) with the authorization request.".into(),
             },
+            CoreError::InvalidAuthorizationCode => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "The authorization code is invalid, expired, already used, or was not issued to this client.".into(),
+            },
             CoreError::InvalidCodeVerifier => Self::OAuthError {
                 error: "invalid_grant".into(),
                 error_description: "code_verifier does not match code_challenge".into(),
@@ -347,6 +367,13 @@ impl From<DeviceFlowError> for ApiError {
                 "unauthorized_client",
                 "The client is not authorized to use the device authorization grant.",
             ),
+            DeviceFlowError::InvalidScope => oauth(
+                "invalid_scope",
+                "The requested scope is not permitted for this client.",
+            ),
+            DeviceFlowError::Forbidden => {
+                Self::Forbidden("You cannot act on a device session of another realm".into())
+            }
             DeviceFlowError::UserCodeGenerationExhausted => {
                 Self::InternalServerError("Failed to generate a unique user code".into())
             }

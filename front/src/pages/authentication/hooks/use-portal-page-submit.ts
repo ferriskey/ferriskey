@@ -78,19 +78,18 @@ export function usePortalPageSubmit(
     if (
       authenticateData.status === AuthenticationStatus.RequiresActions &&
       authenticateData.required_actions &&
-      authenticateData.required_actions.length > 0 &&
-      authenticateData.token
+      authenticateData.required_actions.length > 0
     ) {
       const first = authenticateData.required_actions[0]
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}&client_data=${authenticateData.token}`,
+        `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}`,
       )
       return
     }
     if (authenticateData.status === AuthenticationStatus.RequiresOtpChallenge) {
-      navigate(
-        `/realms/${realm_name}/authentication/otp?token=${authenticateData.token}`,
-      )
+      navigate(`/realms/${realm_name}/authentication/otp`, {
+        state: { email: authenticateData.email ?? null },
+      })
     }
   }, [pageType, authenticateData, navigate, realm_name])
 
@@ -220,10 +219,7 @@ export function usePortalPageSubmit(
   )
 
   // Verify-email: the only meaningful action from the user is "send me
-  // another verification email". The token that authenticates the resend
-  // call lives in the URL as `client_data` (the React fallback stores it
-  // in sessionStorage too, but the portal tree submit has no access to
-  // that — reading from the URL is the canonical source).
+  // another verification email".
   const { mutate: resendVerification, isPending: isResendingVerification } =
     useResendVerificationEmailMutation()
 
@@ -308,13 +304,8 @@ export function usePortalPageSubmit(
   )
   const verifyEmailSubmit = useCallback(
     () => {
-      const token = new URLSearchParams(window.location.search).get('client_data')
-      if (!token) {
-        toast.error('Cannot resend verification email — missing authentication context.')
-        return
-      }
       resendVerification(
-        { realm: realm_name ?? 'master', token },
+        { realm: realm_name ?? 'master' },
         {
           onSuccess: () => toast.success('Verification email sent. Check your inbox.'),
           onError: (error) => toast.error(error.message || 'Failed to resend verification email'),
@@ -405,19 +396,18 @@ export function usePortalPageSubmit(
   // TOTP setup: submit reads the 6-digit code + optional device label from
   // the form, pulls the `secret` from the cached `useSetupOtp` query
   // (already prefetched by `PortalLayoutWrapper`), and posts to verify.
-  // On success the backend redirects via `authenticate({ useToken: true })`
+  // On success the backend redirects via a chained `authenticate()`
   // — same chained pattern as the React `ConfigureOtpFeature`.
   //
   // All hooks for this branch run unconditionally (rules-of-hooks); the
-  // query just sits idle when we're not on the totp_setup page because we
-  // pass `token: null` and the API hook short-circuits on falsy token.
-  const totpSetupToken =
-    typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('client_data')
-      : null
-  const { data: setupData } = useSetupOtp({
+  // query just sits idle when we're not on the totp_setup page.
+  //
+  // Called for its effect, not its data: this is what makes the server issue and
+  // persist the pending enrolment that `verify-otp` later reads back. The secret it
+  // returns is rendered by the portal renderer, and is no longer sent back on submit.
+  useSetupOtp({
     realm: realm_name ?? 'master',
-    token: pageType === 'totp_setup' ? totpSetupToken : null,
+    enabled: pageType === 'totp_setup',
   })
   const {
     mutate: verifyOtp,
@@ -431,20 +421,17 @@ export function usePortalPageSubmit(
     useAuthenticateMutation()
   useEffect(() => {
     if (pageType !== 'totp_setup') return
-    if (verifyOtpData && verifyOtpStatus === 'success' && totpSetupToken) {
+    if (verifyOtpData && verifyOtpStatus === 'success') {
       authenticateAfterTotp({
         clientId: 'security-admin-console',
         realm: realm_name ?? 'master',
         data: {},
-        useToken: true,
-        token: totpSetupToken,
       })
     }
   }, [
     pageType,
     verifyOtpData,
     verifyOtpStatus,
-    totpSetupToken,
     authenticateAfterTotp,
     realm_name,
   ])
@@ -457,12 +444,11 @@ export function usePortalPageSubmit(
     if (
       authenticateAfterTotpData.status === AuthenticationStatus.RequiresActions &&
       authenticateAfterTotpData.required_actions &&
-      authenticateAfterTotpData.required_actions.length > 0 &&
-      authenticateAfterTotpData.token
+      authenticateAfterTotpData.required_actions.length > 0
     ) {
       const first = authenticateAfterTotpData.required_actions[0]
       navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}&client_data=${authenticateAfterTotpData.token}`,
+        `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}`,
       )
     }
   }, [pageType, authenticateAfterTotpData, navigate, realm_name])
@@ -475,15 +461,11 @@ export function usePortalPageSubmit(
         toast.error('Enter the 6-digit code from your authenticator app.')
         return
       }
-      const secret = setupData?.secret
-      if (!totpSetupToken || !secret) {
-        toast.error('TOTP setup context is missing. Please restart the flow.')
-        return
-      }
+      // The secret is no longer sent: the server reads back the enrolment it issued
+      // itself, so a client-supplied secret is neither needed nor accepted (FK-003).
       verifyOtp(
         {
-          data: { code, label, secret },
-          token: totpSetupToken,
+          data: { code, label },
           realm: realm_name,
         },
         {
@@ -492,7 +474,7 @@ export function usePortalPageSubmit(
         },
       )
     },
-    [realm_name, setupData, totpSetupToken, verifyOtp],
+    [realm_name, verifyOtp],
   )
 
   // All hooks above run unconditionally so the order stays stable across

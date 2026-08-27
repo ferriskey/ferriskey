@@ -45,6 +45,7 @@ pub trait RefreshTokenRepository: Send + Sync {
         jti: Uuid,
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
+        session_id: Option<Uuid>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
 
     /// Create a new refresh token that belongs to an existing token family.
@@ -54,6 +55,7 @@ pub trait RefreshTokenRepository: Send + Sync {
         user_id: Uuid,
         family_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
+        session_id: Option<Uuid>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
 
     fn get_by_jti(
@@ -82,6 +84,16 @@ pub trait RefreshTokenRepository: Send + Sync {
         &self,
         family_id: Uuid,
     ) -> impl Future<Output = Result<(), SecurityError>> + Send;
+
+    fn revoke_by_session_id(
+        &self,
+        session_id: Uuid,
+    ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
+
+    fn revoke_all_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -105,6 +117,16 @@ pub trait AccessTokenRepository: Send + Sync {
         &self,
         token_hash: String,
     ) -> impl Future<Output = Result<(), SecurityError>> + Send;
+
+    fn revoke_by_session_id(
+        &self,
+        session_id: Uuid,
+    ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
+
+    fn revoke_all_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
 }
 
 pub trait KeyStoreRepository: Send + Sync {

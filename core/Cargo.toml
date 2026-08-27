@@ -11,7 +11,7 @@ ferriskey-organization = { path = "../libs/ferriskey-organization", features = [
 ferriskey-domain = { path = "../libs/ferriskey-domain", features = ["mock"] }
 ferriskey-security = { path = "../libs/ferriskey-security", features = ["mock"] }
 ferriskey-trident = { path = "../libs/ferriskey-trident" }
-ferriskey-aegis = { path = "../libs/ferriskey-aegis" }
+ferriskey-aegis = { path = "../libs/ferriskey-aegis", features = ["mock"] }
 ferriskey-mail = { path = "../libs/ferriskey-mail", features = ["mock"] }
 ferriskey-compass = { path = "../libs/ferriskey-compass" }
 ferriskey-seawatch = { path = "../libs/ferriskey-seawatch", features = ["mock"] }
@@ -54,7 +54,6 @@ utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 tokio = { version = "1.44.1", features = ["rt-multi-thread", "macros"] }
 reqwest = { version = "0.12.23", features = ["json"] }
 mrml = "4"
-regex = "1.11.2"
 futures = "0.3.31"
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation", "conditional-ui"] }
 ldap3 = "0.12.1"

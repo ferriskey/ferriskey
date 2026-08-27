@@ -221,6 +221,9 @@ pub struct ExchangeTokenInput {
     /// Set for the `urn:ietf:params:oauth:grant-type:device_code` grant.
     pub device_code: Option<String>,
     pub code_verifier: Option<String>,
+    /// REQUIRED for the `authorization_code` grant (RFC 6749 §4.1.3): must be
+    /// identical to the one sent in the authorization request.
+    pub redirect_uri: Option<String>,
 }
 
 pub struct AuthorizeRequestOutput {
@@ -289,6 +292,7 @@ pub struct AuthenticateOutput {
     pub required_actions: Vec<RequiredAction>,
     pub redirect_url: Option<String>,
     pub session_state: Option<String>,
+    pub email: Option<String>,
 }
 
 impl AuthenticateOutput {
@@ -305,6 +309,7 @@ impl AuthenticateOutput {
             required_actions: Vec::new(),
             redirect_url: Some(redirect_url),
             session_state: None,
+            email: None,
         }
     }
 
@@ -321,10 +326,15 @@ impl AuthenticateOutput {
             required_actions,
             redirect_url: None,
             session_state: None,
+            email: None,
         }
     }
 
-    pub fn requires_otp_challenge(user_id: Uuid, temporary_token: String) -> Self {
+    pub fn requires_otp_challenge(
+        user_id: Uuid,
+        temporary_token: String,
+        email: Option<String>,
+    ) -> Self {
         Self {
             user_id,
             status: AuthenticationStepStatus::RequiresOtpChallenge,
@@ -333,6 +343,7 @@ impl AuthenticateOutput {
             required_actions: Vec::new(),
             redirect_url: None,
             session_state: None,
+            email,
         }
     }
 }

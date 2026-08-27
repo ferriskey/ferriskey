@@ -106,4 +106,5 @@ pub struct AuthOutput {
 pub struct AuthorizeRequestInput {
     pub claims: JwtClaim,
     pub token: String,
+    pub realm_name: Option<String>,
 }

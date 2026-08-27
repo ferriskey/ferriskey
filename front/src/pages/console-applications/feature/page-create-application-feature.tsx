@@ -1,5 +1,6 @@
 import { useCreateClient } from '@/api/client.api'
 import { useCreateRedirectUri } from '@/api/redirect_uris.api'
+import { useCreateWebOrigin } from '@/api/web_origins.api'
 import {
   APPLICATIONS_URL,
   APPLICATION_CREATE_URL,
@@ -46,6 +47,7 @@ export default function PageCreateApplicationFeature() {
   const navigate = useNavigate()
   const { mutateAsync: createClient } = useCreateClient()
   const { mutateAsync: createRedirectUri } = useCreateRedirectUri()
+  const { mutateAsync: createWebOrigin } = useCreateWebOrigin()
   const [submitting, setSubmitting] = useState(false)
 
   // Guard against an unknown :type segment by sending the user back to step 1.
@@ -67,12 +69,18 @@ export default function PageCreateApplicationFeature() {
       const clientId = created.id
       // Best-effort registration of allowed callback URLs. If one fails we
       // surface the error but keep the client (the user can finish in admin).
-      const urls = [...values.callbackUrls, ...values.allowedOrigins].filter(Boolean)
-      for (const url of urls) {
+      for (const url of values.callbackUrls.filter(Boolean)) {
         try {
           await createRedirectUri({ realmName: realm_name, clientId, payload: { value: url } })
         } catch {
-          toast.error(`Could not register URL: ${url}`)
+          toast.error(`Could not register callback URL: ${url}`)
+        }
+      }
+      for (const origin of values.allowedOrigins.filter(Boolean)) {
+        try {
+          await createWebOrigin({ realmName: realm_name, clientId, payload: { value: origin } })
+        } catch {
+          toast.error(`Could not register web origin: ${origin}`)
         }
       }
       toast.success('Application created')

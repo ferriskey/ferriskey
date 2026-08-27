@@ -22,6 +22,7 @@ pub struct DeviceAuthorizationRequest {
     /// OAuth 2.0 client identifier. Optional in the body when the client
     /// authenticates with HTTP Basic (confidential clients).
     pub client_id: Option<String>,
+    pub client_secret: Option<String>,
     /// Space-delimited list of requested scopes.
     pub scope: Option<String>,
 }
@@ -57,9 +58,12 @@ pub async fn device_authorization(
 ) -> Result<impl IntoResponse, ApiError> {
     // Confidential clients authenticate via HTTP Basic (username = client_id);
     // public clients send `client_id` in the form body.
-    let client_id = match try_parse_basic_client_credentials(&headers) {
-        Some((id, _secret)) => id,
-        None => payload.client_id.clone().unwrap_or_default(),
+    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
+        Some((id, secret)) => (id, Some(secret)),
+        None => (
+            payload.client_id.clone().unwrap_or_default(),
+            payload.client_secret.clone(),
+        ),
     };
 
     if client_id.is_empty() {
@@ -74,6 +78,7 @@ pub async fn device_authorization(
             InitiateDeviceFlowInput {
                 realm_name,
                 client_id: client_id.clone(),
+                client_secret,
                 scope: payload.scope,
             },
             base_url,

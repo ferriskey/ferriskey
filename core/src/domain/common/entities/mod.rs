@@ -10,6 +10,9 @@ pub struct StartupConfig {
     pub admin_email: String,
     pub admin_password: String,
     pub default_client_id: String,
+    /// Public origin the admin console is served from, used to seed its callback as an
+    /// exact redirect URI.
+    pub webapp_url: String,
 }
 
 #[derive(Debug, Clone)]

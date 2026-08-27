@@ -23,8 +23,9 @@ export default function PageLoginFeature() {
     }
 
     if (isAuthInitiated) {
-      const { query, realm } = getOAuthParams()
-      window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      void getOAuthParams().then(({ query, realm }) => {
+        window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      })
       return
     }
 
@@ -67,8 +68,9 @@ export default function PageLoginFeature() {
 
   useEffect(() => {
     if (isRedirecting) {
-      const { query, realm } = getOAuthParams()
-      window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      void getOAuthParams().then(({ query, realm }) => {
+        window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+      })
     }
   }, [isRedirecting, getOAuthParams])
 

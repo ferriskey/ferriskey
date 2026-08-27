@@ -4,11 +4,12 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::{
-    CreateIdentityProviderInput, DeleteIdentityProviderInput, GetIdentityProviderInput,
-    IdentityProvider, ListIdentityProvidersInput, UpdateIdentityProviderInput,
+    CreateIdentityProviderInput, DeleteIdentityProviderInput, DeleteIdentityProviderLinkInput,
+    GetIdentityProviderInput, IdentityProvider, IdentityProviderLinkView,
+    ListIdentityProviderLinksInput, ListIdentityProvidersInput, UpdateIdentityProviderInput,
 };
 use super::value_objects::{CreateIdentityProviderRequest, UpdateIdentityProviderRequest};
 
@@ -104,6 +105,18 @@ pub trait IdentityProviderService: Send + Sync {
         identity: Identity,
         input: DeleteIdentityProviderInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn list_identity_provider_links(
+        &self,
+        identity: Identity,
+        input: ListIdentityProviderLinksInput,
+    ) -> impl Future<Output = Result<Vec<IdentityProviderLinkView>, CoreError>> + Send;
+
+    fn delete_identity_provider_link(
+        &self,
+        identity: Identity,
+        input: DeleteIdentityProviderLinkInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 /// Policy trait for Identity Provider authorization
@@ -114,27 +127,27 @@ pub trait IdentityProviderPolicy: Send + Sync {
     fn can_create_identity_provider(
         &self,
         identity: &Identity,
-        realm_id: RealmId,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can view the identity provider
     fn can_view_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can update the identity provider
     fn can_update_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// Checks if the identity can delete the identity provider
     fn can_delete_identity_provider(
         &self,
         identity: &Identity,
-        provider: &IdentityProvider,
+        target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }

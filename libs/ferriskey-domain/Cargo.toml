@@ -5,14 +5,17 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+maskass = { path = "../maskass" }
 chrono = { version = "0.4.43", features = ["serde"] }
 rand = "0.8"
+regex = "1.11.2"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 uuid = { version = "1.20.0", features = ["serde", "v4", "v7"] }
 thiserror = "2.0.12"
 tracing = "0.1"
+url = { workspace = true }
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation", "conditional-ui"] }
 mockall = { version = "0.14.0", optional = true }
 
