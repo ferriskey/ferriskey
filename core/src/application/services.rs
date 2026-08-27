@@ -62,6 +62,7 @@ use crate::{
             services::{MailServiceImpl, RealmServiceImpl},
         },
         role::services::RoleServiceImpl,
+        saml::services::SamlServiceImpl,
         seawatch::{
             entities::{EventStatus, SecurityEvent, SecurityEventType},
             ports::SecurityEventRepository,
@@ -159,6 +160,16 @@ type RedirectUriRepo = PostgresRedirectUriRepository;
 type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type WebOriginRepo = PostgresWebOriginRepository;
 type ClientSamlRepo = PostgresClientSamlRepository;
+
+type ApplicationSamlService = SamlServiceImpl<
+    RealmRepo,
+    ClientRepo,
+    ClientSamlRepo,
+    UserRepo,
+    UserAttributeRepo,
+    AuthSessionRepo,
+    KeystoreRepo,
+>;
 
 type ApplicationClientService = ClientServiceImpl<
     RealmRepo,
@@ -351,6 +362,7 @@ pub struct ApplicationService {
     pub(crate) credential_service:
         CredentialServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, CredentialRepo>,
     pub(crate) client_service: ApplicationClientService,
+    pub(crate) saml_service: ApplicationSamlService,
     pub(crate) realm_service: RealmServiceImpl<
         RealmRepo,
         UserRepo,

@@ -162,6 +162,37 @@ impl ClientSamlRepository for PostgresClientSamlRepository {
     }
 }
 
+impl crate::domain::saml::ports::SamlServiceProviderRepository for PostgresClientSamlRepository {
+    async fn get_by_entity_id(
+        &self,
+        realm_id: RealmId,
+        sp_entity_id: crate::domain::client::entities::saml::SpEntityId,
+    ) -> Result<Option<ClientSamlConfig>, CoreError> {
+        SamlConfigEntity::find()
+            .filter(SamlConfigColumn::RealmId.eq(Uuid::from(realm_id)))
+            .filter(SamlConfigColumn::SpEntityId.eq(sp_entity_id.to_string()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .map(ClientSamlConfig::try_from)
+            .transpose()
+    }
+
+    async fn get_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> Result<Option<ClientSamlConfig>, CoreError> {
+        ClientSamlRepository::get_config_by_client_id(self, client_id).await
+    }
+
+    async fn get_attribute_mappers(
+        &self,
+        client_id: Uuid,
+    ) -> Result<Vec<SamlAttributeMapper>, CoreError> {
+        ClientSamlRepository::get_attribute_mappers_by_client_id(self, client_id).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

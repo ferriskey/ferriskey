@@ -1918,6 +1918,7 @@ dependencies = [
  "ferriskey-password-policy",
  "ferriskey-portal-layouts",
  "ferriskey-portal-theme",
+ "ferriskey-saml",
  "ferriskey-seawatch",
  "ferriskey-security",
  "ferriskey-trident",

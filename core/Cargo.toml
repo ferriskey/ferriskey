@@ -20,6 +20,7 @@ ferriskey-webhook = { path = "../libs/ferriskey-webhook", features = ["mock"] }
 ferriskey-portal-theme = { path = "../libs/ferriskey-portal-theme", features = ["mock"] }
 ferriskey-portal-layouts = { path = "../libs/ferriskey-portal-layouts", features = ["mock"] }
 ferriskey-migrate = { path = "../libs/ferriskey-migrate" }
+ferriskey-saml = { path = "../libs/ferriskey-saml" }
 maskass = { path = "../libs/maskass" }
 anyhow = "1.0.98"
 argon2 = "0.5.3"

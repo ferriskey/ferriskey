@@ -144,19 +144,9 @@ pub(crate) fn format_auth_completion(
     authorization_code: &str,
 ) -> Result<AuthCompletion, CoreError> {
     match auth_session.protocol {
-        AuthProtocol::OpenIdConnect => Ok(AuthCompletion::Redirect {
+        AuthProtocol::OpenIdConnect | AuthProtocol::Saml => Ok(AuthCompletion::Redirect {
             url: format_authorization_redirect_url(auth_session, authorization_code),
         }),
-        AuthProtocol::Saml => {
-            error!(
-                auth_session_id = %auth_session.id,
-                "no assertion delivery is wired for a saml auth session yet"
-            );
-
-            Err(CoreError::ServiceUnavailable(
-                "saml assertion delivery is not available".to_string(),
-            ))
-        }
     }
 }
 
@@ -357,6 +347,15 @@ fn validate_authorization_code_request(
     request_client_secret: Option<&str>,
     now: DateTime<Utc>,
 ) -> Result<(), CoreError> {
+    if auth_session.protocol != AuthProtocol::OpenIdConnect {
+        warn!(
+            auth_session_id = %auth_session.id,
+            protocol = ?auth_session.protocol,
+            "authorization_code: refusing to redeem a code minted for another protocol"
+        );
+        return Err(CoreError::InvalidAuthorizationCode);
+    }
+
     if !client.enabled {
         return Err(CoreError::InvalidClient);
     }
@@ -4458,24 +4457,48 @@ mod tests {
     }
 
     #[test]
-    fn a_saml_session_is_never_completed_as_an_openid_connect_redirect() {
+    fn a_saml_session_completes_on_the_continue_endpoint_that_will_issue_the_assertion() {
         let session = AuthSession {
             protocol: AuthProtocol::Saml,
             ..auth_session(
                 Some("relay"),
-                "https://sp.example/acs",
+                "https://auth.example.com/realms/master/protocol/saml/continue",
                 Utc::now(),
                 None,
                 false,
             )
         };
 
-        assert!(
-            matches!(
-                format_auth_completion(&session, "AUTH_CODE"),
-                Err(CoreError::ServiceUnavailable(_))
-            ),
-            "a saml session must not borrow the authorization-code redirect"
+        assert_eq!(
+            format_auth_completion(&session, "AUTH_CODE").expect("a saml session must complete"),
+            AuthCompletion::Redirect {
+                url:
+                    "https://auth.example.com/realms/master/protocol/saml/continue?code=AUTH_CODE&state=relay"
+                        .to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_saml_session_never_completes_on_an_address_the_service_provider_chose() {
+        let session = AuthSession {
+            protocol: AuthProtocol::Saml,
+            ..auth_session(
+                None,
+                "https://auth.example.com/realms/master/protocol/saml/continue",
+                Utc::now(),
+                None,
+                false,
+            )
+        };
+
+        let completion =
+            format_auth_completion(&session, "AUTH_CODE").expect("a saml session must complete");
+
+        assert_eq!(
+            completion.redirect_url(),
+            Some("https://auth.example.com/realms/master/protocol/saml/continue?code=AUTH_CODE"),
+            "the browser is sent back to us, never straight to the assertion consumer service"
         );
     }
 
@@ -4796,6 +4819,24 @@ mod tests {
         // Another client in the same realm presenting someone else's code.
         let (session, mut client) = matching_pair();
         client.id = Uuid::new_v4();
+
+        assert!(matches!(
+            validate_authorization_code_request(
+                &session,
+                &client,
+                session.realm_id,
+                Some(REDIRECT_URI),
+                Some("s3cr3t"),
+                Utc::now(),
+            ),
+            Err(CoreError::InvalidAuthorizationCode)
+        ));
+    }
+
+    #[test]
+    fn a_saml_authorization_code_is_not_redeemable_at_the_token_endpoint() {
+        let (mut session, client) = matching_pair();
+        session.protocol = AuthProtocol::Saml;
 
         assert!(matches!(
             validate_authorization_code_request(
