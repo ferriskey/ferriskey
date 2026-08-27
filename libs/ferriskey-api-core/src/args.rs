@@ -283,6 +283,13 @@ pub struct ServerArgs {
         value_parser = parse_root_path,
     )]
     pub root_path: String,
+    #[arg(
+        long = "server-public-url",
+        env = "SERVER_PUBLIC_URL",
+        name = "SERVER_PUBLIC_URL",
+        long_help = "The origin browsers and service providers reach this deployment at, as scheme://host[:port]. Leave unset to derive it from each request's Host header, which is the historical behaviour. Setting it is required for SAML: an entity id is signed into every assertion, so it must not change when a request arrives through a different hostname."
+    )]
+    pub public_url: Option<String>,
     #[command(flatten)]
     pub tls: Option<ServerTlsArgs>,
 }
@@ -294,6 +301,7 @@ impl Default for ServerArgs {
             host: "0.0.0.0".into(),
             port: 3333,
             root_path: String::new(),
+            public_url: None,
             tls: None,
         }
     }
