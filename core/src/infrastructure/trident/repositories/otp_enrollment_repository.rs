@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder, sea_query::Expr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, sea_query::Expr,
 };
 use uuid::Uuid;
 
@@ -114,6 +114,26 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
             .await
             .map_err(|e| {
                 tracing::error!(user_id = %user_id, "failed to clear OTP enrollments: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(deleted.rows_affected)
+    }
+
+    async fn cleanup_expired(&self) -> Result<u64, CoreError> {
+        // Consumed rows still carry the plaintext candidate secret, so they are
+        // purged together with expired ones instead of accumulating forever.
+        let now = Utc::now().naive_utc();
+        let deleted = OtpEnrollmentEntity::delete_many()
+            .filter(
+                Condition::any()
+                    .add(Column::ExpiresAt.lt(now))
+                    .add(Column::ConsumedAt.is_not_null()),
+            )
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("failed to cleanup OTP enrollments: {e:?}");
                 CoreError::InternalServerError
             })?;
 

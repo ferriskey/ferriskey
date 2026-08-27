@@ -19,6 +19,11 @@ use ferriskey_api_core::{
 pub struct GenerateRecoveryCodesRequest {
     amount: u8,
     code_format: String,
+    /// Step-up token minted by `/me/reauthenticate`. Required: regenerating
+    /// recovery codes invalidates the existing ones, so it must be bound to a
+    /// fresh proof of knowledge rather than a bearer token alone.
+    #[serde(default)]
+    step_up_token: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
@@ -55,6 +60,7 @@ pub async fn generate_recovery_codes(
             GenerateRecoveryCodeInput {
                 amount: payload.amount,
                 format: payload.code_format,
+                step_up_token: payload.step_up_token,
             },
         )
         .await

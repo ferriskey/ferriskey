@@ -201,6 +201,10 @@ pub struct VerifyOtpOutput {
 pub struct GenerateRecoveryCodeInput {
     pub amount: u8,
     pub format: String,
+    /// Step-up token minted by `/me/reauthenticate`. Regenerating recovery
+    /// codes invalidates the caller's real codes and hands them a fresh set,
+    /// so a stolen access token alone must not suffice.
+    pub step_up_token: Option<String>,
 }
 
 pub struct GenerateRecoveryCodeOutput {
@@ -308,6 +312,10 @@ pub trait OtpEnrollmentRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    /// Drop enrolments that expired or were already claimed, so rows holding a
+    /// plaintext candidate secret do not accumulate indefinitely.
+    fn cleanup_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
 /// Input for self-service (Bearer-authenticated) passkey registration options.
@@ -332,12 +340,16 @@ pub struct PasskeyRegisterSelfServiceInput {
 /// a password reset (proving email control via the reset link we email), it does
 /// NOT itself mint a session. This prevents a single leaked recovery code from
 /// becoming full account takeover with MFA bypassed.
+///
+/// Deliberately carries no new password: the code only unlocks the emailed
+/// reset link, and the password is chosen when that link is completed. Taking a
+/// password here made the field a lie in the contract (it was never applied)
+/// and turned this anonymous endpoint into a free password-policy oracle.
 pub struct CompletePasswordResetWithRecoveryCodeInput {
     pub realm_name: String,
     pub email: String,
     pub code: String,
     pub format: String,
-    pub new_password: String,
     /// Base URL used to build the password-reset link emailed to the user after
     /// the recovery code is burned.
     pub base_url: String,

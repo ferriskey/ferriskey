@@ -19,7 +19,6 @@ pub struct ResetPasswordWithRecoveryCodeRequest {
     pub email: String,
     pub recovery_code: String,
     pub recovery_code_format: String,
-    pub new_password: String,
 }
 
 /// Response returned after a recovery code is successfully burned. A recovery
@@ -44,9 +43,9 @@ pub struct ResetPasswordWithRecoveryCodeResponse {
     request_body = ResetPasswordWithRecoveryCodeRequest,
     responses(
         (status = 200, description = "Recovery code accepted, password reset email sent", body = ResetPasswordWithRecoveryCodeResponse),
-        (status = 400, description = "Invalid or expired recovery code", body = ApiErrorResponse),
+        (status = 400, description = "Invalid or expired recovery code, or an unknown email (indistinguishable by design to prevent enumeration)", body = ApiErrorResponse),
         (status = 401, description = "Account is temporarily locked due to too many failed attempts", body = ApiErrorResponse),
-        (status = 404, description = "No account found for the email", body = ApiErrorResponse),
+        (status = 403, description = "Password reset is not enabled for this realm", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
@@ -64,7 +63,6 @@ pub async fn reset_password_with_recovery_code(
             email: payload.email,
             code: payload.recovery_code,
             format: payload.recovery_code_format,
-            new_password: payload.new_password,
             base_url,
         })
         .await
