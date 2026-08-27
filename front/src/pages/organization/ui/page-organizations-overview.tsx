@@ -1,9 +1,8 @@
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { Button } from '@/components/ui/button'
 import { OverviewList } from '@/components/ui/overview-list'
 import { Building2, Plus } from 'lucide-react'
-import Organization = Schemas.Organization
-
+type Organization = Schemas.Organization
 export interface PageOrganizationsOverviewProps {
   data: Organization[]
   isLoading: boolean

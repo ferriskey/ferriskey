@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { toast } from 'sonner'
 
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   Dialog,
   DialogBody,
@@ -18,8 +18,7 @@ import {
   useRevokeOrganizationMemberRole,
 } from '@/api/organization-member.api'
 
-import User = Schemas.User
-
+type User = Schemas.User
 interface ManageMemberRolesModalFeatureProps {
   realm?: string
   orgId?: string

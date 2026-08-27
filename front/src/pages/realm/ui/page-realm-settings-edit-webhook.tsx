@@ -6,9 +6,9 @@ import { Tabs } from '@radix-ui/react-tabs'
 import { ArrowLeft } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { UpdateWebhookSchema } from '../validators'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { WebhookCategory } from '@/utils/webhook-utils'
-import WebhookTrigger = Schemas.WebhookTrigger
+type WebhookTrigger = Schemas.WebhookTrigger
 import { FormField } from '@/components/ui/form'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import ManageWebhookHeaders from '../components/manage-webhook-headers'

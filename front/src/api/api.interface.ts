@@ -124,8 +124,6 @@ export interface GetUserRolesResponse {
 
 export interface OtpVerifyRequest {
   code: string
-  label: string
-  secret: string
 }
 
 export interface SetupOtpResponse {

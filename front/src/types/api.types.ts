@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 /**
  * Re-export commonly used OpenAPI generated types for easier access

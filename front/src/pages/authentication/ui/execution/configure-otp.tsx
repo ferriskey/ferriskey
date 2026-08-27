@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { InputText } from '@/components/ui/input-text'
 import { Separator } from '@/components/ui/separator'
 import { CheckCircle, Copy, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
@@ -157,19 +156,6 @@ export default function ConfigureOtp({
                           )}
                         />
                       </div>
-                      <FormField
-                        control={form.control}
-                        name='deviceName'
-                        render={({ field }) => (
-                          <InputText
-                            label='Device name (optional)'
-                            name='deviceName'
-                            value={field.value}
-                            onChange={field.onChange}
-                            className='w-full'
-                          />
-                        )}
-                      />
                       <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
                         <ShieldCheck className='mt-0.5 h-4 w-4 shrink-0' />
                         <span>

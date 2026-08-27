@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Client, User, Role, RealmSetting } from './api.types'
 
 export interface PageHomeData {

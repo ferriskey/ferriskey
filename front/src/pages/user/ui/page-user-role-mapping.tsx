@@ -5,9 +5,8 @@ import StatisticsCard from '../components/statistics-card'
 import RoleMappingModalFeature from '../feature/modals/role-mapping-modal-feature'
 import { UserMinus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Schemas } from '@/api/api.client'
-import Role = Schemas.Role
-
+import type { Schemas } from '@/api/api.client'
+type Role = Schemas.Role
 interface PageUserRoleMappingProps {
   userRoles: Role[]
   isLoading: boolean

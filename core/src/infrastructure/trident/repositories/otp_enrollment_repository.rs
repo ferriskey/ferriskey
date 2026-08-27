@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryOrder, sea_query::Expr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, sea_query::Expr,
 };
 use uuid::Uuid;
 
@@ -60,7 +60,7 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
         Ok(model_to_domain(model))
     }
 
-    async fn consume_enrollment(
+    async fn get_active_enrollment(
         &self,
         user_id: Uuid,
         now: DateTime<Utc>,
@@ -79,29 +79,32 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
                 CoreError::InternalServerError
             })?;
 
-        let Some(candidate) = candidate else {
-            return Ok(None);
-        };
+        Ok(candidate.map(model_to_domain))
+    }
+
+    async fn claim_enrollment(
+        &self,
+        enrollment_id: Uuid,
+        now: DateTime<Utc>,
+    ) -> Result<bool, CoreError> {
+        let naive_now = now.naive_utc();
 
         // Compare-and-swap: the `ConsumedAt.is_null()` predicate is what makes this
-        // single-use. A concurrent call that lost the race updates 0 rows and gets
-        // `None`, rather than both callers enrolling the same secret.
+        // single-use. A concurrent call that lost the race updates 0 rows, rather
+        // than both callers enrolling the same secret.
         let claimed = OtpEnrollmentEntity::update_many()
             .col_expr(Column::ConsumedAt, Expr::value(naive_now))
-            .filter(Column::Id.eq(candidate.id))
+            .filter(Column::Id.eq(enrollment_id))
             .filter(Column::ConsumedAt.is_null())
+            .filter(Column::ExpiresAt.gt(naive_now))
             .exec(&self.db)
             .await
             .map_err(|e| {
-                tracing::error!(user_id = %user_id, "failed to consume OTP enrollment: {e:?}");
+                tracing::error!(enrollment_id = %enrollment_id, "failed to claim OTP enrollment: {e:?}");
                 CoreError::InternalServerError
             })?;
 
-        if claimed.rows_affected == 0 {
-            return Ok(None);
-        }
-
-        Ok(Some(model_to_domain(candidate)))
+        Ok(claimed.rows_affected > 0)
     }
 
     async fn clear_enrollments(&self, user_id: Uuid) -> Result<u64, CoreError> {
@@ -111,6 +114,26 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
             .await
             .map_err(|e| {
                 tracing::error!(user_id = %user_id, "failed to clear OTP enrollments: {e:?}");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(deleted.rows_affected)
+    }
+
+    async fn cleanup_expired(&self) -> Result<u64, CoreError> {
+        // Consumed rows still carry the plaintext candidate secret, so they are
+        // purged together with expired ones instead of accumulating forever.
+        let now = Utc::now().naive_utc();
+        let deleted = OtpEnrollmentEntity::delete_many()
+            .filter(
+                Condition::any()
+                    .add(Column::ExpiresAt.lt(now))
+                    .add(Column::ConsumedAt.is_not_null()),
+            )
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("failed to cleanup OTP enrollments: {e:?}");
                 CoreError::InternalServerError
             })?;
 

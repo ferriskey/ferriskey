@@ -1,9 +1,8 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ArrowLeft, ShieldOff } from 'lucide-react'
 import { APPLICATION_TONE, getApplicationTypeMeta, inferApplicationType } from '../types'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 export type AppTab =
   | 'quickstart'
   | 'settings'
