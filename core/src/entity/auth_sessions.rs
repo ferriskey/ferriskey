@@ -17,8 +17,8 @@ pub struct Model {
     pub realm_id: Uuid,
     pub client_id: Uuid,
     pub redirect_uri: String,
-    pub response_type: String,
-    pub scope: String,
+    pub response_type: Option<String>,
+    pub scope: Option<String>,
     pub state: Option<String>,
     pub nonce: Option<String>,
     pub user_id: Option<Uuid>,
@@ -31,6 +31,7 @@ pub struct Model {
     pub compass_flow_id: Option<Uuid>,
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<String>,
+    pub protocol: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -53,6 +54,7 @@ pub enum Column {
     CompassFlowId,
     CodeChallenge,
     CodeChallengeMethod,
+    Protocol,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -84,8 +86,9 @@ impl ColumnTrait for Column {
             Self::RealmId => ColumnType::Uuid.def(),
             Self::ClientId => ColumnType::Uuid.def(),
             Self::RedirectUri => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::ResponseType => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::Scope => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::Protocol => ColumnType::String(StringLen::N(32u32)).def(),
+            Self::ResponseType => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::Scope => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::State => ColumnType::Text.def().null(),
             Self::Nonce => ColumnType::Text.def().null(),
             Self::UserId => ColumnType::Uuid.def().null(),

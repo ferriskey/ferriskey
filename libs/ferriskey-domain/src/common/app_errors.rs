@@ -181,8 +181,8 @@ pub enum CoreError {
     #[error("Authorization code storage failed")]
     AuthorizationCodeStorageFailed,
 
-    #[error("Expected an auth session state")]
-    AuthSessionExpectedState,
+    #[error("Protocol not supported for this operation: {0}")]
+    ProtocolNotSupported(String),
 
     #[error("Missing webauthn challenge")]
     WebAuthnMissingChallenge,

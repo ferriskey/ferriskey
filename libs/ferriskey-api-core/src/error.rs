@@ -149,7 +149,9 @@ impl From<CoreError> for ApiError {
             CoreError::AuthorizationCodeStorageFailed => {
                 Self::InternalServerError("".into())
             },
-            CoreError::AuthSessionExpectedState => Self::InternalServerError("".into()),
+            CoreError::ProtocolNotSupported(protocol) => {
+                Self::BadRequest(CoreError::ProtocolNotSupported(protocol).to_string().into())
+            }
             CoreError::WebAuthnMissingChallenge => {
                 Self::BadRequest("There is no current webauthn challenge for this session. Make sure you request one from the server before attempting an authentication.".into())
             },

@@ -7,13 +7,15 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::authentication::{
-    entities::{AuthSession, AuthenticationError, WebAuthnChallenge},
+    entities::{AuthProtocol, AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
     value_objects::CodeChallengeMethod,
 };
 
-impl From<crate::entity::auth_sessions::Model> for AuthSession {
-    fn from(model: crate::entity::auth_sessions::Model) -> Self {
+impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
+    type Error = AuthenticationError;
+
+    fn try_from(model: crate::entity::auth_sessions::Model) -> Result<Self, Self::Error> {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let expires_at = Utc.from_utc_datetime(&model.expires_at);
         let webauthn_challenge_issued_at = model
@@ -31,10 +33,20 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             .as_deref()
             .and_then(|s| s.parse::<CodeChallengeMethod>().ok());
 
-        AuthSession {
+        let protocol = model.protocol.parse::<AuthProtocol>().map_err(|reason| {
+            error!(
+                auth_session_id = %model.id,
+                %reason,
+                "stored auth session carries a protocol this build cannot serve"
+            );
+            AuthenticationError::InternalServerError
+        })?;
+
+        Ok(AuthSession {
             id: model.id,
             realm_id: model.realm_id.into(),
             client_id: model.client_id,
+            protocol,
             redirect_uri: model.redirect_uri,
             response_type: model.response_type,
             scope: model.scope,
@@ -50,7 +62,7 @@ impl From<crate::entity::auth_sessions::Model> for AuthSession {
             compass_flow_id: model.compass_flow_id,
             code_challenge: model.code_challenge,
             code_challenge_method,
-        }
+        })
     }
 }
 
@@ -76,6 +88,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             id: Set(session.id),
             realm_id: Set(session.realm_id.into()),
             client_id: Set(session.client_id),
+            protocol: Set(session.protocol.to_string()),
             redirect_uri: Set(session.redirect_uri.clone()),
             response_type: Set(session.response_type.clone()),
             scope: Set(session.scope.clone()),
@@ -100,7 +113,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 error!("Error creating session: {:?}", e);
                 AuthenticationError::InternalServerError
             })?
-            .into();
+            .try_into()?;
 
         Ok(t)
     }
@@ -118,7 +131,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 AuthenticationError::NotFound
             })?;
 
-        let session = session.ok_or(AuthenticationError::NotFound)?.into();
+        let session = session.ok_or(AuthenticationError::NotFound)?.try_into()?;
 
         Ok(session)
     }
@@ -133,7 +146,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 AuthenticationError::NotFound
             })?;
 
-        let session: Option<AuthSession> = session.map(|s| s.into());
+        let session = session.map(AuthSession::try_from).transpose()?;
 
         Ok(session)
     }
@@ -167,7 +180,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into_iter()
             .next()
             .ok_or(AuthenticationError::NotFound)?
-            .into();
+            .try_into()?;
 
         Ok(session)
     }
@@ -201,7 +214,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into_iter()
             .next()
             .ok_or(AuthenticationError::NotFound)?
-            .into();
+            .try_into()?;
 
         Ok(session)
     }
@@ -263,7 +276,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into_iter()
             .next()
             .ok_or(AuthenticationError::NotFound)?
-            .into();
+            .try_into()?;
 
         Ok(session)
     }
@@ -324,7 +337,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .into_iter()
             .next()
             .ok_or(AuthenticationError::NotFound)?
-            .into();
+            .try_into()?;
 
         Ok(session)
     }
@@ -454,9 +467,10 @@ mod tests {
         AuthSession::new(AuthSessionParams {
             realm_id: RealmId::new(realm_id),
             client_id,
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uri: "http://localhost/callback".into(),
-            response_type: "code".into(),
-            scope: "openid".into(),
+            response_type: Some("code".into()),
+            scope: Some("openid".into()),
             state: None,
             nonce: None,
             user_id: None,

@@ -16,9 +16,10 @@ use crate::domain::realm::entities::RealmId;
 // `ferriskey-security` (AuthorizeRequestInput's JwtClaim) stay in `core` — moving them would
 // pull a heavy crypto crate / an internal crate into the leaf `ferriskey-domain`.
 pub use ferriskey_domain::authentication::entities::{
-    AuthInput, AuthenticateInput, AuthenticateOutput, AuthenticationError, AuthenticationMethod,
-    AuthenticationStepStatus, AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput,
-    GrantType, JwtToken, RefreshClaims, TokenIntrospectionResponse,
+    AuthCompletion, AuthInput, AuthProtocol, AuthenticateInput, AuthenticateOutput,
+    AuthenticationError, AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestOutput,
+    CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken, RefreshClaims,
+    TokenIntrospectionResponse,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,9 +35,10 @@ pub struct AuthSession {
     pub id: Uuid,
     pub realm_id: RealmId,
     pub client_id: Uuid,
+    pub protocol: AuthProtocol,
     pub redirect_uri: String,
-    pub response_type: String,
-    pub scope: String,
+    pub response_type: Option<String>,
+    pub scope: Option<String>,
     pub state: Option<String>,
     pub nonce: Option<String>,
     pub user_id: Option<Uuid>,
@@ -55,9 +57,10 @@ pub struct AuthSession {
 pub struct AuthSessionParams {
     pub realm_id: RealmId,
     pub client_id: Uuid,
+    pub protocol: AuthProtocol,
     pub redirect_uri: String,
-    pub response_type: String,
-    pub scope: String,
+    pub response_type: Option<String>,
+    pub scope: Option<String>,
     pub state: Option<String>,
     pub nonce: Option<String>,
     pub user_id: Option<Uuid>,
@@ -79,6 +82,7 @@ impl AuthSession {
             id: Uuid::new_v7(timestamp),
             realm_id: params.realm_id,
             client_id: params.client_id,
+            protocol: params.protocol,
             redirect_uri: params.redirect_uri,
             response_type: params.response_type,
             scope: params.scope,

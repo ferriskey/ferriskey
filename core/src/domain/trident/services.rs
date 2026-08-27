@@ -16,8 +16,9 @@ use webauthn_rs::prelude::*;
 use crate::{
     domain::{
         authentication::{
-            entities::{AuthSession, WebAuthnChallenge},
+            entities::{AuthCompletion, AuthSession, WebAuthnChallenge},
             ports::AuthSessionRepository,
+            services::format_auth_completion,
             value_objects::Identity,
         },
         common::{
@@ -89,6 +90,16 @@ const OTP_ENROLLMENT_TTL_MINUTES: i64 = 5;
 /// How long a WebAuthn registration challenge stays usable. The challenge was already
 /// stamped with `webauthn_challenge_issued_at` but nothing ever read it back.
 const WEBAUTHN_CHALLENGE_TTL_MINUTES: i64 = 5;
+
+fn login_url_from(completion: AuthCompletion) -> Result<String, CoreError> {
+    completion.into_redirect_url().ok_or_else(|| {
+        error!("this login step can only hand back a redirect url, not a form post");
+
+        CoreError::ServiceUnavailable(
+            "this login step cannot deliver the requested response".to_string(),
+        )
+    })
+}
 
 fn generate_secret() -> Result<TotpSecret, CoreError> {
     let mut bytes = [0u8; 20];
@@ -393,6 +404,19 @@ where
         user_id: Uuid,
         actions_satisfied_by_path: &[RequiredAction],
     ) -> Result<String, CoreError> {
+        let completion = self
+            .issue_auth_completion(auth_session, user_id, actions_satisfied_by_path)
+            .await?;
+
+        login_url_from(completion)
+    }
+
+    async fn issue_auth_completion(
+        &self,
+        auth_session: &AuthSession,
+        user_id: Uuid,
+        actions_satisfied_by_path: &[RequiredAction],
+    ) -> Result<AuthCompletion, CoreError> {
         if let Some(step) = self
             .pending_auth_step_for(user_id, actions_satisfied_by_path)
             .await?
@@ -415,15 +439,7 @@ where
             .await
             .map_err(|_| CoreError::AuthorizationCodeStorageFailed)?;
 
-        let current_state = auth_session
-            .state
-            .as_ref()
-            .ok_or(CoreError::AuthSessionExpectedState)?;
-
-        Ok(format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, current_state
-        ))
+        format_auth_completion(auth_session, &authorization_code)
     }
 
     async fn render_email_template(
@@ -666,14 +682,8 @@ where
             .await
             .map_err(|e| CoreError::TotpVerificationFailed(e.to_string()))?;
 
-        let current_state = auth_session.state.ok_or(CoreError::RecoveryCodeBurnError(
-            "Invalid session state".to_string(),
-        ))?;
-
-        let login_url = format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, current_state
-        );
+        let login_url =
+            login_url_from(format_auth_completion(&auth_session, &authorization_code)?)?;
 
         Ok(BurnRecoveryCodeOutput { login_url })
     }
@@ -1171,14 +1181,8 @@ where
             .await
             .map_err(|e| CoreError::TotpVerificationFailed(e.to_string()))?;
 
-        let current_state = auth_session.state.ok_or(CoreError::TotpVerificationFailed(
-            "invalid session state".to_string(),
-        ))?;
-
-        let login_url = format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, current_state
-        );
+        let login_url =
+            login_url_from(format_auth_completion(&auth_session, &authorization_code)?)?;
 
         Ok(ChallengeOtpOutput {
             login_url: Some(login_url),
@@ -2134,7 +2138,10 @@ where
 mod tests {
     use super::*;
     use crate::domain::{
-        authentication::{entities::AuthenticationError, ports::MockAuthSessionRepository},
+        authentication::{
+            entities::{AuthProtocol, AuthenticationError},
+            ports::MockAuthSessionRepository,
+        },
         common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
         credential::{entities::CredentialError, ports::MockCredentialRepository},
         email_template::ports::MockEmailTemplateRepository,
@@ -3339,9 +3346,10 @@ mod tests {
             id: session_code,
             realm_id: realm.id,
             client_id: Uuid::new_v4(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uri: "https://app.example/callback".to_string(),
-            response_type: "code".to_string(),
-            scope: "openid".to_string(),
+            response_type: Some("code".to_string()),
+            scope: Some("openid".to_string()),
             state: Some("state".to_string()),
             nonce: None,
             user_id: None,
@@ -3354,6 +3362,16 @@ mod tests {
             compass_flow_id: None,
             code_challenge: None,
             code_challenge_method: None,
+        }
+    }
+
+    fn auth_session_without_state(
+        realm: &crate::domain::realm::entities::Realm,
+        session_code: Uuid,
+    ) -> AuthSession {
+        AuthSession {
+            state: None,
+            ..auth_session_with_challenge_issued_at(realm, session_code, None)
         }
     }
 
@@ -3951,6 +3969,74 @@ mod tests {
         assert!(
             matches!(result, Err(CoreError::Forbidden(_))),
             "the VerifyEmail waiver belongs to the magic link path only: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_authorization_code_is_issued_when_the_session_carries_no_state() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let session = auth_session_without_state(&realm, Uuid::new_v4());
+
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_authorization_code(&mut builder, session.clone());
+
+        let service = builder.build();
+        let login_url = service
+            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .await
+            .expect("an absent state must not block the authorization code");
+
+        assert!(
+            login_url.contains("code="),
+            "expected an authorization code in {login_url}"
+        );
+        assert!(
+            !login_url.contains("state="),
+            "nothing was requested to be relayed back, so no state may be echoed: {login_url}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_mfa_path_hands_back_the_same_url_the_password_path_would() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let session = AuthSession {
+            redirect_uri: "https://app.example/callback?tenant=acme".to_string(),
+            state: Some("a b&next=https://evil.example".to_string()),
+            ..auth_session_with_challenge_issued_at(&realm, Uuid::new_v4(), None)
+        };
+
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_authorization_code(&mut builder, session.clone());
+
+        let service = builder.build();
+        let login_url = service
+            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .await
+            .expect("a user owing nothing must get an authorization code");
+
+        assert!(
+            login_url.starts_with("https://app.example/callback?tenant=acme&code="),
+            "an existing query string must be extended, not clobbered: {login_url}"
+        );
+        assert!(
+            login_url.ends_with("&state=a%20b%26next%3Dhttps%3A%2F%2Fevil.example"),
+            "state must be echoed back percent-encoded: {login_url}"
         );
     }
 }
