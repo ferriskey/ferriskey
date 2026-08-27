@@ -7,7 +7,10 @@ use rsa::signature::{SignatureEncoding, Signer};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-use crate::c14n::{C14nError, canonicalize_exclusive};
+use quick_xml::Reader;
+use quick_xml::events::{BytesStart, Event};
+
+use crate::c14n::{C14nError, canonicalize_element, canonicalize_exclusive};
 
 #[derive(Debug, Error)]
 pub enum SignatureError {
@@ -19,6 +22,15 @@ pub enum SignatureError {
 
     #[error("signing failed: {0}")]
     SigningFailed(String),
+
+    #[error("element {0} already carries a signature")]
+    AlreadySigned(String),
+
+    #[error("element {0} is empty and cannot hold a signature")]
+    EmptyElement(String),
+
+    #[error("no element carries ID={0}")]
+    UnknownElement(String),
 }
 
 pub const DSIG_NAMESPACE: &str = "http://www.w3.org/2000/09/xmldsig#";
@@ -59,6 +71,106 @@ pub fn rsa_sha256_signature(private_key_pem: &str, data: &[u8]) -> Result<String
     Ok(BASE64.encode(signature.to_bytes()))
 }
 
+pub fn sign_enveloped(
+    xml: &str,
+    element_id: &str,
+    private_key_pem: &str,
+    certificate_base64_der: &str,
+) -> Result<String, SignatureError> {
+    let insertion = signature_insertion_point(xml, element_id)?;
+    let digest = digest_of_element(xml, element_id)?;
+    let info = signed_info(element_id, &digest);
+    let signature_value = rsa_sha256_signature(private_key_pem, info.as_bytes())?;
+
+    let mut block = String::from("<ds:Signature xmlns:ds=\"");
+    block.push_str(DSIG_NAMESPACE);
+    block.push_str("\">");
+    block.push_str(&info.replace(&format!(" xmlns:ds=\"{DSIG_NAMESPACE}\""), ""));
+    block.push_str("<ds:SignatureValue>");
+    block.push_str(&signature_value);
+    block.push_str("</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>");
+    block.push_str(certificate_base64_der);
+    block.push_str("</ds:X509Certificate></ds:X509Data></ds:KeyInfo></ds:Signature>");
+
+    let mut signed = String::with_capacity(xml.len() + block.len());
+    signed.push_str(&xml[..insertion]);
+    signed.push_str(&block);
+    signed.push_str(&xml[insertion..]);
+    Ok(signed)
+}
+
+fn digest_of_element(xml: &str, element_id: &str) -> Result<String, SignatureError> {
+    let canonical = canonicalize_element(xml, element_id)?;
+    Ok(BASE64.encode(Sha256::digest(canonical.as_bytes())))
+}
+
+fn signature_insertion_point(xml: &str, element_id: &str) -> Result<usize, SignatureError> {
+    let mut reader = Reader::from_str(xml);
+    let mut depth = 0usize;
+    let mut target_depth: Option<usize> = None;
+    let mut insertion: Option<usize> = None;
+
+    loop {
+        let event = reader.read_event().map_err(|e| {
+            SignatureError::Canonicalisation(C14nError::MalformedXml(e.to_string()))
+        })?;
+
+        match event {
+            Event::Start(tag) => {
+                if target_depth.is_none() && carries_id(&tag, element_id)? {
+                    target_depth = Some(depth);
+                    insertion = Some(reader.buffer_position() as usize);
+                } else if target_depth.is_some()
+                    && local_name_of(tag.name().as_ref()) == b"Signature"
+                {
+                    return Err(SignatureError::AlreadySigned(element_id.to_owned()));
+                }
+                depth += 1;
+            }
+            Event::Empty(tag) => {
+                if target_depth.is_none() && carries_id(&tag, element_id)? {
+                    return Err(SignatureError::EmptyElement(element_id.to_owned()));
+                }
+            }
+            Event::End(tag) => {
+                depth = depth.saturating_sub(1);
+                if target_depth == Some(depth) {
+                    break;
+                }
+                if target_depth.is_some()
+                    && depth == target_depth.unwrap_or_default() + 1
+                    && local_name_of(tag.name().as_ref()) == b"Issuer"
+                {
+                    insertion = Some(reader.buffer_position() as usize);
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+
+    insertion.ok_or_else(|| SignatureError::UnknownElement(element_id.to_owned()))
+}
+
+fn carries_id(tag: &BytesStart<'_>, element_id: &str) -> Result<bool, SignatureError> {
+    for attribute in tag.attributes() {
+        let attribute = attribute.map_err(|e| {
+            SignatureError::Canonicalisation(C14nError::MalformedXml(e.to_string()))
+        })?;
+        if attribute.key.as_ref() == b"ID" && attribute.value.as_ref() == element_id.as_bytes() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn local_name_of(qualified: &[u8]) -> &[u8] {
+    match qualified.iter().position(|byte| *byte == b':') {
+        Some(index) => &qualified[index + 1..],
+        None => qualified,
+    }
+}
+
 pub fn digest_of(xml: &str) -> Result<String, SignatureError> {
     let canonical = canonicalize_exclusive(xml)?;
     Ok(BASE64.encode(Sha256::digest(canonical.as_bytes())))
@@ -66,7 +178,7 @@ pub fn digest_of(xml: &str) -> Result<String, SignatureError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{digest_of, rsa_sha256_signature, signed_info};
+    use super::{digest_of, rsa_sha256_signature, sign_enveloped, signed_info};
 
     const SIGNING_KEY: &str = include_str!("../tests/fixtures/signing-key.pem");
 
@@ -122,5 +234,50 @@ mod tests {
         assert!(
             info.contains(r##"Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256""##)
         );
+    }
+
+    const CERTIFICATE: &str = "MIICzzCCAbegAwIBAgIU";
+
+    fn assertion() -> String {
+        concat!(
+            r#"<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_target">"#,
+            "<saml:Issuer>https://idp.example.com</saml:Issuer>",
+            "<saml:Subject>alice</saml:Subject>",
+            "</saml:Assertion>",
+        )
+        .to_owned()
+    }
+
+    #[test]
+    fn the_signature_lands_immediately_after_the_issuer() {
+        let signed =
+            sign_enveloped(&assertion(), "_target", SIGNING_KEY, CERTIFICATE).expect("sign");
+        let after_issuer =
+            signed.find("</saml:Issuer>").expect("issuer present") + "</saml:Issuer>".len();
+        assert!(signed[after_issuer..].starts_with("<ds:Signature"));
+    }
+
+    #[test]
+    fn the_signed_document_keeps_everything_it_started_with() {
+        let signed =
+            sign_enveloped(&assertion(), "_target", SIGNING_KEY, CERTIFICATE).expect("sign");
+        assert!(signed.contains("<saml:Subject>alice</saml:Subject>"));
+        assert!(signed.contains("<ds:X509Certificate>MIICzzCCAbegAwIBAgIU</ds:X509Certificate>"));
+        assert!(signed.contains(r##"<ds:Reference URI="#_target">"##));
+    }
+
+    #[test]
+    fn the_digest_covers_the_element_as_it_stood_before_signing() {
+        let signed =
+            sign_enveloped(&assertion(), "_target", SIGNING_KEY, CERTIFICATE).expect("sign");
+        let expected = digest_of(&assertion()).expect("digest");
+        assert!(signed.contains(&format!("<ds:DigestValue>{expected}</ds:DigestValue>")));
+    }
+
+    #[test]
+    fn signing_an_already_signed_element_is_refused() {
+        let signed =
+            sign_enveloped(&assertion(), "_target", SIGNING_KEY, CERTIFICATE).expect("sign");
+        assert!(sign_enveloped(&signed, "_target", SIGNING_KEY, CERTIFICATE).is_err());
     }
 }
