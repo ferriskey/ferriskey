@@ -58,6 +58,14 @@ jobs:
           restore-keys: |
             it-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
 
+      # The SAML signer is never validated by our own code: xmlsec1 is the
+      # reference XML-DSig implementation and verifies the assertions we emit.
+      - name: install xmlsec1
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xmlsec1
+
+      - name: run saml xmlsec1 interop tests
+        run: cargo test -p ferriskey-saml --test xmlsec_interop -- --ignored
+
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
 

@@ -2088,6 +2088,8 @@ name = "ferriskey-saml"
 version = "0.7.0"
 dependencies = [
  "base64 0.22.1",
+ "chrono",
+ "flate2",
  "quick-xml",
  "rsa",
  "sha2",

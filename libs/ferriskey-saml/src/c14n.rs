@@ -11,12 +11,22 @@ pub enum C14nError {
 }
 
 pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
+    canonicalize(xml, None)
+}
+
+pub fn canonicalize_element(xml: &str, element_id: &str) -> Result<String, C14nError> {
+    canonicalize(xml, Some(element_id))
+}
+
+fn canonicalize(xml: &str, target_id: Option<&str>) -> Result<String, C14nError> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().check_comments = true;
     let mut out = String::new();
     let mut declared: Vec<BTreeMap<String, String>> = Vec::new();
     let mut rendered: Vec<BTreeMap<String, String>> = Vec::new();
     let mut depth = 0usize;
+    let mut target_depth: Option<usize> = None;
+    let emitting = |target_depth: &Option<usize>| target_id.is_none() || target_depth.is_some();
 
     loop {
         match reader
@@ -24,32 +34,57 @@ pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
             .map_err(|e| C14nError::MalformedXml(e.to_string()))?
         {
             Event::Start(tag) => {
-                out.push_str(&render_start_tag(&tag, &mut declared, &mut rendered)?);
+                if target_depth.is_none()
+                    && let Some(wanted) = target_id
+                    && element_id_of(&tag)?.as_deref() == Some(wanted)
+                {
+                    target_depth = Some(depth);
+                }
+                let rendered_tag = render_start_tag(&tag, &mut declared, &mut rendered)?;
+                if emitting(&target_depth) {
+                    out.push_str(&rendered_tag);
+                } else if let Some(scope) = rendered.last_mut() {
+                    scope.clear();
+                }
                 depth += 1;
             }
             Event::Empty(tag) => {
-                out.push_str(&render_start_tag(&tag, &mut declared, &mut rendered)?);
-                out.push_str("</");
-                out.push_str(&name_of(&tag)?);
-                out.push('>');
+                let is_target = target_depth.is_none()
+                    && target_id.is_some()
+                    && element_id_of(&tag)?.as_deref() == target_id;
+                let rendered_tag = render_start_tag(&tag, &mut declared, &mut rendered)?;
+                if emitting(&target_depth) || is_target {
+                    out.push_str(&rendered_tag);
+                    out.push_str("</");
+                    out.push_str(&name_of(&tag)?);
+                    out.push('>');
+                }
                 declared.pop();
                 rendered.pop();
+                if is_target {
+                    break;
+                }
             }
             Event::End(tag) => {
-                out.push_str("</");
-                out.push_str(&utf8(tag.name().as_ref())?);
-                out.push('>');
+                if emitting(&target_depth) {
+                    out.push_str("</");
+                    out.push_str(&utf8(tag.name().as_ref())?);
+                    out.push('>');
+                }
                 depth = depth.saturating_sub(1);
                 declared.pop();
                 rendered.pop();
+                if target_depth == Some(depth) {
+                    break;
+                }
             }
-            Event::Text(text) if depth > 0 => {
+            Event::Text(text) if depth > 0 && emitting(&target_depth) => {
                 let decoded = text
                     .xml10_content()
                     .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
                 out.push_str(&escape_text(&decoded));
             }
-            Event::GeneralRef(reference) if depth > 0 => {
+            Event::GeneralRef(reference) if depth > 0 && emitting(&target_depth) => {
                 let resolved = reference
                     .resolve_char_ref()
                     .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
@@ -64,24 +99,42 @@ pub fn canonicalize_exclusive(xml: &str) -> Result<String, C14nError> {
                 };
                 out.push_str(&escape_text(&character.to_string()));
             }
-            Event::CData(data) if depth > 0 => {
+            Event::CData(data) if depth > 0 && emitting(&target_depth) => {
                 let decoded = data
                     .xml10_content()
                     .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
                 out.push_str(&escape_text(&decoded));
             }
-            Event::PI(instruction) => {
+            Event::PI(instruction) if emitting(&target_depth) => {
                 out.push_str("<?");
                 out.push_str(&utf8(instruction.as_ref())?);
                 out.push_str("?>");
             }
             Event::Text(_) | Event::GeneralRef(_) | Event::CData(_) => {}
+            Event::PI(_) => {}
             Event::Comment(_) | Event::Decl(_) | Event::DocType(_) => {}
             Event::Eof => break,
         }
     }
 
+    if target_id.is_some() && target_depth.is_none() {
+        return Err(C14nError::MalformedXml(format!(
+            "no element carries ID=\"{}\"",
+            target_id.unwrap_or_default()
+        )));
+    }
+
     Ok(out)
+}
+
+fn element_id_of(tag: &BytesStart<'_>) -> Result<Option<String>, C14nError> {
+    for attribute in tag.attributes() {
+        let attribute = attribute.map_err(|e| C14nError::MalformedXml(e.to_string()))?;
+        if attribute.key.as_ref() == b"ID" {
+            return Ok(Some(utf8(attribute.value.as_ref())?));
+        }
+    }
+    Ok(None)
 }
 
 fn render_start_tag(
@@ -315,7 +368,7 @@ fn name_of(tag: &BytesStart<'_>) -> Result<String, C14nError> {
 
 #[cfg(test)]
 mod tests {
-    use super::canonicalize_exclusive;
+    use super::{canonicalize_element, canonicalize_exclusive};
 
     #[test]
     fn plain_element_is_unchanged() {
@@ -523,5 +576,31 @@ mod tests {
             canonicalize_exclusive("<a><b/></a>").expect("canonicalise"),
             "<a><b></b></a>"
         );
+    }
+
+    #[test]
+    fn a_subtree_canonicalises_as_if_it_were_its_own_document() {
+        assert_eq!(
+            canonicalize_element(
+                r#"<r xmlns:x="urn:x"><a ID="_t"><x:b>v</x:b></a></r>"#,
+                "_t"
+            )
+            .expect("canonicalise"),
+            r#"<a ID="_t"><x:b xmlns:x="urn:x">v</x:b></a>"#
+        );
+    }
+
+    #[test]
+    fn a_subtree_inherits_a_default_namespace_from_its_ancestors() {
+        assert_eq!(
+            canonicalize_element(r#"<r xmlns="urn:d"><a ID="_t"><b>v</b></a></r>"#, "_t")
+                .expect("canonicalise"),
+            r#"<a xmlns="urn:d" ID="_t"><b>v</b></a>"#
+        );
+    }
+
+    #[test]
+    fn an_unknown_element_id_is_refused() {
+        assert!(canonicalize_element("<r><a ID=\"_t\">v</a></r>", "_other").is_err());
     }
 }
