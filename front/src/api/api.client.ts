@@ -1103,6 +1103,49 @@ export namespace Schemas {
     value: WebOriginValue;
   };
   export type CreateWebOriginValidator = Partial<{ value: string }>;
+  export type SamlNameIdFormat =
+    | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
+    | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
+    | "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified";
+  export type SamlAttributeNameFormat =
+    | "urn:oasis:names:tc:SAML:2.0:attrname-format:basic"
+    | "urn:oasis:names:tc:SAML:2.0:attrname-format:uri"
+    | "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified";
+  export type ClientSamlConfig = {
+    acs_url: string;
+    client_id: string;
+    created_at: string;
+    name_id_format: SamlNameIdFormat;
+    realm_id: RealmId;
+    sign_assertions: boolean;
+    sign_documents: boolean;
+    sp_entity_id: string;
+    updated_at: string;
+    want_authn_requests_signed: boolean;
+  };
+  export type SetClientSamlConfigValidator = {
+    acs_url: string;
+    name_id_format?: string | undefined;
+    sign_assertions?: boolean | undefined;
+    sign_documents?: boolean | undefined;
+    sp_entity_id: string;
+    want_authn_requests_signed?: boolean | undefined;
+  };
+  export type SamlAttributeMapper = {
+    client_id: string;
+    created_at: string;
+    id: string;
+    name: string;
+    name_format: SamlAttributeNameFormat;
+    source: string;
+    updated_at: string;
+  };
+  export type CreateSamlAttributeMapperValidator = {
+    name: string;
+    name_format?: string | undefined;
+    source: string;
+  };
 
   // </Schemas>
 }
@@ -1732,6 +1775,87 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; client_id: string; web_origin_id: string };
+    };
+    responses: {
+      200: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_client_saml_config = {
+    method: "GET";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-config";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Schemas.ClientSamlConfig;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Set_client_saml_config = {
+    method: "PUT";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-config";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.SetClientSamlConfigValidator;
+    };
+    responses: {
+      201: Schemas.ClientSamlConfig;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_saml_attribute_mappers = {
+    method: "GET";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Array<Schemas.SamlAttributeMapper>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_saml_attribute_mapper = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.CreateSamlAttributeMapperValidator;
+    };
+    responses: {
+      201: Schemas.SamlAttributeMapper;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_saml_attribute_mapper = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers/{mapper_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string; mapper_id: string };
     };
     responses: {
       200: unknown;
@@ -3835,6 +3959,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.get_Get_post_logout_redirect_uris;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.get_Get_redirect_uris;
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.get_Get_client_roles;
+    "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers": Endpoints.get_Get_saml_attribute_mappers;
+    "/realms/{realm_name}/clients/{client_id}/saml-config": Endpoints.get_Get_client_saml_config;
     "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.get_Get_web_origins;
     "/realms/{realm_name}/compass/v1/activity/daily": Endpoints.get_Get_daily_activity_stats;
     "/realms/{realm_name}/compass/v1/flows": Endpoints.get_Get_flows;
@@ -3904,6 +4030,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.post_Create_client_role;
+    "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers": Endpoints.post_Create_saml_attribute_mapper;
     "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.post_Create_web_origin;
     "/realms/{realm_name}/device/verify": Endpoints.post_Device_verify;
     "/realms/{realm_name}/email-templates": Endpoints.post_Create_template;
@@ -3958,6 +4085,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.put_Assign_optional_scope;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.put_Update_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.put_Update_redirect_uri;
+    "/realms/{realm_name}/clients/{client_id}/saml-config": Endpoints.put_Set_client_saml_config;
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.put_Update_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.put_Update_provider;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.put_Update_identity_provider;
@@ -3989,6 +4117,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.delete_Delete_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.delete_Delete_redirect_uri;
+    "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers/{mapper_id}": Endpoints.delete_Delete_saml_attribute_mapper;
     "/realms/{realm_name}/clients/{client_id}/web-origins/{web_origin_id}": Endpoints.delete_Delete_web_origin;
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.delete_Delete_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;

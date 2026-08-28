@@ -4,7 +4,6 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
 use ferriskey_api_core::api_entities::api_error::ApiError;
 use ferriskey_api_core::app_state::AppState;
-use ferriskey_api_core::url::FullUrl;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::saml::ports::SamlService;
 use tracing::warn;
@@ -12,6 +11,9 @@ use tracing::warn;
 use crate::html::error_page;
 use crate::metadata::{SAML_METADATA_CONTENT_TYPE, idp_metadata_document};
 use crate::origin::saml_public_base_url;
+
+const MISCONFIGURED: &str =
+    "Single sign-on is not configured on this server. Set SERVER_PUBLIC_URL.";
 
 const UNKNOWN_REALM: &str = "This realm does not publish SAML metadata.";
 const UNAVAILABLE: &str = "SAML metadata is not available for this realm.";
@@ -32,13 +34,14 @@ const UNAVAILABLE: &str = "SAML metadata is not available for this realm.";
 pub async fn saml_descriptor(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
 ) -> Result<Response, ApiError> {
-    let public_base_url = saml_public_base_url(
+    let Some(public_base_url) = saml_public_base_url(
         state.args.server.public_url.as_deref(),
-        &base_url,
         &state.args.server.root_path,
-    );
+    ) else {
+        warn!("refusing a saml request: SERVER_PUBLIC_URL is not configured");
+        return Ok(error_page(StatusCode::INTERNAL_SERVER_ERROR, MISCONFIGURED));
+    };
 
     let certificate = match state
         .service
@@ -49,11 +52,13 @@ pub async fn saml_descriptor(
         Err(error) => return Ok(refusal(&realm_name, error)),
     };
 
-    let document =
-        idp_metadata_document(&public_base_url, &realm_name, certificate).map_err(|error| {
+    let document = match idp_metadata_document(&public_base_url, &realm_name, certificate) {
+        Ok(document) => document,
+        Err(error) => {
             warn!(realm = %realm_name, %error, "the realm entity descriptor could not be rendered");
-            ApiError::InternalServerError("saml metadata could not be rendered".into())
-        })?;
+            return Ok(error_page(StatusCode::INTERNAL_SERVER_ERROR, UNAVAILABLE));
+        }
+    };
 
     Ok(([(CONTENT_TYPE, SAML_METADATA_CONTENT_TYPE)], document).into_response())
 }

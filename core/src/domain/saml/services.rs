@@ -154,6 +154,19 @@ where
             ));
         }
 
+        if config.want_authn_requests_signed {
+            warn!(
+                client_id = %client.client_id,
+                "rejecting a saml authn request: this service provider requires signed requests and no verification is implemented yet"
+            );
+
+            return Err(RejectedAuthnRequest::against(
+                &client,
+                CoreError::InvalidRequest,
+                "this service provider requires signed authn requests, which are not verified yet",
+            ));
+        }
+
         resolve_assertion_consumer_service_url(
             request
                 .assertion_consumer_service_url
@@ -887,6 +900,28 @@ pub(crate) mod tests {
             self
         }
 
+        fn demanding_signed_authn_requests(mut self) -> Self {
+            let mut config = saml_config(self.realm.id, self.client.id, NameIdFormat::EmailAddress);
+            config.want_authn_requests_signed = true;
+            let by_entity_id = config.clone();
+
+            self.service_provider_repository
+                .expect_get_by_entity_id()
+                .returning(move |_, _| {
+                    let config = by_entity_id.clone();
+                    Box::pin(async move { Ok(Some(config)) })
+                });
+
+            self.service_provider_repository
+                .expect_get_by_client_id()
+                .returning(move |_| {
+                    let config = config.clone();
+                    Box::pin(async move { Ok(Some(config)) })
+                });
+
+            self
+        }
+
         fn with_registered_service_provider(mut self, name_id_format: NameIdFormat) -> Self {
             let config = saml_config(self.realm.id, self.client.id, name_id_format);
             let by_entity_id = config.clone();
@@ -1121,6 +1156,24 @@ pub(crate) mod tests {
         assert!(
             matches!(rejection, CoreError::InvalidRedirectUri),
             "the session must never be created, or the assertion would later be delivered"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_service_provider_demanding_signed_requests_is_refused_rather_than_served_unsigned() {
+        let harness = Harness::new()
+            .with_realm()
+            .with_client()
+            .demanding_signed_authn_requests();
+
+        let rejection = refusal(
+            harness.build().start_sso(start_input(None, None)).await,
+            "a signature we cannot verify must not be silently waived",
+        );
+
+        assert!(
+            matches!(rejection, CoreError::InvalidRequest),
+            "the administrator asked for signed requests, so serving an unsigned one is a lie"
         );
     }
 

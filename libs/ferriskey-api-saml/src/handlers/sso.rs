@@ -6,7 +6,6 @@ use axum::response::Response;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::ApiError;
 use ferriskey_api_core::app_state::AppState;
-use ferriskey_api_core::url::FullUrl;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::saml::entities::StartSsoInput;
 use ferriskey_core::domain::saml::ports::SamlService;
@@ -17,6 +16,9 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::html::error_page;
 use crate::origin::{saml_public_base_url, webapp_login_url};
+
+const MISCONFIGURED: &str =
+    "Single sign-on is not configured on this server. Set SERVER_PUBLIC_URL.";
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 
@@ -67,10 +69,9 @@ impl Binding {
 pub async fn saml_sso_redirect(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
     Query(params): Query<SamlAuthnRequestParams>,
 ) -> Result<Response, ApiError> {
-    begin_sso(state, realm_name, base_url, Binding::HttpRedirect, params).await
+    begin_sso(state, realm_name, Binding::HttpRedirect, params).await
 }
 
 #[utoipa::path(
@@ -90,16 +91,14 @@ pub async fn saml_sso_redirect(
 pub async fn saml_sso_post(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
     Form(params): Form<SamlAuthnRequestParams>,
 ) -> Result<Response, ApiError> {
-    begin_sso(state, realm_name, base_url, Binding::HttpPost, params).await
+    begin_sso(state, realm_name, Binding::HttpPost, params).await
 }
 
 async fn begin_sso(
     state: AppState,
     realm_name: String,
-    base_url: String,
     binding: Binding,
     params: SamlAuthnRequestParams,
 ) -> Result<Response, ApiError> {
@@ -116,11 +115,13 @@ async fn begin_sso(
         }
     };
 
-    let public_base_url = saml_public_base_url(
+    let Some(public_base_url) = saml_public_base_url(
         state.args.server.public_url.as_deref(),
-        &base_url,
         &state.args.server.root_path,
-    );
+    ) else {
+        warn!("refusing a saml request: SERVER_PUBLIC_URL is not configured");
+        return Ok(error_page(StatusCode::INTERNAL_SERVER_ERROR, MISCONFIGURED));
+    };
 
     let output = match state
         .service
