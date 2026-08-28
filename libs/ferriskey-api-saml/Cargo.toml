@@ -1,0 +1,15 @@
+[package]
+name = "ferriskey-api-saml"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-api-core = { path = "../ferriskey-api-core" }
+ferriskey-core = { path = "../../core" }
+ferriskey-saml = { path = "../ferriskey-saml" }
+axum = { workspace = true }
+axum-extra = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }

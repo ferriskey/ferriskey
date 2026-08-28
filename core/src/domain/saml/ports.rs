@@ -35,4 +35,9 @@ pub trait SamlService: Send + Sync {
         &self,
         input: FinishSsoInput,
     ) -> impl Future<Output = Result<SamlAssertionDelivery, CoreError>> + Send;
+
+    fn idp_signing_certificate(
+        &self,
+        realm_name: String,
+    ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }

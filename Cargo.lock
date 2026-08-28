@@ -1547,6 +1547,7 @@ dependencies = [
  "ferriskey-api-portal-theme",
  "ferriskey-api-realm",
  "ferriskey-api-role",
+ "ferriskey-api-saml",
  "ferriskey-api-seawatch",
  "ferriskey-api-trident",
  "ferriskey-api-user",
@@ -1811,6 +1812,20 @@ dependencies = [
  "utoipa",
  "uuid",
  "validator",
+]
+
+[[package]]
+name = "ferriskey-api-saml"
+version = "0.7.0"
+dependencies = [
+ "axum",
+ "axum-extra",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "ferriskey-saml",
+ "serde",
+ "tracing",
+ "utoipa",
 ]
 
 [[package]]

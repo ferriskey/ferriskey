@@ -17,6 +17,7 @@ use ferriskey_api_portal_layouts::router::portal_layouts_routes;
 use ferriskey_api_portal_theme::router::portal_theme_routes;
 use ferriskey_api_realm::router::realm_routes;
 use ferriskey_api_role::router::role_routes;
+use ferriskey_api_saml::router::saml_routes;
 use ferriskey_api_seawatch::router::seawatch_router;
 use ferriskey_api_trident::router::trident_routes;
 use ferriskey_api_user::router::user_routes;
@@ -154,6 +155,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(abyss_routes(state.clone()))
         .merge(aegis_routes(state.clone()))
         .merge(broker_routes(state.clone(), &root_path))
+        .merge(saml_routes(state.clone(), &root_path))
         .merge(organization_routes(state.clone()))
         .merge(health_routes(&root_path))
         .route(

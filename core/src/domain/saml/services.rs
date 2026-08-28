@@ -199,6 +199,24 @@ where
         })
     }
 
+    async fn idp_signing_certificate(&self, realm_name: String) -> Result<String, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let keypair = self
+            .keystore_repository
+            .get_or_generate_key(realm.id)
+            .await
+            .map_err(|_| CoreError::RealmKeyNotFound)?;
+
+        keypair
+            .certificate_base64_der()
+            .map_err(|reason| CoreError::InvalidKey(reason.to_string()))
+    }
+
     async fn finish_sso(&self, input: FinishSsoInput) -> Result<SamlAssertionDelivery, CoreError> {
         let realm = self
             .realm_repository
