@@ -70,6 +70,12 @@ pub enum CoreError {
     #[error("Invalid refresh token")]
     InvalidRefreshToken,
 
+    #[error("The session backing this token no longer exists or has expired")]
+    SessionRevoked,
+
+    #[error("{0}")]
+    InvalidGrant(String),
+
     #[error("Invalid client secret")]
     InvalidClientSecret,
 

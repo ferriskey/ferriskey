@@ -63,6 +63,16 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidRefreshToken => {
                         Self::Unauthorized("Invalid refresh token".into())
                     }
+            // Presenting a token whose session was revoked to a protected
+            // resource is an authentication failure. The token endpoint maps
+            // this to `invalid_grant` itself (RFC 6749 §5.2) before it gets here.
+            CoreError::SessionRevoked => {
+                        Self::Unauthorized("Session revoked".into())
+                    }
+            CoreError::InvalidGrant(description) => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: description.into(),
+            },
             CoreError::InvalidClientSecret => {
                         Self::Unauthorized("Invalid client secret".into())
                     }
