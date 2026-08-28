@@ -130,6 +130,12 @@ pub enum FlowStepName {
 
     #[serde(rename = "finalize")]
     Finalize,
+
+    #[serde(rename = "saml_authn_request")]
+    SamlAuthnRequest,
+
+    #[serde(rename = "saml_assertion")]
+    SamlAssertion,
 }
 
 impl Display for FlowStepName {
@@ -142,6 +148,8 @@ impl Display for FlowStepName {
             FlowStepName::IdpRedirect => write!(f, "idp_redirect"),
             FlowStepName::IdpCallback => write!(f, "idp_callback"),
             FlowStepName::Finalize => write!(f, "finalize"),
+            FlowStepName::SamlAuthnRequest => write!(f, "saml_authn_request"),
+            FlowStepName::SamlAssertion => write!(f, "saml_assertion"),
         }
     }
 }

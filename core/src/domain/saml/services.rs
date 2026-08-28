@@ -1,7 +1,9 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
+use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_saml::authn::{AbsoluteUri, AuthnRequest};
 use ferriskey_saml::response::render_signed_response;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
@@ -11,9 +13,11 @@ use crate::domain::authentication::entities::{
     AuthOutput, AuthProtocol, AuthSession, AuthSessionParams,
 };
 use crate::domain::authentication::ports::AuthSessionRepository;
+use crate::domain::client::entities::Client;
 use crate::domain::client::entities::saml::SpEntityId;
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::realm::entities::Realm;
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::saml::entities::{
     AssertionBlueprint, FinishSsoInput, SamlAssertionDelivery, SamlSsoError, StartSsoInput,
@@ -42,6 +46,7 @@ where
     pub(crate) user_attribute_repository: Arc<UA>,
     pub(crate) auth_session_repository: Arc<A>,
     pub(crate) keystore_repository: Arc<K>,
+    pub(crate) flow_recorder: FlowRecorder,
 }
 
 impl<R, C, S, U, UA, A, K> SamlServiceImpl<R, C, S, U, UA, A, K>
@@ -54,6 +59,7 @@ where
     A: AuthSessionRepository,
     K: KeyStoreRepository,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         realm_repository: Arc<R>,
         client_repository: Arc<C>,
@@ -62,6 +68,7 @@ where
         user_attribute_repository: Arc<UA>,
         auth_session_repository: Arc<A>,
         keystore_repository: Arc<K>,
+        flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
             realm_repository,
@@ -71,52 +78,40 @@ where
             user_attribute_repository,
             auth_session_repository,
             keystore_repository,
+            flow_recorder,
         }
     }
-}
 
-pub fn format_login_url(client_id: &str, redirect_uri: &str, relay_state: Option<&str>) -> String {
-    format!(
-        "?client_id={}&redirect_uri={}&state={}",
-        urlencoding::encode(client_id),
-        urlencoding::encode(redirect_uri),
-        urlencoding::encode(relay_state.unwrap_or_default()),
-    )
-}
+    async fn accept_authn_request(
+        &self,
+        realm: &Realm,
+        input: &StartSsoInput,
+    ) -> Result<AcceptedAuthnRequest, RejectedAuthnRequest> {
+        let request = AuthnRequest::parse(&input.authn_request)
+            .map_err(|reason| RejectedAuthnRequest::unattributed(SamlSsoError::from(reason)))?;
 
-impl<R, C, S, U, UA, A, K> SamlService for SamlServiceImpl<R, C, S, U, UA, A, K>
-where
-    R: RealmRepository,
-    C: ClientRepository,
-    S: SamlServiceProviderRepository,
-    U: UserRepository,
-    UA: UserAttributeRepository,
-    A: AuthSessionRepository,
-    K: KeyStoreRepository,
-{
-    async fn start_sso(&self, input: StartSsoInput) -> Result<AuthOutput, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
-        let request = AuthnRequest::parse(&input.authn_request).map_err(SamlSsoError::from)?;
-
-        let issuer = SpEntityId::from_str(request.issuer.as_str())
-            .map_err(|_| SamlSsoError::UnknownServiceProvider(request.issuer.to_string()))?;
+        let issuer = SpEntityId::from_str(request.issuer.as_str()).map_err(|_| {
+            RejectedAuthnRequest::unattributed(SamlSsoError::UnknownServiceProvider(
+                request.issuer.to_string(),
+            ))
+        })?;
 
         let config = self
             .service_provider_repository
             .get_by_entity_id(realm.id, issuer.clone())
-            .await?
-            .ok_or_else(|| SamlSsoError::UnknownServiceProvider(issuer.to_string()))?;
+            .await
+            .map_err(RejectedAuthnRequest::unreadable)?
+            .ok_or_else(|| {
+                RejectedAuthnRequest::unattributed(SamlSsoError::UnknownServiceProvider(
+                    issuer.to_string(),
+                ))
+            })?;
 
         let client = self
             .client_repository
             .get_by_id(realm.id, config.client_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| RejectedAuthnRequest::unreadable(CoreError::InvalidClient))?;
 
         if !client.enabled {
             warn!(
@@ -124,7 +119,11 @@ where
                 "rejecting a saml authn request: the service provider is disabled"
             );
 
-            return Err(CoreError::InvalidClient);
+            return Err(RejectedAuthnRequest::against(
+                &client,
+                CoreError::InvalidClient,
+                "the service provider is disabled",
+            ));
         }
 
         let protocol = client.protocol.parse::<AuthProtocol>().map_err(|reason| {
@@ -134,7 +133,11 @@ where
                 "rejecting a saml authn request for a client whose protocol is unknown"
             );
 
-            CoreError::InvalidClient
+            RejectedAuthnRequest::against(
+                &client,
+                CoreError::InvalidClient,
+                "the client speaks an unknown protocol",
+            )
         })?;
 
         if protocol != AuthProtocol::Saml {
@@ -144,7 +147,11 @@ where
                 "rejecting a saml authn request: this endpoint only serves saml clients"
             );
 
-            return Err(CoreError::InvalidClient);
+            return Err(RejectedAuthnRequest::against(
+                &client,
+                CoreError::InvalidClient,
+                "this endpoint only serves saml clients",
+            ));
         }
 
         resolve_assertion_consumer_service_url(
@@ -161,105 +168,18 @@ where
                 "rejecting a saml authn request: the assertion would leave for an unregistered address"
             );
 
-            rejection
+            RejectedAuthnRequest::against_with(&client, rejection)
         })?;
 
-        let redirect_uri = sso_continue_url(&input.public_base_url, &realm.name);
-
-        let session = self
-            .auth_session_repository
-            .create(&AuthSession::new(AuthSessionParams {
-                realm_id: realm.id,
-                client_id: client.id,
-                protocol: AuthProtocol::Saml,
-                redirect_uri: redirect_uri.clone(),
-                response_type: None,
-                scope: None,
-                state: input.relay_state.clone(),
-                nonce: record_authn_request_id(&request.id),
-                user_id: None,
-                code: None,
-                authenticated: false,
-                webauthn_challenge: None,
-                webauthn_challenge_issued_at: None,
-                compass_flow_id: None,
-                code_challenge: None,
-                code_challenge_method: None,
-            }))
-            .await
-            .map_err(|_| CoreError::SessionCreateError)?;
-
-        Ok(AuthOutput {
-            login_url: format_login_url(
-                &client.client_id,
-                &redirect_uri,
-                input.relay_state.as_deref(),
-            ),
-            session,
-        })
+        Ok(AcceptedAuthnRequest { client, request })
     }
 
-    async fn idp_signing_certificate(&self, realm_name: String) -> Result<String, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
-        let keypair = self
-            .keystore_repository
-            .get_or_generate_key(realm.id)
-            .await
-            .map_err(|_| CoreError::RealmKeyNotFound)?;
-
-        keypair
-            .certificate_base64_der()
-            .map_err(|reason| CoreError::InvalidKey(reason.to_string()))
-    }
-
-    async fn finish_sso(&self, input: FinishSsoInput) -> Result<SamlAssertionDelivery, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
-        let auth_session = self
-            .auth_session_repository
-            .get_by_code(input.authorization_code)
-            .await
-            .map_err(|_| CoreError::MissingAuthorizationCode)?
-            .ok_or(CoreError::InvalidAuthorizationCode)?;
-
-        if auth_session.protocol != AuthProtocol::Saml {
-            warn!(
-                auth_session_id = %auth_session.id,
-                protocol = %auth_session.protocol,
-                "rejecting a saml continuation: the code was minted for another protocol"
-            );
-
-            return Err(SamlSsoError::NotASamlAuthentication.into());
-        }
-
-        if auth_session.realm_id != realm.id {
-            warn!(
-                session_realm = ?auth_session.realm_id,
-                request_realm = ?realm.id,
-                "rejecting a saml continuation: the code was issued for a different realm"
-            );
-
-            return Err(CoreError::InvalidAuthorizationCode);
-        }
-
-        if auth_session.authenticated {
-            warn!(
-                auth_session_id = %auth_session.id,
-                "rejecting a saml continuation: the code has already been redeemed"
-            );
-
-            return Err(CoreError::InvalidAuthorizationCode);
-        }
-
+    async fn issue_assertion(
+        &self,
+        realm: &Realm,
+        auth_session: AuthSession,
+        input: &FinishSsoInput,
+    ) -> Result<SamlAssertionDelivery, CoreError> {
         if Utc::now() >= auth_session.expires_at {
             return Err(CoreError::SessionExpired);
         }
@@ -363,14 +283,328 @@ where
     }
 }
 
+const SAML_SSO_GRANT_TYPE: &str = "saml_sso";
+
+struct AcceptedAuthnRequest {
+    client: Client,
+    request: AuthnRequest,
+}
+
+struct RejectedAuthnRequest {
+    client_id: Option<String>,
+    error: CoreError,
+    reason: String,
+}
+
+impl RejectedAuthnRequest {
+    fn unattributed(error: SamlSsoError) -> Self {
+        Self {
+            client_id: None,
+            reason: error.to_string(),
+            error: error.into(),
+        }
+    }
+
+    fn unreadable(error: CoreError) -> Self {
+        Self {
+            client_id: None,
+            reason: error.to_string(),
+            error,
+        }
+    }
+
+    fn against(client: &Client, error: CoreError, reason: &str) -> Self {
+        Self {
+            client_id: Some(client.client_id.clone()),
+            error,
+            reason: reason.to_string(),
+        }
+    }
+
+    fn against_with(client: &Client, error: SamlSsoError) -> Self {
+        Self {
+            client_id: Some(client.client_id.clone()),
+            reason: error.to_string(),
+            error: error.into(),
+        }
+    }
+}
+
+fn elapsed_since(started_at: DateTime<Utc>) -> i64 {
+    (Utc::now() - started_at).num_milliseconds()
+}
+
+fn error_code(error: &CoreError) -> String {
+    format!("{error:?}")
+}
+
+pub fn format_login_url(client_id: &str, redirect_uri: &str, relay_state: Option<&str>) -> String {
+    format!(
+        "?client_id={}&redirect_uri={}&state={}",
+        urlencoding::encode(client_id),
+        urlencoding::encode(redirect_uri),
+        urlencoding::encode(relay_state.unwrap_or_default()),
+    )
+}
+
+impl<R, C, S, U, UA, A, K> SamlService for SamlServiceImpl<R, C, S, U, UA, A, K>
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    S: SamlServiceProviderRepository,
+    U: UserRepository,
+    UA: UserAttributeRepository,
+    A: AuthSessionRepository,
+    K: KeyStoreRepository,
+{
+    async fn start_sso(&self, input: StartSsoInput) -> Result<AuthOutput, CoreError> {
+        let started_at = Utc::now();
+
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let accepted = match self.accept_authn_request(&realm, &input).await {
+            Ok(accepted) => accepted,
+            Err(rejection) => {
+                let flow_id = self
+                    .flow_recorder
+                    .start_flow(
+                        realm.id,
+                        rejection.client_id,
+                        SAML_SSO_GRANT_TYPE.to_string(),
+                        None,
+                        None,
+                    )
+                    .await;
+
+                let duration = elapsed_since(started_at);
+
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::SamlAuthnRequest,
+                    StepStatus::Failure,
+                    Some(duration),
+                    Some(error_code(&rejection.error)),
+                    Some(rejection.reason),
+                );
+
+                self.flow_recorder
+                    .complete_flow(flow_id, FlowStatus::Failure, duration, None);
+
+                return Err(rejection.error);
+            }
+        };
+
+        let redirect_uri = sso_continue_url(&input.public_base_url, &realm.name);
+
+        let flow_id = self
+            .flow_recorder
+            .start_flow(
+                realm.id,
+                Some(accepted.client.client_id.clone()),
+                SAML_SSO_GRANT_TYPE.to_string(),
+                None,
+                None,
+            )
+            .await;
+
+        let parked = self
+            .auth_session_repository
+            .create(&AuthSession::new(AuthSessionParams {
+                realm_id: realm.id,
+                client_id: accepted.client.id,
+                protocol: AuthProtocol::Saml,
+                redirect_uri: redirect_uri.clone(),
+                response_type: None,
+                scope: None,
+                state: input.relay_state.clone(),
+                nonce: record_authn_request_id(&accepted.request.id),
+                user_id: None,
+                code: None,
+                authenticated: false,
+                webauthn_challenge: None,
+                webauthn_challenge_issued_at: None,
+                compass_flow_id: Some(flow_id.0),
+                code_challenge: None,
+                code_challenge_method: None,
+            }))
+            .await;
+
+        let session = match parked {
+            Ok(session) => session,
+            Err(reason) => {
+                warn!(
+                    client_id = %accepted.client.client_id,
+                    %reason,
+                    "a saml authn request could not be parked for the login page"
+                );
+
+                let duration = elapsed_since(started_at);
+                let error = CoreError::SessionCreateError;
+
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::SamlAuthnRequest,
+                    StepStatus::Failure,
+                    Some(duration),
+                    Some(error_code(&error)),
+                    Some(reason.to_string()),
+                );
+
+                self.flow_recorder
+                    .complete_flow(flow_id, FlowStatus::Failure, duration, None);
+
+                return Err(error);
+            }
+        };
+
+        self.flow_recorder.record_step(
+            flow_id,
+            FlowStepName::SamlAuthnRequest,
+            StepStatus::Success,
+            Some(elapsed_since(started_at)),
+            None,
+            None,
+        );
+
+        Ok(AuthOutput {
+            login_url: format_login_url(
+                &accepted.client.client_id,
+                &redirect_uri,
+                input.relay_state.as_deref(),
+            ),
+            session,
+        })
+    }
+
+    async fn idp_signing_certificate(&self, realm_name: String) -> Result<String, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let keypair = self
+            .keystore_repository
+            .get_or_generate_key(realm.id)
+            .await
+            .map_err(|_| CoreError::RealmKeyNotFound)?;
+
+        keypair
+            .certificate_base64_der()
+            .map_err(|reason| CoreError::InvalidKey(reason.to_string()))
+    }
+
+    async fn finish_sso(&self, input: FinishSsoInput) -> Result<SamlAssertionDelivery, CoreError> {
+        let started_at = Utc::now();
+
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_code(input.authorization_code.clone())
+            .await
+            .map_err(|_| CoreError::MissingAuthorizationCode)?
+            .ok_or(CoreError::InvalidAuthorizationCode)?;
+
+        if auth_session.protocol != AuthProtocol::Saml {
+            warn!(
+                auth_session_id = %auth_session.id,
+                protocol = %auth_session.protocol,
+                "rejecting a saml continuation: the code was minted for another protocol"
+            );
+
+            return Err(SamlSsoError::NotASamlAuthentication.into());
+        }
+
+        if auth_session.realm_id != realm.id {
+            warn!(
+                session_realm = ?auth_session.realm_id,
+                request_realm = ?realm.id,
+                "rejecting a saml continuation: the code was issued for a different realm"
+            );
+
+            return Err(CoreError::InvalidAuthorizationCode);
+        }
+
+        if auth_session.authenticated {
+            warn!(
+                auth_session_id = %auth_session.id,
+                "rejecting a saml continuation: the code has already been redeemed"
+            );
+
+            return Err(CoreError::InvalidAuthorizationCode);
+        }
+
+        let flow_id = auth_session.compass_flow_id.map(FlowId);
+        let user_id = auth_session.user_id;
+
+        let delivery = self.issue_assertion(&realm, auth_session, &input).await;
+
+        if let Some(flow_id) = flow_id {
+            let duration = elapsed_since(started_at);
+
+            match &delivery {
+                Ok(_) => {
+                    self.flow_recorder.record_step(
+                        flow_id.clone(),
+                        FlowStepName::SamlAssertion,
+                        StepStatus::Success,
+                        Some(duration),
+                        None,
+                        None,
+                    );
+
+                    self.flow_recorder.complete_flow(
+                        flow_id,
+                        FlowStatus::Success,
+                        duration,
+                        user_id,
+                    );
+                }
+                Err(error) => {
+                    self.flow_recorder.record_step(
+                        flow_id.clone(),
+                        FlowStepName::SamlAssertion,
+                        StepStatus::Failure,
+                        Some(duration),
+                        Some(error_code(error)),
+                        Some(error.to_string()),
+                    );
+
+                    self.flow_recorder.complete_flow(
+                        flow_id,
+                        FlowStatus::Failure,
+                        duration,
+                        user_id,
+                    );
+                }
+            }
+        }
+
+        delivery
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
 
     use std::sync::OnceLock;
 
+    use ferriskey_compass::entities::{CompassFlow, CompassFlowStep};
+    use ferriskey_compass::recorder::CompassEvent;
     use ferriskey_security::SecurityError;
     use mockall::predicate::eq;
+    use tokio::sync::mpsc;
+    use tokio::task::JoinHandle;
     use uuid::Uuid;
 
     use crate::domain::authentication::entities::AuthenticationError;
@@ -536,6 +770,63 @@ pub(crate) mod tests {
         user
     }
 
+    type TestSamlService = SamlServiceImpl<
+        MockRealmRepository,
+        MockClientRepository,
+        MockSamlServiceProviderRepository,
+        MockUserRepository,
+        MockUserAttributeRepository,
+        MockAuthSessionRepository,
+        FixedKeyStore,
+    >;
+
+    #[derive(Debug)]
+    enum Recorded {
+        FlowStarted(CompassFlow),
+        Step(CompassFlowStep),
+        FlowCompleted {
+            status: FlowStatus,
+            user_id: Option<Uuid>,
+        },
+    }
+
+    fn started_flow(recorded: &[Recorded]) -> &CompassFlow {
+        recorded
+            .iter()
+            .find_map(|event| match event {
+                Recorded::FlowStarted(flow) => Some(flow),
+                _ => None,
+            })
+            .expect("the login must open a compass flow")
+    }
+
+    fn recorded_steps(recorded: &[Recorded]) -> Vec<&CompassFlowStep> {
+        recorded
+            .iter()
+            .filter_map(|event| match event {
+                Recorded::Step(step) => Some(step),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn completion(recorded: &[Recorded]) -> Option<(&FlowStatus, &Option<Uuid>)> {
+        recorded.iter().find_map(|event| match event {
+            Recorded::FlowCompleted { status, user_id } => Some((status, user_id)),
+            _ => None,
+        })
+    }
+
+    async fn drain(
+        service: TestSamlService,
+        collector: JoinHandle<Vec<Recorded>>,
+    ) -> Vec<Recorded> {
+        drop(service);
+        collector
+            .await
+            .expect("the compass collector must not panic")
+    }
+
     struct Harness {
         realm: Realm,
         client: Client,
@@ -545,12 +836,15 @@ pub(crate) mod tests {
         user_repository: MockUserRepository,
         user_attribute_repository: MockUserAttributeRepository,
         auth_session_repository: MockAuthSessionRepository,
+        flow_recorder: FlowRecorder,
+        compass_events: Option<mpsc::Receiver<CompassEvent>>,
     }
 
     impl Harness {
         fn new() -> Self {
             let realm = realm();
             let client = saml_client(realm.id);
+            let (compass_sender, compass_events) = mpsc::channel(64);
 
             Self {
                 realm,
@@ -561,6 +855,8 @@ pub(crate) mod tests {
                 user_repository: MockUserRepository::new(),
                 user_attribute_repository: MockUserAttributeRepository::new(),
                 auth_session_repository: MockAuthSessionRepository::new(),
+                flow_recorder: FlowRecorder::new(compass_sender),
+                compass_events: Some(compass_events),
             }
         }
 
@@ -612,17 +908,7 @@ pub(crate) mod tests {
             self
         }
 
-        fn build(
-            self,
-        ) -> SamlServiceImpl<
-            MockRealmRepository,
-            MockClientRepository,
-            MockSamlServiceProviderRepository,
-            MockUserRepository,
-            MockUserAttributeRepository,
-            MockAuthSessionRepository,
-            FixedKeyStore,
-        > {
+        fn build(self) -> TestSamlService {
             SamlServiceImpl::new(
                 Arc::new(self.realm_repository),
                 Arc::new(self.client_repository),
@@ -631,7 +917,37 @@ pub(crate) mod tests {
                 Arc::new(self.user_attribute_repository),
                 Arc::new(self.auth_session_repository),
                 Arc::new(key_store()),
+                self.flow_recorder,
             )
+        }
+
+        fn build_recording(mut self) -> (TestSamlService, JoinHandle<Vec<Recorded>>) {
+            let mut events = self
+                .compass_events
+                .take()
+                .expect("the harness opens exactly one compass channel");
+
+            let collector = tokio::spawn(async move {
+                let mut recorded = Vec::new();
+
+                while let Some(event) = events.recv().await {
+                    match event {
+                        CompassEvent::FlowStarted { flow, ack } => {
+                            recorded.push(Recorded::FlowStarted(flow));
+                            ack.send(())
+                                .expect("the recorder waits for this acknowledgement");
+                        }
+                        CompassEvent::StepRecorded(step) => recorded.push(Recorded::Step(step)),
+                        CompassEvent::FlowCompleted {
+                            status, user_id, ..
+                        } => recorded.push(Recorded::FlowCompleted { status, user_id }),
+                    }
+                }
+
+                recorded
+            });
+
+            (self.build(), collector)
         }
     }
 
@@ -855,6 +1171,116 @@ pub(crate) mod tests {
         assert!(matches!(rejection, CoreError::InvalidRequest));
     }
 
+    #[tokio::test]
+    async fn a_started_sso_opens_a_compass_flow_the_console_can_follow() {
+        let mut harness = Harness::new()
+            .with_realm()
+            .with_client()
+            .with_registered_service_provider(NameIdFormat::EmailAddress);
+
+        harness
+            .auth_session_repository
+            .expect_create()
+            .returning(|session| {
+                let session = session.clone();
+                Box::pin(async move { Ok(session) })
+            });
+
+        let (service, collector) = harness.build_recording();
+        let output = service
+            .start_sso(start_input(Some("relay-me"), Some(REGISTERED_ACS)))
+            .await
+            .expect("a registered service provider starts an sso");
+        let recorded = drain(service, collector).await;
+
+        let flow = started_flow(&recorded);
+        assert_eq!(flow.grant_type, "saml_sso");
+        assert_eq!(flow.client_id.as_deref(), Some("chatwoot"));
+        assert_eq!(
+            output.session.compass_flow_id,
+            Some(flow.id.0),
+            "the login must carry the flow so the later steps land on the same timeline"
+        );
+
+        let steps = recorded_steps(&recorded);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].step_name, FlowStepName::SamlAuthnRequest);
+        assert_eq!(steps[0].status, StepStatus::Success);
+        assert_eq!(steps[0].error_message, None);
+
+        assert!(
+            completion(&recorded).is_none(),
+            "the flow stays open until the assertion is issued"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_authn_request_naming_an_attacker_chosen_acs_url_is_recorded_as_a_dead_flow() {
+        let harness = Harness::new()
+            .with_realm()
+            .with_client()
+            .with_registered_service_provider(NameIdFormat::EmailAddress);
+
+        let (service, collector) = harness.build_recording();
+        let outcome = service
+            .start_sso(start_input(None, Some("https://evil.example.com/steal")))
+            .await;
+        let recorded = drain(service, collector).await;
+
+        refusal(outcome, "an unregistered acs url cannot start an sso");
+
+        let flow = started_flow(&recorded);
+        assert_eq!(flow.client_id.as_deref(), Some("chatwoot"));
+
+        let steps = recorded_steps(&recorded);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].step_name, FlowStepName::SamlAuthnRequest);
+        assert_eq!(steps[0].status, StepStatus::Failure);
+        assert_eq!(steps[0].error_code.as_deref(), Some("InvalidRedirectUri"));
+        assert!(
+            steps[0]
+                .error_message
+                .as_deref()
+                .is_some_and(|reason| reason.contains("evil.example.com")),
+            "the timeline must name the address the assertion would have left for"
+        );
+
+        let (status, user_id) =
+            completion(&recorded).expect("a rejected request must not leave a pending flow");
+        assert_eq!(status, &FlowStatus::Failure);
+        assert_eq!(user_id, &None);
+    }
+
+    #[tokio::test]
+    async fn a_malformed_authn_request_is_recorded_against_no_client() {
+        let harness = Harness::new().with_realm();
+
+        let mut input = start_input(None, None);
+        input.authn_request = "<not-a-saml-request/>".to_string();
+
+        let (service, collector) = harness.build_recording();
+        let outcome = service.start_sso(input).await;
+        let recorded = drain(service, collector).await;
+
+        refusal(outcome, "a malformed request cannot start an sso");
+
+        let flow = started_flow(&recorded);
+        assert_eq!(
+            flow.client_id, None,
+            "an unparsable request names no service provider"
+        );
+        assert_eq!(flow.grant_type, "saml_sso");
+
+        let steps = recorded_steps(&recorded);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].step_name, FlowStepName::SamlAuthnRequest);
+        assert_eq!(steps[0].status, StepStatus::Failure);
+
+        let (status, _) =
+            completion(&recorded).expect("a rejected request must not leave a pending flow");
+        assert_eq!(status, &FlowStatus::Failure);
+    }
+
     struct FinishHarness {
         harness: Harness,
         session: AuthSession,
@@ -918,7 +1344,13 @@ pub(crate) mod tests {
             self
         }
 
-        async fn finish(mut self) -> Result<SamlAssertionDelivery, CoreError> {
+        fn under_a_compass_flow(mut self) -> Self {
+            self.session.compass_flow_id = Some(Uuid::new_v4());
+
+            self
+        }
+
+        fn arm(&mut self) {
             let session = self.session.clone();
             self.harness
                 .auth_session_repository
@@ -936,8 +1368,23 @@ pub(crate) mod tests {
                     let user = user.clone();
                     Box::pin(async move { Ok(user) })
                 });
+        }
+
+        async fn finish(mut self) -> Result<SamlAssertionDelivery, CoreError> {
+            self.arm();
 
             self.harness.build().finish_sso(finish_input()).await
+        }
+
+        async fn finish_recording(
+            mut self,
+        ) -> (Result<SamlAssertionDelivery, CoreError>, Vec<Recorded>) {
+            self.arm();
+
+            let (service, collector) = self.harness.build_recording();
+            let outcome = service.finish_sso(finish_input()).await;
+
+            (outcome, drain(service, collector).await)
         }
     }
 
@@ -1154,5 +1601,86 @@ pub(crate) mod tests {
         );
 
         assert!(matches!(rejection, CoreError::MissingAuthorizationCode));
+    }
+
+    #[tokio::test]
+    async fn a_finished_sso_completes_the_flow_its_authn_request_opened() {
+        let harness = FinishHarness::new(NameIdFormat::EmailAddress, Vec::new())
+            .under_a_compass_flow()
+            .expecting_consumption();
+
+        let flow_id = harness
+            .session
+            .compass_flow_id
+            .expect("the fixture session runs under a compass flow");
+        let user_id = harness.session.user_id;
+
+        let (outcome, recorded) = harness.finish_recording().await;
+        outcome.expect("a consumable saml code yields an assertion");
+
+        let steps = recorded_steps(&recorded);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].flow_id.0, flow_id);
+        assert_eq!(steps[0].step_name, FlowStepName::SamlAssertion);
+        assert_eq!(steps[0].status, StepStatus::Success);
+        assert_eq!(steps[0].error_message, None);
+
+        let (status, recorded_user) =
+            completion(&recorded).expect("an issued assertion closes the login");
+        assert_eq!(status, &FlowStatus::Success);
+        assert_eq!(recorded_user, &user_id);
+    }
+
+    #[tokio::test]
+    async fn a_finished_sso_that_mints_no_assertion_completes_the_flow_as_a_failure() {
+        let mut harness =
+            FinishHarness::new(NameIdFormat::EmailAddress, Vec::new()).under_a_compass_flow();
+        harness.user.enabled = false;
+
+        let (outcome, recorded) = harness.finish_recording().await;
+        let rejection = refusal(outcome, "a disabled user must not mint an assertion");
+        assert!(matches!(rejection, CoreError::UserDisabled));
+
+        let steps = recorded_steps(&recorded);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].step_name, FlowStepName::SamlAssertion);
+        assert_eq!(steps[0].status, StepStatus::Failure);
+        assert_eq!(steps[0].error_code.as_deref(), Some("UserDisabled"));
+
+        let (status, _) = completion(&recorded).expect("a dead login must not stay pending");
+        assert_eq!(status, &FlowStatus::Failure);
+    }
+
+    #[tokio::test]
+    async fn an_authorization_code_from_an_openid_connect_login_leaves_its_flow_untouched() {
+        let mut harness =
+            FinishHarness::new(NameIdFormat::EmailAddress, Vec::new()).under_a_compass_flow();
+        harness.session.protocol = AuthProtocol::OpenIdConnect;
+
+        let (outcome, recorded) = harness.finish_recording().await;
+        refusal(
+            outcome,
+            "an openid-connect code must not be redeemable for an assertion",
+        );
+
+        assert!(
+            recorded.is_empty(),
+            "a saml rejection must not write on a login another protocol still owns"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_replayed_authorization_code_never_reopens_a_settled_flow() {
+        let mut harness =
+            FinishHarness::new(NameIdFormat::EmailAddress, Vec::new()).under_a_compass_flow();
+        harness.session.authenticated = true;
+
+        let (outcome, recorded) = harness.finish_recording().await;
+        refusal(outcome, "a spent code must not mint a second assertion");
+
+        assert!(
+            recorded.is_empty(),
+            "the first assertion already settled this flow"
+        );
     }
 }
