@@ -16,6 +16,7 @@ use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
+use url::Url;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
@@ -25,6 +26,14 @@ use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState}
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
+
+fn console_origin(validated_redirect_uri: &str, webapp_url: &str) -> String {
+    Url::parse(validated_redirect_uri)
+        .ok()
+        .filter(|parsed| parsed.host_str().is_some())
+        .map(|parsed| parsed.origin().ascii_serialization())
+        .unwrap_or_else(|| webapp_url.trim_end_matches('/').to_string())
+}
 
 fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
     format!(
@@ -172,7 +181,8 @@ pub async fn auth_handler(
         }
     }
 
-    let full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
+    let console = console_origin(&params.redirect_uri, &state.args.webapp_url);
+    let full_url = webapp_login_url(&console, &realm_name, &result.login_url);
 
     let mut session_cookie = Cookie::build((AUTH_SESSION_COOKIE, result.session.id.to_string()))
         .path("/")
@@ -224,7 +234,41 @@ pub async fn auth_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::webapp_login_url;
+    use super::{console_origin, webapp_login_url};
+
+    #[test]
+    fn the_login_page_is_served_from_the_origin_the_flow_started_on() {
+        assert_eq!(
+            console_origin(
+                "https://app.example.com/realms/master/authentication/callback",
+                "https://auth.example.com"
+            ),
+            "https://app.example.com"
+        );
+    }
+
+    #[test]
+    fn a_port_is_part_of_the_origin_and_must_survive() {
+        assert_eq!(
+            console_origin(
+                "http://localhost:5555/realms/master/callback",
+                "https://auth.example.com"
+            ),
+            "http://localhost:5555"
+        );
+    }
+
+    #[test]
+    fn an_unusable_redirect_uri_falls_back_to_the_configured_console() {
+        assert_eq!(
+            console_origin("not a url", "https://auth.example.com"),
+            "https://auth.example.com"
+        );
+        assert_eq!(
+            console_origin("", "https://auth.example.com"),
+            "https://auth.example.com"
+        );
+    }
 
     #[test]
     fn joins_webapp_login_url_without_double_slashes() {
