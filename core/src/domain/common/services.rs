@@ -50,6 +50,46 @@ where
     pub(crate) redirect_uri_repository: Arc<RU>,
 }
 
+async fn ensure_admin_password_credential<CR, H>(
+    credential_repository: &CR,
+    hasher_repository: &H,
+    user_id: uuid::Uuid,
+    username: &str,
+    password: &str,
+) -> Result<(), CoreError>
+where
+    H: HasherRepository,
+    CR: CredentialRepository,
+{
+    if credential_repository
+        .has_password_credential(user_id)
+        .await
+        .map_err(|_| CoreError::GetPasswordCredentialError)?
+    {
+        tracing::info!(
+            "password credential already exists for user {username}; configured admin password is not applied"
+        );
+        return Ok(());
+    }
+
+    let hash = hasher_repository
+        .hash_password(password)
+        .await
+        .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+    match credential_repository
+        .create_credential(user_id, "password".to_string(), hash, "".into(), false)
+        .await
+    {
+        Ok(_) => tracing::info!("credential created for user {username}"),
+        Err(error) => {
+            tracing::error!("failed to create password credential for user {username}: {error:?}")
+        }
+    }
+
+    Ok(())
+}
+
 impl<R, K, C, U, RO, UR, H, CR, RU> CoreServiceImpl<R, K, C, U, RO, UR, H, CR, RU>
 where
     R: RealmRepository,
@@ -348,37 +388,14 @@ where
             }
         }
 
-        let password_credential_exists = self
-            .credential_repository
-            .get_password_credential(user.id)
-            .await
-            .is_ok();
-
-        if password_credential_exists {
-            tracing::info!("credential already exists for user {:}", user.username);
-        } else {
-            let hash = self
-                .hasher_repository
-                .hash_password(&config.admin_password)
-                .await
-                .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
-
-            match self
-                .credential_repository
-                .create_credential(user.id, "password".to_string(), hash, "".into(), false)
-                .await
-            {
-                Ok(_) => {
-                    tracing::info!("credential created for user {:}", user.username);
-                }
-                Err(e) => {
-                    tracing::error!(
-                        "failed to create credential for user {:}: {e:?}",
-                        user.username
-                    );
-                }
-            }
-        }
+        ensure_admin_password_credential(
+            self.credential_repository.as_ref(),
+            self.hasher_repository.as_ref(),
+            user.id,
+            &user.username,
+            &config.admin_password,
+        )
+        .await?;
 
         // Exactly one redirect URI: the console's own callback on this deployment's
         // origin. The previous list seeded `^/*`, a regex accepting every URI, which
@@ -750,5 +767,40 @@ pub mod tests {
             Ok(value) => value,
             Err(error) => panic!("Expected success, but got error: {:?}", error),
         }
+    }
+}
+
+#[cfg(test)]
+mod initialization_tests {
+    use super::*;
+    use crate::domain::{
+        common::services::tests::create_test_user, credential::ports::MockCredentialRepository,
+        crypto::MockHasherRepository, realm::entities::RealmId,
+    };
+    use mockall::predicate::eq;
+
+    #[tokio::test]
+    async fn skips_creating_admin_password_when_one_already_exists() -> Result<(), CoreError> {
+        let user = create_test_user(RealmId::default());
+
+        let mut credential_repository = MockCredentialRepository::new();
+        credential_repository
+            .expect_has_password_credential()
+            .with(eq(user.id))
+            .times(1)
+            .return_once(|_| Box::pin(async move { Ok(true) }));
+
+        let hasher_repository = MockHasherRepository::new();
+
+        ensure_admin_password_credential(
+            &credential_repository,
+            &hasher_repository,
+            user.id,
+            &user.username,
+            "admin-password",
+        )
+        .await?;
+
+        Ok(())
     }
 }

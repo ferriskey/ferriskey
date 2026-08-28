@@ -34,6 +34,12 @@ impl CredentialRepository for CredentialRepoAny {
         }
     }
 
+    async fn has_password_credential(&self, user_id: Uuid) -> Result<bool, CredentialError> {
+        match self {
+            CredentialRepoAny::Postgres(repo) => repo.has_password_credential(user_id).await,
+        }
+    }
+
     async fn delete_password_credential(&self, user_id: Uuid) -> Result<(), CredentialError> {
         match self {
             CredentialRepoAny::Postgres(repo) => repo.delete_password_credential(user_id).await,

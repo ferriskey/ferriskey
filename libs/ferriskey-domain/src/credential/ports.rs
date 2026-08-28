@@ -37,6 +37,11 @@ pub trait CredentialRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
 
+    fn has_password_credential(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<bool, CredentialError>> + Send;
+
     fn delete_password_credential(
         &self,
         user_id: Uuid,
