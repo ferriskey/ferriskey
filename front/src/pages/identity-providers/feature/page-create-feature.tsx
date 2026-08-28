@@ -40,6 +40,13 @@ export default function PageCreateFeature() {
   const [selectedTemplate, setSelectedTemplate] = useState<ProviderTemplate | null>(
     initialTemplate ?? null
   )
+  const [previousProviderId, setPreviousProviderId] = useState(providerId)
+
+  if (providerId !== previousProviderId) {
+    setPreviousProviderId(providerId)
+    setSelectedTemplate(initialTemplate ?? null)
+    setCurrentStep(initialTemplate ? 2 : 1)
+  }
 
   const {
     mutate: createProvider,
