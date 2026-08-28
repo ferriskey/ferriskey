@@ -197,15 +197,30 @@ fn validate_session_binding(
 
     let Some(session) = session else {
         warn!(session_id = %sid, "Rejecting token: the session it names no longer exists");
-        return Err(CoreError::InvalidToken);
+        return Err(CoreError::SessionRevoked);
     };
 
     if session.expires_at < now {
         warn!(session_id = %sid, "Rejecting token: the session it names has expired");
-        return Err(CoreError::InvalidToken);
+        return Err(CoreError::SessionRevoked);
     }
 
     Ok(())
+}
+
+/// Translate a revoked-session rejection into the token endpoint's vocabulary.
+///
+/// `verify_token` speaks in authentication terms (`SessionRevoked` -> 401) because
+/// most of its callers guard protected resources. The token endpoint answers with
+/// the OAuth2 error shape instead, where a grant that can no longer be honoured is
+/// `invalid_grant` with HTTP 400.
+fn revoked_session_is_an_invalid_grant(error: CoreError) -> CoreError {
+    match error {
+        CoreError::SessionRevoked => CoreError::InvalidGrant(
+            "The session backing this refresh token has been revoked or has expired.".to_string(),
+        ),
+        other => other,
+    }
 }
 
 /// Re-derive the required actions that gate the token-refresh path (FK-003).
@@ -2296,7 +2311,11 @@ where
 
         let (claims, stored) = self
             .verify_refresh_token(token_str, params.realm_id)
-            .await?;
+            .await
+            // A refresh presented against a revoked or expired session is a
+            // grant failure, not an authentication failure: RFC 6749 §5.2 asks
+            // the token endpoint for `400 invalid_grant`.
+            .map_err(revoked_session_is_an_invalid_grant)?;
 
         if claims.typ != ClaimsTyp::Refresh {
             return Err(CoreError::InvalidToken);
@@ -5006,7 +5025,7 @@ mod tests {
         assert!(
             matches!(
                 validate_session_binding(Some(Uuid::new_v4()), None, now),
-                Err(CoreError::InvalidToken)
+                Err(CoreError::SessionRevoked)
             ),
             "a token naming a session that no longer exists must not validate"
         );
@@ -5020,9 +5039,31 @@ mod tests {
         assert!(
             matches!(
                 validate_session_binding(Some(session.id), Some(&session), now),
-                Err(CoreError::InvalidToken)
+                Err(CoreError::SessionRevoked)
             ),
             "a token naming an expired session must not validate"
+        );
+    }
+
+    #[test]
+    fn a_revoked_session_becomes_invalid_grant_on_the_token_endpoint() {
+        assert!(
+            matches!(
+                super::revoked_session_is_an_invalid_grant(CoreError::SessionRevoked),
+                CoreError::InvalidGrant(_)
+            ),
+            "refreshing against a revoked session must answer 400 invalid_grant"
+        );
+    }
+
+    #[test]
+    fn other_refresh_failures_keep_their_own_error() {
+        assert!(
+            matches!(
+                super::revoked_session_is_an_invalid_grant(CoreError::ExpiredToken),
+                CoreError::ExpiredToken
+            ),
+            "only the revoked-session case is rewritten"
         );
     }
 
