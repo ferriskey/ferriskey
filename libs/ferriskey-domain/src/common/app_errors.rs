@@ -58,6 +58,9 @@ pub enum CoreError {
     #[error("Invalid realm")]
     InvalidRealm,
 
+    #[error("A realm named {0} already exists")]
+    RealmAlreadyExists(String),
+
     #[error("Invalid user")]
     InvalidUser,
 

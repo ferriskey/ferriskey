@@ -18,6 +18,19 @@ use crate::domain::realm::{
 use ferriskey_domain::realm::LoginAliases;
 use tracing::info_span;
 
+/// Recognise a Postgres unique-constraint violation (SQLSTATE 23505).
+///
+/// The realm name is unique in the schema, so an insert that trips this is a
+/// caller asking for a name that is taken — a conflict, not a server fault.
+/// Matching on the SQLSTATE rather than the message keeps this independent of
+/// the constraint's name and of the server's locale.
+fn is_unique_violation(error: &sea_orm::DbErr) -> bool {
+    matches!(
+        error.sql_err(),
+        Some(sea_orm::SqlErr::UniqueConstraintViolation(_))
+    )
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresRealmRepository {
     pub db: DatabaseConnection,
@@ -86,6 +99,7 @@ impl RealmRepository for PostgresRealmRepository {
         name: String,
         display_name: Option<String>,
     ) -> Result<Realm, CoreError> {
+        let realm_name = name.clone();
         let mut realm = Realm::new(name);
         realm.display_name = display_name;
 
@@ -97,7 +111,11 @@ impl RealmRepository for PostgresRealmRepository {
             updated_at: Set(realm.updated_at.naive_utc()),
         };
 
+        let name_for_error = realm_name.clone();
         let result_insert = new_realm.insert(&self.db).await.map_err(|e| {
+            if is_unique_violation(&e) {
+                return CoreError::RealmAlreadyExists(name_for_error);
+            }
             tracing::error!("Failed to insert realm: {:?}", e);
             CoreError::InternalServerError
         })?;
