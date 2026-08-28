@@ -9,6 +9,7 @@ export function useOAuthParams() {
   const clientId = searchParams.get('client_id')
   const redirectUri = searchParams.get('redirect_uri')
   const loginError = searchParams.get('login_error')
+  const sessionExpired = searchParams.get('session_expired') === '1'
 
   const currentRealm = realm_name ?? 'master'
   const realmCallbackUri = `${window.location.origin}/realms/${currentRealm}/authentication/callback`
@@ -67,6 +68,7 @@ export function useOAuthParams() {
 
   return {
     realm_name,
+    sessionExpired,
     isAuthInitiated,
     loginError,
     getAuthParamsFromUrl,

@@ -321,5 +321,6 @@ export function useAuth() {
     user,
     refreshAccessToken,
     logout,
+    clearAuthState,
   }
 }

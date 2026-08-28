@@ -26,6 +26,18 @@ use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState}
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
+const SESSION_EXPIRED_MARKER: &str = "session_expired=1";
+
+fn mark_session_expired(login_url: &str) -> String {
+    if login_url.contains(SESSION_EXPIRED_MARKER) {
+        return login_url.to_string();
+    }
+
+    let separator = if login_url.contains('?') { '&' } else { '?' };
+
+    format!("{login_url}{separator}{SESSION_EXPIRED_MARKER}")
+}
+
 fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> String {
     format!(
         "{}/realms/{}/authentication/login{}",
@@ -172,7 +184,13 @@ pub async fn auth_handler(
         }
     }
 
-    let full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
+    let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
+
+    let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
+
+    if identity_cookie_is_stale {
+        full_url = mark_session_expired(&full_url);
+    }
 
     let mut session_cookie = Cookie::build((AUTH_SESSION_COOKIE, result.session.id.to_string()))
         .path("/")
@@ -190,7 +208,7 @@ pub async fn auth_handler(
     headers.insert(SET_COOKIE, session_cookie_value);
 
     // Force a fresh login if an existing identity cookie did not result in SSO.
-    if cookie.get(IDENTITY_COOKIE).is_some() {
+    if identity_cookie_is_stale {
         let mut clear_identity_cookie = Cookie::build((IDENTITY_COOKIE, ""))
             .path("/")
             .http_only(true)
@@ -224,7 +242,32 @@ pub async fn auth_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::webapp_login_url;
+    use super::{mark_session_expired, webapp_login_url};
+
+    #[test]
+    fn a_login_url_that_already_carries_parameters_gains_the_marker_as_another_one() {
+        assert_eq!(
+            mark_session_expired(
+                "https://auth.example.com/realms/master/authentication/login?client_id=mestier"
+            ),
+            "https://auth.example.com/realms/master/authentication/login?client_id=mestier&session_expired=1"
+        );
+    }
+
+    #[test]
+    fn a_login_url_without_parameters_opens_its_query_string() {
+        assert_eq!(
+            mark_session_expired("https://auth.example.com/realms/master/authentication/login"),
+            "https://auth.example.com/realms/master/authentication/login?session_expired=1"
+        );
+    }
+
+    #[test]
+    fn the_marker_is_not_repeated_when_the_url_already_carries_it() {
+        let marked = mark_session_expired("https://auth.example.com/login?session_expired=1");
+
+        assert_eq!(marked, "https://auth.example.com/login?session_expired=1");
+    }
 
     #[test]
     fn joins_webapp_login_url_without_double_slashes() {
