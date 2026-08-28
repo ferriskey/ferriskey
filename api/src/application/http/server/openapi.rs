@@ -11,6 +11,7 @@ use ferriskey_api_portal_layouts::router::{PortalLayoutsApiDoc, PortalLayoutsPub
 use ferriskey_api_portal_theme::router::{PortalThemeApiDoc, PortalThemePublicApiDoc};
 use ferriskey_api_realm::router::RealmApiDoc;
 use ferriskey_api_role::router::RoleApiDoc;
+use ferriskey_api_saml::router::SamlApiDoc;
 use ferriskey_api_seawatch::router::SeawatchApiDoc;
 use ferriskey_api_trident::router::TridentApiDoc;
 use ferriskey_api_user::router::UserApiDoc;
@@ -28,6 +29,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/clients", api = ClientApiDoc),
         (path = "/realms/{realm_name}/users", api = UserApiDoc),
         (path = "/realms/{realm_name}", api = AuthenticationApiDoc),
+        (path = "/realms/{realm_name}", api = SamlApiDoc),
         (path = "/realms/{realm_name}/roles", api = RoleApiDoc),
         (path = "/realms/{realm_name}/webhooks", api = WebhookApiDoc),
         (path = "/realms/{realm_name}", api = TridentApiDoc),

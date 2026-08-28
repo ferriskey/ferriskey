@@ -37,6 +37,7 @@ use crate::{
         portal_theme::services::PortalThemeServiceImpl,
         realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
+        saml::services::SamlServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
         session::services::UserSessionManagementServiceImpl,
         trident::services::TridentServiceImpl,
@@ -144,6 +145,7 @@ pub mod portal_layouts;
 pub mod portal_theme;
 pub mod realm;
 pub mod role;
+pub mod saml;
 pub mod seawatch;
 pub mod token_revocation;
 pub mod trident;
@@ -337,6 +339,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         auth_service,
         device_flow_service,
+        saml_service: SamlServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            client_saml.clone(),
+            user.clone(),
+            user_attribute.clone(),
+            auth_session.clone(),
+            keystore.clone(),
+        ),
         client_service: ClientServiceImpl::new(
             realm.clone(),
             user.clone(),

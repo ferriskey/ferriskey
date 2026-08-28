@@ -18,6 +18,7 @@ pub mod portal_layouts;
 pub mod portal_theme;
 pub mod realm;
 pub mod role;
+pub mod saml;
 pub mod seawatch;
 pub mod session;
 pub mod trident;
