@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '../../lib/utils'
 import { Button } from './button'
@@ -32,6 +32,7 @@ export default function FloatingActionBar(props: FloatingActionBarProps) {
     cancelLabel = 'Cancel',
     className = ''
   } = props
+  const prefersReducedMotion = useReducedMotion()
   const actionBarRef = useRef<HTMLDivElement>(null)
   const [actionBarHeight, setActionBarHeight] = useState(0)
 
@@ -63,10 +64,14 @@ export default function FloatingActionBar(props: FloatingActionBarProps) {
         {show && (
           <motion.div
             ref={actionBarRef}
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { y: 100, opacity: 0 }}
+            animate={prefersReducedMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { y: 100, opacity: 0 }}
+            transition={
+              prefersReducedMotion
+                ? { duration: 0.15 }
+                : { type: 'spring', stiffness: 300, damping: 30 }
+            }
             className={cn(
               'fixed inset-x-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-50 mx-auto w-auto max-w-lg rounded-lg border bg-background px-4 py-3 shadow-lg',
               className,
