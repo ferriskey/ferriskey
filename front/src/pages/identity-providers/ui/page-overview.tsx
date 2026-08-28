@@ -31,7 +31,7 @@ export interface PageOverviewProps {
   onConfirmClose: () => void
   handleDeleteSelected: (items: IdentityProviderListItem[]) => void
   handleClickRow: (providerId: string) => void
-  handleCreateProvider: () => void
+  handleCreateProvider: (providerId?: string) => void
   onRowDelete: (provider: IdentityProviderListItem) => void
 }
 

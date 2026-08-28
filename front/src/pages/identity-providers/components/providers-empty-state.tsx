@@ -5,7 +5,7 @@ import { PROVIDER_TEMPLATES } from '@/constants/identity-provider-templates'
 import ProviderIcon from './provider-icon'
 
 interface ProvidersEmptyStateProps {
-  onCreateProvider: () => void
+  onCreateProvider: (providerId?: string) => void
 }
 
 // Show top 4 popular providers
@@ -26,7 +26,7 @@ export default function ProvidersEmptyState({ onCreateProvider }: ProvidersEmpty
           Connect external authentication providers to allow users to sign in with their existing accounts from Google, Discord, GitHub, and more.
         </p>
 
-        <Button size='lg' onClick={onCreateProvider} className='mb-6'>
+        <Button size='lg' onClick={() => onCreateProvider()} className='mb-6'>
           <Plus className='h-4 w-4 mr-2' />
           Add Your First Provider
         </Button>
@@ -37,7 +37,7 @@ export default function ProvidersEmptyState({ onCreateProvider }: ProvidersEmpty
             {popularProviders.map((provider) => (
               <button
                 key={provider.id}
-                onClick={onCreateProvider}
+                onClick={() => onCreateProvider(provider.id)}
                 className='flex flex-col items-center gap-1.5 p-2.5 rounded-lg hover:bg-muted transition-colors'
               >
                 <div className='h-9 w-9 flex items-center justify-center'>
