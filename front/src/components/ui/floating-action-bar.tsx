@@ -93,7 +93,7 @@ export default function FloatingActionBar(props: FloatingActionBarProps) {
                 </div>
               </div>
 
-              <div className='flex w-full shrink-0 gap-2 sm:w-auto'>
+              <div className='flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row'>
                 {onCancel && (
                   <Button
                     variant='ghost'
