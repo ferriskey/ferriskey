@@ -13,12 +13,18 @@ export type { AuthenticateSchema } from '../hooks/use-login-form'
 
 export default function PageLoginFeature() {
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
-  const { realm_name, isAuthInitiated, loginError, getAuthParamsFromUrl, getOAuthParams } =
+  const { isAuthenticated, clearAuthState } = useAuth()
+  const { realm_name, sessionExpired, isAuthInitiated, loginError, getAuthParamsFromUrl, getOAuthParams } =
     useOAuthParams()
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (sessionExpired) {
+      clearAuthState(false)
+    }
+  }, [sessionExpired, clearAuthState])
+
+  useEffect(() => {
+    if (!isAuthenticated || sessionExpired) {
       return
     }
 
@@ -30,7 +36,7 @@ export default function PageLoginFeature() {
     }
 
     navigate(`/realms/${realm_name}/overview`, { replace: true })
-  }, [isAuthenticated, navigate, realm_name, isAuthInitiated, getOAuthParams])
+  }, [isAuthenticated, navigate, realm_name, isAuthInitiated, getOAuthParams, sessionExpired])
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
@@ -55,7 +61,7 @@ export default function PageLoginFeature() {
     onMagicLinkSubmit,
   } = useMagicLinkAuth({ realm_name })
 
-  const isRedirecting = !isAuthInitiated && !loginError
+  const isRedirecting = !isAuthInitiated && !loginError && !sessionExpired
 
   const { showFloatingActionBar, countdown, cancelAutoRefresh, restartAuthFlow } =
     useSessionRefresh({
