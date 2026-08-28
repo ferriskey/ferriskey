@@ -33,6 +33,7 @@ pub enum ApiError {
     Unauthorized(Cow<'static, str>),
     Forbidden(Cow<'static, str>),
     BadRequest(Cow<'static, str>),
+    Conflict(Cow<'static, str>),
     ServiceUnavailable(Cow<'static, str>),
     /// RFC 6749 §5.2 OAuth2 error response
     OAuthError {
@@ -242,6 +243,15 @@ impl IntoResponse for ApiError {
                 Json(ApiErrorResponse {
                     code: "E_BAD_REQUEST".to_string(),
                     status: 400,
+                    message: message.into(),
+                }),
+            )
+                .into_response(),
+            ApiError::Conflict(message) => (
+                StatusCode::CONFLICT,
+                Json(ApiErrorResponse {
+                    code: "E_CONFLICT".to_string(),
+                    status: 409,
                     message: message.into(),
                 }),
             )

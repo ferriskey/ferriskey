@@ -99,6 +99,9 @@ jobs:
       - name: run token revocation integration tests
         run: cargo test -p ferriskey-api --test token_revocation_test -- --ignored
 
+      - name: run realm lifecycle integration tests
+        run: cargo test -p ferriskey-api --test realm_lifecycle_test -- --ignored
+
       - name: run cross-realm user isolation integration tests
         run: cargo test -p ferriskey-api --test user_cross_realm_test -- --ignored
 
