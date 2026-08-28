@@ -345,6 +345,30 @@ where
 
         let name = format!("{}-realm", realm.name);
 
+        // Deployments that ran an older version may still hold a mirror client
+        // orphaned by a realm deletion. Its name is reserved for the realm we
+        // have just created, so the leftover is removed rather than reused: the
+        // stale `{realm}-realm` role would otherwise hand its old holders
+        // ManageRealm over a realm they were never granted.
+        match self
+            .client_repository
+            .get_by_client_id(name.clone(), realm_master_id)
+            .await
+        {
+            Ok(orphan) => {
+                tracing::warn!(
+                    client.id = %orphan.id,
+                    client.client_id = %name,
+                    "removing a mirror client orphaned by an earlier realm deletion"
+                );
+                self.client_repository
+                    .delete_by_id(realm_master_id, orphan.id)
+                    .await?;
+            }
+            Err(CoreError::NotFound) => {}
+            Err(e) => return Err(e),
+        }
+
         let client = self
             .client_repository
             .create_client(CreateClientRequest::create_realm_system_client(
@@ -585,24 +609,48 @@ where
             "insufficient permissions",
         )?;
 
-        let client = self
+        // The mirror client lives in `master`, not in the realm being removed,
+        // so it has to be deleted under master's id. Deleting it first keeps a
+        // failure here from leaving a realm that is already gone: the two
+        // deletions span separate repositories, so this ordering is the only
+        // atomicity available.
+        //
+        // A missing mirror client is tolerated rather than propagated: the
+        // realm row is what the caller asked to remove, and answering an error
+        // for a client that is already absent would report a failure for an
+        // operation that has nothing left to do.
+        match self
             .client_repository
             .get_by_client_id(format!("{}-realm", input.realm_name), realm_master.id)
-            .await?;
+            .await
+        {
+            Ok(client) => {
+                // Deleting the client cascades to the `{realm}-realm` role and
+                // to every assignment of it.
+                self.client_repository
+                    .delete_by_id(realm_master.id, client.id)
+                    .await?;
+            }
+            Err(CoreError::NotFound) => {
+                tracing::warn!(
+                    realm.name = %input.realm_name,
+                    "no mirror client found in master for the realm being deleted"
+                );
+            }
+            Err(e) => return Err(e),
+        }
 
+        // Notify before the realm disappears: the subscriptions being notified
+        // belong to it.
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RealmCreated, realm_id.into(), Some(realm)),
+                WebhookPayload::new(WebhookTrigger::RealmDeleted, realm_id.into(), Some(realm)),
             )
             .await?;
 
         self.realm_repository
             .delete_by_name(&input.realm_name)
-            .await?;
-
-        self.client_repository
-            .delete_by_id(realm_id, client.id)
             .await?;
 
         Ok(())
@@ -1158,6 +1206,18 @@ mod tests {
             self
         }
 
+        /// The common case: no leftover mirror client sits in master under the
+        /// name the realm being created is about to claim.
+        fn with_no_orphan_mirror_client(mut self) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_get_by_client_id()
+                .withf(|client_id, _| client_id.ends_with("-realm"))
+                .times(1)
+                .return_once(|_, _| Box::pin(async move { Err(CoreError::NotFound) }));
+            self
+        }
+
         fn with_system_client(mut self, master_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
@@ -1449,6 +1509,99 @@ mod tests {
             self
         }
 
+        fn with_realm_by_name(mut self, realm: Realm) -> Self {
+            let name = realm.name.clone();
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_get_by_name()
+                .with(mockall::predicate::eq(name))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
+            self
+        }
+
+        /// The mirror client of `realm_name`, as it actually lives: in master.
+        fn with_mirror_client_in_master(
+            mut self,
+            realm_name: &str,
+            master_realm_id: RealmId,
+            client_id: uuid::Uuid,
+        ) -> Self {
+            let expected = format!("{realm_name}-realm");
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_get_by_client_id()
+                // Looked up twice: once by the cross-realm policy to derive the
+                // caller's permissions, once by the deletion itself.
+                .withf(move |name, realm_id| *name == expected && *realm_id == master_realm_id)
+                .times(2)
+                .returning(move |name, realm_id| {
+                    Box::pin(async move {
+                        let mut client = crate::domain::client::entities::Client::new(
+                            crate::domain::client::entities::ClientConfig {
+                                realm_id,
+                                name: name.clone(),
+                                client_id: name,
+                                secret: None,
+                                enabled: true,
+                                protocol: "openid-connect".to_string(),
+                                public_client: false,
+                                service_account_enabled: false,
+                                client_type: ClientType::Confidential,
+                                direct_access_grants_enabled: Some(false),
+                                oauth_device_code_grant_enabled: Some(false),
+                                access_token_lifetime: None,
+                                refresh_token_lifetime: None,
+                                id_token_lifetime: None,
+                                temporary_token_lifetime: None,
+                            },
+                        );
+                        client.id = client_id;
+                        Ok(client)
+                    })
+                });
+            self
+        }
+
+        /// Asserts the scope the mirror client is deleted under — the whole
+        /// point of the fix, since deleting it under the removed realm's id
+        /// matches no row and leaves the client orphaned in master.
+        fn expect_client_deleted_in(mut self, realm_id: RealmId, client_id: uuid::Uuid) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_delete_by_id()
+                .with(
+                    mockall::predicate::eq(realm_id),
+                    mockall::predicate::eq(client_id),
+                )
+                .times(1)
+                .return_once(|_, _| Box::pin(async move { Ok(()) }));
+            self
+        }
+
+        fn expect_realm_deleted(mut self, realm_name: &str) -> Self {
+            let name = realm_name.to_string();
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_delete_by_name()
+                .with(mockall::predicate::eq(name))
+                .times(1)
+                .return_once(|_| Box::pin(async move { Ok(()) }));
+            self
+        }
+
+        fn expect_realm_deleted_webhook(mut self) -> Self {
+            Arc::get_mut(&mut self.webhook_repo)
+                .unwrap()
+                .expect_notify::<Realm>()
+                .withf(|_, payload: &WebhookPayload<Realm>| {
+                    payload.event == WebhookTrigger::RealmDeleted
+                })
+                .times(1)
+                .return_once(|_, _: WebhookPayload<Realm>| Box::pin(async move { Ok(()) }));
+            self
+        }
+
         fn build(
             self,
         ) -> RealmServiceImpl<
@@ -1485,6 +1638,68 @@ mod tests {
                 "https://console.example".to_string(),
             )
         }
+    }
+
+    /// Builds the identity and the ManageRealm role a deletion test needs.
+    ///
+    /// Deleting another realm is cross-realm access, so the policy reads the
+    /// permissions off the roles attached to that realm's mirror client — hence
+    /// `mirror_client_id` on the role.
+    fn deletion_actor(
+        master_realm: &Realm,
+        mirror_client_id: uuid::Uuid,
+    ) -> (Identity, crate::domain::role::entities::Role) {
+        let identity = create_test_user_identity_with_realm(master_realm);
+        let role = crate::domain::role::entities::Role {
+            id: uuid::Uuid::new_v4(),
+            name: "admin".to_string(),
+            description: None,
+            permissions: vec![
+                crate::domain::role::entities::permission::Permissions::ManageRealm.name(),
+            ],
+            realm_id: master_realm.id,
+            client_id: Some(mirror_client_id),
+            client: None,
+            require_mfa: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        };
+        (identity, role)
+    }
+
+    #[tokio::test]
+    async fn deleting_a_realm_deletes_its_mirror_client_from_master() -> Result<(), CoreError> {
+        let master_realm = create_test_realm_with_name("master");
+        let realm = create_test_realm_with_name("zukquote");
+        let mirror_client_id = uuid::Uuid::new_v4();
+        let (identity, admin_role) = deletion_actor(&master_realm, mirror_client_id);
+        let user_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("expected a user identity"),
+        };
+
+        let service = RealmServiceTestBuilder::new()
+            .with_realm_by_name(realm.clone())
+            .with_master_realm(master_realm.clone())
+            .with_user_permissions(user_id, vec![admin_role])
+            .with_mirror_client_in_master("zukquote", master_realm.id, mirror_client_id)
+            // The scope under test: master's id, not the id of the realm going away.
+            .expect_client_deleted_in(master_realm.id, mirror_client_id)
+            .expect_realm_deleted_webhook()
+            .expect_realm_deleted("zukquote")
+            .build();
+
+        let outcome = service
+            .delete_realm(
+                identity,
+                DeleteRealmInput {
+                    realm_name: "zukquote".to_string(),
+                },
+            )
+            .await;
+        assert!(outcome.is_ok(), "deletion failed: {outcome:?}");
+
+        Ok(())
     }
 
     #[tokio::test]
@@ -1528,6 +1743,7 @@ mod tests {
             .with_user_permissions(user.id, vec![admin_role])
             .with_created_realm("realm_test".to_string(), new_realm.clone())
             .with_realm_settings(new_realm.id)
+            .with_no_orphan_mirror_client()
             .with_system_client(master_realm.id)
             .with_role_creation(master_realm.id)
             .with_assign_role()
@@ -1586,6 +1802,7 @@ mod tests {
             .with_user_permissions(user.id, vec![admin_role])
             .with_created_realm("realm_test".to_string(), new_realm.clone())
             .with_realm_settings(new_realm.id)
+            .with_no_orphan_mirror_client()
             .with_system_client(master_realm.id)
             .with_role_creation(master_realm.id)
             .with_assign_role()
