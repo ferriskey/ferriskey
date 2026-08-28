@@ -62,8 +62,9 @@ export default function PageOverviewFeature() {
     })
   }
 
-  const handleCreateProvider = () => {
-    navigate(`${IDENTITY_PROVIDERS_URL(realm_name)}${IDENTITY_PROVIDER_CREATE_URL}`)
+  const handleCreateProvider = (providerId?: string) => {
+    const createUrl = `${IDENTITY_PROVIDERS_URL(realm_name)}${IDENTITY_PROVIDER_CREATE_URL}`
+    navigate(providerId ? `${createUrl}?provider=${encodeURIComponent(providerId)}` : createUrl)
   }
 
   const handleDeleteProvider = (providerId: string, providerName: string) => {

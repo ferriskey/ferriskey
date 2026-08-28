@@ -1,6 +1,9 @@
 import { useCreateIdentityProvider, type CreateProviderInput } from '@/api/identity-providers.api'
 import { Form } from '@/components/ui/form'
-import type { ProviderTemplate } from '@/constants/identity-provider-templates'
+import {
+  getTemplateById,
+  type ProviderTemplate,
+} from '@/constants/identity-provider-templates'
 import {
   IDENTITY_PROVIDERS_URL,
   IDENTITY_PROVIDER_OVERVIEW_URL,
@@ -8,7 +11,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import PageCreate from '../ui/page-create'
@@ -28,10 +31,22 @@ type ProviderFormValues = z.infer<typeof formSchema>
 export default function PageCreateFeature() {
   const { realm_name } = useParams<{ realm_name: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const realm = realm_name || 'master'
+  const providerId = searchParams.get('provider')
+  const initialTemplate = providerId ? getTemplateById(providerId) : undefined
 
-  const [currentStep, setCurrentStep] = useState(1)
-  const [selectedTemplate, setSelectedTemplate] = useState<ProviderTemplate | null>(null)
+  const [currentStep, setCurrentStep] = useState(initialTemplate ? 2 : 1)
+  const [selectedTemplate, setSelectedTemplate] = useState<ProviderTemplate | null>(
+    initialTemplate ?? null
+  )
+  const [previousProviderId, setPreviousProviderId] = useState(providerId)
+
+  if (providerId !== previousProviderId) {
+    setPreviousProviderId(providerId)
+    setSelectedTemplate(initialTemplate ?? null)
+    setCurrentStep(initialTemplate ? 2 : 1)
+  }
 
   const {
     mutate: createProvider,
