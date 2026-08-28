@@ -3,7 +3,6 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use ferriskey_api_core::api_entities::api_error::ApiError;
 use ferriskey_api_core::app_state::AppState;
-use ferriskey_api_core::url::FullUrl;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::saml::entities::FinishSsoInput;
 use ferriskey_core::domain::saml::ports::SamlService;
@@ -14,6 +13,9 @@ use utoipa::{IntoParams, ToSchema};
 
 use crate::html::{auto_submit_form, error_page, html_page};
 use crate::origin::saml_public_base_url;
+
+const MISCONFIGURED: &str =
+    "Single sign-on is not configured on this server. Set SERVER_PUBLIC_URL.";
 
 const EXPIRED_CONTINUATION: &str =
     "This sign-in link is no longer valid. Start again from your application.";
@@ -45,14 +47,15 @@ pub struct SamlContinueParams {
 pub async fn saml_continue(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
     Query(params): Query<SamlContinueParams>,
 ) -> Result<Response, ApiError> {
-    let public_base_url = saml_public_base_url(
+    let Some(public_base_url) = saml_public_base_url(
         state.args.server.public_url.as_deref(),
-        &base_url,
         &state.args.server.root_path,
-    );
+    ) else {
+        warn!("refusing a saml request: SERVER_PUBLIC_URL is not configured");
+        return Ok(error_page(StatusCode::INTERNAL_SERVER_ERROR, MISCONFIGURED));
+    };
 
     let delivery = match state
         .service

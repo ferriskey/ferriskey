@@ -178,10 +178,12 @@ pub fn derive_name_id(
 ) -> Result<SubjectNameId, SamlSsoError> {
     let (value, format) = match format {
         NameIdFormat::EmailAddress => (
-            non_empty(user.email.as_deref()).ok_or(SamlSsoError::MissingNameIdSource {
-                format: "emailAddress",
-                requirement: "verified email address",
-            })?,
+            non_empty(user.email.as_deref())
+                .filter(|_| user.email_verified)
+                .ok_or(SamlSsoError::MissingNameIdSource {
+                    format: "emailAddress",
+                    requirement: "verified email address",
+                })?,
             AssertionNameIdFormat::EmailAddress,
         ),
         NameIdFormat::Persistent => (user.id.to_string(), AssertionNameIdFormat::Persistent),
@@ -531,6 +533,20 @@ mod tests {
     fn an_email_name_id_is_refused_rather_than_emitted_empty_for_a_user_without_an_address() {
         let mut user = user(RealmId::default());
         user.email = None;
+
+        assert_eq!(
+            derive_name_id(NameIdFormat::EmailAddress, &user, "session"),
+            Err(SamlSsoError::MissingNameIdSource {
+                format: "emailAddress",
+                requirement: "verified email address",
+            })
+        );
+    }
+
+    #[test]
+    fn an_unverified_address_cannot_become_an_email_name_id() {
+        let mut user = user(RealmId::default());
+        user.email_verified = false;
 
         assert_eq!(
             derive_name_id(NameIdFormat::EmailAddress, &user, "session"),
