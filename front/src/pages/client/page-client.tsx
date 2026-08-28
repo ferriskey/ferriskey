@@ -8,6 +8,7 @@ import PageCreateClientFeature from '@/pages/client/feature/page-create-client-f
 import PageClientRolesFeature from './feature/page-client-roles-feature'
 import PageClientScopesFeature from './feature/page-client-scopes-feature'
 import PageClientMaintenanceFeature from './feature/page-client-maintenance-feature'
+import PageClientSamlFeature from './feature/page-client-saml-feature'
 
 export default function PageClient() {
   return (
@@ -22,6 +23,7 @@ export default function PageClient() {
         <Route path='/:client_id/credentials' element={<PageClientCredentialsFeature />} />
         <Route path='/:client_id/roles' element={<PageClientRolesFeature />} />
         <Route path='/:client_id/scopes' element={<PageClientScopesFeature />} />
+        <Route path='/:client_id/saml' element={<PageClientSamlFeature />} />
         <Route path='/:client_id/maintenance' element={<PageClientMaintenanceFeature />} />
       </Route>
     </Routes>

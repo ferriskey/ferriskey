@@ -11,6 +11,7 @@ export type AppTab =
   | 'api-access'
   | 'connections'
   | 'login-experience'
+  | 'saml'
   | 'addons'
   | 'maintenance'
 

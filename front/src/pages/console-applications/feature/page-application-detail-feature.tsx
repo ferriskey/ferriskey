@@ -14,6 +14,7 @@ import ApiAccessTab from '../ui/tabs/api-access-tab'
 import ComingSoonTab from '../ui/tabs/coming-soon-tab'
 import CredentialsTab from '../ui/tabs/credentials-tab'
 import QuickstartTab from '../ui/tabs/quickstart-tab'
+import SamlTab from '../ui/tabs/saml-tab'
 import SettingsTab, { ApplicationSettingsValues } from '../ui/tabs/settings-tab'
 import { inferApplicationType } from '../types'
 
@@ -155,6 +156,7 @@ export default function PageApplicationDetailFeature() {
     { id: 'credentials', label: 'Credentials' },
     ...(isInteractive ? [{ id: 'connections', label: 'Connections', soon: true } as TabDef] : []),
     { id: 'api-access', label: 'API Access' },
+    ...(isInteractive ? [{ id: 'saml', label: 'SAML' } as TabDef] : []),
     ...(isInteractive ? [{ id: 'addons', label: 'Addons', soon: true } as TabDef] : []),
     ...(isInteractive
       ? [{ id: 'login-experience', label: 'Login Experience', soon: true } as TabDef]
@@ -204,6 +206,8 @@ export default function PageApplicationDetailFeature() {
         return <CredentialsTab client={client} realm={realm} />
       case 'api-access':
         return <ApiAccessTab realm={realm} clientId={client.id} />
+      case 'saml':
+        return <SamlTab realm={realm} clientId={client.id} />
       case 'maintenance':
         return <PageClientMaintenanceFeature />
       case 'connections':
@@ -235,8 +239,8 @@ export default function PageApplicationDetailFeature() {
           <ComingSoonTab
             icon={Puzzle}
             title='Addons'
-            description='Enable protocol addons such as SAML and WS-Federation for this application.'
-            points={['SAML 2.0 service provider', 'WS-Federation', 'Token customization addons']}
+            description='Enable further protocol addons for this application. SAML 2.0 now has its own tab.'
+            points={['WS-Federation', 'Token customization addons']}
           />
         )
       default:
