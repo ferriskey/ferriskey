@@ -61,6 +61,8 @@ impl From<compass_flow_steps::Model> for CompassFlowStep {
             "idp_redirect" => FlowStepName::IdpRedirect,
             "idp_callback" => FlowStepName::IdpCallback,
             "finalize" => FlowStepName::Finalize,
+            "saml_authn_request" => FlowStepName::SamlAuthnRequest,
+            "saml_assertion" => FlowStepName::SamlAssertion,
             _ => FlowStepName::Authorize,
         };
 
@@ -95,6 +97,67 @@ impl From<CompassFlowStep> for compass_flow_steps::ActiveModel {
             error_message: Set(step.error_message),
             started_at: Set(step.started_at.naive_utc()),
             created_at: Set(Utc::now().naive_utc()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use uuid::Uuid;
+
+    fn wire_name(step_name: &FlowStepName) -> &'static str {
+        match step_name {
+            FlowStepName::Authorize => "authorize",
+            FlowStepName::CredentialValidation => "credential_validation",
+            FlowStepName::MfaChallenge => "mfa_challenge",
+            FlowStepName::TokenExchange => "token_exchange",
+            FlowStepName::IdpRedirect => "idp_redirect",
+            FlowStepName::IdpCallback => "idp_callback",
+            FlowStepName::Finalize => "finalize",
+            FlowStepName::SamlAuthnRequest => "saml_authn_request",
+            FlowStepName::SamlAssertion => "saml_assertion",
+        }
+    }
+
+    fn stored_step(step_name: &str) -> compass_flow_steps::Model {
+        compass_flow_steps::Model {
+            id: Uuid::new_v4(),
+            flow_id: Uuid::new_v4(),
+            step_name: step_name.to_string(),
+            status: "success".to_string(),
+            duration_ms: None,
+            error_code: None,
+            error_message: None,
+            started_at: Utc::now().naive_utc(),
+            created_at: Utc::now().naive_utc(),
+        }
+    }
+
+    #[test]
+    fn a_step_reads_back_as_the_step_that_was_written() {
+        let step_names = [
+            FlowStepName::Authorize,
+            FlowStepName::CredentialValidation,
+            FlowStepName::MfaChallenge,
+            FlowStepName::TokenExchange,
+            FlowStepName::IdpRedirect,
+            FlowStepName::IdpCallback,
+            FlowStepName::Finalize,
+            FlowStepName::SamlAuthnRequest,
+            FlowStepName::SamlAssertion,
+        ];
+
+        for step_name in step_names {
+            let written = step_name.to_string();
+            assert_eq!(written, wire_name(&step_name));
+
+            let read = CompassFlowStep::from(stored_step(&written));
+            assert_eq!(
+                read.step_name, step_name,
+                "`{written}` must not read back as another step"
+            );
         }
     }
 }
