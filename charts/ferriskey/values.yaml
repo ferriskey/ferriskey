@@ -478,6 +478,9 @@ webapp:
     # -- URL for the API. Default computed from the ingress configuration.
     url: ~
 
+  # -- Name of the runtime ConfigMap mounted as /usr/share/nginx/html/config.json. Default is `<release>-webapp-config`.
+  configJsonName: ~
+
   # -- EmptyDir size for the webapp workload.
   emptyDirSize: ~
 
@@ -877,7 +880,6 @@ gatewayAPI:
     # -- Parent references for the HTTPRoute.
     # Must be non-empty when gatewayAPI.httpRoute.enabled is true.
     parentRefs: []
-
 
 ingress:
   # -- Enable the ingress.
