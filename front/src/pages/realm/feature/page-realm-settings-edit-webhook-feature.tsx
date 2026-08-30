@@ -32,7 +32,11 @@ export default function PageRealmSettingsEditWebhookFeature() {
         description: webhook.description ?? '',
         endpoint: webhook.endpoint,
         subscribers: initialTriggers,
-        headers: Object.entries(webhook.headers).map(([key, value]) => ({ key, value })),
+        // The API never returns a webhook's headers — they are marked
+        // `skip_serializing` alongside the delivery secret — so there is
+        // nothing to prefill here. Submitting the form sends whatever the user
+        // enters, which replaces the stored headers.
+        headers: [],
       }
     : undefined
 

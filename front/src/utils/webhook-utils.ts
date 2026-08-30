@@ -12,6 +12,11 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
     'redirect_uri.updated',
     'client.maintenance.enabled',
     'client.maintenance.disabled',
+    'web_origin.created',
+    'web_origin.deleted',
+    'client.saml_config.updated',
+    'client.saml_attribute_mapper.created',
+    'client.saml_attribute_mapper.deleted',
   ],
   Realm: ['realm.created', 'realm.deleted', 'realm.settings.updated', 'realm.updated'],
   Role: ['role.created', 'role.updated'],
@@ -73,6 +78,11 @@ export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
   'webhook.updated': 'Webhook Updated',
   'client.maintenance.enabled': 'Client Maintenance Enabled',
   'client.maintenance.disabled': 'Client Maintenance Disabled',
+  'web_origin.created': 'Web Origin Created',
+  'web_origin.deleted': 'Web Origin Deleted',
+  'client.saml_config.updated': 'Client SAML Configuration Updated',
+  'client.saml_attribute_mapper.created': 'Client SAML Attribute Mapper Created',
+  'client.saml_attribute_mapper.deleted': 'Client SAML Attribute Mapper Deleted',
 }
 
 export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string> = {
@@ -114,6 +124,12 @@ export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string
   'webhook.updated': 'A webhook has been updated.',
   'client.maintenance.enabled': 'Maintenance mode has been enabled on a client.',
   'client.maintenance.disabled': 'Maintenance mode has been disabled on a client.',
+  'web_origin.created': 'A web origin has been registered on a client.',
+  'web_origin.deleted': 'A web origin has been removed from a client.',
+  'client.saml_config.updated':
+    'The SAML service provider configuration of a client has been updated.',
+  'client.saml_attribute_mapper.created': 'A SAML attribute mapper has been added to a client.',
+  'client.saml_attribute_mapper.deleted': 'A SAML attribute mapper has been removed from a client.',
 }
 
 export type WebhookCategory = {

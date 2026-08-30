@@ -1,5 +1,6 @@
 export namespace Schemas {
   // <Schemas>
+  export type AcsUrl = string;
   export type ActivateThemeResponse = { message: string };
   export type ThemeShadow = "none" | "small" | "large";
   export type ThemeBorders = Partial<{
@@ -89,6 +90,7 @@ export namespace Schemas {
     | { Unauthorized: string }
     | { Forbidden: string }
     | { BadRequest: string }
+    | { Conflict: string }
     | { ServiceUnavailable: string }
     | { OAuthError: { error: string; error_description: string } };
   export type ApiErrorResponse = { code: string; message: string; status: number };
@@ -115,6 +117,7 @@ export namespace Schemas {
   export type ChallengeOtpResponse = Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
   export type ClientType = "confidential" | "public" | "system";
   export type MaintenanceSessionStrategy = "terminate" | "expire";
+  export type Masked_String = string;
   export type Client = {
     access_token_lifetime?: (number | null) | undefined;
     client_id: string;
@@ -135,10 +138,28 @@ export namespace Schemas {
     redirect_uris?: (Array<RedirectUri> | null) | undefined;
     refresh_token_lifetime?: (number | null) | undefined;
     require_pkce: boolean;
-    secret?: (string | null) | undefined;
+    secret?: (null | Masked_String) | undefined;
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null) | undefined;
     updated_at: string;
+  };
+  export type NameIdFormat =
+    | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
+    | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
+    | "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified";
+  export type SpEntityId = string;
+  export type ClientSamlConfig = {
+    acs_url: AcsUrl;
+    client_id: string;
+    created_at: string;
+    name_id_format: NameIdFormat;
+    realm_id: RealmId;
+    sign_assertions: boolean;
+    sign_documents: boolean;
+    sp_entity_id: SpEntityId;
+    updated_at: string;
+    want_authn_requests_signed: boolean;
   };
   export type ScopeType = "NONE" | "OPTIONAL" | "DEFAULT";
   export type ClientScope = {
@@ -161,7 +182,7 @@ export namespace Schemas {
   };
   export type ClientScopeMapping = { client_id: string; default_scope_type: ScopeType; scope_id: string };
   export type ClientScopesResponse = { data: Array<ClientScope> };
-  export type ClientSecretResponse = { client_secret?: (string | null) | undefined };
+  export type ClientSecretResponse = Partial<{ client_secret: string | null }>;
   export type ClientsResponse = { data: Array<Client> };
   export type CodeChallengeMethod = "S256" | "PLAIN";
   export type FlowId = string;
@@ -175,7 +196,9 @@ export namespace Schemas {
     | "token_exchange"
     | "idp_redirect"
     | "idp_callback"
-    | "finalize";
+    | "finalize"
+    | "saml_authn_request"
+    | "saml_assertion";
   export type CompassFlowStep = {
     duration_ms?: (number | null) | undefined;
     error_code?: (string | null) | undefined;
@@ -227,7 +250,6 @@ export namespace Schemas {
     public_client?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
   };
-  export type CreatedClientResponse = Client & Partial<{ client_secret: string | null }>;
   export type EmailType = "reset_password" | "magic_link" | "email_verification";
   export type EmailTemplate = {
     created_at: string;
@@ -300,6 +322,7 @@ export namespace Schemas {
     name: string;
     permissions: Array<string>;
     realm_id: RealmId;
+    require_mfa: boolean;
     updated_at: string;
   };
   export type CreateRoleResponse = { data: Role };
@@ -308,6 +331,7 @@ export namespace Schemas {
     name: string;
     permissions: Array<string>;
   };
+  export type CreateSamlAttributeMapperValidator = Partial<{ name: string; name_format: string; source: string }>;
   export type PortalThemePages = Partial<{
     deviceVerified: unknown;
     deviceVerify: unknown;
@@ -338,6 +362,8 @@ export namespace Schemas {
     layout_id?: (string | null) | undefined;
     name: string;
   };
+  export type LoginAlias = "username" | "email";
+  export type LoginAliases = Array<LoginAlias>;
   export type RealmSetting = {
     access_token_lifetime: number;
     compass_enabled: boolean;
@@ -350,6 +376,7 @@ export namespace Schemas {
     id_token_lifetime: number;
     lockout_duration_seconds: number;
     lockout_threshold: number;
+    login_aliases: LoginAliases;
     magic_link_enabled: boolean;
     magic_link_template_id?: (string | null) | undefined;
     magic_link_ttl: number;
@@ -357,7 +384,9 @@ export namespace Schemas {
     realm_id: RealmId;
     refresh_token_lifetime: number;
     remember_me_enabled: boolean;
+    require_mfa: boolean;
     reset_password_template_id?: (string | null) | undefined;
+    seawatch_pii_mode: string;
     temporary_token_lifetime: number;
     updated_at: string;
     user_registration_enabled: boolean;
@@ -396,6 +425,7 @@ export namespace Schemas {
     lastname: string | null;
     username: string;
   }>;
+  export type CreateWebOriginValidator = Partial<{ value: string }>;
   export type WebhookTrigger =
     | "user.created"
     | "user.email_verified"
@@ -417,6 +447,11 @@ export namespace Schemas {
     | "redirect_uri.created"
     | "redirect_uri.updated"
     | "redirect_uri.deleted"
+    | "web_origin.created"
+    | "web_origin.deleted"
+    | "client.saml_config.updated"
+    | "client.saml_attribute_mapper.created"
+    | "client.saml_attribute_mapper.deleted"
     | "role.created"
     | "role.updated"
     | "role.deleted"
@@ -435,7 +470,6 @@ export namespace Schemas {
     created_at: string;
     description?: (string | null) | undefined;
     endpoint: string;
-    headers: Record<string, string>;
     id: string;
     name?: (string | null) | undefined;
     subscribers: Array<WebhookSubscriber>;
@@ -477,6 +511,7 @@ export namespace Schemas {
   export type DeleteClientResponse = { message: string; realm_name: string };
   export type DeleteClientScopeResponse = { message: string };
   export type DeleteEmailTemplateResponse = { message: string };
+  export type DeleteIdentityProviderLinkResponse = { count: number };
   export type DeleteIdentityProviderResponse = { count: number };
   export type DeletePortalLayoutResponse = { message: string };
   export type DeleteProtocolMapperResponse = { message: string };
@@ -488,15 +523,16 @@ export namespace Schemas {
   export type DeleteUserCredentialResponse = { message: string; realm_name: string; user_id: string };
   export type DeleteUserResponse = { count: number };
   export type DeleteWebhookResponse = { message: string; realm_name: string };
-  export type DeviceAuthorizationRequest = Partial<{ client_id: string | null; scope: string | null }>;
+  export type DeviceAuthorizationRequest = Partial<{
+    client_id: string | null;
+    client_secret: string | null;
+    scope: string | null;
+  }>;
+  export type DeviceVerificationPreview = { client_id: string; client_name: string; scopes: Array<string> };
   export type DeviceVerifyAction = "approve" | "deny";
   export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string };
-  export type DeviceVerificationPreview = {
-    client_id: string;
-    client_name: string;
-    scopes: Array<string>;
-  };
   export type DeviceVerifyResponse = { status: string };
+  export type EmailTemplateExportFormat = "json" | "mjml";
   export type EvaluatedMapper = { config: unknown; mapper_type: string; name: string };
   export type EvaluatedRoles = { client_roles: Record<string, Array<string>>; realm_roles: Array<string> };
   export type EvaluatedScope = { default_scope_type: string; name: string; protocol: string };
@@ -510,6 +546,13 @@ export namespace Schemas {
   };
   export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id: string };
   export type EventStatus = "success" | "failure";
+  export type ExportEnvelope = {
+    email_type?: (string | null) | undefined;
+    ferriskey: string;
+    name: string;
+    tree: Record<string, unknown>;
+    version: number;
+  };
   export type FlowStats = {
     avg_duration_ms?: (number | null) | undefined;
     failure_count: number;
@@ -568,21 +611,25 @@ export namespace Schemas {
     | "client_created"
     | "client_deleted"
     | "client_secret_rotated"
+    | "client_secret_viewed"
     | "realm_config_changed"
     | "email_not_sent"
     | "email_sent"
     | "client_maintenance_enabled"
     | "client_maintenance_disabled"
     | "session_created"
-    | "session_revoked";
+    | "session_revoked"
+    | "identity_provider_link_removed";
   export type SecurityEventId = string;
   export type SecurityEvent = {
     actor_id?: (string | null) | undefined;
     actor_type?: (null | ActorType) | undefined;
     details?: unknown | undefined;
+    event_hash?: (Array<number> | null) | undefined;
     event_type: SecurityEventType;
     id: SecurityEventId;
     ip_address?: (string | null) | undefined;
+    prev_hash?: (Array<number> | null) | undefined;
     realm_id: RealmId;
     resource?: (string | null) | undefined;
     status: EventStatus;
@@ -634,6 +681,15 @@ export namespace Schemas {
   };
   export type GroupMemberPage = { data: Array<GroupMemberDetail>; limit: number; offset: number; total: number };
   export type GroupNode = Group & { children: Array<GroupNode> };
+  export type IdentityProviderLinkResponse = {
+    created_at: string;
+    id: string;
+    identity_provider_alias: string;
+    identity_provider_id: string;
+    identity_provider_user_id: string;
+    updated_at: string;
+  };
+  export type IdentityProviderLinksResponse = { data: Array<IdentityProviderLinkResponse> };
   export type IdentityProviderPresentation = {
     display_name: string;
     icon: string;
@@ -656,6 +712,23 @@ export namespace Schemas {
     trust_email: boolean;
   };
   export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> };
+  export type ImportEmailTemplateResponse = { data: EmailTemplate };
+  export type ImportEmailTemplateValidator = {
+    email_type: string;
+    ferriskey?: (string | null) | undefined;
+    mjml?: (string | null) | undefined;
+    name: string;
+    structure?: unknown | undefined;
+    tree?: unknown | undefined;
+    version?: (number | null) | undefined;
+  };
+  export type ImportPortalLayoutResponse = { data: PortalLayout };
+  export type ImportPortalLayoutValidator = {
+    ferriskey?: (string | null) | undefined;
+    name: string;
+    tree: unknown;
+    version?: (number | null) | undefined;
+  };
   export type InitiateDeviceFlowOutput = {
     device_code: string;
     expires_in: number;
@@ -811,20 +884,20 @@ export namespace Schemas {
     require_uppercase: boolean;
   };
   export type RealmLoginSetting = {
-    display_name?: (string | null) | undefined
-    email_verification_enabled: boolean
-    forgot_password_enabled: boolean
-    identity_providers: Array<IdentityProviderPresentation>
-    login_aliases: Array<string>
-    magic_link_enabled: boolean
-    magic_link_ttl: number
-    name: string
-    passkey_enabled: boolean
-    remember_me_enabled: boolean
-    theme: PortalThemeConfig
-    user_registration_enabled: boolean
-  }
-  export type RedirectRegistrationResponse = { url: string }
+    display_name?: (string | null) | undefined;
+    email_verification_enabled: boolean;
+    forgot_password_enabled: boolean;
+    identity_providers: Array<IdentityProviderPresentation>;
+    login_aliases: LoginAliases;
+    magic_link_enabled: boolean;
+    magic_link_ttl: number;
+    name: string;
+    passkey_enabled: boolean;
+    remember_me_enabled: boolean;
+    theme: PortalThemeConfig;
+    user_registration_enabled: boolean;
+  };
+  export type RedirectRegistrationResponse = { url: string };
   export type RedirectUri = {
     client_id: string;
     created_at: string;
@@ -833,13 +906,13 @@ export namespace Schemas {
     updated_at: string;
     value: string;
   };
-  export type RegistrationRequest = Partial<{
+  export type RegistrationRequest = {
     email: string;
-    first_name: string | null;
-    last_name: string | null;
+    first_name?: (string | null) | undefined;
+    last_name?: (string | null) | undefined;
     password: string;
     username: string;
-  }>;
+  };
   export type RegistrationResponse =
     | { data: JwtToken; status: "authenticated" }
     | { data: RedirectRegistrationResponse; status: "redirect" }
@@ -855,8 +928,32 @@ export namespace Schemas {
     token: string;
     token_type_hint: string | null;
   }>;
+  export type SamlAttributeName = string;
+  export type SamlAttributeNameFormat =
+    | "urn:oasis:names:tc:SAML:2.0:attrname-format:basic"
+    | "urn:oasis:names:tc:SAML:2.0:attrname-format:uri"
+    | "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified";
+  export type SamlAttributeSource = string;
+  export type SamlAttributeMapper = {
+    client_id: string;
+    created_at: string;
+    id: string;
+    name: SamlAttributeName;
+    name_format: SamlAttributeNameFormat;
+    source: SamlAttributeSource;
+    updated_at: string;
+  };
+  export type SamlAuthnRequestParams = { RelayState?: (string | null) | undefined; SAMLRequest: string };
   export type SendMagicLinkRequest = { email: string };
   export type SendMagicLinkResponse = { message: string };
+  export type SetClientSamlConfigValidator = Partial<{
+    acs_url: string;
+    name_id_format: string;
+    sign_assertions: boolean;
+    sign_documents: boolean;
+    sp_entity_id: string;
+    want_authn_requests_signed: boolean;
+  }>;
   export type SetDefaultPortalLayoutResponse = { data: PortalLayout };
   export type UserAttribute = {
     created_at: string;
@@ -1009,35 +1106,42 @@ export namespace Schemas {
   export type UpdateRealmResponse = { data: Realm };
   export type UpdateRealmSettingResponse = { data: Realm };
   export type UpdateRealmSettingValidator = Partial<{
-    access_token_lifetime: number | null
-    compass_enabled: boolean | null
-    default_signing_algorithm: string | null
-    email_verification_enabled: boolean | null
-    email_verification_template_id: string | null
-    email_verification_ttl_hours: number | null
-    forgot_password_enabled: boolean | null
-    id_token_lifetime: number | null
-    lockout_duration_seconds: number | null
-    lockout_threshold: number | null
-    login_aliases: Array<string> | null
-    magic_link_enabled: boolean | null
-    magic_link_template_id: string | null
-    magic_link_ttl: number | null
-    passkey_enabled: boolean | null
-    refresh_token_lifetime: number | null
-    remember_me_enabled: boolean | null
-    reset_password_template_id: string | null
-    temporary_token_lifetime: number | null
-    user_registration_enabled: boolean | null
-  }>
-  export type UpdateRealmValidator = { display_name?: (string | null) | undefined; name: string }
-  export type UpdateRedirectUriResponse = { data: RedirectUri }
-  export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
-  export type UpdateRolePermissionsResponse = { data: Role }
-  export type UpdateRolePermissionsValidator = { permissions: Array<string> }
-  export type UpdateRoleResponse = { data: Role }
-  export type UpdateRoleValidator = Partial<{ description: string | null; name: string | null }>
-  export type UpdateThemeMetadataResponse = { data: PortalTheme }
+    access_token_lifetime: number | null;
+    compass_enabled: boolean | null;
+    default_signing_algorithm: string | null;
+    email_verification_enabled: boolean | null;
+    email_verification_template_id: string | null;
+    email_verification_ttl_hours: number | null;
+    forgot_password_enabled: boolean | null;
+    id_token_lifetime: number | null;
+    lockout_duration_seconds: number | null;
+    lockout_threshold: number | null;
+    login_aliases: Array<string> | null;
+    magic_link_enabled: boolean | null;
+    magic_link_template_id: string | null;
+    magic_link_ttl: number | null;
+    passkey_enabled: boolean | null;
+    refresh_token_lifetime: number | null;
+    remember_me_enabled: boolean | null;
+    require_mfa: boolean | null;
+    reset_password_template_id: string | null;
+    seawatch_pii_mode: string | null;
+    seawatch_pseudo_key: string | null;
+    temporary_token_lifetime: number | null;
+    user_registration_enabled: boolean | null;
+  }>;
+  export type UpdateRealmValidator = { display_name?: (string | null) | undefined; name: string };
+  export type UpdateRedirectUriResponse = { data: RedirectUri };
+  export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>;
+  export type UpdateRolePermissionsResponse = { data: Role };
+  export type UpdateRolePermissionsValidator = { permissions: Array<string> };
+  export type UpdateRoleResponse = { data: Role };
+  export type UpdateRoleValidator = Partial<{
+    description: string | null;
+    name: string | null;
+    require_mfa: boolean | null;
+  }>;
+  export type UpdateThemeMetadataResponse = { data: PortalTheme };
   export type UpdateThemeMetadataValidator = {
     config?: PortalThemeConfig | undefined;
     layout_id?: (string | null) | undefined;
@@ -1101,50 +1205,6 @@ export namespace Schemas {
     id: string;
     updated_at: string;
     value: WebOriginValue;
-  };
-  export type CreateWebOriginValidator = Partial<{ value: string }>;
-  export type SamlNameIdFormat =
-    | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
-    | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
-    | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
-    | "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified";
-  export type SamlAttributeNameFormat =
-    | "urn:oasis:names:tc:SAML:2.0:attrname-format:basic"
-    | "urn:oasis:names:tc:SAML:2.0:attrname-format:uri"
-    | "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified";
-  export type ClientSamlConfig = {
-    acs_url: string;
-    client_id: string;
-    created_at: string;
-    name_id_format: SamlNameIdFormat;
-    realm_id: RealmId;
-    sign_assertions: boolean;
-    sign_documents: boolean;
-    sp_entity_id: string;
-    updated_at: string;
-    want_authn_requests_signed: boolean;
-  };
-  export type SetClientSamlConfigValidator = {
-    acs_url: string;
-    name_id_format?: string | undefined;
-    sign_assertions?: boolean | undefined;
-    sign_documents?: boolean | undefined;
-    sp_entity_id: string;
-    want_authn_requests_signed?: boolean | undefined;
-  };
-  export type SamlAttributeMapper = {
-    client_id: string;
-    created_at: string;
-    id: string;
-    name: string;
-    name_format: SamlAttributeNameFormat;
-    source: string;
-    updated_at: string;
-  };
-  export type CreateSamlAttributeMapperValidator = {
-    name: string;
-    name_format?: string | undefined;
-    source: string;
   };
 
   // </Schemas>
@@ -1295,6 +1355,8 @@ export namespace Endpoints {
         state: string;
         nonce: string;
         session_id: string;
+        code_challenge: string;
+        code_challenge_method: string;
       }>;
       path: { realm_name: string; alias: string };
     };
@@ -1410,7 +1472,7 @@ export namespace Endpoints {
       body: Schemas.CreateClientValidator;
     };
     responses: {
-      201: Schemas.CreatedClientResponse;
+      201: Schemas.Client;
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
@@ -1522,11 +1584,7 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string; client_id: string };
     };
-    responses: {
-      200: Schemas.ClientSecretResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-    };
+    responses: { 200: Schemas.ClientSecretResponse; 403: unknown; 404: unknown };
   };
   export type put_Assign_default_scope = {
     method: "PUT";
@@ -1737,83 +1795,34 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
-  export type get_Get_web_origins = {
+  export type get_Get_client_roles = {
     method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/web-origins";
+    path: "/realms/{realm_name}/clients/{client_id}/roles";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; client_id: string };
     };
     responses: {
-      200: Array<Schemas.WebOrigin>;
+      200: Schemas.GetClientRolesResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
-  export type post_Create_web_origin = {
+  export type post_Create_client_role = {
     method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/web-origins";
+    path: "/realms/{realm_name}/clients/{client_id}/roles";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; client_id: string };
 
-      body: Schemas.CreateWebOriginValidator;
+      body: Schemas.CreateRoleValidator;
     };
     responses: {
-      201: Schemas.WebOrigin;
-      400: Schemas.ApiErrorResponse;
+      201: Schemas.Role;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
-  export type delete_Delete_web_origin = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/clients/{client_id}/web-origins/{web_origin_id}";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string; client_id: string; web_origin_id: string };
-    };
-    responses: {
-      200: unknown;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
-  export type get_Get_client_saml_config = {
-    method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/saml-config";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string; client_id: string };
-    };
-    responses: {
-      200: Schemas.ClientSamlConfig;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
-      500: Schemas.ApiErrorResponse;
-    };
-  };
-  export type put_Set_client_saml_config = {
-    method: "PUT";
-    path: "/realms/{realm_name}/clients/{client_id}/saml-config";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string; client_id: string };
-
-      body: Schemas.SetClientSamlConfigValidator;
-    };
-    responses: {
-      201: Schemas.ClientSamlConfig;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -1865,34 +1874,83 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
-  export type get_Get_client_roles = {
+  export type get_Get_client_saml_config = {
     method: "GET";
-    path: "/realms/{realm_name}/clients/{client_id}/roles";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-config";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; client_id: string };
     };
     responses: {
-      200: Schemas.GetClientRolesResponse;
+      200: Schemas.ClientSamlConfig;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
-  export type post_Create_client_role = {
-    method: "POST";
-    path: "/realms/{realm_name}/clients/{client_id}/roles";
+  export type put_Set_client_saml_config = {
+    method: "PUT";
+    path: "/realms/{realm_name}/clients/{client_id}/saml-config";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; client_id: string };
 
-      body: Schemas.CreateRoleValidator;
+      body: Schemas.SetClientSamlConfigValidator;
     };
     responses: {
-      201: Schemas.Role;
+      201: Schemas.ClientSamlConfig;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_web_origins = {
+    method: "GET";
+    path: "/realms/{realm_name}/clients/{client_id}/web-origins";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Array<Schemas.WebOrigin>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_web_origin = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/web-origins";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.CreateWebOriginValidator;
+    };
+    responses: {
+      201: Schemas.WebOrigin;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_web_origin = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/clients/{client_id}/web-origins/{web_origin_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string; web_origin_id: string };
+    };
+    responses: {
+      200: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -1981,11 +2039,7 @@ export namespace Endpoints {
       query: { user_code: string };
       path: { realm_name: string };
     };
-    responses: {
-      200: Schemas.DeviceVerificationPreview;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-    };
+    responses: { 200: Schemas.DeviceVerificationPreview; 401: Schemas.ApiErrorResponse; 403: Schemas.ApiErrorResponse };
   };
   export type post_Device_verify = {
     method: "POST";
@@ -2034,6 +2088,23 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type post_Import_template = {
+    method: "POST";
+    path: "/realms/{realm_name}/email-templates/import";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ImportEmailTemplateValidator;
+    };
+    responses: {
+      201: Schemas.ImportEmailTemplateResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_template = {
     method: "GET";
     path: "/realms/{realm_name}/email-templates/{template_id}";
@@ -2076,6 +2147,21 @@ export namespace Endpoints {
     };
     responses: {
       200: Schemas.DeleteEmailTemplateResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Export_template = {
+    method: "GET";
+    path: "/realms/{realm_name}/email-templates/{template_id}/export";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; template_id: string; format: "json" | "mjml" };
+    };
+    responses: {
+      200: Schemas.ExportEnvelope;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
@@ -2441,7 +2527,13 @@ export namespace Endpoints {
 
       body: Schemas.OtpVerifyRequest;
     };
-    responses: { 200: Schemas.VerifyOtpResponse; 400: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
+    responses: {
+      200: Schemas.VerifyOtpResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Verify_reset_token = {
     method: "POST";
@@ -2970,6 +3062,24 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type post_Import_layout = {
+    method: "POST";
+    path: "/realms/{realm_name}/portal-layouts/import";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ImportPortalLayoutValidator;
+    };
+    responses: {
+      201: Schemas.ImportPortalLayoutResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_public_default_layout = {
     method: "GET";
     path: "/realms/{realm_name}/portal-layouts/public/default";
@@ -3053,6 +3163,21 @@ export namespace Endpoints {
     };
     responses: {
       200: Schemas.SetDefaultPortalLayoutResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Export_layout = {
+    method: "GET";
+    path: "/realms/{realm_name}/portal-layouts/{layout_id}/export";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; layout_id: string };
+    };
+    responses: {
+      200: Schemas.ExportEnvelope;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
@@ -3406,6 +3531,46 @@ export namespace Endpoints {
     };
     responses: { 200: Schemas.UserInfoResponse; 401: unknown; 403: unknown; 500: unknown };
   };
+  export type get_Saml_sso_redirect = {
+    method: "GET";
+    path: "/realms/{realm_name}/protocol/saml";
+    requestFormat: "json";
+    parameters: {
+      query: { SAMLRequest: string; RelayState?: string | undefined };
+      path: { realm_name: string };
+    };
+    responses: { 302: unknown; 400: unknown; 500: unknown };
+  };
+  export type post_Saml_sso_post = {
+    method: "POST";
+    path: "/realms/{realm_name}/protocol/saml";
+    requestFormat: "form-url";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.SamlAuthnRequestParams;
+    };
+    responses: { 302: unknown; 400: unknown; 500: unknown };
+  };
+  export type get_Saml_continue = {
+    method: "GET";
+    path: "/realms/{realm_name}/protocol/saml/continue";
+    requestFormat: "json";
+    parameters: {
+      query: { code: string };
+      path: { realm_name: string };
+    };
+    responses: { 200: unknown; 400: unknown; 500: unknown };
+  };
+  export type get_Saml_descriptor = {
+    method: "GET";
+    path: "/realms/{realm_name}/protocol/saml/descriptor";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: { 200: unknown; 404: unknown; 500: unknown };
+  };
   export type get_Get_roles = {
     method: "GET";
     path: "/realms/{realm_name}/roles";
@@ -3726,6 +3891,36 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_List_identity_provider_links = {
+    method: "GET";
+    path: "/realms/{realm_name}/users/{user_id}/identity-provider-links";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; user_id: string };
+    };
+    responses: {
+      200: Schemas.IdentityProviderLinksResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_identity_provider_link = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/users/{user_id}/identity-provider-links/{link_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; user_id: string; link_id: string };
+    };
+    responses: {
+      200: Schemas.DeleteIdentityProviderLinkResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_List_user_organizations = {
     method: "GET";
     path: "/realms/{realm_name}/users/{user_id}/organizations";
@@ -3970,6 +4165,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/device/preview": Endpoints.get_Device_preview;
     "/realms/{realm_name}/email-templates": Endpoints.get_Fetch_templates;
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.get_Get_template;
+    "/realms/{realm_name}/email-templates/{template_id}/export": Endpoints.get_Export_template;
     "/realms/{realm_name}/federation/providers": Endpoints.get_List_providers;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.get_Get_provider;
     "/realms/{realm_name}/identity-providers": Endpoints.get_List_identity_providers;
@@ -3992,6 +4188,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal-layouts/public/default": Endpoints.get_Get_public_default_layout;
     "/realms/{realm_name}/portal-layouts/public/{layout_id}": Endpoints.get_Get_public_layout;
     "/realms/{realm_name}/portal-layouts/{layout_id}": Endpoints.get_Get_layout;
+    "/realms/{realm_name}/portal-layouts/{layout_id}/export": Endpoints.get_Export_layout;
     "/realms/{realm_name}/portal/active": Endpoints.get_Get_active_theme;
     "/realms/{realm_name}/portal/page-requirements": Endpoints.get_Get_page_requirements;
     "/realms/{realm_name}/portal/theme": Endpoints.get_Get_theme;
@@ -4002,6 +4199,9 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/protocol/openid-connect/jwks.json": Endpoints.get_Get_jwks_json;
     "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.get_Logout_get;
     "/realms/{realm_name}/protocol/openid-connect/userinfo": Endpoints.get_Get_userinfo;
+    "/realms/{realm_name}/protocol/saml": Endpoints.get_Saml_sso_redirect;
+    "/realms/{realm_name}/protocol/saml/continue": Endpoints.get_Saml_continue;
+    "/realms/{realm_name}/protocol/saml/descriptor": Endpoints.get_Saml_descriptor;
     "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
     "/realms/{realm_name}/seawatch/v1/security-events": Endpoints.get_Get_security_events;
@@ -4011,6 +4211,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
     "/realms/{realm_name}/users/{user_id}/attributes": Endpoints.get_Get_user_attributes;
     "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
+    "/realms/{realm_name}/users/{user_id}/identity-provider-links": Endpoints.get_List_identity_provider_links;
     "/realms/{realm_name}/users/{user_id}/organizations": Endpoints.get_List_user_organizations;
     "/realms/{realm_name}/users/{user_id}/permissions": Endpoints.get_Get_user_permissions;
     "/realms/{realm_name}/users/{user_id}/roles": Endpoints.get_Get_user_roles;
@@ -4034,6 +4235,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.post_Create_web_origin;
     "/realms/{realm_name}/device/verify": Endpoints.post_Device_verify;
     "/realms/{realm_name}/email-templates": Endpoints.post_Create_template;
+    "/realms/{realm_name}/email-templates/import": Endpoints.post_Import_template;
     "/realms/{realm_name}/federation/providers": Endpoints.post_Create_provider;
     "/realms/{realm_name}/federation/providers/{id}/sync-users": Endpoints.post_Sync_users;
     "/realms/{realm_name}/federation/providers/{id}/test-connection": Endpoints.post_Test_connection;
@@ -4063,6 +4265,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/organizations/{organization_id}/members": Endpoints.post_Add_member;
     "/realms/{realm_name}/organizations/{organization_id}/members/{user_id}/roles": Endpoints.post_Assign_member_role;
     "/realms/{realm_name}/portal-layouts": Endpoints.post_Create_layout;
+    "/realms/{realm_name}/portal-layouts/import": Endpoints.post_Import_layout;
     "/realms/{realm_name}/portal/themes": Endpoints.post_Create_theme;
     "/realms/{realm_name}/portal/themes/{theme_id}/activate": Endpoints.post_Activate_theme;
     "/realms/{realm_name}/protocol/openid-connect/auth/device": Endpoints.post_Device_authorization;
@@ -4071,6 +4274,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/protocol/openid-connect/revoke": Endpoints.post_Revoke_token;
     "/realms/{realm_name}/protocol/openid-connect/token": Endpoints.post_Exchange_token;
     "/realms/{realm_name}/protocol/openid-connect/token/introspect": Endpoints.post_Introspect_token;
+    "/realms/{realm_name}/protocol/saml": Endpoints.post_Saml_sso_post;
     "/realms/{realm_name}/roles": Endpoints.post_Create_realm_role;
     "/realms/{realm_name}/users": Endpoints.post_Create_user;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
@@ -4138,6 +4342,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;
     "/realms/{realm_name}/users/{user_id}/attributes/{key}": Endpoints.delete_Delete_user_attribute;
     "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}": Endpoints.delete_Delete_user_credential;
+    "/realms/{realm_name}/users/{user_id}/identity-provider-links/{link_id}": Endpoints.delete_Delete_identity_provider_link;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.delete_Unassign_role;
     "/realms/{realm_name}/users/{user_id}/sessions/{session_id}": Endpoints.delete_Revoke_user_session;
     "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.delete_Delete_webhook;
