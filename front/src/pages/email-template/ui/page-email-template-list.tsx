@@ -5,12 +5,14 @@ import {
   Link2,
   Mail,
   MailCheck,
+  Download,
   Pencil,
   Plus,
   Search,
   Trash2,
+  Upload,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 interface EmailTemplate {
   id: string
@@ -26,6 +28,8 @@ interface Props {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onCreate: () => void
+  onExport: (id: string, format: 'json' | 'mjml') => void
+  onImport: (file: File) => void
 }
 
 type EmailType = 'reset_password' | 'magic_link' | 'email_verification'
@@ -85,11 +89,14 @@ export default function PageEmailTemplateList({
   isLoading,
   onEdit,
   onDelete,
+  onExport,
+  onImport,
   onCreate,
 }: Props) {
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [sort, setSort] = useState<SortKey>('recent')
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const stats = useMemo(() => {
     const total = templates.length
@@ -138,13 +145,35 @@ export default function PageEmailTemplateList({
             verifications.
           </p>
         </div>
-        <button
-          onClick={onCreate}
-          className='inline-flex items-center gap-2 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
-        >
-          <Plus className='h-4 w-4' />
-          New Template
-        </button>
+        <div className='flex items-center gap-2'>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className='inline-flex items-center gap-2 rounded-md border border-border px-3.5 py-2 text-sm font-medium hover:bg-muted transition-colors'
+          >
+            <Upload className='h-4 w-4' />
+            Import
+          </button>
+          {/* The picker stays hidden; the button above is the affordance. */}
+          <input
+            ref={importInputRef}
+            type='file'
+            accept='application/json,.json'
+            className='hidden'
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) onImport(file)
+              // Reset so picking the same file twice fires onChange again.
+              event.target.value = ''
+            }}
+          />
+          <button
+            onClick={onCreate}
+            className='inline-flex items-center gap-2 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
+          >
+            <Plus className='h-4 w-4' />
+            New Template
+          </button>
+        </div>
       </div>
 
       {/* Stats by type */}
@@ -298,6 +327,20 @@ export default function PageEmailTemplateList({
                       title='Edit'
                     >
                       <Pencil className='h-3.5 w-3.5' />
+                    </button>
+                    <button
+                      onClick={() => onExport(tpl.id, 'json')}
+                      className='p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
+                      title='Export as JSON'
+                    >
+                      <Download className='h-3.5 w-3.5' />
+                    </button>
+                    <button
+                      onClick={() => onExport(tpl.id, 'mjml')}
+                      className='px-1.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
+                      title='Export as MJML'
+                    >
+                      MJML
                     </button>
                     <button
                       onClick={() => onDelete(tpl.id)}

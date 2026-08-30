@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Download, LayoutTemplate, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { useRef } from 'react'
 import { PortalOverviewHeader } from '@/pages/portal/components/portal-overview-header'
 
 interface PortalLayoutListItem {
@@ -16,6 +17,8 @@ interface Props {
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onCreate: () => void
+  onExport: (id: string) => void
+  onImport: (file: File) => void
 }
 
 function LayoutAvatar({ name }: { name: string }) {
@@ -37,7 +40,11 @@ export default function PagePortalLayoutsList({
   onEdit,
   onDelete,
   onCreate,
+  onExport,
+  onImport,
 }: Props) {
+  const importInputRef = useRef<HTMLInputElement>(null)
+
   return (
     <div className='flex flex-col gap-6 p-8'>
       <PortalOverviewHeader
@@ -48,6 +55,23 @@ export default function PagePortalLayoutsList({
       <div>
         <div className='flex items-center justify-between mb-3'>
           <h2 className='text-base font-semibold'>Layouts ({layouts.length})</h2>
+          <Button variant='outline' size='sm' onClick={() => importInputRef.current?.click()}>
+            <Upload size={14} />
+            Import
+          </Button>
+          {/* The picker stays hidden; the button above is the affordance. */}
+          <input
+            ref={importInputRef}
+            type='file'
+            accept='application/json,.json'
+            className='hidden'
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) onImport(file)
+              // Reset so picking the same file twice fires onChange again.
+              event.target.value = ''
+            }}
+          />
         </div>
 
         <div className='-mx-8 border-t border-b overflow-hidden'>
@@ -104,6 +128,14 @@ export default function PagePortalLayoutsList({
                     onClick={() => onEdit(layout.id)}
                   >
                     <Pencil size={14} />
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    title='Export'
+                    onClick={() => onExport(layout.id)}
+                  >
+                    <Download size={14} />
                   </Button>
                   <Button
                     variant='ghost'
