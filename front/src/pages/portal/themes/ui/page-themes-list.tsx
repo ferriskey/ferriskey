@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CheckCircle2, Palette, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, Download, Palette, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import type { Schemas } from '@/api/api.client'
 import { PortalOverviewHeader } from '../../components/portal-overview-header'
 
@@ -22,6 +22,8 @@ interface Props {
   onEdit: (id: string) => void
   onActivate: (id: string) => void
   onDelete: (id: string) => void
+  onExport: (id: string) => void
+  onImport: (file: File) => void
 }
 
 function ThemeAvatar({ name }: { name: string }) {
@@ -55,9 +57,12 @@ export default function PageThemesList({
   onEdit,
   onActivate,
   onDelete,
+  onExport,
+  onImport,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const submitCreate = () => {
     if (!newName.trim()) return
@@ -76,6 +81,23 @@ export default function PageThemesList({
       <div>
         <div className='flex items-center justify-between mb-3'>
           <h2 className='text-base font-semibold'>Themes ({themes.length})</h2>
+          <Button variant='outline' size='sm' onClick={() => importInputRef.current?.click()}>
+            <Upload size={14} />
+            Import
+          </Button>
+          {/* The picker stays hidden; the button above is the affordance. */}
+          <input
+            ref={importInputRef}
+            type='file'
+            accept='application/json,.json'
+            className='hidden'
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) onImport(file)
+              // Reset so picking the same file twice fires onChange again.
+              event.target.value = ''
+            }}
+          />
         </div>
 
         <div className='-mx-8 border-t border-b overflow-hidden'>
@@ -146,6 +168,14 @@ export default function PageThemesList({
                         onClick={() => onEdit(theme.id)}
                       >
                         <Pencil size={14} />
+                      </Button>
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        title='Export'
+                        onClick={() => onExport(theme.id)}
+                      >
+                        <Download size={14} />
                       </Button>
                       <Button
                         variant='ghost'

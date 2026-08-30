@@ -94,6 +94,67 @@ pub fn slugify(name: &str) -> String {
     }
 }
 
+/// The envelope of an exported portal theme.
+///
+/// A theme is more than a tree: it carries the token config plus one tree per
+/// page of the authentication flow, and it points at the layout that frames
+/// them. The layout travels *inside* the file rather than as an id — ids are
+/// realm-local, so an id would dangle the moment the file crosses into another
+/// deployment, which is the whole point of exporting one.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct ThemeExportEnvelope {
+    /// Always `portal-theme`; the kind check reads this.
+    pub ferriskey: String,
+    pub version: u32,
+    pub name: String,
+    /// The theme's design tokens, verbatim.
+    #[schema(value_type = Object)]
+    pub config: serde_json::Value,
+    /// One builder tree per page, keyed by page type.
+    #[schema(value_type = Object)]
+    pub pages: serde_json::Value,
+    /// The layout this theme is framed by, when it has one. Carried by value so
+    /// the import can recreate it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<ThemeExportLayout>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct ThemeExportLayout {
+    pub name: String,
+    #[schema(value_type = Object)]
+    pub tree: serde_json::Value,
+}
+
+impl ThemeExportEnvelope {
+    pub const KIND: &'static str = "portal-theme";
+
+    pub fn new(
+        name: String,
+        config: serde_json::Value,
+        pages: serde_json::Value,
+        layout: Option<ThemeExportLayout>,
+    ) -> Self {
+        Self {
+            ferriskey: Self::KIND.to_string(),
+            version: FORMAT_VERSION,
+            name,
+            config,
+            pages,
+            layout,
+        }
+    }
+
+    /// Same download shape as a builder export: pretty JSON under a filename
+    /// derived from the theme's name.
+    pub fn into_download(self) -> Result<Response, serde_json::Error> {
+        let filename = format!("{}.json", slugify(&self.name));
+        let body = serde_json::to_vec_pretty(&self)?;
+
+        Ok(download(body, "application/json", &filename))
+    }
+}
+
 /// Refuses an import whose envelope names another builder or a format from the
 /// future. Both fields are optional: a payload assembled by hand, carrying only
 /// a name and a tree, stays importable — the check only holds an exported file

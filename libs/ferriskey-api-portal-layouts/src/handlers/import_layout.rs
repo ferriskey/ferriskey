@@ -57,6 +57,10 @@ pub async fn import_layout(
         ExportEnvelope::PORTAL_LAYOUT,
     )?;
 
+    let tree = payload
+        .tree
+        .ok_or_else(|| ApiError::BadRequest("tree is required".into()))?;
+
     let layout = state
         .service
         .import_layout(
@@ -64,7 +68,7 @@ pub async fn import_layout(
             ImportLayoutInput {
                 realm_name,
                 name: payload.name,
-                tree: payload.tree,
+                tree,
             },
         )
         .await

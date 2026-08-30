@@ -5,9 +5,11 @@ import {
   useCreatePortalTheme,
   useDeletePortalTheme,
   useGetActivePortalTheme,
+  useImportPortalTheme,
   useListPortalThemes,
   useUpdatePortalThemePage,
 } from '@/api/portal-theme.api'
+import { downloadPortalThemeExport, readExportFile } from '@/api/builder-export'
 import { DEFAULT_PAGE_TYPES, defaultPageTree } from '@/lib/builder-portal'
 import { toast } from 'sonner'
 import { themeBuilderUrl } from '@/routes/sub-router/portal-theme.router'
@@ -26,6 +28,7 @@ export default function PageThemesListFeature() {
 
   const { mutate: createTheme, isPending: isCreating } = useCreatePortalTheme()
   const { mutateAsync: updatePage } = useUpdatePortalThemePage()
+  const { mutate: importTheme } = useImportPortalTheme()
   const { mutate: deleteTheme } = useDeletePortalTheme()
   const { mutate: activateTheme } = useActivatePortalTheme()
 
@@ -87,6 +90,27 @@ export default function PageThemesListFeature() {
     activateTheme({ path: { realm_name: realm, theme_id: themeId } })
   }
 
+  const handleExport = (themeId: string) => {
+    downloadPortalThemeExport(realm, themeId).catch(() =>
+      toast.error('Could not export this theme'),
+    )
+  }
+
+  /**
+   * The exported file is sent back as-is: it carries the theme's tokens, its
+   * pages and the layout it is framed by, which the server recreates.
+   */
+  const handleImport = (file: File) => {
+    readExportFile(file)
+      .then((envelope) => {
+        importTheme({
+          path: { realm_name: realm },
+          body: envelope as never,
+        })
+      })
+      .catch((error: Error) => toast.error(error.message))
+  }
+
   const handleDelete = (themeId: string) => {
     deleteTheme({ path: { realm_name: realm, theme_id: themeId } })
   }
@@ -101,6 +125,8 @@ export default function PageThemesListFeature() {
       onEdit={handleEdit}
       onActivate={handleActivate}
       onDelete={handleDelete}
+      onExport={handleExport}
+      onImport={handleImport}
     />
   )
 }

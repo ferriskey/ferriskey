@@ -714,7 +714,7 @@ export namespace Schemas {
   export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> };
   export type ImportEmailTemplateResponse = { data: EmailTemplate };
   export type ImportEmailTemplateValidator = {
-    email_type: string;
+    email_type?: (string | null) | undefined;
     ferriskey?: (string | null) | undefined;
     mjml?: (string | null) | undefined;
     name: string;
@@ -726,7 +726,17 @@ export namespace Schemas {
   export type ImportPortalLayoutValidator = {
     ferriskey?: (string | null) | undefined;
     name: string;
-    tree: unknown;
+    tree?: unknown | undefined;
+    version?: (number | null) | undefined;
+  };
+  export type ImportPortalThemeLayoutValidator = { name: string; tree: Record<string, unknown> };
+  export type ImportPortalThemeResponse = { data: PortalTheme };
+  export type ImportPortalThemeValidator = {
+    config?: Record<string, unknown> | undefined;
+    ferriskey?: (string | null) | undefined;
+    layout?: (null | ImportPortalThemeLayoutValidator) | undefined;
+    name: string;
+    pages?: Record<string, unknown> | undefined;
     version?: (number | null) | undefined;
   };
   export type InitiateDeviceFlowOutput = {
@@ -990,6 +1000,15 @@ export namespace Schemas {
     updated: number;
   };
   export type TestConnectionResponse = { details?: unknown | undefined; message: string; success: boolean };
+  export type ThemeExportLayout = { name: string; tree: Record<string, unknown> };
+  export type ThemeExportEnvelope = {
+    config: Record<string, unknown>;
+    ferriskey: string;
+    layout?: (null | ThemeExportLayout) | undefined;
+    name: string;
+    pages: Record<string, unknown>;
+    version: number;
+  };
   export type ToggleMaintenanceResponse = { message: string };
   export type ToggleMaintenanceValidator = {
     enabled: boolean;
@@ -3279,6 +3298,23 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type post_Import_theme = {
+    method: "POST";
+    path: "/realms/{realm_name}/portal/themes/import";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ImportPortalThemeValidator;
+    };
+    responses: {
+      201: Schemas.ImportPortalThemeResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_theme_by_id = {
     method: "GET";
     path: "/realms/{realm_name}/portal/themes/{theme_id}";
@@ -3337,6 +3373,21 @@ export namespace Endpoints {
     };
     responses: {
       200: Schemas.ActivateThemeResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Export_theme = {
+    method: "GET";
+    path: "/realms/{realm_name}/portal/themes/{theme_id}/export";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; theme_id: string };
+    };
+    responses: {
+      200: Schemas.ThemeExportEnvelope;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
@@ -4194,6 +4245,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal/theme": Endpoints.get_Get_theme;
     "/realms/{realm_name}/portal/themes": Endpoints.get_List_themes;
     "/realms/{realm_name}/portal/themes/{theme_id}": Endpoints.get_Get_theme_by_id;
+    "/realms/{realm_name}/portal/themes/{theme_id}/export": Endpoints.get_Export_theme;
     "/realms/{realm_name}/protocol/openid-connect/auth": Endpoints.get_Auth_handler;
     "/realms/{realm_name}/protocol/openid-connect/certs": Endpoints.get_Get_certs;
     "/realms/{realm_name}/protocol/openid-connect/jwks.json": Endpoints.get_Get_jwks_json;
@@ -4267,6 +4319,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal-layouts": Endpoints.post_Create_layout;
     "/realms/{realm_name}/portal-layouts/import": Endpoints.post_Import_layout;
     "/realms/{realm_name}/portal/themes": Endpoints.post_Create_theme;
+    "/realms/{realm_name}/portal/themes/import": Endpoints.post_Import_theme;
     "/realms/{realm_name}/portal/themes/{theme_id}/activate": Endpoints.post_Activate_theme;
     "/realms/{realm_name}/protocol/openid-connect/auth/device": Endpoints.post_Device_authorization;
     "/realms/{realm_name}/protocol/openid-connect/logout": Endpoints.post_Logout_post;

@@ -32,7 +32,12 @@ pub struct ImportPortalLayoutValidator {
     ))]
     pub name: String,
 
-    pub tree: serde_json::Value,
+    /// Optional at deserialisation so a file from another builder is answered
+    /// by the envelope check — which says what the file actually is — rather
+    /// than by a "missing field tree" the person importing cannot act on. The
+    /// handler still requires it.
+    #[serde(default)]
+    pub tree: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

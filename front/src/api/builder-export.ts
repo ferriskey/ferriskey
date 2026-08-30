@@ -58,6 +58,13 @@ export async function downloadPortalLayoutExport(realm: string, layoutId: string
   saveBlob(blob, filename)
 }
 
+export async function downloadPortalThemeExport(realm: string, themeId: string): Promise<void> {
+  const { blob, filename } = await fetchExport(
+    `/realms/${realm}/portal/themes/${themeId}/export`,
+  )
+  saveBlob(blob, filename)
+}
+
 /** Reads a file the user picked and parses it as the JSON export envelope. */
 export async function readExportFile(file: File): Promise<Record<string, unknown>> {
   const text = await file.text()
