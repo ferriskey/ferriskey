@@ -63,10 +63,16 @@ type RenderOptions = {
    * `cursor: wait` and dim the button.
    */
   isSubmitting?: boolean
+  /**
+   * Blocks on the path to the page slot, stretched so the slot has room to
+   * take. Computed by `treeToReactNode`; callers never pass it.
+   */
+  fillPath?: Set<string>
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
-  return tree.map((node) => renderNode(node, options))
+  const fillPath = options.fillPath ?? pathToPageContent(tree)
+  return tree.map((node) => renderNode(node, { ...options, fillPath }))
 }
 
 /**
@@ -87,7 +93,11 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
   switch (node.type) {
     case 'container':
       return (
-        <div key={node.id} {...idAttr} style={containerStyle(node)}>
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{ ...containerStyle(node), ...fillStyle(node, options) }}
+        >
           {node.children.length > 0
             ? node.children.map((c) => renderNode(c, options))
             : null}
@@ -102,7 +112,11 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
     case 'grid':
     case 'div':
       return (
-        <div key={node.id} {...idAttr} style={divStyle(node)}>
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{ ...divStyle(node), ...fillStyle(node, options) }}
+        >
           {node.children.length > 0
             ? node.children.map((c) => renderNode(c, options))
             : null}
@@ -1104,13 +1118,52 @@ export function pageContentStyle(node: BuilderNode): CSSProperties {
   return {
     width: '100%',
     alignSelf: 'stretch',
-    minHeight: (node.props.minHeight as string) || '100vh',
-    minWidth: (node.props.minWidth as string) || '100vw',
+    // `flex: 1` and not `min-height: 100vh`: the slot has siblings — a header,
+    // a footer — and an absolute height would stack on top of theirs and push
+    // the page into a scrollbar. Taking the leftover room fills the viewport
+    // exactly, whatever surrounds it.
+    flex: '1 1 auto',
+    minHeight: (node.props.minHeight as string) || 0,
+    minWidth: (node.props.minWidth as string) || undefined,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: (node.props.justifyContent as string) || 'center',
     alignItems: (node.props.alignItems as string) || 'center',
   }
+}
+
+/**
+ * Stretches a block that sits between the root and the page slot, unless its
+ * author already said how it should behave.
+ */
+function fillStyle(node: BuilderNode, options: RenderOptions): CSSProperties {
+  if (!options.fillPath?.has(node.id)) return {}
+  if (node.props.flexGrow !== undefined && node.props.flexGrow !== '') return {}
+  return { flexGrow: 1, minHeight: 0 }
+}
+
+/**
+ * Ids of the blocks between the tree's root and the page slot.
+ *
+ * "Leftover room" only exists if every ancestor of the slot claims it too —
+ * a flex child that doesn't grow hands its children nothing to share. Rather
+ * than asking an author to tick "fill" on each level, the renderer walks the
+ * path once and stretches it.
+ */
+function pathToPageContent(tree: BuilderNode[]): Set<string> {
+  const path = new Set<string>()
+
+  const walk = (nodes: BuilderNode[], ancestors: string[]): boolean =>
+    nodes.some((node) => {
+      if (node.type === 'page-content') {
+        ancestors.forEach((id) => path.add(id))
+        return true
+      }
+      return walk(node.children, [...ancestors, node.id])
+    })
+
+  walk(tree, [])
+  return path
 }
 
 export function containerStyle(node: BuilderNode): CSSProperties {

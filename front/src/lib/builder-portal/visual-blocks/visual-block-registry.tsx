@@ -10,7 +10,6 @@ import {
   cardHeaderStyle,
   cardStyle,
   containerStyle,
-  pageContentStyle,
   divStyle,
   forgotPasswordLinkStyle,
   headingStyle,
@@ -693,16 +692,27 @@ function EditableRegisterLink({
   )
 }
 
-function PageContentSlot({ node, isSelected }: { node: BuilderNode; isSelected: boolean }) {
+function PageContentSlot({ isSelected }: { node: BuilderNode; isSelected: boolean }) {
   return (
     <div
       style={{
         ...chromeStyle(isSelected),
-        // The placeholder is drawn with the slot's own runtime style, so the
-        // builder shows the surface the page will actually get instead of a
-        // content-sized box the admin only discovers is wrong once shipped.
-        ...pageContentStyle(node),
+        // Mirror the runtime stretch behaviour (`<div data-portal-page-content>`
+        // is rendered with `width: 100%` + `align-self: stretch`), otherwise
+        // the layout builder paints a content-width placeholder while the
+        // live portal renders full-width — and the admin can't tell the two
+        // apart until they ship. The runtime slot also grows into whatever
+        // room is left; here a fixed minimum keeps the drop zone reachable
+        // in an otherwise empty layout.
+        width: '100%',
+        alignSelf: 'stretch',
+        flex: '1 1 auto',
         boxSizing: 'border-box',
+        minHeight: 120,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         gap: 8,
         padding: 24,
         borderRadius: 4,
