@@ -1113,8 +1113,45 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         <div className='flex flex-col'>
           {identity}
           <div className='px-3 py-2 text-xs text-muted-foreground'>
-            The page content slot is replaced at runtime by the page using this layout. No configuration needed.
+            The page using this layout is rendered here. It fills the viewport and
+            centres its content by default — clear a field to let the slot hug the
+            page instead.
           </div>
+          <ConfigSection title='Size'>
+            <DimensionInput
+              label='Min height'
+              value={node.props.minHeight as string}
+              onChange={(v) => updateProp('minHeight', v)}
+            />
+            <DimensionInput
+              label='Min width'
+              value={node.props.minWidth as string}
+              onChange={(v) => updateProp('minWidth', v)}
+            />
+          </ConfigSection>
+          <ConfigSection title='Alignment' defaultOpen={false}>
+            <SelectField
+              label='Vertical'
+              value={node.props.justifyContent as string}
+              options={[
+                { label: 'Top', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'Bottom', value: 'flex-end' },
+              ]}
+              onChange={(v) => updateProp('justifyContent', v)}
+            />
+            <SelectField
+              label='Horizontal'
+              value={node.props.alignItems as string}
+              options={[
+                { label: 'Left', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'flex-end' },
+                { label: 'Stretch', value: 'stretch' },
+              ]}
+              onChange={(v) => updateProp('alignItems', v)}
+            />
+          </ConfigSection>
         </div>
       )
 

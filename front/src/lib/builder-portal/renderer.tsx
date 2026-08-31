@@ -594,19 +594,11 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
       )
 
     case 'page-content':
-      // The slot must always span the full content area its layout exposes,
-      // regardless of how the surrounding container is aligned. Without an
-      // explicit `width: 100%`, a parent like `Container { align: center }`
-      // (very common: an admin who wants their card centred) collapses the
-      // slot to the page tree's intrinsic width — so even a `width: 100%`
-      // div inside the page would only stretch to whatever its siblings
-      // happen to be, not to the layout's actual horizontal real estate.
-      // `align-self: stretch` covers the flex-child case in one go.
       return (
         <div
           key={node.id}
           data-portal-page-content
-          style={{ width: '100%', alignSelf: 'stretch' }}
+          style={pageContentStyle(node)}
         >
           {options.pageContent ?? null}
         </div>
@@ -1091,6 +1083,33 @@ export function cardFooterStyle(node: BuilderNode): CSSProperties {
     justifyContent: (node.props.justifyContent as string) || 'flex-end',
     alignItems: (node.props.alignItems as string) || 'center',
     gap: (node.props.gap as string) || '8px',
+  }
+}
+
+/**
+ * The slot the page is rendered into.
+ *
+ * It spans the full content area its layout exposes whatever the surrounding
+ * container does: without an explicit `width: 100%`, a parent like
+ * `Container { align: center }` — very common, an admin centring their card —
+ * collapses the slot to the page's intrinsic width. `align-self: stretch`
+ * covers the flex-child case in one go.
+ *
+ * It also fills the viewport by default, so a page lands on a surface it can
+ * centre things in rather than one that hugs its content. Both minimums are
+ * plain props, so an author who wants the slot to hug its content again just
+ * clears them.
+ */
+export function pageContentStyle(node: BuilderNode): CSSProperties {
+  return {
+    width: '100%',
+    alignSelf: 'stretch',
+    minHeight: (node.props.minHeight as string) || '100vh',
+    minWidth: (node.props.minWidth as string) || '100vw',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: (node.props.justifyContent as string) || 'center',
+    alignItems: (node.props.alignItems as string) || 'center',
   }
 }
 
