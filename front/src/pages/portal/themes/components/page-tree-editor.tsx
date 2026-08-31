@@ -177,14 +177,17 @@ export default function PageTreeEditor({
               whole rail lived inside one ScrollArea and a long components
               list silently pushed the nav off-screen — making it impossible
               to navigate back to the Theme tab without page-scrolling. */}
-          <aside className='grid min-h-0 min-w-0 grid-rows-2 overflow-hidden border-r border-border'>
+          {/* Not `grid-rows-2`: equal halves gave the library the same height as
+              the page nav, which is short and already scrollable, leaving the
+              block list squeezed into a few visible rows. */}
+          <aside className='grid min-h-0 min-w-0 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] overflow-hidden border-r border-border'>
             <div className='min-h-0 min-w-0 overflow-hidden border-b border-border'>
               <ScrollArea className='h-full w-full'>{leftRailNav}</ScrollArea>
             </div>
             {/* The library pins its own tabs row and scrolls only the panel
                 body (both axes), so a deep/wide tree scrolls within the rail
                 without dragging the tabs. `min-w-0` keeps the scroll inside
-                the 220px column rather than pushing the canvas. */}
+                the rail column rather than pushing the canvas. */}
             <div className='flex min-h-0 min-w-0 flex-col overflow-hidden'>
               <PageComponentLibrary requiredTypes={requirements} pageType={pageType} />
             </div>
@@ -291,7 +294,12 @@ function EditorGrid({ children }: { children: ReactNode }) {
     <div
       className='grid h-full w-full min-w-0 overflow-hidden'
       style={{
-        gridTemplateColumns: selected ? '220px 1fr 320px' : '220px 1fr',
+        // The rail holds the page nav *and* the component library, whose three
+        // tabs (Components / Presets / Tree) did not fit in 220px — they
+        // overflowed into a hidden horizontal scroll. The canvas is `1fr` and
+        // only scales itself down to fit (see `useIframeFit`), so the widening
+        // costs a slightly smaller preview and nothing else.
+        gridTemplateColumns: selected ? '264px 1fr 320px' : '264px 1fr',
       }}
     >
       {children}
