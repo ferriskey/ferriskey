@@ -1521,6 +1521,15 @@ export function buttonStyle(node: BuilderNode): CSSProperties {
   const justifyContent =
     align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'
 
+  // Per-node colour overrides. Empty means "follow the theme", so each one
+  // falls back to the token the variant would have used — a button saved
+  // before these props existed renders exactly as it did. `||` and not `??`:
+  // clearing the field in the config panel stores an empty string, which must
+  // read as "unset" and not reach the stylesheet.
+  const backgroundOverride = (node.props.backgroundColor as string) || ''
+  const labelOverride = (node.props.color as string) || ''
+  const borderOverride = (node.props.borderColor as string) || ''
+
   const base: CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -1539,25 +1548,30 @@ export function buttonStyle(node: BuilderNode): CSSProperties {
   if (variant === 'secondary') {
     return {
       ...base,
-      backgroundColor: 'var(--fk-color-secondary-button, #ffffff)',
-      color: 'var(--fk-color-secondary-button-label, #111827)',
-      borderColor: 'var(--fk-color-body-text, #d1d5db)',
+      backgroundColor: backgroundOverride || 'var(--fk-color-secondary-button, #ffffff)',
+      color: labelOverride || 'var(--fk-color-secondary-button-label, #111827)',
+      borderColor: borderOverride || 'var(--fk-color-body-text, #d1d5db)',
     }
   }
 
   if (variant === 'outline') {
     return {
       ...base,
-      backgroundColor: 'transparent',
-      color: 'var(--fk-color-primary-button, #635dff)',
-      borderColor: 'var(--fk-color-primary-button, #635dff)',
+      // Stays transparent unless the author asks otherwise — an outline button
+      // that painted a token background would stop being an outline button.
+      backgroundColor: backgroundOverride || 'transparent',
+      color: labelOverride || 'var(--fk-color-primary-button, #635dff)',
+      borderColor: borderOverride || 'var(--fk-color-primary-button, #635dff)',
     }
   }
 
   return {
     ...base,
-    backgroundColor: 'var(--fk-color-primary-button, #635dff)',
-    color: 'var(--fk-color-primary-button-label, #ffffff)',
+    backgroundColor: backgroundOverride || 'var(--fk-color-primary-button, #635dff)',
+    color: labelOverride || 'var(--fk-color-primary-button-label, #ffffff)',
+    // `base` already draws a transparent border, so this only matters when the
+    // author sets one.
+    borderColor: borderOverride || undefined,
   }
 }
 
