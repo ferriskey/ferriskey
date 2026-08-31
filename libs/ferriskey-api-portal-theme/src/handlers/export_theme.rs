@@ -3,6 +3,7 @@ use axum::{
     extract::{Path, State},
     response::Response as AxumResponse,
 };
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     portal_layouts::ports::{GetLayoutInput, PortalLayoutsService},
@@ -72,9 +73,11 @@ pub async fn export_theme(
 
     // A layout the theme names but that no longer exists is not worth failing
     // an export over: the theme's own tokens and pages are what the file is
-    // for, and the import falls back to the realm's default layout.
+    // for, and the import falls back to the realm's default layout. Only a
+    // missing record is forgiven though — swallowing every error here would
+    // turn a permission denial into a file that silently lost its layout.
     let layout = match theme.layout_id {
-        Some(layout_id) => state
+        Some(layout_id) => match state
             .service
             .get_layout(
                 identity,
@@ -84,11 +87,14 @@ pub async fn export_theme(
                 },
             )
             .await
-            .ok()
-            .map(|layout| ThemeExportLayout {
+        {
+            Ok(layout) => Some(ThemeExportLayout {
                 name: layout.name,
                 tree: layout.tree,
             }),
+            Err(CoreError::NotFound) => None,
+            Err(e) => return Err(ApiError::from(e)),
+        },
         None => None,
     };
 

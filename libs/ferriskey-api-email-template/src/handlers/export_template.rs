@@ -27,6 +27,7 @@ pub enum EmailTemplateExportFormat {
 }
 
 #[derive(Debug, Default, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct ExportTemplateQuery {
     #[serde(default)]
     pub format: EmailTemplateExportFormat,
@@ -45,7 +46,13 @@ pub struct ExportTemplateQuery {
         ExportTemplateQuery,
     ),
     responses(
-        (status = 200, description = "Email template exported successfully", content_type = "application/json", body = ExportEnvelope),
+        // Two shapes behind one status: the envelope, or the MJML markup when
+        // `format=mjml`. Declaring only the JSON one made generated clients
+        // believe an MJML export returns an envelope.
+        (status = 200, description = "Email template exported successfully", content(
+            (ExportEnvelope = "application/json"),
+            (String = "text/plain"),
+        )),
         (status = 404, description = "Email template not found", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),

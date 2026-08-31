@@ -25,7 +25,7 @@ pub struct ExportEnvelope {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_type: Option<String>,
     /// The builder tree (`BuilderNode[]`).
-    #[schema(value_type = Object)]
+    #[schema(value_type = Vec<Object>)]
     pub tree: serde_json::Value,
 }
 
@@ -122,7 +122,7 @@ pub struct ThemeExportEnvelope {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct ThemeExportLayout {
     pub name: String,
-    #[schema(value_type = Object)]
+    #[schema(value_type = Vec<Object>)]
     pub tree: serde_json::Value,
 }
 
@@ -291,11 +291,17 @@ mod tests {
                 .expect("serialize");
 
         assert_eq!(
-            response.headers().get(header::CONTENT_DISPOSITION).unwrap(),
+            response
+                .headers()
+                .get(header::CONTENT_DISPOSITION)
+                .expect("a download must name its file"),
             "attachment; filename=\"reset-password.json\""
         );
         assert_eq!(
-            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .expect("a download must declare its type"),
             "application/json"
         );
     }

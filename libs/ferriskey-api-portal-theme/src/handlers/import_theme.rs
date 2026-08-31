@@ -5,7 +5,7 @@ use axum::{
 use ferriskey_core::application::portal_theme::{ImportPortalThemeInput, ImportPortalThemeLayout};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    portal_theme::entities::{PortalPageType, PortalTheme},
+    portal_theme::entities::{PortalPageType, PortalTheme, PortalThemeConfig},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -82,8 +82,15 @@ pub async fn import_theme(
         ThemeExportEnvelope::KIND,
     )?;
 
-    let config = serde_json::from_value(payload.config)
-        .map_err(|e| ApiError::BadRequest(format!("invalid theme config: {e}").into()))?;
+    // `config` is optional in the file: `serde(default)` on a `Value` yields
+    // `Null`, which the config struct refuses, so an envelope written without
+    // one would be rejected instead of falling back to the defaults.
+    let config = if payload.config.is_null() {
+        PortalThemeConfig::default()
+    } else {
+        serde_json::from_value(payload.config)
+            .map_err(|e| ApiError::BadRequest(format!("invalid theme config: {e}").into()))?
+    };
 
     let theme = state
         .service

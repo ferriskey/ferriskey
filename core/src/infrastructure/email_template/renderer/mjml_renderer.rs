@@ -466,8 +466,10 @@ mod tests {
     fn test_mjml_to_json_builds_builder_nodes() {
         let mjml = r##"<mjml><mj-body><mj-section background-color="#ffffff"><mj-column><mj-text font-size="16px">Hello {{user.first_name}}</mj-text></mj-column></mj-section></mj-body></mjml>"##;
 
-        let structure = mjml_to_json(mjml).unwrap();
-        let children = structure["children"].as_array().unwrap();
+        let structure = mjml_to_json(mjml).expect("valid markup parses");
+        let children = structure["children"]
+            .as_array()
+            .expect("a parsed body carries its children");
 
         assert_eq!(children.len(), 1);
         let section = &children[0];
@@ -486,7 +488,7 @@ mod tests {
     fn test_mjml_to_json_keeps_inline_html_as_content() {
         let mjml = r#"<mjml><mj-body><mj-section><mj-column><mj-text><p>Hello <b>world</b></p><br /></mj-text></mj-column></mj-section></mj-body></mjml>"#;
 
-        let structure = mjml_to_json(mjml).unwrap();
+        let structure = mjml_to_json(mjml).expect("valid markup parses");
         let text = &structure["children"][0]["children"][0]["children"][0];
 
         assert_eq!(text["type"], "mj-text");
@@ -498,15 +500,20 @@ mod tests {
     fn test_mjml_to_json_roundtrips_through_json_to_mjml() {
         let original = r##"<mjml><mj-body><mj-section><mj-column><mj-text font-size="14px">Hi</mj-text><mj-divider border-color="#eeeeee" /></mj-column></mj-section></mj-body></mjml>"##;
 
-        let structure = mjml_to_json(original).unwrap();
-        let rendered = json_to_mjml(&structure).unwrap();
+        let structure = mjml_to_json(original).expect("valid markup parses");
+        let rendered = json_to_mjml(&structure).expect("a parsed tree renders back");
 
         // Re-parsing the rendered MJML yields the same tree, ids aside.
-        let reparsed = mjml_to_json(&rendered).unwrap();
+        let reparsed = mjml_to_json(&rendered).expect("rendered markup parses again");
         assert_eq!(strip_ids(&structure), strip_ids(&reparsed));
 
         let renderer = MjmlTemplateRenderer::new();
-        assert!(renderer.render_to_html(&rendered).unwrap().contains("Hi"));
+        assert!(
+            renderer
+                .render_to_html(&rendered)
+                .expect("rendered markup compiles to html")
+                .contains("Hi")
+        );
     }
 
     #[test]

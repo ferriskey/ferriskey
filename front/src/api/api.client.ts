@@ -550,7 +550,7 @@ export namespace Schemas {
     email_type?: (string | null) | undefined;
     ferriskey: string;
     name: string;
-    tree: Record<string, unknown>;
+    tree: Array<Record<string, unknown>>;
     version: number;
   };
   export type FlowStats = {
@@ -1000,7 +1000,7 @@ export namespace Schemas {
     updated: number;
   };
   export type TestConnectionResponse = { details?: unknown | undefined; message: string; success: boolean };
-  export type ThemeExportLayout = { name: string; tree: Record<string, unknown> };
+  export type ThemeExportLayout = { name: string; tree: Array<Record<string, unknown>> };
   export type ThemeExportEnvelope = {
     config: Record<string, unknown>;
     ferriskey: string;
@@ -1183,7 +1183,7 @@ export namespace Schemas {
   export type UpdateWebhookValidator = Partial<{
     description: string | null;
     endpoint: string;
-    headers: Record<string, string>;
+    headers: Record<string, string> | null;
     name: string | null;
     subscribers: Array<WebhookTrigger>;
   }>;
@@ -2177,7 +2177,8 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/email-templates/{template_id}/export";
     requestFormat: "json";
     parameters: {
-      path: { realm_name: string; template_id: string; format: "json" | "mjml" };
+      query: Partial<{ format: "json" | "mjml" }>;
+      path: { realm_name: string; template_id: string };
     };
     responses: {
       200: Schemas.ExportEnvelope;

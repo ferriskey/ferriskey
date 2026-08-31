@@ -211,7 +211,9 @@ where
             .ok_or(CoreError::WebhookNotFound)?;
 
         let endpoint = validate_endpoint(&input.endpoint)?;
-        reject_reserved_headers(&input.headers)?;
+        if let Some(headers) = input.headers.as_ref() {
+            reject_reserved_headers(headers)?;
+        }
 
         let webhook = self
             .webhook_repository
@@ -370,7 +372,7 @@ mod tests {
             name: Some("renamed".to_string()),
             description: None,
             endpoint: "https://93.184.216.34/hook".to_string(),
-            headers: HashMap::new(),
+            headers: Some(HashMap::new()),
             subscribers: Vec::new(),
         }
     }

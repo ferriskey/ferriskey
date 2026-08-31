@@ -37,8 +37,11 @@ pub struct UpdateWebhookValidator {
     #[serde(default)]
     pub endpoint: String,
 
+    /// Omitted keeps the stored headers: the API never returns them, so a
+    /// client editing another field has no way to send them back and would
+    /// otherwise wipe them.
     #[serde(default)]
-    pub headers: HashMap<String, String>,
+    pub headers: Option<HashMap<String, String>>,
 
     #[serde(default)]
     pub subscribers: Vec<WebhookTrigger>,

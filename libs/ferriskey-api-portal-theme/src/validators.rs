@@ -46,6 +46,7 @@ pub struct ImportPortalThemeValidator {
 
     /// The layout carried inside the file, recreated on import.
     #[serde(default)]
+    #[validate(nested)]
     pub layout: Option<ImportPortalThemeLayoutValidator>,
 }
 
