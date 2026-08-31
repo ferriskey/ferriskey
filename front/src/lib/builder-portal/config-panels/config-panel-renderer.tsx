@@ -118,6 +118,17 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
           {identity}
           <ConfigSection title='Layout'>
             <SelectField
+              label='Display'
+              value={(node.props.display as string) || 'flex'}
+              options={[
+                { label: 'Flex', value: 'flex' },
+                { label: 'Block', value: 'block' },
+                { label: 'Grid', value: 'grid' },
+              ]}
+              onChange={(v) => updateProp('display', v)}
+              allowEmpty={false}
+            />
+            <SelectField
               label='Direction'
               value={node.props.direction as string}
               options={[
@@ -137,6 +148,28 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
                 { label: 'Stretch', value: 'stretch' },
               ]}
               onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Justify (main axis)'
+              value={node.props.justifyContent as string}
+              options={[
+                { label: 'Start', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'End', value: 'flex-end' },
+                { label: 'Space between', value: 'space-between' },
+                { label: 'Space around', value: 'space-around' },
+              ]}
+              onChange={(v) => updateProp('justifyContent', v)}
+            />
+            <SelectField
+              label='Fill page height'
+              value={node.props.flexGrow as string}
+              options={[
+                { label: 'No', value: '' },
+                { label: 'Yes', value: '1' },
+              ]}
+              onChange={(v) => updateProp('flexGrow', v)}
               allowEmpty={false}
             />
             <DimensionInput label='Gap' value={node.props.gap as string} onChange={(v) => updateProp('gap', v)} />

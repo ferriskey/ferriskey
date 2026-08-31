@@ -1097,9 +1097,17 @@ export function cardFooterStyle(node: BuilderNode): CSSProperties {
 export function containerStyle(node: BuilderNode): CSSProperties {
   const order = (node.props.order as string) || ''
   return {
-    display: 'flex',
+    // `display` was hardcoded to flex. It stays the default, so a stored
+    // container is unaffected, but a layout can now ask for block or grid.
+    display: ((node.props.display as string) || 'flex') as CSSProperties['display'],
     flexDirection: ((node.props.direction as string) || 'column') as 'row' | 'column',
     alignItems: (node.props.align as string) || 'stretch',
+    // Main-axis placement, and whether the container takes the height left
+    // over by its siblings — together, that is what lets a layout centre its
+    // content on the page. Both stay `undefined` when unset, so the emitted
+    // style is byte-for-byte what it was for every container already saved.
+    justifyContent: (node.props.justifyContent as string) || undefined,
+    flexGrow: (node.props.flexGrow as string) ? Number(node.props.flexGrow) : undefined,
     gap: (node.props.gap as string) || '12px',
     padding: (node.props.padding as string) || '16px',
     backgroundColor: (node.props.backgroundColor as string) || undefined,
