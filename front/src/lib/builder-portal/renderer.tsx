@@ -1139,7 +1139,18 @@ export function pageContentStyle(node: BuilderNode): CSSProperties {
 function fillStyle(node: BuilderNode, options: RenderOptions): CSSProperties {
   if (!options.fillPath?.has(node.id)) return {}
   if (node.props.flexGrow !== undefined && node.props.flexGrow !== '') return {}
-  return { flexGrow: 1, minHeight: 0 }
+
+  // Growing is only half the job: a `div` defaults to `display: block`, whose
+  // children are not flex items, so the slot inside would stay content-height
+  // no matter how tall its ancestor grew. Give an ancestor that never chose a
+  // display one that passes the height down; an explicit choice is left alone.
+  const display = (node.props.display as string) || ''
+  const layout: CSSProperties =
+    display === '' && node.type !== 'container'
+      ? { display: 'flex', flexDirection: 'column' }
+      : {}
+
+  return { ...layout, flexGrow: 1, minHeight: 0 }
 }
 
 /**
