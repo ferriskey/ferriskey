@@ -69,7 +69,12 @@ export const useCreatePortalTheme = () => {
       const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
         path: { realm_name: variables.path.realm_name },
       }).queryKey
-      await queryClient.invalidateQueries({ queryKey: listKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({
+          queryKey: activeThemeQueryKey(variables.path.realm_name),
+        }),
+      ])
       toast.success('Portal theme created')
     },
   })
@@ -283,7 +288,14 @@ export const useDeletePortalTheme = () => {
       const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
         path: { realm_name: variables.path.realm_name },
       }).queryKey
-      await queryClient.invalidateQueries({ queryKey: listKey })
+      // Deleting the live theme changes which one is active, so the active
+      // query has to go too.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({
+          queryKey: activeThemeQueryKey(variables.path.realm_name),
+        }),
+      ])
       toast.success('Portal theme deleted')
     },
   })
@@ -314,6 +326,21 @@ export const useGetPortalPageRequirements = ({ realm = 'master' }: BaseQuery) =>
   })
 }
 
+/**
+ * Which theme is active is its own query, not a field on the list.
+ *
+ * `/portal/active` is keyed by page type, and the themes list carries no
+ * `active` flag — so anything that changes which theme is live has to expire
+ * this query by hand, or the console keeps showing the previous winner until
+ * something else happens to refetch it.
+ *
+ * The key is built without `query` on purpose: React Query matches keys
+ * partially, so omitting the page type expires every cached page type at once.
+ */
+function activeThemeQueryKey(realmName: string) {
+  return [{ _id: '/realms/{realm_name}/portal/active', path: { realm_name: realmName } }]
+}
+
 async function invalidateThemeQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   realmName: string,
@@ -329,5 +356,6 @@ async function invalidateThemeQueries(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: listKey }),
     queryClient.invalidateQueries({ queryKey: itemKey }),
+    queryClient.invalidateQueries({ queryKey: activeThemeQueryKey(realmName) }),
   ])
 }
