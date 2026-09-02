@@ -11,15 +11,12 @@ import '../page-login.css'
 
 export interface UpdatePasswordProps {
   handleClick: () => void
-  /** The realm's password rules, checked live against what the user types. */
   requirements: PasswordRequirement[]
 }
 
 export default function UpdatePassword({ handleClick, requirements }: UpdatePasswordProps) {
   const form = useFormContext<UpdatePasswordSchema>()
   const isPending = form.formState.isSubmitting
-  // Watched rather than read from `getValues`, so the checklist re-renders on
-  // every keystroke instead of only on submit.
   const password = form.watch('password') ?? ''
 
   return (

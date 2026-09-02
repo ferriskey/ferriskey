@@ -52,11 +52,6 @@ impl Display for PasswordPolicyError {
             PasswordPolicyError::MissingSpecialCharacter => {
                 write!(f, "Password must contain at least one special character")
             }
-            // Deliberately jargon-free: this string is rendered as-is on the
-            // login and update-password screens. The bit counts stay on the
-            // variant for logs and tests, but telling an end user their
-            // password has "47.6 bits of entropy" tells them nothing about
-            // what to type instead — see issue #1302.
             PasswordPolicyError::InsufficientEntropy { .. } => {
                 write!(
                     f,
@@ -100,10 +95,6 @@ impl From<&PasswordPolicyError> for PasswordPolicyViolation {
 mod tests {
     use super::PasswordPolicyError;
 
-    /// Policy messages are rendered verbatim to end users on the login /
-    /// update-password screens. "Entropy" and "bits" are cryptographic
-    /// vocabulary that means nothing to them, and the numbers are an
-    /// implementation detail of our estimator — see issue #1302.
     #[test]
     fn insufficient_entropy_message_avoids_cryptographic_jargon() {
         let message = PasswordPolicyError::InsufficientEntropy {
@@ -127,8 +118,6 @@ mod tests {
         );
     }
 
-    /// The `code` is the machine-readable half of the contract: clients may
-    /// branch on it, so rewording the human message must not move it.
     #[test]
     fn insufficient_entropy_code_is_stable() {
         assert_eq!(

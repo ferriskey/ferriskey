@@ -17,12 +17,6 @@ import { usePublicPasswordPolicy } from '@/api/password-policy.api'
 import { passwordPolicyRequirements } from '@/lib/password-policy'
 import { validationErrorsFrom } from '@/lib/api-error'
 
-/**
- * The API reports policy violations against the request field it validated
- * (`password`, or `value` on the update-password payload). Both mean the new
- * password input on this form; anything else has no matching input and falls
- * back to a toast.
- */
 const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
   password: 'password',
   value: 'password',
@@ -58,10 +52,6 @@ export default function UpdatePasswordFeature() {
         },
       },
       {
-        // A rejected password comes back as a 422 listing one message per
-        // broken rule. Attach each one to its input so the user sees what to
-        // fix where they typed it — a toast alone left the form looking
-        // untouched, which read as "nothing happened" (issue #1302).
         onError: (error) => {
           const fieldErrors = validationErrorsFrom(error)
           const unattached: string[] = []
