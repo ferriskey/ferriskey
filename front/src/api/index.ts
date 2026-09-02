@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { type Fetcher } from '@/api/api.client.ts'
 import { authRefreshController } from '@/hooks/auth-refresh-controller.ts'
 import { authStore } from '@/store/auth.store.ts'
+import { errorMessageFromBody } from '@/lib/api-error.ts'
 
 export interface BaseQuery {
   realm?: string
@@ -167,7 +168,7 @@ export const fetcher: Fetcher['fetch'] = async (input) => {
     }
 
     const error: Error & { status?: number; data?: Record<string, unknown> } = new Error(
-      (errorBody?.message as string) ?? `HTTP ${response.status}: ${response.statusText}`,
+      errorMessageFromBody(errorBody) ?? `HTTP ${response.status}: ${response.statusText}`,
     )
     error.status = response.status
     error.data = errorBody
