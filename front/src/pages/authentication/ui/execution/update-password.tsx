@@ -3,16 +3,24 @@ import { InputText } from '@/components/ui/input-text.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { FormField } from '@/components/ui/form'
 import { useFormContext } from 'react-hook-form'
+import { Check, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { PasswordRequirement } from '@/lib/password-policy'
 import { UpdatePasswordSchema } from '../../schemas/update-password.schema'
 import '../page-login.css'
 
 export interface UpdatePasswordProps {
   handleClick: () => void
+  /** The realm's password rules, checked live against what the user types. */
+  requirements: PasswordRequirement[]
 }
 
-export default function UpdatePassword({ handleClick }: UpdatePasswordProps) {
+export default function UpdatePassword({ handleClick, requirements }: UpdatePasswordProps) {
   const form = useFormContext<UpdatePasswordSchema>()
   const isPending = form.formState.isSubmitting
+  // Watched rather than read from `getValues`, so the checklist re-renders on
+  // every keystroke instead of only on submit.
+  const password = form.watch('password') ?? ''
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
@@ -58,6 +66,33 @@ export default function UpdatePassword({ handleClick }: UpdatePasswordProps) {
                             />
                           )}
                         />
+                        {requirements.length > 0 && (
+                          <ul className='flex flex-col gap-1.5' aria-label='Password requirements'>
+                            {requirements.map((requirement) => {
+                              const isMet = requirement.isMet(password)
+
+                              return (
+                                <li
+                                  key={requirement.id}
+                                  className={cn(
+                                    'flex items-center gap-2 text-xs transition-colors',
+                                    isMet ? 'text-emerald-600' : 'text-muted-foreground'
+                                  )}
+                                >
+                                  {isMet ? (
+                                    <Check className='h-3.5 w-3.5 shrink-0' aria-hidden />
+                                  ) : (
+                                    <X className='h-3.5 w-3.5 shrink-0' aria-hidden />
+                                  )}
+                                  <span>{requirement.label}</span>
+                                  <span className='sr-only'>
+                                    {isMet ? '(met)' : '(not met yet)'}
+                                  </span>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        )}
                       </div>
                       <div className='grid gap-3'>
                         <FormField

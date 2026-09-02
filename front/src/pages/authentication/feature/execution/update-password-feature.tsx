@@ -4,13 +4,29 @@ import UpdatePassword from '@/pages/authentication/ui/execution/update-password.
 import { useUpdatePassword } from '@/api/trident.api'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { updatePasswordSchema, UpdatePasswordSchema } from '../../schemas/update-password.schema'
+import {
+  buildUpdatePasswordSchema,
+  UpdatePasswordSchema,
+} from '../../schemas/update-password.schema'
 import { Form } from '@/components/ui/form'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { AuthenticationStatus } from '@/api/api.interface'
+import { usePublicPasswordPolicy } from '@/api/password-policy.api'
+import { passwordPolicyRequirements } from '@/lib/password-policy'
+import { validationErrorsFrom } from '@/lib/api-error'
 
+/**
+ * The API reports policy violations against the request field it validated
+ * (`password`, or `value` on the update-password payload). Both mean the new
+ * password input on this form; anything else has no matching input and falls
+ * back to a toast.
+ */
+const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
+  password: 'password',
+  value: 'password',
+}
 
 export default function UpdatePasswordFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -18,8 +34,15 @@ export default function UpdatePasswordFeature() {
   const { mutate: authenticate, data: authenticateResponse } = useAuthenticateMutation()
   const navigate = useNavigate()
 
+  const { data: passwordPolicy } = usePublicPasswordPolicy(realm_name)
+  const schema = useMemo(() => buildUpdatePasswordSchema(passwordPolicy), [passwordPolicy])
+  const requirements = useMemo(
+    () => passwordPolicyRequirements(passwordPolicy),
+    [passwordPolicy]
+  )
+
   const form = useForm<UpdatePasswordSchema>({
-    resolver: zodResolver(updatePasswordSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       password: '',
       confirmPassword: ''
@@ -35,8 +58,28 @@ export default function UpdatePasswordFeature() {
         },
       },
       {
+        // A rejected password comes back as a 422 listing one message per
+        // broken rule. Attach each one to its input so the user sees what to
+        // fix where they typed it — a toast alone left the form looking
+        // untouched, which read as "nothing happened" (issue #1302).
         onError: (error) => {
-          toast.error(error.message || 'Failed to update your password')
+          const fieldErrors = validationErrorsFrom(error)
+          const unattached: string[] = []
+
+          for (const fieldError of fieldErrors) {
+            const field = FIELD_BY_API_FIELD[fieldError.field]
+            if (field) {
+              form.setError(field, { type: 'server', message: fieldError.message })
+            } else {
+              unattached.push(fieldError.message)
+            }
+          }
+
+          if (fieldErrors.length === 0 || unattached.length > 0) {
+            toast.error(
+              unattached.join(' — ') || error.message || 'Failed to update your password'
+            )
+          }
         },
       }
     )
@@ -74,7 +117,7 @@ export default function UpdatePasswordFeature() {
 
   return (
     <Form {...form}>
-      <UpdatePassword handleClick={handleClick} />
+      <UpdatePassword handleClick={handleClick} requirements={requirements} />
     </Form>
   )
 }
