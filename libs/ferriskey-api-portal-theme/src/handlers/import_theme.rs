@@ -2,10 +2,12 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_core::application::portal_theme::{ImportPortalThemeInput, ImportPortalThemeLayout};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    portal_theme::entities::{PortalPageType, PortalTheme, PortalThemeConfig},
+    portal_theme::{
+        entities::{PortalPageType, PortalTheme, PortalThemeConfig},
+        ports::{ImportPortalThemeInput, ImportPortalThemeLayout},
+    },
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

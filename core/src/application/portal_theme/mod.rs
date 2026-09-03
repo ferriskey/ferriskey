@@ -5,10 +5,10 @@ use crate::{
         common::entities::app_errors::CoreError,
         portal_layouts::ports::{ImportLayoutInput, PortalLayoutsService},
         portal_theme::{
-            entities::{PortalPageType, PortalTheme, PortalThemeConfig},
+            entities::{PortalTheme, PortalThemeConfig},
             ports::{
-                CreateThemeInput, GetThemeByIdInput, GetThemeInput, ListThemesInput,
-                PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
+                CreateThemeInput, GetThemeByIdInput, GetThemeInput, ImportPortalThemeInput,
+                ListThemesInput, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
                 UpdateThemePageInput,
             },
         },
@@ -181,18 +181,4 @@ impl ApplicationService {
         )
         .await
     }
-}
-
-pub struct ImportPortalThemeLayout {
-    pub name: String,
-    pub tree: serde_json::Value,
-}
-
-pub struct ImportPortalThemeInput {
-    pub realm_name: String,
-    pub name: String,
-    pub config: PortalThemeConfig,
-    /// Every page the file carries, in the order it should be written.
-    pub pages: Vec<(PortalPageType, serde_json::Value)>,
-    pub layout: Option<ImportPortalThemeLayout>,
 }
