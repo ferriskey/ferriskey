@@ -1833,10 +1833,12 @@ name = "ferriskey-api-seawatch"
 version = "0.7.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
