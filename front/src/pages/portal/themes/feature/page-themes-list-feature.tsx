@@ -5,8 +5,13 @@ import {
   useCreatePortalTheme,
   useDeletePortalTheme,
   useGetActivePortalTheme,
+  useImportPortalTheme,
   useListPortalThemes,
+  useUpdatePortalThemePage,
 } from '@/api/portal-theme.api'
+import { downloadPortalThemeExport, readExportFile } from '@/api/builder-export'
+import { DEFAULT_PAGE_TYPES, defaultPageTree } from '@/lib/builder-portal'
+import { toast } from 'sonner'
 import { themeBuilderUrl } from '@/routes/sub-router/portal-theme.router'
 import PageThemesList from '../ui/page-themes-list'
 import { defaultTheme } from '@/pages/portal-theme/lib/theme'
@@ -22,8 +27,42 @@ export default function PageThemesListFeature() {
   const activeThemeId = activeData?.theme_id ?? null
 
   const { mutate: createTheme, isPending: isCreating } = useCreatePortalTheme()
+  const { mutateAsync: updatePage } = useUpdatePortalThemePage()
+  const { mutate: importTheme } = useImportPortalTheme()
   const { mutate: deleteTheme } = useDeletePortalTheme()
   const { mutate: activateTheme } = useActivatePortalTheme()
+
+  /**
+   * Fills a new theme's pages with their default composition.
+   *
+   * A theme created with empty pages cannot be activated — the server requires
+   * each flow's blocks to be present — so seeding here is what makes a fresh
+   * theme usable without composing twelve pages by hand first.
+   */
+  const seedDefaultPages = async (themeId: string) => {
+    // Sequential rather than concurrent: should the access token expire
+    // mid-seed, twelve parallel calls would each start their own refresh with
+    // the same refresh token, and reuse detection revokes a rotated family.
+    // One at a time, the first refresh covers the calls that follow. Twelve
+    // small writes cost little enough that the wait is not worth the risk.
+    let failed = 0
+    for (const pageType of DEFAULT_PAGE_TYPES) {
+      try {
+        await updatePage({
+          path: { realm_name: realm, theme_id: themeId, page_type: pageType },
+          body: { tree: defaultPageTree(pageType) },
+        })
+      } catch {
+        failed += 1
+      }
+    }
+
+    if (failed > 0) {
+      toast.warning(
+        `${failed} page${failed > 1 ? 's' : ''} could not be pre-filled — open them before activating this theme.`,
+      )
+    }
+  }
 
   const handleCreate = (name: string) => {
     createTheme(
@@ -32,11 +71,12 @@ export default function PageThemesListFeature() {
         body: { name, config: defaultTheme },
       },
       {
-        onSuccess: (res) => {
+        onSuccess: async (res) => {
           const newId = res?.data?.id
-          if (newId) {
-            navigate(themeBuilderUrl(pathname, realm, newId))
-          }
+          if (!newId) return
+
+          await seedDefaultPages(newId)
+          navigate(themeBuilderUrl(pathname, realm, newId))
         },
       },
     )
@@ -48,6 +88,27 @@ export default function PageThemesListFeature() {
 
   const handleActivate = (themeId: string) => {
     activateTheme({ path: { realm_name: realm, theme_id: themeId } })
+  }
+
+  const handleExport = (themeId: string) => {
+    downloadPortalThemeExport(realm, themeId).catch(() =>
+      toast.error('Could not export this theme'),
+    )
+  }
+
+  /**
+   * The exported file is sent back as-is: it carries the theme's tokens, its
+   * pages and the layout it is framed by, which the server recreates.
+   */
+  const handleImport = (file: File) => {
+    readExportFile(file)
+      .then((envelope) => {
+        importTheme({
+          path: { realm_name: realm },
+          body: envelope as never,
+        })
+      })
+      .catch((error: Error) => toast.error(error.message))
   }
 
   const handleDelete = (themeId: string) => {
@@ -64,6 +125,8 @@ export default function PageThemesListFeature() {
       onEdit={handleEdit}
       onActivate={handleActivate}
       onDelete={handleDelete}
+      onExport={handleExport}
+      onImport={handleImport}
     />
   )
 }

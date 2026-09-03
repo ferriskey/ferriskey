@@ -58,6 +58,27 @@ export const useUpdateEmailTemplate = () => {
   })
 }
 
+export const useImportEmailTemplate = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/email-templates/import')
+      .mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/email-templates', {
+        path: { realm_name: variables.path.realm_name },
+      }).queryKey
+
+      await queryClient.invalidateQueries({ queryKey: keys })
+      toast.success('Email template imported successfully')
+    },
+    // The server refuses a file that belongs to the other builder or that uses
+    // a format version it cannot read; its message says which, so surface it.
+    onError: (error) => {
+      toast.error('Failed to import', { description: error.message })
+    },
+  })
+}
+
 export const useDeleteEmailTemplate = () => {
   const queryClient = useQueryClient()
   return useMutation({

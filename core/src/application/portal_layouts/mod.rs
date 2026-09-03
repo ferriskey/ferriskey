@@ -6,8 +6,8 @@ use crate::{
         portal_layouts::{
             entities::PortalLayout,
             ports::{
-                CreateLayoutInput, GetLayoutInput, ListLayoutsInput, PortalLayoutsService,
-                UpdateLayoutInput,
+                CreateLayoutInput, GetLayoutInput, ImportLayoutInput, ListLayoutsInput,
+                PortalLayoutsService, UpdateLayoutInput,
             },
         },
     },
@@ -88,5 +88,15 @@ impl PortalLayoutsService for ApplicationService {
         input: GetLayoutInput,
     ) -> Result<Option<PortalLayout>, CoreError> {
         self.portal_layouts_service.get_public_layout(input).await
+    }
+
+    async fn import_layout(
+        &self,
+        identity: Identity,
+        input: ImportLayoutInput,
+    ) -> Result<PortalLayout, CoreError> {
+        self.portal_layouts_service
+            .import_layout(identity, input)
+            .await
     }
 }

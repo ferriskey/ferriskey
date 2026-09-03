@@ -188,17 +188,20 @@ impl WebhookRepository for PostgresWebhookRepository {
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
-        headers: HashMap<String, String>,
+        headers: Option<HashMap<String, String>>,
         subscribers: Vec<WebhookTrigger>,
     ) -> Result<Webhook, CoreError> {
-        let headers_json = to_value(headers).unwrap_or_default();
-
         let update_result = WebhookEntity::update_many()
             .set(WebhookActiveModel {
                 name: Set(name),
                 description: Set(description),
                 endpoint: Set(endpoint),
-                headers: Set(headers_json),
+                // `NotSet` leaves the column alone — the caller said nothing
+                // about headers, so the stored ones stay.
+                headers: match headers {
+                    Some(headers) => Set(to_value(headers).unwrap_or_default()),
+                    None => sea_orm::ActiveValue::NotSet,
+                },
                 updated_at: Set(Utc::now().naive_utc()),
                 ..Default::default()
             })
@@ -433,7 +436,7 @@ mod tests {
                 Some("hijacked".to_string()),
                 None,
                 "https://attacker.example/hook".to_string(),
-                HashMap::new(),
+                Some(HashMap::new()),
                 Vec::new(),
             )
             .await;
@@ -494,7 +497,7 @@ mod tests {
                 Some("renamed".to_string()),
                 None,
                 "https://example.com/updated".to_string(),
-                HashMap::new(),
+                Some(HashMap::new()),
                 vec![WebhookTrigger::UserDeleted],
             )
             .await

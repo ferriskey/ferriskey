@@ -43,6 +43,12 @@ pub trait EmailTemplateService: Send + Sync {
         identity: Identity,
         input: RenderEmailTemplateInput,
     ) -> impl Future<Output = Result<String, CoreError>> + Send;
+
+    fn import_template(
+        &self,
+        identity: Identity,
+        input: ImportEmailTemplateInput,
+    ) -> impl Future<Output = Result<EmailTemplate, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -92,6 +98,11 @@ pub trait TemplateRenderer: Send + Sync {
 
     /// Converts the intermediate representation into final HTML.
     fn render_to_html(&self, intermediate: &str) -> Result<String, CoreError>;
+
+    /// Converts an intermediate representation back into a builder structure (JSON).
+    /// The inverse of [`TemplateRenderer::render_to_intermediate`], used to import
+    /// externally authored markup into the builder.
+    fn parse_intermediate(&self, intermediate: &str) -> Result<serde_json::Value, CoreError>;
 }
 
 pub trait EmailTemplatePolicy: Send + Sync {
@@ -139,4 +150,18 @@ pub struct DeleteEmailTemplateInput {
 pub struct RenderEmailTemplateInput {
     pub realm_name: String,
     pub template_id: Uuid,
+}
+
+/// Where an imported template comes from: either the builder's own JSON tree,
+/// or raw MJML markup that has to be parsed back into one.
+pub enum EmailTemplateSource {
+    Structure(serde_json::Value),
+    Mjml(String),
+}
+
+pub struct ImportEmailTemplateInput {
+    pub realm_name: String,
+    pub name: String,
+    pub email_type: EmailType,
+    pub source: EmailTemplateSource,
 }

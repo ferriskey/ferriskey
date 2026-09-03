@@ -6,7 +6,7 @@ export interface SamlOption<TValue extends string> {
   description: string
 }
 
-const NAME_ID_FORMATS: Record<Schemas.SamlNameIdFormat, Omit<SamlOption<string>, 'value'>> = {
+const NAME_ID_FORMATS: Record<Schemas.NameIdFormat, Omit<SamlOption<string>, 'value'>> = {
   'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress': {
     label: 'Email address',
     description: 'The user is identified by their email address. What most applications expect.',
@@ -49,12 +49,12 @@ function toOptions<TValue extends string>(
   return (Object.keys(formats) as TValue[]).map((value) => ({ value, ...formats[value] }))
 }
 
-export const NAME_ID_FORMAT_OPTIONS = toOptions<Schemas.SamlNameIdFormat>(NAME_ID_FORMATS)
+export const NAME_ID_FORMAT_OPTIONS = toOptions<Schemas.NameIdFormat>(NAME_ID_FORMATS)
 
 export const ATTRIBUTE_NAME_FORMAT_OPTIONS =
   toOptions<Schemas.SamlAttributeNameFormat>(ATTRIBUTE_NAME_FORMATS)
 
-export const DEFAULT_NAME_ID_FORMAT: Schemas.SamlNameIdFormat =
+export const DEFAULT_NAME_ID_FORMAT: Schemas.NameIdFormat =
   'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'
 
 export const DEFAULT_ATTRIBUTE_NAME_FORMAT: Schemas.SamlAttributeNameFormat =
@@ -98,7 +98,7 @@ export function describeAttributeSource(source: string): string {
 }
 
 export function describeNameIdFormat(format: string): string {
-  return NAME_ID_FORMATS[format as Schemas.SamlNameIdFormat]?.label ?? format
+  return NAME_ID_FORMATS[format as Schemas.NameIdFormat]?.label ?? format
 }
 
 export function describeAttributeNameFormat(format: string): string {

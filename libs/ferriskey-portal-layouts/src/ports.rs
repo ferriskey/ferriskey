@@ -53,6 +53,12 @@ pub trait PortalLayoutsService: Send + Sync {
         &self,
         input: GetLayoutInput,
     ) -> impl Future<Output = Result<Option<PortalLayout>, CoreError>> + Send;
+
+    fn import_layout(
+        &self,
+        identity: Identity,
+        input: ImportLayoutInput,
+    ) -> impl Future<Output = Result<PortalLayout, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -134,6 +140,12 @@ pub struct CreateLayoutInput {
 pub struct UpdateLayoutInput {
     pub realm_name: String,
     pub layout_id: Uuid,
+    pub name: String,
+    pub tree: serde_json::Value,
+}
+
+pub struct ImportLayoutInput {
+    pub realm_name: String,
     pub name: String,
     pub tree: serde_json::Value,
 }

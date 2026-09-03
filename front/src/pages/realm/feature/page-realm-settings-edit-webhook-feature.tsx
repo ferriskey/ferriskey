@@ -32,7 +32,13 @@ export default function PageRealmSettingsEditWebhookFeature() {
         description: webhook.description ?? '',
         endpoint: webhook.endpoint,
         subscribers: initialTriggers,
-        headers: Object.entries(webhook.headers).map(([key, value]) => ({ key, value })),
+        // The API never returns a webhook's headers — they are marked
+        // `skip_serializing` alongside the delivery secret — so there is
+        // nothing to prefill. The submit handler leaves them out of the
+        // payload unless the user actually enters some, and the server keeps
+        // what it has: editing the endpoint must not wipe the headers that
+        // authenticate the deliveries.
+        headers: [],
       }
     : undefined
 
@@ -65,12 +71,16 @@ export default function PageRealmSettingsEditWebhookFeature() {
   const onSubmit = form.handleSubmit((data) => {
     if (!realm_name || !webhook_id) return
 
-    const headers: Record<string, string> = {}
-    if (data.headers) {
-      data.headers.forEach((header) => {
-        headers[header.key] = header.value
-      })
-    }
+    // Only send headers when the user typed some. An empty list means "I did
+    // not touch them", not "delete them" — the form cannot show the stored
+    // ones, so it is in no position to replace them.
+    const entered = (data.headers ?? []).filter((header) => header.key.trim().length > 0)
+    const headers = entered.length
+      ? entered.reduce<Record<string, string>>((acc, header) => {
+          acc[header.key] = header.value
+          return acc
+        }, {})
+      : undefined
 
     updateWebhook({
       body: {
@@ -78,7 +88,7 @@ export default function PageRealmSettingsEditWebhookFeature() {
         endpoint: data.endpoint,
         name: data.name,
         subscribers: data.subscribers as WebhookTrigger[],
-        headers,
+        ...(headers ? { headers } : {}),
       },
       path: {
         realm_name,

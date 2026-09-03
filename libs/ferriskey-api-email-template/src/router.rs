@@ -1,10 +1,17 @@
 use super::handlers::create_template::{__path_create_template, create_template};
 use super::handlers::delete_template::{__path_delete_template, delete_template};
+use super::handlers::export_template::{
+    __path_export_template, EmailTemplateExportFormat, export_template,
+};
 use super::handlers::fetch_templates::{__path_fetch_templates, fetch_templates};
 use super::handlers::get_template::{__path_get_template, get_template};
 use super::handlers::get_variables::{__path_get_variables, get_variables};
+use super::handlers::import_template::{__path_import_template, import_template};
 use super::handlers::update_template::{__path_update_template, update_template};
-use axum::{Router, middleware, routing::get};
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::auth::auth;
 use utoipa::OpenApi;
@@ -16,7 +23,14 @@ use utoipa::OpenApi;
     create_template,
     update_template,
     delete_template,
-))]
+    import_template,
+    export_template,
+),
+// `EmailTemplateExportFormat` is only reached through the `ExportTemplateQuery`
+// query-params struct (`IntoParams`), which utoipa does not walk for component
+// schemas — so the generated `$ref` would dangle and break OpenAPI clients.
+// Register it explicitly here.
+components(schemas(EmailTemplateExportFormat)))]
 pub struct EmailTemplateApiDoc;
 
 #[derive(OpenApi)]
@@ -34,12 +48,26 @@ pub fn email_template_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
+                "{}/realms/{{realm_name}}/email-templates/import",
+                state.args.server.root_path
+            ),
+            post(import_template),
+        )
+        .route(
+            &format!(
                 "{}/realms/{{realm_name}}/email-templates/{{template_id}}",
                 state.args.server.root_path
             ),
             get(get_template)
                 .put(update_template)
                 .delete(delete_template),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/email-templates/{{template_id}}/export",
+                state.args.server.root_path
+            ),
+            get(export_template),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 

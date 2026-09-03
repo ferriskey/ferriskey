@@ -3,8 +3,9 @@ use std::sync::Arc;
 use crate::email_template::entities::EmailTemplate;
 use crate::email_template::ports::{
     CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplatePolicy,
-    EmailTemplateRepository, EmailTemplateService, GetEmailTemplateInput, GetEmailTemplatesInput,
-    RenderEmailTemplateInput, TemplateRenderer, UpdateEmailTemplateInput,
+    EmailTemplateRepository, EmailTemplateService, EmailTemplateSource, GetEmailTemplateInput,
+    GetEmailTemplatesInput, ImportEmailTemplateInput, RenderEmailTemplateInput, TemplateRenderer,
+    UpdateEmailTemplateInput,
 };
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
@@ -234,6 +235,47 @@ where
 
         self.template_renderer.render_to_html(&template.mjml)
     }
+
+    async fn import_template(
+        &self,
+        identity: Identity,
+        input: ImportEmailTemplateInput,
+    ) -> Result<EmailTemplate, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy
+                .can_manage_email_template(&identity, &realm)
+                .await,
+            "insufficient permissions",
+        )?;
+
+        // MJML imports are parsed back into a builder structure so the imported
+        // template stays editable in the builder, like any other template.
+        let structure = match input.source {
+            EmailTemplateSource::Structure(structure) => structure,
+            EmailTemplateSource::Mjml(mjml) => self.template_renderer.parse_intermediate(&mjml)?,
+        };
+
+        let mjml = self.template_renderer.render_to_intermediate(&structure)?;
+
+        // Validate that the MJML can be converted to HTML
+        self.template_renderer.render_to_html(&mjml)?;
+
+        self.email_template_repository
+            .create(
+                realm.id.into(),
+                input.name,
+                input.email_type.to_string(),
+                structure,
+                mjml,
+            )
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -264,6 +306,12 @@ mod tests {
 
         fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
             Ok("<html><body>Test</body></html>".to_string())
+        }
+
+        fn parse_intermediate(&self, _intermediate: &str) -> Result<serde_json::Value, CoreError> {
+            Ok(
+                json!({"children": [{"type": "mj-section", "props": {}, "styles": {}, "children": []}]}),
+            )
         }
     }
 

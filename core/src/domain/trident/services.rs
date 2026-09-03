@@ -2180,6 +2180,10 @@ mod tests {
         fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
             Ok(String::new())
         }
+
+        fn parse_intermediate(&self, _intermediate: &str) -> Result<serde_json::Value, CoreError> {
+            Ok(serde_json::json!({"children": []}))
+        }
     }
 
     type TestTridentService = TridentServiceImpl<
