@@ -25,18 +25,17 @@ pub trait SecurityEventService: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait SecurityEventRepository: Send + Sync {
-    /// Store an event that has already had its `event_hash` and `prev_hash` populated.
+    /// Store an event, atomically linking it into the realm's tamper-evident
+    /// hash chain: the implementation retrieves the current chain head under
+    /// an exclusive lock, computes `event_hash`/`prev_hash` from it, and
+    /// inserts in the same transaction so concurrent writers stay serialised.
+    /// There is deliberately only one write path — a non-chained `store_event`
+    /// invites a caller to bypass the chain and leave `event_hash`/`prev_hash`
+    /// NULL, which is exactly how the chain went unbuilt before.
     fn store_event(
         &self,
         event: SecurityEvent,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
-
-    /// Atomically retrieve the current chain head hash for `realm_id`, compute and
-    /// store the new event with correct `event_hash` / `prev_hash` fields.
-    fn store_event_chained(
-        &self,
-        event: SecurityEvent,
-    ) -> impl Future<Output = Result<SecurityEvent, CoreError>> + Send;
 
     fn get_events(
         &self,
