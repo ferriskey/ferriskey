@@ -21,7 +21,14 @@ impl From<security_events::Model> for SecurityEvent {
             _ => None,
         });
 
-        let event_type = parse_event_type(model.event_type.as_str());
+        let event_type = SecurityEventType::parse(model.event_type.as_str());
+        if event_type == SecurityEventType::Unknown {
+            tracing::warn!(
+                security_event_id = %model.id,
+                raw_event_type = model.event_type.as_str(),
+                "security event has an unrecognised event_type; reading it back as Unknown instead of guessing"
+            );
+        }
 
         let status = match model.status.as_str() {
             "success" => EventStatus::Success,
@@ -47,41 +54,6 @@ impl From<security_events::Model> for SecurityEvent {
             event_hash: decode_hash(model.event_hash),
             prev_hash: decode_hash(model.prev_hash),
         }
-    }
-}
-
-/// Inverse of `SecurityEventType`'s `Display`, which is what the write path
-/// persists. Every variant must round-trip through here — see the tests below.
-///
-/// Unknown values fall back to `LoginSuccess` so that a row written by a newer
-/// version does not break reads on an older one.
-fn parse_event_type(raw: &str) -> SecurityEventType {
-    match raw {
-        "login_success" => SecurityEventType::LoginSuccess,
-        "login_failure" => SecurityEventType::LoginFailure,
-        "password_reset" => SecurityEventType::PasswordReset,
-        "password_reset_requested" => SecurityEventType::PasswordResetRequested,
-        "password_reset_completed" => SecurityEventType::PasswordResetCompleted,
-        "user_created" => SecurityEventType::UserCreated,
-        "user_email_verified" => SecurityEventType::UserEmailVerified,
-        "user_deleted" => SecurityEventType::UserDeleted,
-        "role_assigned" => SecurityEventType::RoleAssigned,
-        "role_unassigned" => SecurityEventType::RoleUnassigned,
-        "role_created" => SecurityEventType::RoleCreated,
-        "role_removed" => SecurityEventType::RoleRemoved,
-        "client_created" => SecurityEventType::ClientCreated,
-        "client_deleted" => SecurityEventType::ClientDeleted,
-        "client_secret_rotated" => SecurityEventType::ClientSecretRotated,
-        "client_secret_viewed" => SecurityEventType::ClientSecretViewed,
-        "realm_config_changed" => SecurityEventType::RealmConfigChanged,
-        "email_not_sent" => SecurityEventType::EmailNotSent,
-        "email_sent" => SecurityEventType::EmailSent,
-        "client_maintenance_enabled" => SecurityEventType::ClientMaintenanceEnabled,
-        "client_maintenance_disabled" => SecurityEventType::ClientMaintenanceDisabled,
-        "session_created" => SecurityEventType::SessionCreated,
-        "session_revoked" => SecurityEventType::SessionRevoked,
-        "identity_provider_link_removed" => SecurityEventType::IdentityProviderLinkRemoved,
-        _ => SecurityEventType::LoginSuccess,
     }
 }
 
@@ -141,18 +113,19 @@ mod tests {
         SecurityEventType::SessionCreated,
         SecurityEventType::SessionRevoked,
         SecurityEventType::IdentityProviderLinkRemoved,
+        SecurityEventType::Unknown,
     ];
 
     /// The write path persists `event_type` via `Display` and the read path
-    /// parses it back with `parse_event_type`. If the two ever drift, events
-    /// silently decode as `LoginSuccess` instead of failing loudly — so pin the
-    /// round-trip for every variant.
+    /// parses it back with `SecurityEventType::parse`. If the two ever drift,
+    /// a real variant would silently decode as `Unknown` instead of failing
+    /// loudly — so pin the round-trip for every variant.
     #[test]
     fn event_type_round_trips_through_its_persisted_form() {
         for expected in ALL_EVENT_TYPES {
             let persisted = expected.to_string();
             assert_eq!(
-                parse_event_type(&persisted),
+                SecurityEventType::parse(&persisted),
                 *expected,
                 "`{persisted}` did not parse back to the variant that produced it"
             );
@@ -160,10 +133,10 @@ mod tests {
     }
 
     #[test]
-    fn unknown_event_type_falls_back_instead_of_panicking() {
+    fn unknown_event_type_falls_back_to_unknown_instead_of_lying_about_success() {
         assert_eq!(
-            parse_event_type("some_event_from_a_newer_version"),
-            SecurityEventType::LoginSuccess
+            SecurityEventType::parse("some_event_from_a_newer_version"),
+            SecurityEventType::Unknown
         );
     }
 
@@ -196,7 +169,8 @@ mod tests {
                 | SecurityEventType::ClientMaintenanceDisabled
                 | SecurityEventType::SessionCreated
                 | SecurityEventType::SessionRevoked
-                | SecurityEventType::IdentityProviderLinkRemoved => true,
+                | SecurityEventType::IdentityProviderLinkRemoved
+                | SecurityEventType::Unknown => true,
             };
 
             assert!(listed && ALL_EVENT_TYPES.contains(event_type));

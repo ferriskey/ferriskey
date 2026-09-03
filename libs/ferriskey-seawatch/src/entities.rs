@@ -81,6 +81,49 @@ pub enum SecurityEventType {
 
     #[serde(rename = "identity_provider_link_removed")]
     IdentityProviderLinkRemoved,
+
+    /// A row whose persisted `event_type` does not match any known variant —
+    /// a typo, a variant removed in a refactor, or a row written by a newer
+    /// version. Never constructed by write-path code; the read path falls
+    /// back to this instead of guessing a variant, so a corrupt or unknown
+    /// row can never be misread as a successful login. See `parse` below.
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+impl SecurityEventType {
+    /// Parse the wire form written by `Display`. Infallible: a value that
+    /// matches no known variant becomes `Unknown` rather than being guessed
+    /// as some other variant or panicking.
+    pub fn parse(raw: &str) -> Self {
+        match raw {
+            "login_success" => Self::LoginSuccess,
+            "login_failure" => Self::LoginFailure,
+            "password_reset" => Self::PasswordReset,
+            "password_reset_requested" => Self::PasswordResetRequested,
+            "password_reset_completed" => Self::PasswordResetCompleted,
+            "user_created" => Self::UserCreated,
+            "user_email_verified" => Self::UserEmailVerified,
+            "user_deleted" => Self::UserDeleted,
+            "role_assigned" => Self::RoleAssigned,
+            "role_unassigned" => Self::RoleUnassigned,
+            "role_created" => Self::RoleCreated,
+            "role_removed" => Self::RoleRemoved,
+            "client_created" => Self::ClientCreated,
+            "client_deleted" => Self::ClientDeleted,
+            "client_secret_rotated" => Self::ClientSecretRotated,
+            "client_secret_viewed" => Self::ClientSecretViewed,
+            "realm_config_changed" => Self::RealmConfigChanged,
+            "email_not_sent" => Self::EmailNotSent,
+            "email_sent" => Self::EmailSent,
+            "client_maintenance_enabled" => Self::ClientMaintenanceEnabled,
+            "client_maintenance_disabled" => Self::ClientMaintenanceDisabled,
+            "session_created" => Self::SessionCreated,
+            "session_revoked" => Self::SessionRevoked,
+            "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 impl Display for SecurityEventType {
@@ -116,6 +159,7 @@ impl Display for SecurityEventType {
             SecurityEventType::IdentityProviderLinkRemoved => {
                 write!(f, "identity_provider_link_removed")
             }
+            SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }
 }
