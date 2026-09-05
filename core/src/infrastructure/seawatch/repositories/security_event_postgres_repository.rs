@@ -48,46 +48,25 @@ impl PostgresSecurityEventRepository {
 }
 
 impl SecurityEventRepository for PostgresSecurityEventRepository {
-    async fn store_event(&self, event: SecurityEvent) -> Result<(), CoreError> {
+    /// Opens a transaction, fetches the current chain head (latest event for
+    /// the realm ordered by `created_at DESC`) under an exclusive lock,
+    /// computes `event_hash = SHA-256(preimage || prev_hash)`, and inserts in
+    /// the same transaction to keep the chain linear even under concurrent
+    /// writes from multiple API workers (Postgres serialises the writes
+    /// within the txn).
+    async fn store_event(&self, mut event: SecurityEvent) -> Result<(), CoreError> {
         let realm_id: Uuid = event.realm_id.into();
         let pii_cfg = self.load_pii_config(realm_id).await;
-        let event = apply_to_event(event, &pii_cfg);
+        event = apply_to_event(event, &pii_cfg);
 
-        let active_model: security_events::ActiveModel = event.into();
-
-        security_events::Entity::insert(active_model)
-            .exec(&self.db)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to store security event: {}", e);
-                CoreError::InternalServerError
-            })?;
-
-        Ok(())
-    }
-
-    /// Atomically compute and persist the chained event.
-    ///
-    /// The implementation opens a transaction, fetches the current chain head
-    /// (latest event for the realm ordered by `created_at DESC`), computes
-    /// `event_hash = SHA-256(preimage || prev_hash)`, and inserts in the same
-    /// transaction to keep the chain linear even under concurrent writes from
-    /// multiple API workers (Postgres serialises the writes within the txn).
-    async fn store_event_chained(
-        &self,
-        mut event: SecurityEvent,
-    ) -> Result<SecurityEvent, CoreError> {
-        let db = &self.db;
-        let realm_uuid: Uuid = event.realm_id.into();
-
-        let txn = db.begin().await.map_err(|e| {
+        let txn = self.db.begin().await.map_err(|e| {
             tracing::error!("Failed to begin transaction for chained event: {}", e);
             CoreError::InternalServerError
         })?;
 
         // Lock the latest row for this realm so concurrent inserts are serialised.
         let head = security_events::Entity::find()
-            .filter(security_events::Column::RealmId.eq(realm_uuid))
+            .filter(security_events::Column::RealmId.eq(realm_id))
             .order_by_desc(security_events::Column::CreatedAt)
             .lock_exclusive()
             .one(&txn)
@@ -108,7 +87,7 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
         event.prev_hash = Some(prev_hash);
         event.event_hash = Some(hash);
 
-        let active_model: security_events::ActiveModel = event.clone().into();
+        let active_model: security_events::ActiveModel = event.into();
         security_events::Entity::insert(active_model)
             .exec(&txn)
             .await
@@ -122,7 +101,7 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
             CoreError::InternalServerError
         })?;
 
-        Ok(event)
+        Ok(())
     }
 
     async fn get_events(

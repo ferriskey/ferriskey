@@ -10,7 +10,7 @@ use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 use crate::entities::SecurityEvent;
 use crate::hashing::{VerifyResult, verify_chain};
 use crate::ports::{SecurityEventPolicy, SecurityEventRepository, SecurityEventService};
-use crate::value_objects::{FetchEventsInput, SecurityEventFilter};
+use crate::value_objects::FetchEventsInput;
 
 #[derive(Clone, Debug)]
 pub struct SecurityEventServiceImpl<R, U, C, UR, SE>
@@ -75,12 +75,7 @@ where
 
         let security_events = self
             .security_event_repository
-            .get_events(
-                realm_id,
-                SecurityEventFilter {
-                    ..Default::default()
-                },
-            )
+            .get_events(realm_id, input.filter)
             .await?;
 
         Ok(security_events)

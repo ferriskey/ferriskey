@@ -47,4 +47,5 @@ impl Default for SecurityEventFilter {
 
 pub struct FetchEventsInput {
     pub realm_name: String,
+    pub filter: SecurityEventFilter,
 }

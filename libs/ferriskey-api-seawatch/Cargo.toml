@@ -8,5 +8,7 @@ edition.workspace = true
 ferriskey-api-core = { path = "../ferriskey-api-core" }
 ferriskey-core = { path = "../../core" }
 axum = "0.8.8"
+chrono = { workspace = true }
 serde = "1.0.228"
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+uuid = { workspace = true }
