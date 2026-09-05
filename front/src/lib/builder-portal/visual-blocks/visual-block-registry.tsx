@@ -701,9 +701,12 @@ function PageContentSlot({ isSelected }: { node: BuilderNode; isSelected: boolea
         // is rendered with `width: 100%` + `align-self: stretch`), otherwise
         // the layout builder paints a content-width placeholder while the
         // live portal renders full-width — and the admin can't tell the two
-        // apart until they ship.
+        // apart until they ship. The runtime slot also grows into whatever
+        // room is left; here a fixed minimum keeps the drop zone reachable
+        // in an otherwise empty layout.
         width: '100%',
         alignSelf: 'stretch',
+        flex: '1 1 auto',
         boxSizing: 'border-box',
         minHeight: 120,
         display: 'flex',

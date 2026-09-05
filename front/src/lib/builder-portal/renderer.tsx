@@ -63,10 +63,16 @@ type RenderOptions = {
    * `cursor: wait` and dim the button.
    */
   isSubmitting?: boolean
+  /**
+   * Blocks on the path to the page slot, stretched so the slot has room to
+   * take. Computed by `treeToReactNode`; callers never pass it.
+   */
+  fillPath?: Set<string>
 }
 
 export function treeToReactNode(tree: BuilderNode[], options: RenderOptions = {}): ReactNode {
-  return tree.map((node) => renderNode(node, options))
+  const fillPath = options.fillPath ?? pathToPageContent(tree)
+  return tree.map((node) => renderNode(node, { ...options, fillPath }))
 }
 
 /**
@@ -87,7 +93,11 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
   switch (node.type) {
     case 'container':
       return (
-        <div key={node.id} {...idAttr} style={containerStyle(node)}>
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{ ...containerStyle(node), ...fillStyle(node, options) }}
+        >
           {node.children.length > 0
             ? node.children.map((c) => renderNode(c, options))
             : null}
@@ -102,7 +112,11 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
     case 'grid':
     case 'div':
       return (
-        <div key={node.id} {...idAttr} style={divStyle(node)}>
+        <div
+          key={node.id}
+          {...idAttr}
+          style={{ ...divStyle(node), ...fillStyle(node, options) }}
+        >
           {node.children.length > 0
             ? node.children.map((c) => renderNode(c, options))
             : null}
@@ -594,19 +608,11 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
       )
 
     case 'page-content':
-      // The slot must always span the full content area its layout exposes,
-      // regardless of how the surrounding container is aligned. Without an
-      // explicit `width: 100%`, a parent like `Container { align: center }`
-      // (very common: an admin who wants their card centred) collapses the
-      // slot to the page tree's intrinsic width — so even a `width: 100%`
-      // div inside the page would only stretch to whatever its siblings
-      // happen to be, not to the layout's actual horizontal real estate.
-      // `align-self: stretch` covers the flex-child case in one go.
       return (
         <div
           key={node.id}
           data-portal-page-content
-          style={{ width: '100%', alignSelf: 'stretch' }}
+          style={pageContentStyle(node)}
         >
           {options.pageContent ?? null}
         </div>
@@ -1094,12 +1100,97 @@ export function cardFooterStyle(node: BuilderNode): CSSProperties {
   }
 }
 
+/**
+ * The slot the page is rendered into.
+ *
+ * It spans the full content area its layout exposes whatever the surrounding
+ * container does: without an explicit `width: 100%`, a parent like
+ * `Container { align: center }` — very common, an admin centring their card —
+ * collapses the slot to the page's intrinsic width. `align-self: stretch`
+ * covers the flex-child case in one go.
+ *
+ * It also fills the viewport by default, so a page lands on a surface it can
+ * centre things in rather than one that hugs its content. Both minimums are
+ * plain props, so an author who wants the slot to hug its content again just
+ * clears them.
+ */
+export function pageContentStyle(node: BuilderNode): CSSProperties {
+  return {
+    width: '100%',
+    alignSelf: 'stretch',
+    // `flex: 1` and not `min-height: 100vh`: the slot has siblings — a header,
+    // a footer — and an absolute height would stack on top of theirs and push
+    // the page into a scrollbar. Taking the leftover room fills the viewport
+    // exactly, whatever surrounds it.
+    flex: '1 1 auto',
+    minHeight: (node.props.minHeight as string) || 0,
+    minWidth: (node.props.minWidth as string) || undefined,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: (node.props.justifyContent as string) || 'center',
+    alignItems: (node.props.alignItems as string) || 'center',
+  }
+}
+
+/**
+ * Stretches a block that sits between the root and the page slot, unless its
+ * author already said how it should behave.
+ */
+function fillStyle(node: BuilderNode, options: RenderOptions): CSSProperties {
+  if (!options.fillPath?.has(node.id)) return {}
+  if (node.props.flexGrow !== undefined && node.props.flexGrow !== '') return {}
+
+  // Growing is only half the job: a `div` defaults to `display: block`, whose
+  // children are not flex items, so the slot inside would stay content-height
+  // no matter how tall its ancestor grew. Give an ancestor that never chose a
+  // display one that passes the height down; an explicit choice is left alone.
+  const display = (node.props.display as string) || ''
+  const layout: CSSProperties =
+    display === '' && node.type !== 'container'
+      ? { display: 'flex', flexDirection: 'column' }
+      : {}
+
+  return { ...layout, flexGrow: 1, minHeight: 0 }
+}
+
+/**
+ * Ids of the blocks between the tree's root and the page slot.
+ *
+ * "Leftover room" only exists if every ancestor of the slot claims it too —
+ * a flex child that doesn't grow hands its children nothing to share. Rather
+ * than asking an author to tick "fill" on each level, the renderer walks the
+ * path once and stretches it.
+ */
+function pathToPageContent(tree: BuilderNode[]): Set<string> {
+  const path = new Set<string>()
+
+  const walk = (nodes: BuilderNode[], ancestors: string[]): boolean =>
+    nodes.some((node) => {
+      if (node.type === 'page-content') {
+        ancestors.forEach((id) => path.add(id))
+        return true
+      }
+      return walk(node.children, [...ancestors, node.id])
+    })
+
+  walk(tree, [])
+  return path
+}
+
 export function containerStyle(node: BuilderNode): CSSProperties {
   const order = (node.props.order as string) || ''
   return {
-    display: 'flex',
+    // `display` was hardcoded to flex. It stays the default, so a stored
+    // container is unaffected, but a layout can now ask for block or grid.
+    display: ((node.props.display as string) || 'flex') as CSSProperties['display'],
     flexDirection: ((node.props.direction as string) || 'column') as 'row' | 'column',
     alignItems: (node.props.align as string) || 'stretch',
+    // Main-axis placement, and whether the container takes the height left
+    // over by its siblings — together, that is what lets a layout centre its
+    // content on the page. Both stay `undefined` when unset, so the emitted
+    // style is byte-for-byte what it was for every container already saved.
+    justifyContent: (node.props.justifyContent as string) || undefined,
+    flexGrow: (node.props.flexGrow as string) ? Number(node.props.flexGrow) : undefined,
     gap: (node.props.gap as string) || '12px',
     padding: (node.props.padding as string) || '16px',
     backgroundColor: (node.props.backgroundColor as string) || undefined,

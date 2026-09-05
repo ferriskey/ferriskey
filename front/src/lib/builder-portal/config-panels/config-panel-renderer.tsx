@@ -118,6 +118,17 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
           {identity}
           <ConfigSection title='Layout'>
             <SelectField
+              label='Display'
+              value={(node.props.display as string) || 'flex'}
+              options={[
+                { label: 'Flex', value: 'flex' },
+                { label: 'Block', value: 'block' },
+                { label: 'Grid', value: 'grid' },
+              ]}
+              onChange={(v) => updateProp('display', v)}
+              allowEmpty={false}
+            />
+            <SelectField
               label='Direction'
               value={node.props.direction as string}
               options={[
@@ -137,6 +148,28 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
                 { label: 'Stretch', value: 'stretch' },
               ]}
               onChange={(v) => updateProp('align', v)}
+              allowEmpty={false}
+            />
+            <SelectField
+              label='Justify (main axis)'
+              value={node.props.justifyContent as string}
+              options={[
+                { label: 'Start', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'End', value: 'flex-end' },
+                { label: 'Space between', value: 'space-between' },
+                { label: 'Space around', value: 'space-around' },
+              ]}
+              onChange={(v) => updateProp('justifyContent', v)}
+            />
+            <SelectField
+              label='Fill page height'
+              value={node.props.flexGrow as string}
+              options={[
+                { label: 'No', value: '' },
+                { label: 'Yes', value: '1' },
+              ]}
+              onChange={(v) => updateProp('flexGrow', v)}
               allowEmpty={false}
             />
             <DimensionInput label='Gap' value={node.props.gap as string} onChange={(v) => updateProp('gap', v)} />
@@ -1080,8 +1113,45 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
         <div className='flex flex-col'>
           {identity}
           <div className='px-3 py-2 text-xs text-muted-foreground'>
-            The page content slot is replaced at runtime by the page using this layout. No configuration needed.
+            The page using this layout is rendered here. It fills the viewport and
+            centres its content by default — clear a field to let the slot hug the
+            page instead.
           </div>
+          <ConfigSection title='Size'>
+            <DimensionInput
+              label='Min height'
+              value={node.props.minHeight as string}
+              onChange={(v) => updateProp('minHeight', v)}
+            />
+            <DimensionInput
+              label='Min width'
+              value={node.props.minWidth as string}
+              onChange={(v) => updateProp('minWidth', v)}
+            />
+          </ConfigSection>
+          <ConfigSection title='Alignment' defaultOpen={false}>
+            <SelectField
+              label='Vertical'
+              value={node.props.justifyContent as string}
+              options={[
+                { label: 'Top', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'Bottom', value: 'flex-end' },
+              ]}
+              onChange={(v) => updateProp('justifyContent', v)}
+            />
+            <SelectField
+              label='Horizontal'
+              value={node.props.alignItems as string}
+              options={[
+                { label: 'Left', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'flex-end' },
+                { label: 'Stretch', value: 'stretch' },
+              ]}
+              onChange={(v) => updateProp('alignItems', v)}
+            />
+          </ConfigSection>
         </div>
       )
 
