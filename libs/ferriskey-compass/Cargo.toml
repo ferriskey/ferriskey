@@ -15,3 +15,4 @@ uuid = { version = "1.21.0", features = ["serde"] }
 
 [dev-dependencies]
 mockall = "0.14.0"
+tokio = { version = "1", features = ["sync", "macros", "rt"] }
