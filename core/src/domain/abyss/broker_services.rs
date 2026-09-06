@@ -636,7 +636,7 @@ where
         let flow_id = self
             .flow_recorder
             .start_flow(
-                realm.id,
+                &realm,
                 Some(client.client_id.clone()),
                 format!("broker_{}", idp.alias),
                 None,
@@ -660,20 +660,20 @@ where
             input.base_url, realm.name, idp.alias
         );
 
-        let idp_params = {
-            let mut parts = Vec::new();
-            if let Some(c) = &input.code {
-                parts.push(format!("code={}", c));
-            }
-            parts.push(format!("state={}", input.state));
-            if let Some(e) = &input.error {
-                parts.push(format!("error={}", e));
-            }
-            if let Some(ed) = &input.error_description {
-                parts.push(format!("error_description={}", ed));
-            }
-            parts.join("&")
-        };
+        // Only the IdP's own error fields. The callback also carries `code` and
+        // `state`; those are credentials, not diagnostics, and the dashboard
+        // renders whatever lands in this column.
+        let idp_error = [
+            input.error.as_ref().map(|e| format!("error={e}")),
+            input
+                .error_description
+                .as_ref()
+                .map(|d| format!("error_description={d}")),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        let idp_error = (!idp_error.is_empty()).then(|| idp_error.join("&"));
 
         let cred_start = Utc::now();
         let token_response = match self
@@ -697,7 +697,7 @@ where
                     StepStatus::Success,
                     Some(duration),
                     None,
-                    Some(idp_params.clone()),
+                    None,
                 );
                 response
             }
@@ -709,7 +709,7 @@ where
                     StepStatus::Failure,
                     Some(duration),
                     Some(format!("{:?}", e)),
-                    Some(idp_params),
+                    idp_error,
                 );
                 self.flow_recorder
                     .complete_flow(flow_id, FlowStatus::Failure, duration, None);
@@ -751,9 +751,11 @@ where
             self.auth_session_repository
                 .update_code(auth_session_id, authorization_code.clone())
                 .await?;
-            self.auth_session_repository
-                .update_compass_flow_id(auth_session_id, flow_id.0)
-                .await?;
+            if let Some(ref flow_id) = flow_id {
+                self.auth_session_repository
+                    .update_compass_flow_id(auth_session_id, flow_id.0)
+                    .await?;
+            }
         } else {
             let challenge_method = broker_session
                 .code_challenge_method
@@ -780,7 +782,7 @@ where
                 authenticated: false,
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
-                compass_flow_id: Some(flow_id.0),
+                compass_flow_id: flow_id.as_ref().map(|id| id.0),
                 code_challenge: broker_session.code_challenge.clone(),
                 code_challenge_method: challenge_method,
             });

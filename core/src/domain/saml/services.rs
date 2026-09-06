@@ -385,7 +385,7 @@ where
                 let flow_id = self
                     .flow_recorder
                     .start_flow(
-                        realm.id,
+                        &realm,
                         rejection.client_id,
                         SAML_SSO_GRANT_TYPE.to_string(),
                         None,
@@ -416,7 +416,7 @@ where
         let flow_id = self
             .flow_recorder
             .start_flow(
-                realm.id,
+                &realm,
                 Some(accepted.client.client_id.clone()),
                 SAML_SSO_GRANT_TYPE.to_string(),
                 None,
@@ -440,7 +440,7 @@ where
                 authenticated: false,
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
-                compass_flow_id: Some(flow_id.0),
+                compass_flow_id: flow_id.as_ref().map(|id| id.0),
                 code_challenge: None,
                 code_challenge_method: None,
             }))
@@ -561,44 +561,34 @@ where
 
         let delivery = self.issue_assertion(&realm, auth_session, &input).await;
 
-        if let Some(flow_id) = flow_id {
-            let duration = elapsed_since(started_at);
+        let duration = elapsed_since(started_at);
 
-            match &delivery {
-                Ok(_) => {
-                    self.flow_recorder.record_step(
-                        flow_id.clone(),
-                        FlowStepName::SamlAssertion,
-                        StepStatus::Success,
-                        Some(duration),
-                        None,
-                        None,
-                    );
+        match &delivery {
+            Ok(_) => {
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::SamlAssertion,
+                    StepStatus::Success,
+                    Some(duration),
+                    None,
+                    None,
+                );
 
-                    self.flow_recorder.complete_flow(
-                        flow_id,
-                        FlowStatus::Success,
-                        duration,
-                        user_id,
-                    );
-                }
-                Err(error) => {
-                    self.flow_recorder.record_step(
-                        flow_id.clone(),
-                        FlowStepName::SamlAssertion,
-                        StepStatus::Failure,
-                        Some(duration),
-                        Some(error_code(error)),
-                        Some(error.to_string()),
-                    );
+                self.flow_recorder
+                    .complete_flow(flow_id, FlowStatus::Success, duration, user_id);
+            }
+            Err(error) => {
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::SamlAssertion,
+                    StepStatus::Failure,
+                    Some(duration),
+                    Some(error_code(error)),
+                    Some(error.to_string()),
+                );
 
-                    self.flow_recorder.complete_flow(
-                        flow_id,
-                        FlowStatus::Failure,
-                        duration,
-                        user_id,
-                    );
-                }
+                self.flow_recorder
+                    .complete_flow(flow_id, FlowStatus::Failure, duration, user_id);
             }
         }
 

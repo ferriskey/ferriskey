@@ -4,6 +4,10 @@ use std::{
 };
 
 use chrono::{Duration, Utc};
+use ferriskey_compass::{
+    entities::{FlowId, FlowStepName, StepStatus},
+    recorder::FlowRecorder,
+};
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
@@ -268,6 +272,7 @@ pub struct TridentServiceImpl<
     pub(crate) otp_enrollment_repository: Arc<OER>,
     pub(crate) user_role_repository: Arc<URR>,
     pub(crate) token_revocation: Arc<TRV>,
+    pub(crate) flow_recorder: FlowRecorder,
 }
 
 impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
@@ -334,6 +339,7 @@ where
         otp_enrollment_repository: Arc<OER>,
         user_role_repository: Arc<URR>,
         token_revocation: Arc<TRV>,
+        flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
             credential_repository,
@@ -355,6 +361,7 @@ where
             otp_enrollment_repository,
             user_role_repository,
             token_revocation,
+            flow_recorder,
         }
     }
 
@@ -1148,6 +1155,7 @@ where
 
         let secret = TotpSecret::from_base32(&otp_credential.secret_data);
 
+        let flow_id = auth_session.compass_flow_id.map(FlowId);
         let is_valid = verify(&secret, &input.code)?;
 
         if !is_valid {
@@ -1155,10 +1163,27 @@ where
                 "invalid OTP code for user: {}",
                 user.email.as_deref().unwrap_or("")
             );
+            self.flow_recorder.record_step(
+                flow_id,
+                FlowStepName::MfaChallenge,
+                StepStatus::Failure,
+                None,
+                Some("invalid_otp_code".to_string()),
+                None,
+            );
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".to_string(),
             ));
         }
+
+        self.flow_recorder.record_step(
+            flow_id.clone(),
+            FlowStepName::MfaChallenge,
+            StepStatus::Success,
+            None,
+            None,
+            None,
+        );
 
         let required_actions = self
             .user_required_action_repository
@@ -1183,6 +1208,15 @@ where
 
         let login_url =
             login_url_from(format_auth_completion(&auth_session, &authorization_code)?)?;
+
+        self.flow_recorder.record_step(
+            flow_id,
+            FlowStepName::Finalize,
+            StepStatus::Success,
+            None,
+            None,
+            None,
+        );
 
         Ok(ChallengeOtpOutput {
             login_url: Some(login_url),
@@ -2284,6 +2318,7 @@ mod tests {
                 self.otp_enrollment_repo,
                 self.user_role_repo,
                 self.token_revocation,
+                FlowRecorder::disabled(),
             )
         }
     }
