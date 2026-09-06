@@ -113,3 +113,8 @@ jobs:
 
       - name: run web origin integration tests
         run: cargo test -p ferriskey-api --test web_origin_test -- --ignored
+
+      # Self-service account profile (#995, first iteration): GET/PUT /me
+      # and the realm-gated username edit.
+      - name: run self-service account profile integration tests
+        run: cargo test -p ferriskey-api --test me_profile_test -- --ignored
