@@ -368,6 +368,7 @@ export namespace Schemas {
     access_token_lifetime: number;
     compass_enabled: boolean;
     default_signing_algorithm?: (string | null) | undefined;
+    edit_username_enabled: boolean;
     email_verification_enabled: boolean;
     email_verification_template_id?: (string | null) | undefined;
     email_verification_ttl_hours: number;
@@ -619,7 +620,8 @@ export namespace Schemas {
     | "client_maintenance_disabled"
     | "session_created"
     | "session_revoked"
-    | "identity_provider_link_removed";
+    | "identity_provider_link_removed"
+    | "unknown";
   export type SecurityEventId = string;
   export type SecurityEvent = {
     actor_id?: (string | null) | undefined;
@@ -812,6 +814,7 @@ export namespace Schemas {
   }>;
   export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
   export type OtpVerifyRequest = { code: string; label: string };
+  export type OwnProfileResponse = { data: User };
   export type PortalPageType =
     | "login"
     | "register"
@@ -1090,6 +1093,13 @@ export namespace Schemas {
     name: string | null;
     redirect_url: string | null;
   }>;
+  export type UpdateOwnProfileResponse = { data: User };
+  export type UpdateOwnProfileValidator = Partial<{
+    email: string | null;
+    firstname: string | null;
+    lastname: string | null;
+    username: string | null;
+  }>;
   export type UpdatePasswordPolicyValidator = Partial<{
     check_breached: boolean | null;
     forbid_common: boolean | null;
@@ -1128,6 +1138,7 @@ export namespace Schemas {
     access_token_lifetime: number | null;
     compass_enabled: boolean | null;
     default_signing_algorithm: string | null;
+    edit_username_enabled: boolean | null;
     email_verification_enabled: boolean | null;
     email_verification_template_id: string | null;
     email_verification_ttl_hours: number | null;
@@ -3711,6 +3722,16 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/seawatch/v1/security-events";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        actor_id: string;
+        client_id: string;
+        event_types: string;
+        from_timestamp: string;
+        to_timestamp: string;
+        ip_address: string;
+        limit: number;
+        offset: number;
+      }>;
       path: { realm_name: string };
     };
     responses: {
@@ -3815,6 +3836,37 @@ export namespace Endpoints {
     };
     responses: {
       200: Schemas.BulkDeleteUserResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_own_profile = {
+    method: "GET";
+    path: "/realms/{realm_name}/users/me";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.OwnProfileResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Update_own_profile = {
+    method: "PUT";
+    path: "/realms/{realm_name}/users/me";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.UpdateOwnProfileValidator;
+    };
+    responses: {
+      200: Schemas.UpdateOwnProfileResponse;
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
@@ -4261,6 +4313,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/smtp-config": Endpoints.get_Get_smtp_config;
     "/realms/{realm_name}/users": Endpoints.get_Get_users;
     "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
+    "/realms/{realm_name}/users/me": Endpoints.get_Get_own_profile;
     "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
     "/realms/{realm_name}/users/{user_id}/attributes": Endpoints.get_Get_user_attributes;
     "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
@@ -4359,6 +4412,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal/themes/{theme_id}/pages/{page_type}": Endpoints.put_Update_theme_page;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
     "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
+    "/realms/{realm_name}/users/me": Endpoints.put_Update_own_profile;
     "/realms/{realm_name}/users/{user_id}": Endpoints.put_Update_user;
     "/realms/{realm_name}/users/{user_id}/attributes": Endpoints.put_Set_user_attributes;
     "/realms/{realm_name}/users/{user_id}/reset-password": Endpoints.put_Reset_password;

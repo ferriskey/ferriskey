@@ -7,6 +7,7 @@ export const useGetSecurityEvents = ({ realm }: BaseQuery) => {
       path: {
         realm_name: realm!,
       },
+      query: {},
     }).queryOptions,
     enabled: !!realm,
   })

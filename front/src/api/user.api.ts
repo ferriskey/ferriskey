@@ -35,6 +35,31 @@ export const useGetUser = ({ realm, userId }: GetUserQueryParams) => {
   })
 }
 
+export const useGetOwnProfile = ({ realm }: BaseQuery) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/users/me', {
+      path: {
+        realm_name: realm || 'master',
+      },
+    }).queryOptions,
+  })
+}
+
+export const useUpdateOwnProfile = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation('put', '/realms/{realm_name}/users/me').mutationOptions,
+    onSuccess: (_res, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/me', {
+        path: {
+          realm_name: variables.path.realm_name,
+        },
+      }).queryKey
+      queryClient.invalidateQueries({ queryKey: keys })
+    },
+  })
+}
+
 export const useGetUserCredentials = ({ realm, userId }: GetUserQueryParams) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/credentials', {
