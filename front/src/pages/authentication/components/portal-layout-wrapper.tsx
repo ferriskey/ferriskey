@@ -342,6 +342,28 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     <style dangerouslySetInnerHTML={{ __html: buttonInteractionCss }} />
   )
 
+  /**
+   * The page the portal is drawn on.
+   *
+   * The theme has always exposed a page background, but only the loading state
+   * ever painted it — every finished screen rendered on whatever the browser
+   * happened to show, which is why a layout shorter than the viewport left a
+   * bare strip below itself. Giving the root the theme's colour and the full
+   * viewport height makes that setting mean something, and gives a layout a
+   * page to fill.
+   *
+   * `flex column` is what lets a layout opt into filling the leftover height
+   * (see the container's `flexGrow`); with a single child it changes nothing
+   * for layouts that don't ask.
+   */
+  const pageSurface: CSSProperties = {
+    ...cssVars,
+    minHeight: '100vh',
+    background: 'var(--fk-color-page-bg)',
+    display: 'flex',
+    flexDirection: 'column',
+  }
+
   // The layout is only renderable when it has a `page-content` slot.
   // Without one, applying it would hide the page entirely.
   const layoutIsValid = layoutTree.length > 0 && layoutHasPageContent(layoutTree)
@@ -370,7 +392,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
         <style dangerouslySetInnerHTML={{ __html: verifiedStyleCss }} />
       ) : null
       return (
-        <div style={cssVars} onClick={handlePortalActionClick}>
+        <div style={pageSurface} onClick={handlePortalActionClick}>
           {verifiedStyle}
           {buttonInteractionStyle}
           {layoutIsValid
@@ -384,7 +406,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
       )
     }
     return (
-      <div style={cssVars}>
+      <div style={pageSurface}>
         <DeviceVerifyShell>
           <DeviceVerifyResult
             status={deviceResult}
@@ -397,7 +419,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   if (!pageIsValid || (layoutTree.length > 0 && !layoutIsValid)) {
     return (
-      <div style={cssVars}>
+      <div style={pageSurface}>
         {responsiveStyle}
         {buttonInteractionStyle}
         {children}
@@ -413,7 +435,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   if (!layoutIsValid) {
     return (
-      <div style={cssVars} onClick={handlePortalActionClick}>
+      <div style={pageSurface} onClick={handlePortalActionClick}>
         {responsiveStyle}
         {buttonInteractionStyle}
         {pageContent}
@@ -422,7 +444,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   }
 
   return (
-    <div style={cssVars} onClick={handlePortalActionClick}>
+    <div style={pageSurface} onClick={handlePortalActionClick}>
       {responsiveStyle}
       {buttonInteractionStyle}
       {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, formError, isSubmitting })}

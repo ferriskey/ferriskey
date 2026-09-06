@@ -196,7 +196,7 @@ export default function PagePortalLayoutBuilder({
                       iframeRectRef.current = rect
                     }}
                   >
-                    <Canvas maxWidth={viewportWidth} />
+                    <Canvas maxWidth={viewportWidth} padded={false} />
                   </CanvasFrame>
                 </div>
               </div>

@@ -253,9 +253,15 @@ interface CanvasProps {
    * runtime — and let the layout's centering apply.
    */
   fillHeight?: boolean
+  /**
+   * Padding around the drop zone. Editor chrome, not part of the page — a
+   * layout that fills the viewport height would overflow by exactly this much
+   * and show a scrollbar the real page never has.
+   */
+  padded?: boolean
 }
 
-export function Canvas({ maxWidth = 600, fillHeight = true }: CanvasProps) {
+export function Canvas({ maxWidth = 600, fillHeight = true, padded = true }: CanvasProps) {
   const { tree, selectNode } = useBuilderContext()
 
   const { setNodeRef, isOver } = useDroppable({
@@ -293,7 +299,7 @@ export function Canvas({ maxWidth = 600, fillHeight = true }: CanvasProps) {
 
   return (
     <div
-      className='flex min-h-full flex-1 items-start justify-center p-6'
+      className={`flex min-h-full flex-1 items-start justify-center ${padded ? 'p-6' : ''}`}
       onClick={() => selectNode(null)}
     >
       {emptyState}
