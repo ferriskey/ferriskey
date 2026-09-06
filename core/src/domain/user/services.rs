@@ -26,9 +26,10 @@ use crate::domain::{
     session::ports::TokenRevocationPort,
     user::{
         entities::{
-            AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetUserAttributesInput,
-            GetUserInput, GetUserPermissionsInput, RequiredAction, ResetPasswordInput,
-            SetUserAttributesInput, UnassignRoleInput, UpdateUserInput, User, UserAttribute,
+            AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
+            GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, RequiredAction,
+            ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnProfileInput,
+            UpdateUserInput, User, UserAttribute,
         },
         ports::{
             UserAttributeRepository, UserPolicy, UserRepository, UserRequiredActionRepository,
@@ -402,6 +403,7 @@ where
             .update_user(
                 input.user_id,
                 UpdateUserRequest {
+                    username: None,
                     email: normalize_optional_email(input.email),
                     email_verified: input.email_verified.unwrap_or(false),
                     enabled: input.enabled,
@@ -650,6 +652,85 @@ where
         )?;
 
         self.load_user_in_realm(input.user_id, &realm).await
+    }
+
+    async fn get_own_profile(
+        &self,
+        identity: Identity,
+        input: GetOwnProfileInput,
+    ) -> Result<User, CoreError> {
+        if !identity.is_regular_user() {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        self.load_user_in_realm(identity.id(), &realm).await
+    }
+
+    async fn update_own_profile(
+        &self,
+        identity: Identity,
+        input: UpdateOwnProfileInput,
+    ) -> Result<User, CoreError> {
+        if !identity.is_regular_user() {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        let existing = self.load_user_in_realm(identity.id(), &realm).await?;
+
+        let username = match input.username {
+            Some(username) if username != existing.username => {
+                let edit_username_enabled = self
+                    .realm_repository
+                    .get_realm_settings(realm.id)
+                    .await?
+                    .map(|settings| settings.edit_username_enabled)
+                    .unwrap_or(false);
+
+                if !edit_username_enabled {
+                    return Err(CoreError::Forbidden(
+                        "username editing is disabled for this realm".to_string(),
+                    ));
+                }
+
+                Some(username)
+            }
+            _ => None,
+        };
+
+        let email = normalize_optional_email(input.email);
+        // A changed email has not been verified under its new value, whatever
+        // the old address's verification status was.
+        let email_verified = match &email {
+            Some(email) if Some(email) != existing.email.as_ref() => false,
+            _ => existing.email_verified,
+        };
+
+        self.user_repository
+            .update_user(
+                identity.id(),
+                UpdateUserRequest {
+                    username,
+                    firstname: input.firstname,
+                    lastname: input.lastname,
+                    email,
+                    email_verified,
+                    enabled: existing.enabled,
+                    required_actions: None,
+                },
+            )
+            .await
     }
 
     async fn unassign_role(

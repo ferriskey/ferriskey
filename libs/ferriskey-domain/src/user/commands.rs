@@ -55,6 +55,21 @@ pub struct GetUserInput {
     pub user_id: Uuid,
 }
 
+pub struct GetOwnProfileInput {
+    pub realm_name: String,
+}
+
+/// Self-service profile edit. Unlike `UpdateUserInput`, there is no `enabled`,
+/// `email_verified` or `required_actions` field: those are administrative
+/// controls a user must never be able to flip on themselves.
+pub struct UpdateOwnProfileInput {
+    pub realm_name: String,
+    pub username: Option<String>,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub email: Option<String>,
+}
+
 pub struct GetUserAttributesInput {
     pub realm_name: String,
     pub user_id: Uuid,

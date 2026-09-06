@@ -295,6 +295,9 @@ impl UserRepository for PostgresUserRepository {
 
         let mut active_model: crate::entity::users::ActiveModel = user.into();
 
+        if let Some(username) = dto.username {
+            active_model.username = Set(username);
+        }
         active_model.firstname = Set(dto.firstname);
         active_model.lastname = Set(dto.lastname);
         active_model.email = Set(dto.email);

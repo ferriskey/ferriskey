@@ -551,6 +551,7 @@ where
                 if needs_update && mode != SyncMode::LinkOnly {
                     // Update user attributes
                     let update_request = UpdateUserRequest {
+                        username: None,
                         email: ldap_user.email.clone().or(user.email.clone()),
                         firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
                         lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
@@ -650,6 +651,7 @@ where
                 if needs_update && mode != SyncMode::LinkOnly {
                     // Update user attributes
                     let update_request = UpdateUserRequest {
+                        username: None,
                         email: ldap_user.email.clone().or(user.email.clone()),
                         firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
                         lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
@@ -827,6 +829,7 @@ where
                         // Only disable if not already disabled
                         if user.enabled {
                             let update_request = UpdateUserRequest {
+                                username: None,
                                 email: user.email.clone(),
                                 firstname: user.firstname.clone(),
                                 lastname: user.lastname.clone(),

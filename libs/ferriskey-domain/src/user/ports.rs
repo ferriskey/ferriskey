@@ -11,8 +11,9 @@ use crate::role::entities::Role;
 use crate::role::permission::Permissions;
 use crate::user::commands::{
     AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, DeleteUserAttributeInput,
-    GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, ResetPasswordInput,
-    SetUserAttributesInput, UnassignRoleInput, UpdateUserInput,
+    GetOwnProfileInput, GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
+    ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnProfileInput,
+    UpdateUserInput,
 };
 use crate::user::entities::{RequiredAction, RequiredActionError, User, UserAttribute};
 use crate::user::value_objects::{CreateUserRequest, UpdateUserRequest};
@@ -59,6 +60,23 @@ pub trait UserService: Send + Sync {
         &self,
         identity: Identity,
         input: GetUserInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    /// The caller's own profile. `identity` is the only source of the target
+    /// user id — there is no user id parameter to spoof.
+    fn get_own_profile(
+        &self,
+        identity: Identity,
+        input: GetOwnProfileInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    /// Edit the caller's own profile. Same identity guarantee as
+    /// `get_own_profile`. Renaming (`username`) additionally requires the
+    /// realm to have `edit_username_enabled` set.
+    fn update_own_profile(
+        &self,
+        identity: Identity,
+        input: UpdateOwnProfileInput,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
     fn unassign_role(
         &self,

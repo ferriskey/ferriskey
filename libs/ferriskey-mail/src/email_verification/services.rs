@@ -353,6 +353,7 @@ where
             .update_user(
                 token_record.user_id,
                 ferriskey_domain::user::value_objects::UpdateUserRequest {
+                    username: None,
                     firstname: user.firstname,
                     lastname: user.lastname,
                     email: user.email,
