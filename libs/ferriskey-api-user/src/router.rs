@@ -15,6 +15,7 @@ use super::handlers::{
     delete_user::{__path_delete_user, delete_user},
     delete_user_attribute::{__path_delete_user_attribute, delete_user_attribute},
     get_credentials::{__path_get_user_credentials, get_user_credentials},
+    get_own_profile::{__path_get_own_profile, get_own_profile},
     get_user::{__path_get_user, get_user},
     get_user_attributes::{__path_get_user_attributes, get_user_attributes},
     get_user_permissions::{__path_get_user_permissions, get_user_permissions},
@@ -27,6 +28,7 @@ use super::handlers::{
     set_user_attributes::{__path_set_user_attributes, set_user_attributes},
     unassign_role::{__path_unassign_role, unassign_role},
     unlock_user::{__path_unlock_user, unlock_user},
+    update_own_profile::{__path_update_own_profile, update_own_profile},
     update_user::{__path_update_user, update_user},
 };
 
@@ -34,6 +36,8 @@ use super::handlers::{
 #[openapi(paths(
     get_users,
     get_user,
+    get_own_profile,
+    update_own_profile,
     get_user_roles,
     assign_role,
     create_user,
@@ -70,6 +74,13 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_user),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/me",
+                state.args.server.root_path
+            ),
+            get(get_own_profile).put(update_own_profile),
         )
         .route(
             &format!(

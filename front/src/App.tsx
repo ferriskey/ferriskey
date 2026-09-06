@@ -18,6 +18,7 @@ import PageClientScope from './pages/client-scope/page-client-scope'
 import PageClient from './pages/client/page-client'
 import PageCompass from './pages/compass/page-compass'
 import PageIdentityProviders from './pages/identity-providers/page-identity-providers'
+import PageAccount from './pages/account/page-account'
 import PageOverview from './pages/overview/page-overview'
 import PageRealm from './pages/realm/page-realm'
 import PageRole from './pages/role/page-role'
@@ -263,6 +264,7 @@ function AppRoutes() {
           {/* Admin (IAM) — bare paths under realm */}
           <Route element={<Layout />}>
             <Route path='overview/*' element={<PageOverview />} />
+            <Route path='account/*' element={<PageAccount />} />
             <Route path='clients/*' element={<PageClient />} />
             <Route path='client-scopes/*' element={<PageClientScope />} />
             <Route path='users/*' element={<PageUser />} />

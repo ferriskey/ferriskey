@@ -209,6 +209,11 @@ pub struct RealmSetting {
     pub email_verification_ttl_hours: i64,
     pub login_aliases: LoginAliases,
     pub require_mfa: bool,
+    /// Whether users may change their own username from the self-service
+    /// account page. Off by default: usernames are used as-is by login
+    /// aliases and federation mappings, so letting every user rename
+    /// themselves is an operator choice, not a default.
+    pub edit_username_enabled: bool,
     pub updated_at: DateTime<Utc>,
     pub lockout_threshold: i32,
     pub lockout_duration_seconds: i32,
@@ -243,6 +248,7 @@ impl RealmSetting {
             email_verification_ttl_hours: 24,
             login_aliases: LoginAliases::default(),
             require_mfa: false,
+            edit_username_enabled: false,
             updated_at: now,
             lockout_threshold: 10,
             lockout_duration_seconds: 900,

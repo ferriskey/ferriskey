@@ -40,6 +40,7 @@ pub struct Model {
     pub seawatch_pii_mode: String,
     pub seawatch_pseudo_key: Option<String>,
     pub require_mfa: bool,
+    pub edit_username_enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -71,6 +72,7 @@ pub enum Column {
     SeawatchPiiMode,
     SeawatchPseudoKey,
     RequireMfa,
+    EditUsernameEnabled,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -125,6 +127,7 @@ impl ColumnTrait for Column {
             Self::SeawatchPiiMode => ColumnType::String(StringLen::N(20u32)).def(),
             Self::SeawatchPseudoKey => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::RequireMfa => ColumnType::Boolean.def(),
+            Self::EditUsernameEnabled => ColumnType::Boolean.def(),
         }
     }
 }

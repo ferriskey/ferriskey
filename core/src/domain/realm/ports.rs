@@ -149,6 +149,7 @@ pub struct UpdateRealmSettingInput {
     pub seawatch_pii_mode: Option<String>,
     pub seawatch_pseudo_key: Option<Option<String>>,
     pub require_mfa: Option<bool>,
+    pub edit_username_enabled: Option<bool>,
 }
 
 pub struct DeleteRealmInput {

@@ -6,9 +6,10 @@ use crate::{
         role::entities::permission::Permissions,
         user::{
             entities::{
-                AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetUserAttributesInput,
-                GetUserInput, GetUserPermissionsInput, ResetPasswordInput, SetUserAttributesInput,
-                UnassignRoleInput, UpdateUserInput, User, UserAttribute,
+                AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
+                GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, ResetPasswordInput,
+                SetUserAttributesInput, UnassignRoleInput, UpdateOwnProfileInput, UpdateUserInput,
+                User, UserAttribute,
             },
             ports::UserService,
         },
@@ -53,6 +54,22 @@ impl UserService for ApplicationService {
 
     async fn get_user(&self, identity: Identity, input: GetUserInput) -> Result<User, CoreError> {
         self.user_service.get_user(identity, input).await
+    }
+
+    async fn get_own_profile(
+        &self,
+        identity: Identity,
+        input: GetOwnProfileInput,
+    ) -> Result<User, CoreError> {
+        self.user_service.get_own_profile(identity, input).await
+    }
+
+    async fn update_own_profile(
+        &self,
+        identity: Identity,
+        input: UpdateOwnProfileInput,
+    ) -> Result<User, CoreError> {
+        self.user_service.update_own_profile(identity, input).await
     }
 
     async fn get_users(

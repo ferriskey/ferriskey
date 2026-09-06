@@ -1,6 +1,7 @@
 'use client'
 
 import { BadgeCheck, Bell, ChevronsUpDown, LogOut, Sun, Moon, Laptop, Check } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -18,6 +19,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
+import { RouterParams } from '@/routes/router'
 import { useSidebar } from './ui/sidebar-hooks'
 import { useTheme } from './theme-provider'
 
@@ -25,6 +27,8 @@ export function NavUser() {
   const { isMobile } = useSidebar()
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { realm_name = 'master' } = useParams<RouterParams>()
+  const navigate = useNavigate()
 
   if (!user) return null
 
@@ -69,7 +73,7 @@ export function NavUser() {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/realms/${realm_name}/account`)}>
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>

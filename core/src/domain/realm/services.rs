@@ -876,6 +876,7 @@ where
                 input.seawatch_pii_mode,
                 input.seawatch_pseudo_key,
                 input.require_mfa,
+                input.edit_username_enabled,
             )
             .await?;
 

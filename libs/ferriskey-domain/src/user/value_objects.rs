@@ -16,6 +16,7 @@ pub struct CreateUserRequest {
 
 #[derive(Debug, Clone)]
 pub struct UpdateUserRequest {
+    pub username: Option<String>,
     pub firstname: Option<String>,
     pub lastname: Option<String>,
     pub email: Option<String>,
