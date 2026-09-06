@@ -25,6 +25,7 @@ const MAX_LIMIT: u32 = 1000;
 const DEFAULT_LIMIT: u32 = 100;
 
 #[derive(Debug, Clone, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct GetSecurityEventsQuery {
     pub actor_id: Option<Uuid>,
     pub client_id: Option<Uuid>,
