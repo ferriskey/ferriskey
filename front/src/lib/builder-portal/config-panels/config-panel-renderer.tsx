@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { findNodePath, useBuilderContext, type BuilderNode } from '../../builder-core'
 import { ConfigSection } from './config-section'
+import { ButtonColorSection } from './button-color-section'
 import { DimensionInput } from './dimension-input'
 import { LinkedSidesInput } from './linked-sides-input'
 import { ColorField, SelectField, TextField } from './shared-fields'
@@ -709,6 +710,7 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               allowEmpty={false}
             />
           </ConfigSection>
+          <ButtonColorSection node={node} updateProp={updateProp} />
         </div>
       )
 
@@ -755,6 +757,7 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               allowEmpty={false}
             />
           </ConfigSection>
+          <ButtonColorSection node={node} updateProp={updateProp} />
         </div>
       )
 
@@ -805,6 +808,7 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               allowEmpty={false}
             />
           </ConfigSection>
+          <ButtonColorSection node={node} updateProp={updateProp} />
         </div>
       )
 
