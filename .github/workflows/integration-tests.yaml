@@ -66,6 +66,12 @@ jobs:
       - name: run saml xmlsec1 interop tests
         run: cargo test -p ferriskey-saml --test xmlsec_interop -- --ignored
 
+      # End-to-end SAML IdP coverage (#1269): descriptor, SP-initiated SSO over
+      # both bindings with the signed response verified by xmlsec1, and the
+      # rejection cases (unknown SP, ACS mismatch, replayed authorization code).
+      - name: run saml integration tests
+        run: cargo test -p ferriskey-api --test saml_test -- --ignored
+
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
 
