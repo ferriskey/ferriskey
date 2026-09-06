@@ -60,6 +60,37 @@ export const useUpdateOwnProfile = () => {
   })
 }
 
+export const useGetUserSessions = ({ realm, userId }: GetUserQueryParams) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/sessions', {
+      path: {
+        realm_name: realm!,
+        user_id: userId!,
+      },
+    }).queryOptions,
+    enabled: !!userId && !!realm,
+  })
+}
+
+export const useRevokeUserSession = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'delete',
+      '/realms/{realm_name}/users/{user_id}/sessions/{session_id}'
+    ).mutationOptions,
+    onSuccess: (_res, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/sessions', {
+        path: {
+          realm_name: variables.path.realm_name,
+          user_id: variables.path.user_id,
+        },
+      }).queryKey
+      queryClient.invalidateQueries({ queryKey: keys })
+    },
+  })
+}
+
 export const useGetUserCredentials = ({ realm, userId }: GetUserQueryParams) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/credentials', {
