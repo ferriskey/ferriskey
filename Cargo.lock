@@ -1553,6 +1553,7 @@ dependencies = [
  "ferriskey-api-user",
  "ferriskey-api-webhook",
  "ferriskey-core",
+ "ferriskey-saml",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",
