@@ -89,6 +89,26 @@ export const useUpdatePortalThemeMetadata = () => {
   })
 }
 
+export const useImportPortalTheme = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/portal/themes/import')
+      .mutationOptions,
+    onSuccess: async (_, variables) => {
+      const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
+        path: { realm_name: variables.path.realm_name },
+      }).queryKey
+      await queryClient.invalidateQueries({ queryKey: listKey })
+      toast.success('Portal theme imported')
+    },
+    // The server refuses a file that belongs to another builder or that uses a
+    // format version it cannot read; its message says which, so surface it.
+    onError: (error) => {
+      toast.error('Failed to import', { description: error.message })
+    },
+  })
+}
+
 export const useUpdatePortalThemePage = () => {
   const queryClient = useQueryClient()
   return useMutation({

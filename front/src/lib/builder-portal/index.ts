@@ -11,6 +11,7 @@ export {
 export { treeToReactNode } from './renderer'
 export { PortalPreview } from './preview'
 export { PORTAL_PRESETS, type PortalPreset } from './presets'
+export { DEFAULT_PAGE_TYPES, defaultPageTree } from './default-pages'
 export { useIframeFit } from './use-iframe-fit'
 export type {
   PortalNodeType,

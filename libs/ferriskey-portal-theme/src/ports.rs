@@ -198,3 +198,17 @@ pub struct UpdateThemePageInput {
     pub page_type: PortalPageType,
     pub tree: serde_json::Value,
 }
+
+pub struct ImportPortalThemeLayout {
+    pub name: String,
+    pub tree: serde_json::Value,
+}
+
+pub struct ImportPortalThemeInput {
+    pub realm_name: String,
+    pub name: String,
+    pub config: PortalThemeConfig,
+    /// Every page the file carries, in the order it should be written.
+    pub pages: Vec<(PortalPageType, serde_json::Value)>,
+    pub layout: Option<ImportPortalThemeLayout>,
+}

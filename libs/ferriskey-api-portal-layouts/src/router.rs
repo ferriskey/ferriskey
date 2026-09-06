@@ -1,14 +1,19 @@
 use super::handlers::create_layout::{__path_create_layout, create_layout};
 use super::handlers::delete_layout::{__path_delete_layout, delete_layout};
+use super::handlers::export_layout::{__path_export_layout, export_layout};
 use super::handlers::get_layout::{__path_get_layout, get_layout};
 use super::handlers::get_public_default_layout::{
     __path_get_public_default_layout, get_public_default_layout,
 };
 use super::handlers::get_public_layout::{__path_get_public_layout, get_public_layout};
+use super::handlers::import_layout::{__path_import_layout, import_layout};
 use super::handlers::list_layouts::{__path_list_layouts, list_layouts};
 use super::handlers::set_default_layout::{__path_set_default_layout, set_default_layout};
 use super::handlers::update_layout::{__path_update_layout, update_layout};
-use axum::{Router, middleware, routing::get};
+use axum::{
+    Router, middleware,
+    routing::{get, post},
+};
 use ferriskey_api_core::{app_state::AppState, auth::auth};
 use utoipa::OpenApi;
 
@@ -20,6 +25,8 @@ use utoipa::OpenApi;
     update_layout,
     delete_layout,
     set_default_layout,
+    import_layout,
+    export_layout,
 ))]
 pub struct PortalLayoutsApiDoc;
 
@@ -38,10 +45,24 @@ pub fn portal_layouts_routes(state: AppState) -> Router<AppState> {
         )
         .route(
             &format!(
+                "{}/realms/{{realm_name}}/portal-layouts/import",
+                state.args.server.root_path
+            ),
+            post(import_layout),
+        )
+        .route(
+            &format!(
                 "{}/realms/{{realm_name}}/portal-layouts/{{layout_id}}",
                 state.args.server.root_path
             ),
             get(get_layout).put(update_layout).delete(delete_layout),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/portal-layouts/{{layout_id}}/export",
+                state.args.server.root_path
+            ),
+            get(export_layout),
         )
         .route(
             &format!(

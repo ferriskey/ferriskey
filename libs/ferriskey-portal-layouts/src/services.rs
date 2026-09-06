@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::entities::PortalLayout;
+use crate::entities::{PortalLayout, validate_tree};
 use crate::ports::{
-    CreateLayoutInput, GetLayoutInput, ListLayoutsInput, PortalLayoutsPolicy,
+    CreateLayoutInput, GetLayoutInput, ImportLayoutInput, ListLayoutsInput, PortalLayoutsPolicy,
     PortalLayoutsRepository, PortalLayoutsService, UpdateLayoutInput,
 };
 use ferriskey_domain::auth::Identity;
@@ -229,6 +229,26 @@ where
         self.layouts_repository
             .get_by_id(realm.id.into(), input.layout_id)
             .await
+    }
+
+    async fn import_layout(
+        &self,
+        identity: Identity,
+        input: ImportLayoutInput,
+    ) -> Result<PortalLayout, CoreError> {
+        // Unlike `create_layout`, the tree here comes from a file rather than
+        // from the builder, so it is validated before it reaches the database.
+        validate_tree(&input.tree)?;
+
+        self.create_layout(
+            identity,
+            CreateLayoutInput {
+                realm_name: input.realm_name,
+                name: input.name,
+                tree: input.tree,
+            },
+        )
+        .await
     }
 }
 

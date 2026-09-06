@@ -125,3 +125,24 @@ export const useSetDefaultPortalLayout = () => {
     },
   })
 }
+
+export const useImportPortalLayout = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation('post', '/realms/{realm_name}/portal-layouts/import')
+      .mutationOptions,
+    onSuccess: async (_, variables) => {
+      const keys = window.tanstackApi.get('/realms/{realm_name}/portal-layouts', {
+        path: { realm_name: variables.path.realm_name },
+      }).queryKey
+
+      await queryClient.invalidateQueries({ queryKey: keys })
+      toast.success('Portal layout imported successfully')
+    },
+    // The server refuses a file that belongs to the other builder or that uses
+    // a format version it cannot read; its message says which, so surface it.
+    onError: (error) => {
+      toast.error('Failed to import', { description: error.message })
+    },
+  })
+}

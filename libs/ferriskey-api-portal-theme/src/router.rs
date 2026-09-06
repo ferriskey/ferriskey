@@ -1,10 +1,12 @@
 use super::handlers::activate_theme::{__path_activate_theme, activate_theme};
 use super::handlers::create_theme::{__path_create_theme, create_theme};
 use super::handlers::delete_theme::{__path_delete_theme, delete_theme};
+use super::handlers::export_theme::{__path_export_theme, export_theme};
 use super::handlers::get_active_theme::{__path_get_active_theme, get_active_theme};
 use super::handlers::get_page_requirements::{__path_get_page_requirements, get_page_requirements};
 use super::handlers::get_theme::{__path_get_theme, get_theme};
 use super::handlers::get_theme_by_id::{__path_get_theme_by_id, get_theme_by_id};
+use super::handlers::import_theme::{__path_import_theme, import_theme};
 use super::handlers::list_themes::{__path_list_themes, list_themes};
 use super::handlers::update_theme::{__path_update_theme, update_theme};
 use super::handlers::update_theme_metadata::{__path_update_theme_metadata, update_theme_metadata};
@@ -28,6 +30,8 @@ use utoipa::OpenApi;
     update_theme_page,
     activate_theme,
     get_page_requirements,
+    import_theme,
+    export_theme,
 ))]
 pub struct PortalThemeApiDoc;
 
@@ -61,6 +65,20 @@ pub fn portal_theme_routes(state: AppState) -> Router<AppState> {
             get(get_theme_by_id)
                 .put(update_theme_metadata)
                 .delete(delete_theme),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/portal/themes/import",
+                state.args.server.root_path
+            ),
+            post(import_theme),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/portal/themes/{{theme_id}}/export",
+                state.args.server.root_path
+            ),
+            get(export_theme),
         )
         .route(
             &format!(

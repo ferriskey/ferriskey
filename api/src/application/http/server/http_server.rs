@@ -26,7 +26,9 @@ use ferriskey_api_webhook::router::webhook_routes;
 use super::config::get_config;
 use axum::Router;
 use axum::http::Method;
-use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION};
+use axum::http::header::{
+    ACCEPT, AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE, LOCATION,
+};
 use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
@@ -109,6 +111,10 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
             ACCEPT,
             LOCATION,
         ])
+        // The console reads the filename an export chose out of this header.
+        // A cross-origin response hides every header the server does not name
+        // here, so without it the download falls back to a generic name.
+        .expose_headers([CONTENT_DISPOSITION])
         .allow_credentials(true)
         .max_age(PREFLIGHT_MAX_AGE);
 

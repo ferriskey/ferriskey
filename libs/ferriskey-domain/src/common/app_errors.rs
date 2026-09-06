@@ -350,6 +350,9 @@ pub enum CoreError {
     #[error("Portal layout is referenced by one or more themes and cannot be deleted")]
     PortalLayoutInUse,
 
+    #[error("Invalid portal layout tree: {0}")]
+    PortalLayoutInvalidTree(String),
+
     #[error("Password policy violated: {0}")]
     PasswordPolicyViolation(String),
 }

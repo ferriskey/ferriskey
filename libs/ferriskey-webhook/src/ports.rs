@@ -78,6 +78,9 @@ pub trait WebhookRepository: Send + Sync {
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
+    /// `headers` is optional: `None` leaves the stored headers untouched, so a
+    /// caller editing an unrelated field cannot silently drop them. The API
+    /// never returns them, which means a client has no way to send them back.
     #[allow(clippy::too_many_arguments)]
     fn update_webhook(
         &self,
@@ -86,7 +89,7 @@ pub trait WebhookRepository: Send + Sync {
         name: Option<String>,
         description: Option<String>,
         endpoint: String,
-        headers: HashMap<String, String>,
+        headers: Option<HashMap<String, String>>,
         subscribers: Vec<WebhookTrigger>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
@@ -158,7 +161,8 @@ pub struct UpdateWebhookInput {
     pub name: Option<String>,
     pub description: Option<String>,
     pub endpoint: String,
-    pub headers: HashMap<String, String>,
+    /// Omitted means "keep what is stored"; `Some` replaces the whole set.
+    pub headers: Option<HashMap<String, String>>,
     pub subscribers: Vec<WebhookTrigger>,
 }
 
