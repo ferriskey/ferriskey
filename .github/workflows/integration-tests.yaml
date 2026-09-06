@@ -111,8 +111,13 @@ jobs:
       - name: run cross-realm organization isolation integration tests
         run: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored
 
+      # Every test in this file shares one realm, and the CORS origin cache
+      # (RealmOriginCache) is keyed by realm name alone — running them
+      # concurrently races on that shared cache entry. --test-threads=1
+      # keeps the shared-fixture design without touching the cache's
+      # granularity for a test-only concern.
       - name: run web origin integration tests
-        run: cargo test -p ferriskey-api --test web_origin_test -- --ignored
+        run: cargo test -p ferriskey-api --test web_origin_test -- --ignored --test-threads=1
 
       # Self-service account profile (#995, first iteration): GET/PUT /me
       # and the realm-gated username edit.
