@@ -60,6 +60,7 @@ use crate::{
         },
         compass::{
             repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
+            retention::compass_retention_task,
             writer::compass_writer_task,
         },
         db::postgres::{Postgres, PostgresConfig},
@@ -260,6 +261,9 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         PostgresCompassFlowRepository::new(postgres.get_db()),
         PostgresCompassFlowStepRepository::new(postgres.get_db()),
     ));
+    tokio::spawn(compass_retention_task(PostgresCompassFlowRepository::new(
+        postgres.get_db(),
+    )));
     let flow_recorder = FlowRecorder::new(compass_tx);
 
     let policy = Arc::new(FerriskeyPolicy::new(

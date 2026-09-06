@@ -193,6 +193,24 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
         Ok(result.rows_affected)
     }
 
+    async fn expire_stale_flows(&self, started_before: DateTime<Utc>) -> Result<u64, CoreError> {
+        let result = compass_flows::Entity::update_many()
+            .col_expr(
+                compass_flows::Column::Status,
+                sea_orm::sea_query::Expr::value(FlowStatus::Expired.to_string()),
+            )
+            .filter(compass_flows::Column::Status.eq(FlowStatus::Pending.to_string()))
+            .filter(compass_flows::Column::StartedAt.lt(started_before.naive_utc()))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to expire stale compass flows: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(result.rows_affected)
+    }
+
     async fn get_stats(&self, realm_id: RealmId) -> Result<FlowStats, CoreError> {
         let realm_uuid: Uuid = realm_id.into();
 
