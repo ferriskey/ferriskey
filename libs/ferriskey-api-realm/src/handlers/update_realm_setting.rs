@@ -71,6 +71,7 @@ pub async fn update_realm_setting(
                 seawatch_pii_mode: payload.seawatch_pii_mode,
                 seawatch_pseudo_key: payload.seawatch_pseudo_key,
                 require_mfa: payload.require_mfa,
+                edit_username_enabled: payload.edit_username_enabled,
             },
         )
         .await

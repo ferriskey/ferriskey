@@ -34,6 +34,7 @@ impl From<Model> for RealmSetting {
                 .try_into()
                 .unwrap_or_default(),
             require_mfa: value.require_mfa,
+            edit_username_enabled: value.edit_username_enabled,
             updated_at,
             lockout_threshold: value.lockout_threshold,
             lockout_duration_seconds: value.lockout_duration_seconds,
@@ -77,6 +78,7 @@ mod tests {
             seawatch_pii_mode: "off".to_string(),
             seawatch_pseudo_key: None,
             require_mfa: false,
+            edit_username_enabled: false,
         }
     }
 

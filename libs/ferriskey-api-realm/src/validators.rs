@@ -78,6 +78,7 @@ pub struct UpdateRealmSettingValidator {
     #[schema(value_type = Option<String>)]
     pub seawatch_pseudo_key: Option<Option<String>>,
     pub require_mfa: Option<bool>,
+    pub edit_username_enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

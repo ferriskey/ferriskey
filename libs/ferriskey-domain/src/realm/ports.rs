@@ -88,6 +88,7 @@ pub trait RealmRepository: Send + Sync {
         seawatch_pii_mode: Option<String>,
         seawatch_pseudo_key: Option<Option<String>>,
         require_mfa: Option<bool>,
+        edit_username_enabled: Option<bool>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(

@@ -224,6 +224,7 @@ impl RealmRepository for PostgresRealmRepository {
         seawatch_pii_mode: Option<String>,
         seawatch_pseudo_key: Option<Option<String>>,
         require_mfa: Option<bool>,
+        edit_username_enabled: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -331,6 +332,10 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(require_mfa) = require_mfa {
             realm_setting.require_mfa = Set(require_mfa);
+        }
+
+        if let Some(edit_username_enabled) = edit_username_enabled {
+            realm_setting.edit_username_enabled = Set(edit_username_enabled);
         }
 
         let realm_setting = realm_setting
