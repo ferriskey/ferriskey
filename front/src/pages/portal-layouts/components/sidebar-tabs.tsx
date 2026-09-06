@@ -56,14 +56,17 @@ function TabButton({
     <button
       type='button'
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1 text-xs transition-colors ${
+      // `min-w-0` + `truncate` let a label give ground when the rail is narrow,
+      // instead of the row overflowing into the container's hidden horizontal
+      // scroll — where the third tab simply disappeared.
+      className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded px-1.5 py-1 text-xs transition-colors ${
         active
           ? 'bg-background text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground'
-      } whitespace-nowrap`}
+      }`}
     >
-      {icon}
-      {label}
+      <span className='shrink-0'>{icon}</span>
+      <span className='truncate'>{label}</span>
     </button>
   )
 }
