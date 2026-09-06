@@ -86,6 +86,7 @@ pub struct Client {
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub direct_access_grants_enabled: bool,
+    pub token_exchange_enabled: bool,
     /// Whether this client is allowed to use the OAuth 2.0 Device
     /// Authorization Grant (RFC 8628). Opt-in: most clients should keep
     /// this disabled; only browserless devices (CLI, IoT, TVs) need it.
@@ -116,6 +117,7 @@ pub struct ClientConfig {
     pub service_account_enabled: bool,
     pub client_type: ClientType,
     pub direct_access_grants_enabled: Option<bool>,
+    pub token_exchange_enabled: Option<bool>,
     pub oauth_device_code_grant_enabled: Option<bool>,
     pub access_token_lifetime: Option<i64>,
     pub refresh_token_lifetime: Option<i64>,
@@ -140,6 +142,7 @@ impl Client {
             public_client: config.public_client,
             service_account_enabled: config.service_account_enabled,
             direct_access_grants_enabled: config.direct_access_grants_enabled.unwrap_or_default(),
+            token_exchange_enabled: config.token_exchange_enabled.unwrap_or_default(),
             oauth_device_code_grant_enabled: config
                 .oauth_device_code_grant_enabled
                 .unwrap_or_default(),
@@ -172,6 +175,7 @@ impl Client {
             public_client: false,
             service_account_enabled: false,
             direct_access_grants_enabled: false,
+            token_exchange_enabled: false,
             oauth_device_code_grant_enabled: false,
             require_pkce: false,
             client_type: ClientType::Confidential,

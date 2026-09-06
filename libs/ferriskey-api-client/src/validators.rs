@@ -36,6 +36,8 @@ pub struct CreateClientValidator {
     #[serde(default)]
     pub direct_access_grants_enabled: bool,
     #[serde(default)]
+    pub token_exchange_enabled: bool,
+    #[serde(default)]
     pub oauth_device_code_grant_enabled: bool,
 }
 
@@ -52,6 +54,9 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub direct_access_grants_enabled: Option<bool>,
+
+    #[serde(default)]
+    pub token_exchange_enabled: Option<bool>,
 
     #[serde(default)]
     pub oauth_device_code_grant_enabled: Option<bool>,

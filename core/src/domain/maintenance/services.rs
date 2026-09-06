@@ -124,6 +124,7 @@ where
             client_id: None,
             enabled: None,
             direct_access_grants_enabled: None,
+            token_exchange_enabled: None,
             oauth_device_code_grant_enabled: None,
             require_pkce: None,
             access_token_lifetime: None,

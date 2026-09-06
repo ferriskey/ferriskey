@@ -16,6 +16,7 @@ pub struct CreateClientInput {
     pub protocol: String,
     pub enabled: bool,
     pub direct_access_grants_enabled: bool,
+    pub token_exchange_enabled: bool,
     pub oauth_device_code_grant_enabled: bool,
 }
 

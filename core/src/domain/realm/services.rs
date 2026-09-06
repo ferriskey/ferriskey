@@ -403,6 +403,7 @@ where
                 client_id: "admin-cli".to_string(),
                 client_type: ClientType::Public,
                 direct_access_grants_enabled: true,
+                token_exchange_enabled: false,
                 // admin-cli is the canonical CLI client for the realm, so the
                 // device code grant is enabled by default — that's its whole
                 // purpose. Other seeded clients keep it off.
@@ -424,6 +425,7 @@ where
                 client_id: "ferriskey-account".to_string(),
                 client_type: ClientType::Public,
                 direct_access_grants_enabled: false,
+                token_exchange_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 enabled: true,
                 name: "ferriskey-account".to_string(),
@@ -451,6 +453,7 @@ where
                 client_id: "security-admin-console".to_string(),
                 client_type: ClientType::Public,
                 direct_access_grants_enabled: false,
+                token_exchange_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 enabled: true,
                 name: "security-admin-console".to_string(),
@@ -541,6 +544,7 @@ where
                 public_client: true,
                 service_account_enabled: false,
                 direct_access_grants_enabled: false,
+                token_exchange_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 client_type: ClientType::Public,
                 require_pkce: false,

@@ -26,7 +26,6 @@ pub struct Model {
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub direct_access_grants_enabled: Option<bool>,
-    pub oauth_device_code_grant_enabled: Option<bool>,
     pub access_token_lifetime_secs: Option<i32>,
     pub refresh_token_lifetime_secs: Option<i32>,
     pub id_token_lifetime_secs: Option<i32>,
@@ -34,7 +33,9 @@ pub struct Model {
     pub maintenance_enabled: Option<bool>,
     pub maintenance_reason: Option<String>,
     pub maintenance_session_strategy: Option<String>,
-    pub require_pkce: Option<bool>,
+    pub oauth_device_code_grant_enabled: Option<bool>,
+    pub require_pkce: bool,
+    pub token_exchange_enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -52,7 +53,6 @@ pub enum Column {
     CreatedAt,
     UpdatedAt,
     DirectAccessGrantsEnabled,
-    OauthDeviceCodeGrantEnabled,
     AccessTokenLifetimeSecs,
     RefreshTokenLifetimeSecs,
     IdTokenLifetimeSecs,
@@ -60,7 +60,9 @@ pub enum Column {
     MaintenanceEnabled,
     MaintenanceReason,
     MaintenanceSessionStrategy,
+    OauthDeviceCodeGrantEnabled,
     RequirePkce,
+    TokenExchangeEnabled,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -80,15 +82,16 @@ pub enum Relation {
     AuthSessions,
     BrokerAuthSessions,
     ClientMaintenanceWhitelist,
-    ClientScopeMappings,
     ClientSamlAttributeMappers,
     ClientSamlConfigs,
+    ClientScopeMappings,
     ClientWebOrigins,
     DeviceAuthSessions,
     PostLogoutRedirectUris,
     Realms,
     RedirectUris,
     Roles,
+    TokenExchangePolicies,
     Users,
 }
 
@@ -109,7 +112,6 @@ impl ColumnTrait for Column {
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::DirectAccessGrantsEnabled => ColumnType::Boolean.def().null(),
-            Self::OauthDeviceCodeGrantEnabled => ColumnType::Boolean.def().null(),
             Self::AccessTokenLifetimeSecs => ColumnType::Integer.def().null(),
             Self::RefreshTokenLifetimeSecs => ColumnType::Integer.def().null(),
             Self::IdTokenLifetimeSecs => ColumnType::Integer.def().null(),
@@ -119,7 +121,9 @@ impl ColumnTrait for Column {
             Self::MaintenanceSessionStrategy => {
                 ColumnType::String(StringLen::N(50u32)).def().null()
             }
-            Self::RequirePkce => ColumnType::Boolean.def().null(),
+            Self::OauthDeviceCodeGrantEnabled => ColumnType::Boolean.def().null(),
+            Self::RequirePkce => ColumnType::Boolean.def(),
+            Self::TokenExchangeEnabled => ColumnType::Boolean.def(),
         }
     }
 }
@@ -134,13 +138,13 @@ impl RelationTrait for Relation {
             Self::ClientMaintenanceWhitelist => {
                 Entity::has_many(super::client_maintenance_whitelist::Entity).into()
             }
-            Self::ClientScopeMappings => {
-                Entity::has_many(super::client_scope_mappings::Entity).into()
-            }
             Self::ClientSamlAttributeMappers => {
                 Entity::has_many(super::client_saml_attribute_mappers::Entity).into()
             }
             Self::ClientSamlConfigs => Entity::has_one(super::client_saml_configs::Entity).into(),
+            Self::ClientScopeMappings => {
+                Entity::has_many(super::client_scope_mappings::Entity).into()
+            }
             Self::ClientWebOrigins => Entity::has_many(super::client_web_origins::Entity).into(),
             Self::DeviceAuthSessions => {
                 Entity::has_many(super::device_auth_sessions::Entity).into()
@@ -154,6 +158,9 @@ impl RelationTrait for Relation {
                 .into(),
             Self::RedirectUris => Entity::has_many(super::redirect_uris::Entity).into(),
             Self::Roles => Entity::has_many(super::roles::Entity).into(),
+            Self::TokenExchangePolicies => {
+                Entity::has_many(super::token_exchange_policies::Entity).into()
+            }
             Self::Users => Entity::has_one(super::users::Entity).into(),
         }
     }
@@ -177,12 +184,6 @@ impl Related<super::client_maintenance_whitelist::Entity> for Entity {
     }
 }
 
-impl Related<super::client_scope_mappings::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::ClientScopeMappings.def()
-    }
-}
-
 impl Related<super::client_saml_attribute_mappers::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ClientSamlAttributeMappers.def()
@@ -192,6 +193,12 @@ impl Related<super::client_saml_attribute_mappers::Entity> for Entity {
 impl Related<super::client_saml_configs::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ClientSamlConfigs.def()
+    }
+}
+
+impl Related<super::client_scope_mappings::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ClientScopeMappings.def()
     }
 }
 
@@ -228,6 +235,12 @@ impl Related<super::redirect_uris::Entity> for Entity {
 impl Related<super::roles::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Roles.def()
+    }
+}
+
+impl Related<super::token_exchange_policies::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TokenExchangePolicies.def()
     }
 }
 

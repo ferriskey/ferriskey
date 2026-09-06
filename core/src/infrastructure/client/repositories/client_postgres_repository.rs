@@ -45,6 +45,7 @@ impl ClientRepository for PostgresClientRepository {
             public_client: Set(data.public_client),
             service_account_enabled: Set(data.service_account_enabled),
             direct_access_grants_enabled: Set(Some(data.direct_access_grants_enabled)),
+            token_exchange_enabled: Set(data.token_exchange_enabled),
             oauth_device_code_grant_enabled: Set(Some(data.oauth_device_code_grant_enabled)),
             client_type: Set(data.client_type.to_string()),
             access_token_lifetime_secs: Set(None),
@@ -54,7 +55,7 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_enabled: Set(Some(false)),
             maintenance_reason: Set(None),
             maintenance_session_strategy: Set(None),
-            require_pkce: Set(Some(data.require_pkce)),
+            require_pkce: Set(data.require_pkce),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -161,13 +162,18 @@ impl ClientRepository for PostgresClientRepository {
             None => client.direct_access_grants_enabled,
         };
 
+        client.token_exchange_enabled = match data.token_exchange_enabled {
+            Some(enabled) => Set(enabled),
+            None => client.token_exchange_enabled,
+        };
+
         client.oauth_device_code_grant_enabled = match data.oauth_device_code_grant_enabled {
             Some(enabled) => Set(Some(enabled)),
             None => client.oauth_device_code_grant_enabled,
         };
 
         client.require_pkce = match data.require_pkce {
-            Some(v) => Set(Some(v)),
+            Some(v) => Set(v),
             None => client.require_pkce,
         };
 

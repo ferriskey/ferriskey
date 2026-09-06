@@ -15,6 +15,8 @@ This library operates within the **Core Domain** bounded context. Its primary re
 - **Multi-tenancy with Realms**: Isolating users, clients, and configurations into distinct tenant boundaries.
 - **Fine-grained Permissions**: Defining and managing granular access rights.
 - **Repository Contracts**: Trait definitions for data persistence.
+- **Client Grant Controls**: Per-client opt-in flags, including token exchange, are part of the
+  domain model and flow through create, update, persistence, and API representations.
 
 ## Core Components
 

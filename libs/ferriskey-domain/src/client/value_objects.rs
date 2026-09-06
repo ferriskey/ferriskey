@@ -14,6 +14,7 @@ pub struct CreateClientRequest {
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub direct_access_grants_enabled: bool,
+    pub token_exchange_enabled: bool,
     pub oauth_device_code_grant_enabled: bool,
     pub client_type: ClientType,
     /// Public clients have no secret to authenticate with, so PKCE is the only
@@ -31,6 +32,7 @@ impl CreateClientRequest {
             client_id: client_name.clone(),
             client_type: ClientType::System,
             direct_access_grants_enabled: false,
+            token_exchange_enabled: false,
             oauth_device_code_grant_enabled: false,
             enabled: true,
             name: client_name,
@@ -49,6 +51,7 @@ pub struct UpdateClientRequest {
     pub client_id: Option<String>,
     pub enabled: Option<bool>,
     pub direct_access_grants_enabled: Option<bool>,
+    pub token_exchange_enabled: Option<bool>,
     pub oauth_device_code_grant_enabled: Option<bool>,
     pub require_pkce: Option<bool>,
     pub access_token_lifetime: Option<i64>,

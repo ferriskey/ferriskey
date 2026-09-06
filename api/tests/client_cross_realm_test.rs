@@ -747,12 +747,20 @@ mod tests {
                 body["data"]["secret"], "***",
                 "alice sees her own confidential client, with the secret redacted like everyone else's: {body}"
             );
+            assert_eq!(
+                body["data"]["token_exchange_enabled"].as_bool(),
+                Some(false),
+                "new clients must keep token exchange disabled by default: {body}"
+            );
 
             // Update.
             let response = server
                 .patch(&format!("/realms/{TENANT_A}/clients/{uuid}"))
                 .add_header("Authorization", auth_header(&alice))
-                .json(&json!({ "require_pkce": true }))
+                .json(&json!({
+                    "require_pkce": true,
+                    "token_exchange_enabled": true,
+                }))
                 .await;
             assert_eq!(
                 response.status_code(),
@@ -765,6 +773,23 @@ mod tests {
                 body["data"]["require_pkce"].as_bool(),
                 Some(true),
                 "alice's update did not take effect: {body}"
+            );
+            assert_eq!(
+                body["data"]["token_exchange_enabled"].as_bool(),
+                Some(true),
+                "alice's token exchange update did not take effect: {body}"
+            );
+
+            let response = server
+                .get(&format!("/realms/{TENANT_A}/clients/{uuid}"))
+                .add_header("Authorization", auth_header(&alice))
+                .await;
+            assert_eq!(response.status_code(), 200);
+            let body: Value = response.json();
+            assert_eq!(
+                body["data"]["token_exchange_enabled"].as_bool(),
+                Some(true),
+                "the persisted token exchange flag was not returned on read: {body}"
             );
 
             // Sub-resource: the realm binding must not break child writes.
