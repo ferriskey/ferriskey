@@ -3284,15 +3284,7 @@ where
             .get_by_client_id(input.client_id.clone(), realm.id)
             .await?;
 
-        let protocol = client.protocol.parse::<AuthProtocol>().map_err(|reason| {
-            warn!(
-                client_id = %input.client_id,
-                %reason,
-                "rejecting an authorization request for a client whose protocol is unknown"
-            );
-
-            CoreError::InvalidClient
-        })?;
+        let protocol = client.protocol;
 
         if protocol != AuthProtocol::OpenIdConnect {
             warn!(
@@ -4723,7 +4715,7 @@ mod tests {
             client_id: "app".to_string(),
             secret: Some(maskass::Masked::new("s3cr3t".to_string())),
             realm_id,
-            protocol: "openid-connect".to_string(),
+            protocol: AuthProtocol::OpenIdConnect,
             public_client: false,
             service_account_enabled: false,
             direct_access_grants_enabled: false,

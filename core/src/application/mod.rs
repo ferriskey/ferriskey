@@ -568,6 +568,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::authentication::entities::AuthProtocol;
     use std::env;
 
     use sqlx::Executor;
@@ -736,7 +737,7 @@ mod tests {
                     realm_name: realm_name.clone(),
                     enabled: true,
                     name: "Test Client".to_string(),
-                    protocol: "openid-connect".to_string(),
+                    protocol: AuthProtocol::OpenIdConnect,
                     service_account_enabled: false,
                     direct_access_grants_enabled: false,
                     oauth_device_code_grant_enabled: false,

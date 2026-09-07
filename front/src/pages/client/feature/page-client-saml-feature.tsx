@@ -1,3 +1,4 @@
+import { useGetClient } from '@/api/client.api'
 import { Form } from '@/components/ui/form'
 import { useFormChanges } from '@/hooks/use-form-changes'
 import { useSamlServiceProvider } from '@/hooks/use-saml-service-provider'
@@ -11,10 +12,16 @@ import {
   samlServiceProviderSchema,
   SamlServiceProviderSchema,
 } from '../schemas/saml-service-provider.schema'
+import { isSamlClient } from '@/lib/client-protocol'
 import PageClientSaml from '../ui/page-client-saml'
 
 export default function PageClientSamlFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
+
+  const { data: responseClient } = useGetClient({
+    realm: realm_name ?? 'master',
+    clientId: client_id,
+  })
 
   const {
     config,
@@ -66,6 +73,21 @@ export default function PageClientSamlFeature() {
 
   if (isLoading) {
     return <p className='text-sm text-muted-foreground'>Loading the SAML configuration…</p>
+  }
+
+  // The tab is hidden for an OIDC client, but the route stays reachable by URL.
+  // Nothing here would ever be served to that client, so nothing is offered.
+  if (responseClient && !isSamlClient(responseClient.data.protocol)) {
+    return (
+      <div className='rounded-lg border bg-muted/30 px-6 py-5'>
+        <p className='text-sm font-medium'>This client does not speak SAML</p>
+        <p className='text-sm text-muted-foreground mt-1'>
+          It was created to speak {responseClient.data.protocol}. A client speaks one
+          protocol, chosen when it is created — create a SAML client to configure a service
+          provider.
+        </p>
+      </div>
+    )
   }
 
   return (

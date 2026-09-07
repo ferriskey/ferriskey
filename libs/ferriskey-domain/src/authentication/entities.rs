@@ -199,7 +199,9 @@ impl Display for GrantType {
 pub const OPENID_CONNECT_PROTOCOL: &str = "openid-connect";
 pub const SAML_PROTOCOL: &str = "saml";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize, ToSchema,
+)]
 pub enum AuthProtocol {
     #[default]
     #[serde(rename = "openid-connect")]

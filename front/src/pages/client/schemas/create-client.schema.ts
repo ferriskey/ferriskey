@@ -5,7 +5,7 @@ export const createClientSchema = z.object({
   name: z.string().min(1, { message: 'The name is required' }),
   enabled: z.boolean().optional(),
   clientAuthentication: z.boolean().optional(),
-  protocol: z.string().optional(),
+  protocol: z.enum(['openid-connect', 'saml']),
 })
 
 export type CreateClientSchema = z.infer<typeof createClientSchema>

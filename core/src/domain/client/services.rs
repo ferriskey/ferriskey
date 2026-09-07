@@ -147,6 +147,20 @@ where
             .await
             .map_err(|_| CoreError::NotFound)
     }
+
+    /// Loads a client and refuses right away when it does not speak SAML: the
+    /// SAML settings of an OIDC client would never be served by any endpoint,
+    /// so storing them only advertises a capability the client does not have.
+    async fn load_saml_client_in_realm(
+        &self,
+        client_id: Uuid,
+        realm: &Realm,
+    ) -> Result<Client, CoreError> {
+        let client = self.load_client_in_realm(client_id, realm).await?;
+        client.ensure_speaks_saml()?;
+
+        Ok(client)
+    }
 }
 
 impl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM> ClientService
@@ -481,7 +495,8 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        self.load_client_in_realm(input.client_id, &realm).await?;
+        self.load_saml_client_in_realm(input.client_id, &realm)
+            .await?;
 
         let settings = SamlConfigSettings {
             sp_entity_id: SpEntityId::from_str(&input.payload.sp_entity_id)?,
@@ -528,7 +543,8 @@ where
             self.policy.can_update_client(&identity, &realm).await,
             "insufficient permissions",
         )?;
-        self.load_client_in_realm(input.client_id, &realm).await?;
+        self.load_saml_client_in_realm(input.client_id, &realm)
+            .await?;
 
         let definition = SamlAttributeMapperDefinition {
             name: SamlAttributeName::from_str(&input.payload.name)?,

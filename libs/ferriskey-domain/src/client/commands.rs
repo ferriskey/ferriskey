@@ -1,5 +1,6 @@
 use uuid::Uuid;
 
+use crate::authentication::entities::AuthProtocol;
 use crate::client::entities::ClientType;
 use crate::client::value_objects::{
     CreateSamlAttributeMapperRequest, CreateWebOriginRequest, SetClientSamlConfigRequest,
@@ -13,7 +14,7 @@ pub struct CreateClientInput {
     pub client_type: ClientType,
     pub service_account_enabled: bool,
     pub public_client: bool,
-    pub protocol: String,
+    pub protocol: AuthProtocol,
     pub enabled: bool,
     pub direct_access_grants_enabled: bool,
     pub oauth_device_code_grant_enabled: bool,

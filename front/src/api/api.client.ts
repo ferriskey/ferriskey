@@ -97,6 +97,7 @@ export namespace Schemas {
   export type AssignGroupRoleValidator = { role_id: string };
   export type AssignMemberRoleValidator = { role_id: string };
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string };
+  export type AuthProtocol = "openid-connect" | "saml";
   export type AuthResponse = { url: string };
   export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>;
   export type AuthenticationStatus = "Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed";
@@ -132,7 +133,7 @@ export namespace Schemas {
     maintenance_session_strategy: MaintenanceSessionStrategy;
     name: string;
     oauth_device_code_grant_enabled: boolean;
-    protocol: string;
+    protocol: AuthProtocol;
     public_client: boolean;
     realm_id: RealmId;
     redirect_uris?: (Array<RedirectUri> | null) | undefined;
@@ -246,7 +247,7 @@ export namespace Schemas {
     enabled?: boolean | undefined;
     name?: string | undefined;
     oauth_device_code_grant_enabled?: boolean | undefined;
-    protocol?: string | undefined;
+    protocol?: AuthProtocol | undefined;
     public_client?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
   };
