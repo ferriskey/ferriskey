@@ -57,45 +57,6 @@ impl From<security_events::Model> for SecurityEvent {
     }
 }
 
-/// Inverse of `SecurityEventType`'s `Display`, which is what the write path
-/// persists. Every variant must round-trip through here — see the tests below.
-///
-/// Unknown values fall back to `LoginSuccess` so that a row written by a newer
-/// version does not break reads on an older one.
-fn parse_event_type(raw: &str) -> SecurityEventType {
-    match raw {
-        "login_success" => SecurityEventType::LoginSuccess,
-        "login_failure" => SecurityEventType::LoginFailure,
-        "password_reset" => SecurityEventType::PasswordReset,
-        "password_reset_requested" => SecurityEventType::PasswordResetRequested,
-        "password_reset_completed" => SecurityEventType::PasswordResetCompleted,
-        "user_created" => SecurityEventType::UserCreated,
-        "user_email_verified" => SecurityEventType::UserEmailVerified,
-        "user_deleted" => SecurityEventType::UserDeleted,
-        "role_assigned" => SecurityEventType::RoleAssigned,
-        "role_unassigned" => SecurityEventType::RoleUnassigned,
-        "role_created" => SecurityEventType::RoleCreated,
-        "role_removed" => SecurityEventType::RoleRemoved,
-        "client_created" => SecurityEventType::ClientCreated,
-        "client_deleted" => SecurityEventType::ClientDeleted,
-        "client_secret_rotated" => SecurityEventType::ClientSecretRotated,
-        "client_secret_viewed" => SecurityEventType::ClientSecretViewed,
-        "realm_config_changed" => SecurityEventType::RealmConfigChanged,
-        "email_not_sent" => SecurityEventType::EmailNotSent,
-        "email_sent" => SecurityEventType::EmailSent,
-        "client_maintenance_enabled" => SecurityEventType::ClientMaintenanceEnabled,
-        "client_maintenance_disabled" => SecurityEventType::ClientMaintenanceDisabled,
-        "session_created" => SecurityEventType::SessionCreated,
-        "session_revoked" => SecurityEventType::SessionRevoked,
-        "identity_provider_link_removed" => SecurityEventType::IdentityProviderLinkRemoved,
-        "mfa_enrolled" => SecurityEventType::MfaEnrolled,
-        "mfa_removed" => SecurityEventType::MfaRemoved,
-        "credential_deleted" => SecurityEventType::CredentialDeleted,
-        "reauthentication_failed" => SecurityEventType::ReauthenticationFailed,
-        "recovery_code_burned" => SecurityEventType::RecoveryCodeBurned,
-        _ => SecurityEventType::LoginSuccess,
-    }
-}
 impl From<SecurityEvent> for security_events::ActiveModel {
     fn from(event: SecurityEvent) -> Self {
         security_events::ActiveModel {

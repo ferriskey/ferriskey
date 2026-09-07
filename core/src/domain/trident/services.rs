@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::SystemTime, time::UNIX_EPOCH};
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use ferriskey_compass::{
     entities::{FlowId, FlowStepName, StepStatus},
     recorder::FlowRecorder,
