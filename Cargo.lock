@@ -452,16 +452,15 @@ dependencies = [
 
 [[package]]
 name = "axum-test"
-version = "21.1.0"
+version = "18.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bf0893561659ea1365921a0aed8bbb620fae83dae00b53fe64d41fea4877640"
+checksum = "c0388808c0617a886601385c0024b9d0162480a763ba371f803d87b775115400"
 dependencies = [
  "anyhow",
  "axum",
  "bytes",
  "bytesize",
  "cookie",
- "educe 0.7.6",
  "expect-json",
  "http",
  "http-body-util",
@@ -474,6 +473,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "smallvec",
  "tokio",
  "tower",
  "url",
@@ -1326,18 +1326,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "educe"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e451fac8dd8dece16234604bf1efce6e90fddd8ab6ad4d66eec0eca5160959dd"
-dependencies = [
- "enum-ordinalize",
- "proc-macro2",
- "quote",
- "syn 3.0.5",
 ]
 
 [[package]]
@@ -3357,7 +3345,7 @@ dependencies = [
  "async-broadcast",
  "async-stream",
  "backon",
- "educe 0.6.0",
+ "educe",
  "futures",
  "hashbrown 0.15.5",
  "hostname",
@@ -4959,16 +4947,16 @@ dependencies = [
 
 [[package]]
 name = "rust-multipart-rfc7578_2"
-version = "0.9.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00bdaa068902270ca7fa8619775e1838e23a63620abac0947ce0f715819b8cec"
+checksum = "c839d037155ebc06a571e305af66ff9fd9063a6e662447051737e1ac75beea41"
 dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
  "http",
  "mime",
- "rand 0.10.2",
+ "rand 0.9.5",
  "thiserror 2.0.20",
 ]
 
@@ -5963,7 +5951,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -6900,7 +6888,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

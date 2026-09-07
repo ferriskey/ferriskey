@@ -319,7 +319,6 @@ pub struct TridentServiceImpl<
     pub(crate) token_revocation: Arc<TRV>,
     pub(crate) webauthn_challenge_repository: Arc<WCR>,
     pub(crate) step_up_token_repository: Arc<SUT>,
-    pub(crate) pending_totp_secret_repository: Arc<PTS>,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
@@ -393,7 +392,6 @@ where
         token_revocation: Arc<TRV>,
         webauthn_challenge_repository: Arc<WCR>,
         step_up_token_repository: Arc<SUT>,
-        pending_totp_secret_repository: Arc<PTS>,
         flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
@@ -418,7 +416,6 @@ where
             token_revocation,
             webauthn_challenge_repository,
             step_up_token_repository,
-            pending_totp_secret_repository,
             flow_recorder,
         }
     }
@@ -729,7 +726,6 @@ where
                         warn!("Failed to log factor-change email not sent event: {e}")
                     });
             }
->>>>>>> 4700e0ad (fix(trident): add factor-change email notification and reset lockout on recovery-code success)
         }
     }
 
@@ -3678,7 +3674,6 @@ mod tests {
                 self.token_revocation,
                 self.webauthn_challenge_repo,
                 self.step_up_token_repo,
-                self.pending_totp_secret_repo,
                 FlowRecorder::disabled(),
             )
         }
@@ -7414,9 +7409,10 @@ mod tests {
         let auth_session = AuthSession::new(AuthSessionParams {
             realm_id: realm.id,
             client_id: Uuid::new_v4(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uri: "http://localhost:5555/callback".to_string(),
-            response_type: "code".to_string(),
-            scope: "openid".to_string(),
+            response_type: Some("code".to_string()),
+            scope: Some("openid".to_string()),
             state: Some("state".to_string()),
             nonce: None,
             user_id: Some(user.id),
@@ -7516,9 +7512,10 @@ mod tests {
         let auth_session = AuthSession::new(AuthSessionParams {
             realm_id: realm.id,
             client_id: Uuid::new_v4(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uri: "http://localhost:5555/callback".to_string(),
-            response_type: "code".to_string(),
-            scope: "openid".to_string(),
+            response_type: Some("code".to_string()),
+            scope: Some("openid".to_string()),
             state: Some("state".to_string()),
             nonce: None,
             user_id: Some(user.id),
@@ -7592,9 +7589,10 @@ mod tests {
         let auth_session = AuthSession::new(AuthSessionParams {
             realm_id: realm.id,
             client_id: Uuid::new_v4(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uri: "http://localhost:5555/callback".to_string(),
-            response_type: "code".to_string(),
-            scope: "openid".to_string(),
+            response_type: Some("code".to_string()),
+            scope: Some("openid".to_string()),
             state: Some("state".to_string()),
             nonce: None,
             user_id: Some(user.id),

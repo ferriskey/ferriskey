@@ -429,7 +429,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             token_revocation.clone(),
             webauthn_challenge.clone(),
             step_up_token.clone(),
-            pending_totp_secret.clone(),
             flow_recorder.clone(),
         ),
         user_service: UserServiceImpl::new(

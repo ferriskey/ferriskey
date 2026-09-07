@@ -213,19 +213,13 @@ mod tests {
                 | SecurityEventType::ClientMaintenanceDisabled
                 | SecurityEventType::SessionCreated
                 | SecurityEventType::SessionRevoked
-<<<<<<< HEAD
                 | SecurityEventType::IdentityProviderLinkRemoved
-                | SecurityEventType::Unknown => true,
-||||||| parent of 4700e0ad (fix(trident): add factor-change email notification and reset lockout on recovery-code success)
-                | SecurityEventType::IdentityProviderLinkRemoved => true,
-=======
-                | SecurityEventType::IdentityProviderLinkRemoved
+                | SecurityEventType::Unknown
                 | SecurityEventType::MfaEnrolled
                 | SecurityEventType::MfaRemoved
                 | SecurityEventType::CredentialDeleted
                 | SecurityEventType::ReauthenticationFailed
                 | SecurityEventType::RecoveryCodeBurned => true,
->>>>>>> 4700e0ad (fix(trident): add factor-change email notification and reset lockout on recovery-code success)
             };
 
             assert!(listed && ALL_EVENT_TYPES.contains(event_type));
