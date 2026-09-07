@@ -22,12 +22,6 @@ export interface SelectMenuProps {
   className?: string
 }
 
-/**
- * A single-choice menu over a closed list of options. Wraps the Select
- * primitives so a caller only has to hand over the options it allows —
- * the trigger, the empty state and the item layout stay identical
- * everywhere the console asks the user to pick one value out of a few.
- */
 export function SelectMenu({
   options,
   value,

@@ -126,9 +126,6 @@ pub struct ClientConfig {
 }
 
 impl Client {
-    /// SAML settings only belong on a SAML client. An OIDC client carrying a
-    /// service provider configuration answers neither protocol coherently, so
-    /// the configuration endpoints refuse it rather than storing it.
     pub fn ensure_speaks_saml(&self) -> Result<(), InvalidSamlConfig> {
         match self.protocol {
             AuthProtocol::Saml => Ok(()),

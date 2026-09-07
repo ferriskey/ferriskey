@@ -29,8 +29,6 @@ pub struct CreateClientValidator {
     pub service_account_enabled: bool,
     #[serde(default)]
     pub public_client: bool,
-    /// The protocol the client speaks. Fixed at creation: a client is either an
-    /// OpenID Connect client or a SAML service provider, never both.
     #[serde(default)]
     pub protocol: AuthProtocol,
     #[serde(default)]

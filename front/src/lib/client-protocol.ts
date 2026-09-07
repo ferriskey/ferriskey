@@ -8,11 +8,6 @@ interface ClientProtocolOption {
   description: string
 }
 
-/**
- * A client speaks one protocol, chosen when it is created. The two are
- * exclusive: an OpenID Connect client has no service provider settings, and a
- * SAML client issues no tokens.
- */
 export const CLIENT_PROTOCOL_OPTIONS: ClientProtocolOption[] = [
   {
     value: 'openid-connect',

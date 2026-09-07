@@ -75,8 +75,6 @@ export default function PageClientSamlFeature() {
     return <p className='text-sm text-muted-foreground'>Loading the SAML configuration…</p>
   }
 
-  // The tab is hidden for an OIDC client, but the route stays reachable by URL.
-  // Nothing here would ever be served to that client, so nothing is offered.
   if (responseClient && !isSamlClient(responseClient.data.protocol)) {
     return (
       <div className='rounded-lg border bg-muted/30 px-6 py-5'>

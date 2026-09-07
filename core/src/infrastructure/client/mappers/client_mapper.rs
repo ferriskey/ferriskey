@@ -11,9 +11,6 @@ impl From<Model> for Client {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);
 
-        // A row written before the protocol was a closed set — or by hand — can
-        // hold anything. Falling back to OIDC keeps the client usable while
-        // denying it the SAML endpoints, which is the safer side.
         let protocol = model
             .protocol
             .parse::<AuthProtocol>()
