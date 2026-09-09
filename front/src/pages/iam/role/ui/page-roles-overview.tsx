@@ -5,7 +5,7 @@ import type { CardSpec, Column } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 
 import Role = Schemas.Role
-import { cumulativeSeries } from '@/shared/cumulative-series'
+import { cumulativeSeries } from '@/utils/cumulative-series'
 
 export interface PageRolesOverviewProps {
   roles: Role[]

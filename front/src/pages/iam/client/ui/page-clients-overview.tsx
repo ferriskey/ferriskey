@@ -13,7 +13,7 @@ import { Schemas } from '@/api/api.client'
 import { protocolChoices, type ClientProtocol } from '../client-choices'
 
 import Client = Schemas.Client
-import { cumulativeSeries } from '@/shared/cumulative-series'
+import { cumulativeSeries } from '@/utils/cumulative-series'
 
 export interface PageClientsOverviewProps {
   clients: Client[]

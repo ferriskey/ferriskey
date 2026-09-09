@@ -2,7 +2,7 @@ import { MailCheck, MailX, Plus, UserCog } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
-import { formatRelative } from '@/shared/format-date'
+import { formatRelative } from '@/utils/format-date'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User

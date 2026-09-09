@@ -4,7 +4,7 @@ import { Button } from '@/components/kit/button'
 import { PageTabs, Pill, Squircle, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 import { Schemas } from '@/api/api.client'
 import { applicationTypeMeta, inferApplicationType } from '../application-types'
 

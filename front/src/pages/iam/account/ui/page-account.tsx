@@ -7,7 +7,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PageAccountProps {
   profile?: User

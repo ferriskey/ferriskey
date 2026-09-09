@@ -12,7 +12,7 @@ import type { ScopeTypeChoice } from './page-create-client-scope'
 import ClientScope = Schemas.ClientScope
 import ProtocolMapper = Schemas.ProtocolMapper
 import ScopeType = Schemas.ScopeType
-import { formatDateTime } from '@/shared/format-date'
+import { formatDateTime } from '@/utils/format-date'
 
 const typeLabel: Record<ScopeType, string> = {
   DEFAULT: 'default',

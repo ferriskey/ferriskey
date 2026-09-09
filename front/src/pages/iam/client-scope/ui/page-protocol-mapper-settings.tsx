@@ -12,7 +12,7 @@ import { mapperCategory } from '../mapper-categories'
 import MapperConfigFields, { type MapperEntityOptions } from './mapper-config-fields'
 
 import ProtocolMapper = Schemas.ProtocolMapper
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 
 export interface PageProtocolMapperSettingsProps {

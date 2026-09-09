@@ -12,7 +12,7 @@ import type { PortalPageStatus } from '../theme-validation'
 import ThemeTokensTab from './theme-tokens-tab'
 import ThemeLayoutTab from './theme-layout-tab'
 import ThemePagesTab from './theme-pages-tab'
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PagePortalThemeDetailProps {
   theme?: Schemas.PortalTheme

@@ -2,7 +2,7 @@ import { KeyRound, Link2, MailCheck, type LucideIcon } from 'lucide-react'
 import { Schemas } from '@/api/api.client'
 
 import EmailType = Schemas.EmailType
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface EmailTypeSpec {
   key: EmailType

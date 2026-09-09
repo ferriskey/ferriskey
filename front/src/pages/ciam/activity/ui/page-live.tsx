@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
-import { formatRelative, formatTimestamp } from '@/shared/format-date'
+import { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { ActivityPage, NoticeList, type Notice } from './activity-notices'
 
 import DailyActivityStats = Schemas.DailyActivityStats

@@ -12,7 +12,7 @@ import { citedVariables, emailTypeSpec, type EmailTypeSpec } from '../email-type
 
 import EmailTemplate = Schemas.EmailTemplate
 import TemplateVariable = Schemas.TemplateVariable
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PageEmailTemplateDetailProps {
   template?: EmailTemplate

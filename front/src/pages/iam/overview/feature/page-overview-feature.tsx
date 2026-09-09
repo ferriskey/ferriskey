@@ -22,7 +22,7 @@ import PageOverview, {
   type OverviewQuickLink,
 } from '../ui/page-overview'
 import type { OverviewEvent } from '../ui/overview-event-log'
-import { cumulativeSeries } from '@/shared/cumulative-series'
+import { cumulativeSeries } from '@/utils/cumulative-series'
 
 const WINDOW_DAYS = 30
 const EVENT_COUNT = 8

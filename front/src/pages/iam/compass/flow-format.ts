@@ -3,7 +3,7 @@ export {
   formatTime,
   formatRelative,
   formatTimestamp,
-} from '@/shared/format-date'
+} from '@/utils/format-date'
 
 import { Schemas } from '@/api/api.client'
 

@@ -11,7 +11,7 @@ import UserOverviewTab from './user-overview-tab'
 
 import User = Schemas.User
 import RequiredAction = Schemas.RequiredAction
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PageUserDetailProps {
   user?: User

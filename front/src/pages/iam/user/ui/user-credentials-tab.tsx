@@ -11,7 +11,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import CredentialOverview = Schemas.CredentialOverview
-import { formatDateTime } from '@/shared/format-date'
+import { formatDateTime } from '@/utils/format-date'
 
 const credentialMeta: Record<
   string,

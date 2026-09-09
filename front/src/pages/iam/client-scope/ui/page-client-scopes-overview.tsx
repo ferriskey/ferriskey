@@ -8,7 +8,7 @@ import { Schemas } from '@/api/api.client'
 
 import ClientScope = Schemas.ClientScope
 import ScopeType = Schemas.ScopeType
-import { cumulativeSeries } from '@/shared/cumulative-series'
+import { cumulativeSeries } from '@/utils/cumulative-series'
 
 const typeLabel: Record<ScopeType, string> = {
   DEFAULT: 'default',

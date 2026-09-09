@@ -6,7 +6,7 @@ import { isServiceAccount } from '@/utils'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
-import { cumulativeSeries } from '@/shared/cumulative-series'
+import { cumulativeSeries } from '@/utils/cumulative-series'
 
 export interface PageUsersOverviewProps {
   users: User[]

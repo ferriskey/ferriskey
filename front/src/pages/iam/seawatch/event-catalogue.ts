@@ -1,4 +1,4 @@
-export { formatRelative, formatTimestamp } from '@/shared/format-date'
+export { formatRelative, formatTimestamp } from '@/utils/format-date'
 
 import { Schemas } from '@/api/api.client'
 

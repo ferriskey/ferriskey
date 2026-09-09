@@ -8,7 +8,7 @@ import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
 import { PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PortalLayoutRow {
   layout: Schemas.PortalLayout

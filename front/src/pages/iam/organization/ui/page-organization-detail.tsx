@@ -13,7 +13,7 @@ import OrganizationMembersTab from './organization-members-tab'
 import Organization = Schemas.Organization
 import OrganizationAttribute = Schemas.OrganizationAttribute
 import User = Schemas.User
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PageOrganizationDetailProps {
   organization?: Organization

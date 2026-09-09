@@ -6,7 +6,7 @@ import { Schemas } from '@/api/api.client'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
 
 import Webhook = Schemas.Webhook
-import { formatDateTime } from '@/shared/format-date'
+import { formatDateTime } from '@/utils/format-date'
 
 export interface PageWebhooksOverviewProps {
   webhooks: Webhook[]

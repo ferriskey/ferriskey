@@ -7,7 +7,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import Client = Schemas.Client
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PageClientDetailProps {
   client?: Client

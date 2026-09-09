@@ -10,7 +10,7 @@ import RolePermissionsTab from './role-permissions-tab'
 import RoleUsersTab from './role-users-tab'
 
 import Role = Schemas.Role
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PageRoleDetailProps {
   role?: Role

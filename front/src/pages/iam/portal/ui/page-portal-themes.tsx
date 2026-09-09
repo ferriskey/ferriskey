@@ -20,7 +20,7 @@ import { PORTAL_PAGES, labelForPortalPage, humanizeBlockType } from '../portal-p
 import type { PortalPageStatus } from '../theme-validation'
 import { PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface PortalThemeRow {
   theme: Schemas.PortalTheme

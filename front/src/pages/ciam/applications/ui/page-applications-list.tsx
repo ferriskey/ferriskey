@@ -9,7 +9,7 @@ import {
   type CardSpec,
   type Column,
 } from '@/components/kit'
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 import { Schemas } from '@/api/api.client'
 import {
   APPLICATION_TYPE_METAS,

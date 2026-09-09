@@ -1,7 +1,7 @@
 import { Pill, type PillTone } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { formatDateTime as formatTime } from '@/shared/format-date'
+import { formatDateTime as formatTime } from '@/utils/format-date'
 
 export interface OverviewEvent {
   id: string

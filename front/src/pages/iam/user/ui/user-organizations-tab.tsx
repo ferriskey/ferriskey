@@ -6,7 +6,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import Organization = Schemas.Organization
-import { formatDate } from '@/shared/format-date'
+import { formatDate } from '@/utils/format-date'
 
 export interface UserMembership {
   organization: Organization

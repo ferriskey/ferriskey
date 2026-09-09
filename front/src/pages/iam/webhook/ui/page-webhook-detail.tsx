@@ -13,7 +13,7 @@ import type { WebhookHeader } from './webhook-headers-field'
 
 import Webhook = Schemas.Webhook
 import WebhookTrigger = Schemas.WebhookTrigger
-import { formatDateTime } from '@/shared/format-date'
+import { formatDateTime } from '@/utils/format-date'
 
 export interface PageWebhookDetailProps {
   webhook?: Webhook

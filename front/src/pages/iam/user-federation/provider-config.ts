@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/shared/format-date'
+import { formatDateTime } from '@/utils/format-date'
 
 export type ProviderPriority = 'Primary' | 'Secondary' | 'Development' | 'Legacy'
 export type SyncMode = 'Import' | 'Force' | 'LinkOnly'
