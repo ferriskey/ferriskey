@@ -1,5 +1,12 @@
-import NotMigratedYet from '@/next/shell/not-migrated-yet'
+import { Route, Routes } from 'react-router'
+import PageFlowsFeature from './feature/page-flows-feature'
+import PageFlowDetailFeature from './feature/page-flow-detail-feature'
 
 export default function NextPageCompass() {
-  return <NotMigratedYet domain='compass' />
+  return (
+    <Routes>
+      <Route index element={<PageFlowsFeature />} />
+      <Route path=':flow_id' element={<PageFlowDetailFeature />} />
+    </Routes>
+  )
 }

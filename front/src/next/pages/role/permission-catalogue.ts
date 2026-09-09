@@ -1,11 +1,14 @@
 import {
   Eye,
+  KeyRound,
   LayoutGrid,
   Link2,
+  Mail,
   Settings,
   Shield,
   UserCog,
   Users,
+  Webhook,
   type LucideIcon,
 } from 'lucide-react'
 import { Permissions } from '@/api/core.interface'
@@ -157,6 +160,64 @@ export const permissionCatalogue: readonly PermissionGroup[] = [
         key: Permissions.QueryGroups,
         label: 'Query Groups',
         description: 'List and search across groups.',
+      },
+    ],
+  },
+  {
+    group: 'Client Scopes',
+    icon: KeyRound,
+    permissions: [
+      {
+        key: Permissions.ManageClientScopes,
+        label: 'Manage Client Scopes',
+        description: 'Create, edit and delete scopes and their protocol mappers.',
+      },
+      {
+        key: Permissions.ViewClientScopes,
+        label: 'View Client Scopes',
+        description: 'Read scopes and the claims they add to a token.',
+      },
+      {
+        key: Permissions.QueryClientScopes,
+        label: 'Query Client Scopes',
+        description: 'List and search across scopes.',
+      },
+    ],
+  },
+  {
+    group: 'Webhooks',
+    icon: Webhook,
+    permissions: [
+      {
+        key: Permissions.ManageWebhooks,
+        label: 'Manage Webhooks',
+        description: 'Declare endpoints and choose the events they receive.',
+      },
+      {
+        key: Permissions.ViewWebhooks,
+        label: 'View Webhooks',
+        description: 'Read endpoint configuration, secrets excluded.',
+      },
+      {
+        key: Permissions.QueryWebhooks,
+        label: 'Query Webhooks',
+        description: 'List and search across endpoints.',
+      },
+    ],
+  },
+  {
+    group: 'Email Templates',
+    icon: Mail,
+    permissions: [
+      {
+        key: Permissions.ManageEmailTemplates,
+        label: 'Manage Email Templates',
+        description: 'Edit the emails the realm sends and choose which one is used.',
+      },
+      {
+        key: Permissions.ViewEmailTemplates,
+        label: 'View Email Templates',
+        description: 'Read the emails the realm sends.',
       },
     ],
   },

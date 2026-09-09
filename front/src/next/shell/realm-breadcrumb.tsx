@@ -33,7 +33,7 @@ export function RealmBreadcrumb({
       className='flex h-14 shrink-0 items-center gap-2 border-b border-fk-line bg-white pl-3 pr-4'
     >
       <img
-        src='/logo-ferriskey.png'
+        src='/logo_ferriskey.png'
         alt='FerrisKey'
         className='size-8 shrink-0 rounded-md'
       />

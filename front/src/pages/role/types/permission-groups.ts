@@ -34,4 +34,18 @@ export const permissionGroups = {
   'Groups': [
     Permissions.QueryGroups,
   ],
+  'Client Scopes': [
+    Permissions.ManageClientScopes,
+    Permissions.ViewClientScopes,
+    Permissions.QueryClientScopes,
+  ],
+  'Webhooks': [
+    Permissions.ManageWebhooks,
+    Permissions.ViewWebhooks,
+    Permissions.QueryWebhooks,
+  ],
+  'Email Templates': [
+    Permissions.ManageEmailTemplates,
+    Permissions.ViewEmailTemplates,
+  ],
 }

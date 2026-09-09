@@ -98,12 +98,9 @@ export default function PageRoleDetailFeature() {
 
   const handleDelete = async () => {
     if (!role_id) return
-    try {
-      await deleteRole({ path: { realm_name: realm, role_id } })
-      navigate(NEXT_ROLES_URL(realm))
-    } catch {
-      // l'erreur est remontée par la mutation
-    }
+    await deleteRole({ path: { realm_name: realm, role_id } })
+      .then(() => navigate(NEXT_ROLES_URL(realm)))
+      .catch(() => undefined)
   }
 
   return (

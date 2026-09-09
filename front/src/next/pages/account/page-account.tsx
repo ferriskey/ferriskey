@@ -1,5 +1,10 @@
-import NotMigratedYet from '@/next/shell/not-migrated-yet'
+import { Route, Routes } from 'react-router'
+import PageAccountFeature from './feature/page-account-feature'
 
 export default function NextPageAccount() {
-  return <NotMigratedYet domain='account' />
+  return (
+    <Routes>
+      <Route index element={<PageAccountFeature />} />
+    </Routes>
+  )
 }
