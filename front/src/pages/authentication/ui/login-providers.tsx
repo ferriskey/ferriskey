@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
-} from '@/pages/identity-providers/components/provider-icon'
+} from '@/components/provider-icon'
 
 import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 

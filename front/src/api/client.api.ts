@@ -1,4 +1,4 @@
-import { CreateClientSchema } from '@/pages/client/schemas/create-client.schema.ts'
+import { CreateClientSchema } from '@/pages/iam/client/schemas/create-client.schema.ts'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
