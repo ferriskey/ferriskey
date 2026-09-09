@@ -31,7 +31,6 @@ interface PageOverviewProps {
   isLoading: boolean
   isError: boolean
   realmName?: string
-  isMocked: boolean
 }
 
 const formatTimestamp = (timestamp: string) => {
@@ -63,7 +62,6 @@ export default function PageOverview({
   isLoading,
   isError,
   realmName,
-  isMocked,
 }: PageOverviewProps) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failure'>('all')
@@ -111,11 +109,6 @@ export default function PageOverview({
                     Realm: {realmName}
                   </Badge>
                 )}
-                {isMocked ? (
-                  <Badge variant='secondary'>Mock data</Badge>
-                ) : (
-                  <Badge variant='secondary'>Live feed</Badge>
-                )}
               </div>
             </div>
           </div>
@@ -138,7 +131,7 @@ export default function PageOverview({
             <Shield />
             <AlertTitle>Security events unavailable</AlertTitle>
             <AlertDescription>
-              We couldn&apos;t fetch the latest events. Showing cached or mocked data.
+              We couldn&apos;t fetch the latest events. This list is incomplete.
             </AlertDescription>
           </Alert>
         )}
