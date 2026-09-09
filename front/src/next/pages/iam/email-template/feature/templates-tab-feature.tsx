@@ -5,15 +5,16 @@ import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { downloadEmailTemplateExport } from '@/api/builder-export'
 import { toast } from 'sonner'
 import { RouterParams } from '@/routes/router'
-import { NEXT_EMAIL_TEMPLATES_URL } from '@/next/routes'
 import TemplatesTab from '../ui/templates-tab'
 import type { EmailTypeSpec } from '../email-types'
+import { useEmailTemplatesBase } from '@/next/shared/use-section-base'
 
 export default function TemplatesTabFeature() {
+  const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
-  const listUrl = NEXT_EMAIL_TEMPLATES_URL(realm)
+  const listUrl = emailTemplatesBase
 
   const { data: templatesResponse, isLoading } = useGetEmailTemplates({ realm })
   const { data: realmResponse } = useGetRealm({ realm })

@@ -18,7 +18,7 @@ import {
 } from '@/pages/portal-theme/context/portal-theme-context'
 import type { Schemas } from '@/api/api.client'
 import { RouterParams } from '@/routes/router'
-import { NEXT_PORTAL_THEMES_URL, NEXT_PORTAL_THEME_PAGE_URL, NEXT_PORTAL_THEME_URL } from '../portal-urls'
+import { usePortalUrls } from '../use-portal-urls'
 import { requirementsByPage, statusesForTheme } from '../theme-validation'
 import PagePortalThemeDetail from '../ui/page-portal-theme-detail'
 import { NO_LAYOUT } from '../ui/theme-layout-tab'
@@ -31,6 +31,7 @@ const THEME_TABS = [
 ] as const
 
 export default function PagePortalThemeDetailFeature() {
+  const portal = usePortalUrls()
   const { realm_name, theme_id } = useParams<RouterParams & { theme_id: string }>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -41,7 +42,7 @@ export default function PagePortalThemeDetailFeature() {
   const { data: requirementsData } = useGetPortalPageRequirements({ realm })
   const { data: activeData } = useGetActivePortalTheme({ realm, pageType: 'login' })
 
-  const { value: tab, tabs } = useRouteTabs(NEXT_PORTAL_THEME_URL(realm, themeId), THEME_TABS)
+  const { value: tab, tabs } = useRouteTabs(portal.theme(themeId), THEME_TABS)
 
   const theme = themeData?.data
 
@@ -70,7 +71,7 @@ export default function PagePortalThemeDetailFeature() {
         onNameChange={() => undefined}
         onLayoutChange={() => undefined}
         onActivate={() => undefined}
-        onBack={() => navigate(NEXT_PORTAL_THEMES_URL(realm))}
+        onBack={() => navigate(portal.themes())}
         onDiscard={() => undefined}
         onSave={() => undefined}
         onDelete={() => undefined}
@@ -112,6 +113,7 @@ function ThemeDetailInner({
   tab,
   tabs,
 }: InnerProps) {
+  const portal = usePortalUrls()
   const navigate = useNavigate()
   const { theme: config, isDirty, discard, markSaved } = usePortalThemeContext()
 
@@ -162,7 +164,7 @@ function ThemeDetailInner({
   const handleDelete = () => {
     deleteTheme(
       { path: { realm_name: realm, theme_id: theme.id } },
-      { onSuccess: () => navigate(NEXT_PORTAL_THEMES_URL(realm)) }
+      { onSuccess: () => navigate(portal.themes()) }
     )
   }
 
@@ -183,11 +185,11 @@ function ThemeDetailInner({
       savedLayoutId={savedLayoutId}
       statuses={statuses}
       dirtyCount={dirtyCount}
-      pageHref={(pageType) => NEXT_PORTAL_THEME_PAGE_URL(realm, theme.id, pageType)}
+      pageHref={(pageType) => portal.themePage(theme.id, pageType)}
       onNameChange={setName}
       onLayoutChange={setLayoutId}
       onActivate={() => activateTheme({ path: { realm_name: realm, theme_id: theme.id } })}
-      onBack={() => navigate(NEXT_PORTAL_THEMES_URL(realm))}
+      onBack={() => navigate(portal.themes())}
       onDiscard={reset}
       onSave={save}
       onDelete={handleDelete}

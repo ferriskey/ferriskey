@@ -6,9 +6,9 @@ import {
   useIdentityProvider,
   useUpdateIdentityProvider,
 } from '@/api/identity-providers.api'
-import { NEXT_IDENTITY_PROVIDERS_URL } from '@/next/routes'
 import PageProviderDetail from '../ui/page-provider-detail'
 import { useCrumbLabel } from '@/next/shell/crumb-store'
+import { useIdentityProvidersBase } from '@/next/shared/use-section-base'
 
 interface Draft {
   key: string
@@ -19,6 +19,7 @@ interface Draft {
 const EMPTY_DRAFT: Draft = { key: '', displayName: '', enabled: true }
 
 export default function PageProviderDetailFeature() {
+  const identityProvidersBase = useIdentityProvidersBase()
   const { realm_name, alias } = useParams<{ realm_name: string; alias: string }>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -51,7 +52,7 @@ export default function PageProviderDetailFeature() {
       (enabled !== provider.enabled ? 1 : 0)
     : 0
 
-  const listUrl = NEXT_IDENTITY_PROVIDERS_URL(realm)
+  const listUrl = identityProvidersBase
 
   const callbackUrl = `${window.apiUrl}/realms/${realm}/broker/${providerAlias}/endpoint`
 

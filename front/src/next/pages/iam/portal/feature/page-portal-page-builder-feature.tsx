@@ -12,13 +12,14 @@ import { mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/them
 import type { BuilderNode } from '@/lib/builder-core'
 import { RouterParams } from '@/routes/router'
 import { PORTAL_PAGES, type PortalPageType } from '../portal-pages'
-import { NEXT_PORTAL_THEME_PAGE_URL, NEXT_PORTAL_THEME_URL } from '../portal-urls'
+import { usePortalUrls } from '../use-portal-urls'
 import { parseTree, readPageTree } from '../theme-validation'
 import PagePortalPageBuilder from '../ui/page-portal-page-builder'
 
 const PAGE_TYPES = new Set<string>(PORTAL_PAGES.map((p) => p.type))
 
 export default function PagePortalPageBuilderFeature() {
+  const portal = usePortalUrls()
   const { realm_name, theme_id, page_type } = useParams<
     RouterParams & { theme_id: string; page_type: string }
   >()
@@ -90,9 +91,9 @@ export default function PagePortalPageBuilderFeature() {
       cssVars={cssVars}
       isDirty={draft !== null}
       isSaving={isSaving}
-      pageHref={(next) => NEXT_PORTAL_THEME_PAGE_URL(realm, themeId, next)}
+      pageHref={(next) => portal.themePage(themeId, next)}
       onTreeChange={handleTreeChange}
-      onBack={() => navigate(`${NEXT_PORTAL_THEME_URL(realm, themeId)}/pages`)}
+      onBack={() => navigate(`${portal.theme(themeId)}/pages`)}
       onSave={handleSave}
     />
   )

@@ -10,13 +10,13 @@ import {
   getTemplateById,
   type ProviderTemplate,
 } from '@/constants/identity-provider-templates'
-import { NEXT_IDENTITY_PROVIDERS_URL } from '@/next/routes'
 import { RouterParams } from '@/routes/router'
 import type { ProviderProtocol } from '../provider-status'
 import PageCreateProvider, {
   type CreateProviderErrors,
   type CreateProviderValues,
 } from '../ui/page-create-provider'
+import { useIdentityProvidersBase } from '@/next/shared/use-section-base'
 
 const configSchema = createProviderSchema.extend({
   displayName: z.string().min(1, 'Display name is required').max(50),
@@ -56,6 +56,7 @@ const slugify = (value: string) =>
     .replace(/^-+|-+$/g, '')
 
 export default function PageCreateProviderFeature() {
+  const identityProvidersBase = useIdentityProvidersBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -90,7 +91,7 @@ export default function PageCreateProviderFeature() {
 
   const values: CreateProviderValues = draft.key === templateKey ? draft : pristine
 
-  const listUrl = NEXT_IDENTITY_PROVIDERS_URL(realm)
+  const listUrl = identityProvidersBase
 
   const parsed = configSchema.safeParse({
     ...values,

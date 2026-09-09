@@ -9,11 +9,12 @@ import {
 import { useListPortalThemes } from '@/api/portal-theme.api'
 import { downloadPortalLayoutExport, readExportFile } from '@/api/builder-export'
 import { RouterParams } from '@/routes/router'
-import { NEXT_PORTAL_LAYOUT_URL } from '../portal-urls'
+import { usePortalUrls } from '../use-portal-urls'
 import { countNodes } from '../theme-validation'
 import PagePortalLayouts, { type PortalLayoutRow } from '../ui/page-portal-layouts'
 
 export default function PagePortalLayoutsFeature() {
+  const portal = usePortalUrls()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -44,8 +45,8 @@ export default function PagePortalLayoutsFeature() {
     <PagePortalLayouts
       rows={rows}
       isLoading={isLoading}
-      onCreate={() => navigate(NEXT_PORTAL_LAYOUT_URL(realm, 'new'))}
-      onEdit={(layoutId) => navigate(NEXT_PORTAL_LAYOUT_URL(realm, layoutId))}
+      onCreate={() => navigate(portal.layout('new'))}
+      onEdit={(layoutId) => navigate(portal.layout(layoutId))}
       onDelete={(layoutId) =>
         deleteLayout({ path: { realm_name: realm, layout_id: layoutId } })
       }

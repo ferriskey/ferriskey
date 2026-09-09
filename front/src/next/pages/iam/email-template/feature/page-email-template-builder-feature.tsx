@@ -8,16 +8,17 @@ import {
 } from '@/api/email-template.api'
 import type { BuilderNode } from '@/lib/builder-core'
 import { createMjmlAdapter, type EmailTemplatePreset } from '@/lib/builder-mjml'
-import { NEXT_EMAIL_TEMPLATES_URL } from '@/next/routes'
 import { EMAIL_TYPES } from '../email-types'
 import PageEmailTemplateBuilder from '../ui/page-email-template-builder'
+import { useEmailTemplatesBase } from '@/next/shared/use-section-base'
 
 export default function PageEmailTemplateBuilderFeature() {
+  const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name, template_id } = useParams<{ realm_name: string; template_id: string }>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
   const isNew = template_id === undefined || template_id === 'create'
-  const listUrl = `${NEXT_EMAIL_TEMPLATES_URL(realm)}/templates`
+  const listUrl = `${emailTemplatesBase}/templates`
 
   const { data: templateResponse, isLoading } = useGetEmailTemplate({
     realm,

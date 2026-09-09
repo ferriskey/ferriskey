@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react'
-import { useParams } from 'react-router-dom'
 import { PageTabs } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { RouterParams } from '@/routes/router'
-import { NEXT_PORTAL_LAYOUTS_URL, NEXT_PORTAL_THEMES_URL } from '../portal-urls'
+import { usePortalUrls } from '../use-portal-urls'
 
 export interface PortalPageHeaderProps {
   tab: 'themes' | 'layouts'
@@ -12,8 +10,7 @@ export interface PortalPageHeaderProps {
 }
 
 export function PortalPageHeader({ tab, actions }: PortalPageHeaderProps) {
-  const { realm_name } = useParams<RouterParams>()
-  const realm = realm_name ?? 'master'
+  const portal = usePortalUrls()
 
   return (
     <>
@@ -32,8 +29,8 @@ export function PortalPageHeader({ tab, actions }: PortalPageHeaderProps) {
       <PageTabs
         value={tab}
         tabs={[
-          { key: 'themes', label: 'Themes', href: NEXT_PORTAL_THEMES_URL(realm) },
-          { key: 'layouts', label: 'Layouts', href: NEXT_PORTAL_LAYOUTS_URL(realm) },
+          { key: 'themes', label: 'Themes', href: portal.themes() },
+          { key: 'layouts', label: 'Layouts', href: portal.layouts() },
         ]}
       />
     </>

@@ -4,10 +4,10 @@ import { useImportEmailTemplate } from '@/api/email-template.api'
 import { readExportFile } from '@/api/builder-export'
 import { useRouteTabs } from '@/components/kit'
 import { RouterParams } from '@/routes/router'
-import { NEXT_EMAIL_TEMPLATES_URL } from '@/next/routes'
 import PageEmails from '../ui/page-emails'
 import TemplatesTabFeature from './templates-tab-feature'
 import SmtpTabFeature from './smtp-tab-feature'
+import { useEmailTemplatesBase } from '@/next/shared/use-section-base'
 
 const EMAIL_TABS = [
   { key: 'templates', label: 'Templates' },
@@ -15,10 +15,11 @@ const EMAIL_TABS = [
 ] as const
 
 export default function PageEmailsFeature() {
+  const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
-  const listUrl = NEXT_EMAIL_TEMPLATES_URL(realm)
+  const listUrl = emailTemplatesBase
 
   const { value: tab, tabs } = useRouteTabs(listUrl, EMAIL_TABS)
   const { mutate: importTemplate } = useImportEmailTemplate()

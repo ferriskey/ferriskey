@@ -9,10 +9,10 @@ import {
 } from '@/api/email-template.api'
 import { useGetRealm } from '@/api/realm.api'
 import { downloadEmailTemplateExport } from '@/api/builder-export'
-import { NEXT_EMAIL_TEMPLATES_URL } from '@/next/routes'
 import { EMAIL_TYPES } from '../email-types'
 import PageEmailTemplateDetail from '../ui/page-email-template-detail'
 import { useCrumbLabel } from '@/next/shell/crumb-store'
+import { useEmailTemplatesBase } from '@/next/shared/use-section-base'
 
 interface Draft {
   key: string
@@ -22,11 +22,12 @@ interface Draft {
 const EMPTY_DRAFT: Draft = { key: '', name: '' }
 
 export default function PageEmailTemplateDetailFeature() {
+  const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name, template_id } = useParams<{ realm_name: string; template_id: string }>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
   const templateId = template_id ?? ''
-  const listUrl = `${NEXT_EMAIL_TEMPLATES_URL(realm)}/templates`
+  const listUrl = `${emailTemplatesBase}/templates`
 
   const { data: templateResponse, isLoading } = useGetEmailTemplate({ realm, templateId })
   const { data: realmResponse } = useGetRealm({ realm })
@@ -83,7 +84,7 @@ export default function PageEmailTemplateDetailFeature() {
       onNameChange={(value: string) => setDraft({ key: pristine.key, name: value })}
       onBack={() => navigate(listUrl)}
       onOpenBuilder={() =>
-        navigate(`${NEXT_EMAIL_TEMPLATES_URL(realm)}/${templateId}/builder`)
+        navigate(`${emailTemplatesBase}/${templateId}/builder`)
       }
       onExport={(format: 'json' | 'mjml') =>
         downloadEmailTemplateExport(realm, templateId, format).catch(() =>

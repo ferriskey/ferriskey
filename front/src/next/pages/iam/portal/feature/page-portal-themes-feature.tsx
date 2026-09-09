@@ -16,11 +16,12 @@ import { downloadPortalThemeExport, readExportFile } from '@/api/builder-export'
 import { DEFAULT_PAGE_TYPES, defaultPageTree } from '@/lib/builder-portal'
 import { defaultTheme } from '@/pages/portal-theme/lib/theme'
 import { RouterParams } from '@/routes/router'
-import { NEXT_PORTAL_THEME_URL } from '../portal-urls'
+import { usePortalUrls } from '../use-portal-urls'
 import { failingPages, requirementsByPage, statusesForTheme } from '../theme-validation'
 import PagePortalThemes, { type PortalThemeRow } from '../ui/page-portal-themes'
 
 export default function PagePortalThemesFeature() {
+  const portal = usePortalUrls()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -80,7 +81,7 @@ export default function PagePortalThemesFeature() {
           const newId = res?.data?.id
           if (!newId) return
           await seedDefaultPages(newId)
-          navigate(`${NEXT_PORTAL_THEME_URL(realm, newId)}/theme`)
+          navigate(`${portal.theme(newId)}/theme`)
         },
       }
     )
@@ -99,7 +100,7 @@ export default function PagePortalThemesFeature() {
       rows={rows}
       isLoading={isLoading}
       isCreating={isCreating}
-      themeHref={(themeId) => `${NEXT_PORTAL_THEME_URL(realm, themeId)}/theme`}
+      themeHref={(themeId) => `${portal.theme(themeId)}/theme`}
       onCreate={handleCreate}
       onActivate={(themeId) =>
         activateTheme({ path: { realm_name: realm, theme_id: themeId } })

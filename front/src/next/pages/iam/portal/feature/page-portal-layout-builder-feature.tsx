@@ -11,7 +11,7 @@ import type { BuilderNode } from '@/lib/builder-core'
 import { createPortalAdapter } from '@/lib/builder-portal'
 import { defaultTheme, mergeWithDefaults, themeToCssVars } from '@/pages/portal-theme/lib/theme'
 import { RouterParams } from '@/routes/router'
-import { NEXT_PORTAL_LAYOUTS_URL, NEXT_PORTAL_LAYOUT_URL } from '../portal-urls'
+import { usePortalUrls } from '../use-portal-urls'
 import { parseTree } from '../theme-validation'
 import PagePortalLayoutBuilder from '../ui/page-portal-layout-builder'
 
@@ -77,6 +77,7 @@ function LayoutBuilderInner({
   themeConfig,
   onNavigate,
 }: InnerProps) {
+  const portal = usePortalUrls()
   const [name, setName] = useState(initialName)
   const [tree, setTree] = useState<BuilderNode[]>(initialTree)
 
@@ -103,7 +104,7 @@ function LayoutBuilderInner({
           onSuccess: (res) => {
             const newId = res?.data?.id
             if (newId) {
-              onNavigate(NEXT_PORTAL_LAYOUT_URL(realm, newId), { replace: true })
+              onNavigate(portal.layout(newId), { replace: true })
             }
           },
         }
@@ -130,7 +131,7 @@ function LayoutBuilderInner({
       onTreeChange={handleTreeChange}
       onNameChange={setName}
       onSave={handleSave}
-      onBack={() => onNavigate(NEXT_PORTAL_LAYOUTS_URL(realm))}
+      onBack={() => onNavigate(portal.layouts())}
     />
   )
 }

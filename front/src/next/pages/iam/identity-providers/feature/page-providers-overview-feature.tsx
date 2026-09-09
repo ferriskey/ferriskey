@@ -10,13 +10,14 @@ import { useCreatePicker } from '@/components/kit'
 import { RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 import { getTemplateById } from '@/constants/identity-provider-templates'
-import { NEXT_IDENTITY_PROVIDERS_URL } from '@/next/routes'
 import { providerName, type ProviderProtocol } from '../provider-status'
 import PageProvidersOverview from '../ui/page-providers-overview'
 
 import IdentityProvider = Schemas.IdentityProviderResponse
+import { useIdentityProvidersBase } from '@/next/shared/use-section-base'
 
 export default function PageProvidersOverviewFeature() {
+  const identityProvidersBase = useIdentityProvidersBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -31,7 +32,7 @@ export default function PageProvidersOverviewFeature() {
     [providersResponse]
   )
 
-  const listUrl = NEXT_IDENTITY_PROVIDERS_URL(realm)
+  const listUrl = identityProvidersBase
 
   const handleDelete = (provider: IdentityProvider) => {
     const name = providerName(provider)
