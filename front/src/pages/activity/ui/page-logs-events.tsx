@@ -24,7 +24,6 @@ interface Props {
   events: SecurityEvent[]
   isLoading: boolean
   isError: boolean
-  isMocked: boolean
 }
 
 type StatusFilter = 'all' | 'success' | 'failure'
@@ -78,7 +77,7 @@ const getActorLabel = (event: SecurityEvent) => {
   return event.actor_id ?? event.target_id ?? 'Unknown'
 }
 
-export default function PageLogsEvents({ events, isLoading, isError, isMocked }: Props) {
+export default function PageLogsEvents({ events, isLoading, isError }: Props) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sort, setSort] = useState<SortKey>('recent')
@@ -137,12 +136,6 @@ export default function PageLogsEvents({ events, isLoading, isError, isMocked }:
             Searchable feed of authentication events, errors and admin actions in this realm.
           </p>
         </div>
-        {isMocked && !isLoading && (
-          <span className='inline-flex items-center gap-1.5 self-start rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600'>
-            <AlertTriangle className='h-3 w-3' />
-            Showing sample data
-          </span>
-        )}
       </div>
 
       {/* Stat row */}
@@ -229,7 +222,8 @@ export default function PageLogsEvents({ events, isLoading, isError, isMocked }:
           <div>
             <p className='font-medium text-amber-600'>Live feed unavailable</p>
             <p className='text-xs text-muted-foreground mt-0.5'>
-              We couldn&apos;t fetch the latest events. Displaying the most recent cached data.
+              The events of this realm could not be loaded, so this page shows none. Reload to
+              try again.
             </p>
           </div>
         </div>
@@ -274,9 +268,15 @@ export default function PageLogsEvents({ events, isLoading, isError, isMocked }:
               <Activity className='h-6 w-6 text-muted-foreground' />
             </div>
             <div>
-              <p className='text-sm font-medium'>No events match your filters</p>
+              <p className='text-sm font-medium'>
+                {events.length === 0
+                  ? 'No security event recorded in this realm'
+                  : 'No events match your filters'}
+              </p>
               <p className='text-xs text-muted-foreground mt-1'>
-                Try a different status or clear your search.
+                {events.length === 0
+                  ? 'Sign-ins, password resets and admin actions appear here as they happen.'
+                  : 'Try a different status or clear your search.'}
               </p>
             </div>
           </div>
