@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils'
 import useRealmStore from '@/store/realm.store'
 import { RouterParams } from '@/routes/router'
-import { NEXT_URL } from '../routes'
+import { NEXT_URL } from '../../routes'
 import type { Crumb } from './use-crumbs'
 
 export function RealmBreadcrumb({

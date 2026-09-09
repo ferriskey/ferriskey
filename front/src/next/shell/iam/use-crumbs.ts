@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { useCrumbStore } from './crumb-store'
+import { useCrumbStore } from '../crumb-store'
 
 export interface Crumb {
   label: string

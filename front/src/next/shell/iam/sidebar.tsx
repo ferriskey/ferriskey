@@ -3,7 +3,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { RouterParams } from '@/routes/router'
-import { NEXT_URL } from '../routes'
+import { NEXT_URL } from '../../routes'
 import { navSections, type NavItem } from './nav'
 
 const COLLAPSED = 'w-[3.25rem]'

@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   BadgeCheck,
   Check,
@@ -8,7 +7,6 @@ import {
   Settings2,
   Sparkles,
 } from 'lucide-react'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,25 +18,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/use-auth'
 import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
-import { useGetUserRealmsQuery } from '@/api/realm.api'
-import useRealmStore from '@/store/realm.store'
-import { RouterParams } from '@/routes/router'
-import { REALM_URL } from '@/routes/router'
+import { REALM_URL, RouterParams } from '@/routes/router'
 import { NEXT_ACCOUNT_URL } from '../routes'
-import { NextSidebar } from './sidebar'
-import { ThemeSwitcher } from './theme-switcher'
-import { RealmBreadcrumb } from './realm-breadcrumb'
-import { useCrumbs } from './use-crumbs'
-import { useSidebarCollapsed } from './use-sidebar-collapsed'
+import { getInitials } from './initials'
 
-function getInitials(username?: string): string {
-  if (!username) return '??'
-  const parts = username.trim().split(/[\s._-]+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  return username.slice(0, 2).toUpperCase()
-}
-
-function AccountMenu() {
+export function AccountMenu() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -119,48 +103,5 @@ function AccountMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-export function NextAppShell() {
-  const crumbs = useCrumbs()
-  const { collapsed, toggle } = useSidebarCollapsed()
-  const { realm_name } = useParams<RouterParams>()
-  const { setUserRealms } = useRealmStore()
-  const { data: userRealmsResponse } = useGetUserRealmsQuery({
-    realm: realm_name ?? 'master',
-  })
-
-  useEffect(() => {
-    if (userRealmsResponse) setUserRealms(userRealmsResponse.data)
-  }, [userRealmsResponse, setUserRealms])
-
-  useEffect(() => {
-    document.documentElement.dataset.style = 'ferriskey'
-    return () => {
-      delete document.documentElement.dataset.style
-    }
-  }, [])
-
-  return (
-    <TooltipProvider delayDuration={200}>
-      <div className='flex h-screen flex-col bg-white dark:bg-fk-surface text-fk-ink'>
-        <RealmBreadcrumb
-          crumbs={crumbs}
-          actions={
-            <>
-              <ThemeSwitcher />
-              <AccountMenu />
-            </>
-          }
-        />
-        <div className='flex min-h-0 flex-1'>
-          <NextSidebar collapsed={collapsed} onToggle={toggle} />
-          <main className='min-w-0 flex-1 overflow-y-auto bg-neutral-50/40 dark:bg-fk-surface/40'>
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    </TooltipProvider>
   )
 }
