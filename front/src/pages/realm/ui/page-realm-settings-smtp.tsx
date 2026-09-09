@@ -1,5 +1,5 @@
 import { UseFormReturn } from 'react-hook-form'
-import { SmtpConfigSchema } from '../feature/page-realm-settings-smtp-feature'
+import { SmtpConfigSchema } from '../schemas/smtp-config.schema'
 import { Form, FormField } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
