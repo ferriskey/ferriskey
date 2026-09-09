@@ -267,3 +267,10 @@ input[type="number"] {
   --accent: #2b2826;
   --accent-foreground: #f2f0ee;
 }
+
+:root.theme-switching,
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: none !important;
+}

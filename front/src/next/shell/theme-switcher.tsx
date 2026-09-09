@@ -9,6 +9,15 @@ const options = [
   { value: 'system', label: 'System', icon: Laptop },
 ] as const
 
+function switchWithoutAnimating(apply: () => void) {
+  const root = document.documentElement
+  root.classList.add('theme-switching')
+  apply()
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => root.classList.remove('theme-switching'))
+  )
+}
+
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme()
 
@@ -28,7 +37,7 @@ export function ThemeSwitcher() {
                 role='radio'
                 aria-checked={active}
                 aria-label={option.label}
-                onClick={() => setTheme(option.value)}
+                onClick={() => switchWithoutAnimating(() => setTheme(option.value))}
                 className={cn(
                   'grid size-6 cursor-pointer place-items-center rounded transition-colors',
                   active
