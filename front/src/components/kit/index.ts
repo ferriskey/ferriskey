@@ -2,6 +2,8 @@ export { Button } from './button'
 export { Pill, StatusDot, Squircle, Eyebrow, IconTile } from './primitives'
 export type { PillTone } from './primitives'
 
+export { DangerZone } from './danger-zone'
+export type { DangerZoneProps } from './danger-zone'
 export { Section } from './Section'
 export { PageTabs } from './Tabs'
 export type { TabItem } from './Tabs'
@@ -22,6 +24,8 @@ export { EntityPicker } from './EntityPicker'
 export type { PickableEntity } from './EntityPicker'
 export { CreatePickerDialog } from './CreatePickerDialog'
 export { useCreatePicker } from './useCreatePicker'
+export { useListingQuery } from './useListingQuery'
+export type { ListingQuery } from './useListingQuery'
 
 export {
   FieldRow,

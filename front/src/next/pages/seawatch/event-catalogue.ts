@@ -111,3 +111,9 @@ export const formatEventTimestamp = (timestamp: string) => {
     timeStyle: 'short',
   }).format(date)
 }
+
+export const eventFamilies: Record<string, readonly SecurityEventType[]> = {
+  authentication: authenticationEvents,
+  credentials: credentialEvents,
+  administration: administrationEvents,
+}

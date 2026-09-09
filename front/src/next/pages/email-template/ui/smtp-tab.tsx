@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import { FieldRow, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import { ENCRYPTIONS, type SmtpConfigDraft } from '../smtp-form'

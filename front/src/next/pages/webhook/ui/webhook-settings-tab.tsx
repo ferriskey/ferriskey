@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Section } from '@/components/kit'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import WebhookHeadersField, { type WebhookHeader } from './webhook-headers-field'
 
 export interface WebhookSettingsTabProps {

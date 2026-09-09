@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FieldRow, Section } from '@/components/kit'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'

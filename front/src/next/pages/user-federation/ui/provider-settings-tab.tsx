@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input'
 import { FieldRow, Section } from '@/components/kit'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'

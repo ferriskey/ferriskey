@@ -1,3 +1,4 @@
+import type { ListingQuery } from '@/components/kit'
 import { Lock, Unlock } from 'lucide-react'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type { CardSpec, Column, ListingAlert } from '@/components/kit'
@@ -8,9 +9,6 @@ import {
   eventLabel,
   eventReason,
   formatEventTimestamp,
-  isAdministrationEvent,
-  isAuthenticationEvent,
-  isCredentialEvent,
 } from '../event-catalogue'
 
 import SecurityEvent = Schemas.SecurityEvent
@@ -22,6 +20,7 @@ export interface PageSecurityEventsProps {
   windowDays: number
   windowLimit: number
   truncated: boolean
+  listing: ListingQuery
 }
 
 interface RiskyActor {
@@ -79,6 +78,7 @@ export default function PageSecurityEvents({
   windowDays,
   windowLimit,
   truncated,
+  listing,
 }: PageSecurityEventsProps) {
   const windowLabel = `last ${windowDays} days`
   const columns: Column<SecurityEvent>[] = [
@@ -306,11 +306,13 @@ export default function PageSecurityEvents({
         },
       ]}
       alerts={alerts}
+      server={{ filter: listing.filter, onFilterChange: listing.setFilter }}
+      searchScopeHint='Event families are applied by the server; the search box narrows the events loaded above.'
       filters={[
         { key: 'failures', label: 'Failures', predicate: (e) => e.status === 'failure' },
-        { key: 'authentication', label: 'Authentication', predicate: isAuthenticationEvent },
-        { key: 'credentials', label: 'Credentials', predicate: isCredentialEvent },
-        { key: 'administration', label: 'Administration', predicate: isAdministrationEvent },
+        { key: 'authentication', label: 'Authentication' },
+        { key: 'credentials', label: 'Credentials' },
+        { key: 'administration', label: 'Administration' },
       ]}
       searchPlaceholder='Filter by event, actor or IP…'
       querySyntax='event:login_failure  actor:admin  ip:10.0.0.6'

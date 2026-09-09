@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Pill, Section } from '@/components/kit'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import { Schemas } from '@/api/api.client'
 
 import Role = Schemas.Role

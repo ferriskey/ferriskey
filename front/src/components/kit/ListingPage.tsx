@@ -31,7 +31,14 @@ export interface ListingPageProps<T> {
   actions?: ReactNode
   metrics?: ListingMetric[]
   alerts?: ListingAlert[]
-  filters?: { key: string; label: string; predicate: (row: T) => boolean }[]
+  filters?: { key: string; label: string; predicate?: (row: T) => boolean }[]
+  server?: {
+    filter: string
+    onFilterChange: (key: string) => void
+    draft?: string
+    onDraftChange?: (v: string) => void
+  }
+  searchScopeHint?: string
   searchPlaceholder?: string
   querySyntax?: string
   searchIn?: (row: T) => string
@@ -61,6 +68,8 @@ export function ListingPage<T>({
   metrics,
   alerts,
   filters,
+  server,
+  searchScopeHint,
   searchPlaceholder = 'Search…',
   querySyntax,
   searchIn,
@@ -77,21 +86,30 @@ export function ListingPage<T>({
   loading = false,
 }: ListingPageProps<T>) {
   const [view, setView] = useState<ViewMode>(defaultView)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<string>('all')
+  const [localQuery, setLocalQuery] = useState('')
+  const [localFilter, setLocalFilter] = useState<string>('all')
+
+  const serverSearch = Boolean(server?.onDraftChange)
+  const query = serverSearch ? (server?.draft ?? '') : localQuery
+  const setQuery = serverSearch ? server!.onDraftChange! : setLocalQuery
+  const filter = server ? server.filter : localFilter
+  const setFilter = server ? server.onFilterChange : setLocalFilter
 
   const filtered = useMemo(() => {
     let out = rows
-    const active = filters?.find((f) => f.key === filter)
-    if (active) out = out.filter(active.predicate)
-    if (query.trim() && searchIn) {
-      const q = query.trim().toLowerCase()
+    const activeKey = server ? server.filter : localFilter
+    const predicate = filters?.find((f) => f.key === activeKey)?.predicate
+    if (predicate) out = out.filter((row) => predicate(row))
+    if (!serverSearch && localQuery.trim() && searchIn) {
+      const q = localQuery.trim().toLowerCase()
       out = out.filter((r) => searchIn(r).toLowerCase().includes(q))
     }
     return out
-  }, [rows, filters, filter, query, searchIn])
+  }, [rows, filters, localFilter, localQuery, searchIn, server, serverSearch])
 
-  const filteredOut = rows.length > 0 && filtered.length === 0
+  const narrowed = Boolean(query.trim()) || filter !== 'all'
+  const filteredOut =
+    narrowed && filtered.length === 0 && (server ? true : rows.length > 0)
 
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
@@ -224,6 +242,10 @@ export function ListingPage<T>({
           )}
         </div>
 
+        {searchScopeHint && (
+          <p className='-mt-1 text-xs text-neutral-400'>{searchScopeHint}</p>
+        )}
+
         <DataView
           rows={filtered}
           columns={columns}
@@ -236,7 +258,9 @@ export function ListingPage<T>({
           emptyLabel={filteredOut ? 'No match' : emptyLabel}
           emptyHint={
             filteredOut
-              ? `${rows.length} ${rows.length > 1 ? 'entries exist' : 'entry exists'} but ${rows.length > 1 ? 'are' : 'is'} hidden by the current filter.`
+              ? server
+                ? 'No entry matches the current search and filter.'
+                : `${rows.length} ${rows.length > 1 ? 'entries exist' : 'entry exists'} but ${rows.length > 1 ? 'are' : 'is'} hidden by the current filter.`
               : emptyHint
           }
           emptyAction={
@@ -261,7 +285,9 @@ export function ListingPage<T>({
 
         {!loading && rows.length > 0 && (
           <p className='tnum text-xs text-neutral-400'>
-            {filtered.length} of {rows.length}
+            {filtered.length === rows.length
+              ? `${rows.length} ${rows.length > 1 ? 'entries' : 'entry'}`
+              : `${filtered.length} of ${rows.length}`}
           </p>
         )}
       </div>

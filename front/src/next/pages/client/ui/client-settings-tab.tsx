@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input'
 import { DurationInput } from '@/components/ui/duration-input'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import { ChipInput, ChoiceCards, FieldRow, Section, SwitchField } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import {

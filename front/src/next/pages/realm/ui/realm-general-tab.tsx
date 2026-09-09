@@ -7,7 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FieldRow, Section } from '@/components/kit'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 
 export interface RealmGeneralTabProps {
   realmName: string

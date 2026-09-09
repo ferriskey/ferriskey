@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
+import { useListingQuery } from '@/components/kit'
+import { eventFamilies } from '../event-catalogue'
 import PageSecurityEvents from '../ui/page-security-events'
 
 const WINDOW_DAYS = 7
@@ -17,6 +19,9 @@ export default function PageSecurityEventsFeature() {
     return { from: from.toISOString(), to: to.toISOString() }
   }, [])
 
+  const listing = useListingQuery()
+  const family = eventFamilies[listing.filter]
+
   const {
     data: eventsResponse,
     isLoading,
@@ -30,6 +35,7 @@ export default function PageSecurityEventsFeature() {
           from_timestamp: range.from,
           to_timestamp: range.to,
           limit: WINDOW_LIMIT,
+          event_types: family ? family.join(',') : undefined,
         },
       }
     ).queryOptions,
@@ -52,6 +58,7 @@ export default function PageSecurityEventsFeature() {
       windowDays={WINDOW_DAYS}
       windowLimit={WINDOW_LIMIT}
       truncated={events.length >= WINDOW_LIMIT}
+      listing={listing}
     />
   )
 }

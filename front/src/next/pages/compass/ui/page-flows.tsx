@@ -1,6 +1,7 @@
 import { Loader, Monitor, User } from 'lucide-react'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type { CardSpec, Column, ListingAlert } from '@/components/kit'
+import type { ListingQuery } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import {
   failingStep,
@@ -18,6 +19,7 @@ export interface PageFlowsProps {
   stats: FlowStats | null
   isLoading: boolean
   isError: boolean
+  listing: ListingQuery
   flowHref: (flow: CompassFlow) => string
 }
 
@@ -28,6 +30,7 @@ export default function PageFlows({
   stats,
   isLoading,
   isError,
+  listing,
   flowHref,
 }: PageFlowsProps) {
   const columns: Column<CompassFlow>[] = [
@@ -242,8 +245,10 @@ export default function PageFlows({
         },
       ]}
       alerts={alerts}
+      server={{ filter: listing.filter, onFilterChange: listing.setFilter }}
+      searchScopeHint='Filters are applied by the server; the search box narrows the executions loaded above.'
       filters={[
-        { key: 'failed', label: 'Failed', predicate: (f) => f.status === 'failure' },
+        { key: 'failed', label: 'Failed' },
         {
           key: 'unfinished',
           label: 'Unfinished',

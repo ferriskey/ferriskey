@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
-import { DangerZone } from '@/components/danger-zone'
+import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
 import { Schemas } from '@/api/api.client'
 
