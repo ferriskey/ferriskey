@@ -22,6 +22,7 @@ export default function PageClientDetailFeature() {
   const client = clientResponse?.data
 
   const hasSecret = Boolean(client?.secret)
+  const isSaml = client?.protocol === 'saml'
 
   const tabList = useMemo<TabItem[]>(
     () => [
@@ -29,10 +30,10 @@ export default function PageClientDetailFeature() {
       ...(hasSecret ? [{ key: 'credentials', label: 'Credentials' }] : []),
       { key: 'roles', label: 'Roles' },
       { key: 'scopes', label: 'Client Scopes' },
-      { key: 'saml', label: 'SAML' },
+      ...(isSaml ? [{ key: 'saml', label: 'SAML' }] : []),
       { key: 'maintenance', label: 'Maintenance' },
     ],
-    [hasSecret]
+    [hasSecret, isSaml]
   )
 
   const { value: tab, tabs } = useRouteTabs(NEXT_CLIENT_URL(realm, client_id), tabList)
@@ -51,7 +52,9 @@ export default function PageClientDetailFeature() {
       )}
       {client && tab === 'roles' && <ClientRolesTabFeature client={client} realm={realm} />}
       {client && tab === 'scopes' && <ClientScopesTabFeature client={client} realm={realm} />}
-      {client && tab === 'saml' && <ClientSamlTabFeature client={client} realm={realm} />}
+      {client && isSaml && tab === 'saml' && (
+        <ClientSamlTabFeature client={client} realm={realm} />
+      )}
       {client && tab === 'maintenance' && (
         <ClientMaintenanceTabFeature client={client} realm={realm} />
       )}

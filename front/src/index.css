@@ -202,4 +202,6 @@ input[type="number"] {
 
 [data-style='ferriskey'] body {
   font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

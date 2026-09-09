@@ -87,6 +87,8 @@ export default function ClientSettingsTab({
   onSave,
   onDelete,
 }: ClientSettingsTabProps) {
+  const isOidc = client.protocol === 'openid-connect'
+
   const pkceDescription = client.public_client
     ? 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on. Strongly recommended: this client cannot keep a secret safe.'
     : 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on.'
@@ -150,7 +152,9 @@ export default function ClientSettingsTab({
           />
         </FieldRow>
 
-        <FieldRow
+        {isOidc && (
+          <>
+            <FieldRow
           label='Direct access grants'
           description='Allows exchanging user credentials directly for tokens. Use only for trusted clients.'
         >
@@ -178,8 +182,11 @@ export default function ClientSettingsTab({
             offLabel='Optional'
           />
         </FieldRow>
+          </>
+        )}
       </Section>
 
+      {isOidc && (
       <Section
         title='Access'
         description='Addresses this client may be redirected to, and origins it may call from.'
@@ -212,7 +219,9 @@ export default function ClientSettingsTab({
           {webOriginError && <p className='mt-1.5 text-xs text-fk-danger'>{webOriginError}</p>}
         </FieldRow>
       </Section>
+      )}
 
+      {isOidc && (
       <Section title='Logout' description='Where the user lands once the session is closed.'>
         <FieldRow
           label='Post-logout redirect URIs'
@@ -229,6 +238,7 @@ export default function ClientSettingsTab({
           )}
         </FieldRow>
       </Section>
+      )}
 
       <Section
         title='Token lifetimes'
