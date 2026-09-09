@@ -16,6 +16,7 @@ import {
   type ProviderPriority,
   type SyncMode,
 } from '../provider-config'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export default function PageCreateProviderFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -95,8 +96,8 @@ export default function PageCreateProviderFeature() {
       })
       toast.success('Provider created')
       navigate(base)
-    } catch {
-      toast.error('Failed to create the provider')
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'The provider could not be created'))
     }
   }
 

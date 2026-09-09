@@ -17,6 +17,7 @@ import PageCreateProvider, {
   type CreateProviderValues,
 } from '../ui/page-create-provider'
 import { useIdentityProvidersBase } from '@/hooks/use-section-base'
+import { apiErrorMessage } from '@/lib/api-error'
 
 const configSchema = createProviderSchema.extend({
   displayName: z.string().min(1, 'Display name is required').max(50),
@@ -179,6 +180,9 @@ export default function PageCreateProviderFeature() {
         },
       },
       {
+        onError: (error) => {
+          toast.error(apiErrorMessage(error, 'The identity provider could not be created'))
+        },
         onSuccess: () => {
           toast.success('Identity provider created successfully')
           navigate(listUrl)

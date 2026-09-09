@@ -10,6 +10,7 @@ import { DEFAULT_NAME_ID_FORMAT } from '@/lib/saml'
 import { CLIENTS_URL } from '@/routes/router'
 import { isClientProtocol, type ClientAuthentication } from '../client-choices'
 import PageCreateClient, { type CreateClientErrors } from '../ui/page-create-client'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export default function PageCreateClientFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -110,6 +111,9 @@ export default function PageCreateClientFeature() {
 
           toast.success('The client has been successfully created')
           navigate(listUrl)
+        },
+        onError: (error) => {
+          toast.error(apiErrorMessage(error, 'The client could not be created'))
         },
       }
     )
