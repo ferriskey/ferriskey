@@ -1,5 +1,5 @@
 import { Bot, MailCheck, MailX, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
 import { isServiceAccount } from '@/utils'

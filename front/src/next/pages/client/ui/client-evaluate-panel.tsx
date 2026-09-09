@@ -1,5 +1,5 @@
 import { Check, Play } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import {
   Select,
   SelectContent,

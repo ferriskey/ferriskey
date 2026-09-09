@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, Copy, Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { FieldRow, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { Schemas } from '@/api/api.client'

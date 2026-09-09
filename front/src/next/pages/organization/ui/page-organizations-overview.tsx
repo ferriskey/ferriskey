@@ -1,5 +1,5 @@
 import { Building2, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill, StatusDot } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
 import { Schemas } from '@/api/api.client'

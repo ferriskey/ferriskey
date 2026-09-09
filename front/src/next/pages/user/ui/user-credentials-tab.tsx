@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { KeyRound, Search, ShieldQuestion, Smartphone, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { IconTile, MetricsBand, Pill, Section } from '@/components/kit'

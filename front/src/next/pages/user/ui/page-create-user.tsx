@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { FieldRow, Section, SwitchField } from '@/components/kit'

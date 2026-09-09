@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { EntityPicker, MetricsBand, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'

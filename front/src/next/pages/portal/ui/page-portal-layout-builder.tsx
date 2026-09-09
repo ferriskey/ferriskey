@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'

@@ -1,5 +1,5 @@
 import { ExternalLink, Info } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Section } from '@/components/kit'
 import ProviderIcon from '@/pages/identity-providers/components/provider-icon'
 import type { ProviderTemplate } from '@/constants/identity-provider-templates'

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft, Bot } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { IconTile, PageTabs, Pill, Squircle, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'

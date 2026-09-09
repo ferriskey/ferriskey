@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'

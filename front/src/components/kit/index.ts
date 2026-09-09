@@ -1,3 +1,4 @@
+export { Button } from './button'
 export { Pill, StatusDot, Squircle, Eyebrow, IconTile } from './primitives'
 export type { PillTone } from './primitives'
 

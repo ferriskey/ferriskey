@@ -1,6 +1,6 @@
 import { ArrowUpRight, Construction } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { RouterParams } from '@/routes/router'

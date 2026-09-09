@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, LayoutGrid, List, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
 import { DataView, type CardSpec, type Column, type ViewMode } from './DataView'

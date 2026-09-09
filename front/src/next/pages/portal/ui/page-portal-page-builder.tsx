@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Save } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import type { BuilderNode } from '@/lib/builder-core'

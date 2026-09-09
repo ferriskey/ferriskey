@@ -3,7 +3,7 @@ import { Check, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 
 export function FieldRow({
   label,

@@ -192,4 +192,8 @@ input[type="number"] {
   --input: #e0e0e0;
   --muted-foreground: #737373;
   --radius: 0.3rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { KeyRound, Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type { CardSpec, Column, PillTone } from '@/components/kit'

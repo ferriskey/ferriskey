@@ -1,5 +1,5 @@
 import { Plus, Shield, ShieldCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
 import { Schemas } from '@/api/api.client'

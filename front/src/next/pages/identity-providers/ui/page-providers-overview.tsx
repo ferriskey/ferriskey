@@ -1,5 +1,5 @@
 import { KeyRound, Plus, Shield, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { CreatePickerDialog, ListingPage, Pill, StatusDot } from '@/components/kit'
 import type { CardSpec, Choice, Column, PillTone } from '@/components/kit'

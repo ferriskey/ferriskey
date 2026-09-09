@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'

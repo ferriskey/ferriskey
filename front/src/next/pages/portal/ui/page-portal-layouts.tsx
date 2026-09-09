@@ -1,5 +1,5 @@
 import { Download, LayoutTemplate, Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IconTile, MetricsBand, Pill, Section } from '@/components/kit'

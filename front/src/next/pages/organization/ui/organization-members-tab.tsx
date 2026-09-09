@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, Shield, Trash2, UserPlus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EntityPicker, IconTile, Pill, Section, StatusDot } from '@/components/kit'
 import { cn } from '@/lib/utils'

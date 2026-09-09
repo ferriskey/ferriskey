@@ -1,5 +1,5 @@
 import { ArrowLeft, KeyRound } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { IconTile, PageTabs, Pill, type PillTone, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'

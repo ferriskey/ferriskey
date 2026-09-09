@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Upload } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/kit/button'
 
 export interface ImportButtonProps {
   label: string
