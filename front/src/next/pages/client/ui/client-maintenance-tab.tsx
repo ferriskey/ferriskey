@@ -170,6 +170,7 @@ export default function ClientMaintenanceTab({
             onChange={onWhitelistedUsersChange}
             addLabel='Add a user'
             searchPlaceholder='Search users…'
+            emptyIcon={User}
             emptyHint='No user allowed on this client.'
             exhaustedHint='Every user of the realm is already allowed.'
           />
@@ -189,6 +190,7 @@ export default function ClientMaintenanceTab({
             onChange={onWhitelistedRolesChange}
             addLabel='Add a role'
             searchPlaceholder='Search roles…'
+            emptyIcon={ShieldCheck}
             emptyHint='No role allowed on this client.'
             exhaustedHint='Every role of the realm is already allowed.'
           />

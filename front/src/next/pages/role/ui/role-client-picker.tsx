@@ -10,7 +10,6 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
 import { Schemas } from '@/api/api.client'
 
 import Client = Schemas.Client
@@ -71,7 +70,7 @@ export default function RoleClientPicker({ clients, value, onChange }: RoleClien
                       {client.client_id}
                     </span>
                   </span>
-                  <Check className={cn('ml-auto', value === client.id ? 'opacity-100' : 'opacity-0')} />
+                  {value === client.id && <Check className='ml-auto' />}
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Check, ChevronsUpDown, Plus, Trash2 } from 'lucide-react'
+import type { ComponentType } from 'react'
+import { ChevronsUpDown, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import {
   Command,
@@ -12,6 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { EmptyState } from './empty-state'
 
 export interface PickableEntity {
   id: string
@@ -26,6 +28,7 @@ export function EntityPicker({
   addLabel = 'Add',
   searchPlaceholder = 'Search…',
   emptyHint = 'None configured.',
+  emptyIcon = Users,
   exhaustedHint = 'Everything is already added.',
   disabled,
 }: {
@@ -35,6 +38,8 @@ export function EntityPicker({
   addLabel?: string
   searchPlaceholder?: string
   emptyHint?: string
+  /** Icon of the empty state — the kind of entity the field points at. */
+  emptyIcon?: ComponentType<{ className?: string; strokeWidth?: number }>
   exhaustedHint?: string
   disabled?: boolean
 }) {
@@ -44,6 +49,63 @@ export function EntityPicker({
     .map((id) => items.find((i) => i.id === id))
     .filter((i): i is PickableEntity => Boolean(i))
   const available = items.filter((i) => !value.includes(i.id))
+
+  const addControl = (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          disabled={disabled || available.length === 0}
+          aria-expanded={open}
+        >
+          <Plus /> {addLabel}
+          <ChevronsUpDown className='text-neutral-400' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align='start' sideOffset={6} className='w-72 p-0'>
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty className='py-4 text-[13px]'>No match.</CommandEmpty>
+            <CommandGroup>
+              {available.map((entity) => (
+                <CommandItem
+                  key={entity.id}
+                  value={`${entity.label} ${entity.sublabel ?? ''}`}
+                  className='px-1.5 py-1'
+                  onSelect={() => {
+                    onChange([...value, entity.id])
+                    setOpen(false)
+                  }}
+                >
+                  <span className='min-w-0 flex-1'>
+                    <span className='block truncate text-[13px] text-neutral-900'>
+                      {entity.label}
+                    </span>
+                    {entity.sublabel && (
+                      <span className='block truncate font-mono-ui text-[11px] text-neutral-400'>
+                        {entity.sublabel}
+                      </span>
+                    )}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+
+  if (selected.length === 0) {
+    return (
+      <div className='max-w-lg'>
+        <EmptyState icon={emptyIcon} compact label={emptyHint} action={addControl} />
+      </div>
+    )
+  }
 
   return (
     <div className='max-w-lg space-y-2'>
@@ -74,56 +136,9 @@ export function EntityPicker({
             </li>
           ))}
         </ul>
-      ) : (
-        <p className='text-xs text-neutral-500'>{emptyHint}</p>
-      )}
+      ) : null}
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            disabled={disabled || available.length === 0}
-            aria-expanded={open}
-          >
-            <Plus /> {addLabel}
-            <ChevronsUpDown className='text-neutral-400' />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align='start' className='w-72 p-0'>
-          <Command>
-            <CommandInput placeholder={searchPlaceholder} />
-            <CommandList>
-              <CommandEmpty>No match.</CommandEmpty>
-              <CommandGroup>
-                {available.map((entity) => (
-                  <CommandItem
-                    key={entity.id}
-                    value={`${entity.label} ${entity.sublabel ?? ''}`}
-                    onSelect={() => {
-                      onChange([...value, entity.id])
-                      setOpen(false)
-                    }}
-                  >
-                    <Check className='opacity-0' />
-                    <span className='min-w-0 flex-1'>
-                      <span className='block truncate text-xs text-neutral-900'>
-                        {entity.label}
-                      </span>
-                      {entity.sublabel && (
-                        <span className='block truncate font-mono-ui text-[11px] text-neutral-400'>
-                          {entity.sublabel}
-                        </span>
-                      )}
-                    </span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+      {addControl}
 
       {available.length === 0 && selected.length > 0 && (
         <p className='text-xs text-neutral-400'>{exhaustedHint}</p>
