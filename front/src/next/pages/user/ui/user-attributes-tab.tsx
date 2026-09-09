@@ -140,7 +140,7 @@ export default function UserAttributesTab({
         {isLoading ? (
           <div className='space-y-2'>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className='h-8 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+              <div key={i} className='h-8 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
             ))}
           </div>
         ) : attributes.length > 0 ? (

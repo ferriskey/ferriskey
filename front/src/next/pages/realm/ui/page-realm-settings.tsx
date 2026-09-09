@@ -82,9 +82,9 @@ export default function PageRealmSettings({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-        <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-        <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+        <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+        <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
       </div>
     )
   }
@@ -149,7 +149,7 @@ export default function PageRealmSettings({
 
           {tab === 'password-policy' &&
             (policyLoading ? (
-              <div className='h-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+              <div className='h-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
             ) : policyFailed ? (
               <div
                 className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-12')}

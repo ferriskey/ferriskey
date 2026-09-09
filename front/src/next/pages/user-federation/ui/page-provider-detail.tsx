@@ -115,12 +115,12 @@ export default function PageProviderDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
       </div>
@@ -231,7 +231,7 @@ export default function PageProviderDetail({
       )}
 
       {!provider.enabled && (
-        <div className='mt-4 rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'>
+        <div className='mt-4 rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-fk-surface dark:text-neutral-400'>
           This provider is disabled: it is no longer queried and its synchronisation does not
           run. The accounts already imported stay linked.
         </div>

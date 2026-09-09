@@ -144,7 +144,7 @@ export function NextAppShell() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className='flex h-screen flex-col bg-white dark:bg-neutral-900 text-fk-ink'>
+      <div className='flex h-screen flex-col bg-white dark:bg-fk-surface text-fk-ink'>
         <RealmBreadcrumb
           crumbs={crumbs}
           actions={
@@ -156,7 +156,7 @@ export function NextAppShell() {
         />
         <div className='flex min-h-0 flex-1'>
           <NextSidebar collapsed={collapsed} onToggle={toggle} />
-          <main className='min-w-0 flex-1 overflow-y-auto bg-neutral-50/40 dark:bg-neutral-900/40'>
+          <main className='min-w-0 flex-1 overflow-y-auto bg-neutral-50/40 dark:bg-fk-surface/40'>
             <Outlet />
           </main>
         </div>

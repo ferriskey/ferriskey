@@ -30,7 +30,7 @@ export function RealmBreadcrumb({
   return (
     <nav
       aria-label='Breadcrumb'
-      className='flex h-14 shrink-0 items-center gap-2 border-b border-fk-line bg-white dark:bg-neutral-900 pl-3 pr-4'
+      className='flex h-14 shrink-0 items-center gap-2 border-b border-fk-line bg-white dark:bg-fk-surface pl-3 pr-4'
     >
       <img
         src='/logo_ferriskey.png'
@@ -42,7 +42,7 @@ export function RealmBreadcrumb({
         <PopoverTrigger asChild>
           <button
             type='button'
-            className='group flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-neutral-800'
+            className='group flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:text-neutral-100 dark:hover:bg-fk-raised'
           >
             {realm_name.toLowerCase()}
             <ChevronsUpDown className='size-3.5 text-neutral-400 transition-colors group-hover:text-neutral-600 dark:text-neutral-500 dark:group-hover:text-neutral-400' />
@@ -72,7 +72,7 @@ export function RealmBreadcrumb({
                       setOpen(false)
                       navigate(`${NEXT_URL(r.name)}/roles`)
                     }}
-                    className='flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-1.5 text-left transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    className='flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-1.5 text-left transition-colors hover:bg-neutral-100 dark:hover:bg-fk-raised'
                   >
                     <span className='grid size-5 shrink-0 place-items-center rounded bg-fk-primary text-[10px] font-semibold uppercase text-white'>
                       {r.name.charAt(0)}
@@ -111,7 +111,9 @@ export function RealmBreadcrumb({
               <span
                 className={cn(
                   'px-1 text-sm',
-                  last ? 'font-medium text-neutral-900' : 'text-neutral-500 dark:text-neutral-100 dark:text-neutral-400'
+                  last
+                    ? 'font-medium text-neutral-900 dark:text-neutral-100'
+                    : 'text-neutral-500 dark:text-neutral-400'
                 )}
               >
                 {crumb.label.toLowerCase()}

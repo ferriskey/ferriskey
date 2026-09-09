@@ -53,12 +53,12 @@ export default function PageEmailTemplateDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
       </div>
@@ -197,7 +197,7 @@ export default function PageEmailTemplateDetail({
                     'w-fit rounded border px-1.5 py-0.5 font-mono-ui text-xs',
                     used
                       ? 'border-fk-success-border bg-fk-success-soft text-fk-success'
-                      : 'border-fk-line bg-neutral-50 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400'
+                      : 'border-fk-line bg-neutral-50 text-neutral-500 dark:bg-fk-surface dark:text-neutral-400'
                   )}
                 >
                   {`{{${variable.name}}}`}
@@ -248,7 +248,7 @@ export default function PageEmailTemplateDetail({
           }
           contained={false}
         >
-          <pre className='max-h-96 overflow-auto rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 font-mono-ui text-xs leading-relaxed text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'>
+          <pre className='max-h-96 overflow-auto rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 font-mono-ui text-xs leading-relaxed text-neutral-700 dark:bg-fk-surface dark:text-neutral-300'>
             {template.mjml}
           </pre>
         </Section>

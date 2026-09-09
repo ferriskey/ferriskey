@@ -54,7 +54,8 @@ export const tokens: StyleTokens = {
     cellPadding: 'px-2.5 py-2',
     headerPadding: 'px-2.5 py-1.5',
     text: 'text-[13px]',
-    headerText: 'text-[11px] font-medium uppercase tracking-wide text-neutral-400',
+    headerText:
+      'text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500',
     showFooterAggregates: true,
     sortable: true,
     selectable: true,
@@ -66,7 +67,7 @@ export const tokens: StyleTokens = {
     showFlows: true,
   },
   surface: {
-    panel: 'rounded-sm border border-fk-line bg-white',
+    panel: 'rounded-sm border border-fk-line bg-white dark:bg-fk-surface',
     divider: 'divide-y divide-fk-line-soft',
   },
   toolbar: {

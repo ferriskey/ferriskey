@@ -45,7 +45,7 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
         <thead>
           <tr
             className={cn(
-              'border-b border-fk-line bg-neutral-50/60 dark:bg-neutral-900/60 text-left',
+              'border-b border-fk-line bg-neutral-50/60 dark:bg-fk-surface/60 text-left',
               tokens.table.headerText
             )}
           >
@@ -68,7 +68,7 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
               <tr
                 key={event.id}
                 className={cn(
-                  'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900',
+                  'transition-colors hover:bg-neutral-50 dark:hover:bg-fk-surface',
                   event.status === 'failure' && 'bg-fk-danger-soft/25'
                 )}
               >

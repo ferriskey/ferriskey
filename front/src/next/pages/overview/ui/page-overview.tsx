@@ -78,12 +78,12 @@ export default function PageOverview({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-5 w-56 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-5 w-56 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className={cn('mt-4', tokens.page.sectionGap)}>
-          <div className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
+          <div className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
           <div className='grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
-            <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
-            <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
+            <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function PageOverview({
                     'grid size-3.5 shrink-0 place-items-center rounded-full',
                     capability.enabled
                       ? 'bg-fk-success-soft text-fk-success'
-                      : 'bg-neutral-100 dark:bg-neutral-800'
+                      : 'bg-neutral-100 dark:bg-fk-raised'
                   )}
                 >
                   {capability.enabled && <Check className='size-2' strokeWidth={3.5} />}
@@ -205,7 +205,9 @@ export default function PageOverview({
                   <span
                     className={cn(
                       'block truncate',
-                      capability.enabled ? 'text-neutral-900' : 'text-neutral-500 dark:text-neutral-100 dark:text-neutral-400'
+                      capability.enabled
+                        ? 'text-neutral-900 dark:text-neutral-100'
+                        : 'text-neutral-500 dark:text-neutral-400'
                     )}
                   >
                     {capability.label}

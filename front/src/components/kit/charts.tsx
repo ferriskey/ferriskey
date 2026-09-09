@@ -90,7 +90,7 @@ export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
             <stop offset='100%' stopColor='#dc2626' stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='#f2f2f2' />
+        <CartesianGrid vertical={false} strokeDasharray='3 3' stroke='var(--color-fk-line-soft)' />
         <XAxis
           dataKey='date'
           tickFormatter={formatDay}
@@ -98,23 +98,25 @@ export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
           axisLine={false}
           minTickGap={28}
           tickMargin={8}
-          tick={{ fontSize: 11, fill: '#a3a3a3' }}
+          tick={{ fontSize: 11, fill: 'var(--color-fk-muted)' }}
         />
         <YAxis
           width={28}
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
-          tick={{ fontSize: 11, fill: '#a3a3a3' }}
+          tick={{ fontSize: 11, fill: 'var(--color-fk-muted)' }}
         />
         <Tooltip
           labelFormatter={(label) => formatDay(String(label))}
           contentStyle={{
-            border: '1px solid #e8e8e8',
+            background: 'var(--color-fk-surface)',
+            border: '1px solid var(--color-fk-line)',
             borderRadius: 2,
             fontSize: 12,
             padding: '6px 8px',
           }}
+          labelStyle={{ color: 'var(--color-fk-ink)' }}
         />
         <Area
           type='monotone'

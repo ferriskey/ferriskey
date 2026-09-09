@@ -125,7 +125,7 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                             'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
                             on
                               ? 'border-fk-primary-border bg-fk-primary-soft'
-                              : 'border-fk-line bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900'
+                              : 'border-fk-line bg-white hover:bg-neutral-50 dark:bg-fk-surface dark:hover:bg-fk-surface'
                           )}
                         >
                           <span className='min-w-0 flex-1'>
@@ -145,8 +145,8 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                             className={cn(
                               'shrink-0 rounded border px-1.5 py-0.5 text-[11px] leading-5',
                               on
-                                ? 'border-fk-primary-border bg-white dark:bg-neutral-900 text-fk-primary-text'
-                                : 'border-fk-line bg-neutral-50 text-neutral-400 dark:bg-neutral-900 dark:text-neutral-500'
+                                ? 'border-fk-primary-border bg-white dark:bg-fk-surface text-fk-primary-text'
+                                : 'border-fk-line bg-neutral-50 text-neutral-400 dark:bg-fk-surface dark:text-neutral-500'
                             )}
                           >
                             {on ? 'Enabled' : 'Disabled'}

@@ -186,7 +186,7 @@ export function ListingPage<T>({
                   : searchPlaceholder
               }
               className={cn(
-                'h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
+                'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
                 tokens.toolbar.showQuerySyntax && querySyntax
                   ? 'font-mono-ui text-xs placeholder:text-neutral-300'
                   : 'text-sm'
@@ -205,7 +205,7 @@ export function ListingPage<T>({
                     'cursor-pointer rounded-md px-2.5 py-1.5 text-xs transition-colors',
                     f.key === filter
                       ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                      : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+                      : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
                   )}
                 >
                   {f.label}

@@ -130,7 +130,7 @@ export default function WebhookSubscribersField({
                         title={event.description}
                         className={cn(
                           'flex min-w-0 cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 transition-colors',
-                          on ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900'
+                          on ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-fk-surface'
                         )}
                       >
                         <Checkbox

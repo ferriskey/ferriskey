@@ -179,7 +179,7 @@ export default function TemplatesTab({
                       'px-2 py-1 text-xs transition-colors',
                       typeFilter === key
                         ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                        : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-900'
+                        : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-fk-surface'
                     )}
                   >
                     {key === 'all' ? 'All' : emailTypeSpec(key).short}
@@ -193,10 +193,10 @@ export default function TemplatesTab({
           {isLoading ? (
             Array.from({ length: 3 }).map((_, index) => (
               <div key={`skeleton-${index}`} className='flex items-center gap-3 py-3'>
-                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
                 <div className='flex-1 space-y-2'>
-                  <div className='h-3.5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-                  <div className='h-3 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+                  <div className='h-3.5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+                  <div className='h-3 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
                 </div>
               </div>
             ))

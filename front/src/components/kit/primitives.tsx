@@ -11,7 +11,7 @@ export type PillTone =
   | 'primary'
 
 const pillTones: Record<PillTone, string> = {
-  neutral: 'border-fk-line bg-neutral-50 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
+  neutral: 'border-fk-line bg-neutral-50 text-neutral-600 dark:bg-fk-surface dark:text-neutral-400',
   success: 'border-fk-success-border bg-fk-success-soft text-fk-success',
   info: 'border-fk-info-border bg-fk-info-soft text-fk-info',
   violet: 'border-fk-violet-border bg-fk-violet-soft text-fk-violet',

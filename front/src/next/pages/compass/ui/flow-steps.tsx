@@ -37,7 +37,7 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
             'grid size-5 shrink-0 place-items-center rounded-full',
             step.status === 'success' && 'bg-fk-success-soft text-fk-success',
             step.status === 'failure' && 'bg-fk-danger-soft text-fk-danger',
-            step.status === 'skipped' && 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500'
+            step.status === 'skipped' && 'bg-neutral-100 text-neutral-400 dark:bg-fk-raised dark:text-neutral-500'
           )}
         >
           <StepIcon status={step.status} />
@@ -76,7 +76,7 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
 
         {step.duration_ms != null && (
           <div className='mt-1.5 flex items-center gap-2'>
-            <div className='h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800'>
+            <div className='h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-fk-raised'>
               <div
                 className={cn(
                   'h-full rounded-full',

@@ -191,7 +191,7 @@ export default function OrganizationAttributesTab({
       <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
         <div
           className={cn(
-            'flex items-center gap-4 bg-neutral-50/60 dark:bg-neutral-900/60 px-3 py-1.5',
+            'flex items-center gap-4 bg-neutral-50/60 dark:bg-fk-surface/60 px-3 py-1.5',
             tokens.table.headerText
           )}
         >
@@ -212,8 +212,8 @@ export default function OrganizationAttributesTab({
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className='flex items-center gap-4 px-3 py-2.5'>
-              <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-              <div className='h-3 w-56 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+              <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+              <div className='h-3 w-56 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
             </div>
           ))
         ) : attributes.length === 0 && !adding ? (

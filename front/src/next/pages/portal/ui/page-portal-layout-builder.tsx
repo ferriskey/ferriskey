@@ -148,7 +148,7 @@ export default function PagePortalLayoutBuilder({
         </header>
 
         <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
-          <div className='shrink-0 border-b border-fk-line bg-neutral-50 dark:bg-neutral-900'>
+          <div className='shrink-0 border-b border-fk-line bg-neutral-50 dark:bg-fk-surface'>
             <SelectionBreadcrumb />
           </div>
           <div className='flex min-h-0 min-w-0 flex-1 overflow-hidden'>
@@ -166,7 +166,7 @@ export default function PagePortalLayoutBuilder({
               }}
             >
               <div
-                className='shrink-0 self-start overflow-hidden rounded-sm border border-fk-line bg-white dark:bg-neutral-900 shadow-sm transition-all duration-200'
+                className='shrink-0 self-start overflow-hidden rounded-sm border border-fk-line bg-white dark:bg-fk-surface shadow-sm transition-all duration-200'
                 style={{
                   width: viewportWidth * iframeScale,
                   height: viewportHeight * iframeScale,
@@ -231,7 +231,7 @@ function ViewportButton({
       onClick={onClick}
       className={cn(
         'cursor-pointer rounded px-2 py-1 text-xs transition-colors',
-        active ? 'bg-fk-primary-soft text-fk-primary-text' : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+        active ? 'bg-fk-primary-soft text-fk-primary-text' : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
       )}
     >
       {children}

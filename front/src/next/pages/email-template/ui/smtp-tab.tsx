@@ -39,8 +39,8 @@ export default function SmtpTab({
   if (isLoading) {
     return (
       <div className={tokens.page.blockGap}>
-        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-        <div className='h-64 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+        <div className='h-64 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
       </div>
     )
   }

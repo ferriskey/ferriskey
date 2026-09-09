@@ -20,7 +20,7 @@ export default function CopyValue({ value, label, className }: CopyValueProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-md border border-fk-line bg-neutral-50 dark:bg-neutral-900 px-2.5 py-1.5',
+        'flex items-center gap-2 rounded-md border border-fk-line bg-neutral-50 dark:bg-fk-surface px-2.5 py-1.5',
         className
       )}
     >

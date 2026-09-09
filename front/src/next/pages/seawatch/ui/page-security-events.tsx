@@ -209,7 +209,11 @@ export default function PageSecurityEvents({
         const name = directory.label(e.actor_id, e.actor_type)
         return (
           <div className='min-w-0'>
-            <span className={name ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-300 dark:text-neutral-400'}>
+            <span className={
+                name
+                  ? 'text-neutral-700 dark:text-neutral-300'
+                  : 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'
+              }>
               {name ?? identifier}
             </span>
             <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
@@ -230,7 +234,11 @@ export default function PageSecurityEvents({
         const resolved = name && name !== identifier
         return (
           <div className='min-w-0'>
-            <span className={resolved ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-300 dark:text-neutral-400'}>
+            <span className={
+                resolved
+                  ? 'text-neutral-700 dark:text-neutral-300'
+                  : 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'
+              }>
               {name ?? identifier}
             </span>
             <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
@@ -458,7 +466,7 @@ export default function PageSecurityEvents({
             : 'Filter the stream…'
         }
         className={cn(
-          'h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-7 pr-2 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
+          'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-7 pr-2 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
           tokens.toolbar.showQuerySyntax
             ? 'font-mono-ui text-[11px] placeholder:text-neutral-300'
             : 'text-xs'
@@ -558,7 +566,7 @@ export default function PageSecurityEvents({
                       'cursor-pointer rounded-md px-2 py-1 text-xs transition-colors',
                       f.key === listing.filter
                         ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                        : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+                        : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
                     )}
                   >
                     {f.label}

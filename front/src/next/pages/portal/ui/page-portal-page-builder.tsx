@@ -52,7 +52,7 @@ export default function PagePortalPageBuilder({
             'rounded-md px-2 py-1.5 text-[13px] transition-colors',
             page.type === pageType
               ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-              : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
+              : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
           )}
         >
           {page.label}

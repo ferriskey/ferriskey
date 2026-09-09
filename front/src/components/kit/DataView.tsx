@@ -76,9 +76,9 @@ export function DataView<T>({
       <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className='flex items-center gap-3 px-2.5 py-3'>
-            <div className='h-3 w-1/4 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-            <div className='h-3 w-1/6 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-            <div className='h-3 w-1/5 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-3 w-1/4 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+            <div className='h-3 w-1/6 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+            <div className='h-3 w-1/5 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         ))}
       </div>
@@ -123,10 +123,14 @@ export function DataView<T>({
                       <span
                         className={cn(
                           'size-1.5 shrink-0 rounded-full',
-                          f.on ? 'bg-fk-success' : 'bg-neutral-200 dark:bg-neutral-700'
+                          f.on ? 'bg-fk-success' : 'bg-neutral-200 dark:bg-fk-raised'
                         )}
                       />
-                      <span className={f.on ? 'text-neutral-700' : 'text-neutral-400 dark:text-neutral-300 dark:text-neutral-500'}>
+                      <span className={
+                          f.on
+                            ? 'text-neutral-700 dark:text-neutral-300'
+                            : 'text-neutral-400 dark:text-neutral-500'
+                        }>
                         {f.label}
                       </span>
                     </li>
@@ -174,7 +178,7 @@ export function DataView<T>({
         <thead>
           <tr
             className={cn(
-              'border-b border-fk-line bg-neutral-50/60 dark:bg-neutral-900/60 text-left',
+              'border-b border-fk-line bg-neutral-50/60 dark:bg-fk-surface/60 text-left',
               tokens.table.headerText
             )}
           >
@@ -231,7 +235,7 @@ export function DataView<T>({
               <tr
                 key={key}
                 className={cn(
-                  'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900',
+                  'transition-colors hover:bg-neutral-50 dark:hover:bg-fk-surface',
                   selected.includes(key) && 'bg-fk-primary-soft/40'
                 )}
               >
@@ -279,7 +283,7 @@ export function DataView<T>({
 
         {tokens.table.showFooterAggregates && aggregates && (
           <tfoot>
-            <tr className='border-t border-fk-line bg-neutral-50/60 text-xs text-neutral-500 dark:bg-neutral-900/60 dark:text-neutral-400'>
+            <tr className='border-t border-fk-line bg-neutral-50/60 text-xs text-neutral-500 dark:bg-fk-surface/60 dark:text-neutral-400'>
               {selectable && <td className={tokens.table.cellPadding} />}
               {columns.map((col) => (
                 <td

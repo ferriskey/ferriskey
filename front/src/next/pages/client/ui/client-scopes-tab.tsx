@@ -133,7 +133,7 @@ function AddScopeDialog({
                     htmlFor={`add-scope-${scope.id}`}
                     className={cn(
                       'flex cursor-pointer items-start gap-2.5 px-3 py-2 transition-colors',
-                      selected === scope.id ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900'
+                      selected === scope.id ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-fk-surface'
                     )}
                   >
                     <Checkbox
@@ -235,8 +235,8 @@ export default function ClientScopesTab({
               <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                    <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
-                    <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+                    <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
+                    <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
                   </div>
                 ))}
               </div>
@@ -278,7 +278,7 @@ export default function ClientScopesTab({
                                 'cursor-pointer px-2 py-1 text-xs transition-colors',
                                 type === candidate
                                   ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                                  : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-900'
+                                  : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-fk-surface'
                               )}
                             >
                               {candidate}
@@ -348,7 +348,7 @@ export default function ClientScopesTab({
                           <code
                             key={mapper.id}
                             title={mapper.mapper_type}
-                            className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'
+                            className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-fk-surface dark:text-neutral-400'
                           >
                             {mapper.name}
                           </code>

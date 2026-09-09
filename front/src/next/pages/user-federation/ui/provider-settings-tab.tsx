@@ -112,7 +112,9 @@ export default function ProviderSettingsTab({
                     <span
                       className={cn(
                         'block break-all font-mono-ui text-xs',
-                        isSecretKey(key) ? 'text-neutral-400' : 'text-neutral-700 dark:text-neutral-500 dark:text-neutral-300'
+                        isSecretKey(key)
+                          ? 'text-neutral-400 dark:text-neutral-500'
+                          : 'text-neutral-700 dark:text-neutral-300'
                       )}
                     >
                       {value}

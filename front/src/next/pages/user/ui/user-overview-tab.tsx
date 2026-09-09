@@ -171,14 +171,14 @@ export default function UserOverviewTab({
                   'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
                   on
                     ? 'border-fk-primary-border bg-fk-primary-soft'
-                    : 'border-fk-line bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900'
+                    : 'border-fk-line bg-white hover:bg-neutral-50 dark:bg-fk-surface dark:hover:bg-fk-surface'
                 )}
               >
                 <span className='flex items-center gap-2'>
                   <span
                     className={cn(
                       'grid size-4 shrink-0 place-items-center rounded border transition-colors',
-                      on ? 'border-fk-primary bg-fk-primary text-white' : 'border-fk-line bg-white dark:bg-neutral-900'
+                      on ? 'border-fk-primary bg-fk-primary text-white' : 'border-fk-line bg-white dark:bg-fk-surface'
                     )}
                   >
                     {on && <Check className='size-2.5' strokeWidth={3} />}

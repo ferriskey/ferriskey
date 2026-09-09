@@ -282,7 +282,7 @@ export default function PageProvidersOverview({
                     key={template.id}
                     type='button'
                     onClick={() => onQuickCreate(template.id)}
-                    className='flex cursor-pointer flex-col items-center gap-1.5 rounded-md px-2.5 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900'
+                    className='flex cursor-pointer flex-col items-center gap-1.5 rounded-md px-2.5 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-fk-surface'
                   >
                     <ProviderIcon icon={template.icon} size='sm' />
                     <span className='text-xs text-neutral-500 dark:text-neutral-400'>{template.displayName}</span>

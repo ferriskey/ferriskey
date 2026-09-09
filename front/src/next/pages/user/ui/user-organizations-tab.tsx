@@ -103,7 +103,7 @@ export default function UserOrganizationsTab({
         ) : isLoading ? (
           <div className='space-y-2'>
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className='h-11 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+              <div key={i} className='h-11 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
             ))}
           </div>
         ) : rows.length > 0 ? (

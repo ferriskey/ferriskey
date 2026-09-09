@@ -35,7 +35,7 @@ function JsonPanel({ title, value }: { title: string; value: unknown }) {
       <p className='pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
         {title}
       </p>
-      <pre className='max-h-72 overflow-auto rounded-md border border-fk-line bg-neutral-50 px-3 py-2 font-mono-ui text-xs leading-relaxed text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'>
+      <pre className='max-h-72 overflow-auto rounded-md border border-fk-line bg-neutral-50 px-3 py-2 font-mono-ui text-xs leading-relaxed text-neutral-700 dark:bg-fk-surface dark:text-neutral-300'>
         {JSON.stringify(value ?? null, null, 2)}
       </pre>
     </div>
@@ -99,7 +99,7 @@ export default function ClientEvaluatePanel({
                         'inline-flex cursor-pointer items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono-ui text-xs leading-5 transition-colors',
                         on
                           ? 'border-fk-primary-border bg-fk-primary-soft text-fk-primary-text'
-                          : 'border-fk-line bg-white text-neutral-500 hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900'
+                          : 'border-fk-line bg-white text-neutral-500 hover:bg-neutral-50 dark:bg-fk-surface dark:text-neutral-400 dark:hover:bg-fk-surface'
                       )}
                     >
                       {on && <Check className='size-2.5' strokeWidth={3} />}
@@ -115,7 +115,7 @@ export default function ClientEvaluatePanel({
             <p className='pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
               Scope string
             </p>
-            <code className='block rounded-md border border-fk-line bg-neutral-50 px-2.5 py-1.5 font-mono-ui text-xs text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'>
+            <code className='block rounded-md border border-fk-line bg-neutral-50 px-2.5 py-1.5 font-mono-ui text-xs text-neutral-700 dark:bg-fk-surface dark:text-neutral-300'>
               {requestedScope || '—'}
             </code>
           </div>

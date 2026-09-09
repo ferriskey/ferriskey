@@ -100,7 +100,7 @@ export default function UserRoleMappingTab({
         ) : isLoading ? (
           <div className='space-y-2'>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className='h-9 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+              <div key={i} className='h-9 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
             ))}
           </div>
         ) : rows.length > 0 ? (

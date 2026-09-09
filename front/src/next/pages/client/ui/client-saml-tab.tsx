@@ -110,9 +110,9 @@ export default function ClientSamlTab({
   if (isLoading) {
     return (
       <div className={cn(tokens.surface.panel, 'space-y-3 p-4')}>
-        <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-        <div className='h-8 w-full animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-        <div className='h-8 w-full animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+        <div className='h-8 w-full animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+        <div className='h-8 w-full animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
       </div>
     )
   }

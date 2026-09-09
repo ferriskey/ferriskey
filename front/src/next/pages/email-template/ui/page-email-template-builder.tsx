@@ -69,7 +69,7 @@ export default function PageEmailTemplateBuilder({
           {isNew ? (
             <select
               aria-label='Email type'
-              className='rounded-md border border-fk-line bg-white dark:bg-neutral-900 px-2 py-1 text-[13px]'
+              className='rounded-md border border-fk-line bg-white dark:bg-fk-surface px-2 py-1 text-[13px]'
               value={emailType}
               onChange={(event) => onEmailTypeChange(event.target.value)}
             >
@@ -164,7 +164,7 @@ function ViewportButton({
         'rounded px-2 py-1 text-xs transition-colors',
         active
           ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-          : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-900'
+          : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-fk-surface'
       )}
       onClick={onClick}
     >

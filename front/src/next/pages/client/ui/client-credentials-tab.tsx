@@ -46,8 +46,8 @@ function Fingerprint({ value, muted }: { value: string; muted?: boolean }) {
   return (
     <code
       className={cn(
-        'flex h-9 min-w-0 flex-1 items-center overflow-x-auto rounded-md border border-fk-line bg-neutral-50 dark:bg-neutral-900 px-2.5 font-mono-ui text-xs',
-        muted ? 'text-neutral-400' : 'text-neutral-700 dark:text-neutral-500 dark:text-neutral-300'
+        'flex h-9 min-w-0 flex-1 items-center overflow-x-auto rounded-md border border-fk-line bg-neutral-50 dark:bg-fk-surface px-2.5 font-mono-ui text-xs',
+        muted ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-700 dark:text-neutral-300'
       )}
     >
       {value}

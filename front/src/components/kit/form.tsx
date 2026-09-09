@@ -89,7 +89,10 @@ export function SwitchField({
         onCheckedChange={onCheckedChange}
       />
       <span
-        className={cn('text-sm', checked ? 'text-neutral-900' : 'text-neutral-500 dark:text-neutral-100 dark:text-neutral-400')}
+        className={cn(
+          'text-sm',
+          checked ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400'
+        )}
       >
         {checked ? onLabel : offLabel}
       </span>
@@ -166,7 +169,7 @@ export function ChoiceCards<T extends string>({
               !first && '-ml-px',
               selected
                 ? 'z-10 border-fk-primary-border bg-fk-primary-soft'
-                : 'bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900',
+                : 'bg-white hover:bg-neutral-50 dark:bg-fk-surface dark:hover:bg-fk-surface',
               blocked ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'
             )}
           >
@@ -231,7 +234,7 @@ export function OrderedChoiceCards<T extends string>({
               !first && '-ml-px',
               selected
                 ? 'z-10 border-fk-primary-border bg-fk-primary-soft'
-                : 'bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900',
+                : 'bg-white hover:bg-neutral-50 dark:bg-fk-surface dark:hover:bg-fk-surface',
               pinned ? 'cursor-not-allowed' : 'cursor-pointer'
             )}
           >
@@ -282,7 +285,7 @@ function ChoiceCardHead<T extends string>({
             'tnum grid size-4 shrink-0 place-items-center rounded-full border text-[10px] font-semibold transition-colors',
             selected
               ? 'border-fk-primary bg-fk-primary text-white'
-              : 'border-fk-line bg-white dark:bg-neutral-900'
+              : 'border-fk-line bg-white dark:bg-fk-surface'
           )}
         >
           {selected &&
@@ -332,7 +335,7 @@ export function ChipInput({
           {values.map((v) => (
             <li
               key={v}
-              className='inline-flex items-center gap-1.5 rounded border border-fk-line bg-neutral-50 py-1 pl-2 pr-1 font-mono-ui text-xs text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'
+              className='inline-flex items-center gap-1.5 rounded border border-fk-line bg-neutral-50 py-1 pl-2 pr-1 font-mono-ui text-xs text-neutral-700 dark:bg-fk-surface dark:text-neutral-300'
             >
               {v}
               <button

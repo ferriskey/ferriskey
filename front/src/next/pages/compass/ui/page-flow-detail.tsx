@@ -67,14 +67,14 @@ export default function PageFlowDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 space-y-2'>
-          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-          <div className='h-4 w-64 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+          <div className='h-4 w-64 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         </div>
         <div className='mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
+            <div key={i} className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
           ))}
         </div>
       </div>

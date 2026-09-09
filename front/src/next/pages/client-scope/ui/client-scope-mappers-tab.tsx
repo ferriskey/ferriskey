@@ -97,7 +97,7 @@ export default function ClientScopeMappersTab({
                         {category.label}
                       </Pill>
                       {claim && (
-                        <code className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'>
+                        <code className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-fk-surface dark:text-neutral-400'>
                           {claim}
                         </code>
                       )}
@@ -115,7 +115,7 @@ export default function ClientScopeMappersTab({
                           'rounded px-1 py-0.5 font-mono-ui text-[10px]',
                           config[key] === 'true'
                             ? 'bg-fk-success-soft text-fk-success'
-                            : 'bg-neutral-100 text-neutral-300 dark:bg-neutral-800 dark:text-neutral-600'
+                            : 'bg-neutral-100 text-neutral-300 dark:bg-fk-raised dark:text-neutral-600'
                         )}
                       >
                         {label}

@@ -80,7 +80,7 @@ function Stepper({ current }: { current: number }) {
                 'grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-medium transition-colors',
                 done && 'bg-fk-primary text-white',
                 active && 'bg-fk-primary-soft text-fk-primary-text',
-                !done && !active && 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500'
+                !done && !active && 'bg-neutral-100 text-neutral-400 dark:bg-fk-raised dark:text-neutral-500'
               )}
             >
               {done ? <Check className='size-3' strokeWidth={3} /> : step.n}
@@ -184,7 +184,7 @@ export default function PageCreateProvider({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder='Search providers…'
-                className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+                className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
               />
             </label>
 
@@ -212,7 +212,7 @@ export default function PageCreateProvider({
                         item.id === template?.id && 'border-fk-primary-border bg-fk-primary-soft'
                       )}
                     >
-                      <span className='grid size-9 shrink-0 place-items-center rounded-md border border-fk-line bg-white dark:bg-neutral-900'>
+                      <span className='grid size-9 shrink-0 place-items-center rounded-md border border-fk-line bg-white dark:bg-fk-surface'>
                         <ProviderIcon icon={item.icon} size='sm' />
                       </span>
                       <span className='min-w-0 flex-1'>

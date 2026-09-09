@@ -88,7 +88,7 @@ export default function OrganizationMembersTab({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder='Search members…'
-              className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+              className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
             />
           </label>
         }
@@ -97,8 +97,8 @@ export default function OrganizationMembersTab({
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
-                <div className='h-3 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
+                <div className='h-3 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
               </div>
             ))
           ) : members.length === 0 ? (

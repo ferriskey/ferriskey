@@ -40,7 +40,7 @@ export default function ProviderSetupRail({ template, callbackUrl }: ProviderSet
         <div className='space-y-3'>
           <section className={cn(tokens.surface.panel, 'p-3')}>
             <div className='flex items-center gap-2.5 pb-3'>
-              <span className='grid size-9 shrink-0 place-items-center rounded-md border border-fk-line bg-white dark:bg-neutral-900'>
+              <span className='grid size-9 shrink-0 place-items-center rounded-md border border-fk-line bg-white dark:bg-fk-surface'>
                 <ProviderIcon icon={template.icon} size='sm' />
               </span>
               <div className='min-w-0'>
@@ -99,7 +99,7 @@ export default function ProviderSetupRail({ template, callbackUrl }: ProviderSet
               </p>
               {template.default_scopes.length > 0 ? (
                 <>
-                  <code className='block rounded-md border border-fk-line bg-neutral-50 px-2 py-1.5 font-mono-ui text-[11px] text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'>
+                  <code className='block rounded-md border border-fk-line bg-neutral-50 px-2 py-1.5 font-mono-ui text-[11px] text-neutral-700 dark:bg-fk-surface dark:text-neutral-300'>
                     {template.default_scopes.join(' ')}
                   </code>
                   <p className='mt-1.5 text-[11px] leading-snug text-neutral-400 dark:text-neutral-500'>

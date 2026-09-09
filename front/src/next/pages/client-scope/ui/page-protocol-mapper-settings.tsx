@@ -66,10 +66,10 @@ export default function PageProtocolMapperSettings({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 space-y-2'>
-          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
-          <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
+          <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         </div>
       </div>
     )

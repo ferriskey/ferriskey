@@ -23,7 +23,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'grid place-items-center rounded-sm border border-dashed border-fk-line bg-white dark:bg-neutral-900 px-6',
+        'grid place-items-center rounded-sm border border-dashed border-fk-line bg-white dark:bg-fk-surface px-6',
         compact ? 'py-8' : 'py-16',
         className
       )}

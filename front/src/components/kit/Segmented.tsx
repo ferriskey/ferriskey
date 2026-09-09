@@ -20,7 +20,7 @@ export function Segmented({
     <div
       role='tablist'
       className={cn(
-        'inline-flex items-center gap-1 rounded-lg bg-neutral-100 dark:bg-neutral-800 p-1',
+        'inline-flex items-center gap-1 rounded-lg bg-neutral-100 dark:bg-fk-raised p-1',
         className
       )}
     >
@@ -37,7 +37,7 @@ export function Segmented({
               'cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
               active
-                ? 'bg-white text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 shadow-sm'
+                ? 'bg-white text-neutral-900 dark:bg-fk-surface dark:text-neutral-100 shadow-sm'
                 : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
             )}
           >

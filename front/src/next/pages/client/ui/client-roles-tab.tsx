@@ -79,8 +79,8 @@ export default function ClientRolesTab({
           <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
-                <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+                <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
+                <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
               </div>
             ))}
           </div>

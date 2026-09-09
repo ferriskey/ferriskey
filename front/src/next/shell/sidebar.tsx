@@ -66,7 +66,7 @@ function SidebarLink({
         shape,
         active
           ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-          : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+          : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-fk-raised'
       )}
     >
       <ItemBody item={item} active={active} collapsed={collapsed} />
@@ -96,7 +96,7 @@ export function NextSidebar({
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col border-r border-fk-line bg-white dark:bg-neutral-900 transition-[width] duration-200',
+        'flex shrink-0 flex-col border-r border-fk-line bg-white dark:bg-fk-surface transition-[width] duration-200',
         collapsed ? COLLAPSED : 'w-44'
       )}
     >
@@ -145,7 +145,7 @@ export function NextSidebar({
                 aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
                 aria-expanded={!collapsed}
                 className={cn(
-                  'grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-100',
+                  'grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-500 dark:hover:bg-fk-raised dark:hover:text-neutral-100',
                   !collapsed && 'ml-auto'
                 )}
               >

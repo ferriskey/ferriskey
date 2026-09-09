@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
 
+@custom-variant dark (&:is(.dark *));
+
 @utility scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -151,6 +153,8 @@ input[type="number"] {
   --color-fk-primary-border: #f0d9c8;
   --color-fk-primary-text: #b4551f;
 
+  --color-fk-surface: #ffffff;
+  --color-fk-raised: #fafafa;
   --color-fk-sand: #fbefe5;
   --color-fk-ink: #171717;
   --color-fk-muted: #737373;
@@ -216,7 +220,9 @@ input[type="number"] {
   --color-fk-primary-border: #4a2d1a;
   --color-fk-primary-text: #e79a67;
 
-  --color-fk-sand: #221a13;
+  --color-fk-surface: #232120;
+  --color-fk-raised: #2b2826;
+  --color-fk-sand: #291f16;
   --color-fk-ink: #f2f0ee;
   --color-fk-muted: #a6a09b;
   --color-fk-line: #2e2c29;
@@ -248,4 +254,16 @@ input[type="number"] {
   --border: #2e2c29;
   --input: #3a3835;
   --muted-foreground: #a6a09b;
+
+  --background: #1a1817;
+  --foreground: #f2f0ee;
+  --card: #232120;
+  --card-foreground: #f2f0ee;
+  --popover: #232120;
+  --popover-foreground: #f2f0ee;
+  --secondary: #2b2826;
+  --secondary-foreground: #f2f0ee;
+  --muted: #232120;
+  --accent: #2b2826;
+  --accent-foreground: #f2f0ee;
 }
