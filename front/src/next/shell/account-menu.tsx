@@ -20,6 +20,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { deriveModeFromPath, useSwitchMode } from '@/hooks/use-switch-mode'
 import { REALM_URL, RouterParams } from '@/routes/router'
 import { NEXT_ACCOUNT_URL } from '../routes'
+import { useNextPanel, useSwitchNextPanel } from './ciam/use-console-switch'
 import { getInitials } from './initials'
 
 export function AccountMenu() {
@@ -29,6 +30,8 @@ export function AccountMenu() {
   const { realm_name = 'master' } = useParams<RouterParams>()
   const switchMode = useSwitchMode()
   const mode = deriveModeFromPath(pathname)
+  const panel = useNextPanel()
+  const switchPanel = useSwitchNextPanel()
 
   if (!user) return null
 
@@ -88,10 +91,21 @@ export function AccountMenu() {
             <Settings2 className='size-4' />
             Admin
           </DropdownMenuItem>
-          <DropdownMenuItem className='gap-2 px-1.5 py-1 text-[13px]' disabled>
+          <DropdownMenuItem
+            className='gap-2 px-1.5 py-1 text-[13px]'
+            onClick={() => switchPanel('admin')}
+          >
             <Sparkles className='size-4' />
             Admin · next
-            <Check className='ml-auto size-4' />
+            {panel === 'admin' && <Check className='ml-auto size-4' />}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className='gap-2 px-1.5 py-1 text-[13px]'
+            onClick={() => switchPanel('console')}
+          >
+            <Sparkles className='size-4' />
+            Console · next
+            {panel === 'console' && <Check className='ml-auto size-4' />}
           </DropdownMenuItem>
         </DropdownMenuGroup>
 

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { NextAppShell } from './shell/iam/app-shell'
+import NextConsoleApp from './console-app'
 import NextPageRole from './pages/iam/role/page-role'
 import NextPageOverview from './pages/iam/overview/page-overview'
 import NextPageClients from './pages/iam/client/page-client'
@@ -19,6 +20,8 @@ import NextPageAccount from './pages/iam/account/page-account'
 export default function NextApp() {
   return (
     <Routes>
+      <Route path='console/*' element={<NextConsoleApp />} />
+
       <Route element={<NextAppShell />}>
         <Route index element={<Navigate to='overview' replace />} />
         <Route path='roles/*' element={<NextPageRole />} />
