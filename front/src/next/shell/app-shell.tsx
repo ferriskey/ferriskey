@@ -15,6 +15,7 @@ import { useGetUserRealmsQuery } from '@/api/realm.api'
 import useRealmStore from '@/store/realm.store'
 import { RouterParams } from '@/routes/router'
 import { REALM_URL } from '@/routes/router'
+import { NEXT_ACCOUNT_URL } from '../routes'
 import { NextSidebar } from './sidebar'
 import { RealmBreadcrumb } from './realm-breadcrumb'
 import { useCrumbs } from './use-crumbs'
@@ -48,6 +49,9 @@ function AccountMenu() {
           <span className='block truncate text-xs text-neutral-500'>{user.email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate(NEXT_ACCOUNT_URL(realm_name))}>
+          My account
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate(REALM_URL(realm_name))}>
           Back to the current console
         </DropdownMenuItem>

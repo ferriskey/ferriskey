@@ -8,7 +8,6 @@ import Client = Schemas.Client
 interface ClientTrendChartProps {
   clients: Client[]
   days?: number
-  useMockData?: boolean
   color?: string
 }
 
@@ -19,27 +18,12 @@ const chartConfig = {
   },
 }
 
-const mockChartData = [
-  { count: 3 },
-  { count: 5 },
-  { count: 2 },
-  { count: 8 },
-  { count: 6 },
-  { count: 10 },
-  { count: 7 },
-]
-
 export default function ClientTrendChart({
   clients,
   days = 7,
-  useMockData = false,
   color = 'hsl(var(--chart-1))'
 }: ClientTrendChartProps) {
   const chartData = useMemo(() => {
-    if (useMockData) {
-      return mockChartData
-    }
-
     const dataPoints = []
     const today = new Date()
 
@@ -60,7 +44,7 @@ export default function ClientTrendChart({
     }
 
     return dataPoints
-  }, [clients, days, useMockData])
+  }, [clients, days])
 
   return (
     <ChartContainer config={chartConfig} className='h-full w-full'>
