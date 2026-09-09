@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { Link } from 'react-router'
 import { AlertTriangle, ArrowRight, Check, CheckCircle2 } from 'lucide-react'
-import { MetricsBand, Pill, Section, type Metric } from '@/components/kit'
+import { MetricsBand, Section, type Metric } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -36,7 +36,6 @@ export interface OverviewQuickLink {
 
 export interface PageOverviewProps {
   realmTitle: string
-  realmName: string
   greeting?: string
   isLoading: boolean
   metrics: Metric[]
@@ -59,7 +58,6 @@ const alertTones = {
 
 export default function PageOverview({
   realmTitle,
-  realmName,
   greeting,
   isLoading,
   metrics,
@@ -91,7 +89,6 @@ export default function PageOverview({
   }
 
   const enabledCapabilities = capabilities.filter((c) => c.enabled).length
-  const disabledCapabilities = capabilities.length - enabledCapabilities
   const totalLogins = activity.reduce((n, day) => n + day.logins, 0)
   const totalFailures = activity.reduce((n, day) => n + day.login_failures, 0)
   const hasActivity = activity.length > 1 && totalLogins + totalFailures > 0
@@ -99,18 +96,9 @@ export default function PageOverview({
   return (
     <div className={container}>
       <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', tokens.header.spacing)}>
-        <h1 className={tokens.header.title}>{realmTitle} realm</h1>
-        <Pill tone='primary' mono>
-          {realmName}
-        </Pill>
-        <span className='text-[11px] text-neutral-400 dark:text-neutral-500'>
-          {disabledCapabilities > 0
-            ? `${disabledCapabilities} capabilit${disabledCapabilities > 1 ? 'ies' : 'y'} disabled`
-            : 'every capability enabled'}
-        </span>
-        {greeting && (
-          <span className='ml-auto text-[11px] text-neutral-400 dark:text-neutral-500'>Welcome back, {greeting}</span>
-        )}
+        <h1 className={tokens.header.title}>
+          {greeting ? `Welcome back, ${greeting} 👋` : `${realmTitle} realm`}
+        </h1>
       </div>
 
       <div className={tokens.page.sectionGap}>

@@ -261,7 +261,6 @@ export default function PageOverviewFeature() {
   return (
     <PageOverview
       realmTitle={realmResponse?.display_name || realm}
-      realmName={realm}
       greeting={greeting}
       isLoading={
         isLoadingRealm ||
