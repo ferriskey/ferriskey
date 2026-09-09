@@ -132,6 +132,11 @@ export function Sidebar({
         )}
       >
         <div className={cn('flex items-center', collapsed ? 'justify-center' : 'pl-1')}>
+          {!collapsed && (
+            <span className='font-mono-ui text-[11px] tnum text-neutral-400 dark:text-neutral-500'>
+              v{__APP_VERSION__}
+            </span>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
