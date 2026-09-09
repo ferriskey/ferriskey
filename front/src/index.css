@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
 
 @utility scrollbar-none {
   -ms-overflow-style: none;
@@ -196,4 +197,9 @@ input[type="number"] {
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-style='ferriskey'] body {
+  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
 }

@@ -13,7 +13,7 @@ export interface ListingMetric {
   value: number | string
   hint?: string
   delta?: number
-  series?: number[]
+  series?: (number | null)[]
   tone?: ChartTone
 }
 

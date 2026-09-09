@@ -49,7 +49,7 @@ function cumulativeSeries(createdAt: string[]) {
 }
 
 function measured(series: number[]) {
-  return new Set(series).size > 1 ? series : undefined
+  return series.length > 0 ? series : undefined
 }
 
 function createdInWindow(createdAt: string[]) {

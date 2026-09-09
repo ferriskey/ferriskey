@@ -9,7 +9,7 @@ export interface Metric {
   value: number | string
   hint?: string
   delta?: number
-  series?: number[]
+  series?: (number | null)[]
   tone?: ChartTone
 }
 
@@ -48,8 +48,8 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
               </div>
             </div>
             {m.series && (
-              <div className='w-14 shrink-0'>
-                <Sparkline data={m.series} tone={m.tone ?? 'info'} height={26} />
+              <div className='w-16 shrink-0'>
+                <Sparkline data={m.series} tone={m.tone ?? 'info'} height={28} />
               </div>
             )}
           </div>

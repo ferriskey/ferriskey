@@ -3,11 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { useListingQuery } from '@/components/kit'
+import { useGetDailyActivityStats } from '@/api/compass.api'
+import { useGetRealm } from '@/api/realm.api'
 import { eventFamilies } from '../event-catalogue'
 import PageSecurityEvents from '../ui/page-security-events'
 
 const WINDOW_DAYS = 7
 const WINDOW_LIMIT = 500
+
+const toDateParam = (date: Date) => date.toISOString().slice(0, 10)
 
 export default function PageSecurityEventsFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -16,11 +20,27 @@ export default function PageSecurityEventsFeature() {
   const range = useMemo(() => {
     const to = new Date()
     const from = new Date(to.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000)
-    return { from: from.toISOString(), to: to.toISOString() }
+    const fromDay = new Date(to)
+    fromDay.setDate(to.getDate() - (WINDOW_DAYS - 1))
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      fromDay: toDateParam(fromDay),
+      toDay: toDateParam(to),
+    }
   }, [])
 
   const listing = useListingQuery()
   const family = eventFamilies[listing.filter]
+
+  const { data: realmResponse } = useGetRealm({ realm })
+  const compassRealm = realmResponse?.settings?.compass_enabled ? realm : undefined
+
+  const { data: activityResponse } = useGetDailyActivityStats({
+    realm: compassRealm,
+    from: range.fromDay,
+    to: range.toDay,
+  })
 
   const {
     data: eventsResponse,
@@ -50,9 +70,12 @@ export default function PageSecurityEventsFeature() {
     [eventsResponse]
   )
 
+  const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
+
   return (
     <PageSecurityEvents
       events={events}
+      activity={activity}
       isLoading={isLoading}
       isError={isError}
       windowDays={WINDOW_DAYS}
