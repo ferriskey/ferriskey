@@ -4,6 +4,7 @@ import { Schemas } from '@/api/api.client'
 
 import Client = Schemas.Client
 import CreateClientValidator = Schemas.CreateClientValidator
+import { DEFAULT_CLIENT_PROTOCOL } from '@/lib/client-protocol'
 
 export type ApplicationType = 'native' | 'spa' | 'web' | 'm2m' | 'device'
 
@@ -114,7 +115,7 @@ export function createPayloadFor(
     name,
     client_id: clientId,
     enabled: true,
-    protocol: 'openid-connect',
+    protocol: DEFAULT_CLIENT_PROTOCOL,
     oauth_device_code_grant_enabled: false,
     direct_access_grants_enabled: false,
   }

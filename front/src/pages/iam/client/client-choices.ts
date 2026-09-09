@@ -1,10 +1,11 @@
 import { Clock, FileKey, Globe, KeyRound, Power, PowerOff, ShieldCheck, Wrench } from 'lucide-react'
 import type { Choice } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
+import type { ClientProtocol } from '@/lib/client-protocol'
 
 import MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
 
-export type ClientProtocol = 'openid-connect' | 'saml'
+export type { ClientProtocol } from '@/lib/client-protocol'
 export type ClientAuthentication = 'confidential' | 'public'
 export type ClientState = 'enabled' | 'disabled'
 export type MaintenanceState = 'open' | 'maintenance'
