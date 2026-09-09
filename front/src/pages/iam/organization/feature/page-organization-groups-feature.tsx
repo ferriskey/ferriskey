@@ -210,7 +210,7 @@ function AddMembersDialog({
           <Plus className='mr-1 h-4 w-4' /> Add members
         </Button>
       </DialogTrigger>
-      <DialogContent className='!max-w-4xl'>
+      <DialogContent className='max-w-4xl'>
         <DialogTitle>Add members</DialogTitle>
         <DialogBody>
           <DataTable
