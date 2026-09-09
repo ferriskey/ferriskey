@@ -95,7 +95,7 @@ export default function PagePortalLayoutBuilder({
       <BreakpointToDeviceSync onBreakpointChange={handleBreakpointChange} />
       <div className='flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden'>
         <header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-fk-line px-5 py-2.5'>
-          <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500' onClick={onBack}>
+          <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
             <ArrowLeft className='size-3.5' />
             Portal
           </Button>
@@ -148,7 +148,7 @@ export default function PagePortalLayoutBuilder({
         </header>
 
         <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
-          <div className='shrink-0 border-b border-fk-line bg-neutral-50'>
+          <div className='shrink-0 border-b border-fk-line bg-neutral-50 dark:bg-neutral-900'>
             <SelectionBreadcrumb />
           </div>
           <div className='flex min-h-0 min-w-0 flex-1 overflow-hidden'>
@@ -166,7 +166,7 @@ export default function PagePortalLayoutBuilder({
               }}
             >
               <div
-                className='shrink-0 self-start overflow-hidden rounded-sm border border-fk-line bg-white shadow-sm transition-all duration-200'
+                className='shrink-0 self-start overflow-hidden rounded-sm border border-fk-line bg-white dark:bg-neutral-900 shadow-sm transition-all duration-200'
                 style={{
                   width: viewportWidth * iframeScale,
                   height: viewportHeight * iframeScale,
@@ -231,7 +231,7 @@ function ViewportButton({
       onClick={onClick}
       className={cn(
         'cursor-pointer rounded px-2 py-1 text-xs transition-colors',
-        active ? 'bg-fk-primary-soft text-fk-primary-text' : 'text-neutral-500 hover:bg-neutral-100'
+        active ? 'bg-fk-primary-soft text-fk-primary-text' : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
       )}
     >
       {children}

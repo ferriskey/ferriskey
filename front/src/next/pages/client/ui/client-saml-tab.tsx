@@ -110,9 +110,9 @@ export default function ClientSamlTab({
   if (isLoading) {
     return (
       <div className={cn(tokens.surface.panel, 'space-y-3 p-4')}>
-        <div className='h-3 w-40 animate-pulse rounded bg-neutral-100' />
-        <div className='h-8 w-full animate-pulse rounded bg-neutral-100' />
-        <div className='h-8 w-full animate-pulse rounded bg-neutral-100' />
+        <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-8 w-full animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-8 w-full animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
       </div>
     )
   }
@@ -136,10 +136,10 @@ export default function ClientSamlTab({
     <>
       {!isConfigured && (
         <div className='rounded-sm border border-fk-info-border bg-fk-info-soft/50 px-4 py-3'>
-          <p className='text-sm font-medium text-neutral-900'>
+          <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
             This client does not use SAML yet
           </p>
-          <p className='mt-0.5 text-xs text-neutral-600'>
+          <p className='mt-0.5 text-xs text-neutral-600 dark:text-neutral-400'>
             Fill in the two values the application shows on its SAML settings page, then save.
             FerrisKey will start answering SAML sign-in requests for it.
           </p>
@@ -201,7 +201,7 @@ export default function ClientSamlTab({
               </SelectContent>
             </Select>
             {nameIdDescription && (
-              <p className='mt-1.5 text-xs text-neutral-500'>{nameIdDescription}</p>
+              <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>{nameIdDescription}</p>
             )}
             {errors.nameIdFormat && (
               <p className='mt-1.5 text-xs text-fk-danger'>{errors.nameIdFormat}</p>
@@ -238,7 +238,7 @@ export default function ClientSamlTab({
           <div className='space-y-3'>
             {mappers.length === 0 ? (
               <div className='space-y-3 rounded-lg border border-dashed border-fk-line px-4 py-3'>
-                <p className='text-xs text-neutral-500'>
+                <p className='text-xs text-neutral-500 dark:text-neutral-400'>
                   No attributes are sent yet. Most applications need at least an email address.
                 </p>
                 <Button
@@ -255,14 +255,14 @@ export default function ClientSamlTab({
               <ul className={cn(tokens.surface.panel, 'px-3', tokens.surface.divider)}>
                 {mappers.map((mapper) => (
                   <li key={mapper.id} className='flex items-center gap-3 py-2.5'>
-                    <span className='shrink-0 font-mono-ui text-xs text-neutral-900'>
+                    <span className='shrink-0 font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
                       {mapper.name}
                     </span>
-                    <span className='shrink-0 text-[11px] text-neutral-400'>from</span>
-                    <span className='min-w-0 flex-1 truncate text-xs text-neutral-600'>
+                    <span className='shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500'>from</span>
+                    <span className='min-w-0 flex-1 truncate text-xs text-neutral-600 dark:text-neutral-400'>
                       {describeAttributeSource(mapper.source)}
                     </span>
-                    <span className='shrink-0 text-[11px] text-neutral-400'>
+                    <span className='shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500'>
                       {describeAttributeNameFormat(mapper.name_format)}
                     </span>
                     <Button
@@ -271,7 +271,7 @@ export default function ClientSamlTab({
                       disabled={isDeletingMapper}
                       aria-label={`Remove the ${mapper.name} attribute mapping`}
                       onClick={() => askDeleteMapper(mapper)}
-                      className='size-7 text-neutral-400 hover:text-fk-danger'
+                      className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                     >
                       <Trash2 />
                     </Button>
@@ -283,7 +283,7 @@ export default function ClientSamlTab({
             <div className={cn(tokens.surface.panel, 'grid gap-3 p-4 md:grid-cols-2')}>
               <div>
                 <label
-                  className='block pb-1 text-xs font-medium text-neutral-900'
+                  className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'
                   htmlFor='saml-mapper-name'
                 >
                   Attribute name
@@ -301,7 +301,7 @@ export default function ClientSamlTab({
               </div>
 
               <div>
-                <label className='block pb-1 text-xs font-medium text-neutral-900'>
+                <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'>
                   User detail to send
                 </label>
                 <Select
@@ -325,7 +325,7 @@ export default function ClientSamlTab({
               {isCustomSource && (
                 <div>
                   <label
-                    className='block pb-1 text-xs font-medium text-neutral-900'
+                    className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'
                     htmlFor='saml-mapper-custom-key'
                   >
                     Attribute key
@@ -344,7 +344,7 @@ export default function ClientSamlTab({
               )}
 
               <div>
-                <label className='block pb-1 text-xs font-medium text-neutral-900'>
+                <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'>
                   Name format
                 </label>
                 <Select

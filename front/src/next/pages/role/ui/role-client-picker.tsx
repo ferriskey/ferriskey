@@ -37,12 +37,12 @@ export default function RoleClientPicker({ clients, value, onChange }: RoleClien
           {selected ? (
             <span className='min-w-0 truncate'>
               {selected.name}
-              <span className='ml-2 font-mono-ui text-xs text-neutral-400'>
+              <span className='ml-2 font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
                 {selected.client_id}
               </span>
             </span>
           ) : (
-            <span className='text-neutral-500'>Select a client…</span>
+            <span className='text-neutral-500 dark:text-neutral-400'>Select a client…</span>
           )}
           <ChevronsUpDown className='opacity-50' />
         </Button>
@@ -63,10 +63,10 @@ export default function RoleClientPicker({ clients, value, onChange }: RoleClien
                   }}
                 >
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-xs text-neutral-900'>
+                    <span className='block truncate text-xs text-neutral-900 dark:text-neutral-100'>
                       {client.name}
                     </span>
-                    <span className='block truncate font-mono-ui text-[11px] text-neutral-400'>
+                    <span className='block truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                       {client.client_id}
                     </span>
                   </span>

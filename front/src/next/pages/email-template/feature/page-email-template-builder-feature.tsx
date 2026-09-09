@@ -26,7 +26,7 @@ export default function PageEmailTemplateBuilderFeature() {
 
   if (!isNew && isLoading) {
     return (
-      <div className='grid h-full place-items-center p-12 text-sm text-neutral-500'>
+      <div className='grid h-full place-items-center p-12 text-sm text-neutral-500 dark:text-neutral-400'>
         Loading template…
       </div>
     )

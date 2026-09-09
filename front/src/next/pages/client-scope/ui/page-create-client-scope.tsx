@@ -48,14 +48,14 @@ export default function PageCreateClientScope({
 }: PageCreateClientScopeProps) {
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Client Scopes
       </Button>
 
       <div className='pb-3'>
         <h1 className={tokens.header.title}>New client scope</h1>
-        <p className='mt-0.5 text-sm text-neutral-500'>
+        <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
           A client scope groups the claims a client can ask for in its tokens.
         </p>
       </div>

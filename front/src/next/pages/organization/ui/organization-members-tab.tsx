@@ -82,13 +82,13 @@ export default function OrganizationMembersTab({
         contained={false}
         action={
           <label className='relative flex h-8 w-64 items-center'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
             <input
               type='search'
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder='Search members…'
-              className='h-full w-full rounded-md border border-fk-line bg-white pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+              className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
             />
           </label>
         }
@@ -97,16 +97,16 @@ export default function OrganizationMembersTab({
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                <div className='size-9 animate-pulse rounded-md bg-neutral-100' />
-                <div className='h-3 w-48 animate-pulse rounded bg-neutral-100' />
+                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+                <div className='h-3 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
               </div>
             ))
           ) : members.length === 0 ? (
-            <p className='px-3 py-10 text-center text-sm text-neutral-500'>
+            <p className='px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400'>
               This organization has no member yet.
             </p>
           ) : filtered.length === 0 ? (
-            <p className='px-3 py-10 text-center text-sm text-neutral-500'>
+            <p className='px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400'>
               No member matches this search.
             </p>
           ) : (
@@ -121,18 +121,18 @@ export default function OrganizationMembersTab({
                   </IconTile>
                   <div className='min-w-0 flex-1'>
                     <div className='flex items-center gap-2'>
-                      <span className='truncate text-[13px] font-medium text-neutral-900'>
+                      <span className='truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>
                         {memberDisplayName(user)}
                       </span>
                       <Pill tone={serviceAccount ? 'violet' : 'info'} mono>
                         {serviceAccount ? 'service account' : 'user account'}
                       </Pill>
                     </div>
-                    <p className='truncate text-xs text-neutral-500'>
+                    <p className='truncate text-xs text-neutral-500 dark:text-neutral-400'>
                       {user.email ?? user.username}
                     </p>
                   </div>
-                  <span className='inline-flex shrink-0 items-center gap-1.5 text-xs text-neutral-600'>
+                  <span className='inline-flex shrink-0 items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
                     <StatusDot on={user.enabled} />
                     {user.enabled ? 'active' : 'inactive'}
                   </span>
@@ -141,7 +141,7 @@ export default function OrganizationMembersTab({
                       <Button
                         variant='ghost'
                         size='icon'
-                        className='size-7 text-neutral-400'
+                        className='size-7 text-neutral-400 dark:text-neutral-500'
                         aria-label={`Manage roles of ${memberDisplayName(user)}`}
                         onClick={() => onManageRoles(user)}
                       >
@@ -155,7 +155,7 @@ export default function OrganizationMembersTab({
                       <Button
                         variant='ghost'
                         size='icon'
-                        className='size-7 text-neutral-400 hover:text-fk-danger'
+                        className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                         aria-label={`Remove ${memberDisplayName(user)}`}
                         onClick={() => onRemove(user)}
                       >

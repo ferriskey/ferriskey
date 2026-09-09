@@ -66,14 +66,14 @@ export default function PageCreateRole({
 }: PageCreateRoleProps) {
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Roles
       </Button>
 
       <div className='pb-3'>
         <h1 className={tokens.header.title}>New role</h1>
-        <p className='mt-0.5 text-sm text-neutral-500'>
+        <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
           A role bundles the permissions you grant to accounts and clients.
         </p>
       </div>

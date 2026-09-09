@@ -46,8 +46,8 @@ function Fingerprint({ value, muted }: { value: string; muted?: boolean }) {
   return (
     <code
       className={cn(
-        'flex h-9 min-w-0 flex-1 items-center overflow-x-auto rounded-md border border-fk-line bg-neutral-50 px-2.5 font-mono-ui text-xs',
-        muted ? 'text-neutral-400' : 'text-neutral-700'
+        'flex h-9 min-w-0 flex-1 items-center overflow-x-auto rounded-md border border-fk-line bg-neutral-50 dark:bg-neutral-900 px-2.5 font-mono-ui text-xs',
+        muted ? 'text-neutral-400' : 'text-neutral-700 dark:text-neutral-500 dark:text-neutral-300'
       )}
     >
       {value}
@@ -119,7 +119,7 @@ export default function ClientCredentialsTab({
               The secret could not be revealed. Please try again.
             </p>
           )}
-          <p className='text-xs text-neutral-400'>
+          <p className='text-xs text-neutral-400 dark:text-neutral-500'>
             Rotating the secret is not exposed by the administration API yet.
           </p>
         </div>

@@ -35,14 +35,14 @@ export default function PageCreateOrganization({
 }: PageCreateOrganizationProps) {
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Organizations
       </Button>
 
       <div className='pb-3'>
         <h1 className={tokens.header.title}>New organization</h1>
-        <p className='mt-0.5 text-sm text-neutral-500'>
+        <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
           An organization groups accounts of a same company, with its own domain and roles.
         </p>
       </div>

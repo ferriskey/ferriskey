@@ -125,7 +125,7 @@ export function ListingPage<T>({
               du compact, pas son dépouillement — sur un listing, la ligne qui
               dit ce que la ressource est vaut la hauteur qu'elle coûte. */}
           {description && (
-            <p className='mt-0.5 text-sm text-neutral-500'>{description}</p>
+            <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{description}</p>
           )}
         </div>
         {actions && <div className='flex shrink-0 gap-2'>{actions}</div>}
@@ -149,11 +149,11 @@ export function ListingPage<T>({
                 ) : (
                   <AlertTriangle className='size-3.5 shrink-0' strokeWidth={2} />
                 )}
-                <span className='shrink-0 font-medium text-neutral-900'>
+                <span className='shrink-0 font-medium text-neutral-900 dark:text-neutral-100'>
                   {a.title}
                 </span>
                 {a.detail && (
-                  <span className='min-w-0 truncate text-neutral-500'>
+                  <span className='min-w-0 truncate text-neutral-500 dark:text-neutral-400'>
                     {a.detail}
                   </span>
                 )}
@@ -175,7 +175,7 @@ export function ListingPage<T>({
 
         <div className='flex flex-wrap items-center gap-2'>
           <label className='relative flex h-8 min-w-[15rem] flex-1 items-center'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
             <input
               type='search'
               value={query}
@@ -186,7 +186,7 @@ export function ListingPage<T>({
                   : searchPlaceholder
               }
               className={cn(
-                'h-full w-full rounded-md border border-fk-line bg-white pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
+                'h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
                 tokens.toolbar.showQuerySyntax && querySyntax
                   ? 'font-mono-ui text-xs placeholder:text-neutral-300'
                   : 'text-sm'
@@ -205,7 +205,7 @@ export function ListingPage<T>({
                     'cursor-pointer rounded-md px-2.5 py-1.5 text-xs transition-colors',
                     f.key === filter
                       ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                      : 'text-neutral-500 hover:bg-neutral-100'
+                      : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
                   )}
                 >
                   {f.label}
@@ -232,7 +232,7 @@ export function ListingPage<T>({
                     'grid size-6 cursor-pointer place-items-center rounded transition-colors',
                     view === mode
                       ? 'bg-fk-primary-soft text-fk-primary-text'
-                      : 'text-neutral-400 hover:text-neutral-700'
+                      : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
                   )}
                 >
                   <Icon className='size-3.5' />
@@ -243,7 +243,7 @@ export function ListingPage<T>({
         </div>
 
         {searchScopeHint && (
-          <p className='-mt-1 text-xs text-neutral-400'>{searchScopeHint}</p>
+          <p className='-mt-1 text-xs text-neutral-400 dark:text-neutral-500'>{searchScopeHint}</p>
         )}
 
         <DataView
@@ -284,7 +284,7 @@ export function ListingPage<T>({
         />
 
         {!loading && rows.length > 0 && (
-          <p className='tnum text-xs text-neutral-400'>
+          <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
             {filtered.length === rows.length
               ? `${rows.length} ${rows.length > 1 ? 'entries' : 'entry'}`
               : `${filtered.length} of ${rows.length}`}

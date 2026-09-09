@@ -37,7 +37,7 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
             'grid size-5 shrink-0 place-items-center rounded-full',
             step.status === 'success' && 'bg-fk-success-soft text-fk-success',
             step.status === 'failure' && 'bg-fk-danger-soft text-fk-danger',
-            step.status === 'skipped' && 'bg-neutral-100 text-neutral-400'
+            step.status === 'skipped' && 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500'
           )}
         >
           <StepIcon status={step.status} />
@@ -47,20 +47,20 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
 
       <div className={cn('min-w-0 flex-1', last ? 'pb-1' : 'pb-4')}>
         <div className='flex flex-wrap items-center gap-2'>
-          <span className='tnum text-[11px] text-neutral-300'>{index + 1}</span>
-          <p className='text-xs font-medium text-neutral-900'>{stepLabel(step)}</p>
+          <span className='tnum text-[11px] text-neutral-300 dark:text-neutral-600'>{index + 1}</span>
+          <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>{stepLabel(step)}</p>
           <Pill tone={stepStatusTone[step.status]} mono>
             {step.status}
           </Pill>
-          <span className='font-mono-ui text-[11px] text-neutral-400'>
+          <span className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
             {step.step_name}
           </span>
-          <span className='tnum text-[11px] text-neutral-400'>
+          <span className='tnum text-[11px] text-neutral-400 dark:text-neutral-500'>
             {formatTime(step.started_at)}
           </span>
         </div>
 
-        <p className='mt-0.5 text-xs text-neutral-500'>
+        <p className='mt-0.5 text-xs text-neutral-500 dark:text-neutral-400'>
           {step.status === 'skipped'
             ? 'Not applicable to this execution.'
             : stepDescriptions[step.step_name]}
@@ -76,7 +76,7 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
 
         {step.duration_ms != null && (
           <div className='mt-1.5 flex items-center gap-2'>
-            <div className='h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-100'>
+            <div className='h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800'>
               <div
                 className={cn(
                   'h-full rounded-full',
@@ -85,7 +85,7 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
                 style={{ width: `${Math.max(share, 2)}%` }}
               />
             </div>
-            <span className='tnum shrink-0 text-[11px] text-neutral-500'>
+            <span className='tnum shrink-0 text-[11px] text-neutral-500 dark:text-neutral-400'>
               {formatDuration(step.duration_ms)}
             </span>
           </div>
@@ -117,11 +117,11 @@ export default function FlowSteps({ steps, pending }: FlowStepsProps) {
       {pending && (
         <li className='flex gap-3'>
           <div className='flex w-5 shrink-0 justify-center'>
-            <span className='grid size-5 place-items-center rounded-full border border-dashed border-fk-line text-neutral-300'>
+            <span className='grid size-5 place-items-center rounded-full border border-dashed border-fk-line text-neutral-300 dark:text-neutral-600'>
               <Loader className='size-3 animate-spin' strokeWidth={2.5} />
             </span>
           </div>
-          <p className='pb-2 pt-0.5 text-xs text-neutral-400'>
+          <p className='pb-2 pt-0.5 text-xs text-neutral-400 dark:text-neutral-500'>
             Waiting for the next step…
           </p>
         </li>

@@ -54,9 +54,9 @@ export default function PageClientScopesOverview({
       header: 'Description',
       render: (s) =>
         s.description ? (
-          <span className='text-neutral-600'>{s.description}</span>
+          <span className='text-neutral-600 dark:text-neutral-400'>{s.description}</span>
         ) : (
-          <span className='font-mono-ui text-xs text-neutral-400'>scope_id: {s.id}</span>
+          <span className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>scope_id: {s.id}</span>
         ),
     },
     {
@@ -83,9 +83,9 @@ export default function PageClientScopesOverview({
       align: 'right',
       render: (s) =>
         mapperCount(s) > 0 ? (
-          <span className='tnum text-neutral-600'>{mapperCount(s)}</span>
+          <span className='tnum text-neutral-600 dark:text-neutral-400'>{mapperCount(s)}</span>
         ) : (
-          <span className='tnum text-neutral-300'>0</span>
+          <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         ),
       sortValue: (s) => mapperCount(s),
     },
@@ -99,7 +99,7 @@ export default function PageClientScopesOverview({
           size='icon'
           aria-label={`Delete ${s.name}`}
           onClick={() => setPendingDelete(s)}
-          className='size-7 text-neutral-400 hover:text-fk-danger'
+          className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
         >
           <Trash2 />
         </Button>

@@ -171,14 +171,14 @@ export default function UserOverviewTab({
                   'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
                   on
                     ? 'border-fk-primary-border bg-fk-primary-soft'
-                    : 'border-fk-line bg-white hover:bg-neutral-50'
+                    : 'border-fk-line bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900'
                 )}
               >
                 <span className='flex items-center gap-2'>
                   <span
                     className={cn(
                       'grid size-4 shrink-0 place-items-center rounded border transition-colors',
-                      on ? 'border-fk-primary bg-fk-primary text-white' : 'border-fk-line bg-white'
+                      on ? 'border-fk-primary bg-fk-primary text-white' : 'border-fk-line bg-white dark:bg-neutral-900'
                     )}
                   >
                     {on && <Check className='size-2.5' strokeWidth={3} />}
@@ -186,20 +186,20 @@ export default function UserOverviewTab({
                   <span
                     className={cn(
                       'text-xs font-medium',
-                      on ? 'text-fk-primary-text' : 'text-neutral-900'
+                      on ? 'text-fk-primary-text' : 'text-neutral-900 dark:text-neutral-100'
                     )}
                   >
                     {action.label}
                   </span>
                   <span className='flex-1' />
-                  <span className='font-mono-ui text-[11px] text-neutral-400'>
+                  <span className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                     {action.value}
                   </span>
                 </span>
                 <span
                   className={cn(
                     'pl-6 text-xs leading-relaxed',
-                    on ? 'text-fk-primary-text/80' : 'text-neutral-500'
+                    on ? 'text-fk-primary-text/80' : 'text-neutral-500 dark:text-neutral-400'
                   )}
                 >
                   {action.hint}

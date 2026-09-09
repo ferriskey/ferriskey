@@ -43,7 +43,7 @@ export default function PageClientsOverview({
     {
       key: 'client_id',
       header: 'client_id',
-      render: (c) => <span className='font-mono-ui text-xs text-neutral-500'>{c.client_id}</span>,
+      render: (c) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{c.client_id}</span>,
       sortValue: (c) => c.client_id,
     },
     {
@@ -72,7 +72,7 @@ export default function PageClientsOverview({
       align: 'right',
       render: (c) =>
         redirectCount(c) > 0 ? (
-          <span className='tnum text-neutral-600'>{redirectCount(c)}</span>
+          <span className='tnum text-neutral-600 dark:text-neutral-400'>{redirectCount(c)}</span>
         ) : (
           <span className='tnum text-fk-amber'>0</span>
         ),
@@ -82,7 +82,7 @@ export default function PageClientsOverview({
       key: 'status',
       header: 'Status',
       render: (c) => (
-        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600'>
+        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={c.enabled} />
           {c.enabled ? 'Enabled' : 'Disabled'}
         </span>

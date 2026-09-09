@@ -81,7 +81,7 @@ function NumberField({
           className='tnum'
           aria-invalid={Boolean(error)}
         />
-        <span className='shrink-0 text-xs text-neutral-500'>{unit}</span>
+        <span className='shrink-0 text-xs text-neutral-500 dark:text-neutral-400'>{unit}</span>
       </div>
       {error && <p className='mt-1.5 text-xs text-fk-danger'>{error}</p>}
     </>

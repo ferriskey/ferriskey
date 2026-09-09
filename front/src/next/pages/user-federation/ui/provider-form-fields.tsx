@@ -136,7 +136,7 @@ export function BasicSettingsFields({
               ))}
             </SelectContent>
           </Select>
-          <p className='mt-1.5 text-xs text-neutral-500'>{priorityHints[priority]}</p>
+          <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>{priorityHints[priority]}</p>
         </div>
       </FieldRow>
 
@@ -238,7 +238,7 @@ export function LdapConnectionFields({
           htmlFor='provider-bind-password'
         >
           {secretStored && (
-            <p className='mb-2 font-mono-ui text-xs text-neutral-400'>
+            <p className='mb-2 font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
               ******** · saved, not readable
             </p>
           )}

@@ -103,7 +103,7 @@ export default function PageProvidersOverview({
     {
       key: 'alias',
       header: 'Alias',
-      render: (p) => <span className='font-mono-ui text-xs text-neutral-500'>{p.alias}</span>,
+      render: (p) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{p.alias}</span>,
       sortValue: (p) => p.alias,
     },
     {
@@ -124,7 +124,7 @@ export default function PageProvidersOverview({
         return (
           <div className='min-w-0'>
             <ProviderStatusPill health={status.health} label={status.label} />
-            <p className='mt-0.5 truncate text-xs text-neutral-500'>{status.detail}</p>
+            <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>{status.detail}</p>
           </div>
         )
       },
@@ -134,7 +134,7 @@ export default function PageProvidersOverview({
       key: 'status',
       header: 'Status',
       render: (p) => (
-        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600'>
+        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={p.enabled} />
           {p.enabled ? 'Enabled' : 'Disabled'}
         </span>
@@ -150,7 +150,7 @@ export default function PageProvidersOverview({
           variant='ghost'
           size='icon'
           aria-label={`Delete ${providerName(p)}`}
-          className='text-neutral-400 hover:text-fk-danger'
+          className='text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
           onClick={() => onDelete(p)}
         >
           <Trash2 className='size-4' />
@@ -275,17 +275,17 @@ export default function PageProvidersOverview({
           <div className='flex flex-col items-center gap-4'>
             {addButton}
             <div>
-              <p className='text-center text-xs text-neutral-500'>Popular providers</p>
+              <p className='text-center text-xs text-neutral-500 dark:text-neutral-400'>Popular providers</p>
               <div className='mt-2 flex items-center justify-center gap-2'>
                 {popularTemplates.map((template) => (
                   <button
                     key={template.id}
                     type='button'
                     onClick={() => onQuickCreate(template.id)}
-                    className='flex cursor-pointer flex-col items-center gap-1.5 rounded-md px-2.5 py-2 transition-colors hover:bg-neutral-50'
+                    className='flex cursor-pointer flex-col items-center gap-1.5 rounded-md px-2.5 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900'
                   >
                     <ProviderIcon icon={template.icon} size='sm' />
-                    <span className='text-xs text-neutral-500'>{template.displayName}</span>
+                    <span className='text-xs text-neutral-500 dark:text-neutral-400'>{template.displayName}</span>
                   </button>
                 ))}
               </div>

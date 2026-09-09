@@ -154,8 +154,8 @@ export default function PagePortalThemes({
             </ul>
           ) : rows.length === 0 ? (
             <div className='grid place-items-center gap-3 py-16'>
-              <Palette className='size-8 text-neutral-300' strokeWidth={1.5} />
-              <p className='max-w-sm text-center text-sm text-neutral-500'>
+              <Palette className='size-8 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
+              <p className='max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
                 No theme yet. A theme carries the colours, the typography and the twelve
                 pages the portal renders.
               </p>
@@ -173,7 +173,7 @@ export default function PagePortalThemes({
                     <div className='flex flex-wrap items-center gap-2'>
                       <Link
                         to={themeHref(theme.id)}
-                        className='text-[13px] font-medium text-neutral-900 hover:underline'
+                        className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100 hover:underline'
                       >
                         {theme.name}
                       </Link>
@@ -190,11 +190,11 @@ export default function PagePortalThemes({
                         pages valid
                       </Pill>
                     </div>
-                    <p className='mt-0.5 truncate text-xs text-neutral-500'>
+                    <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
                       {layoutName ? `Layout ${layoutName}` : 'No layout'} · updated{' '}
                       {formatDate(theme.updated_at)}
                     </p>
-                    <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400'>
+                    <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
                       theme_id: {theme.id}
                     </p>
                   </div>
@@ -202,7 +202,7 @@ export default function PagePortalThemes({
                   <Swatches config={theme.config} />
 
                   {isActive ? (
-                    <span className='px-2 text-xs text-neutral-400'>active theme</span>
+                    <span className='px-2 text-xs text-neutral-400 dark:text-neutral-500'>active theme</span>
                   ) : failures.length > 0 ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -225,7 +225,7 @@ export default function PagePortalThemes({
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='size-8 text-neutral-400'
+                    className='size-8 text-neutral-400 dark:text-neutral-500'
                     aria-label={`Export ${theme.name}`}
                     onClick={() => onExport(theme.id)}
                   >
@@ -248,7 +248,7 @@ export default function PagePortalThemes({
                       variant='ghost'
                       size='icon'
                       aria-label={`Delete ${theme.name}`}
-                      className='size-8 text-neutral-400 hover:text-fk-danger'
+                      className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                       onClick={() => onDelete(theme.id)}
                     >
                       <Trash2 className='size-4' />
@@ -266,7 +266,7 @@ export default function PagePortalThemes({
           <DialogHeader>
             <DialogTitle>New portal theme</DialogTitle>
           </DialogHeader>
-          <p className='text-sm text-neutral-500'>
+          <p className='text-sm text-neutral-500 dark:text-neutral-400'>
             The twelve pages are pre-filled with their default composition, so the theme is
             activatable as soon as it is created.
           </p>

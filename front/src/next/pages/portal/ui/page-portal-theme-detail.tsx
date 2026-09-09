@@ -65,7 +65,7 @@ export default function PagePortalThemeDetail({
 }: PagePortalThemeDetailProps) {
   const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
   const backButton = (
-    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
       Portal
     </Button>
@@ -74,12 +74,12 @@ export default function PagePortalThemeDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -91,8 +91,8 @@ export default function PagePortalThemeDetail({
       <div className={container}>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Theme not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Theme not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
@@ -157,13 +157,13 @@ export default function PagePortalThemeDetail({
               </Tooltip>
             ))}
 
-          <dl className='text-right text-xs text-neutral-500'>
+          <dl className='text-right text-xs text-neutral-500 dark:text-neutral-400'>
             <dt className='sr-only'>Updated at</dt>
             <dd className='tnum'>
               Updated {formatDate(theme.updated_at)}
             </dd>
             <dt className='sr-only'>Identifier</dt>
-            <dd className='font-mono-ui text-[11px] text-neutral-400'>{theme.id}</dd>
+            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{theme.id}</dd>
           </dl>
         </div>
       </div>
@@ -172,8 +172,8 @@ export default function PagePortalThemeDetail({
         className={cn(
           'mt-4 rounded-sm border px-4 py-3 text-xs',
           isActive
-            ? 'border-fk-info-border bg-fk-info-soft/40 text-neutral-700'
-            : 'border-fk-line bg-neutral-50 text-neutral-600'
+            ? 'border-fk-info-border bg-fk-info-soft/40 text-neutral-700 dark:text-neutral-300'
+            : 'border-fk-line bg-neutral-50 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'
         )}
       >
         {isActive
@@ -191,7 +191,7 @@ export default function PagePortalThemeDetail({
                 nameError={nameError}
               />
               {isActive ? (
-                <div className={cn(tokens.surface.panel, 'px-4 py-3 text-xs text-neutral-500')}>
+                <div className={cn(tokens.surface.panel, 'px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400')}>
                   The active theme cannot be deleted. Activate another one first.
                 </div>
               ) : (

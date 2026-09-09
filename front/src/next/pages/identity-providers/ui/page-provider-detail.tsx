@@ -69,7 +69,7 @@ export default function PageProviderDetail({
   const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
 
   const backButton = (
-    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
       Identity Providers
     </Button>
@@ -78,12 +78,12 @@ export default function PageProviderDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -95,8 +95,8 @@ export default function PageProviderDetail({
       <div className={container}>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Provider not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Provider not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
@@ -131,9 +131,9 @@ export default function PageProviderDetail({
           </div>
         </div>
 
-        <dl className='shrink-0 text-right text-xs text-neutral-500'>
+        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
           <dt className='sr-only'>Internal identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400'>
+          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
             {provider.internal_id}
           </dd>
         </dl>
@@ -142,7 +142,7 @@ export default function PageProviderDetail({
       {status.health !== 'healthy' && (
         <div
           className={cn(
-            'mt-4 rounded-sm border px-3 py-2 text-[13px] text-neutral-700',
+            'mt-4 rounded-sm border px-3 py-2 text-[13px] text-neutral-700 dark:text-neutral-300',
             status.health === 'error'
               ? 'border-fk-danger-border bg-fk-danger-soft/40'
               : 'border-fk-amber-border bg-fk-amber-soft/50'
@@ -211,19 +211,19 @@ export default function PageProviderDetail({
                   key={key}
                   className='grid gap-x-8 gap-y-1 py-3 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
                 >
-                  <p className='text-sm font-medium text-neutral-900'>
+                  <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
                     {humanizeConfigKey(key)}
                   </p>
                   <div className='min-w-0'>
                     {isSecretKey(key) ? (
                       <span
-                        className='font-mono-ui text-xs text-neutral-400'
+                        className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'
                         title='The API never returns this value in clear text.'
                       >
                         ••••••••
                       </span>
                     ) : (
-                      <span className='block break-all font-mono-ui text-xs text-neutral-700'>
+                      <span className='block break-all font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
                         {value === null || value === undefined || value === ''
                           ? 'Not set'
                           : String(value)}
@@ -233,7 +233,7 @@ export default function PageProviderDetail({
                 </div>
             ))
           ) : (
-            <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'>
+            <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
               No configuration setting recorded — this provider cannot broker a login.
             </p>
           )}
@@ -251,8 +251,8 @@ export default function PageProviderDetail({
               key={label}
               className='grid gap-x-8 gap-y-1 py-3 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
             >
-              <p className='text-sm font-medium text-neutral-900'>{label}</p>
-              <div className='min-w-0 break-all font-mono-ui text-xs text-neutral-500'>
+              <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>{label}</p>
+              <div className='min-w-0 break-all font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>
                 {value}
               </div>
             </div>

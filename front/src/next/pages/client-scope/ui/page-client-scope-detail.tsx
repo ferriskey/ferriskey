@@ -80,12 +80,12 @@ export default function PageClientScopeDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -95,13 +95,13 @@ export default function PageClientScopeDetail({
   if (!scope) {
     return (
       <div className={container}>
-        <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+        <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           Client Scopes
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Client scope not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Client scope not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
@@ -113,7 +113,7 @@ export default function PageClientScopeDetail({
 
   return (
     <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Client Scopes
       </Button>
@@ -130,25 +130,25 @@ export default function PageClientScopeDetail({
                 {typeLabel[scope.default_scope_type]}
               </Pill>
               <Pill mono>{scope.protocol}</Pill>
-              <span className='tnum text-xs text-neutral-500'>
+              <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
                 {mappers.length} mapper{mappers.length !== 1 ? 's' : ''}
               </span>
             </div>
-            <p className='mt-1 text-xs text-neutral-500'>
+            <p className='mt-1 text-xs text-neutral-500 dark:text-neutral-400'>
               {scope.description || (
-                <span className='font-mono-ui text-neutral-400'>scope_id: {scope.id}</span>
+                <span className='font-mono-ui text-neutral-400 dark:text-neutral-500'>scope_id: {scope.id}</span>
               )}
             </p>
           </div>
         </div>
 
-        <dl className='shrink-0 text-right text-xs text-neutral-500'>
+        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
           <dt className='sr-only'>Created at</dt>
           <dd className='tnum'>Created {formatDateTime(scope.created_at)}</dd>
           <dt className='sr-only'>Updated at</dt>
           <dd className='tnum'>Updated {formatDateTime(scope.updated_at)}</dd>
           <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400'>{scope.id}</dd>
+          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{scope.id}</dd>
         </dl>
       </div>
 

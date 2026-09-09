@@ -32,8 +32,8 @@ export default function PageUsersOverview({
       header: 'User',
       render: (u) => (
         <span className='flex min-w-0 flex-col'>
-          <span className='truncate text-neutral-900'>{displayName(u)}</span>
-          <span className='truncate font-mono-ui text-[11px] text-neutral-400'>
+          <span className='truncate text-neutral-900 dark:text-neutral-100'>{displayName(u)}</span>
+          <span className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
             {u.username}
           </span>
         </span>
@@ -51,10 +51,10 @@ export default function PageUsersOverview({
             ) : (
               <MailX className='size-3.5 text-fk-amber' />
             )}
-            <span className='text-neutral-600'>{u.email}</span>
+            <span className='text-neutral-600 dark:text-neutral-400'>{u.email}</span>
           </span>
         ) : (
-          <span className='text-neutral-400'>no email</span>
+          <span className='text-neutral-400 dark:text-neutral-500'>no email</span>
         ),
       sortValue: (u) => u.email ?? '',
     },
@@ -72,7 +72,7 @@ export default function PageUsersOverview({
       key: 'status',
       header: 'Status',
       render: (u) => (
-        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600'>
+        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={u.enabled} />
           {u.enabled ? 'Enabled' : 'Disabled'}
         </span>

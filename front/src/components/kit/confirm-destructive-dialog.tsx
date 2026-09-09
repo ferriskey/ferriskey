@@ -70,7 +70,7 @@ export function ConfirmDestructiveDialog({
         {consequences && consequences.length > 0 && (
           <ul className='space-y-1 rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5'>
             {consequences.map((line) => (
-              <li key={line} className='flex gap-2 text-xs text-neutral-700'>
+              <li key={line} className='flex gap-2 text-xs text-neutral-700 dark:text-neutral-300'>
                 <span className='mt-1.5 size-1 shrink-0 rounded-full bg-fk-danger' />
                 {line}
               </li>
@@ -79,7 +79,7 @@ export function ConfirmDestructiveDialog({
         )}
 
         <div className='space-y-1.5'>
-          <label htmlFor='confirm-token' className='block text-sm text-neutral-700'>
+          <label htmlFor='confirm-token' className='block text-sm text-neutral-700 dark:text-neutral-300'>
             Type <span className='font-mono-ui text-fk-danger'>{token}</span> to confirm.
           </label>
           <Input

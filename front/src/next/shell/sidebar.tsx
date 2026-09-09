@@ -50,7 +50,7 @@ function SidebarLink({
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={cn(shape, 'cursor-not-allowed text-neutral-300')} aria-disabled>
+          <span className={cn(shape, 'cursor-not-allowed text-neutral-300 dark:text-neutral-600')} aria-disabled>
             <ItemBody item={item} active={false} collapsed={collapsed} />
           </span>
         </TooltipTrigger>
@@ -66,7 +66,7 @@ function SidebarLink({
         shape,
         active
           ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-          : 'text-neutral-700 hover:bg-neutral-100'
+          : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
       )}
     >
       <ItemBody item={item} active={active} collapsed={collapsed} />
@@ -96,7 +96,7 @@ export function NextSidebar({
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col border-r border-fk-line bg-white transition-[width] duration-200',
+        'flex shrink-0 flex-col border-r border-fk-line bg-white dark:bg-neutral-900 transition-[width] duration-200',
         collapsed ? COLLAPSED : 'w-44'
       )}
     >
@@ -109,7 +109,7 @@ export function NextSidebar({
         {navSections.map((section, i) => (
           <div key={section.title} className={cn('space-y-0.5', i > 0 && 'mt-5')}>
             {!collapsed && (
-              <p className='px-2 pb-1 text-[11px] font-medium text-neutral-400'>
+              <p className='px-2 pb-1 text-[11px] font-medium text-neutral-400 dark:text-neutral-500'>
                 {section.title}
               </p>
             )}
@@ -145,7 +145,7 @@ export function NextSidebar({
                 aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
                 aria-expanded={!collapsed}
                 className={cn(
-                  'grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900',
+                  'grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-100',
                   !collapsed && 'ml-auto'
                 )}
               >

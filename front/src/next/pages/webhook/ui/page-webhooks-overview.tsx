@@ -33,7 +33,7 @@ export default function PageWebhooksOverview({
         w.name ? (
           w.name
         ) : (
-          <span className='font-mono-ui text-xs text-neutral-500'>{w.endpoint}</span>
+          <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
         ),
       sortValue: (w) => label(w),
     },
@@ -41,7 +41,7 @@ export default function PageWebhooksOverview({
       key: 'endpoint',
       header: 'Endpoint',
       render: (w) => (
-        <span className='font-mono-ui text-xs text-neutral-500'>{w.endpoint}</span>
+        <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
       ),
       sortValue: (w) => w.endpoint,
     },
@@ -51,7 +51,7 @@ export default function PageWebhooksOverview({
       align: 'right',
       render: (w) =>
         w.subscribers.length > 0 ? (
-          <span className='tnum text-neutral-600'>{w.subscribers.length}</span>
+          <span className='tnum text-neutral-600 dark:text-neutral-400'>{w.subscribers.length}</span>
         ) : (
           <span className='tnum text-fk-danger'>0</span>
         ),
@@ -62,11 +62,11 @@ export default function PageWebhooksOverview({
       header: 'Last triggered',
       render: (w) =>
         w.triggered_at ? (
-          <span className='font-mono-ui text-xs text-neutral-500'>
+          <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>
             {formatDateTime(w.triggered_at)}
           </span>
         ) : (
-          <span className='text-xs text-neutral-400'>never</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>never</span>
         ),
       sortValue: (w) => w.triggered_at ?? '',
     },

@@ -52,7 +52,7 @@ export default function ThemeLayoutTab({
           </Select>
 
           {selected && (
-            <p className='mt-1.5 text-xs text-neutral-400'>
+            <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
               While this theme uses it, “{selected.name}” cannot be deleted.
             </p>
           )}

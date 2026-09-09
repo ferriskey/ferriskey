@@ -37,7 +37,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
 
   return (
     <li className='flex items-center gap-3 py-2'>
-      <span className='w-48 shrink-0 truncate font-mono-ui text-sm text-neutral-900'>
+      <span className='w-48 shrink-0 truncate font-mono-ui text-sm text-neutral-900 dark:text-neutral-100'>
         {attribute.key}
       </span>
 
@@ -53,7 +53,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
           className='h-8 min-w-0 flex-1 font-mono-ui text-xs'
         />
       ) : (
-        <span className='min-w-0 flex-1 truncate font-mono-ui text-xs text-neutral-600'>
+        <span className='min-w-0 flex-1 truncate font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>
           {attribute.value}
         </span>
       )}
@@ -75,7 +75,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
               size='icon'
               aria-label={`Cancel editing ${attribute.key}`}
               onClick={cancel}
-              className='size-7 text-neutral-400'
+              className='size-7 text-neutral-400 dark:text-neutral-500'
             >
               <X />
             </Button>
@@ -87,7 +87,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
               size='icon'
               aria-label={`Edit ${attribute.key}`}
               onClick={() => setEditing(true)}
-              className='size-7 text-neutral-400 hover:text-neutral-900'
+              className='size-7 text-neutral-400 hover:text-neutral-900 dark:text-neutral-500 dark:hover:text-neutral-100'
             >
               <Pencil />
             </Button>
@@ -96,7 +96,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
               size='icon'
               aria-label={`Delete ${attribute.key}`}
               onClick={() => onDelete(attribute.key)}
-              className='size-7 text-neutral-400 hover:text-fk-danger'
+              className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
             >
               <Trash2 />
             </Button>
@@ -140,7 +140,7 @@ export default function UserAttributesTab({
         {isLoading ? (
           <div className='space-y-2'>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className='h-8 animate-pulse rounded-md bg-neutral-100' />
+              <div key={i} className='h-8 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
             ))}
           </div>
         ) : attributes.length > 0 ? (
@@ -155,7 +155,7 @@ export default function UserAttributesTab({
             ))}
           </ul>
         ) : (
-          <p className='rounded-md border border-dashed border-fk-line px-4 py-3 text-sm text-neutral-500'>
+          <p className='rounded-md border border-dashed border-fk-line px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400'>
             No attribute defined for this user.
           </p>
         )}

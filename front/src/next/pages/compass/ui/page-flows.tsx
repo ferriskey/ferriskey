@@ -44,8 +44,8 @@ export default function PageFlows({
       header: 'Started',
       render: (f) => (
         <div className='min-w-0 whitespace-nowrap'>
-          <span className='text-neutral-700'>{formatRelative(f.started_at)}</span>
-          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400'>
+          <span className='text-neutral-700 dark:text-neutral-300'>{formatRelative(f.started_at)}</span>
+          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
             {formatTimestamp(f.started_at)}
           </p>
         </div>
@@ -91,9 +91,9 @@ export default function PageFlows({
       header: 'Client',
       render: (f) =>
         f.client_id ? (
-          <span className='font-mono-ui text-xs text-neutral-600'>{f.client_id}</span>
+          <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{f.client_id}</span>
         ) : (
-          <span className='text-xs text-neutral-400'>unresolved</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>unresolved</span>
         ),
       sortValue: (f) => f.client_id ?? '',
     },
@@ -102,14 +102,14 @@ export default function PageFlows({
       header: 'User',
       render: (f) => {
         if (!f.user_id)
-          return <span className='text-xs text-neutral-400'>never identified</span>
+          return <span className='text-xs text-neutral-400 dark:text-neutral-500'>never identified</span>
         const name = directory.userLabel(f.user_id)
         if (!name)
-          return <span className='font-mono-ui text-xs text-neutral-600'>{f.user_id}</span>
+          return <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{f.user_id}</span>
         return (
           <div className='min-w-0'>
-            <span className='text-neutral-700'>{name}</span>
-            <p className='truncate font-mono-ui text-[11px] text-neutral-400'>{f.user_id}</p>
+            <span className='text-neutral-700 dark:text-neutral-300'>{name}</span>
+            <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{f.user_id}</p>
           </div>
         )
       },
@@ -119,7 +119,7 @@ export default function PageFlows({
       key: 'steps',
       header: 'Steps',
       align: 'right',
-      render: (f) => <span className='tnum text-neutral-600'>{f.steps.length}</span>,
+      render: (f) => <span className='tnum text-neutral-600 dark:text-neutral-400'>{f.steps.length}</span>,
       sortValue: (f) => f.steps.length,
     },
     {
@@ -131,7 +131,7 @@ export default function PageFlows({
           className={
             f.duration_ms != null && f.duration_ms > SLOW_FLOW_MS
               ? 'tnum text-fk-amber'
-              : 'tnum text-neutral-600'
+              : 'tnum text-neutral-600 dark:text-neutral-400'
           }
         >
           {formatDuration(f.duration_ms)}

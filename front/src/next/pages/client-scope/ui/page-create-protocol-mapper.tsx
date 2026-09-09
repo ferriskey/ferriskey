@@ -50,7 +50,7 @@ export default function PageCreateProtocolMapper({
 
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onCancel}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onCancel}>
         <ArrowLeft className='size-3.5' />
         Protocol Mappers
       </Button>
@@ -59,7 +59,7 @@ export default function PageCreateProtocolMapper({
         <span className='text-3xl leading-none'>{template.icon}</span>
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>{template.name}</h1>
-          <p className='mt-0.5 text-sm text-neutral-500'>{template.description}</p>
+          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{template.description}</p>
           {!template.isCustom && (
             <div className='mt-1.5'>
               <Pill mono>{template.mapper_type}</Pill>

@@ -128,8 +128,8 @@ export default function ClientScopeSettingsTab({
                 key={attribute.id}
                 className='grid gap-x-6 py-2.5 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]'
               >
-                <dt className='font-mono-ui text-xs text-neutral-500'>{attribute.name}</dt>
-                <dd className='min-w-0 break-all font-mono-ui text-xs text-neutral-900'>
+                <dt className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{attribute.name}</dt>
+                <dd className='min-w-0 break-all font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
                   {attribute.value || '—'}
                 </dd>
               </div>
@@ -138,7 +138,7 @@ export default function ClientScopeSettingsTab({
         ) : (
           <p
             className={cn(
-              'rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'
+              'rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'
             )}
           >
             No attribute configured.

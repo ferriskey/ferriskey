@@ -34,7 +34,7 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
   if (events.length === 0) {
     return (
       <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-10')}>
-        <p className='text-sm text-neutral-500'>{emptyLabel}</p>
+        <p className='text-sm text-neutral-500 dark:text-neutral-400'>{emptyLabel}</p>
       </div>
     )
   }
@@ -45,7 +45,7 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
         <thead>
           <tr
             className={cn(
-              'border-b border-fk-line bg-neutral-50/60 text-left',
+              'border-b border-fk-line bg-neutral-50/60 dark:bg-neutral-900/60 text-left',
               tokens.table.headerText
             )}
           >
@@ -68,7 +68,7 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
               <tr
                 key={event.id}
                 className={cn(
-                  'transition-colors hover:bg-neutral-50',
+                  'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900',
                   event.status === 'failure' && 'bg-fk-danger-soft/25'
                 )}
               >
@@ -77,32 +77,32 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
                     {event.status}
                   </Pill>
                 </td>
-                <td className={cn(tokens.table.cellPadding, 'font-mono-ui text-[11px] text-neutral-600')}>
+                <td className={cn(tokens.table.cellPadding, 'font-mono-ui text-[11px] text-neutral-600 dark:text-neutral-400')}>
                   {event.grantType}
                 </td>
                 <td className={tokens.table.cellPadding}>
                   {event.client ? (
-                    <span className='font-mono-ui text-[11px] text-neutral-600'>
+                    <span className='font-mono-ui text-[11px] text-neutral-600 dark:text-neutral-400'>
                       {event.client}
                     </span>
                   ) : (
-                    <span className='text-xs text-neutral-400'>no client</span>
+                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>no client</span>
                   )}
                 </td>
                 <td className={tokens.table.cellPadding}>
                   {event.user ? (
-                    <span className='text-neutral-900'>{event.user}</span>
+                    <span className='text-neutral-900 dark:text-neutral-100'>{event.user}</span>
                   ) : (
-                    <span className='text-xs text-neutral-400'>not identified</span>
+                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>not identified</span>
                   )}
                 </td>
-                <td className={cn(tokens.table.cellPadding, 'tnum text-right text-neutral-600')}>
-                  {duration ?? <span className='text-neutral-300'>not measured</span>}
+                <td className={cn(tokens.table.cellPadding, 'tnum text-right text-neutral-600 dark:text-neutral-400')}>
+                  {duration ?? <span className='text-neutral-300 dark:text-neutral-600'>not measured</span>}
                 </td>
                 <td
                   className={cn(
                     tokens.table.cellPadding,
-                    'tnum text-right text-[11px] text-neutral-400'
+                    'tnum text-right text-[11px] text-neutral-400 dark:text-neutral-500'
                   )}
                 >
                   {formatTime(event.startedAt)}

@@ -50,13 +50,13 @@ export default function ThemePagesTab({ statuses, pageHref }: ThemePagesTabProps
 
               <div className='min-w-0 flex-1'>
                 <div className='flex flex-wrap items-center gap-2'>
-                  <p className='text-[13px] font-medium text-neutral-900'>{page.label}</p>
+                  <p className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>{page.label}</p>
                   <Pill tone='neutral' mono>
                     {page.type}
                   </Pill>
                   {required.length === 0 && <Pill tone='neutral'>no required block</Pill>}
                 </div>
-                <p className='mt-0.5 text-xs text-neutral-500'>{page.description}</p>
+                <p className='mt-0.5 text-xs text-neutral-500 dark:text-neutral-400'>{page.description}</p>
 
                 {required.length > 0 && (
                   <div className='mt-1.5 flex flex-wrap gap-1.5'>

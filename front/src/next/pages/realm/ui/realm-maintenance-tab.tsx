@@ -20,7 +20,7 @@ export default function RealmMaintenanceTab({
 }: RealmMaintenanceTabProps) {
   return (
     <>
-      <div className='rounded-lg border border-fk-info-border bg-fk-info-soft/40 px-4 py-3 text-xs text-neutral-700'>
+      <div className='rounded-lg border border-fk-info-border bg-fk-info-soft/40 px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300'>
         These entries add to the whitelist of each client: they allow authentication on
         every client of this realm placed under maintenance.
       </div>

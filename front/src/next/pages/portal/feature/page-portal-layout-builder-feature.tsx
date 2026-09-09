@@ -28,7 +28,7 @@ export default function PagePortalLayoutBuilderFeature() {
 
   if (!isNew && isLoading) {
     return (
-      <div className='flex h-[60vh] items-center justify-center text-neutral-400'>
+      <div className='flex h-[60vh] items-center justify-center text-neutral-400 dark:text-neutral-500'>
         <BasicSpinner />
       </div>
     )

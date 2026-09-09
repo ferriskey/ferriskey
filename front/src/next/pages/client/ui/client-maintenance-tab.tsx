@@ -65,14 +65,14 @@ function InheritedList({
           </IconTile>
           <div className='min-w-0 flex-1'>
             <div className='flex flex-wrap items-center gap-2'>
-              <p className='text-xs font-medium text-neutral-900'>{entry.label}</p>
+              <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>{entry.label}</p>
               <Pill>inherited from the realm</Pill>
             </div>
             {entry.sublabel && (
-              <p className='mt-0.5 truncate text-xs text-neutral-500'>{entry.sublabel}</p>
+              <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>{entry.sublabel}</p>
             )}
           </div>
-          <span className='px-2 text-xs text-neutral-300'>managed at the realm</span>
+          <span className='px-2 text-xs text-neutral-300 dark:text-neutral-600'>managed at the realm</span>
         </li>
       ))}
     </ul>
@@ -105,8 +105,8 @@ export default function ClientMaintenanceTab({
         <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
           <Wrench className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
           <div className='min-w-0'>
-            <p className='text-sm font-medium text-neutral-900'>This client is in maintenance</p>
-            <p className='mt-0.5 text-xs text-neutral-600'>
+            <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>This client is in maintenance</p>
+            <p className='mt-0.5 text-xs text-neutral-600 dark:text-neutral-400'>
               {whitelistCount} whitelist entr{whitelistCount === 1 ? 'y' : 'ies'} can still
               authenticate. Every other request is refused.
             </p>

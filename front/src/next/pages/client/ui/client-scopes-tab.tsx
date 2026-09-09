@@ -99,7 +99,7 @@ function AddScopeDialog({
 
         <div className='flex items-center gap-2'>
           <label className='relative flex h-8 min-w-0 flex-1 items-center'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
             <input
               type='search'
               value={query}
@@ -122,7 +122,7 @@ function AddScopeDialog({
         <div className='overflow-hidden rounded-md border border-fk-line'>
           <div className='max-h-72 overflow-y-auto'>
           {isLoading ? (
-            <p className='px-3 py-6 text-center text-xs text-neutral-500'>
+            <p className='px-3 py-6 text-center text-xs text-neutral-500 dark:text-neutral-400'>
               Loading available scopes…
             </p>
           ) : rows.length > 0 ? (
@@ -133,7 +133,7 @@ function AddScopeDialog({
                     htmlFor={`add-scope-${scope.id}`}
                     className={cn(
                       'flex cursor-pointer items-start gap-2.5 px-3 py-2 transition-colors',
-                      selected === scope.id ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50'
+                      selected === scope.id ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900'
                     )}
                   >
                     <Checkbox
@@ -144,10 +144,10 @@ function AddScopeDialog({
                     />
                     <span className='min-w-0'>
                       <span className='flex flex-wrap items-center gap-2'>
-                        <span className='font-mono-ui text-xs text-neutral-900'>{scope.name}</span>
+                        <span className='font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>{scope.name}</span>
                         <Pill mono>{scope.protocol}</Pill>
                       </span>
-                      <span className='mt-0.5 block text-xs text-neutral-500'>
+                      <span className='mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400'>
                         {scope.description || 'No description'}
                       </span>
                     </span>
@@ -156,7 +156,7 @@ function AddScopeDialog({
               ))}
             </ul>
           ) : (
-            <p className='px-3 py-6 text-center text-xs text-neutral-500'>
+            <p className='px-3 py-6 text-center text-xs text-neutral-500 dark:text-neutral-400'>
               {query
                 ? `No scope matches “${query}”.`
                 : 'Every scope of the realm is already assigned.'}
@@ -235,8 +235,8 @@ export default function ClientScopesTab({
               <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                    <div className='size-7 animate-pulse rounded-md bg-neutral-100' />
-                    <div className='h-3 w-40 animate-pulse rounded bg-neutral-100' />
+                    <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+                    <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
                   </div>
                 ))}
               </div>
@@ -255,13 +255,13 @@ export default function ClientScopesTab({
                         <div className='flex flex-wrap items-center gap-2'>
                           <Link
                             to={scopeHref(scope)}
-                            className='font-mono-ui text-xs text-neutral-900 underline-offset-2 hover:text-fk-primary-text hover:underline'
+                            className='font-mono-ui text-xs text-neutral-900 dark:text-neutral-100 underline-offset-2 hover:text-fk-primary-text hover:underline'
                           >
                             {scope.name}
                           </Link>
                           <Pill mono>{scope.protocol}</Pill>
                         </div>
-                        <p className='mt-0.5 truncate text-xs text-neutral-500'>
+                        <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
                           {scope.description || 'No description'}
                         </p>
                       </div>
@@ -278,7 +278,7 @@ export default function ClientScopesTab({
                                 'cursor-pointer px-2 py-1 text-xs transition-colors',
                                 type === candidate
                                   ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                                  : 'text-neutral-500 hover:bg-neutral-50'
+                                  : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-900'
                               )}
                             >
                               {candidate}
@@ -297,7 +297,7 @@ export default function ClientScopesTab({
                         disabled={!type}
                         aria-label={`Remove ${scope.name}`}
                         onClick={() => onRemove(scope)}
-                        className='size-7 text-neutral-400 hover:text-fk-danger'
+                        className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                       >
                         <Trash2 />
                       </Button>
@@ -338,7 +338,7 @@ export default function ClientScopesTab({
                       <Pill tone='success' mono>
                         {scope.name}
                       </Pill>
-                      <span className='text-xs text-neutral-500'>
+                      <span className='text-xs text-neutral-500 dark:text-neutral-400'>
                         {scope.description || 'No description'}
                       </span>
                     </div>
@@ -348,14 +348,14 @@ export default function ClientScopesTab({
                           <code
                             key={mapper.id}
                             title={mapper.mapper_type}
-                            className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600'
+                            className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'
                           >
                             {mapper.name}
                           </code>
                         ))}
                       </div>
                     ) : (
-                      <p className='mt-1 text-xs text-neutral-400'>
+                      <p className='mt-1 text-xs text-neutral-400 dark:text-neutral-500'>
                         No mapper: this scope produces no claim, it only opens a right.
                       </p>
                     )}

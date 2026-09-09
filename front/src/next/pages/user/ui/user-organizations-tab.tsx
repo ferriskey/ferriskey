@@ -83,7 +83,7 @@ export default function UserOrganizationsTab({
         action={
           memberships.length > 0 ? (
             <label className='relative flex h-7 w-48 items-center'>
-              <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400' />
+              <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400 dark:text-neutral-500' />
               <input
                 type='search'
                 value={query}
@@ -97,13 +97,13 @@ export default function UserOrganizationsTab({
         contained={!isLoading && !isError && rows.length > 0}
       >
         {isError ? (
-          <p className='rounded-md border border-dashed border-fk-danger-border bg-fk-danger-soft/40 px-4 py-3 text-sm text-neutral-600'>
+          <p className='rounded-md border border-dashed border-fk-danger-border bg-fk-danger-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
             The organizations of this account could not be loaded.
           </p>
         ) : isLoading ? (
           <div className='space-y-2'>
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className='h-11 animate-pulse rounded-md bg-neutral-100' />
+              <div key={i} className='h-11 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
             ))}
           </div>
         ) : rows.length > 0 ? (
@@ -116,13 +116,13 @@ export default function UserOrganizationsTab({
 
                 <div className='min-w-0 flex-1'>
                   <div className='flex flex-wrap items-center gap-2'>
-                    <p className='truncate text-sm font-medium text-neutral-900'>
+                    <p className='truncate text-sm font-medium text-neutral-900 dark:text-neutral-100'>
                       {organization.name}
                     </p>
                     <Pill mono>{organization.alias}</Pill>
                     {!organization.enabled && <Pill tone='amber'>organization disabled</Pill>}
                   </div>
-                  <p className='mt-0.5 truncate text-xs text-neutral-500'>
+                  <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
                     Member since {formatJoinedAt(joinedAt)} ·{' '}
                     {organization.domain ?? `org_id: ${organization.id}`}
                   </p>
@@ -133,7 +133,7 @@ export default function UserOrganizationsTab({
                   size='icon'
                   aria-label={`Remove from ${organization.name}`}
                   onClick={() => onRemove(organization.id)}
-                  className='size-7 shrink-0 text-neutral-400 hover:text-fk-danger'
+                  className='size-7 shrink-0 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                 >
                   <UserMinus />
                 </Button>
@@ -141,7 +141,7 @@ export default function UserOrganizationsTab({
             ))}
           </ul>
         ) : (
-          <p className='rounded-md border border-dashed border-fk-line px-4 py-3 text-sm text-neutral-500'>
+          <p className='rounded-md border border-dashed border-fk-line px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400'>
             {query
               ? `No organization matches “${query}”.`
               : 'This account belongs to no organization.'}

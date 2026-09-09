@@ -65,7 +65,7 @@ export default function PageCreateProvider({
 }: PageCreateProviderProps) {
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         User Federation
       </Button>
@@ -78,7 +78,7 @@ export default function PageCreateProvider({
         <button
           type='button'
           onClick={onChangeKind}
-          className='cursor-pointer text-xs text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline'
+          className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline'
         >
           change type
         </button>

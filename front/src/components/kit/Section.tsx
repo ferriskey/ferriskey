@@ -23,9 +23,9 @@ export function Section({
     <section className={className}>
       <div className='flex items-end justify-between gap-4 pb-2'>
         <div className='min-w-0'>
-          <h2 className='text-sm font-semibold text-neutral-900'>{title}</h2>
+          <h2 className='text-sm font-semibold text-neutral-900 dark:text-neutral-100'>{title}</h2>
           {description && (
-            <p className='mt-0.5 text-xs text-neutral-500'>{description}</p>
+            <p className='mt-0.5 text-xs text-neutral-500 dark:text-neutral-400'>{description}</p>
           )}
         </div>
         {action && <div className='shrink-0'>{action}</div>}

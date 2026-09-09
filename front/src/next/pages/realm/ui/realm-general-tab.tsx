@@ -74,7 +74,7 @@ export default function RealmGeneralTab({
                 <SelectItem value={signingAlgorithm}>{signingAlgorithm}</SelectItem>
               </SelectContent>
             </Select>
-            <p className='mt-1.5 text-xs text-neutral-500'>
+            <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>
               Read-only: the console never sends this setting, and the OpenID discovery
               document of this realm announces one algorithm only.
             </p>

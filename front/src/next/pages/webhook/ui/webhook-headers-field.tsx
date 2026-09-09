@@ -41,7 +41,7 @@ export default function WebhookHeadersField({
   return (
     <div className='max-w-xl space-y-2'>
       {headers.length === 0 && !adding && (
-        <p className='text-xs text-neutral-500'>
+        <p className='text-xs text-neutral-500 dark:text-neutral-400'>
           No headers configured. Add headers to send custom HTTP headers with your
           webhook requests.
         </p>
@@ -66,7 +66,7 @@ export default function WebhookHeadersField({
             size='icon'
             aria-label={`Remove the header ${header.key}`}
             onClick={() => onChange(headers.filter((_, i) => i !== index))}
-            className='size-8 text-neutral-400 hover:text-fk-danger'
+            className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
           >
             <Trash2 />
           </Button>
@@ -103,7 +103,7 @@ export default function WebhookHeadersField({
             size='icon'
             aria-label='Cancel'
             onClick={cancel}
-            className='size-8 text-neutral-400'
+            className='size-8 text-neutral-400 dark:text-neutral-500'
           >
             <X />
           </Button>

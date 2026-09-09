@@ -29,7 +29,7 @@ export default function PageClientDetail({
   const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
 
   const backButton = (
-    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
       Clients
     </Button>
@@ -38,12 +38,12 @@ export default function PageClientDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -55,8 +55,8 @@ export default function PageClientDetail({
       <div className={container}>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Client not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Client not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
@@ -73,7 +73,7 @@ export default function PageClientDetail({
           <Squircle name={client.name || client.client_id} size='xl' />
           <div className='min-w-0'>
             <h1 className={tokens.header.title}>{client.name}</h1>
-            <p className='font-mono-ui text-xs text-neutral-400'>{client.client_id}</p>
+            <p className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>{client.client_id}</p>
             <div className='mt-1.5 flex flex-wrap items-center gap-2'>
               <Pill tone={client.public_client ? 'info' : 'violet'} mono>
                 {client.public_client ? 'public' : 'confidential'}
@@ -89,11 +89,11 @@ export default function PageClientDetail({
           </div>
         </div>
 
-        <dl className='shrink-0 text-right text-xs text-neutral-500'>
+        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
           <dt className='sr-only'>Created at</dt>
           <dd className='tnum'>Created {formatDate(client.created_at)}</dd>
           <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400'>{client.id}</dd>
+          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{client.id}</dd>
         </dl>
       </div>
 

@@ -80,7 +80,7 @@ function Stepper({ current }: { current: number }) {
                 'grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-medium transition-colors',
                 done && 'bg-fk-primary text-white',
                 active && 'bg-fk-primary-soft text-fk-primary-text',
-                !done && !active && 'bg-neutral-100 text-neutral-400'
+                !done && !active && 'bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500'
               )}
             >
               {done ? <Check className='size-3' strokeWidth={3} /> : step.n}
@@ -89,10 +89,10 @@ function Stepper({ current }: { current: number }) {
               className={cn(
                 'text-xs',
                 active
-                  ? 'font-medium text-neutral-900'
+                  ? 'font-medium text-neutral-900 dark:text-neutral-100'
                   : done
-                    ? 'text-neutral-600'
-                    : 'text-neutral-400'
+                    ? 'text-neutral-600 dark:text-neutral-400'
+                    : 'text-neutral-400 dark:text-neutral-500'
               )}
             >
               {step.title}
@@ -154,14 +154,14 @@ export default function PageCreateProvider({
 
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Identity Providers
       </Button>
 
       <div className={tokens.header.spacing}>
         <h1 className={tokens.header.title}>Add an identity provider</h1>
-        <p className='mt-0.5 text-sm text-neutral-500'>
+        <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
           Connecting an external {protocol.toUpperCase()} provider to this realm.
         </p>
       </div>
@@ -178,25 +178,25 @@ export default function PageCreateProvider({
         >
           <div className='space-y-5'>
             <label className='relative flex h-8 max-w-sm items-center'>
-              <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+              <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
               <input
                 type='search'
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder='Search providers…'
-                className='h-full w-full rounded-md border border-fk-line bg-white pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+                className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
               />
             </label>
 
             {groups.length === 0 && (
-              <p className='text-sm text-neutral-500'>
+              <p className='text-sm text-neutral-500 dark:text-neutral-400'>
                 No provider found matching '{search}'
               </p>
             )}
 
             {groups.map((group) => (
               <div key={group.category}>
-                <p className='pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500'>
+                <p className='pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
                   {categoryLabels[group.category]}
                 </p>
                 <div className='grid gap-2 sm:grid-cols-2 xl:grid-cols-3'>
@@ -212,19 +212,19 @@ export default function PageCreateProvider({
                         item.id === template?.id && 'border-fk-primary-border bg-fk-primary-soft'
                       )}
                     >
-                      <span className='grid size-9 shrink-0 place-items-center rounded-md border border-fk-line bg-white'>
+                      <span className='grid size-9 shrink-0 place-items-center rounded-md border border-fk-line bg-white dark:bg-neutral-900'>
                         <ProviderIcon icon={item.icon} size='sm' />
                       </span>
                       <span className='min-w-0 flex-1'>
                         <span className='flex items-center gap-2'>
-                          <span className='truncate text-xs font-medium text-neutral-900'>
+                          <span className='truncate text-xs font-medium text-neutral-900 dark:text-neutral-100'>
                             {item.displayName}
                           </span>
                           <Pill tone={item.provider_type === 'oidc' ? 'violet' : 'amber'} mono>
                             {item.provider_type}
                           </Pill>
                         </span>
-                        <span className='mt-0.5 block truncate text-xs text-neutral-500'>
+                        <span className='mt-0.5 block truncate text-xs text-neutral-500 dark:text-neutral-400'>
                           {item.description}
                         </span>
                       </span>
@@ -427,8 +427,8 @@ export default function PageCreateProvider({
               key={label}
               className='grid gap-x-8 gap-y-1 py-2.5 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]'
             >
-              <p className='text-xs text-neutral-500'>{label}</p>
-              <div className='min-w-0 break-all font-mono-ui text-xs text-neutral-900'>
+              <p className='text-xs text-neutral-500 dark:text-neutral-400'>{label}</p>
+              <div className='min-w-0 break-all font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
                 {value}
               </div>
             </div>

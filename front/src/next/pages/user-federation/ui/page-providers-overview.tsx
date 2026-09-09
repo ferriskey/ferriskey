@@ -85,9 +85,9 @@ export default function PageProvidersOverview({
       render: (p) => {
         const endpoint = endpointOf(p)
         return endpoint ? (
-          <span className='font-mono-ui text-xs text-neutral-600'>{endpoint}</span>
+          <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{endpoint}</span>
         ) : (
-          <span className='font-mono-ui text-xs text-neutral-400'>no endpoint</span>
+          <span className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>no endpoint</span>
         )
       },
     },
@@ -112,9 +112,9 @@ export default function PageProvidersOverview({
       header: 'Schedule',
       render: (p) =>
         p.sync_enabled && p.sync_interval_minutes ? (
-          <span className='tnum text-neutral-600'>every {p.sync_interval_minutes} min</span>
+          <span className='tnum text-neutral-600 dark:text-neutral-400'>every {p.sync_interval_minutes} min</span>
         ) : (
-          <span className='text-neutral-400'>on demand only</span>
+          <span className='text-neutral-400 dark:text-neutral-500'>on demand only</span>
         ),
       sortValue: (p) => (p.sync_enabled ? (p.sync_interval_minutes ?? 0) : 0),
     },
@@ -122,14 +122,14 @@ export default function PageProvidersOverview({
       key: 'last_sync',
       header: 'Last sync',
       render: (p) =>
-        formatSyncedAt(p.last_sync_at) ?? <span className='text-neutral-400'>never synced</span>,
+        formatSyncedAt(p.last_sync_at) ?? <span className='text-neutral-400 dark:text-neutral-500'>never synced</span>,
       sortValue: (p) => p.last_sync_at ?? '',
     },
     {
       key: 'status',
       header: 'Status',
       render: (p) => (
-        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600'>
+        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={p.enabled} />
           {p.enabled ? 'Enabled' : 'Disabled'}
         </span>

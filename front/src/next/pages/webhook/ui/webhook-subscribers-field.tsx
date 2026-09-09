@@ -52,7 +52,7 @@ export default function WebhookSubscribersField({
     <div className='space-y-3'>
       <div className='flex flex-wrap items-center gap-3'>
         <label className='relative flex h-8 min-w-0 flex-1 items-center sm:max-w-sm'>
-          <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+          <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
           <input
             type='search'
             value={query}
@@ -61,14 +61,14 @@ export default function WebhookSubscribersField({
             className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
           />
         </label>
-        <span className='tnum text-xs text-neutral-500'>
+        <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
           {value.length}/{WEBHOOK_TRIGGER_COUNT} selected
         </span>
         {value.length > 0 && (
           <button
             type='button'
             onClick={() => onChange([])}
-            className='cursor-pointer text-xs text-neutral-500 underline-offset-2 hover:text-fk-danger hover:underline'
+            className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-danger hover:underline'
           >
             Clear all
           </button>
@@ -76,7 +76,7 @@ export default function WebhookSubscribersField({
       </div>
 
       {groups.length === 0 ? (
-        <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'>
+        <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
           No event matches “{query}”.
         </p>
       ) : (
@@ -89,13 +89,13 @@ export default function WebhookSubscribersField({
             return (
               <section key={group.category} className='px-4 py-3'>
                 <div className='flex items-center gap-2 pb-2'>
-                  <h3 className='text-xs font-semibold uppercase tracking-wide text-neutral-900'>
+                  <h3 className='text-xs font-semibold uppercase tracking-wide text-neutral-900 dark:text-neutral-100'>
                     {group.category}
                   </h3>
                   <span
                     className={cn(
                       'tnum text-xs',
-                      selected > 0 ? 'text-fk-primary-text' : 'text-neutral-400'
+                      selected > 0 ? 'text-fk-primary-text' : 'text-neutral-400 dark:text-neutral-500'
                     )}
                   >
                     {selected}/{group.total}
@@ -105,16 +105,16 @@ export default function WebhookSubscribersField({
                     type='button'
                     onClick={() => selectAll(keys)}
                     disabled={all}
-                    className='cursor-pointer text-xs text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline disabled:pointer-events-none disabled:text-neutral-300'
+                    className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline disabled:pointer-events-none disabled:text-neutral-300'
                   >
                     all
                   </button>
-                  <span className='text-xs text-neutral-300'>·</span>
+                  <span className='text-xs text-neutral-300 dark:text-neutral-600'>·</span>
                   <button
                     type='button'
                     onClick={() => clearAll(keys)}
                     disabled={selected === 0}
-                    className='cursor-pointer text-xs text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline disabled:pointer-events-none disabled:text-neutral-300'
+                    className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline disabled:pointer-events-none disabled:text-neutral-300'
                   >
                     none
                   </button>
@@ -130,7 +130,7 @@ export default function WebhookSubscribersField({
                         title={event.description}
                         className={cn(
                           'flex min-w-0 cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 transition-colors',
-                          on ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50'
+                          on ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900'
                         )}
                       >
                         <Checkbox
@@ -143,12 +143,12 @@ export default function WebhookSubscribersField({
                           <span
                             className={cn(
                               'block truncate text-xs',
-                              on ? 'text-fk-primary-text' : 'text-neutral-700'
+                              on ? 'text-fk-primary-text' : 'text-neutral-700 dark:text-neutral-300'
                             )}
                           >
                             {event.label}
                           </span>
-                          <span className='block truncate font-mono-ui text-xs text-neutral-400'>
+                          <span className='block truncate font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
                             {event.key}
                           </span>
                         </span>

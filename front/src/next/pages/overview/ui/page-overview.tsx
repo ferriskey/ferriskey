@@ -78,12 +78,12 @@ export default function PageOverview({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-5 w-56 animate-pulse rounded bg-neutral-100' />
+        <div className='h-5 w-56 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className={cn('mt-4', tokens.page.sectionGap)}>
-          <div className='h-14 animate-pulse rounded-sm bg-neutral-100' />
+          <div className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
           <div className='grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
-            <div className='h-56 animate-pulse rounded-sm bg-neutral-100' />
-            <div className='h-56 animate-pulse rounded-sm bg-neutral-100' />
+            <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -103,13 +103,13 @@ export default function PageOverview({
         <Pill tone='primary' mono>
           {realmName}
         </Pill>
-        <span className='text-[11px] text-neutral-400'>
+        <span className='text-[11px] text-neutral-400 dark:text-neutral-500'>
           {disabledCapabilities > 0
             ? `${disabledCapabilities} capabilit${disabledCapabilities > 1 ? 'ies' : 'y'} disabled`
             : 'every capability enabled'}
         </span>
         {greeting && (
-          <span className='ml-auto text-[11px] text-neutral-400'>Welcome back, {greeting}</span>
+          <span className='ml-auto text-[11px] text-neutral-400 dark:text-neutral-500'>Welcome back, {greeting}</span>
         )}
       </div>
 
@@ -129,9 +129,9 @@ export default function PageOverview({
                 ) : (
                   <AlertTriangle className='size-3.5 shrink-0' strokeWidth={2} />
                 )}
-                <span className='shrink-0 font-medium text-neutral-900'>{alert.title}</span>
+                <span className='shrink-0 font-medium text-neutral-900 dark:text-neutral-100'>{alert.title}</span>
                 {alert.detail && (
-                  <span className='min-w-0 truncate text-neutral-500'>{alert.detail}</span>
+                  <span className='min-w-0 truncate text-neutral-500 dark:text-neutral-400'>{alert.detail}</span>
                 )}
                 {alert.action && (
                   <button
@@ -156,7 +156,7 @@ export default function PageOverview({
             contained={false}
             action={
               hasActivity ? (
-                <div className='flex items-center gap-3 text-[11px] text-neutral-500'>
+                <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
                   <span className='inline-flex items-center gap-1'>
                     <span className='size-1.5 rounded-full bg-fk-success' />
                     <span className='tnum'>{totalLogins}</span> logins
@@ -174,7 +174,7 @@ export default function PageOverview({
                 <OverviewActivityChart data={activity} />
               ) : (
                 <div className='grid h-[168px] place-items-center px-6 text-center'>
-                  <p className='text-sm text-neutral-500'>{activityEmptyLabel}</p>
+                  <p className='text-sm text-neutral-500 dark:text-neutral-400'>{activityEmptyLabel}</p>
                 </div>
               )}
             </div>
@@ -184,7 +184,7 @@ export default function PageOverview({
             title='Capabilities'
             description='Authentication features this realm exposes to its accounts.'
             action={
-              <span className='tnum text-[11px] text-neutral-400'>
+              <span className='tnum text-[11px] text-neutral-400 dark:text-neutral-500'>
                 {enabledCapabilities}/{capabilities.length}
               </span>
             }
@@ -196,7 +196,7 @@ export default function PageOverview({
                     'grid size-3.5 shrink-0 place-items-center rounded-full',
                     capability.enabled
                       ? 'bg-fk-success-soft text-fk-success'
-                      : 'bg-neutral-100'
+                      : 'bg-neutral-100 dark:bg-neutral-800'
                   )}
                 >
                   {capability.enabled && <Check className='size-2' strokeWidth={3.5} />}
@@ -205,16 +205,16 @@ export default function PageOverview({
                   <span
                     className={cn(
                       'block truncate',
-                      capability.enabled ? 'text-neutral-900' : 'text-neutral-500'
+                      capability.enabled ? 'text-neutral-900' : 'text-neutral-500 dark:text-neutral-100 dark:text-neutral-400'
                     )}
                   >
                     {capability.label}
                   </span>
-                  <span className='block truncate text-[11px] text-neutral-400'>
+                  <span className='block truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
                     {capability.description}
                   </span>
                 </span>
-                <span className='shrink-0 text-[11px] uppercase tracking-wide text-neutral-400'>
+                <span className='shrink-0 text-[11px] uppercase tracking-wide text-neutral-400 dark:text-neutral-500'>
                   {capability.enabled ? 'on' : 'off'}
                 </span>
               </div>
@@ -255,14 +255,14 @@ export default function PageOverview({
                     <link.icon className='size-4' strokeWidth={1.75} />
                   </span>
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-[13px] font-medium text-neutral-900'>
+                    <span className='block truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>
                       {link.label}
                     </span>
-                    <span className='block truncate text-[11px] text-neutral-500'>
+                    <span className='block truncate text-[11px] text-neutral-500 dark:text-neutral-400'>
                       {link.description}
                     </span>
                   </span>
-                  <ArrowRight className='size-3.5 shrink-0 text-neutral-300 transition-transform group-hover:translate-x-0.5' />
+                  <ArrowRight className='size-3.5 shrink-0 text-neutral-300 dark:text-neutral-600 transition-transform group-hover:translate-x-0.5' />
                 </Link>
               ))}
             </div>

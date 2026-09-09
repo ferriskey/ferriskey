@@ -41,14 +41,14 @@ export default function PageCreateUser({
 }: PageCreateUserProps) {
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Users
       </Button>
 
       <div className='pb-3'>
         <h1 className={tokens.header.title}>New user</h1>
-        <p className='mt-0.5 text-sm text-neutral-500'>
+        <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
           The account is created without any credential — set a password from its Credentials
           tab afterwards.
         </p>

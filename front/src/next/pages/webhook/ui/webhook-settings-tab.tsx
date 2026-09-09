@@ -91,7 +91,7 @@ export default function WebhookSettingsTab({
       >
         <div className='py-4'>
           <WebhookHeadersField headers={headers} onChange={onHeadersChange} />
-          <p className='mt-3 text-xs text-neutral-500'>
+          <p className='mt-3 text-xs text-neutral-500 dark:text-neutral-400'>
             Leaving this list empty keeps the headers already stored. Adding one replaces
             the whole set.
           </p>
@@ -106,7 +106,7 @@ export default function WebhookSettingsTab({
           label='Signing secret'
           description='Minted once when the webhook is created. The API never returns it, and no rotation endpoint is exposed yet.'
         >
-          <span className='inline-flex max-w-sm items-center rounded-md border border-fk-line bg-neutral-50 px-2.5 py-1.5 font-mono-ui text-sm text-neutral-400'>
+          <span className='inline-flex max-w-sm items-center rounded-md border border-fk-line bg-neutral-50 px-2.5 py-1.5 font-mono-ui text-sm text-neutral-400 dark:bg-neutral-900 dark:text-neutral-500'>
             ••••••••••••••••
           </span>
         </FieldRow>

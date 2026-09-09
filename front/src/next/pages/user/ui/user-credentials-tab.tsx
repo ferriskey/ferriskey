@@ -97,7 +97,7 @@ export default function UserCredentialsTab({
         action={
           credentials.length > 0 ? (
             <label className='relative flex h-7 w-48 items-center'>
-              <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400' />
+              <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400 dark:text-neutral-500' />
               <input
                 type='search'
                 value={query}
@@ -114,8 +114,8 @@ export default function UserCredentialsTab({
           <div className={cn(tokens.surface.panel, 'divide-y divide-fk-line-soft')}>
             {Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                <div className='size-7 animate-pulse rounded-md bg-neutral-100' />
-                <div className='h-4 w-40 animate-pulse rounded bg-neutral-100' />
+                <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+                <div className='h-4 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
               </div>
             ))}
           </div>
@@ -130,10 +130,10 @@ export default function UserCredentialsTab({
                   </IconTile>
 
                   <div className='min-w-0'>
-                    <p className='truncate text-sm font-medium text-neutral-900'>
+                    <p className='truncate text-sm font-medium text-neutral-900 dark:text-neutral-100'>
                       {credential.user_label || meta.label}
                     </p>
-                    <p className='truncate text-xs text-neutral-500'>
+                    <p className='truncate text-xs text-neutral-500 dark:text-neutral-400'>
                       Added {formatCreatedAt(credential.created_at)}
                     </p>
                   </div>
@@ -149,7 +149,7 @@ export default function UserCredentialsTab({
                     size='icon'
                     aria-label={`Delete the ${credential.credential_type} credential`}
                     onClick={() => askDelete(credential)}
-                    className='size-7 shrink-0 text-neutral-400 hover:text-fk-danger'
+                    className='size-7 shrink-0 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                   >
                     <Trash2 />
                   </Button>
@@ -158,7 +158,7 @@ export default function UserCredentialsTab({
             })}
           </ul>
         ) : (
-          <p className='rounded-md border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600'>
+          <p className='rounded-md border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
             {query
               ? `No credential matches “${query}”.`
               : 'No credential registered — this account cannot authenticate.'}
@@ -177,7 +177,7 @@ export default function UserCredentialsTab({
         <UserPasswordForm hasPassword={hasPassword} {...passwordForm} />
       </Section>
 
-      <p className='rounded-md border border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600'>
+      <p className='rounded-md border border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
         Deleting a credential is immediate and irreversible: the user loses that authentication
         method without being notified.
       </p>

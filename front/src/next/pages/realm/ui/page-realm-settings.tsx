@@ -82,9 +82,9 @@ export default function PageRealmSettings({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-        <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100' />
-        <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100' />
+        <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
       </div>
     )
   }
@@ -93,8 +93,8 @@ export default function PageRealmSettings({
     return (
       <div className={container}>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Realm not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Realm not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or your account no longer has access to it.
           </p>
         </div>
@@ -112,11 +112,11 @@ export default function PageRealmSettings({
       >
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Realm Settings</h1>
-          <p className='mt-0.5 text-sm text-neutral-500'>
+          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
             Global configuration of the realm {realm.name}.
           </p>
         </div>
-        <span className='shrink-0 font-mono-ui text-[11px] text-neutral-400'>
+        <span className='shrink-0 font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
           {realm.id}
         </span>
       </div>
@@ -149,15 +149,15 @@ export default function PageRealmSettings({
 
           {tab === 'password-policy' &&
             (policyLoading ? (
-              <div className='h-40 animate-pulse rounded bg-neutral-100' />
+              <div className='h-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
             ) : policyFailed ? (
               <div
                 className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-12')}
               >
-                <p className='text-sm font-medium text-neutral-700'>
+                <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
                   Failed to load password policy
                 </p>
-                <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+                <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
                   The realm has no password policy the console can read.
                 </p>
               </div>

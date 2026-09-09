@@ -75,11 +75,11 @@ export default function ProviderSyncTab({
                   {provider.last_sync_status}
                 </Pill>
               )}
-              <span className='tnum text-xs text-neutral-500'>
+              <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
                 {formatDuration(elapsed(lastRun))}
               </span>
               {lastRun.completed_at && (
-                <span className='text-xs text-neutral-500'>
+                <span className='text-xs text-neutral-500 dark:text-neutral-400'>
                   finished {formatSyncedAt(lastRun.completed_at)}
                 </span>
               )}
@@ -96,11 +96,11 @@ export default function ProviderSyncTab({
                 ] as const
               ).map(([label, value, danger]) => (
                 <div key={label} className='rounded-md border border-fk-line px-2.5 py-2'>
-                  <p className='text-[11px] text-neutral-500'>{label}</p>
+                  <p className='text-[11px] text-neutral-500 dark:text-neutral-400'>{label}</p>
                   <p
                     className={cn(
                       'tnum mt-0.5 text-lg font-semibold leading-none',
-                      danger && value > 0 ? 'text-fk-danger' : 'text-neutral-900'
+                      danger && value > 0 ? 'text-fk-danger' : 'text-neutral-900 dark:text-neutral-100'
                     )}
                   >
                     {value}
@@ -118,12 +118,12 @@ export default function ProviderSyncTab({
             ) : (
               <Pill mono>unknown outcome</Pill>
             )}
-            <span className='text-xs text-neutral-500'>
+            <span className='text-xs text-neutral-500 dark:text-neutral-400'>
               Run this provider from the header to see what a pass creates, updates and fails on.
             </span>
           </div>
         ) : (
-          <p className='rounded-lg border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-xs text-neutral-600'>
+          <p className='rounded-lg border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-xs text-neutral-600 dark:text-neutral-400'>
             This provider has never synchronised — no account has been imported so far.
           </p>
         )}

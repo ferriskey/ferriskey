@@ -53,12 +53,12 @@ export default function PageEmailTemplateDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -68,13 +68,13 @@ export default function PageEmailTemplateDetail({
   if (!template) {
     return (
       <div className={container}>
-        <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+        <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           Emails
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Email template not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Email template not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function PageEmailTemplateDetail({
 
   return (
     <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Emails
       </Button>
@@ -114,13 +114,13 @@ export default function PageEmailTemplateDetail({
         </div>
 
         <div className='flex shrink-0 items-start gap-4'>
-          <dl className='text-right text-xs text-neutral-500'>
+          <dl className='text-right text-xs text-neutral-500 dark:text-neutral-400'>
             <dt className='sr-only'>Updated at</dt>
             <dd className='tnum'>
               Updated {formatDate(template.updated_at)}
             </dd>
             <dt className='sr-only'>Identifier</dt>
-            <dd className='font-mono-ui text-[11px] text-neutral-400'>{template.id}</dd>
+            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{template.id}</dd>
           </dl>
           <div className='flex gap-2'>
             <Button variant='outline' onClick={() => onExport('json')}>
@@ -175,7 +175,7 @@ export default function PageEmailTemplateDetail({
                   </Pill>
                 ))
               ) : (
-                <span className='text-sm text-neutral-400'>No email uses this template</span>
+                <span className='text-sm text-neutral-400 dark:text-neutral-500'>No email uses this template</span>
               )}
             </div>
           </FieldRow>
@@ -197,14 +197,14 @@ export default function PageEmailTemplateDetail({
                     'w-fit rounded border px-1.5 py-0.5 font-mono-ui text-xs',
                     used
                       ? 'border-fk-success-border bg-fk-success-soft text-fk-success'
-                      : 'border-fk-line bg-neutral-50 text-neutral-500'
+                      : 'border-fk-line bg-neutral-50 text-neutral-500 dark:bg-neutral-900 dark:text-neutral-400'
                   )}
                 >
                   {`{{${variable.name}}}`}
                 </code>
-                <p className='min-w-0 text-xs text-neutral-500'>
+                <p className='min-w-0 text-xs text-neutral-500 dark:text-neutral-400'>
                   {variable.description}
-                  {!used && <span className='text-neutral-400'> — absent from this template</span>}
+                  {!used && <span className='text-neutral-400 dark:text-neutral-500'> — absent from this template</span>}
                 </p>
               </div>
             )
@@ -214,7 +214,7 @@ export default function PageEmailTemplateDetail({
         {unsupplied.length > 0 && (
           <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
             <AlertTriangle className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
-            <p className='text-xs text-neutral-700'>
+            <p className='text-xs text-neutral-700 dark:text-neutral-300'>
               {unsupplied.map((variable) => `{{${variable}}}`).join(', ')}{' '}
               {unsupplied.length > 1 ? 'are not supplied' : 'is not supplied'} for the{' '}
               <code className='font-mono-ui'>{template.email_type}</code> type:{' '}
@@ -248,7 +248,7 @@ export default function PageEmailTemplateDetail({
           }
           contained={false}
         >
-          <pre className='max-h-96 overflow-auto rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 font-mono-ui text-xs leading-relaxed text-neutral-700'>
+          <pre className='max-h-96 overflow-auto rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 font-mono-ui text-xs leading-relaxed text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'>
             {template.mjml}
           </pre>
         </Section>

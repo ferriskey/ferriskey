@@ -105,14 +105,14 @@ export default function ProviderSettingsTab({
                   key={key}
                   className='grid gap-x-6 gap-y-1 py-3 md:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]'
                 >
-                  <dt className='text-xs font-medium text-neutral-900'>
+                  <dt className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>
                     {humanizeConfigKey(key)}
                   </dt>
                   <dd className='min-w-0'>
                     <span
                       className={cn(
                         'block break-all font-mono-ui text-xs',
-                        isSecretKey(key) ? 'text-neutral-400' : 'text-neutral-700'
+                        isSecretKey(key) ? 'text-neutral-400' : 'text-neutral-700 dark:text-neutral-500 dark:text-neutral-300'
                       )}
                     >
                       {value}
@@ -122,7 +122,7 @@ export default function ProviderSettingsTab({
               ))}
             </dl>
           ) : (
-            <p className='py-3 text-xs text-neutral-400'>No configuration recorded.</p>
+            <p className='py-3 text-xs text-neutral-400 dark:text-neutral-500'>No configuration recorded.</p>
           )}
         </Section>
       )}

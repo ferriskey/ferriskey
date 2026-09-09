@@ -150,7 +150,7 @@ export default function RealmLoginTab({
                 onChange={(e) => onChange({ magicLinkTtl: Number(e.target.value) })}
                 className='tnum'
               />
-              <span className='text-xs text-neutral-500'>minutes</span>
+              <span className='text-xs text-neutral-500 dark:text-neutral-400'>minutes</span>
             </div>
           </FieldRow>
         )}

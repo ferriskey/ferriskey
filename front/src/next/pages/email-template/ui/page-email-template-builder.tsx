@@ -53,7 +53,7 @@ export default function PageEmailTemplateBuilder({
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={onTreeChange}>
       <div className='flex h-full flex-col'>
         <div className='flex items-center gap-3 border-b border-fk-line px-4 py-2'>
-          <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500' onClick={onBack}>
+          <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
             <ArrowLeft className='size-3.5' />
             Emails
           </Button>
@@ -69,7 +69,7 @@ export default function PageEmailTemplateBuilder({
           {isNew ? (
             <select
               aria-label='Email type'
-              className='rounded-md border border-fk-line bg-white px-2 py-1 text-[13px]'
+              className='rounded-md border border-fk-line bg-white dark:bg-neutral-900 px-2 py-1 text-[13px]'
               value={emailType}
               onChange={(event) => onEmailTypeChange(event.target.value)}
             >
@@ -164,7 +164,7 @@ function ViewportButton({
         'rounded px-2 py-1 text-xs transition-colors',
         active
           ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-          : 'text-neutral-500 hover:bg-neutral-50'
+          : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-900'
       )}
       onClick={onClick}
     >

@@ -44,7 +44,7 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
       <div className='space-y-3'>
         <div className='flex flex-wrap items-center gap-3'>
           <label className='relative flex h-8 min-w-0 flex-1 items-center sm:max-w-sm'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
             <input
               type='search'
               value={query}
@@ -53,14 +53,14 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
               className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
             />
           </label>
-          <span className='tnum text-xs text-neutral-500'>
+          <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
             {value.length}/{permissionCount} granted
           </span>
           {value.length > 0 && (
             <button
               type='button'
               onClick={() => onChange([])}
-              className='cursor-pointer text-xs text-neutral-500 underline-offset-2 hover:text-fk-danger hover:underline'
+              className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-danger hover:underline'
             >
               Clear all
             </button>
@@ -68,7 +68,7 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
         </div>
 
         {groups.length === 0 ? (
-          <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'>
+          <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
             No permission matches “{query}”.
           </p>
         ) : (
@@ -88,13 +88,13 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                       <group.icon className='size-4' strokeWidth={1.75} />
                     </IconTile>
                     <div className='min-w-0 flex-1'>
-                      <p className='text-sm font-semibold text-neutral-900'>
+                      <p className='text-sm font-semibold text-neutral-900 dark:text-neutral-100'>
                         {group.group}
                       </p>
                       <p
                         className={cn(
                           'tnum text-xs',
-                          enabled > 0 ? 'text-fk-primary-text' : 'text-neutral-500'
+                          enabled > 0 ? 'text-fk-primary-text' : 'text-neutral-500 dark:text-neutral-400'
                         )}
                       >
                         {enabled} of {group.total} permissions enabled
@@ -103,7 +103,7 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                     <button
                       type='button'
                       onClick={() => (all ? clearAll(keys) : selectAll(keys))}
-                      className='shrink-0 cursor-pointer text-xs text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline'
+                      className='shrink-0 cursor-pointer text-xs text-neutral-400 dark:text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline'
                     >
                       {all ? 'none' : 'all'}
                     </button>
@@ -125,19 +125,19 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                             'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
                             on
                               ? 'border-fk-primary-border bg-fk-primary-soft'
-                              : 'border-fk-line bg-white hover:bg-neutral-50'
+                              : 'border-fk-line bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900'
                           )}
                         >
                           <span className='min-w-0 flex-1'>
                             <span
                               className={cn(
                                 'block truncate text-xs',
-                                on ? 'font-medium text-fk-primary-text' : 'text-neutral-700'
+                                on ? 'font-medium text-fk-primary-text' : 'text-neutral-700 dark:text-neutral-300'
                               )}
                             >
                               {p.label}
                             </span>
-                            <span className='block truncate font-mono-ui text-[11px] text-neutral-400'>
+                            <span className='block truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                               {p.key}
                             </span>
                           </span>
@@ -145,8 +145,8 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                             className={cn(
                               'shrink-0 rounded border px-1.5 py-0.5 text-[11px] leading-5',
                               on
-                                ? 'border-fk-primary-border bg-white text-fk-primary-text'
-                                : 'border-fk-line bg-neutral-50 text-neutral-400'
+                                ? 'border-fk-primary-border bg-white dark:bg-neutral-900 text-fk-primary-text'
+                                : 'border-fk-line bg-neutral-50 text-neutral-400 dark:bg-neutral-900 dark:text-neutral-500'
                             )}
                           >
                             {on ? 'Enabled' : 'Disabled'}

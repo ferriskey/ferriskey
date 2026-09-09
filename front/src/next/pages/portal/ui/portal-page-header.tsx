@@ -22,7 +22,7 @@ export function PortalPageHeader({ tab, actions }: PortalPageHeaderProps) {
       >
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Portal</h1>
-          <p className='mt-0.5 text-sm text-neutral-500'>
+          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
             Appearance of the public authentication pages of this realm.
           </p>
         </div>

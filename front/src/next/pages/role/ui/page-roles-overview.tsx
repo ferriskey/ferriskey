@@ -33,9 +33,9 @@ export default function PageRolesOverview({
       header: 'Description',
       render: (r) =>
         r.description ? (
-          <span className='text-neutral-600'>{r.description}</span>
+          <span className='text-neutral-600 dark:text-neutral-400'>{r.description}</span>
         ) : (
-          <span className='font-mono-ui text-xs text-neutral-400'>
+          <span className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
             role_id: {r.id}
           </span>
         ),
@@ -56,9 +56,9 @@ export default function PageRolesOverview({
       align: 'right',
       render: (r) =>
         r.permissions.length > 0 ? (
-          <span className='tnum text-neutral-600'>{r.permissions.length}</span>
+          <span className='tnum text-neutral-600 dark:text-neutral-400'>{r.permissions.length}</span>
         ) : (
-          <span className='tnum text-neutral-300'>0</span>
+          <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         ),
       sortValue: (r) => r.permissions.length,
     },

@@ -35,11 +35,11 @@ function Meta({
 }) {
   return (
     <div className={cn(tokens.surface.panel, 'px-3 py-2.5')}>
-      <p className='flex items-center gap-1.5 text-[11px] text-neutral-500'>
+      <p className='flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400'>
         <Icon className='size-3.5' strokeWidth={1.75} />
         {label}
       </p>
-      <div className='mt-1 min-w-0 break-all text-xs text-neutral-900'>{children}</div>
+      <div className='mt-1 min-w-0 break-all text-xs text-neutral-900 dark:text-neutral-100'>{children}</div>
     </div>
   )
 }
@@ -56,7 +56,7 @@ export default function PageFlowDetail({
     <Button
       variant='ghost'
       size='sm'
-      className='-ml-2 mb-2 text-neutral-500'
+      className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400'
       onClick={onBack}
     >
       <ArrowLeft className='size-3.5' />
@@ -67,14 +67,14 @@ export default function PageFlowDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 space-y-2'>
-          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-          <div className='h-4 w-64 animate-pulse rounded bg-neutral-100' />
+          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+          <div className='h-4 w-64 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         </div>
         <div className='mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className='h-14 animate-pulse rounded-sm bg-neutral-100' />
+            <div key={i} className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
           ))}
         </div>
       </div>
@@ -86,8 +86,8 @@ export default function PageFlowDetail({
       <div className={container}>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Execution not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Execution not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been purged with the realm retention, or it belongs to another
             realm.
           </p>
@@ -117,7 +117,7 @@ export default function PageFlowDetail({
             {formatDuration(flow.duration_ms)}
           </Pill>
         </div>
-        <p className='mt-1 font-mono-ui text-xs text-neutral-400'>{flow.id}</p>
+        <p className='mt-1 font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>{flow.id}</p>
       </div>
 
       {failing && (
@@ -127,23 +127,23 @@ export default function PageFlowDetail({
             strokeWidth={2}
           />
           <div className='min-w-0'>
-            <p className='text-xs font-medium text-neutral-900'>
+            <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>
               Failed at {stepLabel(failing)}
               {failing.error_code && (
-                <span className='ml-1.5 font-mono-ui text-neutral-500'>
+                <span className='ml-1.5 font-mono-ui text-neutral-500 dark:text-neutral-400'>
                   {failing.error_code}
                 </span>
               )}
             </p>
             {failing.error_message && (
-              <p className='mt-0.5 text-xs text-neutral-600'>{failing.error_message}</p>
+              <p className='mt-0.5 text-xs text-neutral-600 dark:text-neutral-400'>{failing.error_message}</p>
             )}
           </div>
         </div>
       )}
 
       {flow.status === 'expired' && (
-        <div className='mt-4 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3 text-xs text-neutral-700'>
+        <div className='mt-4 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300'>
           This execution never came back. No step failed — the user simply did not
           return, so neither an end date nor a duration was ever recorded.
         </div>
@@ -158,7 +158,7 @@ export default function PageFlowDetail({
             {flow.completed_at ? (
               formatDateTime(flow.completed_at)
             ) : (
-              <span className='text-neutral-400'>
+              <span className='text-neutral-400 dark:text-neutral-500'>
                 {flow.status === 'pending' ? 'in progress' : 'never'}
               </span>
             )}
@@ -167,14 +167,14 @@ export default function PageFlowDetail({
             {flow.client_id ? (
               <span className='font-mono-ui'>{flow.client_id}</span>
             ) : (
-              <span className='text-neutral-400'>unresolved</span>
+              <span className='text-neutral-400 dark:text-neutral-500'>unresolved</span>
             )}
           </Meta>
           <Meta icon={User} label='User'>
             {flow.user_id ? (
               <span className='font-mono-ui'>{flow.user_id}</span>
             ) : (
-              <span className='text-neutral-400'>never identified</span>
+              <span className='text-neutral-400 dark:text-neutral-500'>never identified</span>
             )}
           </Meta>
         </div>
@@ -203,8 +203,8 @@ export default function PageFlowDetail({
                 key={key}
                 className='grid gap-x-6 py-2.5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]'
               >
-                <dt className='text-xs text-neutral-500'>{key}</dt>
-                <dd className='min-w-0 break-all font-mono-ui text-xs text-neutral-900'>
+                <dt className='text-xs text-neutral-500 dark:text-neutral-400'>{key}</dt>
+                <dd className='min-w-0 break-all font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
                   {value}
                 </dd>
               </div>

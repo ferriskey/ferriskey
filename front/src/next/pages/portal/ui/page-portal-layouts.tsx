@@ -98,8 +98,8 @@ export default function PagePortalLayouts({
             </ul>
           ) : rows.length === 0 ? (
             <div className='grid place-items-center gap-3 py-16'>
-              <LayoutTemplate className='size-8 text-neutral-300' strokeWidth={1.5} />
-              <p className='max-w-sm text-center text-sm text-neutral-500'>
+              <LayoutTemplate className='size-8 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
+              <p className='max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
                 No layout yet. A theme without a layout renders its pages bare, which is a
                 valid composition.
               </p>
@@ -121,7 +121,7 @@ export default function PagePortalLayouts({
                         <button
                           type='button'
                           onClick={() => onEdit(layout.id)}
-                          className='cursor-pointer text-[13px] font-medium text-neutral-900 hover:underline'
+                          className='cursor-pointer text-[13px] font-medium text-neutral-900 dark:text-neutral-100 hover:underline'
                         >
                           {layout.name}
                         </button>
@@ -132,11 +132,11 @@ export default function PagePortalLayouts({
                             : 'unused'}
                         </Pill>
                       </div>
-                      <p className='mt-0.5 truncate text-xs text-neutral-500'>
+                      <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
                         <span className='tnum'>{nodes}</span> block{nodes === 1 ? '' : 's'} ·
                         updated {formatDate(layout.updated_at)}
                       </p>
-                      <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400'>
+                      <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
                         layout_id: {layout.id}
                       </p>
                     </div>
@@ -148,7 +148,7 @@ export default function PagePortalLayouts({
                     <Button
                       variant='ghost'
                       size='icon'
-                      className='size-8 text-neutral-400'
+                      className='size-8 text-neutral-400 dark:text-neutral-500'
                       aria-label={`Export ${layout.name}`}
                       onClick={() => onExport(layout.id)}
                     >
@@ -171,7 +171,7 @@ export default function PagePortalLayouts({
                         variant='ghost'
                         size='icon'
                         aria-label={`Delete ${layout.name}`}
-                        className='size-8 text-neutral-400 hover:text-fk-danger'
+                        className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                         onClick={() => onDelete(layout.id)}
                       >
                         <Trash2 className='size-4' />

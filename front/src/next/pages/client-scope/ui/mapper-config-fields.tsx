@@ -89,7 +89,7 @@ export default function MapperConfigFields({
                 className='max-w-sm'
               />
             )}
-            <p className='mt-1.5 font-mono-ui text-[11px] text-neutral-400'>{field.key}</p>
+            <p className='mt-1.5 font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{field.key}</p>
           </FieldRow>
         )
       })}

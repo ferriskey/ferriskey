@@ -50,10 +50,10 @@ export default function PageAccount({
     return (
       <div className={container}>
         <div className='flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -64,8 +64,8 @@ export default function PageAccount({
     return (
       <div className={container}>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Profile unavailable</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Profile unavailable</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             Your account could not be loaded for this realm. Sign in again, then retry.
           </p>
         </div>
@@ -91,14 +91,14 @@ export default function PageAccount({
           </div>
         </div>
 
-        <dl className='shrink-0 text-right text-xs text-neutral-500'>
+        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
           <dt className='sr-only'>Member since</dt>
           <dd className='tnum'>
             Member since{' '}
             {formatDate(profile.created_at)}
           </dd>
           <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400'>{profile.id}</dd>
+          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{profile.id}</dd>
         </dl>
       </div>
 

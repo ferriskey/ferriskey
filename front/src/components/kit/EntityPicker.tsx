@@ -61,7 +61,7 @@ export function EntityPicker({
           aria-expanded={open}
         >
           <Plus /> {addLabel}
-          <ChevronsUpDown className='text-neutral-400' />
+          <ChevronsUpDown className='text-neutral-400 dark:text-neutral-500' />
         </Button>
       </PopoverTrigger>
       <PopoverContent align='start' sideOffset={6} className='w-72 p-0'>
@@ -81,11 +81,11 @@ export function EntityPicker({
                   }}
                 >
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-[13px] text-neutral-900'>
+                    <span className='block truncate text-[13px] text-neutral-900 dark:text-neutral-100'>
                       {entity.label}
                     </span>
                     {entity.sublabel && (
-                      <span className='block truncate font-mono-ui text-[11px] text-neutral-400'>
+                      <span className='block truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                         {entity.sublabel}
                       </span>
                     )}
@@ -114,11 +114,11 @@ export function EntityPicker({
           {selected.map((entity) => (
             <li key={entity.id} className='flex items-center gap-3 px-3 py-2'>
               <div className='min-w-0 flex-1'>
-                <p className='truncate text-xs font-medium text-neutral-900'>
+                <p className='truncate text-xs font-medium text-neutral-900 dark:text-neutral-100'>
                   {entity.label}
                 </p>
                 {entity.sublabel && (
-                  <p className='truncate font-mono-ui text-[11px] text-neutral-500'>
+                  <p className='truncate font-mono-ui text-[11px] text-neutral-500 dark:text-neutral-400'>
                     {entity.sublabel}
                   </p>
                 )}
@@ -129,7 +129,7 @@ export function EntityPicker({
                 disabled={disabled}
                 aria-label={`Remove ${entity.label}`}
                 onClick={() => onChange(value.filter((id) => id !== entity.id))}
-                className='size-7 text-neutral-400 hover:text-fk-danger'
+                className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
               >
                 <Trash2 />
               </Button>
@@ -141,7 +141,7 @@ export function EntityPicker({
       {addControl}
 
       {available.length === 0 && selected.length > 0 && (
-        <p className='text-xs text-neutral-400'>{exhaustedHint}</p>
+        <p className='text-xs text-neutral-400 dark:text-neutral-500'>{exhaustedHint}</p>
       )}
     </div>
   )

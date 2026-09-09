@@ -22,7 +22,7 @@ export default function PageEmails({ tab, tabs, onCreate, onImport, children }: 
       <div className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}>
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Emails</h1>
-          <p className='mt-0.5 text-sm text-neutral-500'>
+          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
             Models of the transactional emails of this realm, and the server that sends them.
           </p>
         </div>

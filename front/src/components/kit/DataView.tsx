@@ -76,9 +76,9 @@ export function DataView<T>({
       <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className='flex items-center gap-3 px-2.5 py-3'>
-            <div className='h-3 w-1/4 animate-pulse rounded bg-neutral-100' />
-            <div className='h-3 w-1/6 animate-pulse rounded bg-neutral-100' />
-            <div className='h-3 w-1/5 animate-pulse rounded bg-neutral-100' />
+            <div className='h-3 w-1/4 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-3 w-1/6 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-3 w-1/5 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         ))}
       </div>
@@ -101,11 +101,11 @@ export function DataView<T>({
               <div className='flex items-start gap-3'>
                 {card.avatar?.(row)}
                 <div className='min-w-0 flex-1'>
-                  <div className='truncate font-medium text-neutral-900 transition-colors group-hover:text-fk-primary-text'>
+                  <div className='truncate font-medium text-neutral-900 dark:text-neutral-100 transition-colors group-hover:text-fk-primary-text'>
                     {card.title(row)}
                   </div>
                   {card.subtitle && (
-                    <div className='truncate font-mono-ui text-xs text-neutral-400'>
+                    <div className='truncate font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
                       {card.subtitle(row)}
                     </div>
                   )}
@@ -123,10 +123,10 @@ export function DataView<T>({
                       <span
                         className={cn(
                           'size-1.5 shrink-0 rounded-full',
-                          f.on ? 'bg-fk-success' : 'bg-neutral-200'
+                          f.on ? 'bg-fk-success' : 'bg-neutral-200 dark:bg-neutral-700'
                         )}
                       />
-                      <span className={f.on ? 'text-neutral-700' : 'text-neutral-400'}>
+                      <span className={f.on ? 'text-neutral-700' : 'text-neutral-400 dark:text-neutral-300 dark:text-neutral-500'}>
                         {f.label}
                       </span>
                     </li>
@@ -135,7 +135,7 @@ export function DataView<T>({
               )}
 
               {card.footer && (
-                <div className='mt-3 flex items-center justify-between border-t border-fk-line-soft pt-3 text-xs text-neutral-500'>
+                <div className='mt-3 flex items-center justify-between border-t border-fk-line-soft pt-3 text-xs text-neutral-500 dark:text-neutral-400'>
                   {card.footer(row)}
                 </div>
               )}
@@ -174,7 +174,7 @@ export function DataView<T>({
         <thead>
           <tr
             className={cn(
-              'border-b border-fk-line bg-neutral-50/60 text-left',
+              'border-b border-fk-line bg-neutral-50/60 dark:bg-neutral-900/60 text-left',
               tokens.table.headerText
             )}
           >
@@ -208,7 +208,7 @@ export function DataView<T>({
                       )
                     }
                     className={cn(
-                      'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-neutral-700',
+                      'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-neutral-700 dark:hover:text-neutral-300',
                       sort?.key === col.key && 'text-fk-primary-text'
                     )}
                   >
@@ -231,7 +231,7 @@ export function DataView<T>({
               <tr
                 key={key}
                 className={cn(
-                  'transition-colors hover:bg-neutral-50',
+                  'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900',
                   selected.includes(key) && 'bg-fk-primary-soft/40'
                 )}
               >
@@ -262,7 +262,7 @@ export function DataView<T>({
                       {ci === 0 && href ? (
                         <Link
                           to={href}
-                          className='font-medium text-neutral-900 transition-colors hover:text-fk-primary-text'
+                          className='font-medium text-neutral-900 dark:text-neutral-100 transition-colors hover:text-fk-primary-text'
                         >
                           {content}
                         </Link>
@@ -279,7 +279,7 @@ export function DataView<T>({
 
         {tokens.table.showFooterAggregates && aggregates && (
           <tfoot>
-            <tr className='border-t border-fk-line bg-neutral-50/60 text-xs text-neutral-500'>
+            <tr className='border-t border-fk-line bg-neutral-50/60 text-xs text-neutral-500 dark:bg-neutral-900/60 dark:text-neutral-400'>
               {selectable && <td className={tokens.table.cellPadding} />}
               {columns.map((col) => (
                 <td

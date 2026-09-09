@@ -57,7 +57,7 @@ export default function PageProtocolMapperSettings({
   const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
 
   const backButton = (
-    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+    <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
       Protocol Mappers
     </Button>
@@ -66,10 +66,10 @@ export default function PageProtocolMapperSettings({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 space-y-2'>
-          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-          <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+          <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+          <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         </div>
       </div>
     )
@@ -80,8 +80,8 @@ export default function PageProtocolMapperSettings({
       <div className={container}>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Protocol mapper not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Protocol mapper not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another client scope.
           </p>
         </div>
@@ -101,7 +101,7 @@ export default function PageProtocolMapperSettings({
           <div className='min-w-0'>
             <h1 className={tokens.header.title}>{template?.name ?? mapper.name}</h1>
             {template?.description && (
-              <p className='mt-0.5 text-sm text-neutral-500'>{template.description}</p>
+              <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{template.description}</p>
             )}
             <div className='mt-1.5 flex flex-wrap items-center gap-2'>
               <Pill tone={category.tone} mono>
@@ -112,11 +112,11 @@ export default function PageProtocolMapperSettings({
           </div>
         </div>
 
-        <dl className='shrink-0 text-right text-xs text-neutral-500'>
+        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
           <dt className='sr-only'>Created at</dt>
           <dd className='tnum'>Created {formatDate(mapper.created_at)}</dd>
           <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400'>{mapper.id}</dd>
+          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{mapper.id}</dd>
         </dl>
       </div>
 

@@ -63,7 +63,7 @@ export default function ClientRolesTab({
         description='Roles defined on this client, exposed in tokens under resource_access.'
         action={
           <label className='relative flex h-8 w-52 items-center'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
             <input
               type='search'
               value={query}
@@ -79,8 +79,8 @@ export default function ClientRolesTab({
           <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                <div className='size-7 animate-pulse rounded-md bg-neutral-100' />
-                <div className='h-3 w-40 animate-pulse rounded bg-neutral-100' />
+                <div className='size-7 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
+                <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
               </div>
             ))}
           </div>
@@ -93,13 +93,13 @@ export default function ClientRolesTab({
                 </IconTile>
 
                 <div className='min-w-0 flex-1'>
-                  <p className='font-mono-ui text-xs text-neutral-900'>{role.name}</p>
-                  <p className='mt-0.5 truncate text-xs text-neutral-500'>
+                  <p className='font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>{role.name}</p>
+                  <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
                     {role.description || 'No description'}
                   </p>
                 </div>
 
-                <span className='tnum shrink-0 text-xs text-neutral-400'>
+                <span className='tnum shrink-0 text-xs text-neutral-400 dark:text-neutral-500'>
                   {role.permissions.length} permission{role.permissions.length === 1 ? '' : 's'}
                 </span>
 
@@ -108,7 +108,7 @@ export default function ClientRolesTab({
                   size='icon'
                   aria-label={`Delete ${role.name}`}
                   onClick={() => askDelete(role)}
-                  className='size-7 text-neutral-400 hover:text-fk-danger'
+                  className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                 >
                   <Trash2 />
                 </Button>
@@ -116,7 +116,7 @@ export default function ClientRolesTab({
             ))}
           </ul>
         ) : (
-          <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'>
+          <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
             {query
               ? `No role matches “${query}”.`
               : 'No role of its own — holders of this client only get realm roles.'}

@@ -26,6 +26,7 @@ import { RouterParams } from '@/routes/router'
 import { REALM_URL } from '@/routes/router'
 import { NEXT_ACCOUNT_URL } from '../routes'
 import { NextSidebar } from './sidebar'
+import { ThemeSwitcher } from './theme-switcher'
 import { RealmBreadcrumb } from './realm-breadcrumb'
 import { useCrumbs } from './use-crumbs'
 import { useSidebarCollapsed } from './use-sidebar-collapsed'
@@ -65,10 +66,10 @@ function AccountMenu() {
             {getInitials(user.preferred_username)}
           </span>
           <span className='grid min-w-0 flex-1'>
-            <span className='truncate text-[13px] font-medium text-neutral-900'>
+            <span className='truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>
               {user.preferred_username}
             </span>
-            <span className='truncate text-[11px] text-neutral-500'>{user.email}</span>
+            <span className='truncate text-[11px] text-neutral-500 dark:text-neutral-400'>{user.email}</span>
           </span>
         </DropdownMenuLabel>
 
@@ -85,7 +86,7 @@ function AccountMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuLabel className='px-1.5 py-1 text-[11px] font-medium text-neutral-400'>
+          <DropdownMenuLabel className='px-1.5 py-1 text-[11px] font-medium text-neutral-400 dark:text-neutral-500'>
             Panel mode
           </DropdownMenuLabel>
           <DropdownMenuItem
@@ -143,11 +144,19 @@ export function NextAppShell() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className='flex h-screen flex-col bg-white text-fk-ink'>
-        <RealmBreadcrumb crumbs={crumbs} actions={<AccountMenu />} />
+      <div className='flex h-screen flex-col bg-white dark:bg-neutral-900 text-fk-ink'>
+        <RealmBreadcrumb
+          crumbs={crumbs}
+          actions={
+            <>
+              <ThemeSwitcher />
+              <AccountMenu />
+            </>
+          }
+        />
         <div className='flex min-h-0 flex-1'>
           <NextSidebar collapsed={collapsed} onToggle={toggle} />
-          <main className='min-w-0 flex-1 overflow-y-auto bg-neutral-50/40'>
+          <main className='min-w-0 flex-1 overflow-y-auto bg-neutral-50/40 dark:bg-neutral-900/40'>
             <Outlet />
           </main>
         </div>

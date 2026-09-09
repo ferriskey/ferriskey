@@ -31,7 +31,7 @@ export default function PageOrganizationsOverview({
     {
       key: 'alias',
       header: 'Alias',
-      render: (o) => <span className='font-mono-ui text-xs text-neutral-500'>{o.alias}</span>,
+      render: (o) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{o.alias}</span>,
       sortValue: (o) => o.alias,
     },
     {
@@ -39,9 +39,9 @@ export default function PageOrganizationsOverview({
       header: 'Domain',
       render: (o) =>
         o.domain ? (
-          <span className='font-mono-ui text-xs text-neutral-600'>{o.domain}</span>
+          <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{o.domain}</span>
         ) : (
-          <span className='text-xs text-neutral-400'>no domain</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>no domain</span>
         ),
       sortValue: (o) => o.domain ?? '',
     },
@@ -50,9 +50,9 @@ export default function PageOrganizationsOverview({
       header: 'Description',
       render: (o) =>
         o.description ? (
-          <span className='text-neutral-600'>{o.description}</span>
+          <span className='text-neutral-600 dark:text-neutral-400'>{o.description}</span>
         ) : (
-          <span className='font-mono-ui text-xs text-neutral-400'>
+          <span className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
             organization_id: {o.id}
           </span>
         ),
@@ -61,7 +61,7 @@ export default function PageOrganizationsOverview({
       key: 'status',
       header: 'Status',
       render: (o) => (
-        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600'>
+        <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={o.enabled} />
           {o.enabled ? 'enabled' : 'disabled'}
         </span>

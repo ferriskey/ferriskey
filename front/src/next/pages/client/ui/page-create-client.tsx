@@ -88,7 +88,7 @@ export default function PageCreateClient({
 
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' asChild>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' asChild>
         <Link to={listUrl}>
           <ArrowLeft className='size-3.5' />
           Clients
@@ -102,7 +102,7 @@ export default function PageCreateClient({
         </Pill>
         <Link
           to={pickerUrl}
-          className='text-xs text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline'
+          className='text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline'
         >
           change protocol
         </Link>
@@ -242,7 +242,7 @@ export default function PageCreateClient({
                   </SelectContent>
                 </Select>
                 {nameIdDescription && (
-                  <p className='mt-1.5 text-xs text-neutral-500'>{nameIdDescription}</p>
+                  <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>{nameIdDescription}</p>
                 )}
               </div>
             </FieldRow>

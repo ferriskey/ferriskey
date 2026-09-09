@@ -25,11 +25,11 @@ export function FieldRow({
       <div className={cn('space-y-1.5', className)}>
         <label
           htmlFor={htmlFor}
-          className='block text-sm font-medium text-neutral-900'
+          className='block text-sm font-medium text-neutral-900 dark:text-neutral-100'
         >
           {label}
         </label>
-        {description && <p className='text-xs text-neutral-500'>{description}</p>}
+        {description && <p className='text-xs text-neutral-500 dark:text-neutral-400'>{description}</p>}
         <div className='pt-0.5'>{children}</div>
       </div>
     )
@@ -45,12 +45,12 @@ export function FieldRow({
       <div className='min-w-0'>
         <label
           htmlFor={htmlFor}
-          className='block text-sm font-medium text-neutral-900'
+          className='block text-sm font-medium text-neutral-900 dark:text-neutral-100'
         >
           {label}
         </label>
         {description && (
-          <p className='mt-0.5 text-xs leading-relaxed text-neutral-500'>
+          <p className='mt-0.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400'>
             {description}
           </p>
         )}
@@ -89,7 +89,7 @@ export function SwitchField({
         onCheckedChange={onCheckedChange}
       />
       <span
-        className={cn('text-sm', checked ? 'text-neutral-900' : 'text-neutral-500')}
+        className={cn('text-sm', checked ? 'text-neutral-900' : 'text-neutral-500 dark:text-neutral-100 dark:text-neutral-400')}
       >
         {checked ? onLabel : offLabel}
       </span>
@@ -166,7 +166,7 @@ export function ChoiceCards<T extends string>({
               !first && '-ml-px',
               selected
                 ? 'z-10 border-fk-primary-border bg-fk-primary-soft'
-                : 'bg-white hover:bg-neutral-50',
+                : 'bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900',
               blocked ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'
             )}
           >
@@ -231,7 +231,7 @@ export function OrderedChoiceCards<T extends string>({
               !first && '-ml-px',
               selected
                 ? 'z-10 border-fk-primary-border bg-fk-primary-soft'
-                : 'bg-white hover:bg-neutral-50',
+                : 'bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-900',
               pinned ? 'cursor-not-allowed' : 'cursor-pointer'
             )}
           >
@@ -263,7 +263,7 @@ function ChoiceCardHead<T extends string>({
           <option.icon
             className={cn(
               'size-3.5 shrink-0',
-              selected ? 'text-fk-primary-text' : 'text-neutral-400'
+              selected ? 'text-fk-primary-text' : 'text-neutral-400 dark:text-neutral-500'
             )}
             strokeWidth={1.75}
           />
@@ -271,7 +271,7 @@ function ChoiceCardHead<T extends string>({
         <span
           className={cn(
             'text-xs font-medium',
-            selected ? 'text-fk-primary-text' : 'text-neutral-900'
+            selected ? 'text-fk-primary-text' : 'text-neutral-900 dark:text-neutral-100'
           )}
         >
           {option.label}
@@ -282,7 +282,7 @@ function ChoiceCardHead<T extends string>({
             'tnum grid size-4 shrink-0 place-items-center rounded-full border text-[10px] font-semibold transition-colors',
             selected
               ? 'border-fk-primary bg-fk-primary text-white'
-              : 'border-fk-line bg-white'
+              : 'border-fk-line bg-white dark:bg-neutral-900'
           )}
         >
           {selected &&
@@ -293,7 +293,7 @@ function ChoiceCardHead<T extends string>({
         <span
           className={cn(
             'text-xs leading-relaxed',
-            selected ? 'text-fk-primary-text/80' : 'text-neutral-500'
+            selected ? 'text-fk-primary-text/80' : 'text-neutral-500 dark:text-neutral-400'
           )}
         >
           {option.description}
@@ -332,7 +332,7 @@ export function ChipInput({
           {values.map((v) => (
             <li
               key={v}
-              className='inline-flex items-center gap-1.5 rounded border border-fk-line bg-neutral-50 py-1 pl-2 pr-1 font-mono-ui text-xs text-neutral-700'
+              className='inline-flex items-center gap-1.5 rounded border border-fk-line bg-neutral-50 py-1 pl-2 pr-1 font-mono-ui text-xs text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300'
             >
               {v}
               <button
@@ -340,7 +340,7 @@ export function ChipInput({
                 aria-label={`Remove ${v}`}
                 disabled={disabled}
                 onClick={() => onChange(values.filter((x) => x !== v))}
-                className='grid size-4 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 disabled:cursor-not-allowed'
+                className='grid size-4 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-neutral-300 disabled:cursor-not-allowed'
               >
                 <X className='size-3' />
               </button>
@@ -348,7 +348,7 @@ export function ChipInput({
           ))}
         </ul>
       ) : (
-        emptyHint && <p className='text-xs text-neutral-400'>{emptyHint}</p>
+        emptyHint && <p className='text-xs text-neutral-400 dark:text-neutral-500'>{emptyHint}</p>
       )}
       <div className='flex max-w-lg gap-2'>
         <Input

@@ -48,14 +48,14 @@ export default function PageCreateWebhook({
 }: PageCreateWebhookProps) {
   return (
     <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Webhooks
       </Button>
 
       <div className={tokens.header.spacing}>
         <h1 className={tokens.header.title}>New webhook</h1>
-        <p className='mt-0.5 text-sm text-neutral-500'>
+        <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
           Configure an endpoint to receive real-time event notifications.
         </p>
       </div>

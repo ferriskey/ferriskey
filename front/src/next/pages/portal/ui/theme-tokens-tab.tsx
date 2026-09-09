@@ -47,7 +47,7 @@ export default function ThemeTokensTab({ name, onNameChange, nameError }: ThemeT
             'grid h-[36rem] grid-cols-1 overflow-hidden lg:grid-cols-[1fr_22rem]'
           )}
         >
-          <div className='min-h-0 overflow-hidden bg-neutral-50'>
+          <div className='min-h-0 overflow-hidden bg-neutral-50 dark:bg-neutral-900'>
             <PreviewCard />
           </div>
           <aside className='min-h-0 border-t border-fk-line lg:border-t-0 lg:border-l'>

@@ -40,7 +40,7 @@ export function PageTabs({
                 <span
                   className={cn(
                     'tnum ml-1.5 text-[11px]',
-                    active ? 'text-fk-primary-text' : 'text-neutral-400'
+                    active ? 'text-fk-primary-text' : 'text-neutral-400 dark:text-neutral-500'
                   )}
                 >
                   {tab.count}
@@ -52,8 +52,8 @@ export function PageTabs({
           const shape = cn(
             '-mb-px flex cursor-pointer items-center border-b-2 pb-2 text-[13px] transition-colors',
             active
-              ? 'border-fk-brand font-medium text-neutral-900'
-              : 'border-transparent text-neutral-500 hover:text-neutral-900'
+              ? 'border-fk-brand font-medium text-neutral-900 dark:text-neutral-100'
+              : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
           )
 
           return tab.href ? (

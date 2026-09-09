@@ -115,12 +115,12 @@ export default function PageProviderDetail({
   if (isLoading) {
     return (
       <div className={container}>
-        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
         <div className='mt-4 flex items-center gap-3'>
-          <div className='size-15 animate-pulse rounded-md bg-neutral-100' />
+          <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
           <div className='space-y-2'>
-            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100' />
-            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
+            <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+            <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
           </div>
         </div>
       </div>
@@ -130,13 +130,13 @@ export default function PageProviderDetail({
   if (!provider) {
     return (
       <div className={container}>
-        <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+        <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           User Federation
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700'>Provider not found</p>
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Provider not found</p>
+          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
@@ -148,7 +148,7 @@ export default function PageProviderDetail({
 
   return (
     <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500' onClick={onBack}>
+      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         User Federation
       </Button>
@@ -221,9 +221,9 @@ export default function PageProviderDetail({
           <Pill tone={testResult.success ? 'success' : 'danger'} mono>
             {testResult.success ? 'reachable' : 'unreachable'}
           </Pill>
-          <span className='text-neutral-700'>{testResult.message}</span>
+          <span className='text-neutral-700 dark:text-neutral-300'>{testResult.message}</span>
           {testResult.latencyMs !== null && (
-            <span className='tnum text-xs text-neutral-500'>
+            <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
               {formatDuration(testResult.latencyMs)}
             </span>
           )}
@@ -231,7 +231,7 @@ export default function PageProviderDetail({
       )}
 
       {!provider.enabled && (
-        <div className='mt-4 rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 text-xs text-neutral-600'>
+        <div className='mt-4 rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'>
           This provider is disabled: it is no longer queried and its synchronisation does not
           run. The accounts already imported stay linked.
         </div>

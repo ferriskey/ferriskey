@@ -33,8 +33,8 @@ function TemplateGroup({
 }) {
   return (
     <div>
-      <p className='text-[11px] font-medium uppercase tracking-wide text-neutral-400'>{label}</p>
-      <p className='pb-2 text-xs text-neutral-500'>{hint}</p>
+      <p className='text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500'>{label}</p>
+      <p className='pb-2 text-xs text-neutral-500 dark:text-neutral-400'>{hint}</p>
       <div className='space-y-1.5'>
         {templates.map((template) => (
           <button
@@ -50,10 +50,10 @@ function TemplateGroup({
           >
             <span className='text-base leading-none'>{template.icon}</span>
             <span className='min-w-0 flex-1'>
-              <span className='block text-xs font-medium text-neutral-900'>{template.name}</span>
-              <span className='mt-0.5 block text-xs text-neutral-500'>{template.description}</span>
+              <span className='block text-xs font-medium text-neutral-900 dark:text-neutral-100'>{template.name}</span>
+              <span className='mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400'>{template.description}</span>
               {!template.isCustom && (
-                <span className='mt-0.5 block truncate font-mono-ui text-[11px] text-neutral-400'>
+                <span className='mt-0.5 block truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                   {template.mapper_type}
                 </span>
               )}

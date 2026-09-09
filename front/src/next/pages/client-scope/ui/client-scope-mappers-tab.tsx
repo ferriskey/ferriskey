@@ -92,17 +92,17 @@ export default function ClientScopeMappersTab({
 
                   <div className='min-w-0 flex-1'>
                     <div className='flex flex-wrap items-center gap-2'>
-                      <p className='text-xs font-medium text-neutral-900'>{mapper.name}</p>
+                      <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>{mapper.name}</p>
                       <Pill tone={category.tone} mono>
                         {category.label}
                       </Pill>
                       {claim && (
-                        <code className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600'>
+                        <code className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'>
                           {claim}
                         </code>
                       )}
                     </div>
-                    <p className='mt-0.5 truncate font-mono-ui text-[11px] text-neutral-400'>
+                    <p className='mt-0.5 truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                       {mapper.mapper_type}
                     </p>
                   </div>
@@ -115,7 +115,7 @@ export default function ClientScopeMappersTab({
                           'rounded px-1 py-0.5 font-mono-ui text-[10px]',
                           config[key] === 'true'
                             ? 'bg-fk-success-soft text-fk-success'
-                            : 'bg-neutral-100 text-neutral-300'
+                            : 'bg-neutral-100 text-neutral-300 dark:bg-neutral-800 dark:text-neutral-600'
                         )}
                       >
                         {label}
@@ -131,7 +131,7 @@ export default function ClientScopeMappersTab({
                     size='icon'
                     aria-label={`Delete ${mapper.name}`}
                     onClick={() => setPendingDelete(mapper)}
-                    className='size-7 text-neutral-400 hover:text-fk-danger'
+                    className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                   >
                     <Trash2 />
                   </Button>
@@ -140,7 +140,7 @@ export default function ClientScopeMappersTab({
             })}
           </ul>
         ) : (
-          <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'>
+          <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
             No protocol mapper configured: this scope writes no claim, it only opens a right.
           </p>
         )}

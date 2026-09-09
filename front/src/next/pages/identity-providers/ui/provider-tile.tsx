@@ -16,7 +16,7 @@ export default function ProviderTile({
   return (
     <span
       className={cn(
-        'grid shrink-0 place-items-center rounded-md border border-fk-line bg-white',
+        'grid shrink-0 place-items-center rounded-md border border-fk-line bg-white dark:bg-neutral-900',
         size === 'sm' ? 'size-9' : 'size-15',
         className
       )}

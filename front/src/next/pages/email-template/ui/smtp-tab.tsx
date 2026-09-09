@@ -39,8 +39,8 @@ export default function SmtpTab({
   if (isLoading) {
     return (
       <div className={tokens.page.blockGap}>
-        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100' />
-        <div className='h-64 animate-pulse rounded-sm bg-neutral-100' />
+        <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+        <div className='h-64 animate-pulse rounded-sm bg-neutral-100 dark:bg-neutral-800' />
       </div>
     )
   }
@@ -52,7 +52,7 @@ export default function SmtpTab({
       {!hasConfig && (
         <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
           <AlertTriangle className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
-          <p className='text-xs text-neutral-700'>
+          <p className='text-xs text-neutral-700 dark:text-neutral-300'>
             This realm has no SMTP server. No transactional email leaves — password resets, magic
             links and verifications are stored but never delivered.
           </p>
@@ -107,7 +107,7 @@ export default function SmtpTab({
                 ))}
               </SelectContent>
             </Select>
-            {selected && <p className='mt-1.5 text-xs text-neutral-500'>{selected.hint}</p>}
+            {selected && <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>{selected.hint}</p>}
           </div>
         </FieldRow>
 

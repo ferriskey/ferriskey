@@ -29,7 +29,7 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
         hasSeries ? (
           <div key={m.key} className='flex items-center gap-3 px-3 py-2'>
             <div className='min-w-0 flex-1'>
-              <p className='truncate text-[11px] text-neutral-500'>{m.label}</p>
+              <p className='truncate text-[11px] text-neutral-500 dark:text-neutral-400'>{m.label}</p>
               <div className='flex items-baseline gap-1.5'>
                 <span className='tnum text-lg font-semibold leading-tight'>
                   {m.value}
@@ -41,7 +41,7 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
                   </span>
                 )}
                 {m.hint && (
-                  <span className='truncate text-[11px] text-neutral-400'>
+                  <span className='truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
                     {m.hint}
                   </span>
                 )}
@@ -55,13 +55,13 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
           </div>
         ) : (
           <div key={m.key} className='px-3 py-2'>
-            <p className='truncate text-[11px] text-neutral-500'>{m.label}</p>
+            <p className='truncate text-[11px] text-neutral-500 dark:text-neutral-400'>{m.label}</p>
             <div className='mt-0.5 flex items-baseline gap-1.5'>
               <span className='tnum text-xl font-semibold leading-none'>
                 {m.value}
               </span>
               {m.hint && (
-                <span className='truncate text-[11px] text-neutral-400'>
+                <span className='truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
                   {m.hint}
                 </span>
               )}

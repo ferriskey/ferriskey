@@ -168,7 +168,7 @@ export default function PageSecurityEvents({
       render: (e) => (
         <div className='min-w-0'>
           <span>{eventLabel(e)}</span>
-          <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
+          <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
             {e.event_type}
           </p>
         </div>
@@ -205,14 +205,14 @@ export default function PageSecurityEvents({
       render: (e) => {
         const identifier = actorLabel(e)
         if (!identifier)
-          return <span className='text-xs text-neutral-400'>unattributed</span>
+          return <span className='text-xs text-neutral-400 dark:text-neutral-500'>unattributed</span>
         const name = directory.label(e.actor_id, e.actor_type)
         return (
           <div className='min-w-0'>
-            <span className={name ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600'}>
+            <span className={name ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-300 dark:text-neutral-400'}>
               {name ?? identifier}
             </span>
-            <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
+            <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
               {name ? identifier : (e.actor_type ?? 'unknown type')}
             </p>
           </div>
@@ -225,15 +225,15 @@ export default function PageSecurityEvents({
       header: 'Target',
       render: (e) => {
         const identifier = e.target_id ?? e.resource
-        if (!identifier) return <span className='text-xs text-neutral-400'>none</span>
+        if (!identifier) return <span className='text-xs text-neutral-400 dark:text-neutral-500'>none</span>
         const name = directory.label(e.target_id, e.target_type) ?? e.resource
         const resolved = name && name !== identifier
         return (
           <div className='min-w-0'>
-            <span className={resolved ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600'}>
+            <span className={resolved ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-300 dark:text-neutral-400'}>
               {name ?? identifier}
             </span>
-            <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
+            <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
               {resolved ? identifier : (e.target_type ?? 'unknown type')}
             </p>
           </div>
@@ -247,9 +247,9 @@ export default function PageSecurityEvents({
       header: 'IP address',
       render: (e) =>
         e.ip_address ? (
-          <span className='font-mono-ui text-xs text-neutral-600'>{e.ip_address}</span>
+          <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{e.ip_address}</span>
         ) : (
-          <span className='text-xs text-neutral-400'>not recorded</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>not recorded</span>
         ),
       sortValue: (e) => e.ip_address ?? '',
     },
@@ -259,8 +259,8 @@ export default function PageSecurityEvents({
       align: 'right',
       render: (e) => (
         <div className='min-w-0 whitespace-nowrap'>
-          <span className='text-neutral-700'>{formatRelative(e.timestamp)}</span>
-          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400'>
+          <span className='text-neutral-700 dark:text-neutral-300'>{formatRelative(e.timestamp)}</span>
+          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
             {formatTimestamp(e.timestamp)}
           </p>
         </div>
@@ -447,7 +447,7 @@ export default function PageSecurityEvents({
 
   const searchBox = (
     <label className='relative flex h-7 w-56 items-center'>
-      <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400' />
+      <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400 dark:text-neutral-500' />
       <input
         type='search'
         value={query}
@@ -458,7 +458,7 @@ export default function PageSecurityEvents({
             : 'Filter the stream…'
         }
         className={cn(
-          'h-full w-full rounded-md border border-fk-line bg-white pl-7 pr-2 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
+          'h-full w-full rounded-md border border-fk-line bg-white dark:bg-neutral-900 pl-7 pr-2 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
           tokens.toolbar.showQuerySyntax
             ? 'font-mono-ui text-[11px] placeholder:text-neutral-300'
             : 'text-xs'
@@ -477,7 +477,7 @@ export default function PageSecurityEvents({
       >
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Sea Watch</h1>
-          <p className='mt-0.5 text-sm text-neutral-500'>
+          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
             {`Security events recorded for this realm over the ${windowLabel}, most recent first.`}
           </p>
         </div>
@@ -503,11 +503,11 @@ export default function PageSecurityEvents({
                 ) : (
                   <AlertTriangle className='size-3.5 shrink-0' strokeWidth={2} />
                 )}
-                <span className='shrink-0 font-medium text-neutral-900'>
+                <span className='shrink-0 font-medium text-neutral-900 dark:text-neutral-100'>
                   {alert.title}
                 </span>
                 {alert.detail && (
-                  <span className='min-w-0 truncate text-neutral-500'>
+                  <span className='min-w-0 truncate text-neutral-500 dark:text-neutral-400'>
                     {alert.detail}
                   </span>
                 )}
@@ -524,7 +524,7 @@ export default function PageSecurityEvents({
             description={`Logins and failures traced by Compass over the ${windowLabel}.`}
             contained={false}
             action={
-              <div className='flex items-center gap-3 text-[11px] text-neutral-500'>
+              <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
                 <span className='inline-flex items-center gap-1'>
                   <span className='size-1.5 rounded-full bg-fk-success' />
                   <span className='tnum'>{totalLogins}</span> logins
@@ -558,7 +558,7 @@ export default function PageSecurityEvents({
                       'cursor-pointer rounded-md px-2 py-1 text-xs transition-colors',
                       f.key === listing.filter
                         ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                        : 'text-neutral-500 hover:bg-neutral-100'
+                        : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
                     )}
                   >
                     {f.label}
@@ -584,7 +584,7 @@ export default function PageSecurityEvents({
                         'grid size-6 cursor-pointer place-items-center rounded transition-colors',
                         view === mode
                           ? 'bg-fk-primary-soft text-fk-primary-text'
-                          : 'text-neutral-400 hover:text-neutral-700'
+                          : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
                       )}
                     >
                       <Icon className='size-3.5' />
@@ -630,7 +630,7 @@ export default function PageSecurityEvents({
             />
 
             {!isLoading && events.length > 0 && (
-              <p className='tnum text-xs text-neutral-400'>
+              <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
                 {filtered.length === events.length
                   ? `${events.length} ${events.length > 1 ? 'entries' : 'entry'}`
                   : `${filtered.length} of ${events.length}`}

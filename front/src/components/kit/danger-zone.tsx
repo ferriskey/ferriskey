@@ -44,7 +44,7 @@ export function DangerZone({
         <div className='flex flex-wrap items-start justify-between gap-4'>
           <div className='min-w-0 max-w-xl'>
             <h3 className='text-sm font-semibold text-fk-danger'>{label}</h3>
-            <p className='mt-1 text-sm text-neutral-600'>{description}</p>
+            <p className='mt-1 text-sm text-neutral-600 dark:text-neutral-400'>{description}</p>
             {disabled && disabledReason && (
               <p className='mt-2 text-xs text-fk-danger'>{disabledReason}</p>
             )}

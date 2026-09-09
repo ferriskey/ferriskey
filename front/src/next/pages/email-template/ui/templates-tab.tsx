@@ -75,7 +75,7 @@ export default function TemplatesTab({
         {!isLoading && unassigned.length > 0 && (
           <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
             <AlertTriangle className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
-            <p className='text-xs text-neutral-700'>
+            <p className='text-xs text-neutral-700 dark:text-neutral-300'>
               {unassigned.map((spec) => spec.label).join(', ')}{' '}
               {unassigned.length > 1 ? 'have no template assigned' : 'has no template assigned'} —
               FerrisKey sends its plain-text default email for{' '}
@@ -117,8 +117,8 @@ export default function TemplatesTab({
                     <spec.icon className='size-3.5' strokeWidth={1.75} />
                   </IconTile>
                   <div className='min-w-0'>
-                    <p className='text-sm font-medium text-neutral-900'>{spec.label}</p>
-                    <p className='mt-0.5 text-xs leading-relaxed text-neutral-500'>
+                    <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>{spec.label}</p>
+                    <p className='mt-0.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400'>
                       {spec.trigger}
                     </p>
                   </div>
@@ -143,7 +143,7 @@ export default function TemplatesTab({
                     </SelectContent>
                   </Select>
                   {candidates.length === 0 && (
-                    <p className='mt-1.5 text-xs text-neutral-400'>
+                    <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
                       No template of this type in this realm.
                     </p>
                   )}
@@ -159,7 +159,7 @@ export default function TemplatesTab({
           action={
             <div className='flex items-center gap-2'>
               <label className='relative flex h-8 w-52 items-center'>
-                <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400' />
+                <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
                 <input
                   type='search'
                   value={query}
@@ -179,7 +179,7 @@ export default function TemplatesTab({
                       'px-2 py-1 text-xs transition-colors',
                       typeFilter === key
                         ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                        : 'text-neutral-500 hover:bg-neutral-50'
+                        : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-neutral-900'
                     )}
                   >
                     {key === 'all' ? 'All' : emailTypeSpec(key).short}
@@ -193,10 +193,10 @@ export default function TemplatesTab({
           {isLoading ? (
             Array.from({ length: 3 }).map((_, index) => (
               <div key={`skeleton-${index}`} className='flex items-center gap-3 py-3'>
-                <div className='size-9 animate-pulse rounded-md bg-neutral-100' />
+                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-neutral-800' />
                 <div className='flex-1 space-y-2'>
-                  <div className='h-3.5 w-48 animate-pulse rounded bg-neutral-100' />
-                  <div className='h-3 w-32 animate-pulse rounded bg-neutral-100' />
+                  <div className='h-3.5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+                  <div className='h-3 w-32 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
                 </div>
               </div>
             ))
@@ -214,7 +214,7 @@ export default function TemplatesTab({
                     <div className='flex flex-wrap items-center gap-2'>
                       <Link
                         to={templateHref(template.id)}
-                        className='text-[13px] font-medium text-neutral-900 hover:underline'
+                        className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100 hover:underline'
                       >
                         {template.name}
                       </Link>
@@ -223,7 +223,7 @@ export default function TemplatesTab({
                       </Pill>
                       {uses.length > 0 && <Pill tone='success'>assigned</Pill>}
                     </div>
-                    <p className='mt-0.5 truncate text-xs text-neutral-500'>
+                    <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
                       {spec.label} · updated {formatRelative(template.updated_at || template.created_at)}
                     </p>
                   </div>
@@ -251,7 +251,7 @@ export default function TemplatesTab({
                     variant='ghost'
                     size='icon'
                     aria-label={`Delete ${template.name}`}
-                    className={uses.length > 0 ? 'text-fk-amber' : 'text-neutral-400'}
+                    className={uses.length > 0 ? 'text-fk-amber' : 'text-neutral-400 dark:text-neutral-500'}
                     onClick={() => setPendingDelete(template)}
                   >
                     <Trash2 className='size-4' />
@@ -261,11 +261,11 @@ export default function TemplatesTab({
             })
           ) : (
             <div className='grid place-items-center rounded-sm border border-dashed border-fk-line px-6 py-12'>
-              <Mail className='size-6 text-neutral-300' strokeWidth={1.5} />
-              <p className='mt-3 text-sm font-medium text-neutral-700'>
+              <Mail className='size-6 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
+              <p className='mt-3 text-sm font-medium text-neutral-700 dark:text-neutral-300'>
                 {templates.length === 0 ? 'No email template' : 'No template matches the filter'}
               </p>
-              <p className='mt-1 max-w-sm text-center text-xs text-neutral-500'>
+              <p className='mt-1 max-w-sm text-center text-xs text-neutral-500 dark:text-neutral-400'>
                 {templates.length === 0
                   ? 'Until a template is assigned, FerrisKey sends its plain-text default emails.'
                   : 'Adjust the search or the type filter.'}

@@ -59,7 +59,7 @@ export default function MapperEntityField({
                 {!selected && <Pill tone='amber'>unknown</Pill>}
               </span>
             ) : (
-              <span className='text-neutral-500'>{placeholder}</span>
+              <span className='text-neutral-500 dark:text-neutral-400'>{placeholder}</span>
             )}
             <ChevronsUpDown className='opacity-50' />
           </Button>
@@ -80,11 +80,11 @@ export default function MapperEntityField({
                     }}
                   >
                     <span className='min-w-0 flex-1'>
-                      <span className='block truncate text-xs text-neutral-900'>
+                      <span className='block truncate text-xs text-neutral-900 dark:text-neutral-100'>
                         {option.label}
                       </span>
                       {option.sublabel && (
-                        <span className='block truncate font-mono-ui text-[11px] text-neutral-400'>
+                        <span className='block truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
                           {option.sublabel}
                         </span>
                       )}
@@ -106,7 +106,7 @@ export default function MapperEntityField({
           variant='ghost'
           size='icon'
           aria-label='Clear'
-          className='size-8 shrink-0 text-neutral-400'
+          className='size-8 shrink-0 text-neutral-400 dark:text-neutral-500'
           onClick={() => onChange('')}
         >
           <X />

@@ -40,7 +40,7 @@ function AttributeRow({
 
   return (
     <div className='flex items-center gap-4 px-3 py-1.5 text-[13px]'>
-      <span className='w-48 shrink-0 truncate font-mono-ui text-xs text-neutral-900'>
+      <span className='w-48 shrink-0 truncate font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
         {attribute.key}
       </span>
       {editing ? (
@@ -55,7 +55,7 @@ function AttributeRow({
           className='h-8 max-w-xs'
         />
       ) : (
-        <span className='min-w-0 flex-1 truncate text-neutral-600'>{attribute.value}</span>
+        <span className='min-w-0 flex-1 truncate text-neutral-600 dark:text-neutral-400'>{attribute.value}</span>
       )}
       <div className='ml-auto flex shrink-0 items-center gap-1'>
         {editing ? (
@@ -72,7 +72,7 @@ function AttributeRow({
             <Button
               variant='ghost'
               size='icon'
-              className='size-7 text-neutral-400'
+              className='size-7 text-neutral-400 dark:text-neutral-500'
               aria-label='Cancel'
               onClick={cancel}
             >
@@ -84,7 +84,7 @@ function AttributeRow({
             <Button
               variant='ghost'
               size='icon'
-              className='size-7 text-neutral-400'
+              className='size-7 text-neutral-400 dark:text-neutral-500'
               aria-label={`Edit ${attribute.key}`}
               onClick={() => setEditing(true)}
             >
@@ -93,7 +93,7 @@ function AttributeRow({
             <Button
               variant='ghost'
               size='icon'
-              className='size-7 text-neutral-400 hover:text-fk-danger'
+              className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
               aria-label={`Delete ${attribute.key}`}
               onClick={() => onDelete(attribute.key)}
             >
@@ -156,7 +156,7 @@ function AddAttributeRow({
         <Button
           variant='ghost'
           size='icon'
-          className='size-7 text-neutral-400'
+          className='size-7 text-neutral-400 dark:text-neutral-500'
           aria-label='Cancel'
           onClick={onCancel}
         >
@@ -191,7 +191,7 @@ export default function OrganizationAttributesTab({
       <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
         <div
           className={cn(
-            'flex items-center gap-4 bg-neutral-50/60 px-3 py-1.5',
+            'flex items-center gap-4 bg-neutral-50/60 dark:bg-neutral-900/60 px-3 py-1.5',
             tokens.table.headerText
           )}
         >
@@ -212,12 +212,12 @@ export default function OrganizationAttributesTab({
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className='flex items-center gap-4 px-3 py-2.5'>
-              <div className='h-3 w-40 animate-pulse rounded bg-neutral-100' />
-              <div className='h-3 w-56 animate-pulse rounded bg-neutral-100' />
+              <div className='h-3 w-40 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
+              <div className='h-3 w-56 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800' />
             </div>
           ))
         ) : attributes.length === 0 && !adding ? (
-          <p className='px-3 py-8 text-center text-sm text-neutral-500'>
+          <p className='px-3 py-8 text-center text-sm text-neutral-500 dark:text-neutral-400'>
             No attribute defined for this organization.
           </p>
         ) : (

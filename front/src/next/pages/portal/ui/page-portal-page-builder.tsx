@@ -41,7 +41,7 @@ export default function PagePortalPageBuilder({
 }: PagePortalPageBuilderProps) {
   const nav = (
     <nav className='flex flex-col gap-0.5 p-2'>
-      <p className='px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-400'>
+      <p className='px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500'>
         Pages
       </p>
       {PORTAL_PAGES.map((page) => (
@@ -52,7 +52,7 @@ export default function PagePortalPageBuilder({
             'rounded-md px-2 py-1.5 text-[13px] transition-colors',
             page.type === pageType
               ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-              : 'text-neutral-600 hover:bg-neutral-100'
+              : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800'
           )}
         >
           {page.label}
@@ -67,7 +67,7 @@ export default function PagePortalPageBuilder({
         <Button
           variant='ghost'
           size='sm'
-          className='-ml-2 text-neutral-500'
+          className='-ml-2 text-neutral-500 dark:text-neutral-400'
           onClick={onBack}
         >
           <ArrowLeft className='size-3.5' />
@@ -75,7 +75,7 @@ export default function PagePortalPageBuilder({
         </Button>
 
         <div className='flex min-w-0 flex-1 flex-wrap items-center gap-2'>
-          <h1 className='truncate text-[13px] font-semibold text-neutral-900'>
+          <h1 className='truncate text-[13px] font-semibold text-neutral-900 dark:text-neutral-100'>
             {labelForPortalPage(pageType)} page
           </h1>
           <Pill tone='neutral' mono>

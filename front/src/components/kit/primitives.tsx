@@ -11,7 +11,7 @@ export type PillTone =
   | 'primary'
 
 const pillTones: Record<PillTone, string> = {
-  neutral: 'border-fk-line bg-neutral-50 text-neutral-600',
+  neutral: 'border-fk-line bg-neutral-50 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400',
   success: 'border-fk-success-border bg-fk-success-soft text-fk-success',
   info: 'border-fk-info-border bg-fk-info-soft text-fk-info',
   violet: 'border-fk-violet-border bg-fk-violet-soft text-fk-violet',
@@ -99,7 +99,7 @@ export function Squircle({
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className='text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400'>
+    <p className='text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400 dark:text-neutral-500'>
       {children}
     </p>
   )

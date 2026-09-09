@@ -76,7 +76,7 @@ export default function SaveBar({
               <div className='min-w-0'>
                 <p className='text-[13px] font-medium text-fk-primary-text'>{title}</p>
                 {description && (
-                  <p className='text-xs text-neutral-500'>{description}</p>
+                  <p className='text-xs text-neutral-500 dark:text-neutral-400'>{description}</p>
                 )}
               </div>
 
