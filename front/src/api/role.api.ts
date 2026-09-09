@@ -1,7 +1,25 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Schemas } from './api.client'
+
+const invalidateRole = async (
+  queryClient: QueryClient,
+  realmName: string,
+  roleId: string
+) => {
+  const role = window.tanstackApi.get('/realms/{realm_name}/roles/{role_id}', {
+    path: { realm_name: realmName, role_id: roleId },
+  })
+  const roles = window.tanstackApi.get('/realms/{realm_name}/roles', {
+    path: { realm_name: realmName },
+  })
+
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: role.queryKey }),
+    queryClient.invalidateQueries({ queryKey: roles.queryKey }),
+  ])
+}
 
 export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
@@ -98,8 +116,8 @@ export const useUpdateRole = () => {
 
   return useMutation({
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}').mutationOptions,
-    onSuccess(res) {
-      queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
+    async onSuccess(res, variables) {
+      await invalidateRole(queryClient, variables.path.realm_name, variables.path.role_id)
       toast.success('Role updated successfully', {
         description: `Role ${res.data.name} has been updated successfully.`,
       })
@@ -118,8 +136,8 @@ export const useUpdateRolePermissions = () => {
   return useMutation({
     ...window.tanstackApi.mutation('patch', '/realms/{realm_name}/roles/{role_id}/permissions')
       .mutationOptions,
-    onSuccess(res) {
-      queryClient.invalidateQueries({ queryKey: ['role', res.data.id] })
+    async onSuccess(res, variables) {
+      await invalidateRole(queryClient, variables.path.realm_name, variables.path.role_id)
       toast.success('Role permissions updated successfully', {
         description: `Role ${res.data.name} permissions has been updated successfully.`,
       })
