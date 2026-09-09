@@ -155,6 +155,7 @@ input[type="number"] {
 
   --color-fk-surface: #ffffff;
   --color-fk-raised: #fafafa;
+  --color-fk-canvas: #fafafa;
   --color-fk-sand: #fbefe5;
   --color-fk-ink: #171717;
   --color-fk-muted: #737373;
@@ -222,6 +223,7 @@ input[type="number"] {
 
   --color-fk-surface: #232120;
   --color-fk-raised: #2b2826;
+  --color-fk-canvas: #161514;
   --color-fk-sand: #291f16;
   --color-fk-ink: #f2f0ee;
   --color-fk-muted: #a6a09b;

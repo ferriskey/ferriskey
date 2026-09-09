@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Building2, Search, UserMinus } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import { EntityPicker, IconTile, MetricsBand, Pill, Section } from '@/components/kit'
+import { EntityPicker, IconTile, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
@@ -49,34 +49,8 @@ export default function UserOrganizationsTab({
     )
   }, [memberships, query])
 
-  const total = memberships.length
-  const enabled = memberships.filter((m) => m.organization.enabled).length
-  const withDomain = memberships.filter((m) => Boolean(m.organization.domain)).length
-
   return (
     <>
-      <MetricsBand
-        metrics={[
-          { key: 'total', label: 'Organizations', value: total, hint: 'memberships' },
-          {
-            key: 'enabled',
-            label: 'Enabled',
-            value: enabled,
-            hint:
-              enabled > 0 && total > 0
-                ? `${((enabled / total) * 100).toFixed(0)}% of total`
-                : 'No enabled organizations',
-          },
-          {
-            key: 'disabled',
-            label: 'Disabled',
-            value: total - enabled,
-            hint: 'stop granting anything',
-          },
-          { key: 'domain', label: 'With domain', value: withDomain, hint: 'domain configured' },
-        ]}
-      />
-
       <Section
         title='Organizations'
         description='Organizations of the realm this account belongs to.'
