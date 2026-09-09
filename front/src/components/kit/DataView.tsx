@@ -11,7 +11,6 @@ export interface Column<T> {
   key: string
   header: string
   render: (row: T) => ReactNode
-  /** Rend la colonne triable et fournit la clé de comparaison. */
   sortValue?: (row: T) => string | number
   align?: 'right'
   headerClassName?: string
@@ -23,7 +22,6 @@ export interface CardSpec<T> {
   title: (row: T) => ReactNode
   subtitle?: (row: T) => ReactNode
   badges?: (row: T) => ReactNode
-  /** Bascules de configuration, listées en pied de carte. */
   flags?: (row: T) => { label: string; on: boolean }[]
   footer?: (row: T) => ReactNode
 }
@@ -35,28 +33,13 @@ export interface DataViewProps<T> {
   getKey: (row: T) => string
   getHref?: (row: T) => string
   view: ViewMode
-  /** Agrégats de pied de table, par clé de colonne. */
   aggregates?: Partial<Record<string, ReactNode>>
   emptyLabel?: string
   emptyHint?: string
-  /**
-   * Action proposée quand il n'y a rien à afficher. Un état vide qui se
-   * contente de constater le vide laisse chercher ailleurs le bouton qui le
-   * remplit — alors que c'est le seul geste qui a du sens à ce moment-là.
-   * FK-15 : un journal n'en propose pas, on ne fabrique pas une exécution.
-   */
   emptyAction?: ReactNode
-  /** Rendu à la place des lignes pendant le chargement. */
   loading?: boolean
 }
 
-/**
- * Corps d'un listing : table ou cartes, au choix de l'appelant.
- *
- * FK-03 : pas de zébrage — les lignes alternées entreraient en concurrence
- * avec les fonds d'état (-soft), qui portent une information. Les filets
- * `divide-y` suffisent à séparer.
- */
 export function DataView<T>({
   rows,
   columns,
@@ -116,9 +99,6 @@ export function DataView<T>({
     )
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Vue cartes                                                        */
-  /* ---------------------------------------------------------------- */
   if (view === 'cards') {
     return (
       <div className={cn('grid grid-cols-1', tokens.card.gap, tokens.card.columns)}>
@@ -194,9 +174,6 @@ export function DataView<T>({
     )
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Vue liste                                                         */
-  /* ---------------------------------------------------------------- */
   const selectable = tokens.table.selectable
   const allSelected = selected.length === rows.length
   const toggleAll = () => setSelected(allSelected ? [] : rows.map((r) => getKey(r)))

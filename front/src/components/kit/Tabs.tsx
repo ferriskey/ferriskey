@@ -5,37 +5,19 @@ import { cn } from '@/lib/utils'
 export interface TabItem {
   key: string
   label: string
-  /**
-   * Rend l'onglet comme un lien plutôt qu'un bouton. Fourni par
-   * `useRouteTabs` : l'onglet devient alors partageable, ajoutable aux
-   * favoris et ouvrable dans un nouvel onglet du navigateur (FK-16).
-   */
   href?: string
   count?: number
-  /** Signale une anomalie sur la section (pastille ambre). */
   warn?: boolean
 }
 
 interface TabsProps {
   tabs: readonly TabItem[]
   value: string
-  /** Inutile lorsque les onglets sont des liens. */
   onChange?: (key: string) => void
-  /** Omis, le composant ne rend que la barre. */
   children?: ReactNode
   className?: string
 }
 
-/**
- * Onglets de ressource, partagés par toutes les pages de détail.
- *
- * Souligné : trait sous le libellé actif, filet de base sur toute la largeur.
- * Ce composant existe pour que ce motif ne soit plus recopié à la main dans
- * chaque page.
- *
- * Nommé `PageTabs` à l'export : `components/ui/tabs.tsx` (shadcn) reste en
- * place pour les bascules internes, et deux `Tabs` importables se confondent.
- */
 export function PageTabs({
   tabs,
   value,

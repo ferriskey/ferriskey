@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-/* -------------------------------------------------------------- */
-/* Pill — badge sémantique de la charte FerrisKey                   */
-/* -------------------------------------------------------------- */
-
 export type PillTone =
   | 'neutral'
   | 'success'
@@ -14,10 +10,6 @@ export type PillTone =
   | 'danger'
   | 'primary'
 
-/* FK-02 : chaque teinte existe en triplet — texte plein, fond -soft,
-   bordure -border. Une pastille qui n'utilise que la teinte pleine sur
-   fond blanc ne se distingue pas d'un simple texte coloré.
-   FK-30 : l'état se lit en forme et en couleur, jamais en couleur seule. */
 const pillTones: Record<PillTone, string> = {
   neutral: 'border-fk-line bg-neutral-50 text-neutral-600',
   success: 'border-fk-success-border bg-fk-success-soft text-fk-success',
@@ -35,7 +27,6 @@ export function Pill({
   children,
 }: {
   tone?: PillTone
-  /** FK-04 : réservé aux valeurs littérales — identifiants, clés, URL. */
   mono?: boolean
   className?: string
   children: ReactNode
@@ -65,10 +56,6 @@ export function StatusDot({ on }: { on: boolean }) {
   )
 }
 
-/* -------------------------------------------------------------- */
-/* Squircle — la vignette carrée à initiale des listes             */
-/* -------------------------------------------------------------- */
-
 const squircleTones = [
   'bg-fk-brand',
   'bg-fk-primary',
@@ -84,15 +71,6 @@ export function Squircle({
   className,
 }: {
   name: string
-  /**
-   * FK-09 : `xl` (60 px) est calé sur la hauteur d'un en-tête de ressource à
-   * deux lignes — 28 px de titre + 6 px d'écart + 26 px de pastille. Taille
-   * figée plutôt que dérivée : en flex, `aspect-square` ne sait pas remonter
-   * une largeur depuis une hauteur posée par `align-self: stretch`.
-   *
-   * L'initiale occupe ~40 % du carré à chaque taille, pour que la vignette se
-   * lise pareil d'une ligne de liste à un en-tête de page.
-   */
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
 }) {
@@ -119,10 +97,6 @@ export function Squircle({
   )
 }
 
-/* -------------------------------------------------------------- */
-/* Titres                                                          */
-/* -------------------------------------------------------------- */
-
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <p className='text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-400'>
@@ -130,10 +104,6 @@ export function Eyebrow({ children }: { children: ReactNode }) {
     </p>
   )
 }
-
-/* -------------------------------------------------------------- */
-/* IconTile — la vignette d'icône teintée                          */
-/* -------------------------------------------------------------- */
 
 const iconTileTones = {
   info: 'bg-fk-info-soft text-fk-info',

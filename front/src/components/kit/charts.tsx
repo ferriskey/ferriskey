@@ -1,8 +1,5 @@
 import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 
-/* Teintes sémantiques de la charte, en dur : recharts prend des couleurs SVG
-   et ne sait pas lire une variable Tailwind. Les valeurs suivent
-   `--color-fk-*` de index.css. */
 const toneHex = {
   info: '#2379ff',
   success: '#009764',
@@ -14,14 +11,6 @@ const toneHex = {
 
 export type ChartTone = keyof typeof toneHex
 
-/**
- * Courbe de tendance miniature du bandeau de métriques.
- *
- * FK-12 : elle n'a de sens que sur une série réellement mesurée. Un appelant
- * qui n'a pas d'historique ne passe pas `series` — `MetricsBand` bascule alors
- * sur sa variante « décomptes » plutôt que de tracer une ligne plate qui
- * affirmerait une tendance qu'aucune donnée ne soutient.
- */
 export function Sparkline({
   data,
   tone = 'info',

@@ -5,14 +5,6 @@ export interface SegmentedItem {
   label: string
 }
 
-/**
- * Bascule segmentée — un rail teinté, le segment actif en surface pleine.
- *
- * FK-17 : sert de second niveau à l'intérieur d'un onglet. Empiler deux
- * rangées d'onglets soulignés ne dit pas laquelle commande l'autre ; deux
- * formes distinctes le disent — l'onglet de page souligné, la bascule
- * interne pleine.
- */
 export function Segmented({
   items,
   value,

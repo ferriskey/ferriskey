@@ -33,6 +33,7 @@ import PageUserManagement from './pages/user-management/page-user-management'
 import PageConsoleApplications from './pages/console-applications/page-console-applications'
 import PageConsoleAuthentication from './pages/console-authentication/page-console-authentication'
 import PageConsoleBranding from './pages/console-branding/page-console-branding'
+import NextApp from './next/next-app'
 
 declare global {
   interface Window {
@@ -278,6 +279,9 @@ function AppRoutes() {
             <Route path='user-federation/*' element={<PageUserFederation />} />
             <Route path='organizations/*' element={<PageOrganization />} />
           </Route>
+
+          {/* Alternative IAM console being migrated to the FerrisKey style. */}
+          <Route path='next/*' element={<NextApp />} />
 
           {/* Console (CIAM) — under /console prefix */}
           <Route path='console' element={<ProductLayout />}>

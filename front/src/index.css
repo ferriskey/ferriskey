@@ -140,14 +140,6 @@ input[type="number"] {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Style style FerrisKey — charte FerrisKey (référentiel FK-01 … FK-43)         */
-/* brand #E8431A · accent #C0602A · surfaces chaudes #FDF1E9            */
-/* ------------------------------------------------------------------ */
-
-/* FK-01 : une teinte, un métier. L'accent dit « on agit ici », le       */
-/* sémantique dit « voici l'état ». FK-02 : chaque teinte sémantique     */
-/* existe en triplet — pleine / -soft (fond) / -border (bordure).        */
 @theme {
   --color-fk-brand: #e8431a;
   --color-fk-brand-soft: #fdefe9;
@@ -187,19 +179,11 @@ input[type="number"] {
   --font-mono-ui: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 }
 
-/* FK-05 : tout chiffre aligné porte tnum — sans largeur fixe, une      */
-/* colonne de nombres tremble d'une ligne à l'autre.                     */
 @utility tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
 }
 
-/* Le drapeau est posé sur <html> par le layout IAM, pas par le shell    */
-/* CIAM : c'est ce qui garantit que /console garde son rendu actuel.     */
-/* Sur <html> plutôt que sur le conteneur de page pour que les portails  */
-/* (popover, tooltip, dialog), rendus hors du shell, en héritent aussi.  */
-/* FK-08 : arrondis de 2 à 4 px — en surchargeant --radius ici, tous les */
-/* composants shadcn suivent sans reprendre chaque classe rounded-*.     */
 :root[data-style='ferriskey'] {
   --primary: #c0602a;
   --primary-foreground: #ffffff;

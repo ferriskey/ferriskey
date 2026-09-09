@@ -19,14 +19,6 @@ export interface PickableEntity {
   sublabel?: string
 }
 
-/**
- * Sélection d'entités existantes, avec recherche.
- *
- * FK-28 : à utiliser dès que la valeur est une clé étrangère — `user_id`,
- * `role_id`, un gabarit. Là où un champ à chips laisse saisir n'importe quoi,
- * un nom tapé à la main qui ne correspond à aucun enregistrement produirait
- * une entrée que l'API refuserait ; on ne propose donc que ce qui existe.
- */
 export function EntityPicker({
   items,
   value,
@@ -38,7 +30,6 @@ export function EntityPicker({
   disabled,
 }: {
   items: PickableEntity[]
-  /** Identifiants retenus, dans l'ordre d'ajout. */
   value: string[]
   onChange: (next: string[]) => void
   addLabel?: string
@@ -52,8 +43,6 @@ export function EntityPicker({
   const selected = value
     .map((id) => items.find((i) => i.id === id))
     .filter((i): i is PickableEntity => Boolean(i))
-  /* Ce qui est déjà retenu sort de la liste : la contrainte d'unicité de la
-     table interdit le doublon, autant ne pas le proposer. */
   const available = items.filter((i) => !value.includes(i.id))
 
   return (
@@ -86,7 +75,6 @@ export function EntityPicker({
           ))}
         </ul>
       ) : (
-        /* FK-32 : l'absence est nommée, jamais laissée vide. */
         <p className='text-xs text-neutral-500'>{emptyHint}</p>
       )}
 

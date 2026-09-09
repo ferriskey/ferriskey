@@ -10,23 +10,30 @@ memory: it is the single source of truth for who writes what.
 - No tracking issue — the user declined one; the PR description carries the
   decomposition.
 
-## Scope boundary — IAM yes, CIAM no
+## Shape — an alternative console under `/next/`
 
-`front/src/App.tsx` mounts two products. Everything under `<Layout />` is in
-scope; everything under `<Route path='console' element={<ProductLayout />}>`
-is out, and must keep its current rendering byte for byte.
+The migrated screens do **not** replace the current ones. They form a parallel
+console mounted at `/realms/:realm_name/next/…`, living entirely under
+`front/src/next/`. Nothing outside that directory is modified beyond three
+additive points (see convergence below).
 
-Three IAM trees are mounted verbatim on the CIAM side:
+Consequences, all of them good:
 
-| CIAM page | Reuses |
-|---|---|
-| `console-branding` | `email-template/feature/*`, `portal/themes/feature/*` |
-| `console-authentication` | the whole `PageIdentityProviders` |
+- `/console` (CIAM) keeps its rendering **by construction** — no file it
+  depends on is touched. The `ui/legacy/` strategy considered earlier is
+  dropped; it is no longer needed.
+- The current IAM console keeps working while the migration runs. Both are
+  reachable, so a screen can be compared side by side.
+- Rollback is deleting a directory and one route.
 
-Strategy, decided before dispatch: the current `ui/page-x.tsx` is **moved** to
-`ui/legacy/page-x.tsx` untouched, the new view takes its place, and the
-`*-feature.tsx` carries one line — `pathname.includes('/console/') ? <Legacy/>
-: <New/>`. Phase 2 (CIAM migration) deletes `legacy/` and that line.
+`/realms/:realm_name/next/…` rather than `/next/realms/…`: the realm stays the
+first path segment, where `realmFromPath` in `App.tsx`, every
+`useParams<RouterParams>()` and every existing URL helper already expect it.
+
+The `feature/` ⇄ `ui/` split is reproduced inside `next/`: each domain gets its
+own `feature/` (data, hooks, mutations, handlers) and `ui/` (presentation,
+props only). The features **reuse the existing API layer** (`@/api/*.api.ts`),
+schemas and validators verbatim — only the views are new.
 
 ## Frozen contracts (orchestrator-owned, read-only for workstreams)
 
@@ -35,8 +42,12 @@ Strategy, decided before dispatch: the current `ui/page-x.tsx` is **moved** to
 - `front/src/styles/style-tokens.ts` — `tokens`, `StyleTokens`.
 - `front/src/components/kit/**` — the ported kit.
 - `front/src/components/ui/**` — shadcn, untouched.
-- `front/src/App.tsx`, `components/layout/**`, `app-sidebar.tsx`, `nav-*.tsx`,
-  every `pages/console-*`.
+- `front/src/App.tsx` — the `next/*` route.
+- `front/src/next/shell/**`, `front/src/next/routes.ts` — the shell and the URL
+  helpers. A domain adds its own `NEXT_<DOMAIN>_URL` helpers by **reporting the
+  lines**, and its sidebar entry by reporting `ready: true` on its nav item.
+- `front/src/next/next-app.tsx` — the route table.
+- Everything outside `front/src/next/` — the current console and the CIAM.
 
 A workstream needing a line in any of those **reports the exact line** instead
 of writing it.
@@ -48,15 +59,13 @@ of writing it.
 
 ## Decomposition
 
-Every workstream owns `front/src/pages/<domain>/ui/**`, its
-`front/src/routes/sub-router/<domain>.router.ts`, and its `*-feature.tsx`
-files — the latter for **additive** changes only (a missing datum, the legacy
-switch), never a reorganisation.
+Every workstream owns `front/src/next/pages/<domain>/**` and nothing else.
+Existing files are **read-only** for every workstream, without exception.
 
 | # | Domain | Status |
 |---|---|---|
-| 0 | Foundations (tokens, kit, `data-style` flag) | integrated |
-| 1 | `role` | pending |
+| 0 | Foundations (tokens, kit, `/next` shell) | integrated |
+| 1 | `role` — pilot, the canonical example to imitate | integrated |
 | 2 | `client-scope` | pending |
 | 3 | `user` + `account` | pending |
 | 4 | `client` | pending |
@@ -75,7 +84,7 @@ tests a tree carrying siblings' unfinished work, so it fails for reasons no
 agent can act on. Therefore:
 
 - Sub-agents run `pnpm exec tsc --noEmit -p tsconfig.app.json` and filter the
-  output to their own paths, plus `pnpm exec eslint src/pages/<domain>`.
+  output to their own paths, plus `pnpm exec eslint src/next/pages/<domain>`.
 - `pnpm build` and `pnpm lint` in full belong to the orchestrator, after each
   integration.
 
@@ -95,6 +104,14 @@ Node 24 is required (`nvm use 24`); ESLint 10 crashes on Node 20.8 with
 - **Four kit components not ported** (`SaveBar`, `DangerZone`, `ProviderLogo`,
   `DurationInput`): the product already has richer equivalents. Rejected:
   porting them for kit fidelity — that is a duplicate, not a convergence.
+- **An alternative console rather than an in-place rewrite.** The user asked
+  for `/next/` explicitly. It removes the CIAM risk entirely and makes both
+  renderings comparable while the migration runs. Rejected: replacing the views
+  in place with a `legacy/` copy for the three CIAM-shared trees — more
+  invasive, and it left `/console` one mistake away from changing.
+- **No rationale comments in the code.** The kit annotates every deviation;
+  the user asked for none here. Intent is recorded in this document and in
+  `docs/chantiers/rules/<domain>.md` instead.
 - **The email and portal builders keep the product implementation.** The kit
   rendered them incorrectly; only the chrome around them (page header, tabs,
   sections, panels) is restyled. Their canvas, block library and validation

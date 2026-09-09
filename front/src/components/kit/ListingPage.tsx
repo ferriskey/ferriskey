@@ -21,7 +21,6 @@ export interface ListingAlert {
   tone: 'warn' | 'error' | 'ok'
   title: string
   detail?: string
-  /** FK-14 : un verbe d'action — « Diagnose », « Fix ». */
   action?: string
   onAction?: () => void
 }
@@ -31,7 +30,6 @@ export interface ListingPageProps<T> {
   description?: string
   actions?: ReactNode
   metrics?: ListingMetric[]
-  /** FK-14 : l'anomalie remonte en tête, avec son remède. */
   alerts?: ListingAlert[]
   filters?: { key: string; label: string; predicate: (row: T) => boolean }[]
   searchPlaceholder?: string
@@ -45,12 +43,7 @@ export interface ListingPageProps<T> {
   aggregates?: Partial<Record<string, ReactNode>>
   emptyLabel?: string
   emptyHint?: string
-  /**
-   * Bouton de création affiché dans l'état vide. Omis pour un journal —
-   * FK-15 : un administrateur ne fabrique pas une exécution.
-   */
   emptyAction?: ReactNode
-  /** Vue par défaut ; l'utilisateur peut basculer. */
   defaultView?: ViewMode
   loading?: boolean
 }
@@ -61,12 +54,6 @@ const toneStyles = {
   error: 'border-fk-danger-border bg-fk-danger-soft/40 text-fk-danger',
 } as const
 
-/**
- * Échafaudage commun à toutes les pages de listing.
- *
- * L'ordre des blocs est fixe : en-tête, alertes, métriques, barre d'outils,
- * table, compteur. Un écran qui s'en écarte doit avoir une raison écrite.
- */
 export function ListingPage<T>({
   title,
   description,
@@ -104,7 +91,6 @@ export function ListingPage<T>({
     return out
   }, [rows, filters, filter, query, searchIn])
 
-  /* Vide parce que filtré, et non parce que la ressource n'existe pas. */
   const filteredOut = rows.length > 0 && filtered.length === 0
 
   return (
@@ -247,18 +233,12 @@ export function ListingPage<T>({
           view={view}
           loading={loading}
           aggregates={aggregates}
-          /* FK-13 : deux vides distincts. « La ressource n'existe pas encore »
-             appelle un bouton de création ; « le filtre ne laisse rien passer »
-             appelle un bouton d'effacement. */
           emptyLabel={filteredOut ? 'No match' : emptyLabel}
           emptyHint={
             filteredOut
               ? `${rows.length} ${rows.length > 1 ? 'entries exist' : 'entry exists'} but ${rows.length > 1 ? 'are' : 'is'} hidden by the current filter.`
               : emptyHint
           }
-          /* Sous filtre, retirer le filtre passe devant — c'est le geste qui
-             ramène ce qui existe — mais créer reste offert : on peut très bien
-             chercher une ressource absente et vouloir l'ajouter. */
           emptyAction={
             filteredOut ? (
               <div className='flex flex-wrap items-center justify-center gap-2'>

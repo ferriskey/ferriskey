@@ -8,27 +8,14 @@ export interface Metric {
   label: string
   value: number | string
   hint?: string
-  /** Variation sur la fenêtre observée. Omis s'il n'y a rien de mesuré. */
   delta?: number
-  /** Série mesurée. Omise, la cellule bascule en variante « décomptes ». */
   series?: number[]
   tone?: ChartTone
 }
 
-/**
- * Bandeau de métriques en tête de listing — une bande unique qui garde le
- * delta et la sparkline du style data-first sans en prendre la hauteur.
- *
- * Partagé par les listings et les pages de supervision, pour qu'un chiffre se
- * lise partout de la même façon.
- */
 export function MetricsBand({ metrics }: { metrics: Metric[] }) {
   if (metrics.length === 0) return null
 
-  /* FK-12 : aucune série dans tout le bandeau — la gouttière réservée au
-     graphique laisserait un vide à droite de chaque cellule. On la récupère
-     pour le chiffre, qui devient le sujet de la cellule au lieu d'en partager
-     la place avec un espace mort. */
   const hasSeries = metrics.some((m) => m.series)
 
   return (

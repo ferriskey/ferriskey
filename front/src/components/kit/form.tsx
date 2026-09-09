@@ -5,19 +5,6 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 
-/* -------------------------------------------------------------- */
-/* FieldRow — la ligne de formulaire unique de la console           */
-/* -------------------------------------------------------------- */
-
-/**
- * Libellé et description à gauche sur 20 rem, contrôle à droite.
- *
- * Remplace le motif `flex items-start justify-between` avec `w-1/3` / `w-1/2`
- * recopié dans toute la console. FK-21 : la description a sa propre ligne et
- * n'est jamais tronquée — c'est précisément la phrase qui évite de configurer
- * le champ de travers. FK-24 : pleine largeur plutôt que deux colonnes
- * serrées, qui écrasent la colonne de libellés.
- */
 export function FieldRow({
   label,
   description,
@@ -27,12 +14,10 @@ export function FieldRow({
   layout = 'split',
 }: {
   label: string
-  /** FK-22 : dit la conséquence, pas la définition. */
   description?: string
   htmlFor?: string
   children: ReactNode
   className?: string
-  /** `stacked` pour les formulaires étroits (modale, tiroir latéral). */
   layout?: 'split' | 'stacked'
 }) {
   if (layout === 'stacked') {
@@ -75,15 +60,6 @@ export function FieldRow({
   )
 }
 
-/* -------------------------------------------------------------- */
-/* SwitchField — FK-27 : l'interrupteur survit aux vrais booléens   */
-/* -------------------------------------------------------------- */
-
-/**
- * « Use TLS », « Standard flow », « Scheduled sync » : une capacité qu'on
- * active. Pas de carte pour ça — la carte coûte trois fois la hauteur. Dès
- * que les deux états sont deux *natures*, c'est {@link ChoiceCards} (FK-26).
- */
 export function SwitchField({
   checked,
   onCheckedChange,
@@ -121,31 +97,14 @@ export function SwitchField({
   )
 }
 
-/* -------------------------------------------------------------- */
-/* ChoiceCards — un choix parmi N, présenté en cartes jointes       */
-/* -------------------------------------------------------------- */
-
 export interface Choice<T extends string> {
   value: T
   label: string
-  /** Ce que le choix implique concrètement, en une phrase. */
   description?: string
   icon?: ComponentType<{ className?: string; strokeWidth?: number }>
-  /** FK-39 : un refus du domaine s'annonce avant le clic, avec sa raison. */
   disabledReason?: string
 }
 
-/**
- * FK-26 : alternative à l'interrupteur quand les deux états ne sont pas
- * « actif / inactif » mais deux options de même rang — confidentiel et
- * public, temporaire et permanent, expirer et terminer. Le switch obligeait à
- * deviner l'état opposé ; ici les deux sont nommés et décrits côte à côte.
- *
- * Géométrie : cartes jointes comme les segments d'un input group — une seule
- * bordure partagée (`-ml-px`), les arrondis seulement aux extrémités du
- * groupe. La carte retenue passe en `z-10` pour que sa bordure accentuée
- * couvre celle de sa voisine sur l'arête commune.
- */
 export function ChoiceCards<T extends string>({
   value,
   onChange,
@@ -156,7 +115,6 @@ export function ChoiceCards<T extends string>({
   value: T
   onChange: (v: T) => void
   options: Choice<T>[]
-  /** Nom du groupe pour les lecteurs d'écran. */
   label?: string
   className?: string
 }) {
@@ -198,8 +156,6 @@ export function ChoiceCards<T extends string>({
             aria-checked={selected}
             aria-disabled={blocked}
             title={o.disabledReason}
-            /* Roving tabindex : le groupe est une seule étape de tabulation,
-               on circule ensuite entre les cartes aux flèches. */
             tabIndex={selected ? 0 : -1}
             onClick={() => !blocked && onChange(o.value)}
             className={cn(
@@ -222,15 +178,6 @@ export function ChoiceCards<T extends string>({
   )
 }
 
-/**
- * Variante multi-sélection de {@link ChoiceCards}, avec ordre.
- *
- * Même géométrie — cartes jointes, bordure partagée — mais les choix se
- * cumulent et leur rang compte : la carte retenue affiche sa position.
- * FK-39 : quand le domaine impose une liste non vide, décocher le dernier
- * élément est refusé avec son infobulle plutôt que de produire un état que
- * l'API rejetterait après coup.
- */
 export function OrderedChoiceCards<T extends string>({
   value,
   onChange,
@@ -239,7 +186,6 @@ export function OrderedChoiceCards<T extends string>({
   className,
   minSelectedReason = 'At least one entry is required.',
 }: {
-  /** Liste ordonnée : l'ordre est la précédence. */
   value: T[]
   onChange: (v: T[]) => void
   options: Choice<T>[]
@@ -249,7 +195,6 @@ export function OrderedChoiceCards<T extends string>({
 }) {
   const toggle = (v: T) => {
     if (value.includes(v)) {
-      /* Le dernier ne se retire pas : la liste doit rester non vide. */
       if (value.length === 1) return
       onChange(value.filter((x) => x !== v))
     } else {
@@ -302,7 +247,6 @@ export function OrderedChoiceCards<T extends string>({
   )
 }
 
-/** Tête de carte partagée par les deux variantes — icône, libellé, coche. */
 function ChoiceCardHead<T extends string>({
   option,
   selected,
@@ -359,17 +303,6 @@ function ChoiceCardHead<T extends string>({
   )
 }
 
-/* -------------------------------------------------------------- */
-/* ChipInput — champ multi-valeurs libres                           */
-/* -------------------------------------------------------------- */
-
-/**
- * Remplace les boutons « Add … » pleine largeur.
- *
- * Réservé aux valeurs **libres** — URI de redirection, origines web, en-têtes.
- * Dès que la valeur est une clé étrangère, c'est {@link EntityPicker} qu'il
- * faut (FK-28) : ici rien n'empêche de saisir un nom qui n'existe pas.
- */
 export function ChipInput({
   values,
   onChange,
@@ -415,7 +348,6 @@ export function ChipInput({
           ))}
         </ul>
       ) : (
-        /* FK-32 : l'absence est nommée, jamais laissée vide. */
         emptyHint && <p className='text-xs text-neutral-400'>{emptyHint}</p>
       )}
       <div className='flex max-w-lg gap-2'>
