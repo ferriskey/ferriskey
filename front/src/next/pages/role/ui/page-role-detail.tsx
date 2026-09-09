@@ -10,6 +10,7 @@ import RolePermissionsTab from './role-permissions-tab'
 import RoleUsersTab from './role-users-tab'
 
 import Role = Schemas.Role
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PageRoleDetailProps {
   role?: Role
@@ -117,7 +118,7 @@ export default function PageRoleDetail({
         <dl className='shrink-0 text-right text-xs text-neutral-500'>
           <dt className='sr-only'>Created at</dt>
           <dd className='tnum'>
-            Created {new Date(role.created_at).toLocaleDateString('en-GB')}
+            Created {formatDate(role.created_at)}
           </dd>
           <dt className='sr-only'>Identifier</dt>
           <dd className='font-mono-ui text-[11px] text-neutral-400'>{role.id}</dd>

@@ -12,8 +12,8 @@ import { mapperCategory } from '../mapper-categories'
 import MapperConfigFields, { type MapperEntityOptions } from './mapper-config-fields'
 
 import ProtocolMapper = Schemas.ProtocolMapper
+import { formatDate } from '@/next/shared/format-date'
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB')
 
 export interface PageProtocolMapperSettingsProps {
   mapper?: ProtocolMapper

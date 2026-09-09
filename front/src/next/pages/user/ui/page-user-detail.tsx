@@ -11,6 +11,7 @@ import UserOverviewTab from './user-overview-tab'
 
 import User = Schemas.User
 import RequiredAction = Schemas.RequiredAction
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PageUserDetailProps {
   user?: User
@@ -143,11 +144,7 @@ export default function PageUserDetail({
           <dt className='sr-only'>Created at</dt>
           <dd className='tnum'>
             Created{' '}
-            {new Date(user.created_at).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            })}
+            {formatDate(user.created_at)}
           </dd>
           <dt className='sr-only'>Identifier</dt>
           <dd className='font-mono-ui text-[11px] text-neutral-400'>{user.id}</dd>

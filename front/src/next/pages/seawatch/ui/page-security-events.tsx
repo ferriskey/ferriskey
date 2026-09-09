@@ -33,7 +33,8 @@ import {
   eventDetailSummary,
   eventLabel,
   eventReason,
-  formatEventTimestamp,
+  formatRelative,
+  formatTimestamp,
 } from '../event-catalogue'
 
 import SecurityEvent = Schemas.SecurityEvent
@@ -97,7 +98,7 @@ const latestTimestamp = (events: SecurityEvent[]) => {
       : acc
   }, '')
   if (!latest) return 'No activity yet'
-  return formatEventTimestamp(latest)
+  return formatTimestamp(latest)
 }
 
 const dominant = (values: (string | null | undefined)[]) => {
@@ -257,9 +258,12 @@ export default function PageSecurityEvents({
       header: 'When',
       align: 'right',
       render: (e) => (
-        <span className='tnum text-xs text-neutral-500'>
-          {formatEventTimestamp(e.timestamp)}
-        </span>
+        <div className='min-w-0 whitespace-nowrap'>
+          <span className='text-neutral-700'>{formatRelative(e.timestamp)}</span>
+          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400'>
+            {formatTimestamp(e.timestamp)}
+          </p>
+        </div>
       ),
       sortValue: (e) => e.timestamp,
     },
@@ -300,7 +304,7 @@ export default function PageSecurityEvents({
           {eventDetailSummary(e) ?? e.user_agent ?? 'no additional detail'}
         </span>
         <span className='tnum shrink-0 pl-3 text-right'>
-          {formatEventTimestamp(e.timestamp)}
+          {formatTimestamp(e.timestamp)}
         </span>
       </>
     ),
@@ -425,8 +429,8 @@ export default function PageSecurityEvents({
       tone: actor.count > 3 ? ('error' as const) : ('warn' as const),
       title: `${actor.identifier} — ${actor.count} failure${actor.count > 1 ? 's' : ''}`,
       detail: actor.ip
-        ? `Last seen from ${actor.ip} on ${formatEventTimestamp(actor.lastSeen)}.`
-        : `Last seen on ${formatEventTimestamp(actor.lastSeen)}, origin not recorded.`,
+        ? `Last seen from ${actor.ip} on ${formatTimestamp(actor.lastSeen)}.`
+        : `Last seen on ${formatTimestamp(actor.lastSeen)}, origin not recorded.`,
     })),
   ]
 

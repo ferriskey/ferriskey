@@ -12,6 +12,7 @@ import { citedVariables, emailTypeSpec, type EmailTypeSpec } from '../email-type
 
 import EmailTemplate = Schemas.EmailTemplate
 import TemplateVariable = Schemas.TemplateVariable
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PageEmailTemplateDetailProps {
   template?: EmailTemplate
@@ -116,7 +117,7 @@ export default function PageEmailTemplateDetail({
           <dl className='text-right text-xs text-neutral-500'>
             <dt className='sr-only'>Updated at</dt>
             <dd className='tnum'>
-              Updated {new Date(template.updated_at).toLocaleDateString('en-GB')}
+              Updated {formatDate(template.updated_at)}
             </dd>
             <dt className='sr-only'>Identifier</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400'>{template.id}</dd>

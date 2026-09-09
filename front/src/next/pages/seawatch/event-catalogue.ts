@@ -1,3 +1,5 @@
+export { formatRelative, formatTimestamp } from '@/next/shared/format-date'
+
 import { Schemas } from '@/api/api.client'
 
 import SecurityEvent = Schemas.SecurityEvent
@@ -102,15 +104,6 @@ export const eventDetailSummary = (event: SecurityEvent) => {
 
 export const actorLabel = (event: SecurityEvent) =>
   event.actor_id ?? event.target_id ?? null
-
-export const formatEventTimestamp = (timestamp: string) => {
-  const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return 'Invalid date'
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
-}
 
 export const eventFamilies: Record<string, readonly SecurityEventType[]> = {
   authentication: authenticationEvents,

@@ -7,6 +7,8 @@ import {
   failingStep,
   flowStatusTone,
   formatDateTime,
+  formatRelative,
+  formatTimestamp,
   formatDuration,
   stepLabel,
 } from '../flow-format'
@@ -41,7 +43,12 @@ export default function PageFlows({
       key: 'started_at',
       header: 'Started',
       render: (f) => (
-        <span className='font-mono-ui text-xs'>{formatDateTime(f.started_at)}</span>
+        <div className='min-w-0 whitespace-nowrap'>
+          <span className='text-neutral-700'>{formatRelative(f.started_at)}</span>
+          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400'>
+            {formatTimestamp(f.started_at)}
+          </p>
+        </div>
       ),
       sortValue: (f) => f.started_at,
     },

@@ -2,6 +2,7 @@ import { KeyRound, Link2, MailCheck, type LucideIcon } from 'lucide-react'
 import { Schemas } from '@/api/api.client'
 
 import EmailType = Schemas.EmailType
+import { formatDate } from '@/next/shared/format-date'
 
 export interface EmailTypeSpec {
   key: EmailType
@@ -60,7 +61,7 @@ export const formatRelative = (iso: string) => {
   if (hours < 24) return `${hours}h ago`
   const days = Math.round(hours / 24)
   if (days < 30) return `${days}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date.toISOString())
 }
 
 export const citedVariables = (mjml: string): Set<string> => {

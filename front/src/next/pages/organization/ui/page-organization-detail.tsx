@@ -13,6 +13,7 @@ import OrganizationMembersTab from './organization-members-tab'
 import Organization = Schemas.Organization
 import OrganizationAttribute = Schemas.OrganizationAttribute
 import User = Schemas.User
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PageOrganizationDetailProps {
   organization?: Organization
@@ -134,7 +135,7 @@ export default function PageOrganizationDetail({
         <dl className='shrink-0 text-right text-xs text-neutral-500'>
           <dt className='sr-only'>Created at</dt>
           <dd className='tnum'>
-            Created {new Date(organization.created_at).toLocaleDateString('en-GB')}
+            Created {formatDate(organization.created_at)}
           </dd>
           <dt className='sr-only'>Identifier</dt>
           <dd className='font-mono-ui text-[11px] text-neutral-400'>{organization.id}</dd>

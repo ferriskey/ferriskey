@@ -12,6 +12,7 @@ import type { ScopeTypeChoice } from './page-create-client-scope'
 import ClientScope = Schemas.ClientScope
 import ProtocolMapper = Schemas.ProtocolMapper
 import ScopeType = Schemas.ScopeType
+import { formatDateTime } from '@/next/shared/format-date'
 
 const typeLabel: Record<ScopeType, string> = {
   DEFAULT: 'default',
@@ -24,15 +25,6 @@ const typeTone: Record<ScopeType, PillTone> = {
   OPTIONAL: 'info',
   NONE: 'neutral',
 }
-
-const formatDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 
 export interface PageClientScopeDetailProps {
   scope?: ClientScope

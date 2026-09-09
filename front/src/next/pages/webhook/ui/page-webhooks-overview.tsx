@@ -6,6 +6,7 @@ import { Schemas } from '@/api/api.client'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
 
 import Webhook = Schemas.Webhook
+import { formatDateTime } from '@/next/shared/format-date'
 
 export interface PageWebhooksOverviewProps {
   webhooks: Webhook[]
@@ -17,15 +18,6 @@ export interface PageWebhooksOverviewProps {
 const label = (webhook: Webhook) => webhook.name || webhook.endpoint
 
 const isSecure = (webhook: Webhook) => webhook.endpoint.startsWith('https://')
-
-const formatDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 
 export default function PageWebhooksOverview({
   webhooks,

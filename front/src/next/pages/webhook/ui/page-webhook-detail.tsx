@@ -13,6 +13,7 @@ import type { WebhookHeader } from './webhook-headers-field'
 
 import Webhook = Schemas.Webhook
 import WebhookTrigger = Schemas.WebhookTrigger
+import { formatDateTime } from '@/next/shared/format-date'
 
 export interface PageWebhookDetailProps {
   webhook?: Webhook
@@ -36,15 +37,6 @@ export interface PageWebhookDetailProps {
   onSave: () => void
   onDelete: () => void
 }
-
-const formatDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 
 export default function PageWebhookDetail({
   webhook,

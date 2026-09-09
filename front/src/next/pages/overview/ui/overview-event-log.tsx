@@ -1,6 +1,7 @@
 import { Pill, type PillTone } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { formatDateTime as formatTime } from '@/next/shared/format-date'
 
 export interface OverviewEvent {
   id: string
@@ -27,17 +28,6 @@ const statusTone: Record<OverviewEvent['status'], PillTone> = {
 const formatDuration = (ms?: number | null) => {
   if (ms === undefined || ms === null) return null
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
-}
-
-const formatTime = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLogProps) {

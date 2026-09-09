@@ -11,6 +11,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import CredentialOverview = Schemas.CredentialOverview
+import { formatDateTime } from '@/next/shared/format-date'
 
 const credentialMeta: Record<
   string,
@@ -25,13 +26,7 @@ const metaFor = (type: string) =>
   credentialMeta[type] ?? { label: type, icon: ShieldQuestion, tone: 'neutral' as PillTone }
 
 const formatCreatedAt = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  formatDateTime(iso)
 
 export interface UserCredentialsTabProps {
   credentials: CredentialOverview[]

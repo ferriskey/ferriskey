@@ -6,6 +6,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import Organization = Schemas.Organization
+import { formatDate } from '@/next/shared/format-date'
 
 export interface UserMembership {
   organization: Organization
@@ -24,11 +25,7 @@ export interface UserOrganizationsTabProps {
 }
 
 const formatJoinedAt = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
+  formatDate(iso)
 
 export default function UserOrganizationsTab({
   memberships,

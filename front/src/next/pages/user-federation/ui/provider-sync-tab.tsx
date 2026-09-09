@@ -2,7 +2,7 @@ import { Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { Schemas } from '@/api/api.client'
 import {
-  formatDateTime,
+  formatSyncedAt,
   formatDuration,
   type SyncMode,
 } from '../provider-config'
@@ -48,7 +48,7 @@ export default function ProviderSyncTab({
   onSyncModeChange,
   onSyncIntervalChange,
 }: ProviderSyncTabProps) {
-  const lastSync = formatDateTime(provider.last_sync_at)
+  const lastSync = formatSyncedAt(provider.last_sync_at)
 
   return (
     <>
@@ -80,7 +80,7 @@ export default function ProviderSyncTab({
               </span>
               {lastRun.completed_at && (
                 <span className='text-xs text-neutral-500'>
-                  finished {formatDateTime(lastRun.completed_at)}
+                  finished {formatSyncedAt(lastRun.completed_at)}
                 </span>
               )}
             </div>

@@ -13,7 +13,7 @@ import {
 import { Schemas } from '@/api/api.client'
 import {
   asLdapConfig,
-  formatDateTime,
+  formatSyncedAt,
   isLdapLike,
   ldapConnectionUrl,
   priorityFromScore,
@@ -122,7 +122,7 @@ export default function PageProvidersOverview({
       key: 'last_sync',
       header: 'Last sync',
       render: (p) =>
-        formatDateTime(p.last_sync_at) ?? <span className='text-neutral-400'>never synced</span>,
+        formatSyncedAt(p.last_sync_at) ?? <span className='text-neutral-400'>never synced</span>,
       sortValue: (p) => p.last_sync_at ?? '',
     },
     {
@@ -162,7 +162,7 @@ export default function PageProvidersOverview({
     footer: (p) => (
       <>
         <span>{priorityFromScore(p.priority)}</span>
-        <span>{formatDateTime(p.last_sync_at) ?? 'never synced'}</span>
+        <span>{formatSyncedAt(p.last_sync_at) ?? 'never synced'}</span>
       </>
     ),
   }

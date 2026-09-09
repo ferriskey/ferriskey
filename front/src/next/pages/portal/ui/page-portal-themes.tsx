@@ -20,6 +20,7 @@ import { PORTAL_PAGES, labelForPortalPage, humanizeBlockType } from '../portal-p
 import type { PortalPageStatus } from '../theme-validation'
 import { PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PortalThemeRow {
   theme: Schemas.PortalTheme
@@ -48,7 +49,6 @@ const SWATCH_KEYS = [
   'error',
 ] as const
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB')
 
 function Swatches({ config }: { config: Schemas.PortalThemeConfig }) {
   const colors = (config?.colors ?? {}) as Record<string, string | undefined>

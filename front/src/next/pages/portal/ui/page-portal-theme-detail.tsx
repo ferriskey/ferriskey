@@ -12,6 +12,7 @@ import type { PortalPageStatus } from '../theme-validation'
 import ThemeTokensTab from './theme-tokens-tab'
 import ThemeLayoutTab from './theme-layout-tab'
 import ThemePagesTab from './theme-pages-tab'
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PagePortalThemeDetailProps {
   theme?: Schemas.PortalTheme
@@ -159,7 +160,7 @@ export default function PagePortalThemeDetail({
           <dl className='text-right text-xs text-neutral-500'>
             <dt className='sr-only'>Updated at</dt>
             <dd className='tnum'>
-              Updated {new Date(theme.updated_at).toLocaleDateString('en-GB')}
+              Updated {formatDate(theme.updated_at)}
             </dd>
             <dt className='sr-only'>Identifier</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400'>{theme.id}</dd>

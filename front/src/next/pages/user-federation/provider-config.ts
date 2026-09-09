@@ -1,3 +1,5 @@
+import { formatDateTime } from '@/next/shared/format-date'
+
 export type ProviderPriority = 'Primary' | 'Secondary' | 'Development' | 'Legacy'
 export type SyncMode = 'Import' | 'Force' | 'LinkOnly'
 
@@ -139,8 +141,10 @@ export const formatDuration = (ms: number | null) => {
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
 }
 
-export const formatDateTime = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : null
+export const formatSyncedAt = (iso?: string | null) =>
+  iso ? formatDateTime(iso) : null
+
+export { formatDateTime }
 
 export const humanizeConfigKey = (key: string) =>
   key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')

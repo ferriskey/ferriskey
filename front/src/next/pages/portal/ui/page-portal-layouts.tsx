@@ -8,6 +8,7 @@ import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
 import { PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PortalLayoutRow {
   layout: Schemas.PortalLayout
@@ -25,7 +26,6 @@ export interface PagePortalLayoutsProps {
   onImport: (file: File) => void
 }
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB')
 
 function refusalFor({ layout, usedBy }: PortalLayoutRow): string | null {
   if (layout.is_default) {

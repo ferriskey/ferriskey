@@ -7,6 +7,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import Client = Schemas.Client
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PageClientDetailProps {
   client?: Client
@@ -90,7 +91,7 @@ export default function PageClientDetail({
 
         <dl className='shrink-0 text-right text-xs text-neutral-500'>
           <dt className='sr-only'>Created at</dt>
-          <dd className='tnum'>Created {new Date(client.created_at).toLocaleDateString('en-GB')}</dd>
+          <dd className='tnum'>Created {formatDate(client.created_at)}</dd>
           <dt className='sr-only'>Identifier</dt>
           <dd className='font-mono-ui text-[11px] text-neutral-400'>{client.id}</dd>
         </dl>

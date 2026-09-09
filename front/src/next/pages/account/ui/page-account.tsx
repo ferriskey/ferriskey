@@ -7,6 +7,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
+import { formatDate } from '@/next/shared/format-date'
 
 export interface PageAccountProps {
   profile?: User
@@ -94,11 +95,7 @@ export default function PageAccount({
           <dt className='sr-only'>Member since</dt>
           <dd className='tnum'>
             Member since{' '}
-            {new Date(profile.created_at).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            })}
+            {formatDate(profile.created_at)}
           </dd>
           <dt className='sr-only'>Identifier</dt>
           <dd className='font-mono-ui text-[11px] text-neutral-400'>{profile.id}</dd>
