@@ -4,6 +4,7 @@ import { useGetFlows, useGetStats } from '@/api/compass.api'
 import { RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 import { useListingQuery } from '@/components/kit'
+import { useRealmDirectory } from '@/next/shared/use-realm-directory'
 import { NEXT_COMPASS_URL } from '@/next/routes'
 import PageFlows from '../ui/page-flows'
 
@@ -14,6 +15,7 @@ export default function PageFlowsFeature() {
   const realm = realm_name ?? 'master'
 
   const listing = useListingQuery()
+  const directory = useRealmDirectory(realm)
 
   const {
     data: flowsResponse,
@@ -35,6 +37,7 @@ export default function PageFlowsFeature() {
       isLoading={isLoadingFlows || isLoadingStats}
       isError={isError}
       listing={listing}
+      directory={directory}
       flowHref={(flow: CompassFlow) => `${NEXT_COMPASS_URL(realm)}/${flow.id}`}
     />
   )

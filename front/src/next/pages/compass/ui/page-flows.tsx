@@ -13,6 +13,7 @@ import {
 
 import CompassFlow = Schemas.CompassFlow
 import FlowStats = Schemas.FlowStats
+import type { RealmDirectory } from '@/next/shared/use-realm-directory'
 
 export interface PageFlowsProps {
   flows: CompassFlow[]
@@ -20,6 +21,7 @@ export interface PageFlowsProps {
   isLoading: boolean
   isError: boolean
   listing: ListingQuery
+  directory: RealmDirectory
   flowHref: (flow: CompassFlow) => string
 }
 
@@ -31,6 +33,7 @@ export default function PageFlows({
   isLoading,
   isError,
   listing,
+  directory,
   flowHref,
 }: PageFlowsProps) {
   const columns: Column<CompassFlow>[] = [
@@ -90,13 +93,20 @@ export default function PageFlows({
     {
       key: 'user_id',
       header: 'User',
-      render: (f) =>
-        f.user_id ? (
-          <span className='font-mono-ui text-xs text-neutral-600'>{f.user_id}</span>
-        ) : (
-          <span className='text-xs text-neutral-400'>never identified</span>
-        ),
-      sortValue: (f) => f.user_id ?? '',
+      render: (f) => {
+        if (!f.user_id)
+          return <span className='text-xs text-neutral-400'>never identified</span>
+        const name = directory.userLabel(f.user_id)
+        if (!name)
+          return <span className='font-mono-ui text-xs text-neutral-600'>{f.user_id}</span>
+        return (
+          <div className='min-w-0'>
+            <span className='text-neutral-700'>{name}</span>
+            <p className='truncate font-mono-ui text-[11px] text-neutral-400'>{f.user_id}</p>
+          </div>
+        )
+      },
+      sortValue: (f) => directory.userLabel(f.user_id) ?? f.user_id ?? '',
     },
     {
       key: 'steps',

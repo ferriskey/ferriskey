@@ -38,6 +38,7 @@ import {
 
 import SecurityEvent = Schemas.SecurityEvent
 import DailyActivityStats = Schemas.DailyActivityStats
+import type { RealmDirectory } from '@/next/shared/use-realm-directory'
 
 export interface PageSecurityEventsProps {
   events: SecurityEvent[]
@@ -48,6 +49,7 @@ export interface PageSecurityEventsProps {
   windowLimit: number
   truncated: boolean
   listing: ListingQuery
+  directory: RealmDirectory
 }
 
 interface RiskyActor {
@@ -151,6 +153,7 @@ export default function PageSecurityEvents({
   windowLimit,
   truncated,
   listing,
+  directory,
 }: PageSecurityEventsProps) {
   const [view, setView] = useState<ViewMode>('list')
   const [query, setQuery] = useState('')
@@ -199,39 +202,44 @@ export default function PageSecurityEvents({
       key: 'actor',
       header: 'Actor',
       render: (e) => {
-        const actor = actorLabel(e)
-        if (!actor) return <span className='text-xs text-neutral-400'>unattributed</span>
+        const identifier = actorLabel(e)
+        if (!identifier)
+          return <span className='text-xs text-neutral-400'>unattributed</span>
+        const name = directory.label(e.actor_id, e.actor_type)
         return (
           <div className='min-w-0'>
-            <span className='text-neutral-700'>{actor}</span>
-            {e.actor_type && (
-              <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
-                {e.actor_type}
-              </p>
-            )}
+            <span className={name ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600'}>
+              {name ?? identifier}
+            </span>
+            <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
+              {name ? identifier : (e.actor_type ?? 'unknown type')}
+            </p>
           </div>
         )
       },
-      sortValue: (e) => actorLabel(e) ?? '',
+      sortValue: (e) => directory.label(e.actor_id, e.actor_type) ?? actorLabel(e) ?? '',
     },
     {
       key: 'target',
       header: 'Target',
       render: (e) => {
-        const target = e.target_id ?? e.resource
-        if (!target) return <span className='text-xs text-neutral-400'>none</span>
+        const identifier = e.target_id ?? e.resource
+        if (!identifier) return <span className='text-xs text-neutral-400'>none</span>
+        const name = directory.label(e.target_id, e.target_type) ?? e.resource
+        const resolved = name && name !== identifier
         return (
           <div className='min-w-0'>
-            <span className='font-mono-ui text-xs text-neutral-600'>{target}</span>
-            {e.target_type && (
-              <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
-                {e.target_type}
-              </p>
-            )}
+            <span className={resolved ? 'text-neutral-700' : 'font-mono-ui text-xs text-neutral-600'}>
+              {name ?? identifier}
+            </span>
+            <p className='truncate font-mono-ui text-[11px] text-neutral-400'>
+              {resolved ? identifier : (e.target_type ?? 'unknown type')}
+            </p>
           </div>
         )
       },
-      sortValue: (e) => e.target_id ?? e.resource ?? '',
+      sortValue: (e) =>
+        directory.label(e.target_id, e.target_type) ?? e.target_id ?? e.resource ?? '',
     },
     {
       key: 'ip_address',
