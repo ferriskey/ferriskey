@@ -5,6 +5,7 @@ import type { CardSpec, Column } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 
 import Role = Schemas.Role
+import { cumulativeSeries } from '@/next/shared/cumulative-series'
 
 export interface PageRolesOverviewProps {
   roles: Role[]
@@ -111,7 +112,7 @@ export default function PageRolesOverview({
       loading={isLoading}
       actions={createButton}
       metrics={[
-        { key: 'total', label: 'Total', value: roles.length, hint: 'roles' },
+        { key: 'total', label: 'Total', value: roles.length, hint: 'roles', series: cumulativeSeries(roles.map((r) => r.created_at)), tone: 'info' },
         {
           key: 'realm',
           label: 'Realm roles',
@@ -120,18 +121,24 @@ export default function PageRolesOverview({
             realmRoles.length > 0 && roles.length > 0
               ? `${((realmRoles.length / roles.length) * 100).toFixed(0)}% of total`
               : 'no realm role',
+          series: cumulativeSeries(realmRoles.map((r) => r.created_at)),
+          tone: 'info',
         },
         {
           key: 'client',
           label: 'Client roles',
           value: clientRoles.length,
           hint: 'scoped to a client',
+          series: cumulativeSeries(clientRoles.map((r) => r.created_at)),
+          tone: 'violet',
         },
         {
           key: 'granting',
           label: 'With permissions',
           value: withPermissions.length,
           hint: 'grant at least one',
+          series: cumulativeSeries(withPermissions.map((r) => r.created_at)),
+          tone: 'success',
         },
       ]}
       alerts={

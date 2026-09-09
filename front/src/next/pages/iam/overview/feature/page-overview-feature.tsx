@@ -22,6 +22,7 @@ import PageOverview, {
   type OverviewQuickLink,
 } from '../ui/page-overview'
 import type { OverviewEvent } from '../ui/overview-event-log'
+import { cumulativeSeries } from '@/next/shared/cumulative-series'
 
 const WINDOW_DAYS = 30
 const EVENT_COUNT = 8
@@ -35,16 +36,6 @@ function windowDays() {
     const day = new Date(today)
     day.setDate(today.getDate() - (WINDOW_DAYS - 1 - i))
     return day.getTime()
-  })
-}
-
-function cumulativeSeries(createdAt: string[]) {
-  const stamps = createdAt
-    .map((value) => new Date(value).getTime())
-    .filter((time) => !Number.isNaN(time))
-  return windowDays().map((day) => {
-    const end = day + 24 * 60 * 60 * 1000
-    return stamps.filter((time) => time < end).length
   })
 }
 
@@ -108,7 +99,7 @@ export default function PageOverviewFeature() {
       value: users.length,
       hint: users.length > 0 ? `${pct(verifiedUsers, users.length)}% email verified` : 'no user yet',
       delta: newUsers > 0 ? newUsers : undefined,
-      series: measured(cumulativeSeries(users.map((u) => u.created_at))),
+      series: cumulativeSeries(users.map((u) => u.created_at)),
       tone: 'success',
     },
     {
@@ -116,7 +107,7 @@ export default function PageOverviewFeature() {
       label: 'Clients',
       value: clients.length,
       hint: clients.length > 0 ? `${activeClients} active` : 'no client yet',
-      series: measured(cumulativeSeries(clients.map((c) => c.created_at))),
+      series: cumulativeSeries(clients.map((c) => c.created_at)),
       tone: 'info',
     },
     {
@@ -124,7 +115,7 @@ export default function PageOverviewFeature() {
       label: 'Roles',
       value: roles.length,
       hint: 'permissions & policies',
-      series: measured(cumulativeSeries(roles.map((r) => r.created_at))),
+      series: cumulativeSeries(roles.map((r) => r.created_at)),
       tone: 'violet',
     },
     {

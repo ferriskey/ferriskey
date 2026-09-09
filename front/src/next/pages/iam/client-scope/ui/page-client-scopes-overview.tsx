@@ -8,6 +8,7 @@ import { Schemas } from '@/api/api.client'
 
 import ClientScope = Schemas.ClientScope
 import ScopeType = Schemas.ScopeType
+import { cumulativeSeries } from '@/next/shared/cumulative-series'
 
 const typeLabel: Record<ScopeType, string> = {
   DEFAULT: 'default',
@@ -158,7 +159,7 @@ export default function PageClientScopesOverview({
         loading={isLoading}
         actions={createButton}
         metrics={[
-          { key: 'total', label: 'Total', value: scopes.length, hint: 'scopes' },
+          { key: 'total', label: 'Total', value: scopes.length, hint: 'scopes', series: cumulativeSeries(scopes.map((r) => r.created_at)), tone: 'info' },
           {
             key: 'default',
             label: 'Default scopes',
@@ -167,18 +168,24 @@ export default function PageClientScopesOverview({
               defaultScopes.length > 0 && scopes.length > 0
                 ? `${((defaultScopes.length / scopes.length) * 100).toFixed(0)}% of total`
                 : 'no default scope',
+            series: cumulativeSeries(defaultScopes.map((r) => r.created_at)),
+            tone: 'success',
           },
           {
             key: 'optional',
             label: 'Optional scopes',
             value: optionalScopes.length,
             hint: 'granted on request',
+            series: cumulativeSeries(optionalScopes.map((r) => r.created_at)),
+            tone: 'violet',
           },
           {
             key: 'mappers',
             label: 'With mappers',
             value: withMappers.length,
             hint: 'write at least one claim',
+            series: cumulativeSeries(withMappers.map((r) => r.created_at)),
+            tone: 'info',
           },
         ]}
         alerts={

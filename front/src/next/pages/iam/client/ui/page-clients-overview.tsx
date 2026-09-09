@@ -13,6 +13,7 @@ import { Schemas } from '@/api/api.client'
 import { protocolChoices, type ClientProtocol } from '../client-choices'
 
 import Client = Schemas.Client
+import { cumulativeSeries } from '@/next/shared/cumulative-series'
 
 export interface PageClientsOverviewProps {
   clients: Client[]
@@ -145,19 +146,37 @@ export default function PageClientsOverview({
         loading={isLoading}
         actions={createButton}
         metrics={[
-          { key: 'total', label: 'Total', value: clients.length, hint: 'registered clients' },
+          {
+            key: 'total',
+            label: 'Total',
+            value: clients.length,
+            hint: 'registered clients',
+            series: cumulativeSeries(clients.map((c) => c.created_at)),
+            tone: 'info',
+          },
           {
             key: 'active',
             label: 'Active',
             value: activeClients.length,
             hint: 'can authenticate',
+            series: cumulativeSeries(activeClients.map((c) => c.created_at)),
+            tone: 'success',
           },
-          { key: 'public', label: 'Public', value: publicClients.length, hint: 'no secret' },
+          {
+            key: 'public',
+            label: 'Public',
+            value: publicClients.length,
+            hint: 'no secret',
+            series: cumulativeSeries(publicClients.map((c) => c.created_at)),
+            tone: 'info',
+          },
           {
             key: 'confidential',
             label: 'Confidential',
             value: confidentialClients.length,
             hint: 'hold a secret',
+            series: cumulativeSeries(confidentialClients.map((c) => c.created_at)),
+            tone: 'violet',
           },
         ]}
         alerts={[

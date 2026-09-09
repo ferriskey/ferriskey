@@ -6,6 +6,7 @@ import { isServiceAccount } from '@/utils'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
+import { cumulativeSeries } from '@/next/shared/cumulative-series'
 
 export interface PageUsersOverviewProps {
   users: User[]
@@ -129,7 +130,7 @@ export default function PageUsersOverview({
       loading={isLoading}
       actions={createButton}
       metrics={[
-        { key: 'total', label: 'Total', value: users.length, hint: 'users' },
+        { key: 'total', label: 'Total', value: users.length, hint: 'users', series: cumulativeSeries(users.map((r) => r.created_at)), tone: 'info' },
         {
           key: 'enabled',
           label: 'Enabled users',
@@ -138,18 +139,24 @@ export default function PageUsersOverview({
             enabled.length > 0 && users.length > 0
               ? `${((enabled.length / users.length) * 100).toFixed(0)}% active`
               : 'No enabled users',
+          series: cumulativeSeries(enabled.map((r) => r.created_at)),
+          tone: 'success',
         },
         {
           key: 'disabled',
           label: 'Disabled users',
           value: disabled.length,
           hint: 'cannot authenticate',
+          series: cumulativeSeries(disabled.map((r) => r.created_at)),
+          tone: 'amber',
         },
         {
           key: 'verified',
           label: 'Verified users',
           value: verified.length,
           hint: 'email verified',
+          series: cumulativeSeries(verified.map((r) => r.created_at)),
+          tone: 'success',
         },
       ]}
       alerts={
