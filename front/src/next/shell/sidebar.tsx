@@ -46,11 +46,7 @@ function SidebarLink({
     collapsed ? 'justify-center px-0 py-1.5' : 'px-2 py-1'
   )
 
-  if (item.disabled || !item.ready) {
-    const reason = item.disabled
-      ? `${item.label} — not implemented yet`
-      : `${item.label} — not migrated yet, use the current console`
-
+  if (item.disabled) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -58,7 +54,7 @@ function SidebarLink({
             <ItemBody item={item} active={false} collapsed={collapsed} />
           </span>
         </TooltipTrigger>
-        <TooltipContent side='right'>{reason}</TooltipContent>
+        <TooltipContent side='right'>{item.label} — not implemented yet</TooltipContent>
       </Tooltip>
     )
   }

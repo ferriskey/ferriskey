@@ -21,7 +21,6 @@ export interface NavItem {
   label: string
   to: string
   icon: LucideIcon
-  ready?: boolean
   disabled?: boolean
 }
 
@@ -37,7 +36,7 @@ export const navSections: NavSection[] = [
       { label: 'Overview', to: 'overview', icon: Gauge },
       { label: 'Clients', to: 'clients', icon: LayoutGrid },
       { label: 'Users', to: 'users', icon: Users },
-      { label: 'Roles', to: 'roles', icon: Shield, ready: true },
+      { label: 'Roles', to: 'roles', icon: Shield },
       { label: 'Client Scopes', to: 'client-scopes', icon: KeyRound },
       { label: 'Organizations', to: 'organizations', icon: Building2 },
     ],
