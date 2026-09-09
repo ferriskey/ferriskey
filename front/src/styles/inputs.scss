@@ -4,13 +4,13 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .input {
-  @apply relative min-h-[52px] cursor-pointer rounded-md border border-input bg-background px-3 py-2;
+  @apply relative min-h-[44px] cursor-pointer rounded-md border border-input bg-background px-3 py-1.5;
   transition:
     120ms all $timing-cubic,
     0 outline;
 
   label {
-    @apply absolute translate-y-2 select-none text-sm text-muted-foreground duration-200 ease-in-out;
+    @apply absolute translate-y-1.5 select-none text-sm text-muted-foreground duration-200 ease-in-out;
   }
 
   input:focus,
@@ -36,7 +36,7 @@ $timing-cubic: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .input__value {
-  @apply absolute bottom-[7px] left-0 w-full appearance-none bg-transparent px-3 text-sm text-foreground ring-0;
+  @apply absolute bottom-[5px] left-0 w-full appearance-none bg-transparent px-3 text-sm text-foreground ring-0;
 }
 
 .input--focused,

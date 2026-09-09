@@ -68,7 +68,7 @@ export default function PageLogin({
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
+      <div className='relative z-10 w-full max-w-[380px]'>
         <div className={cn('flex flex-col gap-6')}>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
             <CardContent className='grid gap-0 p-0'>
@@ -84,20 +84,20 @@ export default function PageLogin({
               ) : (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <div className='p-8 md:p-10'>
-                      <div className='flex flex-col gap-7'>
-                        <div className='space-y-2'>
-                          <div className='flex items-center gap-3'>
+                    <div className='p-6'>
+                      <div className='flex flex-col gap-5'>
+                        <div className='space-y-1.5'>
+                          <div className='flex items-center gap-2'>
                             <img
                               src='/logo_ferriskey.png'
                               alt='FerrisKey'
-                              className='h-7 w-7 object-contain'
+                              className='h-5 w-5 object-contain'
                             />
-                            <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+                            <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground'>
                               FerrisKey
                             </p>
                           </div>
-                          <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                          <h1 className='login-title text-xl font-semibold tracking-tight text-foreground'>
                             {loginSettings.display_name?.trim()
                               ? loginSettings.display_name
                               : (realm_name?.toUpperCase() ?? 'Login')}
@@ -105,12 +105,12 @@ export default function PageLogin({
                         </div>
                         {errorMessage && (
                           errorMessage.includes('under maintenance') ? (
-                            <div className='rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2'>
+                            <div className='rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2'>
                               <Wrench className='h-4 w-4 mt-0.5 shrink-0' />
                               <span>{errorMessage.replace(/^.*under maintenance:\s*/i, '')}</span>
                             </div>
                           ) : (
-                            <div className='rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'>
+                            <div className='rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive'>
                               {errorMessage}
                             </div>
                           )
@@ -157,7 +157,7 @@ export default function PageLogin({
                             </div>
                           )}
                         </div>
-                        <Button type='submit' className='w-full rounded-lg py-5 text-sm'>
+                        <Button type='submit' className='h-10 w-full rounded-lg text-sm'>
                           Login
                         </Button>
                         {(onPasskeyLogin || onMagicLinkLogin) && (
@@ -173,7 +173,7 @@ export default function PageLogin({
                                 <Button
                                   type='button'
                                   variant='outline'
-                                  className='w-full rounded-lg py-5 text-sm'
+                                  className='h-10 w-full rounded-lg text-sm'
                                   onClick={onPasskeyLogin}
                                   disabled={isPasskeyLoading}
                                 >
@@ -185,7 +185,7 @@ export default function PageLogin({
                                 <Button
                                   type='button'
                                   variant='outline'
-                                  className='w-full rounded-lg py-5 text-sm'
+                                  className='h-10 w-full rounded-lg text-sm'
                                   onClick={onMagicLinkLogin}
                                   disabled={isMagicLinkLoading}
                                 >
@@ -196,7 +196,7 @@ export default function PageLogin({
                             </div>
                           </>
                         )}
-                        <div className='space-y-4'>
+                        <div className='space-y-3'>
                           <LoginProviders providers={providers} />
                           {loginSettings.user_registration_enabled && (
                             <div className='text-center text-xs text-muted-foreground md:text-sm'>
@@ -234,9 +234,9 @@ function MagicLinkFormView({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className='p-8 md:p-10'>
-          <div className='flex flex-col gap-7'>
-            <div className='space-y-2'>
+        <div className='p-6'>
+          <div className='flex flex-col gap-5'>
+            <div className='space-y-1.5'>
               {onBack && (
                 <button
                   type='button'
@@ -247,13 +247,13 @@ function MagicLinkFormView({
                   Back to login
                 </button>
               )}
-              <div className='flex items-center gap-3'>
-                <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-7 w-7 object-contain' />
-                <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+              <div className='flex items-center gap-2'>
+                <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-5 w-5 object-contain' />
+                <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground'>
                   FerrisKey
                 </p>
               </div>
-              <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+              <h1 className='login-title text-xl font-semibold tracking-tight text-foreground'>
                 Sign in by email
               </h1>
               <p className='text-sm text-muted-foreground'>
@@ -277,7 +277,7 @@ function MagicLinkFormView({
             />
             <Button
               type='submit'
-              className='w-full rounded-lg py-5 text-sm'
+              className='h-10 w-full rounded-lg text-sm'
               disabled={isLoading}
             >
               {isLoading ? 'Sending...' : 'Send magic link'}
@@ -291,19 +291,19 @@ function MagicLinkFormView({
 
 function MagicLinkSentView({ onBack }: { onBack?: () => void }) {
   return (
-    <div className='p-8 md:p-10'>
-      <div className='flex flex-col items-center gap-6 text-center'>
+    <div className='p-6'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <div className='flex items-center gap-3 self-start'>
-          <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-7 w-7 object-contain' />
-          <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+          <img src='/logo_ferriskey.png' alt='FerrisKey' className='h-5 w-5 object-contain' />
+          <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground'>
             FerrisKey
           </p>
         </div>
-        <div className='flex h-14 w-14 items-center justify-center rounded-full bg-primary/10'>
-          <Mail className='h-7 w-7 text-primary' />
+        <div className='flex h-11 w-11 items-center justify-center rounded-full bg-primary/10'>
+          <Mail className='h-5 w-5 text-primary' />
         </div>
-        <div className='space-y-2'>
-          <h1 className='text-2xl font-semibold tracking-tight text-foreground'>Check your inbox</h1>
+        <div className='space-y-1.5'>
+          <h1 className='text-lg font-semibold tracking-tight text-foreground'>Check your inbox</h1>
           <p className='text-sm text-muted-foreground'>
             We sent a magic link to your email address. Click the link to sign in — no password needed.
           </p>
@@ -312,7 +312,7 @@ function MagicLinkSentView({ onBack }: { onBack?: () => void }) {
           </p>
         </div>
         {onBack && (
-          <Button variant='outline' onClick={onBack} className='w-full rounded-lg py-5 text-sm'>
+          <Button variant='outline' onClick={onBack} className='h-10 w-full rounded-lg text-sm'>
             <ArrowLeft className='mr-2 h-4 w-4' />
             Back to login
           </Button>
@@ -334,31 +334,31 @@ function ErrorMessage() {
 export function LoginErrorPage({ errorMessage }: { errorMessage: string }) {
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
+      <div className='relative z-10 w-full max-w-[380px]'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
             <CardContent className='grid gap-0 p-0'>
-              <div className='p-8 md:p-10'>
-                <div className='flex flex-col gap-7'>
-                  <div className='space-y-2'>
-                    <div className='flex items-center gap-3'>
+              <div className='p-6'>
+                <div className='flex flex-col gap-5'>
+                  <div className='space-y-1.5'>
+                    <div className='flex items-center gap-2'>
                       <img
                         src='/logo_ferriskey.png'
                         alt='FerrisKey'
-                        className='h-7 w-7 object-contain'
+                        className='h-5 w-5 object-contain'
                       />
-                      <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
+                      <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground'>
                         FerrisKey
                       </p>
                     </div>
-                    <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
+                    <h1 className='login-title text-xl font-semibold tracking-tight text-foreground'>
                       Authentication error
                     </h1>
                   </div>
 
                   <div className='flex flex-col items-center gap-4 py-2'>
-                    <div className='flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10'>
-                      <ShieldAlert className='h-6 w-6 text-destructive' />
+                    <div className='flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10'>
+                      <ShieldAlert className='h-5 w-5 text-destructive' />
                     </div>
                     <div className='space-y-1 text-center'>
                       <p className='text-sm font-medium text-foreground'>{errorMessage}</p>
