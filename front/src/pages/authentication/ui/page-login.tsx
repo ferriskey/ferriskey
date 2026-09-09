@@ -115,7 +115,7 @@ export default function PageLogin({
                             </div>
                           )
                         )}
-                        <div className='grid gap-3'>
+                        <div className='grid gap-2'>
                           <FormField
                             control={form.control}
                             name='username'
@@ -130,8 +130,6 @@ export default function PageLogin({
                               />
                             )}
                           />
-                        </div>
-                        <div className='grid gap-3'>
                           <FormField
                             control={form.control}
                             name='password'
