@@ -119,7 +119,8 @@ function AddScopeDialog({
           </Select>
         </div>
 
-        <div className='max-h-72 overflow-y-auto rounded-md border border-fk-line'>
+        <div className='overflow-hidden rounded-md border border-fk-line'>
+          <div className='max-h-72 overflow-y-auto'>
           {isLoading ? (
             <p className='px-3 py-6 text-center text-xs text-neutral-500'>
               Loading available scopes…
@@ -161,6 +162,7 @@ function AddScopeDialog({
                 : 'Every scope of the realm is already assigned.'}
             </p>
           )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -306,7 +308,6 @@ export default function ClientScopesTab({
             ) : (
               <EmptyState
                 icon={KeyRound}
-                tone='amber'
                 compact
                 label='No scope assigned'
                 hint='The tokens issued for this client will carry no profile claim.'
