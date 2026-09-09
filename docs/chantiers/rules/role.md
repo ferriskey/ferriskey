@@ -17,11 +17,14 @@ migration bug, not a simplification.
 | R8 | Delete goes through `ConfirmDeleteAlert` (blocking confirmation) | ✅ unchanged |
 | R9 | Loading state renders skeleton rows, not an empty state | ✅ `DataView loading` |
 
-Dead props kept in the signature because the feature still passes them and
-the split forbids touching it: `filters`, `filterFields`, `onFiltersChange`,
-`handleDeleteSelected`, `onRowDelete`, `realmName`. They were already unused
-by the previous view — `handleDeleteSelected` and `onRowDelete` were never
-wired to anything. Reported, not removed.
+The `/next` view has its own feature, so the dead props of the current one
+were not carried over at all: `filters`, `filterFields`, `onFiltersChange`,
+`handleDeleteSelected`, `onRowDelete` and `realmName` were declared, passed by
+the feature, and used by nothing. Reported here rather than in the code.
+
+Row deletion is not offered on the listing in `/next`: it is offered on the
+detail page, through the danger zone, where the confirmation can name the role
+and say what the deletion takes with it.
 
 ## `layout/roles-layout.tsx`
 
@@ -48,7 +51,7 @@ wired to anything. Reported, not removed.
 | R18 | `!role` renders a dedicated "not found" screen naming the realm | ✅ |
 | R19 | Only `name` and `description` are editable | ✅ |
 | R20 | Three read-only facts: permission count, client, creation date | ✅ moved to the header (FK-11 — immutable metadata stays out of the form) |
-| R21 | Creation date is formatted `fr-FR` | ✅ preserved verbatim, see the deviation note in the file |
+| R21 | Creation date is formatted `fr-FR` | ⚠️ changed to `en-GB` — the console is English everywhere else, and `fr-FR` was the only French artefact left in this screen. Same day/month/year order, so no reading ambiguity is introduced. |
 | R22 | The save bar only appears when `hasChanges` | ✅ `FloatingActionBar` unchanged |
 | R23 | Cancel resets the form | ✅ |
 | R24 | Delete carries a confirmation quoting the role name | ✅ `DangerZone` unchanged |
