@@ -599,4 +599,56 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL and xmlsec1 — run with: cargo test -p ferriskey-api --test saml_test -- --ignored"]
+    fn an_oidc_client_cannot_be_given_a_saml_configuration() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let admin_token = admin_token(&srv, &realm).await;
+            let client_id = format!("oidc-app-{}", Uuid::new_v4().simple());
+
+            let create_resp = srv
+                .post(&format!("/realms/{}/clients", realm))
+                .add_header("Authorization", auth_header(&admin_token))
+                .json(&serde_json::json!({
+                    "name": client_id,
+                    "client_id": client_id,
+                    "client_type": "public",
+                    "protocol": "openid-connect",
+                    "enabled": true,
+                }))
+                .await;
+            assert_eq!(
+                create_resp.status_code(),
+                201,
+                "oidc client creation failed: {}",
+                create_resp.text()
+            );
+            let client_uuid = create_resp.json::<Value>()["id"]
+                .as_str()
+                .expect("client id")
+                .to_string();
+
+            let config_resp = srv
+                .put(&format!(
+                    "/realms/{}/clients/{}/saml-config",
+                    realm, client_uuid
+                ))
+                .add_header("Authorization", auth_header(&admin_token))
+                .json(&serde_json::json!({
+                    "sp_entity_id": format!("https://{client_id}.example.com/saml/metadata"),
+                    "acs_url": "https://app.example.com/saml/acs",
+                }))
+                .await;
+
+            assert_eq!(
+                config_resp.status_code(),
+                400,
+                "an openid-connect client must not accept a saml configuration: {}",
+                config_resp.text()
+            );
+        });
+    }
 }

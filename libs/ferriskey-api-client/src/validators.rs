@@ -1,3 +1,4 @@
+use ferriskey_core::domain::authentication::entities::AuthProtocol;
 use ferriskey_core::domain::client::entities::ClientType;
 use ferriskey_core::domain::client::entities::saml::{NameIdFormat, SamlAttributeNameFormat};
 use serde::{Deserialize, Serialize};
@@ -28,9 +29,8 @@ pub struct CreateClientValidator {
     pub service_account_enabled: bool,
     #[serde(default)]
     pub public_client: bool,
-    #[validate(length(min = 1, message = "protocol is required"))]
     #[serde(default)]
-    pub protocol: String,
+    pub protocol: AuthProtocol,
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]

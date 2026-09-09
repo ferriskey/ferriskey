@@ -3,6 +3,7 @@
 //! mocks (`mock` feature) and cross-domain entities are already wired up.
 #[cfg(test)]
 mod tests {
+    use crate::domain::authentication::entities::AuthProtocol;
     use std::sync::Arc;
 
     use uuid::Uuid;
@@ -86,7 +87,7 @@ mod tests {
             require_pkce: false,
             service_account_enabled: false,
             client_type: ClientType::Confidential,
-            protocol: "openid-connect".to_string(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uris: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,

@@ -53,7 +53,7 @@ mod tests {
             client_id: "test-client".to_string(),
             secret: None,
             enabled: true,
-            protocol: "openid-connect".to_string(),
+            protocol: crate::authentication::entities::AuthProtocol::OpenIdConnect,
             public_client: true,
             service_account_enabled: false,
             client_type: ClientType::Public,

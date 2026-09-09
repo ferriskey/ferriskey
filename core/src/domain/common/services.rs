@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::domain::authentication::entities::AuthProtocol;
+
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 
 use crate::domain::{
@@ -217,7 +219,7 @@ where
                         name: config.default_client_id.clone(),
                         client_id: config.default_client_id.clone(),
                         enabled: true,
-                        protocol: "openid-connect".to_string(),
+                        protocol: AuthProtocol::OpenIdConnect,
                         // Browser SPA: no secret to keep, PKCE instead.
                         public_client: true,
                         service_account_enabled: false,
@@ -257,7 +259,7 @@ where
                         name: master_realm_client_id.clone(),
                         client_id: master_realm_client_id.clone(),
                         enabled: true,
-                        protocol: "openid-connect".to_string(),
+                        protocol: AuthProtocol::OpenIdConnect,
                         public_client: false,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
@@ -291,7 +293,7 @@ where
                         name: "admin-cli".to_string(),
                         client_id: "admin-cli".to_string(),
                         enabled: true,
-                        protocol: "openid-connect".to_string(),
+                        protocol: AuthProtocol::OpenIdConnect,
                         public_client: true,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
@@ -470,7 +472,7 @@ where
                             name: config.default_client_id.clone(),
                             client_id: config.default_client_id.clone(),
                             enabled: true,
-                            protocol: "openid-connect".to_string(),
+                            protocol: AuthProtocol::OpenIdConnect,
                             // Browser SPA: no secret to keep, PKCE instead.
                             public_client: true,
                             service_account_enabled: false,
@@ -532,6 +534,7 @@ where
 
 #[cfg(test)]
 pub mod tests {
+    use crate::domain::authentication::entities::AuthProtocol;
     use std::panic;
 
     use chrono::Utc;
@@ -725,7 +728,7 @@ pub mod tests {
             require_pkce: false,
             service_account_enabled: true,
             client_type: ClientType::Confidential,
-            protocol: "openid-connect".to_string(),
+            protocol: AuthProtocol::OpenIdConnect,
             redirect_uris: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,

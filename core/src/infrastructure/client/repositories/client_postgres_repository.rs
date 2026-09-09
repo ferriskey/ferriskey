@@ -41,7 +41,7 @@ impl ClientRepository for PostgresClientRepository {
             client_id: Set(data.client_id),
             secret: Set(data.secret),
             enabled: Set(data.enabled),
-            protocol: Set(data.protocol),
+            protocol: Set(data.protocol.to_string()),
             public_client: Set(data.public_client),
             service_account_enabled: Set(data.service_account_enabled),
             direct_access_grants_enabled: Set(Some(data.direct_access_grants_enabled)),

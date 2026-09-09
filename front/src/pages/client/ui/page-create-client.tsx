@@ -5,6 +5,8 @@ import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/for
 import { InputText } from '@/components/ui/input-text.tsx'
 import { Switch } from '@/components/ui/switch.tsx'
 import FloatingActionBar from '@/components/ui/floating-action-bar.tsx'
+import { SelectMenu } from '@/components/ui/select-menu.tsx'
+import { CLIENT_PROTOCOL_OPTIONS } from '@/lib/client-protocol.ts'
 
 export interface PageCreateClientProps {
   form: UseFormReturn<CreateClientSchema>
@@ -68,6 +70,34 @@ export default function PageCreateClient({ form, handleBack, handleSubmit, formI
               </div>
               <div className='w-1/2'>
                 <InputText label='Name' {...field} error={form.formState.errors.name?.message} />
+              </div>
+            </div>
+          )}
+        />
+
+        {/* Protocol */}
+        <FormField
+          control={form.control}
+          name='protocol'
+          render={({ field }) => (
+            <div className='flex items-start justify-between px-8 py-4 border-t'>
+              <div className='w-1/3'>
+                <p className='text-sm font-medium'>Protocol</p>
+                <p className='text-sm text-muted-foreground mt-0.5'>
+                  How the application signs its users in. This cannot be changed afterwards.
+                </p>
+              </div>
+              <div className='w-1/2'>
+                <FormItem>
+                  <FormControl>
+                    <SelectMenu
+                      options={CLIENT_PROTOCOL_OPTIONS}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder='Select a protocol'
+                    />
+                  </FormControl>
+                </FormItem>
               </div>
             </div>
           )}

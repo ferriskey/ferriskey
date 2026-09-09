@@ -59,6 +59,9 @@ pub enum InvalidSamlConfig {
 
     #[error("`{0}` is not a supported name id format")]
     UnsupportedNameIdFormat(String),
+
+    #[error("a saml configuration only belongs to a saml client, this one speaks `{0}`")]
+    ClientIsNotSaml(String),
 }
 
 impl From<InvalidSamlConfig> for CoreError {

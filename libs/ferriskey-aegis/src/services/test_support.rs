@@ -11,6 +11,7 @@
 //! a mapper through the wrong scope — fails the test instead of silently
 //! returning another tenant's row.
 
+use ferriskey_domain::authentication::entities::AuthProtocol;
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -86,7 +87,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         client_id: "app".to_string(),
         secret: None,
         realm_id,
-        protocol: "openid-connect".to_string(),
+        protocol: AuthProtocol::OpenIdConnect,
         public_client: false,
         service_account_enabled: false,
         direct_access_grants_enabled: false,

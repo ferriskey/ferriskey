@@ -4,6 +4,7 @@ import { CLIENT_URL, CLIENTS_URL } from '@/routes/sub-router/client.router'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { Outlet } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
+import { isSamlClient } from '@/lib/client-protocol'
 
 export default function ClientLayout() {
   const { realm_name, client_id } = useParams<RouterParams>()
@@ -24,7 +25,9 @@ export default function ClientLayout() {
       : []),
     { key: 'roles', label: 'Roles', path: `${baseUrl}/roles` },
     { key: 'client-scopes', label: 'Client Scopes', path: `${baseUrl}/scopes` },
-    { key: 'saml', label: 'SAML', path: `${baseUrl}/saml` },
+    ...(isSamlClient(responseClient?.data.protocol)
+      ? [{ key: 'saml', label: 'SAML', path: `${baseUrl}/saml` }]
+      : []),
     { key: 'maintenance', label: 'Maintenance', path: `${baseUrl}/maintenance` },
   ]
 

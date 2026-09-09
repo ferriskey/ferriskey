@@ -9,6 +9,7 @@ import { CLIENTS_URL, OVERVIEW_URL } from '@/routes/sub-router/client.router.ts'
 import { toast } from 'sonner'
 import PageCreateClient from '@/pages/client/ui/page-create-client.tsx'
 import { Form } from '@/components/ui/form.tsx'
+import { DEFAULT_CLIENT_PROTOCOL } from '@/lib/client-protocol.ts'
 
 export default function PageCreateClientFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -21,7 +22,7 @@ export default function PageCreateClientFeature() {
       clientId: '',
       name: '',
       enabled: false,
-      protocol: 'openid-connect',
+      protocol: DEFAULT_CLIENT_PROTOCOL,
       clientAuthentication: false
     }
   })

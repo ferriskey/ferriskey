@@ -126,19 +126,7 @@ where
             ));
         }
 
-        let protocol = client.protocol.parse::<AuthProtocol>().map_err(|reason| {
-            warn!(
-                client_id = %client.client_id,
-                %reason,
-                "rejecting a saml authn request for a client whose protocol is unknown"
-            );
-
-            RejectedAuthnRequest::against(
-                &client,
-                CoreError::InvalidClient,
-                "the client speaks an unknown protocol",
-            )
-        })?;
+        let protocol = client.protocol;
 
         if protocol != AuthProtocol::Saml {
             warn!(
@@ -693,7 +681,7 @@ pub(crate) mod tests {
             client_id: "chatwoot".to_string(),
             secret: None,
             realm_id,
-            protocol: AuthProtocol::Saml.as_str().to_string(),
+            protocol: AuthProtocol::Saml,
             public_client: true,
             service_account_enabled: false,
             direct_access_grants_enabled: false,
@@ -1186,7 +1174,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn an_authn_request_for_an_openid_connect_client_starts_nothing() {
         let mut harness = Harness::new().with_realm();
-        harness.client.protocol = AuthProtocol::OpenIdConnect.as_str().to_string();
+        harness.client.protocol = AuthProtocol::OpenIdConnect;
         let harness = harness
             .with_client()
             .with_registered_service_provider(NameIdFormat::EmailAddress);

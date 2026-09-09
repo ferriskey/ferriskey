@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::authentication::entities::AuthProtocol;
 use crate::client::entities::{ClientType, MaintenanceSessionStrategy};
 use crate::realm::RealmId;
 
@@ -10,7 +11,7 @@ pub struct CreateClientRequest {
     pub client_id: String,
     pub secret: Option<String>,
     pub enabled: bool,
-    pub protocol: String,
+    pub protocol: AuthProtocol,
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub direct_access_grants_enabled: bool,
@@ -34,7 +35,7 @@ impl CreateClientRequest {
             oauth_device_code_grant_enabled: false,
             enabled: true,
             name: client_name,
-            protocol: "openid-connect".to_string(),
+            protocol: AuthProtocol::OpenIdConnect,
             public_client: true,
             secret: None,
             service_account_enabled: false,

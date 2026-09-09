@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::entities::AuthProtocol;
+use crate::client::entities::saml::InvalidSamlConfig;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
 pub mod redirect_uri;
@@ -82,7 +84,7 @@ pub struct Client {
     pub client_id: String,
     pub secret: Option<Masked<String>>,
     pub realm_id: RealmId,
-    pub protocol: String,
+    pub protocol: AuthProtocol,
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub direct_access_grants_enabled: bool,
@@ -111,7 +113,7 @@ pub struct ClientConfig {
     pub client_id: String,
     pub secret: Option<String>,
     pub enabled: bool,
-    pub protocol: String,
+    pub protocol: AuthProtocol,
     pub public_client: bool,
     pub service_account_enabled: bool,
     pub client_type: ClientType,
@@ -124,6 +126,13 @@ pub struct ClientConfig {
 }
 
 impl Client {
+    pub fn ensure_speaks_saml(&self) -> Result<(), InvalidSamlConfig> {
+        match self.protocol {
+            AuthProtocol::Saml => Ok(()),
+            other => Err(InvalidSamlConfig::ClientIsNotSaml(other.to_string())),
+        }
+    }
+
     pub fn secret_str(&self) -> Option<&str> {
         self.secret.as_ref().map(|secret| secret.expose().as_str())
     }
@@ -168,7 +177,7 @@ impl Client {
             client_id: client_id.clone(),
             secret: Some(Masked::new(generate_random_string())),
             realm_id,
-            protocol: "openid-connect".to_string(),
+            protocol: AuthProtocol::OpenIdConnect,
             public_client: false,
             service_account_enabled: false,
             direct_access_grants_enabled: false,
@@ -187,5 +196,49 @@ impl Client {
             created_at: now,
             updated_at: now,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn client_speaking(protocol: AuthProtocol) -> Client {
+        Client::new(ClientConfig {
+            realm_id: RealmId::from(Uuid::new_v4()),
+            name: "webapp".to_string(),
+            client_id: "webapp".to_string(),
+            secret: None,
+            enabled: true,
+            protocol,
+            public_client: true,
+            service_account_enabled: false,
+            client_type: ClientType::Public,
+            direct_access_grants_enabled: None,
+            oauth_device_code_grant_enabled: None,
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
+        })
+    }
+
+    #[test]
+    fn a_saml_client_accepts_saml_settings() {
+        assert!(
+            client_speaking(AuthProtocol::Saml)
+                .ensure_speaks_saml()
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn an_oidc_client_refuses_saml_settings() {
+        assert_eq!(
+            client_speaking(AuthProtocol::OpenIdConnect).ensure_speaks_saml(),
+            Err(InvalidSamlConfig::ClientIsNotSaml(
+                "openid-connect".to_string()
+            ))
+        );
     }
 }
