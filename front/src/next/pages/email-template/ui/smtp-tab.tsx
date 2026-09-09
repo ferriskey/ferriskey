@@ -123,7 +123,7 @@ export default function SmtpTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.username)}
           />
-          {errors.username && <p className='mt-1.5 text-fk-danger'>{errors.username}</p>}
+          {errors.username && <p className='mt-1.5 text-fk-danger text-xs'>{errors.username}</p>}
         </FieldRow>
 
         <FieldRow
@@ -178,7 +178,7 @@ export default function SmtpTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.from_name)}
           />
-          {errors.from_name && <p className='mt-1.5 text-fk-danger'>{errors.from_name}</p>}
+          {errors.from_name && <p className='mt-1.5 text-fk-danger text-xs'>{errors.from_name}</p>}
         </FieldRow>
       </Section>
 

@@ -1,7 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { tokens } from '@/styles/style-tokens'
 import { Button } from './button'
 
 export interface SaveBarAction {
@@ -50,7 +49,7 @@ export default function SaveBar({
         className='shrink-0 transition-[height] duration-200 ease-out motion-reduce:transition-none'
         style={{
           height: show && barHeight
-            ? `calc(${barHeight}px + 1rem + env(safe-area-inset-bottom))`
+            ? `calc(${barHeight}px + 3rem + env(safe-area-inset-bottom))`
             : 0,
         }}
       />
@@ -59,32 +58,27 @@ export default function SaveBar({
         {show && (
           <motion.div
             ref={barRef}
-            initial={prefersReducedMotion ? { opacity: 0 } : { y: 64, opacity: 0 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { y: 100, opacity: 0 }}
             animate={prefersReducedMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { y: 64, opacity: 0 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { y: 100, opacity: 0 }}
             transition={
               prefersReducedMotion
                 ? { duration: 0.15 }
                 : { type: 'spring', stiffness: 320, damping: 32 }
             }
             className={cn(
-              'fixed inset-x-0 bottom-0 z-40 border-t border-fk-primary-border bg-fk-sand/95 backdrop-blur',
-              'pb-[env(safe-area-inset-bottom)]',
+              'fixed inset-x-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-40 mx-auto w-auto max-w-lg',
+              'rounded-lg border border-fk-primary-border bg-fk-sand/95 px-4 py-3 shadow-lg backdrop-blur',
               className
             )}
           >
-            <div
-              className={cn(
-                'mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-2.5',
-                tokens.page.maxWidth
-              )}
-            >
-              <p className='min-w-0 text-[13px]'>
-                <span className='font-medium text-fk-primary-text'>{title}</span>
+            <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4'>
+              <div className='min-w-0'>
+                <p className='text-[13px] font-medium text-fk-primary-text'>{title}</p>
                 {description && (
-                  <span className='ml-2 text-neutral-500'>{description}</span>
+                  <p className='text-xs text-neutral-500'>{description}</p>
                 )}
-              </p>
+              </div>
 
               <div className='flex shrink-0 items-center gap-2'>
                 {onCancel && (

@@ -195,6 +195,7 @@ export default function PagePortalThemeDetail({
                 </div>
               ) : (
                 <DangerZone
+        resourceName={theme.name}
                   label='Delete this theme'
                   description='Its design tokens and the trees of its twelve pages are lost for good.'
                   buttonLabel='Delete theme'

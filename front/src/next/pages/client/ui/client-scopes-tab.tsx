@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { IconTile, Pill, Section, Segmented } from '@/components/kit'
+import { EmptyState, IconTile, Pill, Section, Segmented } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -304,9 +304,23 @@ export default function ClientScopesTab({
                 })}
               </ul>
             ) : (
-              <p className='rounded-lg border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-xs text-neutral-600'>
-                No scope assigned — the tokens of this client will carry no profile claim.
-              </p>
+              <EmptyState
+                icon={KeyRound}
+                tone='amber'
+                compact
+                label='No scope assigned'
+                hint='The tokens issued for this client will carry no profile claim.'
+                action={
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    disabled={availableScopes.length === 0}
+                    onClick={() => onAddOpenChange(true)}
+                  >
+                    <Plus /> Add scope
+                  </Button>
+                }
+              />
             )}
           </Section>
 
@@ -348,9 +362,12 @@ export default function ClientScopesTab({
                 ))}
               </ul>
             ) : (
-              <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500'>
-                No default scope: every claim will have to be requested explicitly by the client.
-              </p>
+              <EmptyState
+                icon={KeyRound}
+                compact
+                label='No default scope'
+                hint='Every claim will have to be requested explicitly by the client.'
+              />
             )}
           </Section>
         </div>

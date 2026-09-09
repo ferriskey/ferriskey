@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
+import { ConfirmDestructiveDialog } from './confirm-destructive-dialog'
 
 export interface DangerZoneProps {
   label: string
@@ -11,6 +12,13 @@ export interface DangerZoneProps {
   confirmText?: string
   disabled?: boolean
   disabledReason?: string
+  /**
+   * Name of the resource. Given, the confirmation asks the administrator to
+   * retype it before the action is allowed.
+   */
+  resourceName?: string
+  consequences?: string[]
+  pending?: boolean
   onConfirm: () => void
 }
 
@@ -23,6 +31,9 @@ export function DangerZone({
   confirmText,
   disabled,
   disabledReason,
+  resourceName,
+  consequences,
+  pending,
   onConfirm,
 }: DangerZoneProps) {
   const [open, setOpen] = useState(false)
@@ -50,14 +61,28 @@ export function DangerZone({
         </div>
       </section>
 
-      <ConfirmDeleteAlert
-        open={open}
-        title={confirmTitle}
-        description={confirmDescription}
-        confirmText={confirmText}
-        onConfirm={onConfirm}
-        onCancel={() => setOpen(false)}
-      />
+      {resourceName ? (
+        <ConfirmDestructiveDialog
+          open={open}
+          onOpenChange={setOpen}
+          resourceName={resourceName}
+          title={confirmTitle}
+          description={confirmDescription}
+          consequences={consequences}
+          confirmLabel={buttonLabel}
+          pending={pending}
+          onConfirm={onConfirm}
+        />
+      ) : (
+        <ConfirmDeleteAlert
+          open={open}
+          title={confirmTitle}
+          description={confirmDescription}
+          confirmText={confirmText}
+          onConfirm={onConfirm}
+          onCancel={() => setOpen(false)}
+        />
+      )}
     </>
   )
 }

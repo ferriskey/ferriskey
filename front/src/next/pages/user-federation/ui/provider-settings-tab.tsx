@@ -128,6 +128,7 @@ export default function ProviderSettingsTab({
       )}
 
       <DangerZone
+        resourceName={provider.name}
         label='Delete this provider'
         description='The accounts already imported lose their link to the directory. This cannot be undone.'
         buttonLabel='Delete provider'

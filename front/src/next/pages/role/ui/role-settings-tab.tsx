@@ -40,7 +40,7 @@ export default function RoleSettingsTab({
             className='max-w-sm'
             aria-invalid={Boolean(nameError)}
           />
-          {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
+          {nameError && <p className='mt-1.5 text-fk-danger text-xs'>{nameError}</p>}
         </FieldRow>
 
         <FieldRow
@@ -77,6 +77,7 @@ export default function RoleSettingsTab({
       </Section>
 
       <DangerZone
+        resourceName={role.name}
         label='Delete this role'
         description='Once deleted, all user assignments for this role will be permanently removed. Tokens already issued stay valid until they expire.'
         buttonLabel='Delete role'

@@ -60,7 +60,7 @@ export default function ClientScopeSettingsTab({
             className='max-w-sm'
             aria-invalid={Boolean(nameError)}
           />
-          {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
+          {nameError && <p className='mt-1.5 text-fk-danger text-xs'>{nameError}</p>}
         </FieldRow>
 
         <FieldRow
@@ -147,6 +147,7 @@ export default function ClientScopeSettingsTab({
       </Section>
 
       <DangerZone
+        resourceName={scope.name}
         label='Delete this client scope'
         description='Once deleted, all associated protocol mappers and client mappings will be permanently removed.'
         buttonLabel='Delete scope'

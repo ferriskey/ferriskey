@@ -162,7 +162,7 @@ export default function ClientSamlTab({
             className='max-w-lg'
             aria-invalid={Boolean(errors.spEntityId)}
           />
-          {errors.spEntityId && <p className='mt-1.5 text-fk-danger'>{errors.spEntityId}</p>}
+          {errors.spEntityId && <p className='mt-1.5 text-fk-danger text-xs'>{errors.spEntityId}</p>}
         </FieldRow>
 
         <FieldRow
@@ -177,7 +177,7 @@ export default function ClientSamlTab({
             className='max-w-lg'
             aria-invalid={Boolean(errors.acsUrl)}
           />
-          {errors.acsUrl && <p className='mt-1.5 text-fk-danger'>{errors.acsUrl}</p>}
+          {errors.acsUrl && <p className='mt-1.5 text-fk-danger text-xs'>{errors.acsUrl}</p>}
         </FieldRow>
 
         <FieldRow

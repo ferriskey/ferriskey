@@ -260,6 +260,7 @@ export default function PageProviderDetail({
         </Section>
 
         <DangerZone
+        resourceName={provider.display_name || provider.alias}
           label='Delete this identity provider'
           description='All associated data will be permanently removed. This action is irreversible.'
           buttonLabel='Delete provider'

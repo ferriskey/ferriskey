@@ -1,9 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpDown, Inbox } from 'lucide-react'
+import { ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { EmptyState } from './empty-state'
 
 export type ViewMode = 'list' | 'cards'
 
@@ -85,18 +86,7 @@ export function DataView<T>({
   }
 
   if (rows.length === 0) {
-    return (
-      <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-        <Inbox className='size-6 text-neutral-300' strokeWidth={1.5} />
-        <p className='mt-3 text-sm font-medium text-neutral-700'>{emptyLabel}</p>
-        {emptyHint && (
-          <p className='mt-1 max-w-sm text-center text-sm text-neutral-500'>
-            {emptyHint}
-          </p>
-        )}
-        {emptyAction && <div className='mt-4'>{emptyAction}</div>}
-      </div>
-    )
+    return <EmptyState label={emptyLabel} hint={emptyHint} action={emptyAction} />
   }
 
   if (view === 'cards') {

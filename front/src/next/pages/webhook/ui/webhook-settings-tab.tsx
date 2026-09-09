@@ -113,6 +113,7 @@ export default function WebhookSettingsTab({
       </Section>
 
       <DangerZone
+        resourceName={name}
         label='Delete this webhook'
         description='Its subscriptions are permanently removed, and no further event is delivered to this endpoint.'
         buttonLabel='Delete webhook'

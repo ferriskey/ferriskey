@@ -82,7 +82,7 @@ export default function PageCreateProtocolMapper({
               className='max-w-sm'
               aria-invalid={Boolean(nameError)}
             />
-            {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
+            {nameError && <p className='mt-1.5 text-fk-danger text-xs'>{nameError}</p>}
           </FieldRow>
 
           {template.isCustom && (

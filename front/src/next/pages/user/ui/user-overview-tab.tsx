@@ -211,6 +211,7 @@ export default function UserOverviewTab({
       </Section>
 
       <DangerZone
+        resourceName={user.username}
         label='Delete this user'
         description='Once deleted, all associated sessions, credentials, and role assignments will be permanently removed.'
         buttonLabel='Delete user'

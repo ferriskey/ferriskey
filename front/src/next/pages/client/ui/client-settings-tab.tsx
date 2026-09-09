@@ -108,7 +108,7 @@ export default function ClientSettingsTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.name)}
           />
-          {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
+          {errors.name && <p className='mt-1.5 text-fk-danger text-xs'>{errors.name}</p>}
         </FieldRow>
 
         <FieldRow
@@ -123,7 +123,7 @@ export default function ClientSettingsTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.clientId)}
           />
-          {errors.clientId && <p className='mt-1.5 text-fk-danger'>{errors.clientId}</p>}
+          {errors.clientId && <p className='mt-1.5 text-fk-danger text-xs'>{errors.clientId}</p>}
         </FieldRow>
 
         <FieldRow label='Client enabled' description='Disabled clients cannot authenticate users.'>
@@ -257,6 +257,7 @@ export default function ClientSettingsTab({
       </Section>
 
       <DangerZone
+        resourceName={client.name || client.client_id}
         label='Delete this client'
         description='Once deleted, all associated tokens, roles, and configurations will be permanently removed.'
         buttonLabel='Delete client'

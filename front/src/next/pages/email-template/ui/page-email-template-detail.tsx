@@ -146,7 +146,7 @@ export default function PageEmailTemplateDetail({
               className='max-w-sm'
               aria-invalid={Boolean(nameError)}
             />
-            {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
+            {nameError && <p className='mt-1.5 text-fk-danger text-xs'>{nameError}</p>}
           </FieldRow>
 
           <FieldRow
@@ -253,6 +253,7 @@ export default function PageEmailTemplateDetail({
         </Section>
 
         <DangerZone
+        resourceName={template.name}
           label='Delete this template'
           description={
             assignedTo.length > 0

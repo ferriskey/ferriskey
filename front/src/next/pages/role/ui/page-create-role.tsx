@@ -92,7 +92,7 @@ export default function PageCreateRole({
               className='max-w-sm'
               aria-invalid={Boolean(errors.name)}
             />
-            {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
+            {errors.name && <p className='mt-1.5 text-fk-danger text-xs'>{errors.name}</p>}
           </FieldRow>
 
           <FieldRow
