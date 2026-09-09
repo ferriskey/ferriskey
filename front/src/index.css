@@ -139,3 +139,73 @@ input[type="number"] {
     margin: 0;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Style style FerrisKey — charte FerrisKey (référentiel FK-01 … FK-43)         */
+/* brand #E8431A · accent #C0602A · surfaces chaudes #FDF1E9            */
+/* ------------------------------------------------------------------ */
+
+/* FK-01 : une teinte, un métier. L'accent dit « on agit ici », le       */
+/* sémantique dit « voici l'état ». FK-02 : chaque teinte sémantique     */
+/* existe en triplet — pleine / -soft (fond) / -border (bordure).        */
+@theme {
+  --color-fk-brand: #e8431a;
+  --color-fk-brand-soft: #fdefe9;
+
+  --color-fk-primary: #c0602a;
+  --color-fk-primary-hover: #a9531f;
+  --color-fk-primary-soft: #fdf1e9;
+  --color-fk-primary-border: #f0d9c8;
+  --color-fk-primary-text: #b4551f;
+
+  --color-fk-sand: #fbefe5;
+  --color-fk-ink: #171717;
+  --color-fk-muted: #737373;
+  --color-fk-line: #e8e8e8;
+  --color-fk-line-soft: #f2f2f2;
+
+  --color-fk-success: #009764;
+  --color-fk-success-soft: #e6f7f0;
+  --color-fk-success-border: #b7e7d4;
+
+  --color-fk-info: #2379ff;
+  --color-fk-info-soft: #eff5ff;
+  --color-fk-info-border: #c7dcff;
+
+  --color-fk-violet: #8b5cf6;
+  --color-fk-violet-soft: #f4f0ff;
+  --color-fk-violet-border: #dfd4fe;
+
+  --color-fk-amber: #d97706;
+  --color-fk-amber-soft: #fef6e7;
+  --color-fk-amber-border: #fbe0b0;
+
+  --color-fk-danger: #dc2626;
+  --color-fk-danger-soft: #fef2f2;
+  --color-fk-danger-border: #fecaca;
+
+  --font-mono-ui: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+}
+
+/* FK-05 : tout chiffre aligné porte tnum — sans largeur fixe, une      */
+/* colonne de nombres tremble d'une ligne à l'autre.                     */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Le drapeau est posé sur <html> par le layout IAM, pas par le shell    */
+/* CIAM : c'est ce qui garantit que /console garde son rendu actuel.     */
+/* Sur <html> plutôt que sur le conteneur de page pour que les portails  */
+/* (popover, tooltip, dialog), rendus hors du shell, en héritent aussi.  */
+/* FK-08 : arrondis de 2 à 4 px — en surchargeant --radius ici, tous les */
+/* composants shadcn suivent sans reprendre chaque classe rounded-*.     */
+:root[data-style='ferriskey'] {
+  --primary: #c0602a;
+  --primary-foreground: #ffffff;
+  --ring: #c0602a;
+  --border: #e8e8e8;
+  --input: #e0e0e0;
+  --muted-foreground: #737373;
+  --radius: 0.3rem;
+}

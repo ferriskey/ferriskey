@@ -19,6 +19,17 @@ export default function Layout() {
     }
   }, [userRealmsResponse, setUserRealms])
 
+  /* Le style FerrisKey ne s'applique qu'à la console IAM : le drapeau est posé
+     ici, jamais par `product-layout` (CIAM), qui garde donc son rendu actuel.
+     Sur <html> plutôt que sur un conteneur de page pour que les portails —
+     popover, tooltip, dialog, rendus hors du shell — en héritent aussi. */
+  useEffect(() => {
+    document.documentElement.dataset.style = 'ferriskey'
+    return () => {
+      delete document.documentElement.dataset.style
+    }
+  }, [])
+
   return (
     <SidebarProvider>
       <AppSidebar />
