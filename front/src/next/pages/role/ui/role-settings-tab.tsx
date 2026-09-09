@@ -37,10 +37,10 @@ export default function RoleSettingsTab({
             id='role-name'
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
-            className='max-w-sm font-mono-ui text-xs'
+            className='max-w-sm'
             aria-invalid={Boolean(nameError)}
           />
-          {nameError && <p className='mt-1.5 text-xs text-fk-danger'>{nameError}</p>}
+          {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
         </FieldRow>
 
         <FieldRow

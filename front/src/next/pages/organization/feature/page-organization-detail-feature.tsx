@@ -27,6 +27,7 @@ import { type OrganizationDraft } from '../ui/organization-settings-tab'
 import { memberDisplayName } from '../member-name'
 
 import User = Schemas.User
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft extends OrganizationDraft {
   key: string
@@ -180,6 +181,9 @@ export default function PageOrganizationDetailFeature() {
       },
     })
   }
+
+
+  useCrumbLabel(organizationId, organization?.name)
 
   return (
     <>

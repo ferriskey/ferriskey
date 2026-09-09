@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { FieldRow, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
@@ -66,7 +66,7 @@ export default function SmtpTab({
             value={draft.host}
             onChange={(event) => onChange('host', event.target.value)}
             placeholder='smtp.example.com'
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
             aria-invalid={Boolean(errors.host)}
           />
           {errors.host && <p className='mt-1.5 text-xs text-fk-danger'>{errors.host}</p>}
@@ -120,10 +120,10 @@ export default function SmtpTab({
             id='smtp-username'
             value={draft.username}
             onChange={(event) => onChange('username', event.target.value)}
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
             aria-invalid={Boolean(errors.username)}
           />
-          {errors.username && <p className='mt-1.5 text-xs text-fk-danger'>{errors.username}</p>}
+          {errors.username && <p className='mt-1.5 text-fk-danger'>{errors.username}</p>}
         </FieldRow>
 
         <FieldRow
@@ -137,7 +137,7 @@ export default function SmtpTab({
             value={draft.password}
             onChange={(event) => onChange('password', event.target.value)}
             placeholder='••••••••'
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
             aria-invalid={Boolean(errors.password)}
           />
           {hasConfig && !draft.password && (
@@ -160,7 +160,7 @@ export default function SmtpTab({
             type='email'
             value={draft.from_email}
             onChange={(event) => onChange('from_email', event.target.value)}
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
             aria-invalid={Boolean(errors.from_email)}
           />
           {errors.from_email && <p className='mt-1.5 text-xs text-fk-danger'>{errors.from_email}</p>}
@@ -178,7 +178,7 @@ export default function SmtpTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.from_name)}
           />
-          {errors.from_name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.from_name}</p>}
+          {errors.from_name && <p className='mt-1.5 text-fk-danger'>{errors.from_name}</p>}
         </FieldRow>
       </Section>
 
@@ -194,7 +194,7 @@ export default function SmtpTab({
         />
       )}
 
-      <FloatingActionBar
+      <SaveBar
         show={dirty}
         title={hasConfig ? 'Unsaved SMTP changes' : 'SMTP server not configured yet'}
         description='Saving replaces the whole configuration, password included.'

@@ -53,13 +53,13 @@ export default function WebhookHeadersField({
             value={header.key}
             onChange={(e) => update(index, 'key', e.target.value)}
             aria-label='Header name'
-            className='flex-1 font-mono-ui text-xs'
+            className='flex-1'
           />
           <Input
             value={header.value}
             onChange={(e) => update(index, 'value', e.target.value)}
             aria-label='Header value'
-            className='flex-1 font-mono-ui text-xs'
+            className='flex-1'
           />
           <Button
             variant='ghost'
@@ -80,7 +80,7 @@ export default function WebhookHeadersField({
             onChange={(e) => setDraftKey(e.target.value)}
             placeholder='X-Api-Key'
             aria-label='New header name'
-            className='flex-1 font-mono-ui text-xs'
+            className='flex-1'
           />
           <Input
             value={draftValue}

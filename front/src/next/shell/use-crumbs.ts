@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom'
+import { useCrumbStore } from './crumb-store'
 
 export interface Crumb {
   label: string
@@ -45,6 +46,7 @@ const labels: Record<string, string> = {
 
 export function useCrumbs(): Crumb[] {
   const { pathname } = useLocation()
+  const named = useCrumbStore((state) => state.labels)
   const parts = pathname.split('/').filter(Boolean)
 
   const rest = parts.slice(3)
@@ -55,7 +57,7 @@ export function useCrumbs(): Crumb[] {
 
   rest.forEach((part) => {
     acc += `/${part}`
-    crumbs.push({ label: labels[part] ?? part, to: acc })
+    crumbs.push({ label: named[part] ?? labels[part] ?? part, to: acc })
   })
 
   return crumbs

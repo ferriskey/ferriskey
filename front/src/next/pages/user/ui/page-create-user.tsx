@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -65,7 +65,7 @@ export default function PageCreateUser({
               id='new-user-username'
               value={username}
               onChange={(e) => onUsernameChange(e.target.value)}
-              className='max-w-sm font-mono-ui text-xs'
+              className='max-w-sm'
               aria-invalid={Boolean(errors.username)}
             />
             {errors.username && (
@@ -123,7 +123,7 @@ export default function PageCreateUser({
         </Section>
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create user'
         description='The account is created enabled, with no credential attached.'

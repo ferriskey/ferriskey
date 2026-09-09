@@ -2,7 +2,7 @@ import { ArrowLeft, Building2, Globe } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { ChoiceCards, FieldRow, Section, type Choice } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -89,10 +89,10 @@ export default function PageCreateRole({
               id='new-role-name'
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
-              className='max-w-sm font-mono-ui text-xs'
+              className='max-w-sm'
               aria-invalid={Boolean(errors.name)}
             />
-            {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+            {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
           </FieldRow>
 
           <FieldRow
@@ -141,7 +141,7 @@ export default function PageCreateRole({
         <RolePermissionsTab value={permissions} onChange={onPermissionsChange} />
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create role'
         description='The role is created with the permissions selected above.'

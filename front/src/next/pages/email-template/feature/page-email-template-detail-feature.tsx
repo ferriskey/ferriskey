@@ -12,6 +12,7 @@ import { downloadEmailTemplateExport } from '@/api/builder-export'
 import { NEXT_EMAIL_TEMPLATES_URL } from '@/next/routes'
 import { EMAIL_TYPES } from '../email-types'
 import PageEmailTemplateDetail from '../ui/page-email-template-detail'
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft {
   key: string
@@ -66,6 +67,9 @@ export default function PageEmailTemplateDetailFeature() {
       return
     }
   }
+
+
+  useCrumbLabel(template_id, template?.name)
 
   return (
     <PageEmailTemplateDetail

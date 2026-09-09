@@ -172,7 +172,7 @@ export default function UserAttributesTab({
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder='key'
-              className='h-8 font-mono-ui text-xs'
+              className='h-8'
             />
             {duplicate && (
               <p className='mt-1 text-xs text-fk-amber'>

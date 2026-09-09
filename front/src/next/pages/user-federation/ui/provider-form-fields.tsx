@@ -111,7 +111,7 @@ export function BasicSettingsFields({
           className='max-w-sm'
           aria-invalid={Boolean(errors.name)}
         />
-        {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+        {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
       </FieldRow>
 
       {children}
@@ -190,7 +190,7 @@ export function LdapConnectionFields({
             value={settings.connectionUrl}
             onChange={(e) => onChange({ connectionUrl: e.target.value })}
             placeholder='ldaps://ldap.example.com:636'
-            className='max-w-lg font-mono-ui'
+            className='max-w-lg'
             aria-invalid={Boolean(errors.connectionUrl)}
           />
           {errors.connectionUrl && (
@@ -208,7 +208,7 @@ export function LdapConnectionFields({
             value={settings.baseDn}
             onChange={(e) => onChange({ baseDn: e.target.value })}
             placeholder='dc=example,dc=com'
-            className='max-w-lg font-mono-ui'
+            className='max-w-lg'
             aria-invalid={Boolean(errors.baseDn)}
           />
           {errors.baseDn && <p className='mt-1.5 text-xs text-fk-danger'>{errors.baseDn}</p>}
@@ -224,7 +224,7 @@ export function LdapConnectionFields({
             value={settings.bindDn}
             onChange={(e) => onChange({ bindDn: e.target.value })}
             placeholder='cn=ferriskey,ou=services,dc=example,dc=com'
-            className='max-w-lg font-mono-ui'
+            className='max-w-lg'
           />
         </FieldRow>
 
@@ -291,7 +291,7 @@ export function LdapConnectionFields({
             id='provider-search-filter'
             value={settings.userSearchFilter}
             onChange={(e) => onChange({ userSearchFilter: e.target.value })}
-            className='max-w-lg font-mono-ui'
+            className='max-w-lg'
             aria-invalid={Boolean(errors.userSearchFilter)}
           />
           {errors.userSearchFilter && (

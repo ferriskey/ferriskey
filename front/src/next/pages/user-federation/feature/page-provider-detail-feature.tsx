@@ -34,6 +34,7 @@ import {
 } from '../provider-config'
 
 import SyncUsersResponse = Schemas.SyncUsersResponse
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft {
   key: string
@@ -271,6 +272,9 @@ export default function PageProviderDetailFeature() {
       toast.error('Failed to delete the provider')
     }
   }
+
+
+  useCrumbLabel(provider_id, provider?.name)
 
   return (
     <PageProviderDetail

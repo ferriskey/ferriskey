@@ -78,7 +78,7 @@ export default function ProviderSettingsTab({
             id='provider-type'
             value={provider.provider_type}
             disabled
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
           />
         </FieldRow>
       </BasicSettingsFields>

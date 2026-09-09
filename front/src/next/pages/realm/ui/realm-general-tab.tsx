@@ -40,7 +40,7 @@ export default function RealmGeneralTab({
             id='realm-name'
             value={realmName}
             disabled
-            className='max-w-sm font-mono-ui text-xs'
+            className='max-w-sm'
           />
         </FieldRow>
 

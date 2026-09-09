@@ -45,7 +45,7 @@ export default function OrganizationSettingsTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.name)}
           />
-          {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+          {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
         </FieldRow>
 
         <FieldRow
@@ -57,10 +57,10 @@ export default function OrganizationSettingsTab({
             id='organization-alias'
             value={draft.alias}
             onChange={(e) => onChange({ alias: e.target.value })}
-            className='max-w-sm font-mono-ui text-xs'
+            className='max-w-sm'
             aria-invalid={Boolean(errors.alias)}
           />
-          {errors.alias && <p className='mt-1.5 text-xs text-fk-danger'>{errors.alias}</p>}
+          {errors.alias && <p className='mt-1.5 text-fk-danger'>{errors.alias}</p>}
         </FieldRow>
 
         <FieldRow
@@ -86,7 +86,7 @@ export default function OrganizationSettingsTab({
             id='organization-domain'
             value={draft.domain}
             onChange={(e) => onChange({ domain: e.target.value })}
-            className='max-w-sm font-mono-ui text-xs'
+            className='max-w-sm'
           />
         </FieldRow>
 
@@ -99,7 +99,7 @@ export default function OrganizationSettingsTab({
             id='organization-redirect-url'
             value={draft.redirectUrl}
             onChange={(e) => onChange({ redirectUrl: e.target.value })}
-            className='max-w-lg font-mono-ui text-xs'
+            className='max-w-lg'
           />
         </FieldRow>
 

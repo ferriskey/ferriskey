@@ -59,7 +59,7 @@ export default function WebhookSettingsTab({
             id='webhook-endpoint'
             value={endpoint}
             onChange={(e) => onEndpointChange(e.target.value)}
-            className='max-w-lg font-mono-ui text-xs'
+            className='max-w-lg'
             aria-invalid={Boolean(errors.endpoint)}
           />
           {errors.endpoint && (

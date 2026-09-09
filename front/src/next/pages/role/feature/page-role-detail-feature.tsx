@@ -11,6 +11,7 @@ import { useRouteTabs } from '@/components/kit'
 import { updateRoleSchema } from '@/pages/role/schemas/update-role.schema'
 import { NEXT_ROLE_URL, NEXT_ROLES_URL } from '@/next/routes'
 import PageRoleDetail from '../ui/page-role-detail'
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft {
   key: string
@@ -102,6 +103,9 @@ export default function PageRoleDetailFeature() {
       .then(() => navigate(NEXT_ROLES_URL(realm)))
       .catch(() => undefined)
   }
+
+
+  useCrumbLabel(role_id, role?.name)
 
   return (
     <PageRoleDetail

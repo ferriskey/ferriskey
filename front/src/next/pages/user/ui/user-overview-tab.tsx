@@ -87,7 +87,7 @@ export default function UserOverviewTab({
             id='user-username'
             value={username}
             disabled
-            className='max-w-sm font-mono-ui text-xs'
+            className='max-w-sm'
           />
         </FieldRow>
 

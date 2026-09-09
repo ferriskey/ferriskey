@@ -130,7 +130,7 @@ function AddAttributeRow({
         value={key}
         onChange={(e) => setKey(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        className='h-8 w-48 shrink-0 font-mono-ui text-xs'
+        className='h-8 w-48 shrink-0'
       />
       <Input
         placeholder='Value'

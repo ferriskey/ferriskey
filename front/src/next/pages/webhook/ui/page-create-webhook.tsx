@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -74,7 +74,7 @@ export default function PageCreateWebhook({
               className='max-w-sm'
               aria-invalid={Boolean(errors.name)}
             />
-            {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+            {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
           </FieldRow>
 
           <FieldRow
@@ -86,7 +86,7 @@ export default function PageCreateWebhook({
               id='webhook-endpoint'
               value={endpoint}
               onChange={(e) => onEndpointChange(e.target.value)}
-              className='max-w-lg font-mono-ui text-xs'
+              className='max-w-lg'
               aria-invalid={Boolean(errors.endpoint)}
             />
             {errors.endpoint && (
@@ -134,7 +134,7 @@ export default function PageCreateWebhook({
         </Section>
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create webhook'
         description='Create a webhook for this realm.'

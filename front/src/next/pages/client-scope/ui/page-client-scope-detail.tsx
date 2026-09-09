@@ -1,6 +1,6 @@
 import { ArrowLeft, KeyRound } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { IconTile, PageTabs, Pill, type PillTone, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -189,7 +189,7 @@ export default function PageClientScopeDetail({
         </div>
       </PageTabs>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0 && !nameError}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='Review the client scope before applying the changes.'

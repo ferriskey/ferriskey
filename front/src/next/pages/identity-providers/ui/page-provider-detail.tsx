@@ -1,7 +1,7 @@
 import { ArrowLeft, Power, PowerOff } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { ChoiceCards, FieldRow, Pill, Section, StatusDot } from '@/components/kit'
 import type { Choice } from '@/components/kit'
@@ -163,7 +163,7 @@ export default function PageProviderDetail({
               id='provider-alias'
               value={provider.alias}
               disabled
-              className='max-w-sm font-mono-ui'
+              className='max-w-sm'
             />
           </FieldRow>
 
@@ -269,7 +269,7 @@ export default function PageProviderDetail({
         />
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='Review the provider before applying the changes.'

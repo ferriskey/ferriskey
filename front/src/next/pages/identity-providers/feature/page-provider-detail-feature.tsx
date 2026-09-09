@@ -8,6 +8,7 @@ import {
 } from '@/api/identity-providers.api'
 import { NEXT_IDENTITY_PROVIDERS_URL } from '@/next/routes'
 import PageProviderDetail from '../ui/page-provider-detail'
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft {
   key: string
@@ -80,6 +81,9 @@ export default function PageProviderDetailFeature() {
       }
     )
   }
+
+
+  useCrumbLabel(alias, provider?.display_name ?? provider?.alias)
 
   return (
     <PageProviderDetail

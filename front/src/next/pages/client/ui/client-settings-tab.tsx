@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input'
 import { DurationInput } from '@/components/ui/duration-input'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { ChipInput, ChoiceCards, FieldRow, Section, SwitchField } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
@@ -108,7 +108,7 @@ export default function ClientSettingsTab({
             className='max-w-sm'
             aria-invalid={Boolean(errors.name)}
           />
-          {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+          {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
         </FieldRow>
 
         <FieldRow
@@ -120,10 +120,10 @@ export default function ClientSettingsTab({
             id='client-client-id'
             value={draft.clientId}
             onChange={(e) => onDraftChange({ clientId: e.target.value })}
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
             aria-invalid={Boolean(errors.clientId)}
           />
-          {errors.clientId && <p className='mt-1.5 text-xs text-fk-danger'>{errors.clientId}</p>}
+          {errors.clientId && <p className='mt-1.5 text-fk-danger'>{errors.clientId}</p>}
         </FieldRow>
 
         <FieldRow label='Client enabled' description='Disabled clients cannot authenticate users.'>
@@ -265,7 +265,7 @@ export default function ClientSettingsTab({
         onConfirm={onDelete}
       />
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='Review the client before applying the changes.'

@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowLeft, Check, Palette } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { IconTile, PageTabs, Pill, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -219,7 +219,7 @@ export default function PagePortalThemeDetail({
         </div>
       </PageTabs>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='The portal only reads what has been saved.'

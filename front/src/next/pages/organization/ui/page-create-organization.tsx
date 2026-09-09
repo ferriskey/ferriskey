@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -61,7 +61,7 @@ export default function PageCreateOrganization({
               className='max-w-sm'
               aria-invalid={Boolean(errors.name)}
             />
-            {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+            {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
           </FieldRow>
 
           <FieldRow
@@ -73,10 +73,10 @@ export default function PageCreateOrganization({
               id='new-organization-alias'
               value={draft.alias}
               onChange={(e) => onChange({ alias: e.target.value })}
-              className='max-w-sm font-mono-ui text-xs'
+              className='max-w-sm'
               aria-invalid={Boolean(errors.alias)}
             />
-            {errors.alias && <p className='mt-1.5 text-xs text-fk-danger'>{errors.alias}</p>}
+            {errors.alias && <p className='mt-1.5 text-fk-danger'>{errors.alias}</p>}
           </FieldRow>
 
           <FieldRow
@@ -102,7 +102,7 @@ export default function PageCreateOrganization({
               id='new-organization-domain'
               value={draft.domain}
               onChange={(e) => onChange({ domain: e.target.value })}
-              className='max-w-sm font-mono-ui text-xs'
+              className='max-w-sm'
             />
           </FieldRow>
 
@@ -115,7 +115,7 @@ export default function PageCreateOrganization({
               id='new-organization-redirect-url'
               value={draft.redirectUrl}
               onChange={(e) => onChange({ redirectUrl: e.target.value })}
-              className='max-w-lg font-mono-ui text-xs'
+              className='max-w-lg'
             />
           </FieldRow>
 
@@ -135,7 +135,7 @@ export default function PageCreateOrganization({
         </Section>
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create organization'
         description='The organization is created in this realm, with no member yet.'

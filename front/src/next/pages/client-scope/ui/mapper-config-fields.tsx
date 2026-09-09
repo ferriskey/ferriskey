@@ -86,7 +86,7 @@ export default function MapperConfigFields({
                 value={value}
                 placeholder={field.placeholder}
                 onChange={(e) => onChange(field.key, e.target.value)}
-                className='max-w-sm font-mono-ui'
+                className='max-w-sm'
               />
             )}
             <p className='mt-1.5 font-mono-ui text-[11px] text-neutral-400'>{field.key}</p>

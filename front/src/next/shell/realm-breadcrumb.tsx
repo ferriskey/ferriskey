@@ -44,7 +44,7 @@ export function RealmBreadcrumb({
             type='button'
             className='group flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100'
           >
-            {realm_name}
+            {realm_name.toLowerCase()}
             <ChevronsUpDown className='size-3.5 text-neutral-400 transition-colors group-hover:text-neutral-600' />
           </button>
         </PopoverTrigger>
@@ -105,7 +105,7 @@ export function RealmBreadcrumb({
                 to={crumb.to}
                 className='rounded px-1 text-sm text-neutral-500 transition-colors hover:text-neutral-900'
               >
-                {crumb.label}
+                {crumb.label.toLowerCase()}
               </Link>
             ) : (
               <span
@@ -114,7 +114,7 @@ export function RealmBreadcrumb({
                   last ? 'font-medium text-neutral-900' : 'text-neutral-500'
                 )}
               >
-                {crumb.label}
+                {crumb.label.toLowerCase()}
               </span>
             )}
           </span>

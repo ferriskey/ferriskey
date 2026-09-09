@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -134,7 +134,7 @@ export default function PageProtocolMapperSettings({
               className='max-w-sm'
               aria-invalid={Boolean(nameError)}
             />
-            {nameError && <p className='mt-1.5 text-xs text-fk-danger'>{nameError}</p>}
+            {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
           </FieldRow>
 
           <FieldRow
@@ -146,7 +146,7 @@ export default function PageProtocolMapperSettings({
               id='mapper-type'
               value={mapper.mapper_type}
               disabled
-              className='max-w-sm font-mono-ui'
+              className='max-w-sm'
             />
           </FieldRow>
         </Section>
@@ -178,7 +178,7 @@ export default function PageProtocolMapperSettings({
                 value={configJson}
                 rows={10}
                 onChange={(e) => onConfigJsonChange(e.target.value)}
-                className='max-w-lg font-mono-ui text-xs'
+                className='max-w-lg'
                 aria-invalid={Boolean(configError)}
               />
               {configError && <p className='mt-1.5 text-xs text-fk-danger'>{configError}</p>}
@@ -187,7 +187,7 @@ export default function PageProtocolMapperSettings({
         )}
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={hasChanges && !nameError && !configError}
         title='Unsaved changes'
         description='Review the mapper before applying the changes.'

@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
@@ -159,10 +159,10 @@ export default function ClientSamlTab({
             id='saml-sp-entity-id'
             value={draft.spEntityId}
             onChange={(e) => onDraftChange({ spEntityId: e.target.value })}
-            className='max-w-lg font-mono-ui'
+            className='max-w-lg'
             aria-invalid={Boolean(errors.spEntityId)}
           />
-          {errors.spEntityId && <p className='mt-1.5 text-xs text-fk-danger'>{errors.spEntityId}</p>}
+          {errors.spEntityId && <p className='mt-1.5 text-fk-danger'>{errors.spEntityId}</p>}
         </FieldRow>
 
         <FieldRow
@@ -174,10 +174,10 @@ export default function ClientSamlTab({
             id='saml-acs-url'
             value={draft.acsUrl}
             onChange={(e) => onDraftChange({ acsUrl: e.target.value })}
-            className='max-w-lg font-mono-ui'
+            className='max-w-lg'
             aria-invalid={Boolean(errors.acsUrl)}
           />
-          {errors.acsUrl && <p className='mt-1.5 text-xs text-fk-danger'>{errors.acsUrl}</p>}
+          {errors.acsUrl && <p className='mt-1.5 text-fk-danger'>{errors.acsUrl}</p>}
         </FieldRow>
 
         <FieldRow
@@ -379,7 +379,7 @@ export default function ClientSamlTab({
       )}
 
       {isConfigured && (
-        <FloatingActionBar
+        <SaveBar
           show={dirtyCount > 0}
           title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
           description='Save the SAML service provider settings for this client.'

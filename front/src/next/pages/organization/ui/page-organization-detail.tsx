@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft, Building2 } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { IconTile, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -177,7 +177,7 @@ export default function PageOrganizationDetail({
         </div>
       </PageTabs>
 
-      <FloatingActionBar
+      <SaveBar
         show={isDirty}
         title='Unsaved changes'
         description='Review the organization before applying the changes.'

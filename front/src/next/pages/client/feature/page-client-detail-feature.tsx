@@ -12,6 +12,7 @@ import ClientRolesTabFeature from './client-roles-tab-feature'
 import ClientScopesTabFeature from './client-scopes-tab-feature'
 import ClientSamlTabFeature from './client-saml-tab-feature'
 import ClientMaintenanceTabFeature from './client-maintenance-tab-feature'
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 export default function PageClientDetailFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
@@ -37,6 +38,9 @@ export default function PageClientDetailFeature() {
   )
 
   const { value: tab, tabs } = useRouteTabs(NEXT_CLIENT_URL(realm, client_id), tabList)
+
+
+  useCrumbLabel(client_id, client?.name ?? client?.client_id)
 
   return (
     <PageClientDetail

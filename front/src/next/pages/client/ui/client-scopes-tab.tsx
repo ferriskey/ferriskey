@@ -109,7 +109,7 @@ function AddScopeDialog({
             />
           </label>
           <Select value={type} onValueChange={(v) => setType(v as AssignableScopeType)}>
-            <SelectTrigger className='h-8 w-36 text-xs'>
+            <SelectTrigger className='h-8 w-36'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

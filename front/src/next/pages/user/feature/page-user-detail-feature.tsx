@@ -14,6 +14,7 @@ import UserOrganizationsFeature from './user-organizations-feature'
 import UserAttributesFeature from './user-attributes-feature'
 
 import RequiredAction = Schemas.RequiredAction
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft {
   key: string
@@ -133,6 +134,9 @@ export default function PageUserDetailFeature() {
       toast.error('The user could not be deleted')
     }
   }
+
+
+  useCrumbLabel(user_id, user?.username)
 
   return (
     <PageUserDetail

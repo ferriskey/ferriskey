@@ -1,6 +1,6 @@
 import { ArrowLeft, Database, KeyRound, Plug, RefreshCw, Server } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { IconTile, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -275,7 +275,7 @@ export default function PageProviderDetail({
         </div>
       </PageTabs>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description={

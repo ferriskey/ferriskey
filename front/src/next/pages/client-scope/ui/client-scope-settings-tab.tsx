@@ -57,10 +57,10 @@ export default function ClientScopeSettingsTab({
             id='scope-name'
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
             aria-invalid={Boolean(nameError)}
           />
-          {nameError && <p className='mt-1.5 text-xs text-fk-danger'>{nameError}</p>}
+          {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
         </FieldRow>
 
         <FieldRow
@@ -86,7 +86,7 @@ export default function ClientScopeSettingsTab({
             id='scope-protocol'
             value={scope.protocol}
             disabled
-            className='max-w-sm font-mono-ui'
+            className='max-w-sm'
           />
         </FieldRow>
 

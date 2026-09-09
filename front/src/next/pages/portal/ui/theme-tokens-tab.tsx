@@ -32,7 +32,7 @@ export default function ThemeTokensTab({ name, onNameChange, nameError }: ThemeT
             className='max-w-sm'
             aria-invalid={Boolean(nameError)}
           />
-          {nameError && <p className='mt-1.5 text-xs text-fk-danger'>{nameError}</p>}
+          {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
         </FieldRow>
       </Section>
 

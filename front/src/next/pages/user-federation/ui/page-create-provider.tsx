@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -116,7 +116,7 @@ export default function PageCreateProvider({
         />
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create provider'
         description='Once created, the provider can be tested and synchronised from its page.'

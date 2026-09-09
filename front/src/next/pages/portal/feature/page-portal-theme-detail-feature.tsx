@@ -22,6 +22,7 @@ import { NEXT_PORTAL_THEMES_URL, NEXT_PORTAL_THEME_PAGE_URL, NEXT_PORTAL_THEME_U
 import { requirementsByPage, statusesForTheme } from '../theme-validation'
 import PagePortalThemeDetail from '../ui/page-portal-theme-detail'
 import { NO_LAYOUT } from '../ui/theme-layout-tab'
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 const THEME_TABS = [
   { key: 'theme', label: 'Theme' },
@@ -43,6 +44,8 @@ export default function PagePortalThemeDetailFeature() {
   const { value: tab, tabs } = useRouteTabs(NEXT_PORTAL_THEME_URL(realm, themeId), THEME_TABS)
 
   const theme = themeData?.data
+
+  useCrumbLabel(themeId, theme?.name)
   const statuses = useMemo(
     () => statusesForTheme(theme, requirementsByPage(requirementsData?.data)),
     [theme, requirementsData]
@@ -162,6 +165,7 @@ function ThemeDetailInner({
       { onSuccess: () => navigate(NEXT_PORTAL_THEMES_URL(realm)) }
     )
   }
+
 
   return (
     <PagePortalThemeDetail

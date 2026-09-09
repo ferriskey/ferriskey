@@ -11,6 +11,7 @@ import PageWebhookDetail from '../ui/page-webhook-detail'
 import type { WebhookHeader } from '../ui/webhook-headers-field'
 
 import WebhookTrigger = Schemas.WebhookTrigger
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 type WebhookField = 'name' | 'endpoint' | 'description'
 
@@ -167,6 +168,9 @@ export default function PageWebhookDetailFeature() {
       }
     )
   }
+
+
+  useCrumbLabel(webhook_id, webhook?.name)
 
   return (
     <PageWebhookDetail

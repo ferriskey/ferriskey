@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft, Bot } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { IconTile, PageTabs, Pill, Squircle, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -181,7 +181,7 @@ export default function PageUserDetail({
         </div>
       </PageTabs>
 
-      <FloatingActionBar
+      <SaveBar
         show={tab === 'overview' && dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='Review the account before applying the changes.'

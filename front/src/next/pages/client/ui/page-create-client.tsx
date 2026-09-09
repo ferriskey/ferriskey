@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { ChoiceCards, FieldRow, Pill, Section, SwitchField } from '@/components/kit'
 import { NAME_ID_FORMAT_OPTIONS } from '@/lib/saml'
 import { cn } from '@/lib/utils'
@@ -120,7 +120,7 @@ export default function PageCreateClient({
               value={clientId}
               onChange={(e) => onClientIdChange(e.target.value)}
               placeholder='my-application'
-              className='max-w-sm font-mono-ui'
+              className='max-w-sm'
               aria-invalid={Boolean(errors.clientId)}
             />
             {errors.clientId && <p className='mt-1.5 text-xs text-fk-danger'>{errors.clientId}</p>}
@@ -138,7 +138,7 @@ export default function PageCreateClient({
               className='max-w-sm'
               aria-invalid={Boolean(errors.name)}
             />
-            {errors.name && <p className='mt-1.5 text-xs text-fk-danger'>{errors.name}</p>}
+            {errors.name && <p className='mt-1.5 text-fk-danger'>{errors.name}</p>}
           </FieldRow>
 
           <FieldRow
@@ -200,7 +200,7 @@ export default function PageCreateClient({
                 value={spEntityId}
                 onChange={(e) => onSpEntityIdChange(e.target.value)}
                 placeholder='https://chat.acme.com/saml/sp/1'
-                className='max-w-lg font-mono-ui'
+                className='max-w-lg'
                 aria-invalid={Boolean(errors.spEntityId)}
               />
               {errors.spEntityId && (
@@ -218,7 +218,7 @@ export default function PageCreateClient({
                 value={acsUrl}
                 onChange={(e) => onAcsUrlChange(e.target.value)}
                 placeholder='https://chat.acme.com/saml/acs'
-                className='max-w-lg font-mono-ui'
+                className='max-w-lg'
                 aria-invalid={Boolean(errors.acsUrl)}
               />
               {errors.acsUrl && <p className='mt-1.5 text-xs text-fk-danger'>{errors.acsUrl}</p>}
@@ -250,7 +250,7 @@ export default function PageCreateClient({
         )}
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create client'
         description={

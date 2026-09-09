@@ -1,4 +1,4 @@
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { PageTabs, type TabItem } from '@/components/kit'
 import type { PickableEntity } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -182,7 +182,7 @@ export default function PageRealmSettings({
         </div>
       </PageTabs>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='Review the realm configuration before applying the changes.'

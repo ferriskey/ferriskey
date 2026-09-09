@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AlertTriangle, ArrowLeft, Copy, Download, Pencil } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { FieldRow, IconTile, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -146,7 +146,7 @@ export default function PageEmailTemplateDetail({
               className='max-w-sm'
               aria-invalid={Boolean(nameError)}
             />
-            {nameError && <p className='mt-1.5 text-xs text-fk-danger'>{nameError}</p>}
+            {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
           </FieldRow>
 
           <FieldRow
@@ -158,7 +158,7 @@ export default function PageEmailTemplateDetail({
               id='email-template-type'
               value={template.email_type}
               disabled
-              className='max-w-sm font-mono-ui'
+              className='max-w-sm'
             />
           </FieldRow>
 
@@ -270,7 +270,7 @@ export default function PageEmailTemplateDetail({
         />
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirty}
         title='1 unsaved change'
         description='Only the name is editable here; the content is edited in the builder.'

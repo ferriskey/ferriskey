@@ -1,6 +1,6 @@
 import { ShieldCheck, User, Wrench } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import {
   ChoiceCards,
   EntityPicker,
@@ -195,7 +195,7 @@ export default function ClientMaintenanceTab({
         </div>
       </Section>
 
-      <FloatingActionBar
+      <SaveBar
         show={hasSettingsChanges}
         title='Unsaved maintenance settings'
         description='Save the maintenance reason and session strategy changes.'

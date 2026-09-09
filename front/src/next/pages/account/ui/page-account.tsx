@@ -1,5 +1,5 @@
 import { Input } from '@/components/ui/input'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, IconTile, Pill, Section } from '@/components/kit'
 import { UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -124,7 +124,7 @@ export default function PageAccount({
               value={username}
               disabled={!usernameEditable}
               onChange={(e) => onUsernameChange(e.target.value)}
-              className='max-w-sm font-mono-ui text-xs'
+              className='max-w-sm'
               aria-invalid={Boolean(errors.username)}
             />
             {errors.username && (
@@ -170,7 +170,7 @@ export default function PageAccount({
         </Section>
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={dirtyCount > 0}
         title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
         description='Review your profile before applying the changes.'

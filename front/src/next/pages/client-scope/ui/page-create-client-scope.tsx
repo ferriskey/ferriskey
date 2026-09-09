@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import FloatingActionBar from '@/components/ui/floating-action-bar'
+import SaveBar from '@/components/kit/save-bar'
 import {
   Select,
   SelectContent,
@@ -74,10 +74,10 @@ export default function PageCreateClientScope({
               id='new-scope-name'
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
-              className='max-w-sm font-mono-ui'
+              className='max-w-sm'
               aria-invalid={Boolean(nameError)}
             />
-            {nameError && <p className='mt-1.5 text-xs text-fk-danger'>{nameError}</p>}
+            {nameError && <p className='mt-1.5 text-fk-danger'>{nameError}</p>}
           </FieldRow>
 
           <FieldRow
@@ -103,7 +103,7 @@ export default function PageCreateClientScope({
               id='new-scope-protocol'
               value={protocol}
               disabled
-              className='max-w-sm font-mono-ui'
+              className='max-w-sm'
             />
           </FieldRow>
 
@@ -128,7 +128,7 @@ export default function PageCreateClientScope({
         </Section>
       </div>
 
-      <FloatingActionBar
+      <SaveBar
         show={canSubmit}
         title='Create client scope'
         description='The scope is created empty — its protocol mappers are added afterwards.'

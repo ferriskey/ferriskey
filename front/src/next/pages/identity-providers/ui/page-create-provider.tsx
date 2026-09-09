@@ -254,7 +254,7 @@ export default function PageCreateProvider({
                   value={values.alias}
                   onChange={(e) => onChange({ alias: e.target.value })}
                   placeholder='google-workspace'
-                  className='max-w-sm font-mono-ui'
+                  className='max-w-sm'
                   aria-invalid={Boolean(errors.alias)}
                 />
                 {errors.alias && <p className='mt-1.5 text-xs text-fk-danger'>{errors.alias}</p>}
@@ -287,7 +287,7 @@ export default function PageCreateProvider({
                   id='create-provider-client-id'
                   value={values.clientId}
                   onChange={(e) => onChange({ clientId: e.target.value })}
-                  className='max-w-sm font-mono-ui'
+                  className='max-w-sm'
                   aria-invalid={Boolean(errors.clientId)}
                 />
                 {errors.clientId && (
@@ -343,7 +343,7 @@ export default function PageCreateProvider({
                   value={values.authorizationUrl}
                   onChange={(e) => onChange({ authorizationUrl: e.target.value })}
                   placeholder='https://provider.com/oauth/authorize'
-                  className='max-w-lg font-mono-ui'
+                  className='max-w-lg'
                   aria-invalid={Boolean(errors.authorizationUrl)}
                 />
                 {errors.authorizationUrl && (
@@ -361,7 +361,7 @@ export default function PageCreateProvider({
                   value={values.tokenUrl}
                   onChange={(e) => onChange({ tokenUrl: e.target.value })}
                   placeholder='https://provider.com/oauth/token'
-                  className='max-w-lg font-mono-ui'
+                  className='max-w-lg'
                   aria-invalid={Boolean(errors.tokenUrl)}
                 />
                 {errors.tokenUrl && (
@@ -383,7 +383,7 @@ export default function PageCreateProvider({
                   value={values.userinfoUrl}
                   onChange={(e) => onChange({ userinfoUrl: e.target.value })}
                   placeholder='https://provider.com/api/userinfo'
-                  className='max-w-lg font-mono-ui'
+                  className='max-w-lg'
                   aria-invalid={Boolean(errors.userinfoUrl)}
                 />
                 {errors.userinfoUrl && (

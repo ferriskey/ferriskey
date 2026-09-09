@@ -16,6 +16,7 @@ import PageClientScopeDetail from '../ui/page-client-scope-detail'
 import type { ScopeTypeChoice } from '../ui/page-create-client-scope'
 
 import ProtocolMapper = Schemas.ProtocolMapper
+import { useCrumbLabel } from '@/next/shell/crumb-store'
 
 interface Draft {
   key: string
@@ -97,6 +98,9 @@ export default function PageClientScopeDetailFeature() {
       { onSuccess: () => navigate(NEXT_CLIENT_SCOPES_URL(realm)) }
     )
   }
+
+
+  useCrumbLabel(scope_id, scope?.name)
 
   return (
     <PageClientScopeDetail
