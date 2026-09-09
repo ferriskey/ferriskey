@@ -231,4 +231,3 @@ export const permissionCount = permissionCatalogue.reduce(
 export const allPermissionKeys = permissionCatalogue.flatMap((g) =>
   g.permissions.map((p) => p.key)
 )
-
