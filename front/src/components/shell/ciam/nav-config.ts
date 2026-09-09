@@ -117,7 +117,7 @@ export const consoleSections: ConsoleSection[] = [
       {
         key: 'all',
         label: 'All applications',
-        description: 'Mobile, SPA, web, machine to machine',
+        description: 'Mobile, SPA, web, M2M',
         icon: Boxes,
         segment: 'applications',
       },

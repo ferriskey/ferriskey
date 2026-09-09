@@ -78,7 +78,7 @@ export function ConsoleShell() {
         </nav>
 
         <div className='flex min-h-0 flex-1 items-stretch'>
-          {section && section.subItems.length > 1 && (
+          {section && section.subItems.length > 0 && (
             <aside className='hidden w-52 shrink-0 overflow-y-auto border-r border-fk-line p-2 md:block'>
               <ul className='flex flex-col gap-0.5'>
                 {section.subItems.map((item) => {
