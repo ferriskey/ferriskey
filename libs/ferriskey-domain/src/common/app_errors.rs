@@ -184,6 +184,9 @@ pub enum CoreError {
     #[error("Failed to create client")]
     CreateClientError,
 
+    #[error("A client with the id {0} already exists in this realm")]
+    ClientIdAlreadyExists(String),
+
     #[error("Service unavailable: {0}")]
     ServiceUnavailable(String),
 

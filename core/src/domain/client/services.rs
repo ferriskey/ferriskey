@@ -214,8 +214,7 @@ where
                 client_type: input.client_type,
                 require_pkce: false,
             })
-            .await
-            .map_err(|_| CoreError::CreateClientError)?;
+            .await?;
 
         let realm_scopes = self
             .client_scope_repository
