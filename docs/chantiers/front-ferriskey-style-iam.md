@@ -66,16 +66,16 @@ Existing files are **read-only** for every workstream, without exception.
 |---|---|---|
 | 0 | Foundations (tokens, kit, `/next` shell) | integrated |
 | 1 | `role` — pilot, the canonical example to imitate | integrated |
-| 2 | `client-scope` | pending |
-| 3 | `user` + `account` | pending |
-| 4 | `client` | pending |
-| 5 | `identity-providers` ⚠ shared with CIAM | pending |
-| 6 | `user-federation` | pending |
-| 7 | `email-template` ⚠ shared with CIAM | pending |
-| 8 | `realm` (realm-settings + webhooks) | pending |
-| 9 | `compass` + `seawatch` | pending |
-| 10 | `portal` + `portal-theme` + `portal-layouts` ⚠ themes shared | pending |
-| 11 | `overview` + `organization` | pending |
+| 2 | `client-scope` | integrated |
+| 3 | `user` + `account` | integrated |
+| 4 | `client` | integrated |
+| 5 | `identity-providers` ⚠ shared with CIAM | integrated |
+| 6 | `user-federation` | integrated |
+| 7 | `email-template` ⚠ shared with CIAM | integrated |
+| 8 | `realm` (realm-settings + webhooks) | integrated |
+| 9 | `compass` + `seawatch` | integrated |
+| 10 | `portal` + `portal-theme` + `portal-layouts` ⚠ themes shared | integrated |
+| 11 | `overview` + `organization` | integrated |
 
 ## Verification regime
 
@@ -90,6 +90,24 @@ agent can act on. Therefore:
 
 Node 24 is required (`nvm use 24`); ESLint 10 crashes on Node 20.8 with
 `util.styleText is not a function`.
+
+## Server-side filtering
+
+An audit of every `GET` endpoint accepting query parameters found **no
+free-text search on any listing**. The only `search` in the API belongs to
+`/organizations/{id}/groups/{gid}/members`. Structured filters exist on two
+resources only:
+
+- `/compass/v1/flows` — `client_id`, `user_id`, `grant_type`, `status`,
+  `limit`, `offset`
+- `/seawatch/v1/security-events` — `actor_id`, `client_id`, `event_types`,
+  `from_timestamp`, `to_timestamp`, `limit`, `offset`
+
+`ListingPage` therefore carries both modes. `server` disables the local
+predicates for the keys the API handles; `useListingQuery` keeps the query and
+the filter in the URL and debounces the search box at 300 ms. Compass and Sea
+Watch use it; the other eleven listings filter in memory and will switch one
+line at a time as the endpoints grow parameters.
 
 ## Decision log
 
