@@ -30,10 +30,12 @@ export default function RealmMaintenanceTab({
         description='Accounts and roles always allowed during a maintenance of this realm.'
       >
         <FieldRow
+          layout='stacked'
           label='Users'
           description='Individual accounts always allowed during maintenance.'
         >
           <EntityPicker
+            fullWidth
             items={users}
             value={selectedUserIds}
             onChange={onUsersChange}
@@ -45,10 +47,13 @@ export default function RealmMaintenanceTab({
         </FieldRow>
 
         <FieldRow
+          layout='stacked'
+          className='border-t border-fk-line pt-4'
           label='Roles'
           description='Everyone holding one of these roles is allowed during maintenance.'
         >
           <EntityPicker
+            fullWidth
             items={roles}
             value={selectedRoleIds}
             onChange={onRolesChange}

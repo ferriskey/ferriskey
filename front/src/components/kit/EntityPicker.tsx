@@ -31,6 +31,7 @@ export function EntityPicker({
   emptyIcon = Users,
   exhaustedHint = 'Everything is already added.',
   disabled,
+  fullWidth = false,
 }: {
   items: PickableEntity[]
   value: string[]
@@ -42,6 +43,8 @@ export function EntityPicker({
   emptyIcon?: ComponentType<{ className?: string; strokeWidth?: number }>
   exhaustedHint?: string
   disabled?: boolean
+  /** Span the container instead of capping at a form field's width. */
+  fullWidth?: boolean
 }) {
   const [open, setOpen] = useState(false)
 
@@ -101,14 +104,14 @@ export function EntityPicker({
 
   if (selected.length === 0) {
     return (
-      <div className='max-w-lg'>
+      <div className={fullWidth ? undefined : 'max-w-lg'}>
         <EmptyState icon={emptyIcon} compact label={emptyHint} action={addControl} />
       </div>
     )
   }
 
   return (
-    <div className='max-w-lg space-y-2'>
+    <div className={cn('space-y-2', !fullWidth && 'max-w-lg')}>
       {selected.length > 0 ? (
         <ul className={cn(tokens.surface.panel, 'divide-y divide-fk-line-soft')}>
           {selected.map((entity) => (
