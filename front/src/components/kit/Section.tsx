@@ -8,6 +8,8 @@ interface SectionProps {
   action?: ReactNode
   children: ReactNode
   contained?: boolean
+  /** Rule between children. Off when they already read as separate blocks. */
+  divided?: boolean
   className?: string
 }
 
@@ -17,6 +19,7 @@ export function Section({
   action,
   children,
   contained = true,
+  divided = true,
   className,
 }: SectionProps) {
   return (
@@ -32,7 +35,7 @@ export function Section({
       </div>
 
       {contained ? (
-        <div className={cn(tokens.surface.panel, 'px-4', tokens.surface.divider)}>
+        <div className={cn(tokens.surface.panel, 'px-4', divided && tokens.surface.divider)}>
           {children}
         </div>
       ) : (

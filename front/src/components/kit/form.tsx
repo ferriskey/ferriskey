@@ -22,7 +22,7 @@ export function FieldRow({
 }) {
   if (layout === 'stacked') {
     return (
-      <div className={cn('space-y-1.5', className)}>
+      <div className={cn('space-y-1.5 py-4', className)}>
         <label
           htmlFor={htmlFor}
           className='block text-sm font-medium text-neutral-900 dark:text-neutral-100'

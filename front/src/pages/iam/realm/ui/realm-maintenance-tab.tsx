@@ -28,6 +28,7 @@ export default function RealmMaintenanceTab({
       <Section
         title='Default maintenance members'
         description='Accounts and roles always allowed during a maintenance of this realm.'
+        divided={false}
       >
         <FieldRow
           layout='stacked'
@@ -48,7 +49,6 @@ export default function RealmMaintenanceTab({
 
         <FieldRow
           layout='stacked'
-          className='border-t border-fk-line pt-4'
           label='Roles'
           description='Everyone holding one of these roles is allowed during maintenance.'
         >
