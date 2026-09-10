@@ -1,4 +1,5 @@
 import { createElement, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Boxes, Plus, Search, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { CreatePickerDialog, EmptyState, IconTile, Pill } from '@/components/kit'
@@ -276,8 +277,8 @@ function ApplicationCard({ application, href }: { application: Client; href: str
   const meta = applicationTypeMeta(inferApplicationType(application))
 
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       className={cn(
         tokens.surface.panel,
         'block p-0 transition-colors hover:border-fk-primary-border focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30'
@@ -309,6 +310,6 @@ function ApplicationCard({ application, href }: { application: Client; href: str
           {formatDate(application.created_at)}
         </span>
       </div>
-    </a>
+    </Link>
   )
 }
