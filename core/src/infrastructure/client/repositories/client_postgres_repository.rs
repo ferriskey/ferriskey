@@ -1,7 +1,7 @@
 use crate::{
     domain::common::entities::app_errors::CoreError,
-    infrastructure::common::is_unique_violation,
     entity::clients::{ActiveModel, Entity as ClientEntity},
+    infrastructure::common::is_unique_violation,
 };
 use chrono::Utc;
 use sea_orm::{

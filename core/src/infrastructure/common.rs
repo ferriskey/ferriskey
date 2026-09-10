@@ -1,4 +1,3 @@
-
 /// Tells a unique-constraint violation apart from a genuine server fault.
 ///
 /// A schema-level uniqueness conflict is a caller asking for a value that is
