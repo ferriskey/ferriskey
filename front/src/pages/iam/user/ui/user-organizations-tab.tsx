@@ -140,7 +140,7 @@ export default function UserOrganizationsTab({
             addLabel='Pick an organization'
             searchPlaceholder='Search an organization…'
             emptyHint='No organization selected yet.'
-            exhaustedHint='Every available organization is already selected.'
+            exhaustedHint='This account already belongs to every organization of the realm.'
           />
           <Button
             size='sm'

@@ -106,9 +106,15 @@ export function EntityPicker({
   )
 
   if (selected.length === 0) {
+    const exhausted = available.length === 0
     return (
       <div className={fullWidth ? undefined : 'max-w-lg'}>
-        <EmptyState icon={emptyIcon} compact label={emptyHint} action={addControl} />
+        <EmptyState
+          icon={emptyIcon}
+          compact
+          label={exhausted ? exhaustedHint : emptyHint}
+          action={exhausted ? undefined : addControl}
+        />
       </div>
     )
   }
@@ -146,7 +152,7 @@ export function EntityPicker({
 
       {addControl}
 
-      {available.length === 0 && selected.length > 0 && (
+      {available.length === 0 && (
         <p className='text-xs text-neutral-400 dark:text-neutral-500'>{exhaustedHint}</p>
       )}
     </div>

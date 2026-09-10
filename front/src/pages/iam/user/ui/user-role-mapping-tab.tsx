@@ -160,7 +160,7 @@ export default function UserRoleMappingTab({
             addLabel='Pick a role'
             searchPlaceholder='Search a role…'
             emptyHint='No role selected yet.'
-            exhaustedHint='Every assignable role is already selected.'
+            exhaustedHint='This account already holds every role of the realm.'
           />
           <Button size='sm' disabled={selectedRoleIds.length === 0} onClick={onAssign}>
             Assign {selectedRoleIds.length > 0 ? selectedRoleIds.length : ''} role
