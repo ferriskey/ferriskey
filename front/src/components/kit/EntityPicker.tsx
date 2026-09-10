@@ -67,12 +67,15 @@ export function EntityPicker({
           <ChevronsUpDown className='text-neutral-400 dark:text-neutral-500' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align='start' sideOffset={6} className='w-72 p-0'>
+      <PopoverContent align='start' sideOffset={6} className='w-64 p-0'>
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
-            <CommandEmpty className='py-4 text-[13px]'>No match.</CommandEmpty>
-            <CommandGroup>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            className='h-8 py-0 text-[13px]'
+          />
+          <CommandList className='max-h-56'>
+            <CommandEmpty className='py-3 text-[13px]'>No match.</CommandEmpty>
+            <CommandGroup className='p-1'>
               {available.map((entity) => (
                 <CommandItem
                   key={entity.id}
