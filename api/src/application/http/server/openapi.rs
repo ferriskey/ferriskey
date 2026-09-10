@@ -5,7 +5,7 @@ use ferriskey_api_broker::BrokerApiDoc;
 use ferriskey_api_client::router::ClientApiDoc;
 use ferriskey_api_compass::router::CompassApiDoc;
 use ferriskey_api_email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc};
-use ferriskey_api_maintenance::router::MaintenanceApiDoc;
+use ferriskey_api_maintenance::router::{MaintenanceApiDoc, RealmMaintenanceApiDoc};
 use ferriskey_api_organization::router::OrganizationApiDoc;
 use ferriskey_api_portal_layouts::router::{PortalLayoutsApiDoc, PortalLayoutsPublicApiDoc};
 use ferriskey_api_portal_theme::router::{PortalThemeApiDoc, PortalThemePublicApiDoc};
@@ -45,7 +45,8 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/portal-layouts/public", api = PortalLayoutsPublicApiDoc),
         (path = "/email-templates/variables", api = EmailTemplateVariablesApiDoc),
         (path = "/realms/{realm_name}/organizations", api = OrganizationApiDoc),
-        (path = "/realms/{realm_name}/clients", api = MaintenanceApiDoc)
+        (path = "/realms/{realm_name}/clients", api = MaintenanceApiDoc),
+        (path = "/realms/{realm_name}", api = RealmMaintenanceApiDoc)
     )
 )]
 pub struct ApiDoc;
