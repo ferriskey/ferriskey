@@ -42,6 +42,7 @@ mod tests {
     use crate::client::entities::{Client, ClientConfig, ClientType};
     use crate::realm::{RealmId, RealmSetting};
 
+    /// Build realm defaults used to test token-lifetime precedence.
     fn test_realm_setting() -> RealmSetting {
         RealmSetting::new(RealmId::default(), Some("RS256".to_string()))
     }

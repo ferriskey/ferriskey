@@ -929,6 +929,7 @@ where
             .map_err(|_| CoreError::NotFound)
     }
 
+    /// List a client's post-logout redirect URIs after checking realm access.
     async fn get_post_logout_redirect_uris(
         &self,
         identity: Identity,

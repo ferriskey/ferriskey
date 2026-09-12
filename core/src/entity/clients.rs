@@ -97,6 +97,7 @@ pub enum Relation {
 
 impl ColumnTrait for Column {
     type EntityName = Entity;
+    /// Describe SQL column types and nullability for persisted client fields.
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
@@ -129,6 +130,7 @@ impl ColumnTrait for Column {
 }
 
 impl RelationTrait for Relation {
+    /// Resolve the client model's declared database relationships.
     fn def(&self) -> RelationDef {
         match self {
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
@@ -167,90 +169,105 @@ impl RelationTrait for Relation {
 }
 
 impl Related<super::auth_sessions::Entity> for Entity {
+    /// Expose the auth sessions relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::AuthSessions.def()
     }
 }
 
 impl Related<super::broker_auth_sessions::Entity> for Entity {
+    /// Expose the broker auth sessions relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::BrokerAuthSessions.def()
     }
 }
 
 impl Related<super::client_maintenance_whitelist::Entity> for Entity {
+    /// Expose the client maintenance whitelist relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::ClientMaintenanceWhitelist.def()
     }
 }
 
 impl Related<super::client_saml_attribute_mappers::Entity> for Entity {
+    /// Expose the client saml attribute mappers relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::ClientSamlAttributeMappers.def()
     }
 }
 
 impl Related<super::client_saml_configs::Entity> for Entity {
+    /// Expose the client saml configs relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::ClientSamlConfigs.def()
     }
 }
 
 impl Related<super::client_scope_mappings::Entity> for Entity {
+    /// Expose the client scope mappings relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::ClientScopeMappings.def()
     }
 }
 
 impl Related<super::client_web_origins::Entity> for Entity {
+    /// Expose the client web origins relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::ClientWebOrigins.def()
     }
 }
 
 impl Related<super::device_auth_sessions::Entity> for Entity {
+    /// Expose the device auth sessions relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::DeviceAuthSessions.def()
     }
 }
 
 impl Related<super::post_logout_redirect_uris::Entity> for Entity {
+    /// Expose the post logout redirect uris relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::PostLogoutRedirectUris.def()
     }
 }
 
 impl Related<super::realms::Entity> for Entity {
+    /// Expose the realms relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::Realms.def()
     }
 }
 
 impl Related<super::redirect_uris::Entity> for Entity {
+    /// Expose the redirect uris relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::RedirectUris.def()
     }
 }
 
 impl Related<super::roles::Entity> for Entity {
+    /// Expose the roles relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::Roles.def()
     }
 }
 
 impl Related<super::token_exchange_policies::Entity> for Entity {
+    /// Expose the token exchange policies relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::TokenExchangePolicies.def()
     }
 }
 
 impl Related<super::users::Entity> for Entity {
+    /// Expose the users relationship to SeaORM joins.
     fn to() -> RelationDef {
         Relation::Users.def()
     }
 }
 
 impl Related<super::client_scopes::Entity> for Entity {
+    /// Expose the client scopes relationship to SeaORM joins.
     fn to() -> RelationDef {
         super::client_scope_mappings::Relation::ClientScopes.def()
     }

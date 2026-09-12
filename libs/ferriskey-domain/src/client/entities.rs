@@ -126,6 +126,7 @@ pub struct ClientConfig {
 }
 
 impl Client {
+    /// Borrow the unmasked secret for trusted internal credential use.
     pub fn secret_str(&self) -> Option<&str> {
         self.secret.as_ref().map(|secret| secret.expose().as_str())
     }

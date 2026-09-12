@@ -675,6 +675,7 @@ pub(crate) mod tests {
         }
     }
 
+    /// Build the realm fixture shared by SAML service tests.
     fn realm() -> Realm {
         Realm {
             id: RealmId::default(),

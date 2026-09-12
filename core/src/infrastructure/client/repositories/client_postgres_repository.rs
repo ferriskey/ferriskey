@@ -116,6 +116,7 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client)
     }
 
+    /// Load clients belonging to the requested realm.
     async fn get_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<Client>, CoreError> {
         let clients = ClientEntity::find()
             .filter(crate::entity::clients::Column::RealmId.eq::<Uuid>(realm_id.into()))
