@@ -1,9 +1,11 @@
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
-import { DetailHeader, FieldRow, IconTile, PageShell, Pill, Section } from '@/components/kit'
+import { DetailHeader, FieldRow, IconTile, PageShell, PageTabs, Pill, Section } from '@/components/kit'
 import { UserRound } from 'lucide-react'
+import { useLocation, useParams } from 'react-router'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { ACCOUNT_URL, RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
@@ -44,6 +46,16 @@ export default function PageAccount({
   onDiscard,
   onSave,
 }: PageAccountProps) {
+  const { realm_name } = useParams<RouterParams>()
+  const { pathname } = useLocation()
+
+  const base = ACCOUNT_URL(realm_name)
+  const tabs = [
+    { key: 'overview', label: 'Personal info', href: base },
+    { key: 'sessions', label: 'Sessions', href: `${base}/sessions` },
+  ]
+  const tab = pathname.endsWith('/sessions') ? 'sessions' : 'overview'
+
   if (isLoading) {
     return (
       <PageShell>
@@ -100,6 +112,8 @@ export default function PageAccount({
           </dl>
         }
       />
+
+      <PageTabs tabs={tabs} value={tab} className='mt-5' />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
         <Section
