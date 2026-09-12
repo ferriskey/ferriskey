@@ -156,6 +156,9 @@ impl From<CoreError> for ApiError {
             CoreError::CreateClientError => {
                         Self::InternalServerError("Failed to create client".into())
                     }
+            CoreError::ClientIdAlreadyExists(client_id) => {
+                        Self::Conflict(CoreError::ClientIdAlreadyExists(client_id).to_string().into())
+                    }
             CoreError::ServiceUnavailable(msg) => Self::ServiceUnavailable(msg.into()),
             CoreError::RecoveryCodeGenError(msg) => Self::BadRequest(msg.into()),
             CoreError::RecoveryCodeBurnError(msg) => Self::BadRequest(msg.into()),

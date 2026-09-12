@@ -1,6 +1,7 @@
 use crate::{
     domain::common::entities::app_errors::CoreError,
     entity::clients::{ActiveModel, Entity as ClientEntity},
+    infrastructure::common::is_unique_violation,
 };
 use chrono::Utc;
 use sea_orm::{
@@ -33,6 +34,7 @@ impl PostgresClientRepository {
 impl ClientRepository for PostgresClientRepository {
     async fn create_client(&self, data: CreateClientRequest) -> Result<Client, CoreError> {
         let (now, _) = generate_timestamp();
+        let client_id_for_error = data.client_id.clone();
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
@@ -60,6 +62,9 @@ impl ClientRepository for PostgresClientRepository {
         };
 
         let client = payload.insert(&self.db).await.map_err(|e| {
+            if is_unique_violation(&e) {
+                return CoreError::ClientIdAlreadyExists(client_id_for_error);
+            }
             tracing::error!("Failed to insert client: {}", e);
             CoreError::InternalServerError
         })?;

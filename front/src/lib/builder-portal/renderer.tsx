@@ -13,7 +13,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
-} from '@/pages/identity-providers/components/provider-icon'
+} from '@/components/provider-icon'
 import type { BuilderNode } from '../builder-core'
 import { PortalInput } from './components/portal-input'
 
