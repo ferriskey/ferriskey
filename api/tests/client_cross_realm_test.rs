@@ -700,6 +700,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored"]
+    /// Verify own-realm client updates, audited grant changes, and child writes remain available.
     fn tenant_admin_retains_full_control_of_their_own_clients() {
         // Non-regression. Without this, a fix that simply denied every client
         // operation would look like a success above.

@@ -6,6 +6,7 @@ use crate::{
 };
 
 impl From<Model> for Client {
+    /// Map persisted client fields, including grant flags, into the domain representation.
     fn from(model: crate::entity::clients::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
         let updated_at = Utc.from_utc_datetime(&model.updated_at);

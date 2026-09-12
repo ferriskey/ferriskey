@@ -130,6 +130,7 @@ impl Client {
         self.secret.as_ref().map(|secret| secret.expose().as_str())
     }
 
+    /// Construct a client, defaulting optional grant flags to disabled.
     pub fn new(config: ClientConfig) -> Self {
         let (now, timestamp) = generate_timestamp();
         Self {
@@ -162,6 +163,7 @@ impl Client {
         }
     }
 
+    /// Construct a realm-bound client with optional grants disabled.
     pub fn from_realm_and_client_id(realm_id: RealmId, client_id: String) -> Self {
         let (now, timestamp) = generate_timestamp();
 

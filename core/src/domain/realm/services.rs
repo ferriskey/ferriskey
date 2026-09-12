@@ -318,6 +318,7 @@ where
             realm.name = %input.realm_name,
         )
     )]
+    /// Create a realm and its built-in clients with optional token exchange disabled.
     async fn create_realm(
         &self,
         identity: Identity,
@@ -505,6 +506,7 @@ where
             realm.name = %input.realm_name,
         )
     )]
+    /// Create a realm for a user and initialize its administrative client.
     async fn create_realm_with_user(
         &self,
         identity: Identity,
@@ -1222,6 +1224,7 @@ mod tests {
             self
         }
 
+        /// Expect creation of the master realm mirror client with token exchange disabled.
         fn with_system_client(mut self, master_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
@@ -1264,6 +1267,7 @@ mod tests {
             self
         }
 
+        /// Expect creation of the administrative CLI client with token exchange disabled.
         fn with_admin_cli_client(mut self, new_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
@@ -1301,6 +1305,7 @@ mod tests {
             self
         }
 
+        /// Expect creation of the account client with token exchange disabled.
         fn with_ferriskey_account_client(mut self, new_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
@@ -1338,6 +1343,7 @@ mod tests {
             self
         }
 
+        /// Expect creation of the security console client with token exchange disabled.
         fn with_security_admin_console_client(mut self, new_realm_id: RealmId) -> Self {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()

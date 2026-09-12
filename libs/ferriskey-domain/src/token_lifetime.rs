@@ -46,6 +46,7 @@ mod tests {
         RealmSetting::new(RealmId::default(), Some("RS256".to_string()))
     }
 
+    /// Build client settings for token-lifetime precedence tests.
     fn test_client_config(realm_id: RealmId) -> ClientConfig {
         ClientConfig {
             realm_id,

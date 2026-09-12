@@ -23,6 +23,7 @@ pub struct CreateClientRequest {
 }
 
 impl CreateClientRequest {
+    /// Build the creation request for a realm system client with token exchange disabled.
     pub fn create_realm_system_client(
         realm_id: RealmId,
         client_name: String,

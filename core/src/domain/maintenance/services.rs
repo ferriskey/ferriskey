@@ -95,6 +95,7 @@ where
     MW: MaintenanceWhitelistRepository,
     RMW: RealmMaintenanceWhitelistRepository,
 {
+    /// Change client maintenance settings while preserving omitted grant configuration.
     async fn toggle_maintenance(
         &self,
         identity: Identity,

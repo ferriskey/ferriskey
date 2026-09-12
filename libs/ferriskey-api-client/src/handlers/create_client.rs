@@ -39,6 +39,7 @@ pub struct CreatedClientResponse {
     tag = "client",
     request_body = CreateClientValidator,
 )]
+/// Validate and forward client creation fields to the authorized domain service.
 pub async fn create_client(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,

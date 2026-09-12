@@ -611,6 +611,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    /// Verify newly created clients receive the realm default scopes.
     async fn creates_client_with_realm_default_scopes_assigned() {
         let db_host = env_or("DATABASE_HOST", "localhost");
         let db_port = env_u16_or("DATABASE_PORT", 5432);

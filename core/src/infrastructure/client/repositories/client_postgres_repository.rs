@@ -31,6 +31,7 @@ impl PostgresClientRepository {
 }
 
 impl ClientRepository for PostgresClientRepository {
+    /// Persist a new client and its explicit grant settings.
     async fn create_client(&self, data: CreateClientRequest) -> Result<Client, CoreError> {
         let (now, _) = generate_timestamp();
 
@@ -127,6 +128,7 @@ impl ClientRepository for PostgresClientRepository {
         Ok(clients)
     }
 
+    /// Apply supplied fields within the target realm and return the persisted client.
     async fn update_client(
         &self,
         realm_id: RealmId,

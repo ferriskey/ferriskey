@@ -140,6 +140,7 @@ where
     CR: CredentialRepository,
     RU: RedirectUriRepository,
 {
+    /// Initialize the master realm and built-in clients with token exchange disabled.
     async fn initialize_application(
         &self,
         config: StartupConfig,
@@ -715,6 +716,7 @@ pub mod tests {
         Identity::User(create_test_user(realm_id))
     }
 
+    /// Build a realm-scoped client identity for policy and service tests.
     pub fn create_test_client_identity(realm_id: RealmId) -> Identity {
         let client = Client {
             id: Uuid::new_v4(),

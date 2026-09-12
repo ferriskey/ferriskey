@@ -4716,6 +4716,7 @@ mod tests {
 
     const REDIRECT_URI: &str = "https://client.example/callback";
 
+    /// Build a confidential client fixture with optional token grants disabled.
     fn confidential_client(id: Uuid, realm_id: RealmId) -> Client {
         Client {
             id,

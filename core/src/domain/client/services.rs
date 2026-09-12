@@ -166,6 +166,7 @@ where
     CS: ClientScopeRepository,
     CSM: ClientScopeMappingRepository,
 {
+    /// Create an authorized realm client, its service account when requested, and lifecycle events.
     async fn create_client(
         &self,
         identity: Identity,
@@ -952,6 +953,7 @@ where
             .map_err(|_| CoreError::NotFound)
     }
 
+    /// Update an authorized realm client and audit effective token-exchange flag changes.
     async fn update_client(
         &self,
         identity: Identity,

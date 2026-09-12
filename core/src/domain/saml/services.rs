@@ -686,6 +686,7 @@ pub(crate) mod tests {
         }
     }
 
+    /// Build a SAML client fixture without enabling OAuth token exchange.
     fn saml_client(realm_id: RealmId) -> Client {
         Client {
             id: Uuid::new_v4(),

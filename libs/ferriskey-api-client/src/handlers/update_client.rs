@@ -42,6 +42,7 @@ pub struct UpdateClientResponse {
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
+/// Forward optional client updates without replacing fields omitted from the request.
 pub async fn update_client(
     Path((realm_name, client_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
