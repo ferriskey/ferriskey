@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { IconTile, MetricsBand, Pill, Section } from '@/components/kit'
+import { IconTile, MetricsBand, PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
@@ -106,7 +106,7 @@ export default function PagePortalThemes({
   )
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <PortalPageHeader tab='themes' actions={createButton} />
 
       <div className={cn('mt-4', tokens.page.blockGap)}>
@@ -288,6 +288,6 @@ export default function PagePortalThemes({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   )
 }

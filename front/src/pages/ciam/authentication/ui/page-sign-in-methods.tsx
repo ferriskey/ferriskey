@@ -1,7 +1,7 @@
 import { AlertTriangle, Fingerprint, KeyRound, Link2, Mail, ShieldCheck, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
-import { FieldRow, OrderedChoiceCards, Section, SwitchField } from '@/components/kit'
+import { FieldRow, OrderedChoiceCards, PageShell, Section, SwitchField } from '@/components/kit'
 import type { Choice } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -190,21 +190,19 @@ export default function PageSignInMethods({
   onDiscard,
   onSave,
 }: PageSignInMethodsProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
-      </div>
+      </PageShell>
     )
   }
 
   if (notFound) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
             Sign-in methods unavailable
@@ -213,14 +211,14 @@ export default function PageSignInMethods({
             This realm carries no settings the console can read.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   const emailDependent = value.magicLink || value.emailVerification || value.forgotPassword
 
   return (
-    <div className={container}>
+    <PageShell>
       <div className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}>
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Sign-in methods</h1>
@@ -381,6 +379,6 @@ export default function PageSignInMethods({
           },
         ]}
       />
-    </div>
+    </PageShell>
   )
 }

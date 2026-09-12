@@ -1,6 +1,8 @@
 export { Button } from './button'
 export { Pill, StatusDot, Squircle, Eyebrow, IconTile } from './primitives'
 export type { PillTone } from './primitives'
+export { PageShell } from './page-shell'
+export { DetailHeader } from './detail-header'
 
 export { DangerZone } from './danger-zone'
 export { ConfirmDestructiveDialog } from './confirm-destructive-dialog'

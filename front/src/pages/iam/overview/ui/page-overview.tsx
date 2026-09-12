@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import { Link } from 'react-router'
 import { AlertTriangle, ArrowRight, Check, CheckCircle2 } from 'lucide-react'
-import { MetricsBand, Section, type Metric } from '@/components/kit'
+import { MetricsBand, PageShell, Section, type Metric } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -71,11 +71,9 @@ export default function PageOverview({
   eventsHref,
   quickLinks,
 }: PageOverviewProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-5 w-56 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className={cn('mt-4', tokens.page.sectionGap)}>
           <div className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
@@ -84,7 +82,7 @@ export default function PageOverview({
             <div className='h-56 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
@@ -94,7 +92,7 @@ export default function PageOverview({
   const hasActivity = activity.length > 1 && totalLogins + totalFailures > 0
 
   return (
-    <div className={container}>
+    <PageShell>
       <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', tokens.header.spacing)}>
         <h1 className={tokens.header.title}>
           {greeting ? `Welcome back, ${greeting} 👋` : `${realmTitle} realm`}
@@ -259,6 +257,6 @@ export default function PageOverview({
           </Section>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

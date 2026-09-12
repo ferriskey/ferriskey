@@ -1,5 +1,5 @@
 import SaveBar from '@/components/kit/save-bar'
-import { PageTabs, type TabItem } from '@/components/kit'
+import { PageShell, PageTabs, type TabItem } from '@/components/kit'
 import type { PickableEntity } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -77,33 +77,31 @@ export default function PageRealmSettings({
   onDiscard,
   onSave,
 }: PageRealmSettingsProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
-      </div>
+      </PageShell>
     )
   }
 
   if (!realm) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Realm not found</p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             It may have been deleted, or your account no longer has access to it.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className={container}>
+    <PageShell>
       <div
         className={cn(
           'flex flex-wrap items-start justify-between gap-3',
@@ -192,6 +190,6 @@ export default function PageRealmSettings({
           { label: 'Save changes', onClick: onSave, variant: canSave ? 'default' : 'secondary' },
         ]}
       />
-    </div>
+    </PageShell>
   )
 }

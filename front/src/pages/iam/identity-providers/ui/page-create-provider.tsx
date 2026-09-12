@@ -8,7 +8,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { ChipInput, FieldRow, Pill, Section } from '@/components/kit'
+import { ChipInput, FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import ProviderIcon from '@/components/provider-icon'
 import type { ProviderTemplate } from '@/constants/identity-provider-templates'
 import { cn } from '@/lib/utils'
@@ -153,7 +153,7 @@ export default function PageCreateProvider({
   const isCustom = template?.id === 'custom'
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Identity Providers
@@ -451,6 +451,6 @@ export default function PageCreateProvider({
           </Button>
         )}
       </div>
-    </div>
+    </PageShell>
   )
 }

@@ -2,11 +2,11 @@ import type { ReactNode } from 'react'
 import { ArrowLeft, Bot } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
-import { IconTile, PageTabs, Pill, Squircle, StatusDot, type TabItem } from '@/components/kit'
+import { DetailHeader, IconTile, PageShell, PageTabs, Pill, Squircle, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
-import { tokens } from '@/styles/style-tokens'
 import { isServiceAccount } from '@/utils'
 import { Schemas } from '@/api/api.client'
+import { tokens } from '@/styles/style-tokens'
 import UserOverviewTab from './user-overview-tab'
 
 import User = Schemas.User
@@ -66,11 +66,9 @@ export default function PageUserDetail({
   onDelete,
   children,
 }: PageUserDetailProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 flex items-center gap-3'>
           <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
@@ -79,13 +77,13 @@ export default function PageUserDetail({
             <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!user) {
     return (
-      <div className={container}>
+      <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           Users
@@ -96,7 +94,7 @@ export default function PageUserDetail({
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
@@ -104,52 +102,50 @@ export default function PageUserDetail({
   const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ')
 
   return (
-    <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
-        <ArrowLeft className='size-3.5' />
-        Users
-      </Button>
-
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex items-center gap-3'>
-          {serviceAccount ? (
+    <PageShell>
+      <DetailHeader
+        onBack={onBack}
+        backLabel='Users'
+        icon={
+          serviceAccount ? (
             <IconTile tone='violet' className='size-15'>
               <Bot className='size-6' strokeWidth={1.75} />
             </IconTile>
           ) : (
             <Squircle name={user.username} size='xl' />
-          )}
-          <div className='min-w-0'>
-            <h1 className={tokens.header.title}>{user.username}</h1>
-            <div className='mt-1.5 flex flex-wrap items-center gap-2'>
-              <Pill tone={user.enabled ? 'success' : 'neutral'}>
-                <StatusDot on={user.enabled} />
-                {user.enabled ? 'enabled' : 'disabled'}
+          )
+        }
+        title={user.username}
+        pills={
+          <>
+            <Pill tone={user.enabled ? 'success' : 'neutral'}>
+              <StatusDot on={user.enabled} />
+              {user.enabled ? 'enabled' : 'disabled'}
+            </Pill>
+            <Pill tone={user.email_verified ? 'info' : 'amber'} mono>
+              {user.email_verified ? 'email verified' : 'email unverified'}
+            </Pill>
+            {serviceAccount && (
+              <Pill tone='violet' mono>
+                service account
               </Pill>
-              <Pill tone={user.email_verified ? 'info' : 'amber'} mono>
-                {user.email_verified ? 'email verified' : 'email unverified'}
-              </Pill>
-              {serviceAccount && (
-                <Pill tone='violet' mono>
-                  service account
-                </Pill>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-          <dt className='sr-only'>Identity</dt>
-          <dd>{fullName || (user.email ?? 'no name recorded')}</dd>
-          <dt className='sr-only'>Created at</dt>
-          <dd className='tnum'>
-            Created{' '}
-            {formatDate(user.created_at)}
-          </dd>
-          <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{user.id}</dd>
-        </dl>
-      </div>
+            )}
+          </>
+        }
+        meta={
+          <dl className='shrink-0 grid grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] text-right text-xs text-neutral-500 dark:text-neutral-400'>
+            <dt className='sr-only'>Identity</dt>
+            <dd>{fullName || (user.email ?? 'no name recorded')}</dd>
+            <dt className='sr-only'>Created at</dt>
+            <dd className='tnum'>
+              Created{' '}
+              {formatDate(user.created_at)}
+            </dd>
+            <dt className='sr-only'>Identifier</dt>
+            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{user.id}</dd>
+          </dl>
+        }
+      />
 
       <PageTabs tabs={tabs} value={tab} className='mt-5'>
         <div className={tokens.page.blockGap}>
@@ -186,6 +182,6 @@ export default function PageUserDetail({
         cancelLabel='Discard'
         actions={[{ label: 'Save changes', onClick: onSave }]}
       />
-    </div>
+    </PageShell>
   )
 }

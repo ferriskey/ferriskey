@@ -2,8 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
-import { FieldRow, Section, SwitchField } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { FieldRow, PageShell, Section, SwitchField } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 
 export interface PageCreateUserProps {
@@ -40,7 +39,7 @@ export default function PageCreateUser({
   onSubmit,
 }: PageCreateUserProps) {
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Users
@@ -130,6 +129,6 @@ export default function PageCreateUser({
         onCancel={onBack}
         actions={[{ label: 'Create user', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

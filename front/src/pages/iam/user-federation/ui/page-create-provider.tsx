@@ -1,8 +1,7 @@
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
-import { Pill } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { PageShell, Pill } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import {
   type LdapSettings,
@@ -64,7 +63,7 @@ export default function PageCreateProvider({
   onSubmit,
 }: PageCreateProviderProps) {
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         User Federation
@@ -123,6 +122,6 @@ export default function PageCreateProvider({
         onCancel={onBack}
         actions={[{ label: 'Create provider', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

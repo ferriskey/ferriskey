@@ -4,8 +4,10 @@ import { Button } from '@/components/kit/button'
 import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
 import { DataView, type CardSpec, type Column, type ViewMode } from './DataView'
+import { PageShell } from './page-shell'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { useLayoutTier } from '@/hooks/use-media-query'
 
 export interface ListingMetric {
   key: string
@@ -89,6 +91,9 @@ export function ListingPage<T>({
   const [localQuery, setLocalQuery] = useState('')
   const [localFilter, setLocalFilter] = useState<string>('all')
 
+  const tier = useLayoutTier()
+  const effectiveView = tier === 'phone' ? 'cards' : view
+
   const serverSearch = Boolean(server?.onDraftChange)
   const query = serverSearch ? (server?.draft ?? '') : localQuery
   const setQuery = serverSearch ? server!.onDraftChange! : setLocalQuery
@@ -112,7 +117,7 @@ export function ListingPage<T>({
     narrowed && filtered.length === 0 && (server ? true : rows.length > 0)
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <div
         className={cn(
           'flex flex-wrap items-start justify-between gap-3',
@@ -214,7 +219,7 @@ export function ListingPage<T>({
             </div>
           )}
 
-          {tokens.toolbar.showViewToggle && (
+          {tokens.toolbar.showViewToggle && tier !== 'phone' && (
             <div className='flex rounded-md border border-fk-line p-0.5'>
               {(
                 [
@@ -252,7 +257,7 @@ export function ListingPage<T>({
           card={card}
           getKey={getKey}
           getHref={getHref}
-          view={view}
+          view={effectiveView}
           loading={loading}
           aggregates={aggregates}
           emptyLabel={filteredOut ? 'No match' : emptyLabel}
@@ -291,6 +296,6 @@ export function ListingPage<T>({
           </p>
         )}
       </div>
-    </div>
+    </PageShell>
   )
 }

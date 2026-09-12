@@ -4,6 +4,7 @@ import { Button, DataView, Section } from '@/components/kit'
 import type { CardSpec, Column, ViewMode } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { useLayoutTier } from '@/hooks/use-media-query'
 
 export interface JournalFilter {
   key: string
@@ -51,6 +52,9 @@ export function JournalSection<T>({
 }: JournalSectionProps<T>) {
   const [view, setView] = useState<ViewMode>('list')
 
+  const tier = useLayoutTier()
+  const effectiveView = tier === 'phone' ? 'cards' : view
+
   const narrowed = Boolean(query.trim()) || filter !== 'all'
   const filteredOut = narrowed && rows.length === 0
 
@@ -90,7 +94,7 @@ export function JournalSection<T>({
               className='h-full w-full rounded-md border border-fk-line bg-white pl-7 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15 dark:bg-fk-surface'
             />
           </label>
-          {tokens.toolbar.showViewToggle && (
+          {tokens.toolbar.showViewToggle && tier !== 'phone' && (
             <div className='flex rounded-md border border-fk-line p-0.5'>
               {(
                 [
@@ -125,7 +129,7 @@ export function JournalSection<T>({
           columns={columns}
           card={card}
           getKey={getKey}
-          view={view}
+          view={effectiveView}
           loading={loading}
           aggregates={aggregates}
           emptyLabel={filteredOut ? 'No match' : emptyLabel}

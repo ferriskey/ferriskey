@@ -10,9 +10,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import SaveBar from '@/components/kit/save-bar'
-import { ChoiceCards, FieldRow, Pill, Section, SwitchField } from '@/components/kit'
+import { ChoiceCards, FieldRow, PageShell, Pill, Section, SwitchField } from '@/components/kit'
 import { NAME_ID_FORMAT_OPTIONS } from '@/lib/saml'
-import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import {
   authenticationChoices,
@@ -87,7 +86,7 @@ export default function PageCreateClient({
   const nameIdDescription = NAME_ID_FORMAT_OPTIONS.find((o) => o.value === nameIdFormat)?.description
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' asChild>
         <Link to={listUrl}>
           <ArrowLeft className='size-3.5' />
@@ -261,6 +260,6 @@ export default function PageCreateClient({
         onCancel={onBack}
         actions={[{ label: 'Create client', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

@@ -3,8 +3,7 @@ import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import SaveBar from '@/components/kit/save-bar'
-import { FieldRow, Section } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { FieldRow, PageShell, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import WebhookHeadersField, { type WebhookHeader } from './webhook-headers-field'
@@ -47,7 +46,7 @@ export default function PageCreateWebhook({
   onSubmit,
 }: PageCreateWebhookProps) {
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Webhooks
@@ -141,6 +140,6 @@ export default function PageCreateWebhook({
         onCancel={onBack}
         actions={[{ label: 'Create', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

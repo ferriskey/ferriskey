@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
-import { ChipInput, FieldRow, Pill, Section } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { ChipInput, FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import {
   APPLICATION_FIELDS,
@@ -58,7 +57,7 @@ export default function PageCreateApplication({
   const fields = APPLICATION_FIELDS[type]
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button
         variant='ghost'
         size='sm'
@@ -223,6 +222,6 @@ export default function PageCreateApplication({
         cancelLabel='Cancel'
         actions={[{ label: 'Create application', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

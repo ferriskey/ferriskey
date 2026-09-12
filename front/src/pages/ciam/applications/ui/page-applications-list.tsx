@@ -2,7 +2,7 @@ import { createElement, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Boxes, Plus, Search, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import { CreatePickerDialog, EmptyState, IconTile, Pill } from '@/components/kit'
+import { CreatePickerDialog, EmptyState, IconTile, PageShell, Pill } from '@/components/kit'
 import type { PillTone } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -97,7 +97,7 @@ export default function PageApplicationsList({
   )
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding, tokens.page.sectionGap)}>
+    <PageShell className={tokens.page.sectionGap}>
       <div
         className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}
       >
@@ -227,7 +227,7 @@ export default function PageApplicationsList({
         defaultValue='spa'
         createUrl={createUrl}
       />
-    </div>
+    </PageShell>
   )
 }
 

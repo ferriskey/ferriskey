@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
-import { FieldRow, IconTile, Pill, Section } from '@/components/kit'
+import { DetailHeader, FieldRow, IconTile, PageShell, Pill, Section } from '@/components/kit'
 import { UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -44,11 +44,9 @@ export default function PageAccount({
   onDiscard,
   onSave,
 }: PageAccountProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='flex items-center gap-3'>
           <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
           <div className='space-y-2'>
@@ -56,51 +54,52 @@ export default function PageAccount({
             <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!profile) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Profile unavailable</p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
             Your account could not be loaded for this realm. Sign in again, then retry.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <div className={container}>
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex items-center gap-3'>
+    <PageShell>
+      <DetailHeader
+        icon={
           <IconTile tone='primary' className='size-15'>
             <UserRound className='size-6' strokeWidth={1.75} />
           </IconTile>
-          <div className='min-w-0'>
-            <h1 className={tokens.header.title}>{profile.username}</h1>
-            <div className='mt-1.5 flex flex-wrap items-center gap-2'>
-              <Pill tone={profile.email_verified ? 'info' : 'amber'} mono>
-                {profile.email_verified ? 'email verified' : 'email unverified'}
-              </Pill>
-              {!usernameEditable && <Pill tone='neutral'>username locked</Pill>}
-            </div>
-          </div>
-        </div>
-
-        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-          <dt className='sr-only'>Member since</dt>
-          <dd className='tnum'>
-            Member since{' '}
-            {formatDate(profile.created_at)}
-          </dd>
-          <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{profile.id}</dd>
-        </dl>
-      </div>
+        }
+        title={profile.username}
+        pills={
+          <>
+            <Pill tone={profile.email_verified ? 'info' : 'amber'} mono>
+              {profile.email_verified ? 'email verified' : 'email unverified'}
+            </Pill>
+            {!usernameEditable && <Pill tone='neutral'>username locked</Pill>}
+          </>
+        }
+        meta={
+          <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
+            <dt className='sr-only'>Member since</dt>
+            <dd className='tnum'>
+              Member since{' '}
+              {formatDate(profile.created_at)}
+            </dd>
+            <dt className='sr-only'>Identifier</dt>
+            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{profile.id}</dd>
+          </dl>
+        }
+      />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
         <Section
@@ -175,6 +174,6 @@ export default function PageAccount({
         cancelLabel='Discard'
         actions={[{ label: 'Save changes', onClick: onSave }]}
       />
-    </div>
+    </PageShell>
   )
 }

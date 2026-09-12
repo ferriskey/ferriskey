@@ -89,88 +89,128 @@ export function DataView<T>({
     return <EmptyState label={emptyLabel} hint={emptyHint} action={emptyAction} />
   }
 
-  if (view === 'cards') {
-    return (
-      <div className={cn('grid grid-cols-1', tokens.card.gap, tokens.card.columns)}>
-        {sorted.map((row) => {
-          const href = getHref?.(row)
-          const flags = tokens.card.showFlows ? card.flags?.(row) : undefined
-
-          const body = (
-            <>
-              <div className='flex items-start gap-3'>
-                {card.avatar?.(row)}
-                <div className='min-w-0 flex-1'>
-                  <div className='truncate font-medium text-neutral-900 dark:text-neutral-100 transition-colors group-hover:text-fk-primary-text'>
-                    {card.title(row)}
-                  </div>
-                  {card.subtitle && (
-                    <div className='truncate font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
-                      {card.subtitle(row)}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {card.badges && (
-                <div className='mt-3 flex flex-wrap gap-1.5'>{card.badges(row)}</div>
-              )}
-
-              {flags && flags.length > 0 && (
-                <ul className='mt-3 space-y-1.5 border-t border-fk-line-soft pt-3'>
-                  {flags.map((f) => (
-                    <li key={f.label} className='flex items-center gap-2 text-xs'>
-                      <span
-                        className={cn(
-                          'size-1.5 shrink-0 rounded-full',
-                          f.on ? 'bg-fk-success' : 'bg-neutral-200 dark:bg-fk-raised'
-                        )}
-                      />
-                      <span className={
-                          f.on
-                            ? 'text-neutral-700 dark:text-neutral-300'
-                            : 'text-neutral-400 dark:text-neutral-500'
-                        }>
-                        {f.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {card.footer && (
-                <div className='mt-3 flex items-center justify-between border-t border-fk-line-soft pt-3 text-xs text-neutral-500 dark:text-neutral-400'>
-                  {card.footer(row)}
-                </div>
-              )}
-            </>
-          )
-
-          const className = cn(
-            tokens.surface.panel,
-            tokens.card.padding,
-            'group flex flex-col transition-all',
-            href &&
-              'hover:border-fk-primary-border hover:shadow-[0_2px_12px_rgb(0_0_0/0.05)]'
-          )
-
-          return href ? (
-            <Link key={getKey(row)} to={href} className={className}>
-              {body}
-            </Link>
-          ) : (
-            <div key={getKey(row)} className={className}>
-              {body}
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
   const selectable = tokens.table.selectable
   const allSelected = selected.length === rows.length
   const toggleAll = () => setSelected(allSelected ? [] : rows.map((r) => getKey(r)))
+  const toggleOne = (key: string) =>
+    setSelected((s) => (s.includes(key) ? s.filter((x) => x !== key) : [...s, key]))
+
+  if (view === 'cards') {
+    return (
+      <div className={tokens.page.sectionGap}>
+        <div className={cn('grid grid-cols-1', tokens.card.gap, tokens.card.columns)}>
+          {sorted.map((row) => {
+            const key = getKey(row)
+            const href = getHref?.(row)
+            const flags = tokens.card.showFlows ? card.flags?.(row) : undefined
+            const isSelected = selected.includes(key)
+            const titleNode = card.title(row)
+            const linkLabel = typeof titleNode === 'string' ? titleNode : undefined
+
+            const body = (
+              <>
+                <div className='flex items-start gap-3'>
+                  {selectable && (
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleOne(key)}
+                      aria-label={`Select ${key}`}
+                      className='relative z-10 mt-0.5 shrink-0'
+                    />
+                  )}
+                  {card.avatar?.(row)}
+                  <div className='min-w-0 flex-1'>
+                    <div className='truncate font-medium text-neutral-900 dark:text-neutral-100 transition-colors group-hover:text-fk-primary-text'>
+                      {titleNode}
+                    </div>
+                    {card.subtitle && (
+                      <div className='truncate font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
+                        {card.subtitle(row)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {card.badges && (
+                  <div className='mt-3 flex flex-wrap gap-1.5'>{card.badges(row)}</div>
+                )}
+
+                {flags && flags.length > 0 && (
+                  <ul className='mt-3 space-y-1.5 border-t border-fk-line-soft pt-3'>
+                    {flags.map((f) => (
+                      <li key={f.label} className='flex items-center gap-2 text-xs'>
+                        <span
+                          className={cn(
+                            'size-1.5 shrink-0 rounded-full',
+                            f.on ? 'bg-fk-success' : 'bg-neutral-200 dark:bg-fk-raised'
+                          )}
+                        />
+                        <span className={
+                            f.on
+                              ? 'text-neutral-700 dark:text-neutral-300'
+                              : 'text-neutral-400 dark:text-neutral-500'
+                          }>
+                          {f.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {card.footer && (
+                  <div className='mt-3 flex items-center justify-between border-t border-fk-line-soft pt-3 text-xs text-neutral-500 dark:text-neutral-400'>
+                    {card.footer(row)}
+                  </div>
+                )}
+              </>
+            )
+
+            const className = cn(
+              isSelected
+                ? 'rounded-sm border border-fk-primary-border bg-fk-primary-soft/40'
+                : tokens.surface.panel,
+              tokens.card.padding,
+              'group relative flex flex-col transition-all',
+              href &&
+                'hover:border-fk-primary-border hover:shadow-[0_2px_12px_rgb(0_0_0/0.05)]'
+            )
+
+            return (
+              <div key={key} className={className}>
+                {href && (
+                  <Link to={href} aria-label={linkLabel} className='absolute inset-0' />
+                )}
+                {body}
+              </div>
+            )
+          })}
+        </div>
+
+        {tokens.table.showFooterAggregates && aggregates && (
+          <div
+            className={cn(
+              tokens.surface.panel,
+              tokens.card.padding,
+              'flex flex-wrap gap-x-5 gap-y-1.5'
+            )}
+          >
+            {columns.map((col) => {
+              const value = aggregates[col.key]
+              if (value === undefined || value === null) return null
+              return (
+                <div key={col.key} className='flex items-baseline gap-1.5'>
+                  <span className={tokens.table.headerText}>{col.header}</span>
+                  <span className='tnum text-xs font-medium text-neutral-700 dark:text-neutral-300'>
+                    {value}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={cn(tokens.surface.panel, 'overflow-x-auto')}>
@@ -243,11 +283,7 @@ export function DataView<T>({
                   <td className={tokens.table.cellPadding}>
                     <Checkbox
                       checked={selected.includes(key)}
-                      onCheckedChange={() =>
-                        setSelected((s) =>
-                          s.includes(key) ? s.filter((x) => x !== key) : [...s, key]
-                        )
-                      }
+                      onCheckedChange={() => toggleOne(key)}
                       aria-label={`Select ${key}`}
                     />
                   </td>
@@ -290,7 +326,7 @@ export function DataView<T>({
                   key={col.key}
                   className={cn(
                     tokens.table.cellPadding,
-                    'font-medium',
+                    'tnum font-medium',
                     col.align === 'right' && 'text-right'
                   )}
                 >

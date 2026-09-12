@@ -4,7 +4,7 @@ import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
-import { FieldRow, IconTile, Pill, Section } from '@/components/kit'
+import { DetailHeader, FieldRow, IconTile, PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -48,11 +48,10 @@ export default function PageEmailTemplateDetail({
   onDelete,
 }: PageEmailTemplateDetailProps) {
   const [copied, setCopied] = useState(false)
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
 
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 flex items-center gap-3'>
           <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
@@ -61,13 +60,13 @@ export default function PageEmailTemplateDetail({
             <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!template) {
     return (
-      <div className={container}>
+      <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           Emails
@@ -78,7 +77,7 @@ export default function PageEmailTemplateDetail({
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
@@ -87,51 +86,49 @@ export default function PageEmailTemplateDetail({
   const unsupplied = [...cited].filter((used) => !variables.some((v) => v.name === used))
 
   return (
-    <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
-        <ArrowLeft className='size-3.5' />
-        Emails
-      </Button>
-
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex items-center gap-3'>
+    <PageShell>
+      <DetailHeader
+        onBack={onBack}
+        backLabel='Emails'
+        icon={
           <IconTile tone={spec.tone} className='size-15'>
             <spec.icon className='size-6' strokeWidth={1.5} />
           </IconTile>
-          <div className='min-w-0'>
-            <h1 className={tokens.header.title}>{template.name}</h1>
-            <div className='mt-1.5 flex flex-wrap items-center gap-2'>
-              <Pill tone='neutral' mono>
-                {template.email_type}
-              </Pill>
-              {assignedTo.length > 0 ? (
-                <Pill tone='success'>assigned</Pill>
-              ) : (
-                <Pill tone='amber'>not assigned</Pill>
-              )}
+        }
+        title={template.name}
+        pills={
+          <>
+            <Pill tone='neutral' mono>
+              {template.email_type}
+            </Pill>
+            {assignedTo.length > 0 ? (
+              <Pill tone='success'>assigned</Pill>
+            ) : (
+              <Pill tone='amber'>not assigned</Pill>
+            )}
+          </>
+        }
+        meta={
+          <div className='flex shrink-0 items-start gap-4'>
+            <dl className='text-right text-xs text-neutral-500 dark:text-neutral-400'>
+              <dt className='sr-only'>Updated at</dt>
+              <dd className='tnum'>
+                Updated {formatDate(template.updated_at)}
+              </dd>
+              <dt className='sr-only'>Identifier</dt>
+              <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{template.id}</dd>
+            </dl>
+            <div className='flex gap-2'>
+              <Button variant='outline' onClick={() => onExport('json')}>
+                <Download /> Export
+              </Button>
+              <Button onClick={onOpenBuilder}>
+                <Pencil /> Open the builder
+              </Button>
             </div>
           </div>
-        </div>
-
-        <div className='flex shrink-0 items-start gap-4'>
-          <dl className='text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Updated at</dt>
-            <dd className='tnum'>
-              Updated {formatDate(template.updated_at)}
-            </dd>
-            <dt className='sr-only'>Identifier</dt>
-            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{template.id}</dd>
-          </dl>
-          <div className='flex gap-2'>
-            <Button variant='outline' onClick={() => onExport('json')}>
-              <Download /> Export
-            </Button>
-            <Button onClick={onOpenBuilder}>
-              <Pencil /> Open the builder
-            </Button>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
         <Section title='General' description={spec.trigger}>
@@ -280,6 +277,6 @@ export default function PageEmailTemplateDetail({
         cancelLabel='Discard'
         actions={[{ label: 'Save changes', onClick: onSave }]}
       />
-    </div>
+    </PageShell>
   )
 }

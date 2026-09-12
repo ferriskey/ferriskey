@@ -10,8 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FieldRow, Section } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { FieldRow, PageShell, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import ScopeTypeHint from './scope-type-hint'
 
@@ -47,7 +46,7 @@ export default function PageCreateClientScope({
   onSubmit,
 }: PageCreateClientScopeProps) {
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Client Scopes
@@ -135,6 +134,6 @@ export default function PageCreateClientScope({
         onCancel={onBack}
         actions={[{ label: isPending ? 'Creating…' : 'Create', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

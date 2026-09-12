@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { AlertTriangle, ArrowLeft, Clock, Loader, Monitor, User } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import { Pill, Section } from '@/components/kit'
+import { PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -50,8 +50,6 @@ export default function PageFlowDetail({
   isError,
   onBack,
 }: PageFlowDetailProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   const backButton = (
     <Button
       variant='ghost'
@@ -66,7 +64,7 @@ export default function PageFlowDetail({
 
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 space-y-2'>
           <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
@@ -77,13 +75,13 @@ export default function PageFlowDetail({
             <div key={i} className='h-14 animate-pulse rounded-sm bg-neutral-100 dark:bg-fk-raised' />
           ))}
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (isError || !flow) {
     return (
-      <div className={container}>
+      <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Execution not found</p>
@@ -92,7 +90,7 @@ export default function PageFlowDetail({
             realm.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
@@ -101,7 +99,7 @@ export default function PageFlowDetail({
   const stepsTotal = steps.reduce((n, s) => n + (s.duration_ms ?? 0), 0)
 
   return (
-    <div className={container}>
+    <PageShell>
       {backButton}
 
       <div className='min-w-0'>
@@ -212,6 +210,6 @@ export default function PageFlowDetail({
           </dl>
         </Section>
       </div>
-    </div>
+    </PageShell>
   )
 }

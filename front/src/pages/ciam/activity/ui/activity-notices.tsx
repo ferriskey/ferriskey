@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react'
+import { PageShell } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 
@@ -64,7 +65,7 @@ export function ActivityPage({
   children: ReactNode
 }) {
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <div
         className={cn(
           'flex flex-wrap items-start justify-between gap-3',
@@ -81,6 +82,6 @@ export function ActivityPage({
       </div>
 
       <div className={tokens.page.sectionGap}>{children}</div>
-    </div>
+    </PageShell>
   )
 }

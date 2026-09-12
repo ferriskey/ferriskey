@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useRef } from 'react'
 import { Plus, Upload } from 'lucide-react'
 import { Button } from '@/components/kit/button'
-import { PageTabs, type TabItem } from '@/components/kit'
+import { PageShell, PageTabs, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 
@@ -18,7 +18,7 @@ export default function PageEmails({ tab, tabs, onCreate, onImport, children }: 
   const importInput = useRef<HTMLInputElement>(null)
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <div className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}>
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Emails</h1>
@@ -52,6 +52,6 @@ export default function PageEmails({ tab, tabs, onCreate, onImport, children }: 
       <PageTabs tabs={tabs} value={tab}>
         <div className='mt-4'>{children}</div>
       </PageTabs>
-    </div>
+    </PageShell>
   )
 }

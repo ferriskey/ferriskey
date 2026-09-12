@@ -11,6 +11,9 @@ import {
 } from '@dnd-kit/core'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Active } from '@dnd-kit/core'
+import { useLayoutTier } from '@/hooks/use-media-query'
+import { cn } from '@/lib/utils'
+import { tokens } from '@/styles/style-tokens'
 import { useBuilderContext } from '../context'
 import type { BuilderNode } from '../types'
 import { findNode } from '../utils'
@@ -45,6 +48,7 @@ interface BuilderShellProps {
    * offset. Defaults to 1 (no scaling).
    */
   getIframeScale?: () => number
+  narrowFallback?: ReactNode
 }
 
 /**
@@ -56,7 +60,9 @@ export function BuilderShell({
   children,
   getIframeRect,
   getIframeScale,
+  narrowFallback,
 }: BuilderShellProps) {
+  const tier = useLayoutTier()
   const { addNode, moveNode, tree } = useBuilderContext()
   const [activeItem, setActiveItem] = useState<Active | null>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null)
@@ -273,6 +279,17 @@ export function BuilderShell({
         moveNode(nodeId, targetParentId, targetIndex)
       }
     }
+  }
+
+  if (tier !== 'desktop') {
+    return (
+      <div className='flex min-h-0 flex-1 flex-col gap-3 p-3'>
+        {narrowFallback && <div className='min-h-0 flex-1 overflow-y-auto'>{narrowFallback}</div>}
+        <p className={cn(tokens.surface.panel, 'p-3 text-[13px] text-neutral-500 dark:text-neutral-400')}>
+          Editing layouts needs a wider screen.
+        </p>
+      </div>
+    )
   }
 
   return (

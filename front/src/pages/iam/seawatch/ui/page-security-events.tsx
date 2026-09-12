@@ -14,6 +14,7 @@ import {
   DataView,
   IconTile,
   MetricsBand,
+  PageShell,
   Pill,
   Section,
 } from '@/components/kit'
@@ -27,6 +28,7 @@ import type {
 } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { useLayoutTier } from '@/hooks/use-media-query'
 import { Schemas } from '@/api/api.client'
 import {
   actorLabel,
@@ -158,6 +160,9 @@ export default function PageSecurityEvents({
 }: PageSecurityEventsProps) {
   const [view, setView] = useState<ViewMode>('list')
   const [query, setQuery] = useState('')
+
+  const tier = useLayoutTier()
+  const effectiveView = tier === 'phone' ? 'cards' : view
 
   const windowLabel = `last ${windowDays} days`
 
@@ -476,7 +481,7 @@ export default function PageSecurityEvents({
   )
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <div
         className={cn(
           'flex flex-wrap items-start justify-between gap-3',
@@ -574,7 +579,7 @@ export default function PageSecurityEvents({
                 ))}
               </div>
               {searchBox}
-              {tokens.toolbar.showViewToggle && (
+              {tokens.toolbar.showViewToggle && tier !== 'phone' && (
                 <div className='flex rounded-md border border-fk-line p-0.5'>
                   {(
                     [
@@ -609,7 +614,7 @@ export default function PageSecurityEvents({
               columns={columns}
               card={card}
               getKey={(e) => e.id}
-              view={view}
+              view={effectiveView}
               loading={isLoading}
               aggregates={{
                 event_type: `${events.length} event${events.length !== 1 ? 's' : ''}`,
@@ -647,6 +652,6 @@ export default function PageSecurityEvents({
           </div>
         </Section>
       </div>
-    </div>
+    </PageShell>
   )
 }

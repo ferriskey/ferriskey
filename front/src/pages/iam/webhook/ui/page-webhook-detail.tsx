@@ -1,7 +1,7 @@
 import { ArrowLeft, Webhook as WebhookIcon } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
-import { IconTile, PageTabs, Pill, Section, type TabItem } from '@/components/kit'
+import { DetailHeader, IconTile, PageShell, PageTabs, Pill, Section, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -60,11 +60,9 @@ export default function PageWebhookDetail({
   onSave,
   onDelete,
 }: PageWebhookDetailProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 flex items-center gap-3'>
           <div className='size-11 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
@@ -73,13 +71,13 @@ export default function PageWebhookDetail({
             <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!webhook) {
     return (
-      <div className={container}>
+      <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           Webhooks
@@ -90,46 +88,44 @@ export default function PageWebhookDetail({
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   const label = webhook.name || webhook.endpoint
 
   return (
-    <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
-        <ArrowLeft className='size-3.5' />
-        Webhooks
-      </Button>
-
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex items-center gap-3'>
+    <PageShell>
+      <DetailHeader
+        onBack={onBack}
+        backLabel='Webhooks'
+        icon={
           <IconTile tone={webhook.subscribers.length > 0 ? 'info' : 'amber'} className='size-11'>
             <WebhookIcon className='size-5' strokeWidth={1.75} />
           </IconTile>
-          <div className='min-w-0'>
-            <h1 className={tokens.header.title}>{label}</h1>
-            <div className='mt-1.5 flex flex-wrap items-center gap-2'>
-              <Pill tone={webhook.subscribers.length > 0 ? 'info' : 'amber'}>
-                {webhook.subscribers.length}/{WEBHOOK_TRIGGER_COUNT} events
-              </Pill>
-              <Pill mono>{webhook.endpoint}</Pill>
-            </div>
-          </div>
-        </div>
-
-        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-          <dt className='sr-only'>Last triggered</dt>
-          <dd className='tnum'>
-            {webhook.triggered_at
-              ? `Triggered ${formatDateTime(webhook.triggered_at)}`
-              : 'Never triggered'}
-          </dd>
-          <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{webhook.id}</dd>
-        </dl>
-      </div>
+        }
+        title={label}
+        pills={
+          <>
+            <Pill tone={webhook.subscribers.length > 0 ? 'info' : 'amber'}>
+              {webhook.subscribers.length}/{WEBHOOK_TRIGGER_COUNT} events
+            </Pill>
+            <Pill mono>{webhook.endpoint}</Pill>
+          </>
+        }
+        meta={
+          <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
+            <dt className='sr-only'>Last triggered</dt>
+            <dd className='tnum'>
+              {webhook.triggered_at
+                ? `Triggered ${formatDateTime(webhook.triggered_at)}`
+                : 'Never triggered'}
+            </dd>
+            <dt className='sr-only'>Identifier</dt>
+            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{webhook.id}</dd>
+          </dl>
+        }
+      />
 
       <PageTabs tabs={tabs} value={tab} className='mt-5'>
         <div className={tokens.page.blockGap}>
@@ -178,6 +174,6 @@ export default function PageWebhookDetail({
         cancelLabel='Discard'
         actions={[{ label: 'Save changes', onClick: onSave }]}
       />
-    </div>
+    </PageShell>
   )
 }

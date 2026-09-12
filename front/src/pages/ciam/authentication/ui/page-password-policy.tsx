@@ -1,6 +1,6 @@
 import { Info } from 'lucide-react'
 import SaveBar from '@/components/kit/save-bar'
-import { Section } from '@/components/kit'
+import { PageShell, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import RealmPasswordPolicyTab, {
@@ -82,21 +82,19 @@ export default function PagePasswordPolicy({
   onDiscard,
   onSave,
 }: PagePasswordPolicyProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-2 h-4 w-72 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-6 h-40 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
-      </div>
+      </PageShell>
     )
   }
 
   if (failed) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
             Failed to load the password policy
@@ -105,7 +103,7 @@ export default function PagePasswordPolicy({
             This realm has no password policy the console can read.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
@@ -115,7 +113,7 @@ export default function PagePasswordPolicy({
   const silent = SILENT.filter((rule) => rule.active(value)).map((rule) => rule.label(value))
 
   return (
-    <div className={container}>
+    <PageShell>
       <div className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}>
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>Password policy</h1>
@@ -182,6 +180,6 @@ export default function PagePasswordPolicy({
           },
         ]}
       />
-    </div>
+    </PageShell>
   )
 }

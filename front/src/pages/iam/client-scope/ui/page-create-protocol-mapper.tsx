@@ -3,8 +3,7 @@ import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import SaveBar from '@/components/kit/save-bar'
-import { FieldRow, Pill, Section } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import type { MapperTemplate } from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
 import MapperConfigFields, { type MapperEntityOptions } from './mapper-config-fields'
@@ -49,7 +48,7 @@ export default function PageCreateProtocolMapper({
   const hasConfig = template.fields.length > 0 || Boolean(template.isCustom)
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onCancel}>
         <ArrowLeft className='size-3.5' />
         Protocol Mappers
@@ -143,6 +142,6 @@ export default function PageCreateProtocolMapper({
         onCancel={onCancel}
         actions={[{ label: isPending ? 'Creating…' : 'Create mapper', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

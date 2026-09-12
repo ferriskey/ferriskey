@@ -18,7 +18,9 @@ import {
 } from '@/lib/builder-core'
 import { generateBreakpointCss, useIframeFit } from '@/lib/builder-portal'
 import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
+import { PortalPreview } from '@/lib/builder-portal/preview'
 import { LayoutComponentLibrary } from '@/pages/iam/portal/layout-builder/layout-component-library'
+import { useLayoutTier } from '@/hooks/use-media-query'
 
 type Viewport = 'iphone' | 'tablet' | 'desktop'
 
@@ -71,6 +73,7 @@ export default function PagePortalLayoutBuilder({
   onBack,
 }: PagePortalLayoutBuilderProps) {
   const [viewport, setViewport] = useState<Viewport>('desktop')
+  const tier = useLayoutTier()
   const iframeRectRef = useRef<DOMRect | null>(null)
   const iframeScaleRef = useRef<number>(1)
   const getIframeRect = useCallback(() => iframeRectRef.current, [])
@@ -116,29 +119,31 @@ export default function PagePortalLayoutBuilder({
           )}
 
           <div className='ml-auto flex items-center gap-3'>
-            <div className='flex items-center gap-1 rounded-md border border-fk-line p-0.5'>
-              <ViewportButton
-                active={viewport === 'iphone'}
-                onClick={() => setViewport('iphone')}
-                label='iPhone — 402 (base, below Tailwind sm)'
-              >
-                <Smartphone className='size-3.5' />
-              </ViewportButton>
-              <ViewportButton
-                active={viewport === 'tablet'}
-                onClick={() => setViewport('tablet')}
-                label='Tablet — 768 (Tailwind md)'
-              >
-                <Tablet className='size-3.5' />
-              </ViewportButton>
-              <ViewportButton
-                active={viewport === 'desktop'}
-                onClick={() => setViewport('desktop')}
-                label='Desktop — 1280 (Tailwind xl)'
-              >
-                <Monitor className='size-3.5' />
-              </ViewportButton>
-            </div>
+            {tier === 'desktop' && (
+              <div className='flex items-center gap-1 rounded-md border border-fk-line p-0.5'>
+                <ViewportButton
+                  active={viewport === 'iphone'}
+                  onClick={() => setViewport('iphone')}
+                  label='iPhone — 402 (base, below Tailwind sm)'
+                >
+                  <Smartphone className='size-3.5' />
+                </ViewportButton>
+                <ViewportButton
+                  active={viewport === 'tablet'}
+                  onClick={() => setViewport('tablet')}
+                  label='Tablet — 768 (Tailwind md)'
+                >
+                  <Tablet className='size-3.5' />
+                </ViewportButton>
+                <ViewportButton
+                  active={viewport === 'desktop'}
+                  onClick={() => setViewport('desktop')}
+                  label='Desktop — 1280 (Tailwind xl)'
+                >
+                  <Monitor className='size-3.5' />
+                </ViewportButton>
+              </div>
+            )}
 
             <Button onClick={onSave} disabled={isSaving || !name}>
               <Save className='size-4' />
@@ -147,7 +152,11 @@ export default function PagePortalLayoutBuilder({
           </div>
         </header>
 
-        <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
+        <BuilderShell
+          getIframeRect={getIframeRect}
+          getIframeScale={getIframeScale}
+          narrowFallback={<PortalPreview cssVars={cssVars} />}
+        >
           <div className='shrink-0 border-b border-fk-line bg-neutral-50 dark:bg-fk-surface'>
             <SelectionBreadcrumb />
           </div>

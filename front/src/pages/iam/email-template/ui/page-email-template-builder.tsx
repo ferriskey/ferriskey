@@ -12,9 +12,11 @@ import {
   type BuilderNode,
 } from '@/lib/builder-core'
 import { emailTemplatePresets, type EmailTemplatePreset } from '@/lib/builder-mjml'
+import { MjmlPreview } from '@/lib/builder-mjml/preview'
 import { PREVIEW_WIDTHS, type PreviewMode } from '@/lib/builder-mjml/types'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'
+import { useLayoutTier } from '@/hooks/use-media-query'
 
 export interface PageEmailTemplateBuilderProps {
   adapter: BuilderAdapter
@@ -48,11 +50,12 @@ export default function PageEmailTemplateBuilder({
   onApplyPreset,
 }: PageEmailTemplateBuilderProps) {
   const [viewport, setViewport] = useState<PreviewMode>('desktop')
+  const tier = useLayoutTier()
 
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={onTreeChange}>
       <div className='flex h-full flex-col'>
-        <div className='flex items-center gap-3 border-b border-fk-line px-4 py-2'>
+        <div className='flex flex-wrap items-center gap-3 border-b border-fk-line px-4 py-2'>
           <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
             <ArrowLeft className='size-3.5' />
             Emails
@@ -85,29 +88,31 @@ export default function PageEmailTemplateBuilder({
             </Pill>
           )}
 
-          <div className='flex items-center gap-1 rounded-md border border-fk-line p-0.5'>
-            <ViewportButton
-              active={viewport === 'desktop'}
-              label='Desktop'
-              onClick={() => setViewport('desktop')}
-            >
-              <Monitor className='size-3.5' />
-            </ViewportButton>
-            <ViewportButton
-              active={viewport === 'tablet'}
-              label='Tablet'
-              onClick={() => setViewport('tablet')}
-            >
-              <Tablet className='size-3.5' />
-            </ViewportButton>
-            <ViewportButton
-              active={viewport === 'mobile'}
-              label='Mobile'
-              onClick={() => setViewport('mobile')}
-            >
-              <Smartphone className='size-3.5' />
-            </ViewportButton>
-          </div>
+          {tier === 'desktop' && (
+            <div className='flex items-center gap-1 rounded-md border border-fk-line p-0.5'>
+              <ViewportButton
+                active={viewport === 'desktop'}
+                label='Desktop'
+                onClick={() => setViewport('desktop')}
+              >
+                <Monitor className='size-3.5' />
+              </ViewportButton>
+              <ViewportButton
+                active={viewport === 'tablet'}
+                label='Tablet'
+                onClick={() => setViewport('tablet')}
+              >
+                <Tablet className='size-3.5' />
+              </ViewportButton>
+              <ViewportButton
+                active={viewport === 'mobile'}
+                label='Mobile'
+                onClick={() => setViewport('mobile')}
+              >
+                <Smartphone className='size-3.5' />
+              </ViewportButton>
+            </div>
+          )}
 
           <Button onClick={onSave} disabled={isSaving || !name}>
             <Save />
@@ -115,7 +120,7 @@ export default function PageEmailTemplateBuilder({
           </Button>
         </div>
 
-        <BuilderShell>
+        <BuilderShell narrowFallback={<MjmlPreview />}>
           <div className='flex flex-1 overflow-hidden'>
             <div className='w-56 shrink-0 overflow-y-auto border-r border-fk-line'>
               <PresetLibrary presets={emailTemplatePresets} onApplyPreset={onApplyPreset} />

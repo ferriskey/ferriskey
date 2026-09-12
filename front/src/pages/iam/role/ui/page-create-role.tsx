@@ -3,8 +3,7 @@ import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import SaveBar from '@/components/kit/save-bar'
-import { ChoiceCards, FieldRow, Section, type Choice } from '@/components/kit'
-import { cn } from '@/lib/utils'
+import { ChoiceCards, FieldRow, PageShell, Section, type Choice } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import RoleClientPicker from './role-client-picker'
@@ -65,7 +64,7 @@ export default function PageCreateRole({
   onSubmit,
 }: PageCreateRoleProps) {
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
         Roles
@@ -148,6 +147,6 @@ export default function PageCreateRole({
         onCancel={onBack}
         actions={[{ label: 'Create role', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

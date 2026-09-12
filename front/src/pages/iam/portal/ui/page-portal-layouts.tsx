@@ -2,7 +2,7 @@ import { Download, LayoutTemplate, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { IconTile, MetricsBand, Pill, Section } from '@/components/kit'
+import { IconTile, MetricsBand, PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
@@ -55,7 +55,7 @@ export default function PagePortalLayouts({
   const used = rows.filter((r) => r.usedBy.length > 0).length
 
   return (
-    <div className={cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)}>
+    <PageShell>
       <PortalPageHeader tab='layouts' actions={createButton} />
 
       <div className={cn('mt-4', tokens.page.blockGap)}>
@@ -184,6 +184,6 @@ export default function PagePortalLayouts({
           )}
         </Section>
       </div>
-    </div>
+    </PageShell>
   )
 }

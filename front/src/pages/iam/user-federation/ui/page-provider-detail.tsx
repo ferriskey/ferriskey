@@ -1,7 +1,7 @@
 import { ArrowLeft, Database, KeyRound, Plug, RefreshCw, Server } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
-import { IconTile, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
+import { DetailHeader, IconTile, PageShell, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -110,11 +110,9 @@ export default function PageProviderDetail({
   onSave,
   onDelete,
 }: PageProviderDetailProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 flex items-center gap-3'>
           <div className='size-15 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
@@ -123,13 +121,13 @@ export default function PageProviderDetail({
             <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           </div>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!provider) {
     return (
-      <div className={container}>
+      <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
           User Federation
@@ -140,74 +138,72 @@ export default function PageProviderDetail({
             It may have been deleted, or it belongs to another realm.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   const testable = isLdapLike(provider.provider_type)
 
   return (
-    <div className={container}>
-      <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
-        <ArrowLeft className='size-3.5' />
-        User Federation
-      </Button>
-
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex items-center gap-3'>
+    <PageShell>
+      <DetailHeader
+        onBack={onBack}
+        backLabel='User Federation'
+        icon={
           <IconTile
             tone={provider.provider_type === 'Ldap' ? 'violet' : 'info'}
             className='size-15'
           >
             {providerIcon(provider.provider_type)}
           </IconTile>
-          <div className='min-w-0'>
-            <h1 className={tokens.header.title}>{name}</h1>
-            <div className='mt-1.5 flex flex-wrap items-center gap-2'>
-              <Pill tone={provider.provider_type === 'Ldap' ? 'violet' : 'info'} mono>
-                {provider.provider_type}
-              </Pill>
-              <Pill mono>{provider.sync_mode}</Pill>
-              <Pill>{priorityFromScore(provider.priority)}</Pill>
-              <Pill tone={enabled ? 'success' : 'neutral'}>
-                <StatusDot on={enabled} />
-                {enabled ? 'enabled' : 'disabled'}
-              </Pill>
-            </div>
+        }
+        title={name}
+        pills={
+          <>
+            <Pill tone={provider.provider_type === 'Ldap' ? 'violet' : 'info'} mono>
+              {provider.provider_type}
+            </Pill>
+            <Pill mono>{provider.sync_mode}</Pill>
+            <Pill>{priorityFromScore(provider.priority)}</Pill>
+            <Pill tone={enabled ? 'success' : 'neutral'}>
+              <StatusDot on={enabled} />
+              {enabled ? 'enabled' : 'disabled'}
+            </Pill>
+          </>
+        }
+        meta={
+          <div className='flex shrink-0 flex-wrap gap-2'>
+            <Button
+              variant='outline'
+              onClick={onTestConnection}
+              disabled={!testable || isTesting || isSyncing}
+              title={
+                testable
+                  ? undefined
+                  : 'The server only tests LDAP and Active Directory providers.'
+              }
+            >
+              <Plug />
+              {isTesting ? 'Testing…' : 'Test connection'}
+            </Button>
+            <Button
+              variant='outline'
+              onClick={onSyncUsers}
+              disabled={!testable || !provider.enabled || isTesting || isSyncing}
+              title={
+                !testable
+                  ? 'The server only synchronises LDAP and Active Directory providers.'
+                  : !provider.enabled
+                    ? 'A disabled provider is not queried.'
+                    : undefined
+              }
+            >
+              <RefreshCw className={cn(isSyncing && 'animate-spin')} />
+              {isSyncing ? 'Synchronising…' : 'Synchronise'}
+            </Button>
           </div>
-        </div>
-
-        <div className='flex shrink-0 flex-wrap gap-2'>
-          <Button
-            variant='outline'
-            onClick={onTestConnection}
-            disabled={!testable || isTesting || isSyncing}
-            title={
-              testable
-                ? undefined
-                : 'The server only tests LDAP and Active Directory providers.'
-            }
-          >
-            <Plug />
-            {isTesting ? 'Testing…' : 'Test connection'}
-          </Button>
-          <Button
-            variant='outline'
-            onClick={onSyncUsers}
-            disabled={!testable || !provider.enabled || isTesting || isSyncing}
-            title={
-              !testable
-                ? 'The server only synchronises LDAP and Active Directory providers.'
-                : !provider.enabled
-                  ? 'A disabled provider is not queried.'
-                  : undefined
-            }
-          >
-            <RefreshCw className={cn(isSyncing && 'animate-spin')} />
-            {isSyncing ? 'Synchronising…' : 'Synchronise'}
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {testResult && (
         <div
@@ -287,6 +283,6 @@ export default function PageProviderDetail({
         cancelLabel='Discard'
         actions={canSave ? [{ label: 'Save changes', onClick: onSave }] : []}
       />
-    </div>
+    </PageShell>
   )
 }

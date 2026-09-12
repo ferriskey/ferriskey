@@ -41,7 +41,7 @@ export interface StyleTokens {
 
 export const tokens: StyleTokens = {
   page: {
-    padding: 'px-5 py-4',
+    padding: 'px-4 py-3 md:px-5 md:py-4',
     maxWidth: 'max-w-[1600px]',
     sectionGap: 'space-y-3',
     blockGap: 'space-y-6',

@@ -3,7 +3,7 @@ import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import SaveBar from '@/components/kit/save-bar'
-import { FieldRow, Pill, Section } from '@/components/kit'
+import { DetailHeader, FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { MapperTemplate } from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
@@ -54,8 +54,6 @@ export default function PageProtocolMapperSettings({
   onReset,
   onSubmit,
 }: PageProtocolMapperSettingsProps) {
-  const container = cn('mx-auto', tokens.page.maxWidth, tokens.page.padding)
-
   const backButton = (
     <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
@@ -65,19 +63,19 @@ export default function PageProtocolMapperSettings({
 
   if (isLoading) {
     return (
-      <div className={container}>
+      <PageShell>
         <div className='h-4 w-24 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         <div className='mt-4 space-y-2'>
           <div className='h-5 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
           <div className='h-4 w-32 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   if (!mapper) {
     return (
-      <div className={container}>
+      <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Protocol mapper not found</p>
@@ -85,40 +83,41 @@ export default function PageProtocolMapperSettings({
             It may have been deleted, or it belongs to another client scope.
           </p>
         </div>
-      </div>
+      </PageShell>
     )
   }
 
   const category = mapperCategory(mapper.mapper_type)
 
   return (
-    <div className={container}>
-      {backButton}
-
-      <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex items-center gap-3'>
-          <span className='text-3xl leading-none'>{template?.icon ?? '⚙️'}</span>
-          <div className='min-w-0'>
-            <h1 className={tokens.header.title}>{template?.name ?? mapper.name}</h1>
-            {template?.description && (
-              <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{template.description}</p>
-            )}
-            <div className='mt-1.5 flex flex-wrap items-center gap-2'>
-              <Pill tone={category.tone} mono>
-                {category.label}
-              </Pill>
-              <Pill mono>{mapper.mapper_type}</Pill>
-            </div>
-          </div>
-        </div>
-
-        <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-          <dt className='sr-only'>Created at</dt>
-          <dd className='tnum'>Created {formatDate(mapper.created_at)}</dd>
-          <dt className='sr-only'>Identifier</dt>
-          <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{mapper.id}</dd>
-        </dl>
-      </div>
+    <PageShell>
+      <DetailHeader
+        onBack={onBack}
+        backLabel='Protocol Mappers'
+        icon={<span className='text-3xl leading-none'>{template?.icon ?? '⚙️'}</span>}
+        title={template?.name ?? mapper.name}
+        caption={
+          template?.description && (
+            <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{template.description}</p>
+          )
+        }
+        pills={
+          <>
+            <Pill tone={category.tone} mono>
+              {category.label}
+            </Pill>
+            <Pill mono>{mapper.mapper_type}</Pill>
+          </>
+        }
+        meta={
+          <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
+            <dt className='sr-only'>Created at</dt>
+            <dd className='tnum'>Created {formatDate(mapper.created_at)}</dd>
+            <dt className='sr-only'>Identifier</dt>
+            <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{mapper.id}</dd>
+          </dl>
+        }
+      />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
         <Section title='General' description='How this mapper is named on the scope.'>
@@ -195,6 +194,6 @@ export default function PageProtocolMapperSettings({
         cancelLabel='Discard'
         actions={[{ label: isPending ? 'Saving…' : 'Save changes', onClick: onSubmit }]}
       />
-    </div>
+    </PageShell>
   )
 }

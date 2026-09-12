@@ -28,6 +28,7 @@ import {
   useIframeFit,
 } from '@/lib/builder-portal'
 import { CanvasFrame } from '@/lib/builder-portal/components/canvas-frame'
+import { PortalPreview } from '@/lib/builder-portal/preview'
 import type { Schemas } from '@/api/api.client'
 import { useGetPortalPageRequirements } from '@/api/portal-theme.api'
 import { cn } from '@/lib/utils'
@@ -150,6 +151,9 @@ export default function PageTreeEditor({
   const viewportHeight = VIEWPORT_HEIGHTS[viewport]
   // Numeric width is also passed to <Canvas /> so blocks know the renderable width.
   const canvasMaxWidth = typeof viewportWidth === 'number' ? viewportWidth : 1600
+  const narrowFallback = hasLayout
+    ? treeToReactNode(layoutTree!, { pageContent: <PortalPreview cssVars={cssVars} /> })
+    : <PortalPreview cssVars={cssVars} />
 
   // Shrink the iframe to fit the canvas area when the device preset would
   // otherwise overflow. The iframe's internal viewport stays at the device
@@ -168,7 +172,7 @@ export default function PageTreeEditor({
   return (
     <BuilderProvider adapter={adapter} initialTree={tree} onChange={handleChange}>
       <BreakpointToDeviceSync onBreakpointChange={handleBreakpointChange} />
-      <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale}>
+      <BuilderShell getIframeRect={getIframeRect} getIframeScale={getIframeScale} narrowFallback={narrowFallback}>
         <EditorGrid>
           {/* Split the rail into two stacked scroll regions: the top half
               hosts the Theme/Layout/Pages switcher (always reachable, even
