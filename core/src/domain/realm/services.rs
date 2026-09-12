@@ -1228,7 +1228,9 @@ mod tests {
                 .expect_create_client()
                 .withf(move |req| {
                     // Vérifier que c'est le client système
-                    req.name.contains("-realm") && req.realm_id == master_realm_id
+                    req.name.contains("-realm")
+                        && req.realm_id == master_realm_id
+                        && !req.token_exchange_enabled
                 })
                 .times(1)
                 .return_once(move |req| {
@@ -1254,6 +1256,7 @@ mod tests {
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
                                 temporary_token_lifetime: None,
+                                token_exchange_enabled: Some(req.token_exchange_enabled),
                             },
                         ))
                     })
@@ -1265,7 +1268,11 @@ mod tests {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
                 .expect_create_client()
-                .withf(move |req| req.client_id == "admin-cli" && req.realm_id == new_realm_id)
+                .withf(move |req| {
+                    req.client_id == "admin-cli"
+                        && req.realm_id == new_realm_id
+                        && !req.token_exchange_enabled
+                })
                 .times(1)
                 .return_once(move |req| {
                     Box::pin(async move {
@@ -1286,6 +1293,7 @@ mod tests {
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
                                 temporary_token_lifetime: None,
+                                token_exchange_enabled: Some(req.token_exchange_enabled),
                             },
                         ))
                     })
@@ -1298,7 +1306,9 @@ mod tests {
                 .unwrap()
                 .expect_create_client()
                 .withf(move |req| {
-                    req.client_id == "ferriskey-account" && req.realm_id == new_realm_id
+                    req.client_id == "ferriskey-account"
+                        && req.realm_id == new_realm_id
+                        && !req.token_exchange_enabled
                 })
                 .times(1)
                 .return_once(move |req| {
@@ -1320,6 +1330,7 @@ mod tests {
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
                                 temporary_token_lifetime: None,
+                                token_exchange_enabled: Some(req.token_exchange_enabled),
                             },
                         ))
                     })
@@ -1332,7 +1343,9 @@ mod tests {
                 .unwrap()
                 .expect_create_client()
                 .withf(move |req| {
-                    req.client_id == "security-admin-console" && req.realm_id == new_realm_id
+                    req.client_id == "security-admin-console"
+                        && req.realm_id == new_realm_id
+                        && !req.token_exchange_enabled
                 })
                 .times(1)
                 .return_once(move |req| {
@@ -1354,6 +1367,7 @@ mod tests {
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
                                 temporary_token_lifetime: None,
+                                token_exchange_enabled: Some(req.token_exchange_enabled),
                             },
                         ))
                     })
@@ -1558,6 +1572,7 @@ mod tests {
                                 refresh_token_lifetime: None,
                                 id_token_lifetime: None,
                                 temporary_token_lifetime: None,
+                                token_exchange_enabled: Some(false),
                             },
                         );
                         client.id = client_id;

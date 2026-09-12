@@ -726,6 +726,7 @@ pub mod tests {
             public_client: false,
             direct_access_grants_enabled: true,
             oauth_device_code_grant_enabled: false,
+            token_exchange_enabled: false,
             require_pkce: false,
             service_account_enabled: true,
             client_type: ClientType::Confidential,

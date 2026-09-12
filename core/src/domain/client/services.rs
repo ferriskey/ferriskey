@@ -970,12 +970,42 @@ where
             "insufficient permissions",
         )?;
 
+        let previous_token_exchange = if input.payload.token_exchange_enabled.is_some() {
+            Some(
+                self.load_client_in_realm(input.client_id, &realm)
+                    .await?
+                    .token_exchange_enabled,
+            )
+        } else {
+            None
+        };
         let client = self
             .client_repository
             .update_client(realm_id, input.client_id, input.payload)
             .await
             .map_err(|_| CoreError::NotFound)?;
 
+        if let Some(previous) = previous_token_exchange
+            && previous != client.token_exchange_enabled
+        {
+            self.security_event_repository
+                .store_event(
+                    SecurityEvent::new(
+                        realm_id,
+                        SecurityEventType::ClientTokenExchangeChanged,
+                        EventStatus::Success,
+                        identity.id(),
+                    )
+                    .with_target("client".to_string(), client.id, None)
+                    .with_details(serde_json::json!({
+                        "token_exchange_enabled": {
+                            "previous": previous,
+                            "new": client.token_exchange_enabled,
+                        }
+                    })),
+                )
+                .await?;
+        }
         self.webhook_repository
             .notify(
                 realm_id,

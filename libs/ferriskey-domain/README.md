@@ -17,6 +17,12 @@ This library operates within the **Core Domain** bounded context. Its primary re
 - **Repository Contracts**: Trait definitions for data persistence.
 - **Client Grant Controls**: Per-client opt-in flags, including token exchange, are part of the
   domain model and flow through create, update, persistence, and API representations.
+  Token-exchange flag changes are recorded through SeaWatch's chained event repository
+  as `client_token_exchange_changed`, with realm, client target, actor, and previous/new
+  boolean values. The existing event filters and export representation include these
+  events. Omitted or unchanged flags do not create an event, and normal updates still
+  emit the `ClientUpdated` webhook. Audit-storage failures are propagated; like the
+  existing service audit paths, the client write and audit write are separate operations.
 
 ## Core Components
 

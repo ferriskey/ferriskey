@@ -105,6 +105,7 @@ mod tests {
         SecurityEventType::ClientDeleted,
         SecurityEventType::ClientSecretRotated,
         SecurityEventType::ClientSecretViewed,
+        SecurityEventType::ClientTokenExchangeChanged,
         SecurityEventType::RealmConfigChanged,
         SecurityEventType::EmailNotSent,
         SecurityEventType::EmailSent,
@@ -162,6 +163,7 @@ mod tests {
                 | SecurityEventType::ClientDeleted
                 | SecurityEventType::ClientSecretRotated
                 | SecurityEventType::ClientSecretViewed
+                | SecurityEventType::ClientTokenExchangeChanged
                 | SecurityEventType::RealmConfigChanged
                 | SecurityEventType::EmailNotSent
                 | SecurityEventType::EmailSent

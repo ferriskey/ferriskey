@@ -43,6 +43,7 @@ mod tests {
 
     use axum::{Router, http::HeaderValue};
     use axum_test::TestServer;
+    use base64::Engine;
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -791,6 +792,39 @@ mod tests {
                 Some(true),
                 "the persisted token exchange flag was not returned on read: {body}"
             );
+
+            // The flag change must be queryable through the existing audit API.
+            let master = master_token(&server).await;
+            let query_events = || async {
+                let response = server
+                    .get(&format!("/realms/{TENANT_A}/seawatch/v1/security-events?event_types=client_token_exchange_changed"))
+                    .add_header("Authorization", auth_header(&master))
+                    .await;
+                assert_eq!(response.status_code(), 200);
+                response.json::<Value>()["data"].as_array().unwrap().iter()
+                    .filter(|event| event["target_id"] == uuid).cloned().collect::<Vec<_>>()
+            };
+            let events = query_events().await;
+            assert_eq!(events.len(), 1);
+            let event = &events[0];
+            let claims: Value = serde_json::from_slice(&base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .decode(alice.split('.').nth(1).unwrap()).unwrap()).unwrap();
+            assert_eq!(event["actor_id"], claims["sub"]);
+            assert_eq!(event["target_type"], "client");
+            assert_eq!(event["event_type"], "client_token_exchange_changed");
+            assert_eq!(event["details"]["token_exchange_enabled"], json!({"previous": false, "new": true}));
+            assert!(!event["realm_id"].is_null());
+            assert!(!event["event_hash"].is_null());
+            // Existing JSON serialization/export keeps the flag-specific details.
+            let decoded: ferriskey_core::domain::seawatch::SecurityEvent = serde_json::from_value(event.clone()).unwrap();
+            assert_eq!(serde_json::to_value(decoded).unwrap()["details"], event["details"]);
+
+            for payload in [json!({"require_pkce": true}), json!({"token_exchange_enabled": true})] {
+                let response = server.patch(&format!("/realms/{TENANT_A}/clients/{uuid}"))
+                    .add_header("Authorization", auth_header(&alice)).json(&payload).await;
+                assert_eq!(response.status_code(), 200);
+            }
+            assert_eq!(query_events().await.len(), 1, "omitted and unchanged flags must not emit duplicate events");
 
             // Sub-resource: the realm binding must not break child writes.
             let response = server
