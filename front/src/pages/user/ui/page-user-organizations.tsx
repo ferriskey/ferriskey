@@ -5,9 +5,8 @@ import StatisticsCard from '../components/statistics-card'
 import AssignOrganizationModalFeature from '../feature/modals/assign-organization-modal-feature'
 import { UserMinus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Schemas } from '@/api/api.client'
-import Organization = Schemas.Organization
-
+import type { Schemas } from '@/api/api.client'
+type Organization = Schemas.Organization
 interface PageUserOrganizationsProps {
   organizations: Organization[]
   isLoading: boolean

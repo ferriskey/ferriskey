@@ -19,6 +19,10 @@ pub struct Credential {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub webauthn_credential_id: Option<CredentialID>,
+    /// Fast lookup key for recovery-code credentials (first 16 hex chars of
+    /// SHA-256 of the code's hex form). Lets verification locate the single
+    /// candidate row without running Argon2 against every stored code.
+    pub recovery_code_lookup: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd)]
@@ -103,6 +107,7 @@ impl Credential {
             created_at: config.created_at,
             updated_at: config.updated_at,
             webauthn_credential_id: config.webauthn_credential_id,
+            recovery_code_lookup: config.recovery_code_lookup,
         }
     }
 }
@@ -195,6 +200,7 @@ pub struct CredentialConfig {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub webauthn_credential_id: Option<CredentialID>,
+    pub recovery_code_lookup: Option<String>,
 }
 
 #[derive(Debug, Clone, Error)]

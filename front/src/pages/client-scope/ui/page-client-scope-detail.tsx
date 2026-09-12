@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
@@ -13,8 +13,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { UpdateClientScopeSchema } from '../schemas/update-client-scope.schema'
 import { DangerZone } from '@/components/danger-zone'
 
-import ClientScope = Schemas.ClientScope
-
+type ClientScope = Schemas.ClientScope
 interface PageClientScopeDetailProps {
   scope: ClientScope
   isLoading?: boolean

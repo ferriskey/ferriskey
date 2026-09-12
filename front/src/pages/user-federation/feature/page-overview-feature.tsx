@@ -3,7 +3,7 @@ import PageOverview from '../ui/page-overview'
 import { RouterParams } from '@/routes/router'
 import { USER_FEDERATION_URL, USER_FEDERATION_CREATE_URL, USER_FEDERATION_LDAP_DETAIL_URL, USER_FEDERATION_KERBEROS_DETAIL_URL } from '@/routes/sub-router/user-federation.router'
 import { useGetUserFederations, useDeleteUserFederation } from '@/api/user-federation.api'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { toast } from 'sonner'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 

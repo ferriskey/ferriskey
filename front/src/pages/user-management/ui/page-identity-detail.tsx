@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isServiceAccount } from '@/utils'
 import {
@@ -22,11 +22,10 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import CredentialOverview = Schemas.CredentialOverview
-import RequiredAction = Schemas.RequiredAction
-import Role = Schemas.Role
-import User = Schemas.User
-
+type CredentialOverview = Schemas.CredentialOverview
+type RequiredAction = Schemas.RequiredAction
+type Role = Schemas.Role
+type User = Schemas.User
 export interface IdentityProfileValues {
   firstname: string
   lastname: string

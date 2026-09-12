@@ -3,11 +3,10 @@ import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { InputText } from '@/components/ui/input-text'
 import { Switch } from '@/components/ui/switch'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { UseFormReturn } from 'react-hook-form'
 import { UpdateOrganizationSchema } from '../schemas/update-organization.schema'
-import Organization = Schemas.Organization
-
+type Organization = Schemas.Organization
 export interface PageOrganizationSettingsProps {
   organization: Organization
   form: UseFormReturn<UpdateOrganizationSchema>

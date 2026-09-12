@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
   Client: [

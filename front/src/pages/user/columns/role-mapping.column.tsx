@@ -1,9 +1,8 @@
 import BadgeColor from '@/components/ui/badge-color'
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { ColumnDef } from '@/components/ui/data-table'
-import { Schemas } from '@/api/api.client'
-import Role = Schemas.Role
-
+import type { Schemas } from '@/api/api.client'
+type Role = Schemas.Role
 export const columns: ColumnDef<Role>[] = [
   {
     id: 'name',

@@ -7,9 +7,8 @@ import { CheckIcon, LockKeyholeIcon, Shield, Users } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import FloatingActionBar from '../../../components/ui/floating-action-bar'
 import { UpdateRolePermissionsSchema } from '../schemas/update-role.schema'
-import { Schemas } from '@/api/api.client'
-import Role = Schemas.Role
-
+import type { Schemas } from '@/api/api.client'
+type Role = Schemas.Role
 export interface PageRolePermissionsProps {
   role: Role
   togglePermission: (permission: string) => void

@@ -1,9 +1,9 @@
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import BadgeColor from '@/components/ui/badge-color'
 
 import { ColumnDef } from '@/components/ui/data-table'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
 import { AlertTriangle } from 'lucide-react'
 

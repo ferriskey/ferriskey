@@ -1,10 +1,9 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Activity, CheckCircle, Clock, XCircle } from 'lucide-react'
 
-import FlowStats = Schemas.FlowStats
-
+type FlowStats = Schemas.FlowStats
 interface StatsCardsProps {
   stats: FlowStats | null
   isLoading: boolean

@@ -114,6 +114,11 @@ mod tests {
         SecurityEventType::SessionRevoked,
         SecurityEventType::IdentityProviderLinkRemoved,
         SecurityEventType::Unknown,
+        SecurityEventType::MfaEnrolled,
+        SecurityEventType::MfaRemoved,
+        SecurityEventType::CredentialDeleted,
+        SecurityEventType::ReauthenticationFailed,
+        SecurityEventType::RecoveryCodeBurned,
     ];
 
     /// The write path persists `event_type` via `Display` and the read path
@@ -170,7 +175,12 @@ mod tests {
                 | SecurityEventType::SessionCreated
                 | SecurityEventType::SessionRevoked
                 | SecurityEventType::IdentityProviderLinkRemoved
-                | SecurityEventType::Unknown => true,
+                | SecurityEventType::Unknown
+                | SecurityEventType::MfaEnrolled
+                | SecurityEventType::MfaRemoved
+                | SecurityEventType::CredentialDeleted
+                | SecurityEventType::ReauthenticationFailed
+                | SecurityEventType::RecoveryCodeBurned => true,
             };
 
             assert!(listed && ALL_EVENT_TYPES.contains(event_type));

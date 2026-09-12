@@ -35,7 +35,6 @@ export default function ConfigureOtpFeature() {
     resolver: zodResolver(verifyOtpSchema),
     defaultValues: {
       pin: '',
-      deviceName: '',
     },
   })
 
@@ -58,7 +57,6 @@ export default function ConfigureOtpFeature() {
     verifyOtp({
       data: {
         code: values.pin,
-        label: values.deviceName,
       },
       realm: realm_name,
     })

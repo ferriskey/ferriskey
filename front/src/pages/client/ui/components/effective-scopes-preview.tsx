@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useGetClient } from '@/api/client.api'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 interface EffectiveScopesPreviewProps {
   realm: string | undefined

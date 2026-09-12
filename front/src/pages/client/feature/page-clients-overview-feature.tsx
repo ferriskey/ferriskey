@@ -9,11 +9,10 @@ import {
 } from '@/routes/sub-router/client.router'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { Filter, FilterFieldsConfig } from '@/components/ui/filters'
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 export default function PageClientsOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()

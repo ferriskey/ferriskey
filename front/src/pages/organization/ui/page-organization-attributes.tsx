@@ -1,11 +1,10 @@
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Pencil, Plus, Trash2, X, Check } from 'lucide-react'
 import { useState } from 'react'
-import OrganizationAttribute = Schemas.OrganizationAttribute
-
+type OrganizationAttribute = Schemas.OrganizationAttribute
 export interface PageOrganizationAttributesProps {
   attributes: OrganizationAttribute[]
   isLoading: boolean

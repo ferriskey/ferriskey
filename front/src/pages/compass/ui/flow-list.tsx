@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatSnakeCaseToTitleCase } from '@/utils'
 import { Compass } from 'lucide-react'
@@ -6,9 +6,8 @@ import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { COMPASS_FLOW_DETAIL_URL } from '@/routes/sub-router/compass.router'
 
-import CompassFlow = Schemas.CompassFlow
-import FlowStatus = Schemas.FlowStatus
-
+type CompassFlow = Schemas.CompassFlow
+type FlowStatus = Schemas.FlowStatus
 interface FlowListProps {
   flows: CompassFlow[]
   isLoading: boolean

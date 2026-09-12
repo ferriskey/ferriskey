@@ -1,9 +1,9 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { EntityAvatar } from '@/components/ui/entity-avatar'
 import { OverviewList } from '@/components/ui/overview-list'
 import StatisticsCard from '../components/statistics-card'
 
-import ClientScope = Schemas.ClientScope
+type ClientScope = Schemas.ClientScope
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatSnakeCaseToTitleCase } from '@/utils'
 import { CheckCircle, Clock, XCircle, MinusCircle } from 'lucide-react'
 import { useMemo, useCallback } from 'react'
@@ -17,9 +17,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
-import CompassFlowStep = Schemas.CompassFlowStep
-import StepStatus = Schemas.StepStatus
-
+type CompassFlowStep = Schemas.CompassFlowStep
+type StepStatus = Schemas.StepStatus
 interface FlowTimelineProps {
   steps: CompassFlowStep[]
 }

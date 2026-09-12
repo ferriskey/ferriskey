@@ -72,6 +72,9 @@ jobs:
       - name: run saml integration tests
         run: cargo test -p ferriskey-api --test saml_test -- --ignored
 
+      - name: run workspace library tests
+        run: cargo test --workspace --lib
+
       - name: run device flow integration tests
         run: cargo test -p ferriskey-api --test device_flow_test -- --ignored
 
@@ -129,3 +132,10 @@ jobs:
       # and the realm-gated username edit.
       - name: run self-service account profile integration tests
         run: cargo test -p ferriskey-api --test me_profile_test -- --ignored
+
+      # Bearer self-service endpoints (/me/credentials, /me/totp, passkey
+      # registration options, recovery-code reset). The suite uses the
+      # shared-runtime harness (one router per process, see #1086) and drops
+      # its UUID schema at process exit.
+      - name: run self-service integration tests
+        run: cargo test -p ferriskey-api --test me_self_service_test -- --ignored

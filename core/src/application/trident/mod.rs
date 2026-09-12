@@ -1,19 +1,26 @@
+use uuid::Uuid;
+
 use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
+        credential::entities::CredentialOverview,
+        realm::entities::RealmId,
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
-            CompletePasswordResetInput, CompletePasswordResetOutput, GenerateRecoveryCodeInput,
+            CompletePasswordResetInput, CompletePasswordResetOutput,
+            CompletePasswordResetWithRecoveryCodeInput, GenerateRecoveryCodeInput,
             GenerateRecoveryCodeOutput, MagicLinkInput, PasskeyAuthenticateInput,
-            PasskeyAuthenticateOutput, PasskeyRequestOptionsInput, RequestPasswordResetInput,
-            SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
-            VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
-            WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
-            WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
-            WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-            WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+            PasskeyAuthenticateOutput, PasskeyRegisterOptionsSelfServiceInput,
+            PasskeyRegisterSelfServiceInput, PasskeyRequestOptionsInput, ReauthenticateInput,
+            ReauthenticateOutput, RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput,
+            TridentService, UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput,
+            VerifyOtpOutput, VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
+            WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
+            WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
+            WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
+            WebAuthnValidatePublicKeyOutput,
         },
     },
 };
@@ -149,5 +156,66 @@ impl TridentService for ApplicationService {
 
     async fn verify_reset_token(&self, input: VerifyResetTokenInput) -> Result<(), CoreError> {
         self.trident_service.verify_reset_token(input).await
+    }
+
+    async fn passkey_register_options_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterOptionsSelfServiceInput,
+    ) -> Result<WebAuthnPublicKeyCreateOptionsOutput, CoreError> {
+        self.trident_service
+            .passkey_register_options_self_service(identity, input)
+            .await
+    }
+
+    async fn passkey_register_self_service(
+        &self,
+        identity: Identity,
+        input: PasskeyRegisterSelfServiceInput,
+    ) -> Result<WebAuthnValidatePublicKeyOutput, CoreError> {
+        self.trident_service
+            .passkey_register_self_service(identity, input)
+            .await
+    }
+
+    async fn complete_password_reset_with_recovery_code(
+        &self,
+        input: CompletePasswordResetWithRecoveryCodeInput,
+    ) -> Result<CompletePasswordResetOutput, CoreError> {
+        self.trident_service
+            .complete_password_reset_with_recovery_code(input)
+            .await
+    }
+
+    async fn reauthenticate(
+        &self,
+        identity: Identity,
+        input: ReauthenticateInput,
+    ) -> Result<ReauthenticateOutput, CoreError> {
+        self.trident_service.reauthenticate(identity, input).await
+    }
+
+    async fn list_credentials_self_service(
+        &self,
+        identity: Identity,
+    ) -> Result<Vec<CredentialOverview>, CoreError> {
+        self.trident_service
+            .list_credentials_self_service(identity)
+            .await
+    }
+
+    async fn delete_credential_self_service(
+        &self,
+        identity: Identity,
+        credential_id: Uuid,
+        step_up_token: String,
+    ) -> Result<(), CoreError> {
+        self.trident_service
+            .delete_credential_self_service(identity, credential_id, step_up_token)
+            .await
+    }
+
+    async fn realm_id_for_name(&self, realm_name: &str) -> Result<RealmId, CoreError> {
+        self.trident_service.realm_id_for_name(realm_name).await
     }
 }

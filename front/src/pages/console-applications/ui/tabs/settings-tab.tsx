@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,9 +17,8 @@ import { inferApplicationType } from '../../types'
 import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import { Field, Section } from './primitives'
 
-import Client = Schemas.Client
-import WebOrigin = Schemas.WebOrigin
-
+type Client = Schemas.Client
+type WebOrigin = Schemas.WebOrigin
 export interface ApplicationSettingsValues {
   name: string
   enabled: boolean

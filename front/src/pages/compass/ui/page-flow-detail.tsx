@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,9 +11,8 @@ import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { FlowTimeline } from './flow-timeline'
 
-import CompassFlow = Schemas.CompassFlow
-import FlowStatus = Schemas.FlowStatus
-
+type CompassFlow = Schemas.CompassFlow
+type FlowStatus = Schemas.FlowStatus
 interface PageFlowDetailProps {
   flow: CompassFlow | null
   isLoading: boolean

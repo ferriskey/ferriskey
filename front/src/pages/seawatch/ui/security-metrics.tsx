@@ -1,10 +1,9 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Activity, AlertTriangle, Clock, Shield, User } from 'lucide-react'
 import { useMemo } from 'react'
 
-import SecurityEvent = Schemas.SecurityEvent
-
+type SecurityEvent = Schemas.SecurityEvent
 interface SecurityMetricsProps {
   events: SecurityEvent[]
   isLoading: boolean

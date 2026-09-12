@@ -1,11 +1,10 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Check, Copy } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { inferApplicationType } from '../../types'
 import { CopyRow, Section } from './primitives'
 
-import Client = Schemas.Client
-
+type Client = Schemas.Client
 interface Props {
   client: Client
   realm: string

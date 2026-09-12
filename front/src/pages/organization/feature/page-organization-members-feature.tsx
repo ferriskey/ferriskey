@@ -7,11 +7,10 @@ import {
 import { useGetUsers } from '@/api/user.api'
 import PageOrganizationMembers from '../ui/page-organization-members'
 import { useMemo } from 'react'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
-import User = Schemas.User
-
+type User = Schemas.User
 export default function PageOrganizationMembersFeature() {
   const { realm_name, organizationId } = useParams<RouterParams & { organizationId: string }>()
 

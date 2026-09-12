@@ -12,6 +12,7 @@ use axum_extra::{
 use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::{entities::AuthorizeRequestInput, ports::AuthService};
 use ferriskey_core::domain::jwt::entities::JwtClaim;
+use ferriskey_core::domain::realm::entities::RealmId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -42,6 +43,20 @@ struct ErrorResponse {
     code: String,
     message: String,
     status: i64,
+}
+
+/// The realm bound to the authenticated bearer token.
+///
+/// `realm_id` is the authoritative realm, taken from the *resolved* identity
+/// (`output.identity.realm_id()`) returned by `authorize_request` — not from
+/// string-parsing the `iss` claim. `realm_name` is copied from the `iss` claim
+/// purely as a routing hint for handlers that compare against the URL path; the
+/// security check compares realm *ids*, so a `root_path` containing `/realms/`
+/// or a realm rename can never make a token bind to the wrong realm.
+#[derive(Clone, Debug)]
+pub struct AuthenticatedRealm {
+    pub realm_id: RealmId,
+    pub realm_name: String,
 }
 
 impl IntoResponse for AuthError {
@@ -183,6 +198,7 @@ pub async fn auth(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
+    let realm_from_iss = realm_name_from_iss(&claims.iss);
 
     let output = state
         .service
@@ -194,7 +210,17 @@ pub async fn auth(
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
+    // The resolved identity carries the authoritative realm; the `iss` claim is
+    // only used as a routing hint. If the issuer does not even parse as
+    // `{base_url}/realms/{realm_name}` we cannot route, so reject (fail-closed).
+    let realm_name = realm_from_iss.ok_or(StatusCode::UNAUTHORIZED)?;
+    let realm_id = output.identity.realm_id();
+
     req.extensions_mut().insert(output.identity);
+    req.extensions_mut().insert(AuthenticatedRealm {
+        realm_id,
+        realm_name,
+    });
 
     Ok(next.run(req).await)
 }
@@ -205,7 +231,21 @@ const STEP_COMPLETING_ACTIONS: [&str; 4] = [
     "/login-actions/update-password",
     "/login-actions/webauthn-public-key-create",
 ];
-
+/// Extracts the realm name from an issuer claim of the form
+/// `{base_url}/realms/{realm_name}`. Returns `None` when the claim does not
+/// follow that shape; the authentication middleware rejects such requests
+/// with `401 UNAUTHORIZED` rather than proceeding without a realm.
+fn realm_name_from_iss(iss: &str) -> Option<String> {
+    let marker = "/realms/";
+    let idx = iss.find(marker)?;
+    let realm = &iss[idx + marker.len()..];
+    let realm = realm.split(['/', '?']).next().unwrap_or(realm);
+    if realm.is_empty() {
+        None
+    } else {
+        Some(realm.to_string())
+    }
+}
 pub async fn auth_login_actions(
     State(state): State<AppState>,
     Path(realm_name): Path<String>,

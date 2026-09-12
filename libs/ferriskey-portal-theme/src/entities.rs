@@ -39,9 +39,9 @@ pub enum PortalPageType {
     EmailVerified,
     /// First-time TOTP enrolment screen — shows the QR code (and the
     /// fallback secret) that the user scans into their authenticator
-    /// app, then captures the resulting 6-digit code + an optional
-    /// device label to confirm the binding. Distinct from `Totp` (which
-    /// only collects the code on subsequent logins).
+    /// app, then captures the resulting 6-digit code to confirm the
+    /// binding. Distinct from `Totp` (which only collects the code on
+    /// subsequent logins).
     TotpSetup,
     /// RFC 8628 device-flow consent screen. The user enters the `user_code`
     /// displayed on the device that initiated the flow, then approves or

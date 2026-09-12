@@ -285,14 +285,6 @@ function totpSetupCard(): BuilderNode[] {
             node('totp_input', {
               props: { label: 'Code from your app', name: 'totp' },
             }),
-            node('input', {
-              props: {
-                label: 'Device name (optional)',
-                placeholder: 'e.g. iPhone',
-                type: 'text',
-                name: 'device_name',
-              },
-            }),
             node('submit_button', { content: 'Confirm' }),
           ],
         }),

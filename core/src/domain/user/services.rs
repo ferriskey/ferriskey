@@ -1645,6 +1645,7 @@ mod tests {
                     created_at: chrono::Utc::now(),
                     updated_at: chrono::Utc::now(),
                     webauthn_credential_id: None,
+                    recovery_code_lookup: None,
                 };
                 Box::pin(async move { Ok(cred) })
             });

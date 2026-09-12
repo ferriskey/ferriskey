@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ApplicationType } from '@/routes/sub-router/applications.router'
 import { Cpu, Globe, MonitorSmartphone, Server, Smartphone, type LucideIcon } from 'lucide-react'
 

@@ -30,8 +30,8 @@ import { Button } from '@/components/ui/button.tsx'
 import { useCreateRealm } from '@/api/realm.api.ts'
 import { toast } from 'sonner'
 import { REALM_OVERVIEW_URL, REALM_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client.ts'
-import Realm = Schemas.Realm
+import type { Schemas } from '@/api/api.client.ts'
+type Realm = Schemas.Realm
 import { useSidebar } from './ui/sidebar-hooks'
 
 export default function RealmSwitcher() {

@@ -1,11 +1,10 @@
-import { Schemas } from '@/api/api.client.ts'
+import type { Schemas } from '@/api/api.client.ts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
-import UserAttribute = Schemas.UserAttribute
-
+type UserAttribute = Schemas.UserAttribute
 export interface PageUserAttributesProps {
   attributes: UserAttribute[]
   isLoading: boolean

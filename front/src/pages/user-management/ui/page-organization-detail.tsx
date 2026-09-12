@@ -1,4 +1,4 @@
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertTriangle,
@@ -11,8 +11,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import Organization = Schemas.Organization
-
+type Organization = Schemas.Organization
 export interface OrganizationDetailValues {
   name: string
   alias: string
