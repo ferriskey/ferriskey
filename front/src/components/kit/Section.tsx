@@ -23,7 +23,7 @@ export function Section({
   className,
 }: SectionProps) {
   return (
-    <section className={className}>
+    <section className={cn('min-w-0', className)}>
       <div className='flex items-end justify-between gap-4 pb-2'>
         <div className='min-w-0'>
           <h2 className='text-sm font-semibold text-neutral-900 dark:text-neutral-100'>{title}</h2>
