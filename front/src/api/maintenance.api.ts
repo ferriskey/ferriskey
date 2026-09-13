@@ -75,7 +75,7 @@ export function useRemoveClientWhitelistEntry() {
 
 export function useGetRealmWhitelist({ realm = 'master' }: BaseQuery) {
   return useQuery(
-    window.tanstackApi.get('/realms/{realm_name}/clients/settings/maintenance/whitelist', {
+    window.tanstackApi.get('/realms/{realm_name}/settings/maintenance/whitelist', {
       path: { realm_name: realm },
     }).queryOptions
   )
@@ -86,11 +86,11 @@ export function useAddRealmWhitelistEntry() {
   return useMutation({
     ...window.tanstackApi.mutation(
       'post',
-      '/realms/{realm_name}/clients/settings/maintenance/whitelist'
+      '/realms/{realm_name}/settings/maintenance/whitelist'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
       const keys = window.tanstackApi.get(
-        '/realms/{realm_name}/clients/settings/maintenance/whitelist',
+        '/realms/{realm_name}/settings/maintenance/whitelist',
         { path: { realm_name: variables.path.realm_name } }
       ).queryKey
 
@@ -105,11 +105,11 @@ export function useRemoveRealmWhitelistEntry() {
   return useMutation({
     ...window.tanstackApi.mutation(
       'delete',
-      '/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}'
+      '/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
       const keys = window.tanstackApi.get(
-        '/realms/{realm_name}/clients/settings/maintenance/whitelist',
+        '/realms/{realm_name}/settings/maintenance/whitelist',
         { path: { realm_name: variables.path.realm_name } }
       ).queryKey
 

@@ -1,15 +1,6 @@
 import { Schemas } from '@/api/api.client.ts'
-import { Permissions, RequiredAction } from '@/api/core.interface.ts'
-import { BadgeColorScheme } from '@/components/ui/badge-color.enum'
+import { RequiredAction } from '@/api/core.interface.ts'
 import User = Schemas.User
-
-export function getBadgeColorFromPermissionVariant(permission: Permissions): BadgeColorScheme {
-  if (permission.toString().startsWith('manage')) return BadgeColorScheme.RED
-  if (permission.toString().startsWith('create')) return BadgeColorScheme.GREEN
-  if (permission.toString().startsWith('view')) return BadgeColorScheme.BLUE
-  if (permission.toString().startsWith('query')) return BadgeColorScheme.YELLOW
-  return BadgeColorScheme.GRAY
-}
 
 export function formatSnakeCaseToTitleCase(snakeCase: string): string {
   return snakeCase

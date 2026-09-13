@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
 
 @utility scrollbar-none {
   -ms-overflow-style: none;
@@ -138,4 +141,150 @@ input[type="number"] {
     -webkit-appearance: none;
     margin: 0;
   }
+}
+
+@theme {
+  --color-fk-brand: #e8431a;
+  --color-fk-brand-soft: #fdefe9;
+
+  --color-fk-primary: #c0602a;
+  --color-fk-primary-hover: #a9531f;
+  --color-fk-primary-soft: #fdf1e9;
+  --color-fk-primary-border: #f0d9c8;
+  --color-fk-primary-text: #b4551f;
+
+  --color-fk-surface: #ffffff;
+  --color-fk-raised: #fafafa;
+  --color-fk-canvas: #fafafa;
+  --color-fk-sand: #fbefe5;
+  --color-fk-ink: #171717;
+  --color-fk-muted: #737373;
+  --color-fk-line: #e8e8e8;
+  --color-fk-line-soft: #f2f2f2;
+
+  --color-fk-success: #009764;
+  --color-fk-success-soft: #e6f7f0;
+  --color-fk-success-border: #b7e7d4;
+
+  --color-fk-info: #2379ff;
+  --color-fk-info-soft: #eff5ff;
+  --color-fk-info-border: #c7dcff;
+
+  --color-fk-violet: #8b5cf6;
+  --color-fk-violet-soft: #f4f0ff;
+  --color-fk-violet-border: #dfd4fe;
+
+  --color-fk-amber: #d97706;
+  --color-fk-amber-soft: #fef6e7;
+  --color-fk-amber-border: #fbe0b0;
+
+  --color-fk-danger: #dc2626;
+  --color-fk-danger-soft: #fef2f2;
+  --color-fk-danger-border: #fecaca;
+
+  --font-mono-ui: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+:root[data-style='ferriskey'] {
+  --primary: #c0602a;
+  --primary-foreground: #ffffff;
+  --ring: #c0602a;
+  --border: #e8e8e8;
+  --input: #e0e0e0;
+  --muted-foreground: #737373;
+  --radius: 0.3rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-style='ferriskey'] body {
+  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-style='ferriskey'].dark {
+  --color-fk-brand: #f26a3d;
+  --color-fk-brand-soft: #2a1a10;
+
+  --color-fk-primary: #e0854c;
+  --color-fk-primary-hover: #e79a67;
+  --color-fk-primary-soft: #2a1a10;
+  --color-fk-primary-border: #4a2d1a;
+  --color-fk-primary-text: #e79a67;
+
+  --color-fk-surface: #191817;
+  --color-fk-raised: #201e1d;
+  --color-fk-canvas: #131211;
+  --color-fk-sand: #291f16;
+  --color-fk-ink: #f2f0ee;
+  --color-fk-muted: #a6a09b;
+  --color-fk-line: #2a2825;
+  --color-fk-line-soft: #191817;
+
+  --color-fk-success: #35c795;
+  --color-fk-success-soft: #0e2620;
+  --color-fk-success-border: #1d4a3b;
+
+  --color-fk-info: #6ba5ff;
+  --color-fk-info-soft: #101d33;
+  --color-fk-info-border: #24406b;
+
+  --color-fk-violet: #a98bfa;
+  --color-fk-violet-soft: #1e1932;
+  --color-fk-violet-border: #3b3163;
+
+  --color-fk-amber: #eda13c;
+  --color-fk-amber-soft: #2b1f0d;
+  --color-fk-amber-border: #533b16;
+
+  --color-fk-danger: #f26a6a;
+  --color-fk-danger-soft: #2c1414;
+  --color-fk-danger-border: #5b2626;
+
+  --primary: #e0854c;
+  --primary-foreground: #1a1109;
+  --ring: #e0854c;
+  --border: #2a2825;
+  --input: #353330;
+  --muted-foreground: #a6a09b;
+
+  --background: #161514;
+  --foreground: #f2f0ee;
+  --card: #191817;
+  --card-foreground: #f2f0ee;
+  --popover: #191817;
+  --popover-foreground: #f2f0ee;
+  --secondary: #201e1d;
+  --secondary-foreground: #f2f0ee;
+  --muted: #191817;
+  --accent: #201e1d;
+  --accent-foreground: #f2f0ee;
+}
+
+:root.theme-switching,
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: none !important;
+}
+
+:root[data-style='ferriskey'] [data-slot='tooltip-content'] {
+  background-color: var(--color-fk-surface);
+  color: var(--color-fk-ink);
+  border: 1px solid var(--color-fk-line);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.08);
+}
+
+:root[data-style='ferriskey'] [data-slot='tooltip-content'] svg {
+  background-color: var(--color-fk-surface);
+  fill: var(--color-fk-surface);
 }

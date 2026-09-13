@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
-} from '@/pages/identity-providers/components/provider-icon'
+} from '@/components/provider-icon'
 
 import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 
@@ -32,12 +32,12 @@ export function LoginProviders({ providers }: LoginProvidersProps) {
 
   return (
     <>
-      <div className='relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
+      <div className='relative text-center text-xs after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
         <span className='relative z-10 bg-card px-2 text-muted-foreground'>
           Or continue with
         </span>
       </div>
-      <div className='grid gap-3'>
+      <div className='grid gap-2'>
         {providers.map((provider) => {
           const iconKey = provider.icon?.toLowerCase()
           const iconSrc = iconKey && !isProviderIconKey(iconKey) ? provider.icon : undefined
@@ -47,12 +47,12 @@ export function LoginProviders({ providers }: LoginProvidersProps) {
               key={provider.id}
               type='button'
               variant='outline'
-              className='w-full justify-start gap-3 border-input bg-card px-3 py-2 text-sm font-medium text-foreground shadow-none hover:bg-muted/40'
+              className='h-10 w-full justify-start gap-2.5 border-input bg-card px-3 text-sm font-medium text-foreground shadow-none hover:bg-muted/40'
               onClick={() => {
                 window.location.href = loginUrl
               }}
             >
-              <span className='flex h-8 w-8 items-center justify-center'>
+              <span className='flex h-5 w-5 items-center justify-center'>
                 {iconKey && isProviderIconKey(iconKey) ? (
                   <ProviderIcon icon={iconKey} size='sm' className='h-4 w-4' />
                 ) : iconSrc ? (

@@ -155,4 +155,12 @@ export enum Permissions {
   ViewRealm = 'view_realm',
   ViewUsers = 'view_users',
   ViewRoles = 'view_roles',
+  ManageWebhooks = 'manage_webhooks',
+  QueryWebhooks = 'query_webhooks',
+  ViewWebhooks = 'view_webhooks',
+  ManageClientScopes = 'manage_client_scopes',
+  QueryClientScopes = 'query_client_scopes',
+  ViewClientScopes = 'view_client_scopes',
+  ManageEmailTemplates = 'manage_email_templates',
+  ViewEmailTemplates = 'view_email_templates',
 }

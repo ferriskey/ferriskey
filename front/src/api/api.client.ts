@@ -1511,7 +1511,7 @@ export namespace Endpoints {
   };
   export type get_Get_realm_whitelist = {
     method: "GET";
-    path: "/realms/{realm_name}/clients/settings/maintenance/whitelist";
+    path: "/realms/{realm_name}/settings/maintenance/whitelist";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string };
@@ -1520,7 +1520,7 @@ export namespace Endpoints {
   };
   export type post_Add_realm_whitelist_entry = {
     method: "POST";
-    path: "/realms/{realm_name}/clients/settings/maintenance/whitelist";
+    path: "/realms/{realm_name}/settings/maintenance/whitelist";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string };
@@ -1536,7 +1536,7 @@ export namespace Endpoints {
   };
   export type delete_Remove_realm_whitelist_entry = {
     method: "DELETE";
-    path: "/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}";
+    path: "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}";
     requestFormat: "json";
     parameters: {
       path: { realm_name: string; entry_id: string };
@@ -4251,7 +4251,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
     "/realms/{realm_name}/clients": Endpoints.get_Get_clients;
-    "/realms/{realm_name}/clients/settings/maintenance/whitelist": Endpoints.get_Get_realm_whitelist;
+    "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.get_Get_realm_whitelist;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.get_Get_client;
     "/realms/{realm_name}/clients/{client_id}/client-scopes": Endpoints.get_Get_client_client_scopes;
     "/realms/{realm_name}/clients/{client_id}/client-secret": Endpoints.get_Get_client_secret;
@@ -4332,7 +4332,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes": Endpoints.post_Create_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
     "/realms/{realm_name}/clients": Endpoints.post_Create_client;
-    "/realms/{realm_name}/clients/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
+    "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
@@ -4423,7 +4423,7 @@ export type EndpointByMethod = {
     "/realms/{name}": Endpoints.delete_Delete_realm;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper;
-    "/realms/{realm_name}/clients/settings/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_realm_whitelist_entry;
+    "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_realm_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client;
     "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.delete_Unassign_default_scope;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_client_whitelist_entry;

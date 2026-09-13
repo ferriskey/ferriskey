@@ -22,17 +22,26 @@ use axum::{
 };
 use utoipa::OpenApi;
 
+/// Paths served under `/realms/{realm_name}/clients`.
 #[derive(OpenApi)]
 #[openapi(paths(
     toggle_maintenance,
     get_client_whitelist,
     add_client_whitelist_entry,
     remove_client_whitelist_entry,
+))]
+pub struct MaintenanceApiDoc;
+
+/// Paths served under `/realms/{realm_name}`. The realm whitelist is a realm
+/// setting, not a client resource, so nesting it with the client paths would
+/// publish it one segment deeper than the router serves it.
+#[derive(OpenApi)]
+#[openapi(paths(
     get_realm_whitelist,
     add_realm_whitelist_entry,
     remove_realm_whitelist_entry,
 ))]
-pub struct MaintenanceApiDoc;
+pub struct RealmMaintenanceApiDoc;
 
 pub fn maintenance_routes(state: AppState) -> Router<AppState> {
     Router::new()

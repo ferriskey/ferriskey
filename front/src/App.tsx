@@ -6,33 +6,13 @@ import { createApiClient } from './api/api.client'
 import { TanstackQueryApiClient } from './api/api.tanstack'
 import { useGetConfig } from './api/config.api'
 import './App.css'
-import Layout from './components/layout/layout'
-import ProductLayout from './components/layout/product-layout'
 import { useTheme } from './components/theme-provider'
 import { Toaster } from './components/ui/sonner'
 import { BasicSpinner } from './components/ui/spinner'
 import { useAuth } from './hooks/use-auth'
 import { useConfig } from './hooks/use-config'
 import PageAuthentication from './pages/authentication/page-authentication'
-import PageClientScope from './pages/client-scope/page-client-scope'
-import PageClient from './pages/client/page-client'
-import PageCompass from './pages/compass/page-compass'
-import PageIdentityProviders from './pages/identity-providers/page-identity-providers'
-import PageAccount from './pages/account/page-account'
-import PageOverview from './pages/overview/page-overview'
-import PageRealm from './pages/realm/page-realm'
-import PageRole from './pages/role/page-role'
-import PageSeawatch from './pages/seawatch/page-seawatch'
-import PageEmailTemplate from './pages/email-template/page-email-template'
-import PagePortal from './pages/portal/page-portal'
-import PageUserFederation from './pages/user-federation/page-user-federation'
-import PageUser from './pages/user/page-user'
-import PageOrganization from './pages/organization/page-organization'
-import PageActivity from './pages/activity/page-activity'
-import PageUserManagement from './pages/user-management/page-user-management'
-import PageConsoleApplications from './pages/console-applications/page-console-applications'
-import PageConsoleAuthentication from './pages/console-authentication/page-console-authentication'
-import PageConsoleBranding from './pages/console-branding/page-console-branding'
+import IamApp from './iam-app'
 
 declare global {
   interface Window {
@@ -260,34 +240,7 @@ function AppRoutes() {
       <Routes>
         <Route path='realms/:realm_name'>
           <Route path='authentication/*' element={<PageAuthentication />} />
-
-          {/* Admin (IAM) — bare paths under realm */}
-          <Route element={<Layout />}>
-            <Route path='overview/*' element={<PageOverview />} />
-            <Route path='account/*' element={<PageAccount />} />
-            <Route path='clients/*' element={<PageClient />} />
-            <Route path='client-scopes/*' element={<PageClientScope />} />
-            <Route path='users/*' element={<PageUser />} />
-            <Route path='roles/*' element={<PageRole />} />
-            <Route path='realm-settings/*' element={<PageRealm />} />
-            <Route path='seawatch/*' element={<PageSeawatch />} />
-            <Route path='compass/*' element={<PageCompass />} />
-            <Route path='identity-providers/*' element={<PageIdentityProviders />} />
-            <Route path='email-templates/*' element={<PageEmailTemplate />} />
-            <Route path='portal/*' element={<PagePortal />} />
-            <Route path='user-federation/*' element={<PageUserFederation />} />
-            <Route path='organizations/*' element={<PageOrganization />} />
-          </Route>
-
-          {/* Console (CIAM) — under /console prefix */}
-          <Route path='console' element={<ProductLayout />}>
-            <Route index element={<Navigate to='activity/live' replace />} />
-            <Route path='activity/*' element={<PageActivity />} />
-            <Route path='user-management/*' element={<PageUserManagement />} />
-            <Route path='applications/*' element={<PageConsoleApplications />} />
-            <Route path='authentication/*' element={<PageConsoleAuthentication />} />
-            <Route path='branding/*' element={<PageConsoleBranding />} />
-          </Route>
+          <Route path='*' element={<IamApp />} />
         </Route>
 
         <Route
