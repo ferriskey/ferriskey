@@ -227,6 +227,146 @@ mod tests {
         resp.json()
     }
 
+    async fn create_user_with_password(
+        srv: &TestServer,
+        realm: &str,
+        token: &str,
+        username: &str,
+        password: &str,
+    ) -> String {
+        let resp = srv
+            .post(&format!("/realms/{}/users", realm))
+            .add_header("Authorization", auth_header(token))
+            .json(&serde_json::json!({
+                "username": username,
+                "firstname": "Test",
+                "lastname": "User",
+                "email": format!("{username}@ferriskey.test"),
+                "email_verified": true,
+            }))
+            .await;
+        assert_eq!(
+            resp.status_code(),
+            200,
+            "user creation failed: {}",
+            resp.text()
+        );
+
+        let created: Value = resp.json();
+        let user_id = created["data"]["id"]
+            .as_str()
+            .expect("created user id")
+            .to_string();
+
+        let pw_resp = srv
+            .put(&format!(
+                "/realms/{}/users/{}/reset-password",
+                realm, user_id
+            ))
+            .add_header("Authorization", auth_header(token))
+            .json(&serde_json::json!({
+                "value": password,
+                "temporary": false,
+                "credential_type": "password",
+            }))
+            .await;
+        assert_eq!(
+            pw_resp.status_code(),
+            200,
+            "reset password failed: {}",
+            pw_resp.text()
+        );
+
+        user_id
+    }
+
+    async fn disable_user(srv: &TestServer, realm: &str, token: &str, user_id: &str) {
+        let resp = srv
+            .put(&format!("/realms/{}/users/{}", realm, user_id))
+            .add_header("Authorization", auth_header(token))
+            .json(&serde_json::json!({ "enabled": false }))
+            .await;
+        assert_eq!(
+            resp.status_code(),
+            200,
+            "disabling the user failed: {}",
+            resp.text()
+        );
+    }
+
+    async fn password_grant(srv: &TestServer, realm: &str, username: &str, password: &str) -> u16 {
+        srv.post(&format!("/realms/{}/protocol/openid-connect/token", realm))
+            .form(&[
+                ("grant_type", "password"),
+                ("client_id", "admin-cli"),
+                ("username", username),
+                ("password", password),
+            ])
+            .await
+            .status_code()
+            .as_u16()
+    }
+
+    async fn login_failures(srv: &TestServer, realm: &str, token: &str) -> Vec<Value> {
+        let body = security_events(srv, realm, token, "event_types=login_failure&limit=1000").await;
+        body["data"].as_array().expect("events array").clone()
+    }
+
+    fn failure_for(events: &[Value], user_id: &str, reason: &str) -> bool {
+        events
+            .iter()
+            .any(|e| e["actor_id"] == user_id && e["details"]["reason"] == reason)
+    }
+
+    async fn interactive_login_attempt(
+        srv: &TestServer,
+        realm: &str,
+        username: &str,
+        password: &str,
+    ) {
+        let authorize = srv
+            .get(&format!("/realms/{}/protocol/openid-connect/auth", realm))
+            .add_query_param("response_type", "code")
+            .add_query_param("client_id", "ferriskey-admin")
+            .add_query_param(
+                "redirect_uri",
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/callback",
+                    realm
+                )
+                .as_str(),
+            )
+            .add_query_param("scope", "openid")
+            .add_query_param("state", "st")
+            .add_query_param(
+                "code_challenge",
+                "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            )
+            .add_query_param("code_challenge_method", "S256")
+            .await;
+
+        let status = authorize.status_code().as_u16();
+        assert!(
+            (300..=399).contains(&status),
+            "expected a redirect from /auth, got {status}: {}",
+            authorize.text()
+        );
+
+        let login = srv
+            .post(&format!("/realms/{}/login-actions/authenticate", realm))
+            .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+            .add_query_param("client_id", "ferriskey-admin")
+            .json(&serde_json::json!({ "username": username, "password": password }))
+            .await;
+
+        assert_ne!(
+            login.status_code(),
+            200,
+            "the login was supposed to fail: {}",
+            login.text()
+        );
+    }
+
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
     fn every_stored_event_is_linked_into_the_hash_chain() {
@@ -310,6 +450,188 @@ mod tests {
                 events.len(),
                 1,
                 "limit=1 should return exactly one event: {events:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
+    fn a_successful_login_records_login_success_alongside_session_created() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let username = format!("loginok-{}", Uuid::new_v4().simple());
+            let user_id =
+                create_user_with_password(&srv, &realm, &token, &username, "S3cret-Password!")
+                    .await;
+
+            assert_eq!(
+                password_grant(&srv, &realm, &username, "S3cret-Password!").await,
+                200
+            );
+
+            let body =
+                security_events(&srv, &realm, &token, "event_types=login_success&limit=1000").await;
+            let events = body["data"].as_array().expect("events array");
+            assert!(
+                events.iter().any(|e| e["actor_id"] == user_id),
+                "a successful login produced no login_success event for {user_id}: {events:?}"
+            );
+
+            let sessions = security_events(
+                &srv,
+                &realm,
+                &token,
+                "event_types=session_created&limit=1000",
+            )
+            .await;
+            assert!(
+                sessions["data"]
+                    .as_array()
+                    .expect("events array")
+                    .iter()
+                    .any(|e| e["actor_id"] == user_id),
+                "login_success replaced session_created instead of joining it"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
+    fn a_wrong_password_is_recorded_as_a_login_failure() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let username = format!("wrongpw-{}", Uuid::new_v4().simple());
+            let user_id =
+                create_user_with_password(&srv, &realm, &token, &username, "S3cret-Password!")
+                    .await;
+
+            assert_ne!(
+                password_grant(&srv, &realm, &username, "not-the-password").await,
+                200
+            );
+
+            let events = login_failures(&srv, &realm, &token).await;
+            assert!(
+                failure_for(&events, &user_id, "invalid_credentials"),
+                "a wrong password left no login_failure for {user_id}: {events:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
+    fn an_unknown_username_is_recorded_without_an_actor_and_without_the_identifier() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let username = format!("ghost-{}", Uuid::new_v4().simple());
+
+            assert_ne!(
+                password_grant(&srv, &realm, &username, "whatever").await,
+                200
+            );
+
+            let events = login_failures(&srv, &realm, &token).await;
+            let anonymous: Vec<&Value> = events
+                .iter()
+                .filter(|e| e["details"]["reason"] == "user_not_found")
+                .collect();
+
+            assert!(
+                !anonymous.is_empty(),
+                "a login for an unknown username left no trace: {events:?}"
+            );
+            assert!(
+                anonymous.iter().all(|e| e["actor_id"].is_null()),
+                "an unknown username was attributed to an actor: {anonymous:?}"
+            );
+            assert!(
+                !serde_json::to_string(&anonymous)
+                    .expect("serialise events")
+                    .contains(&username),
+                "the attempted identifier leaked into the audit log: {anonymous:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
+    fn a_disabled_account_is_recorded_as_a_login_failure() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let username = format!("disabled-{}", Uuid::new_v4().simple());
+            let user_id =
+                create_user_with_password(&srv, &realm, &token, &username, "S3cret-Password!")
+                    .await;
+            disable_user(&srv, &realm, &token, &user_id).await;
+
+            assert_ne!(
+                password_grant(&srv, &realm, &username, "S3cret-Password!").await,
+                200
+            );
+
+            let events = login_failures(&srv, &realm, &token).await;
+            assert!(
+                failure_for(&events, &user_id, "user_disabled"),
+                "a disabled account left no login_failure for {user_id}: {events:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
+    fn a_locked_account_is_recorded_as_a_login_failure() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let username = format!("locked-{}", Uuid::new_v4().simple());
+            let user_id =
+                create_user_with_password(&srv, &realm, &token, &username, "S3cret-Password!")
+                    .await;
+
+            for _ in 0..11 {
+                password_grant(&srv, &realm, &username, "not-the-password").await;
+            }
+
+            assert_ne!(
+                password_grant(&srv, &realm, &username, "S3cret-Password!").await,
+                200
+            );
+
+            let events = login_failures(&srv, &realm, &token).await;
+            assert!(
+                failure_for(&events, &user_id, "account_locked"),
+                "a locked account left no account_locked login_failure for {user_id}: {events:?}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test seawatch_test -- --ignored"]
+    fn a_failed_interactive_login_is_recorded_as_a_login_failure() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let username = format!("interactive-{}", Uuid::new_v4().simple());
+            let user_id =
+                create_user_with_password(&srv, &realm, &token, &username, "S3cret-Password!")
+                    .await;
+
+            interactive_login_attempt(&srv, &realm, &username, "not-the-password").await;
+
+            let events = login_failures(&srv, &realm, &token).await;
+            assert!(
+                failure_for(&events, &user_id, "invalid_credentials"),
+                "a failed interactive login left no login_failure for {user_id}: {events:?}"
             );
         });
     }

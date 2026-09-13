@@ -265,9 +265,20 @@ impl SecurityEvent {
         actor_id: Uuid,
     ) -> Self {
         Self {
+            actor_id: Some(actor_id),
+            ..Self::without_actor(realm_id, event_type, status)
+        }
+    }
+
+    pub fn without_actor(
+        realm_id: RealmId,
+        event_type: SecurityEventType,
+        status: EventStatus,
+    ) -> Self {
+        Self {
             id: SecurityEventId::new(),
             realm_id,
-            actor_id: Some(actor_id),
+            actor_id: None,
             actor_type: None,
             event_type,
             status,
