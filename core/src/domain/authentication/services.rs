@@ -67,7 +67,7 @@ use crate::domain::{
         ports::RealmRepository,
     },
     role::entities::Role,
-    seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
+    seawatch::{ActorType, EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     session::{entities::UserSession, ports::UserSessionRepository},
     user::{
         entities::{RequiredAction, UserAttribute},
@@ -1397,6 +1397,35 @@ where
         })
     }
 
+    async fn record_login_failure(&self, realm_id: RealmId, user_id: Option<Uuid>, reason: &str) {
+        let event = match user_id {
+            Some(user_id) => SecurityEvent::new(
+                realm_id,
+                SecurityEventType::LoginFailure,
+                EventStatus::Failure,
+                user_id,
+            )
+            .with_actor(user_id, ActorType::User),
+            None => SecurityEvent::without_actor(
+                realm_id,
+                SecurityEventType::LoginFailure,
+                EventStatus::Failure,
+            ),
+        };
+
+        let _ = self
+            .security_event_repository
+            .store_event(event.with_details(serde_json::json!({ "reason": reason })))
+            .await
+            .inspect_err(|e| {
+                warn!(
+                    reason,
+                    error = ?e,
+                    "Failed to record a login failure in the audit log"
+                )
+            });
+    }
+
     /// Open the SSO session a login is bound to, and record it in the audit trail.
     ///
     /// The session is given the same lifetime as the refresh token, so that the
@@ -1451,6 +1480,19 @@ where
                 );
                 CoreError::SessionCreateError
             })?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::LoginSuccess,
+                    EventStatus::Success,
+                    user_id,
+                )
+                .with_actor(user_id, ActorType::User)
+                .with_target("session".to_string(), session.id, None),
+            )
+            .await?;
 
         self.security_event_repository
             .store_event(
@@ -2232,10 +2274,17 @@ where
             &login_aliases,
         )
         .instrument(info_span!("auth.password.user_lookup"))
-        .await?
-        .ok_or(CoreError::Invalid)?;
+        .await?;
+
+        let Some(user) = user else {
+            self.record_login_failure(params.realm_id, None, "user_not_found")
+                .await;
+            return Err(CoreError::Invalid);
+        };
 
         if !user.enabled {
+            self.record_login_failure(params.realm_id, Some(user.id), "user_disabled")
+                .await;
             return Err(CoreError::UserDisabled);
         }
 
@@ -2255,6 +2304,8 @@ where
 
         let now = Utc::now();
         if user.is_locked(now) {
+            self.record_login_failure(params.realm_id, Some(user.id), "account_locked")
+                .await;
             return Err(CoreError::AccountLocked);
         }
 
@@ -2276,6 +2327,8 @@ where
                     .user_repository
                     .increment_failed_login_attempts(user.id, locked_until)
                     .await;
+                self.record_login_failure(params.realm_id, Some(user.id), "invalid_credentials")
+                    .await;
                 return Err(CoreError::Invalid);
             }
         };
@@ -2290,6 +2343,8 @@ where
             let _ = self
                 .user_repository
                 .increment_failed_login_attempts(user.id, locked_until)
+                .await;
+            self.record_login_failure(params.realm_id, Some(user.id), "invalid_credentials")
                 .await;
             return Err(CoreError::Invalid);
         }
@@ -2691,10 +2746,17 @@ where
             realm.id,
             &login_aliases,
         )
-        .await?
-        .ok_or(CoreError::UserNotFound)?;
+        .await?;
+
+        let Some(user) = user else {
+            self.record_login_failure(realm.id, None, "user_not_found")
+                .await;
+            return Err(CoreError::UserNotFound);
+        };
 
         if !user.enabled {
+            self.record_login_failure(realm.id, Some(user.id), "user_disabled")
+                .await;
             return Err(CoreError::UserDisabled);
         }
 
@@ -2753,6 +2815,8 @@ where
 
         let now = Utc::now();
         if user.is_locked(now) {
+            self.record_login_failure(realm.id, Some(user.id), "account_locked")
+                .await;
             return Err(CoreError::AccountLocked);
         }
 
@@ -2762,6 +2826,8 @@ where
             .get_mapping_by_user_id(user.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        let is_federated = federation_mapping.is_some();
 
         info!(
             "User {} (ID: {}): federation_mapping = {}",
@@ -2791,6 +2857,8 @@ where
 
                 if !provider.enabled {
                     error!("Federation provider {} is disabled", provider.name);
+                    self.record_login_failure(realm.id, Some(user.id), "provider_disabled")
+                        .await;
                     return Err(CoreError::InvalidPassword);
                 }
 
@@ -2880,6 +2948,13 @@ This is a server error that should be investigated. Do not forward back this mes
             let _ = self
                 .user_repository
                 .increment_failed_login_attempts(user.id, locked_until)
+                .await;
+            let reason = if is_federated {
+                "ldap_authentication_failed"
+            } else {
+                "invalid_credentials"
+            };
+            self.record_login_failure(realm.id, Some(user.id), reason)
                 .await;
             return Err(CoreError::InvalidPassword);
         }
