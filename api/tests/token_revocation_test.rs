@@ -423,13 +423,19 @@ mod tests {
         let response = refresh(server, refresh_token).await;
         let body = response.text();
 
-        assert_ne!(
+        assert_eq!(
             response.status_code(),
-            200,
-            "the refresh token still minted a new token pair after revocation: {body}"
+            400,
+            "a refresh token bound to a revoked session must be refused as \
+             RFC 6749 invalid_grant (400), got: {body}"
         );
 
         let parsed: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
+        assert_eq!(
+            parsed.get("error").and_then(Value::as_str),
+            Some("invalid_grant"),
+            "the refusal did not carry the invalid_grant error code: {body}"
+        );
         assert!(
             parsed.get("access_token").and_then(Value::as_str).is_none(),
             "the refusal still carried an access token: {body}"
@@ -441,6 +447,25 @@ mod tests {
                 .is_none(),
             "the refusal still carried a refresh token: {body}"
         );
+    }
+
+    async fn introspect(
+        server: &TestServer,
+        client_id: &str,
+        client_secret: &str,
+        token: &str,
+    ) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/protocol/openid-connect/token/introspect",
+                realm()
+            ))
+            .form(&[
+                ("token", token),
+                ("client_id", client_id),
+                ("client_secret", client_secret),
+            ])
+            .await
     }
 
     async fn sole_session_of(server: &TestServer, token: &str, victim: &Victim) -> String {
@@ -493,6 +518,59 @@ mod tests {
                 remaining.is_empty(),
                 "the revoked session is still listed: {remaining:?}"
             );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
+    fn revoking_a_session_marks_its_token_inactive_on_introspection() {
+        rt().block_on(async {
+            let server = make_server();
+            let (client_id, client_secret) = create_service_client(&server).await;
+            let victim = create_victim(&server, "introspect").await;
+
+            let tokens = login(&server, &victim.username, VICTIM_PASSWORD).await;
+            let access = tokens["access_token"].as_str().expect("access_token");
+            let refresh_token = tokens["refresh_token"].as_str().expect("refresh_token");
+
+            assert_token_still_works(&server, access, &victim).await;
+
+            let before = introspect(&server, &client_id, &client_secret, access).await;
+            let before_body = before.json::<Value>();
+            assert_eq!(
+                before.status_code(),
+                200,
+                "introspection failed before revocation: {before_body}"
+            );
+            assert_eq!(
+                before_body["active"].as_bool(),
+                Some(true),
+                "a live token must introspect as active: {before_body}"
+            );
+
+            let session_id = sole_session_of(&server, access, &victim).await;
+            let revoked = revoke_session(&server, access, &victim.id, &session_id).await;
+            assert_eq!(
+                revoked.status_code(),
+                204,
+                "revoking the session failed: {}",
+                revoked.text()
+            );
+
+            let after = introspect(&server, &client_id, &client_secret, access).await;
+            let after_body = after.json::<Value>();
+            assert_eq!(
+                after.status_code(),
+                200,
+                "introspection failed after revocation: {after_body}"
+            );
+            assert_eq!(
+                after_body["active"].as_bool(),
+                Some(false),
+                "the revoked token's session was deleted but introspection still reports it active: {after_body}"
+            );
+
+            assert_refresh_is_dead(&server, refresh_token).await;
         });
     }
 
