@@ -1426,6 +1426,68 @@ where
             });
     }
 
+    /// Refuse a login when the client is under maintenance and the user is on
+    /// neither the client whitelist nor the realm one.
+    ///
+    /// Shared by every path that authenticates a user in front of a client, so
+    /// that turning maintenance on actually closes the door instead of closing
+    /// only the one the password form uses.
+    async fn enforce_maintenance_mode(
+        &self,
+        realm_id: RealmId,
+        client: &Client,
+        user_id: Uuid,
+        username: &str,
+    ) -> Result<(), CoreError> {
+        if !client.maintenance_enabled {
+            return Ok(());
+        }
+
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+        let role_ids: Vec<Uuid> = user_roles.iter().map(|r| r.id).collect();
+
+        let allowed_user_ids = self
+            .maintenance_whitelist_repository
+            .get_whitelisted_user_ids(client.id)
+            .await?;
+        let allowed_role_ids = self
+            .maintenance_whitelist_repository
+            .get_whitelisted_role_ids(client.id)
+            .await?;
+        let realm_allowed_user_ids = self
+            .realm_maintenance_whitelist_repository
+            .get_whitelisted_user_ids(realm_id)
+            .await?;
+        let realm_allowed_role_ids = self
+            .realm_maintenance_whitelist_repository
+            .get_whitelisted_role_ids(realm_id)
+            .await?;
+
+        let is_allowed = allowed_user_ids.contains(&user_id)
+            || role_ids.iter().any(|r| allowed_role_ids.contains(r))
+            || realm_allowed_user_ids.contains(&user_id)
+            || role_ids.iter().any(|r| realm_allowed_role_ids.contains(r));
+
+        if is_allowed {
+            return Ok(());
+        }
+
+        let reason = client
+            .maintenance_reason
+            .clone()
+            .unwrap_or_else(|| "This service is currently under maintenance".to_string());
+        warn!(
+            "User {} denied access to client {} (maintenance mode)",
+            username, client.name
+        );
+
+        Err(CoreError::ClientUnderMaintenance(reason))
+    }
+
     /// Open the SSO session a login is bound to, and record it in the audit trail.
     ///
     /// The session is given the same lifetime as the refresh token, so that the
@@ -2760,48 +2822,8 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        // Check maintenance mode
-        if client.maintenance_enabled {
-            let user_roles = self
-                .user_role_repository
-                .get_user_roles(user.id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?;
-            let role_ids: Vec<Uuid> = user_roles.iter().map(|r| r.id).collect();
-
-            let allowed_user_ids = self
-                .maintenance_whitelist_repository
-                .get_whitelisted_user_ids(client.id)
-                .await?;
-            let allowed_role_ids = self
-                .maintenance_whitelist_repository
-                .get_whitelisted_role_ids(client.id)
-                .await?;
-            let realm_allowed_user_ids = self
-                .realm_maintenance_whitelist_repository
-                .get_whitelisted_user_ids(realm.id)
-                .await?;
-            let realm_allowed_role_ids = self
-                .realm_maintenance_whitelist_repository
-                .get_whitelisted_role_ids(realm.id)
-                .await?;
-
-            let is_allowed = allowed_user_ids.contains(&user.id)
-                || role_ids.iter().any(|r| allowed_role_ids.contains(r))
-                || realm_allowed_user_ids.contains(&user.id)
-                || role_ids.iter().any(|r| realm_allowed_role_ids.contains(r));
-
-            if !is_allowed {
-                let reason = client
-                    .maintenance_reason
-                    .unwrap_or_else(|| "This service is currently under maintenance".to_string());
-                warn!(
-                    "User {} denied access to client {} (maintenance mode)",
-                    user.username, client.name
-                );
-                return Err(CoreError::ClientUnderMaintenance(reason));
-            }
-        }
+        self.enforce_maintenance_mode(realm.id, &client, user.id, &user.username)
+            .await?;
 
         let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
         let lockout_threshold = realm_settings
@@ -3123,6 +3145,25 @@ This is a server error that should be investigated. Do not forward back this mes
             .get_by_id(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+
+        // A cookie minted before the account was disabled must not outlive the
+        // decision to disable it. The credentials path and the refresh grant both
+        // refuse here, and skipping the check on this one turned it into the way
+        // around them.
+        if !user.enabled {
+            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
+                .await;
+            return Err(CoreError::UserDisabled);
+        }
+
+        let client = self
+            .client_repository
+            .get_by_id(realm_id, auth_session.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
+            .await?;
 
         // `ConfigureOtp` is never persisted (see `resolve_refresh_required_actions`),
         // so the MFA policy has to be re-evaluated here instead of trusting the
