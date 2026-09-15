@@ -129,8 +129,9 @@ impl RetryPolicy {
             return None;
         }
 
-        let ceiling =
-            u64::try_from(self.backoff_delay(attempt + 1).as_millis()).unwrap_or(u64::MAX);
+        let remaining = self.max_total_delay.saturating_sub(elapsed);
+        let ceiling = self.backoff_delay(attempt + 1).min(remaining);
+        let ceiling = u64::try_from(ceiling.as_millis()).unwrap_or(u64::MAX);
 
         Some(Duration::from_millis(rng.gen_range(0..=ceiling)))
     }
@@ -420,6 +421,21 @@ mod tests {
                 .next_attempt_delay(1, total + Duration::from_secs(1), &mut rng)
                 .is_none()
         );
+    }
+
+    #[test]
+    fn a_late_attempt_never_sleeps_past_the_remaining_budget() {
+        let mut rng = StdRng::seed_from_u64(9);
+        let remaining = Duration::from_millis(50);
+        let elapsed = DEFAULT.max_total_delay() - remaining;
+
+        for _ in 0..500 {
+            let delay = DEFAULT
+                .next_attempt_delay(4, elapsed, &mut rng)
+                .expect("the budget is not spent yet");
+
+            assert!(delay <= remaining, "{delay:?} overran {remaining:?}");
+        }
     }
 
     #[test]
