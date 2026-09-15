@@ -132,7 +132,9 @@ impl DeliveryErrorCode {
             | Self::ClientBuildFailed
             | Self::HeaderEncodingFailed
             | Self::Transport => true,
-            Self::HttpStatus(status) => (500..600).contains(&status) || status == 429 || status == 408,
+            Self::HttpStatus(status) => {
+                (500..600).contains(&status) || status == 429 || status == 408
+            }
         }
     }
 
@@ -346,7 +348,10 @@ mod tests {
 
     #[test]
     fn error_codes_keep_the_exact_strings_already_written_to_the_database() {
-        assert_eq!(DeliveryErrorCode::ReservedHeader.as_code(), "reserved_header");
+        assert_eq!(
+            DeliveryErrorCode::ReservedHeader.as_code(),
+            "reserved_header"
+        );
         assert_eq!(
             DeliveryErrorCode::MalformedEndpoint.as_code(),
             "malformed_endpoint"

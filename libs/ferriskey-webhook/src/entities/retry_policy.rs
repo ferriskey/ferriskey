@@ -14,12 +14,13 @@ pub const MAX_BASE_DELAY_MS: u32 = 60_000;
 pub enum RetryPolicyError {
     #[error("max_attempts must be between {MIN_ATTEMPTS} and {MAX_ATTEMPTS}, got {got}")]
     AttemptsOutOfRange { got: u32 },
-    #[error(
-        "base_delay_ms must be between {MIN_BASE_DELAY_MS} and {MAX_BASE_DELAY_MS}, got {got}"
-    )]
+    #[error("base_delay_ms must be between {MIN_BASE_DELAY_MS} and {MAX_BASE_DELAY_MS}, got {got}")]
     BaseDelayOutOfRange { got: u32 },
     #[error("max_delay_ms ({max_delay_ms}) must be at least base_delay_ms ({base_delay_ms})")]
-    MaxDelayBelowBaseDelay { base_delay_ms: u32, max_delay_ms: u32 },
+    MaxDelayBelowBaseDelay {
+        base_delay_ms: u32,
+        max_delay_ms: u32,
+    },
     #[error(
         "max_total_delay_ms ({max_total_delay_ms}) must be at least max_delay_ms ({max_delay_ms})"
     )]
@@ -128,7 +129,8 @@ impl RetryPolicy {
             return None;
         }
 
-        let ceiling = u64::try_from(self.backoff_delay(attempt + 1).as_millis()).unwrap_or(u64::MAX);
+        let ceiling =
+            u64::try_from(self.backoff_delay(attempt + 1).as_millis()).unwrap_or(u64::MAX);
 
         Some(Duration::from_millis(rng.gen_range(0..=ceiling)))
     }
