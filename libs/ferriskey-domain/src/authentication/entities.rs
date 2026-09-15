@@ -380,12 +380,7 @@ pub struct AuthenticateOutput {
     pub completion: Option<AuthCompletion>,
     pub session_state: Option<String>,
     pub email: Option<String>,
-    /// The secret naming the SSO session this login opened or resumed. The HTTP
-    /// layer hands it to the browser as a cookie so the next application can skip
-    /// the login form.
     pub sso_cookie: Option<String>,
-    /// Seconds left on that session, so the cookie expires with it rather than
-    /// with the browser window.
     pub sso_session_max_age_secs: Option<i64>,
 }
 
@@ -471,36 +466,18 @@ pub enum AuthenticationStepStatus {
     Failed,
 }
 
-/// Which SSO session a completed login belongs to.
-///
-/// A login that started at the login form opens a new one, and represents a new
-/// browser. A login resumed from the session cookie keeps the one the browser
-/// already holds, so that revoking it cuts every application it opened.
 #[derive(Debug, Clone)]
 pub enum SsoSessionBinding {
-    /// A fresh sign-in: open a session and mint the secret its browser will hold.
     Open,
-    /// Continue a session the browser already proved it holds.
     Resume { session_id: Uuid, cookie: String },
-    /// A session identified by other means, here the legacy identity token and its
-    /// `sid` claim. It keeps the session and is issued a new secret, which is how a
-    /// browser still on the old cookie migrates onto the new one.
     Adopt { session_id: Uuid },
 }
 
 #[derive(Debug, Clone)]
 pub enum AuthenticationMethod {
-    UserCredentials {
-        username: String,
-        password: String,
-    },
-    ExistingToken {
-        token: String,
-    },
-    /// An SSO session the browser already holds, proved by the session cookie.
-    SsoSession {
-        cookie: String,
-    },
+    UserCredentials { username: String, password: String },
+    ExistingToken { token: String },
+    SsoSession { cookie: String },
 }
 
 #[cfg(test)]

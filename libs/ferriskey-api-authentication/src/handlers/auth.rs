@@ -49,12 +49,6 @@ fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> Stri
     )
 }
 
-/// Send the browser straight back to the application, carrying a refreshed SSO
-/// cookie.
-///
-/// Refreshing it on every hop keeps a chain of applications from inheriting a
-/// window that shrinks, and migrates a browser still holding only the old identity
-/// cookie onto the session cookie the first time it signs in anywhere.
 fn sso_success_response(
     auth_result: ferriskey_core::domain::authentication::entities::AuthenticateOutput,
     is_secure: bool,
@@ -180,8 +174,6 @@ pub async fn auth_handler(
     let is_secure = base_url.starts_with("https://");
     let flow_base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
-    // Single sign-on. The session cookie is the real answer; the identity cookie is
-    // the previous design, kept one release so live sessions survive the upgrade.
     let sso_cookie = cookie
         .get(SSO_SESSION_COOKIE)
         .map(|c| c.value().trim().to_string())
@@ -255,8 +247,6 @@ pub async fn auth_handler(
 
     let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
-    // Either cookie being present and unusable means the user believed they were
-    // signed in. Say so on the login page instead of showing a bare form.
     let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some();
     let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
 

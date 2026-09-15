@@ -1,26 +1,3 @@
-/// Integration test: one login, several applications.
-///
-/// FerrisKey used to carry single sign-on in a cookie holding a raw access token,
-/// set on the response of the token endpoint. That tied SSO to the access token
-/// lifetime (five minutes by default) and only ever reached the browser when the
-/// client exchanged its code there. A confidential application such as LimeSurvey
-/// exchanges the code from its own backend, so the cookie landed in its HTTP client
-/// and the user was asked to sign in again every single time.
-///
-/// The SSO session is now opened at the interactive login, where the browser is
-/// still on the line, and handed out as an opaque `FERRISKEY_SSO` cookie naming a
-/// row in `user_sessions`.
-///
-/// Requires a running PostgreSQL instance. Marked `#[ignore]`. Run with:
-///
-///   cargo test -p ferriskey-api --test sso_session_test -- --ignored
-///
-/// Environment variables (defaults shown):
-///   DATABASE_HOST     = localhost
-///   DATABASE_PORT     = 5432
-///   DATABASE_NAME     = ferriskey
-///   DATABASE_USER     = ferriskey
-///   DATABASE_PASSWORD = ferriskey
 #[cfg(test)]
 mod tests {
     use std::{env, sync::Arc};
@@ -43,12 +20,8 @@ mod tests {
 
     const WEBAPP_URL: &str = "http://localhost:5555";
     const SEEDED_CLIENT_ID: &str = "ferriskey-admin";
-    /// The second application. Confidential, like the survey tool that surfaced
-    /// the bug: it exchanges its code server side and can never set a cookie.
     const SURVEY_CLIENT_ID: &str = "survey-app";
     const SURVEY_REDIRECT_URI: &str = "https://survey.example.com/oidc/callback";
-    /// RFC 7636 Appendix B test vector. The seeded console client requires PKCE;
-    /// no code is exchanged here, so the matching verifier is irrelevant.
     const S256_CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
 
     fn env_or(key: &str, default: &str) -> String {
@@ -68,8 +41,6 @@ mod tests {
         pool: PgPool,
     }
 
-    // `router()` installs a process-global Prometheus recorder, so it can only be
-    // built once per test binary (#1086). Every test shares this router and runtime.
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
     static CTX: std::sync::OnceLock<SharedContext> = std::sync::OnceLock::new();
 
@@ -175,9 +146,6 @@ mod tests {
         }
     }
 
-    /// A second, confidential client with its own redirect URI. Inserted directly:
-    /// creating one through the API would need an admin token, which is exactly the
-    /// browser-side login this test is trying to keep out of the way.
     async fn seed_survey_client(pool: &PgPool, realm_name: &str) {
         let client_uuid = Uuid::new_v4();
 
@@ -247,7 +215,6 @@ mod tests {
         .expect("count admin sessions")
     }
 
-    /// Start an authorization request for the console client.
     async fn start_console_authorization(server: &TestServer) -> axum_test::TestResponse {
         let response = server
             .get(&format!("/realms/{}/protocol/openid-connect/auth", realm()))
@@ -273,8 +240,6 @@ mod tests {
         response
     }
 
-    /// Start an authorization request for the survey application, optionally
-    /// carrying an SSO cookie.
     async fn start_survey_authorization(
         server: &TestServer,
         sso_cookie: Option<&str>,
@@ -308,7 +273,6 @@ mod tests {
             .to_string()
     }
 
-    /// Sign in at the login form and return the SSO cookie value it hands back.
     async fn sign_in(server: &TestServer) -> String {
         let authorize = start_console_authorization(server).await;
 
@@ -329,8 +293,6 @@ mod tests {
         login.cookie("FERRISKEY_SSO").value().to_string()
     }
 
-    /// The reported bug, end to end: a second application must not ask for the
-    /// password again.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn a_second_application_signs_in_from_the_session_cookie() {
@@ -357,8 +319,6 @@ mod tests {
         });
     }
 
-    /// The login form is the only place that can hand out the session, because it
-    /// is the only step of the flow the browser actually talks to.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn the_login_hands_the_browser_an_opaque_session_cookie() {
@@ -403,9 +363,6 @@ mod tests {
                 "the cookie must be hard to guess: {value}"
             );
 
-            // The session listing hands `user_sessions.id` to any holder of
-            // `view_users`. If that id were the cookie, a read permission would be
-            // enough to impersonate its owner.
             let session_ids = sqlx::query_scalar::<_, Uuid>(
                 "SELECT s.id FROM user_sessions s JOIN users u ON u.id = s.user_id \
                  WHERE u.username = 'admin'",
@@ -421,7 +378,6 @@ mod tests {
         });
     }
 
-    /// One sign-in is one session, however many applications it opens.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn the_second_application_joins_the_session_instead_of_opening_another() {
@@ -446,9 +402,6 @@ mod tests {
         });
     }
 
-    /// Reusing a session means `create_user_session` never runs, and the audit
-    /// event it emits would go with it. Signing into another application is still
-    /// a login and has to show up in SeaWatch.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn resuming_a_session_is_recorded_as_a_login() {
@@ -473,8 +426,6 @@ mod tests {
         });
     }
 
-    /// Disabling an account has to take effect on the SSO path too, which is where
-    /// it used to be skipped.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn a_disabled_user_cannot_resume_a_session() {
@@ -501,7 +452,6 @@ mod tests {
         });
     }
 
-    /// A cookie naming nothing is not a way in.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn an_unknown_session_falls_back_to_the_login_page() {
@@ -523,7 +473,6 @@ mod tests {
         });
     }
 
-    /// Without a cookie there is nothing to resume, and the user signs in normally.
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn no_cookie_means_the_ordinary_login_page() {

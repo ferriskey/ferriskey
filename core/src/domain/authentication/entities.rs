@@ -51,8 +51,6 @@ pub struct AuthSession {
     pub compass_flow_id: Option<Uuid>,
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
-    /// The SSO session this login belongs to, set once the user is identified.
-    /// The token exchange binds its `sid` to it instead of opening a new one.
     pub user_session_id: Option<Uuid>,
 }
 

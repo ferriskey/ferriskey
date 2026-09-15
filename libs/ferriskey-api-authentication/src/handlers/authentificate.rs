@@ -139,9 +139,6 @@ pub async fn authenticate(
 
     let mut headers = HeaderMap::new();
 
-    // The login is over and the browser is still here: this is the only moment at
-    // which the SSO session can be handed out. A confidential client exchanges its
-    // code from its own backend, where no cookie would ever reach the user.
     if let Some((secret, max_age_secs)) = sso_session {
         headers.append(
             SET_COOKIE,

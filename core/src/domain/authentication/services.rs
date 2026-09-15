@@ -91,10 +91,6 @@ use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 /// Feeds the org-scoped role claim in token assembly.
 type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
 
-/// The stored form of the secret a browser holds for its SSO session.
-///
-/// Hashed for the same reason a password is: a dump of `user_sessions` must not be
-/// a pile of usable cookies.
 pub(crate) fn sso_token_hash(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
@@ -1434,12 +1430,6 @@ where
             });
     }
 
-    /// Refuse a login when the client is under maintenance and the user is on
-    /// neither the client whitelist nor the realm one.
-    ///
-    /// Shared by every path that authenticates a user in front of a client, so
-    /// that turning maintenance on actually closes the door instead of closing
-    /// only the one the password form uses.
     async fn enforce_maintenance_mode(
         &self,
         realm_id: RealmId,
@@ -1496,8 +1486,6 @@ where
         Err(CoreError::ClientUnderMaintenance(reason))
     }
 
-    /// The SSO session an auth session was bound to at the interactive step, when
-    /// it is still alive. `None` sends the caller back to opening a fresh one.
     async fn resume_bound_session(&self, auth_session: &AuthSession) -> Option<UserSession> {
         let session_id = auth_session.user_session_id?;
 
@@ -1559,9 +1547,6 @@ where
         let mut session =
             UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
 
-        // The cookie carries this secret, never `session.id`: the session listing
-        // API hands that id to any holder of `view_users`, and a credential anyone
-        // with a read permission can read is not a credential.
         let sso_token = generate_random_token();
         session.sso_token_hash = Some(sso_token_hash(&sso_token));
 
@@ -2158,11 +2143,6 @@ where
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
         // and refresh.
-        //
-        // The interactive step already opened it and recorded it on the auth session,
-        // so the exchange joins that session instead of opening a second one for the
-        // same sign-in. Flows that finalize elsewhere (brokered logins, the MFA
-        // steps) leave the link unset and still get a session of their own.
         let user_session = match self.resume_bound_session(&auth_session).await {
             Some(session) => session,
             None => {
@@ -2788,9 +2768,6 @@ where
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
 
-        // The SSO session is settled here, while the browser is still on the line,
-        // rather than at the token exchange, which for a confidential client is a
-        // call between two servers with no browser to hand a cookie to.
         let (sso_session, sso_cookie) = match sso_session {
             SsoSessionBinding::Resume { session_id, cookie } => {
                 let session = self
@@ -3198,13 +3175,6 @@ This is a server error that should be investigated. Do not forward back this mes
         })
     }
 
-    /// Resume a login from the SSO session the browser already holds.
-    ///
-    /// This is what makes a second application skip the login form. It deliberately
-    /// refuses rather than improvises: an expired or revoked session, a disabled
-    /// user, a client under maintenance or an account that still owes a required
-    /// action all fall back to the interactive login, which knows how to handle
-    /// each of those cases properly.
     async fn handle_sso_session(
         &self,
         cookie: String,
@@ -3224,8 +3194,6 @@ This is a server error that should be investigated. Do not forward back this mes
 
         let user_session_id = session.id;
 
-        // A session belongs to one realm. Without this check a cookie minted in one
-        // realm would sign its holder into another one on the same host.
         if session.realm_id != Uuid::from(realm_id) {
             warn!(
                 session_id = %user_session_id,
@@ -3302,9 +3270,6 @@ This is a server error that should be investigated. Do not forward back this mes
             warn!(session_id = %session.id, error = ?e, "Failed to slide the SSO session last_seen_at");
         }
 
-        // Signing into another application is still a login, and the audit trail
-        // has to show it. No session is opened here, so the event `create_user_session`
-        // emits would never fire on this path.
         self.security_event_repository
             .store_event(
                 SecurityEvent::new(
@@ -3391,10 +3356,6 @@ This is a server error that should be investigated. Do not forward back this mes
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        // A cookie minted before the account was disabled must not outlive the
-        // decision to disable it. The credentials path and the refresh grant both
-        // refuse here, and skipping the check on this one turned it into the way
-        // around them.
         if !user.enabled {
             self.record_login_failure(realm_id, Some(user.id), "user_disabled")
                 .await;
@@ -3454,8 +3415,6 @@ This is a server error that should be investigated. Do not forward back this mes
             ));
         }
 
-        // The identity token names the session it was minted for. Resuming it keeps
-        // the legacy cookie from spawning a second session on every application.
         let binding = match claims.sid {
             Some(sid) => SsoSessionBinding::Adopt { session_id: sid },
             None => SsoSessionBinding::Open,

@@ -104,8 +104,6 @@ pub trait AuthSessionRepository: Send + Sync {
         authenticated: bool,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 
-    /// Record which SSO session identified the user on this login, so the token
-    /// exchange can bind its `sid` to that session rather than open another one.
     fn bind_user_session(
         &self,
         session_code: Uuid,
