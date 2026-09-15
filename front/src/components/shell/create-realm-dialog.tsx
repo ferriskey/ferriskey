@@ -51,7 +51,7 @@ export function CreateRealmDialog({
   const handleNameChange = (next: string) => {
     const hyphenated = next.replace(/\s+/g, '-')
     setName(hyphenated)
-    setDisplayName(hyphenated)
+    setDisplayName(hyphenated.replace(/-/g, ' '))
   }
 
   const handleOpenChange = (next: boolean) => {
