@@ -22,7 +22,6 @@ use validator::Validate;
 use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
-use uuid::Uuid;
 
 use crate::sso_cookie::SSO_SESSION_COOKIE;
 
@@ -68,13 +67,13 @@ fn sso_success_response(
         .status(StatusCode::FOUND)
         .header(LOCATION, &redirect_url);
 
-    if let Some((session_id, max_age_secs)) = auth_result
-        .sso_session_id
+    if let Some((secret, max_age_secs)) = auth_result
+        .sso_cookie
         .zip(auth_result.sso_session_max_age_secs)
     {
         response = response.header(
             SET_COOKIE,
-            crate::sso_cookie::set(session_id, max_age_secs, is_secure)?,
+            crate::sso_cookie::set(secret, max_age_secs, is_secure)?,
         );
     }
 
@@ -183,11 +182,12 @@ pub async fn auth_handler(
 
     // Single sign-on. The session cookie is the real answer; the identity cookie is
     // the previous design, kept one release so live sessions survive the upgrade.
-    let sso_session_id = cookie
+    let sso_cookie = cookie
         .get(SSO_SESSION_COOKIE)
-        .and_then(|c| Uuid::parse_str(c.value().trim()).ok());
+        .map(|c| c.value().trim().to_string())
+        .filter(|value| !value.is_empty());
 
-    if let Some(user_session_id) = sso_session_id {
+    if let Some(sso_cookie) = sso_cookie {
         let auth_result = state
             .service
             .authenticate(AuthenticateInput::with_sso_session(
@@ -195,7 +195,7 @@ pub async fn auth_handler(
                 params.client_id.clone(),
                 result.session.id,
                 flow_base_url.clone(),
-                user_session_id,
+                sso_cookie,
             ))
             .await;
 
@@ -211,7 +211,7 @@ pub async fn auth_handler(
                 warn!(
                     realm = %realm_name,
                     client_id = %params.client_id,
-                    user_session_id = %user_session_id,
+                    session_code = %result.session.id,
                     error = ?e,
                     "SSO session refused, falling back to the login page"
                 );

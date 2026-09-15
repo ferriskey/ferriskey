@@ -347,14 +347,14 @@ impl AuthenticateInput {
         client_id: String,
         session_code: Uuid,
         base_url: String,
-        user_session_id: Uuid,
+        cookie: String,
     ) -> Self {
         Self {
             realm_name,
             client_id,
             session_code,
             base_url,
-            auth_method: AuthenticationMethod::SsoSession { user_session_id },
+            auth_method: AuthenticationMethod::SsoSession { cookie },
         }
     }
 
@@ -380,9 +380,10 @@ pub struct AuthenticateOutput {
     pub completion: Option<AuthCompletion>,
     pub session_state: Option<String>,
     pub email: Option<String>,
-    /// The SSO session this login opened or resumed. The HTTP layer hands it to
-    /// the browser as a cookie so the next application can skip the login form.
-    pub sso_session_id: Option<Uuid>,
+    /// The secret naming the SSO session this login opened or resumed. The HTTP
+    /// layer hands it to the browser as a cookie so the next application can skip
+    /// the login form.
+    pub sso_cookie: Option<String>,
     /// Seconds left on that session, so the cookie expires with it rather than
     /// with the browser window.
     pub sso_session_max_age_secs: Option<i64>,
@@ -393,7 +394,7 @@ impl AuthenticateOutput {
         user_id: Uuid,
         authorization_code: String,
         completion: AuthCompletion,
-        sso_session_id: Uuid,
+        sso_cookie: String,
         sso_session_max_age_secs: i64,
     ) -> Self {
         Self {
@@ -406,7 +407,7 @@ impl AuthenticateOutput {
             completion: Some(completion),
             session_state: None,
             email: None,
-            sso_session_id: Some(sso_session_id),
+            sso_cookie: Some(sso_cookie),
             sso_session_max_age_secs: Some(sso_session_max_age_secs),
         }
     }
@@ -426,7 +427,7 @@ impl AuthenticateOutput {
             completion: None,
             session_state: None,
             email: None,
-            sso_session_id: None,
+            sso_cookie: None,
             sso_session_max_age_secs: None,
         }
     }
@@ -446,7 +447,7 @@ impl AuthenticateOutput {
             completion: None,
             session_state: None,
             email,
-            sso_session_id: None,
+            sso_cookie: None,
             sso_session_max_age_secs: None,
         }
     }
@@ -475,10 +476,16 @@ pub enum AuthenticationStepStatus {
 /// A login that started at the login form opens a new one, and represents a new
 /// browser. A login resumed from the session cookie keeps the one the browser
 /// already holds, so that revoking it cuts every application it opened.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum SsoSessionBinding {
+    /// A fresh sign-in: open a session and mint the secret its browser will hold.
     Open,
-    Resume(Uuid),
+    /// Continue a session the browser already proved it holds.
+    Resume { session_id: Uuid, cookie: String },
+    /// A session identified by other means, here the legacy identity token and its
+    /// `sid` claim. It keeps the session and is issued a new secret, which is how a
+    /// browser still on the old cookie migrates onto the new one.
+    Adopt { session_id: Uuid },
 }
 
 #[derive(Debug, Clone)]
@@ -490,9 +497,9 @@ pub enum AuthenticationMethod {
     ExistingToken {
         token: String,
     },
-    /// An SSO session the browser already holds, named by the session cookie.
+    /// An SSO session the browser already holds, proved by the session cookie.
     SsoSession {
-        user_session_id: Uuid,
+        cookie: String,
     },
 }
 

@@ -393,14 +393,30 @@ mod tests {
             );
 
             let value = login.cookie("FERRISKEY_SSO").value().to_string();
-            assert!(
-                Uuid::parse_str(&value).is_ok(),
-                "the cookie must name a session, not carry a token: {value}"
-            );
             assert_eq!(
                 value.split('.').count(),
                 1,
                 "the cookie must not be a JWT: {value}"
+            );
+            assert!(
+                value.len() >= 32,
+                "the cookie must be hard to guess: {value}"
+            );
+
+            // The session listing hands `user_sessions.id` to any holder of
+            // `view_users`. If that id were the cookie, a read permission would be
+            // enough to impersonate its owner.
+            let session_ids = sqlx::query_scalar::<_, Uuid>(
+                "SELECT s.id FROM user_sessions s JOIN users u ON u.id = s.user_id \
+                 WHERE u.username = 'admin'",
+            )
+            .fetch_all(&shared_ctx().pool)
+            .await
+            .expect("read admin sessions");
+
+            assert!(
+                !session_ids.iter().any(|id| id.to_string() == value),
+                "the cookie must not be the session id: {value}"
             );
         });
     }

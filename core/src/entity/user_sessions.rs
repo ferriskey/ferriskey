@@ -21,6 +21,7 @@ pub struct Model {
     pub created_at: DateTime,
     pub expires_at: DateTime,
     pub last_seen_at: Option<DateTime>,
+    pub sso_token_hash: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -33,6 +34,7 @@ pub enum Column {
     CreatedAt,
     ExpiresAt,
     LastSeenAt,
+    SsoTokenHash,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -65,6 +67,10 @@ impl ColumnTrait for Column {
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
             Self::LastSeenAt => ColumnType::DateTime.def().null(),
+            Self::SsoTokenHash => ColumnType::String(StringLen::N(64u32))
+                .def()
+                .null()
+                .unique(),
         }
     }
 }

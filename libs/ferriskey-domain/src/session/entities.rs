@@ -19,6 +19,12 @@ pub struct UserSession {
     pub expires_at: DateTime<Utc>,
     pub last_seen_at: Option<DateTime<Utc>>,
     pub soft_expiry_duration: Option<Duration>,
+    /// SHA-256 of the secret the browser holds in its SSO cookie.
+    ///
+    /// The session id cannot serve as that secret: the session listing API hands
+    /// it to anyone holding `view_users`, which would make a read-only permission
+    /// enough to impersonate the session's owner.
+    pub sso_token_hash: Option<String>,
 }
 
 impl UserSession {
@@ -41,6 +47,7 @@ impl UserSession {
             expires_at,
             last_seen_at: None,
             soft_expiry_duration,
+            sso_token_hash: None,
         }
     }
 
@@ -94,4 +101,6 @@ pub enum SessionError {
     CreateError,
     #[error("Failed to delete session")]
     DeleteError,
+    #[error("Failed to update session")]
+    UpdateError,
 }

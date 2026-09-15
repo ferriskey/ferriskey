@@ -126,6 +126,7 @@ mod tests {
             expires_at: chrono::Utc::now() + Duration::hours(1),
             last_seen_at: None,
             soft_expiry_duration: None,
+            sso_token_hash: None,
         }
     }
 

@@ -74,6 +74,12 @@ pub trait UserSessionRepository: Send + Sync {
         session_id: Uuid,
     ) -> impl Future<Output = Result<Option<UserSession>, SessionError>> + Send;
 
+    /// Look a session up by the hash of the secret its browser presents.
+    fn find_by_sso_token_hash(
+        &self,
+        sso_token_hash: &str,
+    ) -> impl Future<Output = Result<Option<UserSession>, SessionError>> + Send;
+
     fn delete(&self, id: &Uuid) -> impl Future<Output = Result<(), SessionError>> + Send;
 
     fn delete_all_by_user(
@@ -92,5 +98,12 @@ pub trait UserSessionRepository: Send + Sync {
     fn update_last_seen(
         &self,
         session_id: Uuid,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send;
+
+    /// Replace the hash of the secret a session's browser presents.
+    fn set_sso_token_hash(
+        &self,
+        session_id: Uuid,
+        sso_token_hash: &str,
     ) -> impl Future<Output = Result<(), SessionError>> + Send;
 }

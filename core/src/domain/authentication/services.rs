@@ -50,7 +50,7 @@ use crate::domain::{
         ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
         redirect_uri_matching::redirect_uri_matches_any,
     },
-    common::{entities::app_errors::CoreError, generate_random_string},
+    common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
     credential::{
         entities::{CredentialData, CredentialType},
         ports::CredentialRepository,
@@ -90,6 +90,14 @@ use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 /// Per-organization role buckets: `org_id -> (realm role names, client roles keyed by client_id)`.
 /// Feeds the org-scoped role claim in token assembly.
 type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
+
+/// The stored form of the secret a browser holds for its SSO session.
+///
+/// Hashed for the same reason a password is: a dump of `user_sessions` must not be
+/// a pile of usable cookies.
+pub(crate) fn sso_token_hash(token: &str) -> String {
+    format!("{:x}", Sha256::digest(token.as_bytes()))
+}
 
 fn lockout_compute_locked_until(
     new_attempts: i32,
@@ -1523,7 +1531,7 @@ where
         user_id: Uuid,
         realm_id: RealmId,
         session_lifetime_seconds: i64,
-    ) -> Result<UserSession, CoreError> {
+    ) -> Result<(UserSession, String), CoreError> {
         // The lifetime comes from realm/client settings, so it is operator-supplied.
         // `Duration::seconds` panics out of range — never let a bad setting take the
         // token endpoint down.
@@ -1548,8 +1556,14 @@ where
             );
         }
 
-        let session =
+        let mut session =
             UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
+
+        // The cookie carries this secret, never `session.id`: the session listing
+        // API hands that id to any holder of `view_users`, and a credential anyone
+        // with a read permission can read is not a credential.
+        let sso_token = generate_random_token();
+        session.sso_token_hash = Some(sso_token_hash(&sso_token));
 
         self.user_session_repository
             .create(&session)
@@ -1587,7 +1601,7 @@ where
             )
             .await?;
 
-        Ok(session)
+        Ok((session, sso_token))
     }
 
     async fn revoke_session_cascade(
@@ -2154,6 +2168,7 @@ where
             None => {
                 self.create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
                     .await?
+                    .0
             }
         };
 
@@ -2467,7 +2482,7 @@ where
             .resolve_token_lifetimes(params.realm_id, client.id)
             .await?;
 
-        let user_session = self
+        let (user_session, _) = self
             .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
             .await?;
 
@@ -2776,13 +2791,36 @@ where
         // The SSO session is settled here, while the browser is still on the line,
         // rather than at the token exchange, which for a confidential client is a
         // call between two servers with no browser to hand a cookie to.
-        let sso_session = match sso_session {
-            SsoSessionBinding::Resume(session_id) => self
-                .user_session_repository
-                .find_by_id(session_id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?
-                .ok_or(CoreError::SessionNotFound)?,
+        let (sso_session, sso_cookie) = match sso_session {
+            SsoSessionBinding::Resume { session_id, cookie } => {
+                let session = self
+                    .user_session_repository
+                    .find_by_id(session_id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::SessionNotFound)?;
+
+                (session, cookie)
+            }
+            SsoSessionBinding::Adopt { session_id } => {
+                let session = self
+                    .user_session_repository
+                    .find_by_id(session_id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::SessionNotFound)?;
+
+                let cookie = generate_random_token();
+                self.user_session_repository
+                    .set_sso_token_hash(session.id, &sso_token_hash(&cookie))
+                    .await
+                    .map_err(|e| {
+                        warn!(session_id = %session.id, error = ?e, "Failed to issue an SSO secret");
+                        CoreError::InternalServerError
+                    })?;
+
+                (session, cookie)
+            }
             SsoSessionBinding::Open => {
                 let lifetimes = self
                     .resolve_token_lifetimes(auth_session.realm_id, auth_session.client_id)
@@ -2838,7 +2876,7 @@ where
             user_id,
             authorization_code,
             completion,
-            sso_session_id,
+            sso_cookie,
             sso_session_max_age_secs,
         ))
     }
@@ -3169,20 +3207,22 @@ This is a server error that should be investigated. Do not forward back this mes
     /// each of those cases properly.
     async fn handle_sso_session(
         &self,
-        user_session_id: Uuid,
+        cookie: String,
         realm_id: RealmId,
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
         let session = self
             .user_session_repository
-            .find_by_id(user_session_id)
+            .find_by_sso_token_hash(&sso_token_hash(&cookie))
             .await
             .map_err(|e| {
-                warn!(session_id = %user_session_id, error = ?e, "Failed to load an SSO session");
+                warn!(error = ?e, "Failed to load an SSO session");
                 CoreError::InternalServerError
             })?
             .ok_or(CoreError::SessionNotFound)?;
+
+        let user_session_id = session.id;
 
         // A session belongs to one realm. Without this check a cookie minted in one
         // realm would sign its holder into another one on the same host.
@@ -3285,7 +3325,10 @@ This is a server error that should be investigated. Do not forward back this mes
             user.id,
             session_code,
             auth_session,
-            SsoSessionBinding::Resume(session.id),
+            SsoSessionBinding::Resume {
+                session_id: session.id,
+                cookie,
+            },
         )
         .await
     }
@@ -3414,7 +3457,7 @@ This is a server error that should be investigated. Do not forward back this mes
         // The identity token names the session it was minted for. Resuming it keeps
         // the legacy cookie from spawning a second session on every application.
         let binding = match claims.sid {
-            Some(sid) => SsoSessionBinding::Resume(sid),
+            Some(sid) => SsoSessionBinding::Adopt { session_id: sid },
             None => SsoSessionBinding::Open,
         };
 
@@ -3976,8 +4019,8 @@ where
                 self.handle_token_refresh(token, realm.id, auth_session, input.session_code)
                     .await
             }
-            AuthenticationMethod::SsoSession { user_session_id } => {
-                self.handle_sso_session(user_session_id, realm.id, auth_session, input.session_code)
+            AuthenticationMethod::SsoSession { cookie } => {
+                self.handle_sso_session(cookie, realm.id, auth_session, input.session_code)
                     .await
             }
             AuthenticationMethod::UserCredentials { username, password } => {
@@ -4507,7 +4550,7 @@ where
             return Err(error);
         }
 
-        let user_session = self
+        let (user_session, _) = self
             .create_user_session(user.id, realm.id, lifetimes.refresh_token)
             .await?;
 
@@ -5517,6 +5560,7 @@ mod tests {
             expires_at,
             last_seen_at: None,
             soft_expiry_duration: None,
+            sso_token_hash: None,
         }
     }
 

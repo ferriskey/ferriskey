@@ -131,7 +131,10 @@ pub async fn authenticate(
     }
 
     let step_token = result.temporary_token.clone();
-    let sso_session = result.sso_session_id.zip(result.sso_session_max_age_secs);
+    let sso_session = result
+        .sso_cookie
+        .clone()
+        .zip(result.sso_session_max_age_secs);
     let response: AuthenticateResponse = result.into();
 
     let mut headers = HeaderMap::new();
@@ -139,10 +142,10 @@ pub async fn authenticate(
     // The login is over and the browser is still here: this is the only moment at
     // which the SSO session can be handed out. A confidential client exchanges its
     // code from its own backend, where no cookie would ever reach the user.
-    if let Some((session_id, max_age_secs)) = sso_session {
+    if let Some((secret, max_age_secs)) = sso_session {
         headers.append(
             SET_COOKIE,
-            crate::sso_cookie::set(session_id, max_age_secs, base_url.starts_with("https"))?,
+            crate::sso_cookie::set(secret, max_age_secs, base_url.starts_with("https"))?,
         );
     }
     if let Some(token) = step_token {
