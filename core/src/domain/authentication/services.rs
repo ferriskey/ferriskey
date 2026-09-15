@@ -33,7 +33,7 @@ use crate::domain::{
             AuthCompletion, AuthInput, AuthOutput, AuthProtocol, AuthSession, AuthSessionParams,
             AuthenticateOutput, AuthenticationMethod, AuthorizeRequestInput,
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
-            TokenIntrospectionResponse,
+            SsoSessionBinding, TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository, LoginActionToken, LoginActionTokenRepository},
@@ -1488,6 +1488,25 @@ where
         Err(CoreError::ClientUnderMaintenance(reason))
     }
 
+    /// The SSO session an auth session was bound to at the interactive step, when
+    /// it is still alive. `None` sends the caller back to opening a fresh one.
+    async fn resume_bound_session(&self, auth_session: &AuthSession) -> Option<UserSession> {
+        let session_id = auth_session.user_session_id?;
+
+        match self.user_session_repository.find_by_id(session_id).await {
+            Ok(Some(session)) if !session.is_expired() => Some(session),
+            Ok(_) => None,
+            Err(e) => {
+                warn!(
+                    session_id = %session_id,
+                    error = ?e,
+                    "Failed to load the session bound to an auth session, opening a new one"
+                );
+                None
+            }
+        }
+    }
+
     /// Open the SSO session a login is bound to, and record it in the audit trail.
     ///
     /// The session is given the same lifetime as the refresh token, so that the
@@ -2125,9 +2144,18 @@ where
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
         // and refresh.
-        let user_session = self
-            .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
-            .await?;
+        //
+        // The interactive step already opened it and recorded it on the auth session,
+        // so the exchange joins that session instead of opening a second one for the
+        // same sign-in. Flows that finalize elsewhere (brokered logins, the MFA
+        // steps) leave the link unset and still get a session of their own.
+        let user_session = match self.resume_bound_session(&auth_session).await {
+            Some(session) => session,
+            None => {
+                self.create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
+                    .await?
+            }
+        };
 
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
@@ -2727,8 +2755,13 @@ where
             None,
         );
 
-        self.finalize_authentication(auth_result.user_id, session_code, auth_session)
-            .await
+        self.finalize_authentication(
+            auth_result.user_id,
+            session_code,
+            auth_session,
+            SsoSessionBinding::Open,
+        )
+        .await
     }
 
     async fn finalize_authentication(
@@ -2736,8 +2769,32 @@ where
         user_id: Uuid,
         session_code: Uuid,
         auth_session: AuthSession,
+        sso_session: SsoSessionBinding,
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
+
+        // The SSO session is settled here, while the browser is still on the line,
+        // rather than at the token exchange, which for a confidential client is a
+        // call between two servers with no browser to hand a cookie to.
+        let sso_session = match sso_session {
+            SsoSessionBinding::Resume(session_id) => self
+                .user_session_repository
+                .find_by_id(session_id)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+                .ok_or(CoreError::SessionNotFound)?,
+            SsoSessionBinding::Open => {
+                let lifetimes = self
+                    .resolve_token_lifetimes(auth_session.realm_id, auth_session.client_id)
+                    .await?;
+
+                self.create_user_session(user_id, auth_session.realm_id, lifetimes.refresh_token)
+                    .await?
+            }
+        };
+
+        let sso_session_id = sso_session.id;
+        let sso_session_max_age_secs = (sso_session.expires_at - Utc::now()).num_seconds().max(0);
 
         self.auth_session_repository
             .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
@@ -2746,6 +2803,19 @@ where
                 warn!(
                     "failed to update auth session with code and user id: {:?}",
                     e
+                );
+                CoreError::SessionNotFound
+            })?;
+
+        self.auth_session_repository
+            .bind_user_session(session_code, sso_session_id)
+            .await
+            .map_err(|e| {
+                warn!(
+                    session_code = %session_code,
+                    sso_session_id = %sso_session_id,
+                    error = ?e,
+                    "failed to bind the auth session to its SSO session"
                 );
                 CoreError::SessionNotFound
             })?;
@@ -2768,6 +2838,8 @@ where
             user_id,
             authorization_code,
             completion,
+            sso_session_id,
+            sso_session_max_age_secs,
         ))
     }
 
@@ -3088,6 +3160,117 @@ This is a server error that should be investigated. Do not forward back this mes
         })
     }
 
+    /// Resume a login from the SSO session the browser already holds.
+    ///
+    /// This is what makes a second application skip the login form. It deliberately
+    /// refuses rather than improvises: an expired or revoked session, a disabled
+    /// user, a client under maintenance or an account that still owes a required
+    /// action all fall back to the interactive login, which knows how to handle
+    /// each of those cases properly.
+    async fn handle_sso_session(
+        &self,
+        user_session_id: Uuid,
+        realm_id: RealmId,
+        auth_session: AuthSession,
+        session_code: Uuid,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let session = self
+            .user_session_repository
+            .find_by_id(user_session_id)
+            .await
+            .map_err(|e| {
+                warn!(session_id = %user_session_id, error = ?e, "Failed to load an SSO session");
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::SessionNotFound)?;
+
+        // A session belongs to one realm. Without this check a cookie minted in one
+        // realm would sign its holder into another one on the same host.
+        if session.realm_id != Uuid::from(realm_id) {
+            warn!(
+                session_id = %user_session_id,
+                realm_id = %Uuid::from(realm_id),
+                "Refusing an SSO session that belongs to another realm"
+            );
+            return Err(CoreError::InvalidSession);
+        }
+
+        if session.is_expired() {
+            return Err(CoreError::SessionExpired);
+        }
+
+        let user = self
+            .user_repository
+            .get_by_id(session.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        if !user.enabled {
+            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
+                .await;
+            return Err(CoreError::UserDisabled);
+        }
+
+        let client = self
+            .client_repository
+            .get_by_id(realm_id, auth_session.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
+            .await?;
+
+        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let has_otp_credential = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?
+            .iter()
+            .any(|cred| cred.credential_type == CredentialType::Otp);
+
+        let required_actions = resolve_refresh_required_actions(
+            &user.required_actions,
+            realm_settings.as_ref(),
+            &user_roles,
+            has_otp_credential,
+        );
+
+        if !required_actions.is_empty() {
+            warn!(
+                user_id = %user.id,
+                ?required_actions,
+                "Refusing to resume an SSO session while the account owes a required action"
+            );
+            return Err(CoreError::Forbidden(
+                "an authentication step is still due for this user".to_string(),
+            ));
+        }
+
+        if let Err(e) = self
+            .user_session_repository
+            .update_last_seen(session.id)
+            .await
+        {
+            warn!(session_id = %session.id, error = ?e, "Failed to slide the SSO session last_seen_at");
+        }
+
+        self.finalize_authentication(
+            user.id,
+            session_code,
+            auth_session,
+            SsoSessionBinding::Resume(session.id),
+        )
+        .await
+    }
+
     async fn handle_token_refresh(
         &self,
         token: String,
@@ -3209,7 +3392,14 @@ This is a server error that should be investigated. Do not forward back this mes
             ));
         }
 
-        self.finalize_authentication(claims.sub, session_code, auth_session)
+        // The identity token names the session it was minted for. Resuming it keeps
+        // the legacy cookie from spawning a second session on every application.
+        let binding = match claims.sid {
+            Some(sid) => SsoSessionBinding::Resume(sid),
+            None => SsoSessionBinding::Open,
+        };
+
+        self.finalize_authentication(claims.sub, session_code, auth_session, binding)
             .await
     }
 
@@ -3767,6 +3957,10 @@ where
                 self.handle_token_refresh(token, realm.id, auth_session, input.session_code)
                     .await
             }
+            AuthenticationMethod::SsoSession { user_session_id } => {
+                self.handle_sso_session(user_session_id, realm.id, auth_session, input.session_code)
+                    .await
+            }
             AuthenticationMethod::UserCredentials { username, password } => {
                 let params = CredentialsAuthParams {
                     realm_name: input.realm_name,
@@ -3944,7 +4138,12 @@ where
             && auth_session_can_resume(&auth_session, Utc::now())
         {
             let output = self
-                .finalize_authentication(user.id, session_code, auth_session)
+                .finalize_authentication(
+                    user.id,
+                    session_code,
+                    auth_session,
+                    SsoSessionBinding::Open,
+                )
                 .await?;
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
@@ -4460,6 +4659,7 @@ mod tests {
             compass_flow_id: None,
             code_challenge: None,
             code_challenge_method: None,
+            user_session_id: None,
         }
     }
 

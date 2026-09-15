@@ -10,8 +10,8 @@ use crate::domain::{
         entities::{
             AuthCompletion, AuthInput, AuthOutput, AuthSession, AuthenticateInput,
             AuthenticateOutput, AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, JwtToken, TokenIntrospectionResponse,
-            WebAuthnChallenge,
+            CredentialsAuthParams, ExchangeTokenInput, JwtToken, SsoSessionBinding,
+            TokenIntrospectionResponse, WebAuthnChallenge,
         },
         value_objects::{
             AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
@@ -102,6 +102,14 @@ pub trait AuthSessionRepository: Send + Sync {
         &self,
         session_code: Uuid,
         authenticated: bool,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    /// Record which SSO session identified the user on this login, so the token
+    /// exchange can bind its `sid` to that session rather than open another one.
+    fn bind_user_session(
+        &self,
+        session_code: Uuid,
+        user_session_id: Uuid,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 }
 
@@ -205,6 +213,7 @@ pub trait AuthenticatePort: Send + Sync {
         user_id: Uuid,
         session_code: Uuid,
         auth_session: AuthSession,
+        sso_session: SsoSessionBinding,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
 
     fn build_auth_completion(

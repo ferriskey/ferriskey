@@ -752,6 +752,7 @@ pub(crate) mod tests {
             compass_flow_id: None,
             code_challenge: None,
             code_challenge_method: None,
+            user_session_id: None,
         }
     }
 

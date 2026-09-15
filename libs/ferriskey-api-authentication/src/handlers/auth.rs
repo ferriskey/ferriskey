@@ -22,6 +22,9 @@ use validator::Validate;
 use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
+use uuid::Uuid;
+
+use crate::sso_cookie::SSO_SESSION_COOKIE;
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
@@ -141,23 +144,81 @@ pub async fn auth_handler(
         Err(e) => return Err(ApiError::from(e)),
     };
 
+    let is_secure = base_url.starts_with("https://");
+    let flow_base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
+
+    // Single sign-on. The session cookie is the real answer; the identity cookie is
+    // the previous design, kept one release so live sessions survive the upgrade.
+    let sso_session_id = cookie
+        .get(SSO_SESSION_COOKIE)
+        .and_then(|c| Uuid::parse_str(c.value().trim()).ok());
+
+    if let Some(user_session_id) = sso_session_id {
+        let auth_result = state
+            .service
+            .authenticate(AuthenticateInput::with_sso_session(
+                realm_name.clone(),
+                params.client_id.clone(),
+                result.session.id,
+                flow_base_url.clone(),
+                user_session_id,
+            ))
+            .await;
+
+        match auth_result {
+            Ok(auth_result)
+                if auth_result.status == AuthenticationStepStatus::Success
+                    && auth_result.redirect_url.is_some() =>
+            {
+                let redirect_url = auth_result
+                    .redirect_url
+                    .clone()
+                    .ok_or_else(|| ApiError::InternalServerError("Missing redirect".into()))?;
+
+                let mut response = axum::response::Response::builder()
+                    .status(StatusCode::FOUND)
+                    .header(LOCATION, &redirect_url);
+
+                // Slide the cookie forward so a chain of applications does not
+                // inherit a window that keeps shrinking.
+                if let Some((session_id, max_age_secs)) = auth_result
+                    .sso_session_id
+                    .zip(auth_result.sso_session_max_age_secs)
+                {
+                    response = response.header(
+                        SET_COOKIE,
+                        crate::sso_cookie::set(session_id, max_age_secs, is_secure)?,
+                    );
+                }
+
+                return Ok(response
+                    .body(axum::body::Body::empty())
+                    .map_err(|_| ApiError::InternalServerError("Failed to build response".into()))?
+                    .into_response());
+            }
+            Ok(_) => {}
+            Err(e) => {
+                warn!(
+                    realm = %realm_name,
+                    client_id = %params.client_id,
+                    user_session_id = %user_session_id,
+                    error = ?e,
+                    "SSO session refused, falling back to the login page"
+                );
+            }
+        }
+    }
+
     if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
         && !identity_cookie.value().trim().is_empty()
     {
-        warn!(
-            realm = %realm_name,
-            client_id = %params.client_id,
-            session_code = %result.session.id,
-            "Attempting automatic SSO with identity cookie"
-        );
-
         let auth_result = state
             .service
             .authenticate(AuthenticateInput::with_existing_token(
                 realm_name.clone(),
                 params.client_id.clone(),
                 result.session.id,
-                root_scoped_base_url(&base_url, &state.args.server.root_path),
+                flow_base_url,
                 identity_cookie.value().to_string(),
             ))
             .await;
@@ -186,9 +247,12 @@ pub async fn auth_handler(
 
     let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
+    // Either cookie being present and unusable means the user believed they were
+    // signed in. Say so on the login page instead of showing a bare form.
+    let stale_sso_cookie = sso_session_id.is_some();
     let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
 
-    if identity_cookie_is_stale {
+    if identity_cookie_is_stale || stale_sso_cookie {
         full_url = mark_session_expired(&full_url);
     }
 
@@ -208,6 +272,10 @@ pub async fn auth_handler(
     headers.insert(SET_COOKIE, session_cookie_value);
 
     // Force a fresh login if an existing identity cookie did not result in SSO.
+    if stale_sso_cookie {
+        headers.append(SET_COOKIE, crate::sso_cookie::clear(is_secure)?);
+    }
+
     if identity_cookie_is_stale {
         let mut clear_identity_cookie = Cookie::build((IDENTITY_COOKIE, ""))
             .path("/")

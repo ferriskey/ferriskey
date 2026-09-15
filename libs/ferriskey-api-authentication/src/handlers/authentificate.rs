@@ -131,9 +131,20 @@ pub async fn authenticate(
     }
 
     let step_token = result.temporary_token.clone();
+    let sso_session = result.sso_session_id.zip(result.sso_session_max_age_secs);
     let response: AuthenticateResponse = result.into();
 
     let mut headers = HeaderMap::new();
+
+    // The login is over and the browser is still here: this is the only moment at
+    // which the SSO session can be handed out. A confidential client exchanges its
+    // code from its own backend, where no cookie would ever reach the user.
+    if let Some((session_id, max_age_secs)) = sso_session {
+        headers.append(
+            SET_COOKIE,
+            crate::sso_cookie::set(session_id, max_age_secs, base_url.starts_with("https"))?,
+        );
+    }
     if let Some(token) = step_token {
         let mut flow_cookie = Cookie::build((LOGIN_ACTION_COOKIE, token))
             .path(format!("/realms/{realm_name}/login-actions"))
