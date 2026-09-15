@@ -50,6 +50,40 @@ fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> Stri
     )
 }
 
+/// Send the browser straight back to the application, carrying a refreshed SSO
+/// cookie.
+///
+/// Refreshing it on every hop keeps a chain of applications from inheriting a
+/// window that shrinks, and migrates a browser still holding only the old identity
+/// cookie onto the session cookie the first time it signs in anywhere.
+fn sso_success_response(
+    auth_result: ferriskey_core::domain::authentication::entities::AuthenticateOutput,
+    is_secure: bool,
+) -> Result<axum::response::Response, ApiError> {
+    let redirect_url = auth_result
+        .redirect_url
+        .ok_or_else(|| ApiError::InternalServerError("Missing redirect".into()))?;
+
+    let mut response = axum::response::Response::builder()
+        .status(StatusCode::FOUND)
+        .header(LOCATION, &redirect_url);
+
+    if let Some((session_id, max_age_secs)) = auth_result
+        .sso_session_id
+        .zip(auth_result.sso_session_max_age_secs)
+    {
+        response = response.header(
+            SET_COOKIE,
+            crate::sso_cookie::set(session_id, max_age_secs, is_secure)?,
+        );
+    }
+
+    Ok(response
+        .body(axum::body::Body::empty())
+        .map_err(|_| ApiError::InternalServerError("Failed to build response".into()))?
+        .into_response())
+}
+
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct AuthRequest {
@@ -170,31 +204,7 @@ pub async fn auth_handler(
                 if auth_result.status == AuthenticationStepStatus::Success
                     && auth_result.redirect_url.is_some() =>
             {
-                let redirect_url = auth_result
-                    .redirect_url
-                    .clone()
-                    .ok_or_else(|| ApiError::InternalServerError("Missing redirect".into()))?;
-
-                let mut response = axum::response::Response::builder()
-                    .status(StatusCode::FOUND)
-                    .header(LOCATION, &redirect_url);
-
-                // Slide the cookie forward so a chain of applications does not
-                // inherit a window that keeps shrinking.
-                if let Some((session_id, max_age_secs)) = auth_result
-                    .sso_session_id
-                    .zip(auth_result.sso_session_max_age_secs)
-                {
-                    response = response.header(
-                        SET_COOKIE,
-                        crate::sso_cookie::set(session_id, max_age_secs, is_secure)?,
-                    );
-                }
-
-                return Ok(response
-                    .body(axum::body::Body::empty())
-                    .map_err(|_| ApiError::InternalServerError("Failed to build response".into()))?
-                    .into_response());
+                return sso_success_response(auth_result, is_secure);
             }
             Ok(_) => {}
             Err(e) => {
@@ -228,9 +238,7 @@ pub async fn auth_handler(
                 if auth_result.status == AuthenticationStepStatus::Success
                     && auth_result.redirect_url.is_some() =>
             {
-                if let Some(redirect_url) = auth_result.redirect_url {
-                    return Ok((StatusCode::FOUND, [(LOCATION, redirect_url)]).into_response());
-                }
+                return sso_success_response(auth_result, is_secure);
             }
             Ok(_) => {}
             Err(e) => {
@@ -249,7 +257,7 @@ pub async fn auth_handler(
 
     // Either cookie being present and unusable means the user believed they were
     // signed in. Say so on the login page instead of showing a bare form.
-    let stale_sso_cookie = sso_session_id.is_some();
+    let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some();
     let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
 
     if identity_cookie_is_stale || stale_sso_cookie {
