@@ -3,11 +3,11 @@ use std::time::Duration;
 use rand::Rng;
 use reqwest::StatusCode;
 
-pub const MAX_ATTEMPTS: u32 = 5;
-pub const MAX_TOTAL_DELAY: Duration = Duration::from_secs(120);
+use ferriskey_webhook::entities::retry_policy::RetryPolicy;
+use ferriskey_webhook::entities::webhook_delivery::DeliveryErrorCode;
 
-const BASE_DELAY: Duration = Duration::from_millis(500);
-const MAX_SINGLE_DELAY: Duration = Duration::from_secs(30);
+pub const MAX_ATTEMPTS: u32 = RetryPolicy::SYSTEM_DEFAULT.max_attempts();
+pub const MAX_TOTAL_DELAY: Duration = RetryPolicy::SYSTEM_DEFAULT.max_total_delay();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeliveryOutcome {
@@ -15,22 +15,21 @@ pub enum DeliveryOutcome {
     Status(StatusCode),
 }
 
-pub fn is_retryable(outcome: DeliveryOutcome) -> bool {
-    match outcome {
-        DeliveryOutcome::Transport => true,
-        DeliveryOutcome::Status(status) => {
-            status.is_server_error()
-                || status == StatusCode::TOO_MANY_REQUESTS
-                || status == StatusCode::REQUEST_TIMEOUT
+impl DeliveryOutcome {
+    pub fn error_code(self) -> DeliveryErrorCode {
+        match self {
+            Self::Transport => DeliveryErrorCode::Transport,
+            Self::Status(status) => DeliveryErrorCode::HttpStatus(status.as_u16()),
         }
     }
 }
 
+pub fn is_retryable(outcome: DeliveryOutcome) -> bool {
+    outcome.error_code().is_retryable()
+}
+
 pub fn backoff_delay(attempt: u32) -> Duration {
-    let exponent = attempt.saturating_sub(1);
-    let multiplier = 1u64.checked_shl(exponent).unwrap_or(u64::MAX);
-    let millis = (BASE_DELAY.as_millis() as u64).saturating_mul(multiplier);
-    Duration::from_millis(millis).min(MAX_SINGLE_DELAY)
+    RetryPolicy::SYSTEM_DEFAULT.backoff_delay(attempt)
 }
 
 pub fn apply_jitter(base: Duration, rng: &mut impl Rng) -> Duration {
@@ -45,33 +44,25 @@ pub fn should_retry(attempt: u32, outcome: DeliveryOutcome, elapsed_delay: Durat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::SeedableRng;
-    use rand::rngs::StdRng;
 
     #[test]
-    fn backoff_schedule_doubles_up_to_the_single_delay_cap() {
-        assert_eq!(backoff_delay(1), Duration::from_millis(500));
-        assert_eq!(backoff_delay(2), Duration::from_millis(1_000));
-        assert_eq!(backoff_delay(3), Duration::from_millis(2_000));
-        assert_eq!(backoff_delay(4), Duration::from_millis(4_000));
-        assert_eq!(backoff_delay(5), Duration::from_millis(8_000));
-        assert_eq!(backoff_delay(8), MAX_SINGLE_DELAY);
-        assert_eq!(backoff_delay(1_000), MAX_SINGLE_DELAY);
+    fn a_transport_failure_maps_to_the_domain_transport_code() {
+        assert_eq!(
+            DeliveryOutcome::Transport.error_code(),
+            DeliveryErrorCode::Transport
+        );
     }
 
     #[test]
-    fn jitter_never_exceeds_or_negates_the_base_delay() {
-        let mut rng = StdRng::seed_from_u64(42);
-        for attempt in 1..=10u32 {
-            let base = backoff_delay(attempt);
-            for _ in 0..200 {
-                let jittered = apply_jitter(base, &mut rng);
-                assert!(
-                    jittered <= base,
-                    "jitter {jittered:?} exceeded base {base:?}"
-                );
-            }
-        }
+    fn a_status_maps_to_the_domain_code_carrying_the_same_number() {
+        assert_eq!(
+            DeliveryOutcome::Status(StatusCode::SERVICE_UNAVAILABLE).error_code(),
+            DeliveryErrorCode::HttpStatus(503)
+        );
+        assert_eq!(
+            DeliveryOutcome::Status(StatusCode::TOO_MANY_REQUESTS).error_code(),
+            DeliveryErrorCode::HttpStatus(429)
+        );
     }
 
     #[test]
@@ -119,8 +110,15 @@ mod tests {
     }
 
     #[test]
+    fn the_re_exported_budget_still_matches_the_system_default() {
+        assert_eq!(MAX_ATTEMPTS, 5);
+        assert_eq!(MAX_TOTAL_DELAY, Duration::from_secs(120));
+    }
+
+    #[test]
     fn should_retry_stops_once_the_attempt_cap_is_reached() {
         let outcome = DeliveryOutcome::Transport;
+
         assert!(should_retry(MAX_ATTEMPTS - 1, outcome, Duration::ZERO));
         assert!(!should_retry(MAX_ATTEMPTS, outcome, Duration::ZERO));
         assert!(!should_retry(MAX_ATTEMPTS + 1, outcome, Duration::ZERO));
@@ -129,6 +127,7 @@ mod tests {
     #[test]
     fn should_retry_stops_once_the_total_delay_cap_is_reached() {
         let outcome = DeliveryOutcome::Transport;
+
         assert!(should_retry(
             1,
             outcome,
@@ -145,6 +144,7 @@ mod tests {
     #[test]
     fn should_retry_never_retries_a_non_retryable_status() {
         let outcome = DeliveryOutcome::Status(StatusCode::NOT_FOUND);
+
         assert!(!should_retry(1, outcome, Duration::ZERO));
     }
 }
