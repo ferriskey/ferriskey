@@ -227,6 +227,16 @@ mod tests {
             .expect("update admin enabled");
     }
 
+    async fn count_sso_login_events() -> i64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM security_events \
+             WHERE event_type = 'login_success' AND details->>'method' = 'sso_session'",
+        )
+        .fetch_one(&shared_ctx().pool)
+        .await
+        .expect("count sso login events")
+    }
+
     async fn count_admin_sessions() -> i64 {
         sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*) FROM user_sessions s \
@@ -416,6 +426,33 @@ mod tests {
                 count_admin_sessions().await,
                 before,
                 "resuming a session must not open a second one for the same sign-in"
+            );
+        });
+    }
+
+    /// Reusing a session means `create_user_session` never runs, and the audit
+    /// event it emits would go with it. Signing into another application is still
+    /// a login and has to show up in SeaWatch.
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn resuming_a_session_is_recorded_as_a_login() {
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let sso = sign_in(&server).await;
+
+            let before = count_sso_login_events().await;
+
+            let survey = start_survey_authorization(&server, Some(&sso)).await;
+            assert!(
+                location_of(&survey).starts_with(SURVEY_REDIRECT_URI),
+                "pre-condition: SSO must succeed"
+            );
+
+            assert_eq!(
+                count_sso_login_events().await,
+                before + 1,
+                "an SSO login must leave a trace in the audit log"
             );
         });
     }

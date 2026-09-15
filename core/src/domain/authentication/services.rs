@@ -3262,6 +3262,25 @@ This is a server error that should be investigated. Do not forward back this mes
             warn!(session_id = %session.id, error = ?e, "Failed to slide the SSO session last_seen_at");
         }
 
+        // Signing into another application is still a login, and the audit trail
+        // has to show it. No session is opened here, so the event `create_user_session`
+        // emits would never fire on this path.
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::LoginSuccess,
+                    EventStatus::Success,
+                    user.id,
+                )
+                .with_actor(user.id, ActorType::User)
+                .with_target("session".to_string(), session.id, None)
+                .with_details(serde_json::json!({ "method": "sso_session" })),
+            )
+            .await
+            .map_err(|e| warn!("Failed to record an SSO login in the audit log: {e}"))
+            .ok();
+
         self.finalize_authentication(
             user.id,
             session_code,
