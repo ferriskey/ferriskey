@@ -27,6 +27,7 @@ impl From<crate::entity::user_sessions::Model> for UserSession {
             expires_at,
             last_seen_at,
             soft_expiry_duration: None,
+            sso_token_hash: model.sso_token_hash,
         }
     }
 }
@@ -53,6 +54,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             created_at: Set(session.created_at.naive_utc()),
             expires_at: Set(session.expires_at.naive_utc()),
             last_seen_at: Set(session.last_seen_at.map(|dt| dt.naive_utc())),
+            sso_token_hash: Set(session.sso_token_hash.clone()),
         };
 
         model.insert(&self.db).await.map_err(|e| {
@@ -93,6 +95,22 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             })?;
 
         Ok(sessions.into_iter().map(|m| m.into()).collect())
+    }
+
+    async fn find_by_sso_token_hash(
+        &self,
+        sso_token_hash: &str,
+    ) -> Result<Option<UserSession>, SessionError> {
+        let session = crate::entity::user_sessions::Entity::find()
+            .filter(crate::entity::user_sessions::Column::SsoTokenHash.eq(sso_token_hash))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error finding user session by sso token: {:?}", e);
+                SessionError::NotFound
+            })?;
+
+        Ok(session.map(UserSession::from))
     }
 
     async fn find_by_id(&self, session_id: Uuid) -> Result<Option<UserSession>, SessionError> {
@@ -167,6 +185,27 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             .map_err(|e| {
                 error!("Error updating last_seen_at for user session: {:?}", e);
                 SessionError::DeleteError
+            })?;
+
+        Ok(())
+    }
+
+    async fn set_sso_token_hash(
+        &self,
+        session_id: Uuid,
+        sso_token_hash: &str,
+    ) -> Result<(), SessionError> {
+        crate::entity::user_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::user_sessions::Column::SsoTokenHash,
+                Expr::value(sso_token_hash),
+            )
+            .filter(crate::entity::user_sessions::Column::Id.eq(session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error setting sso_token_hash for user session: {:?}", e);
+                SessionError::UpdateError
             })?;
 
         Ok(())

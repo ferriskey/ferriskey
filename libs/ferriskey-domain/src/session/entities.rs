@@ -19,6 +19,7 @@ pub struct UserSession {
     pub expires_at: DateTime<Utc>,
     pub last_seen_at: Option<DateTime<Utc>>,
     pub soft_expiry_duration: Option<Duration>,
+    pub sso_token_hash: Option<String>,
 }
 
 impl UserSession {
@@ -41,6 +42,7 @@ impl UserSession {
             expires_at,
             last_seen_at: None,
             soft_expiry_duration,
+            sso_token_hash: None,
         }
     }
 
@@ -94,4 +96,6 @@ pub enum SessionError {
     CreateError,
     #[error("Failed to delete session")]
     DeleteError,
+    #[error("Failed to update session")]
+    UpdateError,
 }

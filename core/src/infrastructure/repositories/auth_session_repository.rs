@@ -62,6 +62,7 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             compass_flow_id: model.compass_flow_id,
             code_challenge: model.code_challenge,
             code_challenge_method,
+            user_session_id: model.user_session_id,
         })
     }
 }
@@ -104,6 +105,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             compass_flow_id: Set(session.compass_flow_id),
             code_challenge: Set(session.code_challenge.clone()),
             code_challenge_method: Set(code_challenge_method),
+            user_session_id: Set(session.user_session_id),
         };
 
         let t = model
@@ -378,6 +380,27 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             .await
             .map_err(|e| {
                 error!("Error updating session authenticated: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
+        Ok(())
+    }
+
+    async fn bind_user_session(
+        &self,
+        session_code: Uuid,
+        user_session_id: Uuid,
+    ) -> Result<(), AuthenticationError> {
+        crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::UserSessionId,
+                Expr::value(user_session_id),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error binding auth session to a user session: {:?}", e);
                 AuthenticationError::Invalid
             })?;
 

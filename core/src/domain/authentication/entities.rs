@@ -19,7 +19,7 @@ pub use ferriskey_domain::authentication::entities::{
     AuthCompletion, AuthInput, AuthProtocol, AuthenticateInput, AuthenticateOutput,
     AuthenticationError, AuthenticationMethod, AuthenticationStepStatus, AuthorizeRequestOutput,
     CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken, RefreshClaims,
-    TokenIntrospectionResponse,
+    SsoSessionBinding, TokenIntrospectionResponse,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +51,7 @@ pub struct AuthSession {
     pub compass_flow_id: Option<Uuid>,
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
+    pub user_session_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +99,7 @@ impl AuthSession {
             compass_flow_id: params.compass_flow_id,
             code_challenge: params.code_challenge,
             code_challenge_method: params.code_challenge_method,
+            user_session_id: None,
         }
     }
 }

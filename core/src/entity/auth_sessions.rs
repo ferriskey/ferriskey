@@ -32,6 +32,7 @@ pub struct Model {
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<String>,
     pub protocol: String,
+    pub user_session_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -55,6 +56,7 @@ pub enum Column {
     CodeChallenge,
     CodeChallengeMethod,
     Protocol,
+    UserSessionId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -75,6 +77,7 @@ pub enum Relation {
     Clients,
     CompassFlows,
     Realms,
+    UserSessions,
     Users,
 }
 
@@ -104,6 +107,7 @@ impl ColumnTrait for Column {
             Self::CompassFlowId => ColumnType::Uuid.def().null(),
             Self::CodeChallenge => ColumnType::Text.def().null(),
             Self::CodeChallengeMethod => ColumnType::String(StringLen::N(10u32)).def().null(),
+            Self::UserSessionId => ColumnType::Uuid.def().null(),
         }
     }
 }
@@ -125,6 +129,10 @@ impl RelationTrait for Relation {
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
+                .into(),
+            Self::UserSessions => Entity::belongs_to(super::user_sessions::Entity)
+                .from(Column::UserSessionId)
+                .to(super::user_sessions::Column::Id)
                 .into(),
             Self::Users => Entity::belongs_to(super::users::Entity)
                 .from((Column::UserId, Column::UserId))
@@ -155,6 +163,12 @@ impl Related<super::compass_flows::Entity> for Entity {
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
+    }
+}
+
+impl Related<super::user_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserSessions.def()
     }
 }
 

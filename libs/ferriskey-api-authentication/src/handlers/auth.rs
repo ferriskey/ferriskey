@@ -23,6 +23,8 @@ use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
 
+use crate::sso_cookie::SSO_SESSION_COOKIE;
+
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
 const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
@@ -45,6 +47,34 @@ fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> Stri
         realm_name,
         login_url
     )
+}
+
+fn sso_success_response(
+    auth_result: ferriskey_core::domain::authentication::entities::AuthenticateOutput,
+    is_secure: bool,
+) -> Result<axum::response::Response, ApiError> {
+    let redirect_url = auth_result
+        .redirect_url
+        .ok_or_else(|| ApiError::InternalServerError("Missing redirect".into()))?;
+
+    let mut response = axum::response::Response::builder()
+        .status(StatusCode::FOUND)
+        .header(LOCATION, &redirect_url);
+
+    if let Some((secret, max_age_secs)) = auth_result
+        .sso_cookie
+        .zip(auth_result.sso_session_max_age_secs)
+    {
+        response = response.header(
+            SET_COOKIE,
+            crate::sso_cookie::set(secret, max_age_secs, is_secure)?,
+        );
+    }
+
+    Ok(response
+        .body(axum::body::Body::empty())
+        .map_err(|_| ApiError::InternalServerError("Failed to build response".into()))?
+        .into_response())
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, IntoParams)]
@@ -141,23 +171,56 @@ pub async fn auth_handler(
         Err(e) => return Err(ApiError::from(e)),
     };
 
+    let is_secure = base_url.starts_with("https://");
+    let flow_base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
+
+    let sso_cookie = cookie
+        .get(SSO_SESSION_COOKIE)
+        .map(|c| c.value().trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    if let Some(sso_cookie) = sso_cookie {
+        let auth_result = state
+            .service
+            .authenticate(AuthenticateInput::with_sso_session(
+                realm_name.clone(),
+                params.client_id.clone(),
+                result.session.id,
+                flow_base_url.clone(),
+                sso_cookie,
+            ))
+            .await;
+
+        match auth_result {
+            Ok(auth_result)
+                if auth_result.status == AuthenticationStepStatus::Success
+                    && auth_result.redirect_url.is_some() =>
+            {
+                return sso_success_response(auth_result, is_secure);
+            }
+            Ok(_) => {}
+            Err(e) => {
+                warn!(
+                    realm = %realm_name,
+                    client_id = %params.client_id,
+                    session_code = %result.session.id,
+                    error = ?e,
+                    "SSO session refused, falling back to the login page"
+                );
+            }
+        }
+    }
+
     if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
         && !identity_cookie.value().trim().is_empty()
     {
-        warn!(
-            realm = %realm_name,
-            client_id = %params.client_id,
-            session_code = %result.session.id,
-            "Attempting automatic SSO with identity cookie"
-        );
-
         let auth_result = state
             .service
             .authenticate(AuthenticateInput::with_existing_token(
                 realm_name.clone(),
                 params.client_id.clone(),
                 result.session.id,
-                root_scoped_base_url(&base_url, &state.args.server.root_path),
+                flow_base_url,
                 identity_cookie.value().to_string(),
             ))
             .await;
@@ -167,9 +230,7 @@ pub async fn auth_handler(
                 if auth_result.status == AuthenticationStepStatus::Success
                     && auth_result.redirect_url.is_some() =>
             {
-                if let Some(redirect_url) = auth_result.redirect_url {
-                    return Ok((StatusCode::FOUND, [(LOCATION, redirect_url)]).into_response());
-                }
+                return sso_success_response(auth_result, is_secure);
             }
             Ok(_) => {}
             Err(e) => {
@@ -186,9 +247,10 @@ pub async fn auth_handler(
 
     let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
+    let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some();
     let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
 
-    if identity_cookie_is_stale {
+    if identity_cookie_is_stale || stale_sso_cookie {
         full_url = mark_session_expired(&full_url);
     }
 
@@ -208,6 +270,10 @@ pub async fn auth_handler(
     headers.insert(SET_COOKIE, session_cookie_value);
 
     // Force a fresh login if an existing identity cookie did not result in SSO.
+    if stale_sso_cookie {
+        headers.append(SET_COOKIE, crate::sso_cookie::clear(is_secure)?);
+    }
+
     if identity_cookie_is_stale {
         let mut clear_identity_cookie = Cookie::build((IDENTITY_COOKIE, ""))
             .path("/")

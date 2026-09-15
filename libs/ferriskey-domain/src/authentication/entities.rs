@@ -342,6 +342,22 @@ impl AuthenticateInput {
         }
     }
 
+    pub fn with_sso_session(
+        realm_name: String,
+        client_id: String,
+        session_code: Uuid,
+        base_url: String,
+        cookie: String,
+    ) -> Self {
+        Self {
+            realm_name,
+            client_id,
+            session_code,
+            base_url,
+            auth_method: AuthenticationMethod::SsoSession { cookie },
+        }
+    }
+
     pub fn is_token_refresh(&self) -> bool {
         matches!(self.auth_method, AuthenticationMethod::ExistingToken { .. })
     }
@@ -364,10 +380,18 @@ pub struct AuthenticateOutput {
     pub completion: Option<AuthCompletion>,
     pub session_state: Option<String>,
     pub email: Option<String>,
+    pub sso_cookie: Option<String>,
+    pub sso_session_max_age_secs: Option<i64>,
 }
 
 impl AuthenticateOutput {
-    pub fn complete(user_id: Uuid, authorization_code: String, completion: AuthCompletion) -> Self {
+    pub fn complete(
+        user_id: Uuid,
+        authorization_code: String,
+        completion: AuthCompletion,
+        sso_cookie: String,
+        sso_session_max_age_secs: i64,
+    ) -> Self {
         Self {
             user_id,
             status: AuthenticationStepStatus::Success,
@@ -378,6 +402,8 @@ impl AuthenticateOutput {
             completion: Some(completion),
             session_state: None,
             email: None,
+            sso_cookie: Some(sso_cookie),
+            sso_session_max_age_secs: Some(sso_session_max_age_secs),
         }
     }
 
@@ -396,6 +422,8 @@ impl AuthenticateOutput {
             completion: None,
             session_state: None,
             email: None,
+            sso_cookie: None,
+            sso_session_max_age_secs: None,
         }
     }
 
@@ -414,6 +442,8 @@ impl AuthenticateOutput {
             completion: None,
             session_state: None,
             email,
+            sso_cookie: None,
+            sso_session_max_age_secs: None,
         }
     }
 }
@@ -437,9 +467,17 @@ pub enum AuthenticationStepStatus {
 }
 
 #[derive(Debug, Clone)]
+pub enum SsoSessionBinding {
+    Open,
+    Resume { session_id: Uuid, cookie: String },
+    Adopt { session_id: Uuid },
+}
+
+#[derive(Debug, Clone)]
 pub enum AuthenticationMethod {
     UserCredentials { username: String, password: String },
     ExistingToken { token: String },
+    SsoSession { cookie: String },
 }
 
 #[cfg(test)]

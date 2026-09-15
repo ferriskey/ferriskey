@@ -33,7 +33,7 @@ use crate::domain::{
             AuthCompletion, AuthInput, AuthOutput, AuthProtocol, AuthSession, AuthSessionParams,
             AuthenticateOutput, AuthenticationMethod, AuthorizeRequestInput,
             AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
-            TokenIntrospectionResponse,
+            SsoSessionBinding, TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository, LoginActionToken, LoginActionTokenRepository},
@@ -50,7 +50,7 @@ use crate::domain::{
         ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
         redirect_uri_matching::redirect_uri_matches_any,
     },
-    common::{entities::app_errors::CoreError, generate_random_string},
+    common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
     credential::{
         entities::{CredentialData, CredentialType},
         ports::CredentialRepository,
@@ -90,6 +90,10 @@ use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 /// Per-organization role buckets: `org_id -> (realm role names, client roles keyed by client_id)`.
 /// Feeds the org-scoped role claim in token assembly.
 type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
+
+pub(crate) fn sso_token_hash(token: &str) -> String {
+    format!("{:x}", Sha256::digest(token.as_bytes()))
+}
 
 fn lockout_compute_locked_until(
     new_attempts: i32,
@@ -1426,6 +1430,79 @@ where
             });
     }
 
+    async fn enforce_maintenance_mode(
+        &self,
+        realm_id: RealmId,
+        client: &Client,
+        user_id: Uuid,
+        username: &str,
+    ) -> Result<(), CoreError> {
+        if !client.maintenance_enabled {
+            return Ok(());
+        }
+
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+        let role_ids: Vec<Uuid> = user_roles.iter().map(|r| r.id).collect();
+
+        let allowed_user_ids = self
+            .maintenance_whitelist_repository
+            .get_whitelisted_user_ids(client.id)
+            .await?;
+        let allowed_role_ids = self
+            .maintenance_whitelist_repository
+            .get_whitelisted_role_ids(client.id)
+            .await?;
+        let realm_allowed_user_ids = self
+            .realm_maintenance_whitelist_repository
+            .get_whitelisted_user_ids(realm_id)
+            .await?;
+        let realm_allowed_role_ids = self
+            .realm_maintenance_whitelist_repository
+            .get_whitelisted_role_ids(realm_id)
+            .await?;
+
+        let is_allowed = allowed_user_ids.contains(&user_id)
+            || role_ids.iter().any(|r| allowed_role_ids.contains(r))
+            || realm_allowed_user_ids.contains(&user_id)
+            || role_ids.iter().any(|r| realm_allowed_role_ids.contains(r));
+
+        if is_allowed {
+            return Ok(());
+        }
+
+        let reason = client
+            .maintenance_reason
+            .clone()
+            .unwrap_or_else(|| "This service is currently under maintenance".to_string());
+        warn!(
+            "User {} denied access to client {} (maintenance mode)",
+            username, client.name
+        );
+
+        Err(CoreError::ClientUnderMaintenance(reason))
+    }
+
+    async fn resume_bound_session(&self, auth_session: &AuthSession) -> Option<UserSession> {
+        let session_id = auth_session.user_session_id?;
+
+        match self.user_session_repository.find_by_id(session_id).await {
+            Ok(Some(session)) if !session.is_expired() => Some(session),
+            Ok(_) => None,
+            Err(e) => {
+                warn!(
+                    session_id = %session_id,
+                    error = ?e,
+                    "Failed to load the session bound to an auth session, opening a new one"
+                );
+                None
+            }
+        }
+    }
+
     /// Open the SSO session a login is bound to, and record it in the audit trail.
     ///
     /// The session is given the same lifetime as the refresh token, so that the
@@ -1442,7 +1519,7 @@ where
         user_id: Uuid,
         realm_id: RealmId,
         session_lifetime_seconds: i64,
-    ) -> Result<UserSession, CoreError> {
+    ) -> Result<(UserSession, String), CoreError> {
         // The lifetime comes from realm/client settings, so it is operator-supplied.
         // `Duration::seconds` panics out of range — never let a bad setting take the
         // token endpoint down.
@@ -1467,8 +1544,11 @@ where
             );
         }
 
-        let session =
+        let mut session =
             UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
+
+        let sso_token = generate_random_token();
+        session.sso_token_hash = Some(sso_token_hash(&sso_token));
 
         self.user_session_repository
             .create(&session)
@@ -1506,7 +1586,7 @@ where
             )
             .await?;
 
-        Ok(session)
+        Ok((session, sso_token))
     }
 
     async fn revoke_session_cascade(
@@ -2063,9 +2143,14 @@ where
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
         // and refresh.
-        let user_session = self
-            .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
-            .await?;
+        let user_session = match self.resume_bound_session(&auth_session).await {
+            Some(session) => session,
+            None => {
+                self.create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
+                    .await?
+                    .0
+            }
+        };
 
         let (jwt, refresh_token, id_token) = self
             .create_jwt(GenerateTokenInput {
@@ -2377,7 +2462,7 @@ where
             .resolve_token_lifetimes(params.realm_id, client.id)
             .await?;
 
-        let user_session = self
+        let (user_session, _) = self
             .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
             .await?;
 
@@ -2665,8 +2750,13 @@ where
             None,
         );
 
-        self.finalize_authentication(auth_result.user_id, session_code, auth_session)
-            .await
+        self.finalize_authentication(
+            auth_result.user_id,
+            session_code,
+            auth_session,
+            SsoSessionBinding::Open,
+        )
+        .await
     }
 
     async fn finalize_authentication(
@@ -2674,8 +2764,52 @@ where
         user_id: Uuid,
         session_code: Uuid,
         auth_session: AuthSession,
+        sso_session: SsoSessionBinding,
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
+
+        let (sso_session, sso_cookie) = match sso_session {
+            SsoSessionBinding::Resume { session_id, cookie } => {
+                let session = self
+                    .user_session_repository
+                    .find_by_id(session_id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::SessionNotFound)?;
+
+                (session, cookie)
+            }
+            SsoSessionBinding::Adopt { session_id } => {
+                let session = self
+                    .user_session_repository
+                    .find_by_id(session_id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?
+                    .ok_or(CoreError::SessionNotFound)?;
+
+                let cookie = generate_random_token();
+                self.user_session_repository
+                    .set_sso_token_hash(session.id, &sso_token_hash(&cookie))
+                    .await
+                    .map_err(|e| {
+                        warn!(session_id = %session.id, error = ?e, "Failed to issue an SSO secret");
+                        CoreError::InternalServerError
+                    })?;
+
+                (session, cookie)
+            }
+            SsoSessionBinding::Open => {
+                let lifetimes = self
+                    .resolve_token_lifetimes(auth_session.realm_id, auth_session.client_id)
+                    .await?;
+
+                self.create_user_session(user_id, auth_session.realm_id, lifetimes.refresh_token)
+                    .await?
+            }
+        };
+
+        let sso_session_id = sso_session.id;
+        let sso_session_max_age_secs = (sso_session.expires_at - Utc::now()).num_seconds().max(0);
 
         self.auth_session_repository
             .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
@@ -2684,6 +2818,19 @@ where
                 warn!(
                     "failed to update auth session with code and user id: {:?}",
                     e
+                );
+                CoreError::SessionNotFound
+            })?;
+
+        self.auth_session_repository
+            .bind_user_session(session_code, sso_session_id)
+            .await
+            .map_err(|e| {
+                warn!(
+                    session_code = %session_code,
+                    sso_session_id = %sso_session_id,
+                    error = ?e,
+                    "failed to bind the auth session to its SSO session"
                 );
                 CoreError::SessionNotFound
             })?;
@@ -2706,6 +2853,8 @@ where
             user_id,
             authorization_code,
             completion,
+            sso_cookie,
+            sso_session_max_age_secs,
         ))
     }
 
@@ -2760,48 +2909,8 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        // Check maintenance mode
-        if client.maintenance_enabled {
-            let user_roles = self
-                .user_role_repository
-                .get_user_roles(user.id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?;
-            let role_ids: Vec<Uuid> = user_roles.iter().map(|r| r.id).collect();
-
-            let allowed_user_ids = self
-                .maintenance_whitelist_repository
-                .get_whitelisted_user_ids(client.id)
-                .await?;
-            let allowed_role_ids = self
-                .maintenance_whitelist_repository
-                .get_whitelisted_role_ids(client.id)
-                .await?;
-            let realm_allowed_user_ids = self
-                .realm_maintenance_whitelist_repository
-                .get_whitelisted_user_ids(realm.id)
-                .await?;
-            let realm_allowed_role_ids = self
-                .realm_maintenance_whitelist_repository
-                .get_whitelisted_role_ids(realm.id)
-                .await?;
-
-            let is_allowed = allowed_user_ids.contains(&user.id)
-                || role_ids.iter().any(|r| allowed_role_ids.contains(r))
-                || realm_allowed_user_ids.contains(&user.id)
-                || role_ids.iter().any(|r| realm_allowed_role_ids.contains(r));
-
-            if !is_allowed {
-                let reason = client
-                    .maintenance_reason
-                    .unwrap_or_else(|| "This service is currently under maintenance".to_string());
-                warn!(
-                    "User {} denied access to client {} (maintenance mode)",
-                    user.username, client.name
-                );
-                return Err(CoreError::ClientUnderMaintenance(reason));
-            }
-        }
+        self.enforce_maintenance_mode(realm.id, &client, user.id, &user.username)
+            .await?;
 
         let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
         let lockout_threshold = realm_settings
@@ -3066,6 +3175,129 @@ This is a server error that should be investigated. Do not forward back this mes
         })
     }
 
+    async fn handle_sso_session(
+        &self,
+        cookie: String,
+        realm_id: RealmId,
+        auth_session: AuthSession,
+        session_code: Uuid,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let session = self
+            .user_session_repository
+            .find_by_sso_token_hash(&sso_token_hash(&cookie))
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, "Failed to load an SSO session");
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::SessionNotFound)?;
+
+        let user_session_id = session.id;
+
+        if session.realm_id != Uuid::from(realm_id) {
+            warn!(
+                session_id = %user_session_id,
+                realm_id = %Uuid::from(realm_id),
+                "Refusing an SSO session that belongs to another realm"
+            );
+            return Err(CoreError::InvalidSession);
+        }
+
+        if session.is_expired() {
+            return Err(CoreError::SessionExpired);
+        }
+
+        let user = self
+            .user_repository
+            .get_by_id(session.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        if !user.enabled {
+            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
+                .await;
+            return Err(CoreError::UserDisabled);
+        }
+
+        let client = self
+            .client_repository
+            .get_by_id(realm_id, auth_session.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
+            .await?;
+
+        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let has_otp_credential = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?
+            .iter()
+            .any(|cred| cred.credential_type == CredentialType::Otp);
+
+        let required_actions = resolve_refresh_required_actions(
+            &user.required_actions,
+            realm_settings.as_ref(),
+            &user_roles,
+            has_otp_credential,
+        );
+
+        if !required_actions.is_empty() {
+            warn!(
+                user_id = %user.id,
+                ?required_actions,
+                "Refusing to resume an SSO session while the account owes a required action"
+            );
+            return Err(CoreError::Forbidden(
+                "an authentication step is still due for this user".to_string(),
+            ));
+        }
+
+        if let Err(e) = self
+            .user_session_repository
+            .update_last_seen(session.id)
+            .await
+        {
+            warn!(session_id = %session.id, error = ?e, "Failed to slide the SSO session last_seen_at");
+        }
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm_id,
+                    SecurityEventType::LoginSuccess,
+                    EventStatus::Success,
+                    user.id,
+                )
+                .with_actor(user.id, ActorType::User)
+                .with_target("session".to_string(), session.id, None)
+                .with_details(serde_json::json!({ "method": "sso_session" })),
+            )
+            .await
+            .map_err(|e| warn!("Failed to record an SSO login in the audit log: {e}"))
+            .ok();
+
+        self.finalize_authentication(
+            user.id,
+            session_code,
+            auth_session,
+            SsoSessionBinding::Resume {
+                session_id: session.id,
+                cookie,
+            },
+        )
+        .await
+    }
+
     async fn handle_token_refresh(
         &self,
         token: String,
@@ -3124,6 +3356,21 @@ This is a server error that should be investigated. Do not forward back this mes
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        if !user.enabled {
+            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
+                .await;
+            return Err(CoreError::UserDisabled);
+        }
+
+        let client = self
+            .client_repository
+            .get_by_id(realm_id, auth_session.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?;
+
+        self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
+            .await?;
+
         // `ConfigureOtp` is never persisted (see `resolve_refresh_required_actions`),
         // so the MFA policy has to be re-evaluated here instead of trusting the
         // stored `user.required_actions` alone.
@@ -3168,7 +3415,12 @@ This is a server error that should be investigated. Do not forward back this mes
             ));
         }
 
-        self.finalize_authentication(claims.sub, session_code, auth_session)
+        let binding = match claims.sid {
+            Some(sid) => SsoSessionBinding::Adopt { session_id: sid },
+            None => SsoSessionBinding::Open,
+        };
+
+        self.finalize_authentication(claims.sub, session_code, auth_session, binding)
             .await
     }
 
@@ -3726,6 +3978,10 @@ where
                 self.handle_token_refresh(token, realm.id, auth_session, input.session_code)
                     .await
             }
+            AuthenticationMethod::SsoSession { cookie } => {
+                self.handle_sso_session(cookie, realm.id, auth_session, input.session_code)
+                    .await
+            }
             AuthenticationMethod::UserCredentials { username, password } => {
                 let params = CredentialsAuthParams {
                     realm_name: input.realm_name,
@@ -3903,7 +4159,12 @@ where
             && auth_session_can_resume(&auth_session, Utc::now())
         {
             let output = self
-                .finalize_authentication(user.id, session_code, auth_session)
+                .finalize_authentication(
+                    user.id,
+                    session_code,
+                    auth_session,
+                    SsoSessionBinding::Open,
+                )
                 .await?;
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
@@ -4248,7 +4509,7 @@ where
             return Err(error);
         }
 
-        let user_session = self
+        let (user_session, _) = self
             .create_user_session(user.id, realm.id, lifetimes.refresh_token)
             .await?;
 
@@ -4419,6 +4680,7 @@ mod tests {
             compass_flow_id: None,
             code_challenge: None,
             code_challenge_method: None,
+            user_session_id: None,
         }
     }
 
@@ -5257,6 +5519,7 @@ mod tests {
             expires_at,
             last_seen_at: None,
             soft_expiry_duration: None,
+            sso_token_hash: None,
         }
     }
 

@@ -21,6 +21,7 @@ pub struct Model {
     pub created_at: DateTime,
     pub expires_at: DateTime,
     pub last_seen_at: Option<DateTime>,
+    pub sso_token_hash: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -33,6 +34,7 @@ pub enum Column {
     CreatedAt,
     ExpiresAt,
     LastSeenAt,
+    SsoTokenHash,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -49,6 +51,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    AuthSessions,
     Realms,
     Users,
 }
@@ -65,6 +68,10 @@ impl ColumnTrait for Column {
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
             Self::LastSeenAt => ColumnType::DateTime.def().null(),
+            Self::SsoTokenHash => ColumnType::String(StringLen::N(64u32))
+                .def()
+                .null()
+                .unique(),
         }
     }
 }
@@ -72,6 +79,7 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
@@ -81,6 +89,12 @@ impl RelationTrait for Relation {
                 .to(super::users::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::auth_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AuthSessions.def()
     }
 }
 
