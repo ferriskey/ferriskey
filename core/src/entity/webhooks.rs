@@ -25,6 +25,10 @@ pub struct Model {
     pub secret: String,
     pub last_delivery_status: Option<String>,
     pub last_delivery_error: Option<String>,
+    pub retry_max_attempts: Option<i32>,
+    pub retry_base_delay_ms: Option<i32>,
+    pub retry_max_delay_ms: Option<i32>,
+    pub retry_max_total_delay_ms: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -41,6 +45,10 @@ pub enum Column {
     Secret,
     LastDeliveryStatus,
     LastDeliveryError,
+    RetryMaxAttempts,
+    RetryBaseDelayMs,
+    RetryMaxDelayMs,
+    RetryMaxTotalDelayMs,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -77,6 +85,10 @@ impl ColumnTrait for Column {
             Self::Secret => ColumnType::Text.def(),
             Self::LastDeliveryStatus => ColumnType::String(StringLen::N(16u32)).def().null(),
             Self::LastDeliveryError => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::RetryMaxAttempts => ColumnType::Integer.def().null(),
+            Self::RetryBaseDelayMs => ColumnType::Integer.def().null(),
+            Self::RetryMaxDelayMs => ColumnType::Integer.def().null(),
+            Self::RetryMaxTotalDelayMs => ColumnType::Integer.def().null(),
         }
     }
 }

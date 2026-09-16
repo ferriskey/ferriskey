@@ -150,6 +150,7 @@ impl WebhookRepository for PostgresWebhookRepository {
             last_delivery_error: Set(None),
             created_at: Set(Utc::now().naive_utc()),
             updated_at: Set(Utc::now().naive_utc()),
+            ..Default::default()
         })
         .exec_with_returning(&self.db)
         .await

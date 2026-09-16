@@ -153,6 +153,12 @@ impl From<CoreError> for ApiError {
             CoreError::WebhookRealmNotFound => {
                         Self::NotFound("Realm not found for webhook".into())
                     }
+            CoreError::WebhookDeliveryNotFound => {
+                        Self::NotFound("Webhook delivery not found".into())
+                    }
+            CoreError::WebhookDeliveryNotReplayable => Self::Conflict(
+                        "Webhook delivery is still in flight and cannot be replayed".into(),
+                    ),
             CoreError::CreateClientError => {
                         Self::InternalServerError("Failed to create client".into())
                     }

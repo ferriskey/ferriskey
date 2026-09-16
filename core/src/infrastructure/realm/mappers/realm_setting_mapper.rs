@@ -79,6 +79,10 @@ mod tests {
             seawatch_pseudo_key: None,
             require_mfa: false,
             edit_username_enabled: false,
+            webhook_retry_max_attempts: None,
+            webhook_retry_base_delay_ms: None,
+            webhook_retry_max_delay_ms: None,
+            webhook_retry_max_total_delay_ms: None,
         }
     }
 

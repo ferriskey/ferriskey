@@ -41,6 +41,7 @@ jobs:
       DATABASE_NAME: ferriskey
       DATABASE_USER: ferriskey
       DATABASE_PASSWORD: ferriskey
+      DATABASE_URL: postgres://ferriskey:ferriskey@localhost:5432/ferriskey
 
     steps:
       - name: checkout
@@ -129,3 +130,11 @@ jobs:
       # and the realm-gated username edit.
       - name: run self-service account profile integration tests
         run: cargo test -p ferriskey-api --test me_profile_test -- --ignored
+
+      # First ferriskey-core suite wired into CI. The repository tests of `core`
+      # read DATABASE_URL (a different dialect from the DATABASE_* variables the
+      # api suites use) and create one throwaway schema per test, so they are
+      # safe to run against the same service. Filtered by module name because
+      # these are in-source unit tests, not a `--test <name>` target.
+      - name: run webhook delivery outbox repository tests
+        run: cargo test -p ferriskey-core webhook_delivery -- --ignored
