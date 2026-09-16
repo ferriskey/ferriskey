@@ -1,7 +1,10 @@
 use super::handlers::create_webhook::{__path_create_webhook, create_webhook};
 use super::handlers::delete_webhook::{__path_delete_webhook, delete_webhook};
+use super::handlers::fetch_deliveries::{__path_fetch_deliveries, fetch_deliveries};
 use super::handlers::fetch_webhook::{__path_fetch_webhooks, fetch_webhooks};
+use super::handlers::get_delivery::{__path_get_delivery, get_delivery};
 use super::handlers::get_webhook::{__path_get_webhook, get_webhook};
+use super::handlers::retry_delivery::{__path_retry_delivery, retry_delivery};
 use super::handlers::update_webhook::{__path_update_webhook, update_webhook};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::auth::auth;
@@ -18,7 +21,10 @@ use utoipa::OpenApi;
     get_webhook,
     create_webhook,
     update_webhook,
-    delete_webhook
+    delete_webhook,
+    fetch_deliveries,
+    get_delivery,
+    retry_delivery
 ))]
 pub struct WebhookApiDoc;
 
@@ -58,6 +64,27 @@ pub fn webhook_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             delete(delete_webhook),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/webhooks/{{webhook_id}}/deliveries",
+                state.args.server.root_path
+            ),
+            get(fetch_deliveries),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/webhooks/{{webhook_id}}/deliveries/{{delivery_id}}",
+                state.args.server.root_path
+            ),
+            get(get_delivery),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/webhooks/{{webhook_id}}/deliveries/{{delivery_id}}/retry",
+                state.args.server.root_path
+            ),
+            post(retry_delivery),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }
