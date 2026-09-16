@@ -9,7 +9,7 @@ use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::{Realm, RealmId};
 
-use crate::entities::retry_policy::RetryPolicy;
+use crate::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
 use crate::entities::webhook_delivery::{
     DeliveryFilter, DeliveryOutcome, DeliveryPage, WebhookDelivery, WebhookDeliveryId,
 };
@@ -92,6 +92,7 @@ pub trait WebhookRepository: Send + Sync {
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<Webhook>, CoreError>> + Send;
 
+    #[allow(clippy::too_many_arguments)]
     fn create_webhook(
         &self,
         realm_id: RealmId,
@@ -100,6 +101,7 @@ pub trait WebhookRepository: Send + Sync {
         endpoint: String,
         headers: HashMap<String, String>,
         subscribers: Vec<WebhookTrigger>,
+        retry_policy: RetryPolicyOverride,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
     /// `headers` is optional: `None` leaves the stored headers untouched, so a
@@ -115,6 +117,7 @@ pub trait WebhookRepository: Send + Sync {
         endpoint: String,
         headers: Option<HashMap<String, String>>,
         subscribers: Vec<WebhookTrigger>,
+        retry_policy: Option<RetryPolicyOverride>,
     ) -> impl Future<Output = Result<Webhook, CoreError>> + Send;
 
     fn delete_webhook(
@@ -232,6 +235,7 @@ pub struct CreateWebhookInput {
     pub endpoint: String,
     pub headers: HashMap<String, String>,
     pub subscribers: Vec<WebhookTrigger>,
+    pub retry_policy: RetryPolicyOverride,
 }
 
 pub struct UpdateWebhookInput {
@@ -243,6 +247,7 @@ pub struct UpdateWebhookInput {
     /// Omitted means "keep what is stored"; `Some` replaces the whole set.
     pub headers: Option<HashMap<String, String>>,
     pub subscribers: Vec<WebhookTrigger>,
+    pub retry_policy: Option<RetryPolicyOverride>,
 }
 
 pub struct DeleteWebhookInput {

@@ -10,8 +10,47 @@ use axum::extract::{Path, State};
 
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::realm::entities::Realm;
+use ferriskey_core::domain::webhook::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+fn non_negative(field: &str, value: Option<Option<i32>>) -> Result<Option<u32>, ApiError> {
+    match value.flatten() {
+        Some(value) => u32::try_from(value)
+            .map(Some)
+            .map_err(|_| ApiError::BadRequest(format!("{field} must not be negative").into())),
+        None => Ok(None),
+    }
+}
+
+fn ensure_retry_policy_is_valid(payload: &UpdateRealmSettingValidator) -> Result<(), ApiError> {
+    let candidate = RetryPolicyOverride {
+        max_attempts: non_negative(
+            "webhook_retry_max_attempts",
+            payload.webhook_retry_max_attempts,
+        )?,
+        base_delay_ms: non_negative(
+            "webhook_retry_base_delay_ms",
+            payload.webhook_retry_base_delay_ms,
+        )?,
+        max_delay_ms: non_negative(
+            "webhook_retry_max_delay_ms",
+            payload.webhook_retry_max_delay_ms,
+        )?,
+        max_total_delay_ms: non_negative(
+            "webhook_retry_max_total_delay_ms",
+            payload.webhook_retry_max_total_delay_ms,
+        )?,
+    };
+
+    if candidate.is_empty() {
+        return Ok(());
+    }
+
+    RetryPolicy::try_from(candidate)
+        .map(|_| ())
+        .map_err(|error| ApiError::BadRequest(error.to_string().into()))
+}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct UpdateRealmSettingResponse {
@@ -42,6 +81,8 @@ pub async fn update_realm_setting(
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<UpdateRealmSettingValidator>,
 ) -> Result<Response<UpdateRealmSettingResponse>, ApiError> {
+    ensure_retry_policy_is_valid(&payload)?;
+
     let realm = state
         .service
         .update_realm_setting(
@@ -72,6 +113,10 @@ pub async fn update_realm_setting(
                 seawatch_pseudo_key: payload.seawatch_pseudo_key,
                 require_mfa: payload.require_mfa,
                 edit_username_enabled: payload.edit_username_enabled,
+                webhook_retry_max_attempts: payload.webhook_retry_max_attempts,
+                webhook_retry_base_delay_ms: payload.webhook_retry_base_delay_ms,
+                webhook_retry_max_delay_ms: payload.webhook_retry_max_delay_ms,
+                webhook_retry_max_total_delay_ms: payload.webhook_retry_max_total_delay_ms,
             },
         )
         .await

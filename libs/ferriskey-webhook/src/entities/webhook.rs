@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::generate_timestamp;
 
+use crate::entities::retry_policy::RetryPolicyOverride;
 use crate::entities::webhook_subscriber::WebhookSubscriber;
 use crate::signing::generate_secret;
 
@@ -28,6 +29,10 @@ pub struct Webhook {
     pub name: Option<String>,
     pub description: Option<String>,
     pub subscribers: Vec<WebhookSubscriber>,
+    #[serde(default)]
+    pub retry_policy: RetryPolicyOverride,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_retry_policy: Option<RetryPolicyOverride>,
     pub triggered_at: Option<DateTime<Utc>>,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -58,6 +63,8 @@ impl Webhook {
             name,
             description,
             subscribers,
+            retry_policy: RetryPolicyOverride::default(),
+            effective_retry_policy: None,
             triggered_at,
             updated_at,
             created_at,

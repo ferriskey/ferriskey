@@ -56,6 +56,7 @@ pub async fn update_webhook(
                 endpoint: payload.endpoint,
                 headers: payload.headers,
                 subscribers: payload.subscribers,
+                retry_policy: payload.retry_policy,
             },
         )
         .await

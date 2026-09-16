@@ -153,6 +153,7 @@ impl From<CoreError> for ApiError {
             CoreError::WebhookRealmNotFound => {
                         Self::NotFound("Realm not found for webhook".into())
                     }
+            CoreError::InvalidWebhookRetryPolicy(message) => Self::BadRequest(message.into()),
             CoreError::WebhookDeliveryNotFound => {
                         Self::NotFound("Webhook delivery not found".into())
                     }

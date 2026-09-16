@@ -40,6 +40,10 @@ impl From<Model> for RealmSetting {
             lockout_duration_seconds: value.lockout_duration_seconds,
             seawatch_pii_mode: value.seawatch_pii_mode,
             seawatch_pseudo_key: value.seawatch_pseudo_key,
+            webhook_retry_max_attempts: value.webhook_retry_max_attempts,
+            webhook_retry_base_delay_ms: value.webhook_retry_base_delay_ms,
+            webhook_retry_max_delay_ms: value.webhook_retry_max_delay_ms,
+            webhook_retry_max_total_delay_ms: value.webhook_retry_max_total_delay_ms,
         }
     }
 }

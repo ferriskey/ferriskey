@@ -4,6 +4,7 @@ use std::time::Duration;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use utoipa::ToSchema;
 
 pub const MIN_ATTEMPTS: u32 = 1;
 pub const MAX_ATTEMPTS: u32 = 20;
@@ -30,7 +31,7 @@ pub enum RetryPolicyError {
     },
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct RetryPolicyOverride {
     pub max_attempts: Option<u32>,
     pub base_delay_ms: Option<u32>,
