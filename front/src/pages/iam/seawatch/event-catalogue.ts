@@ -29,6 +29,7 @@ export const eventLabels: Record<SecurityEventType, string> = {
   client_maintenance_disabled: 'Client maintenance disabled',
   session_created: 'Session opened',
   session_revoked: 'Session revoked',
+  webhook_delivery_exhausted: 'Webhook delivery gave up',
   identity_provider_link_removed: 'Identity provider link removed',
   unknown: 'Unrecognised event',
 }
