@@ -477,4 +477,146 @@ mod tests {
             assert!(!text.contains("\"secret\""));
         });
     }
+
+    async fn put_realm_settings(server: &TestServer, token: &str, body: Value) -> u16 {
+        server
+            .put(&format!("/realms/{}/settings", realm()))
+            .add_header("Authorization", auth_header(token))
+            .json(&body)
+            .await
+            .status_code()
+            .as_u16()
+    }
+
+    async fn put_webhook(server: &TestServer, token: &str, webhook_id: Uuid, policy: Value) -> u16 {
+        server
+            .put(&format!("/realms/{}/webhooks/{}", realm(), webhook_id))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({
+                "endpoint": "https://example.com/hook",
+                "subscribers": ["user.created"],
+                "retry_policy": policy,
+            }))
+            .await
+            .status_code()
+            .as_u16()
+    }
+
+    async fn effective_max_attempts(server: &TestServer, token: &str, webhook_id: Uuid) -> u64 {
+        let response = server
+            .get(&format!("/realms/{}/webhooks/{}", realm(), webhook_id))
+            .add_header("Authorization", auth_header(token))
+            .await;
+
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        let body: Value = response.json();
+        body["effective_retry_policy"]["max_attempts"]
+            .as_u64()
+            .expect("effective_retry_policy in response")
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn retry_policy_resolution_walks_webhook_then_realm_then_system_default() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let webhook_id = create_webhook(&server, &token).await;
+
+            assert_eq!(
+                effective_max_attempts(&server, &token, webhook_id).await,
+                5,
+                "a webhook with no override anywhere must inherit the system default"
+            );
+
+            assert_eq!(
+                put_realm_settings(&server, &token, json!({ "webhook_retry_max_attempts": 12 }))
+                    .await,
+                200
+            );
+            assert_eq!(
+                effective_max_attempts(&server, &token, webhook_id).await,
+                12,
+                "the realm default must apply when the webhook sets nothing"
+            );
+
+            assert_eq!(
+                put_webhook(&server, &token, webhook_id, json!({ "max_attempts": 3 })).await,
+                200
+            );
+            assert_eq!(
+                effective_max_attempts(&server, &token, webhook_id).await,
+                3,
+                "the webhook override must win over the realm default"
+            );
+
+            assert_eq!(
+                put_webhook(&server, &token, webhook_id, json!({})).await,
+                200
+            );
+            assert_eq!(
+                effective_max_attempts(&server, &token, webhook_id).await,
+                12,
+                "clearing the webhook override must fall back to the realm default"
+            );
+
+            assert_eq!(
+                put_realm_settings(
+                    &server,
+                    &token,
+                    json!({ "webhook_retry_max_attempts": null })
+                )
+                .await,
+                200
+            );
+            assert_eq!(
+                effective_max_attempts(&server, &token, webhook_id).await,
+                5,
+                "clearing the realm default must fall back to the system default"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn an_out_of_bounds_webhook_retry_policy_is_rejected() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let webhook_id = create_webhook(&server, &token).await;
+
+            assert_eq!(
+                put_webhook(&server, &token, webhook_id, json!({ "max_attempts": 0 })).await,
+                400
+            );
+            assert_eq!(
+                put_webhook(&server, &token, webhook_id, json!({ "max_attempts": 21 })).await,
+                400
+            );
+            assert_eq!(
+                put_webhook(&server, &token, webhook_id, json!({ "base_delay_ms": 10 })).await,
+                400
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn an_out_of_bounds_realm_retry_policy_is_rejected() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+
+            assert_eq!(
+                put_realm_settings(&server, &token, json!({ "webhook_retry_max_attempts": 0 }))
+                    .await,
+                400
+            );
+            assert_eq!(
+                put_realm_settings(&server, &token, json!({ "webhook_retry_max_attempts": -1 }))
+                    .await,
+                400
+            );
+        });
+    }
 }

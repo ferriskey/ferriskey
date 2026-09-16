@@ -150,6 +150,10 @@ pub struct UpdateRealmSettingInput {
     pub seawatch_pseudo_key: Option<Option<String>>,
     pub require_mfa: Option<bool>,
     pub edit_username_enabled: Option<bool>,
+    pub webhook_retry_max_attempts: Option<Option<i32>>,
+    pub webhook_retry_base_delay_ms: Option<Option<i32>>,
+    pub webhook_retry_max_delay_ms: Option<Option<i32>>,
+    pub webhook_retry_max_total_delay_ms: Option<Option<i32>>,
 }
 
 pub struct DeleteRealmInput {

@@ -225,6 +225,10 @@ impl RealmRepository for PostgresRealmRepository {
         seawatch_pseudo_key: Option<Option<String>>,
         require_mfa: Option<bool>,
         edit_username_enabled: Option<bool>,
+        webhook_retry_max_attempts: Option<Option<i32>>,
+        webhook_retry_base_delay_ms: Option<Option<i32>>,
+        webhook_retry_max_delay_ms: Option<Option<i32>>,
+        webhook_retry_max_total_delay_ms: Option<Option<i32>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -336,6 +340,22 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(edit_username_enabled) = edit_username_enabled {
             realm_setting.edit_username_enabled = Set(edit_username_enabled);
+        }
+
+        if let Some(webhook_retry_max_attempts) = webhook_retry_max_attempts {
+            realm_setting.webhook_retry_max_attempts = Set(webhook_retry_max_attempts);
+        }
+
+        if let Some(webhook_retry_base_delay_ms) = webhook_retry_base_delay_ms {
+            realm_setting.webhook_retry_base_delay_ms = Set(webhook_retry_base_delay_ms);
+        }
+
+        if let Some(webhook_retry_max_delay_ms) = webhook_retry_max_delay_ms {
+            realm_setting.webhook_retry_max_delay_ms = Set(webhook_retry_max_delay_ms);
+        }
+
+        if let Some(webhook_retry_max_total_delay_ms) = webhook_retry_max_total_delay_ms {
+            realm_setting.webhook_retry_max_total_delay_ms = Set(webhook_retry_max_total_delay_ms);
         }
 
         let realm_setting = realm_setting

@@ -52,6 +52,7 @@ pub async fn create_webhook(
                 endpoint: payload.endpoint,
                 headers: payload.headers,
                 subscribers: payload.subscribers,
+                retry_policy: payload.retry_policy.unwrap_or_default(),
             },
         )
         .await

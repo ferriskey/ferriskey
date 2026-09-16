@@ -8,6 +8,7 @@ use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 use crate::endpoint::{reject_reserved_headers, validate_endpoint};
+use crate::entities::retry_policy::RetryPolicy;
 use crate::entities::webhook_delivery::{DeliveryPage, WebhookDelivery};
 use crate::entities::{
     webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
@@ -144,6 +145,18 @@ where
             .get_webhook_by_id(input.webhook_id, realm_id)
             .await?;
 
+        let webhook = match webhook {
+            Some(mut webhook) => {
+                let resolved = self
+                    .webhook_delivery_repository
+                    .resolve_retry_policy(realm_id, webhook.id)
+                    .await?;
+                webhook.effective_retry_policy = Some(resolved.as_override());
+                Some(webhook)
+            }
+            None => None,
+        };
+
         Ok(webhook)
     }
 
@@ -169,6 +182,11 @@ where
         let endpoint = validate_endpoint(&input.endpoint)?;
         reject_reserved_headers(&input.headers)?;
 
+        if !input.retry_policy.is_empty() {
+            RetryPolicy::try_from(input.retry_policy)
+                .map_err(|error| CoreError::InvalidWebhookRetryPolicy(error.to_string()))?;
+        }
+
         let webhook = self
             .webhook_repository
             .create_webhook(
@@ -178,6 +196,7 @@ where
                 endpoint.to_string(),
                 input.headers,
                 input.subscribers,
+                input.retry_policy,
             )
             .await?;
 
@@ -224,6 +243,13 @@ where
             reject_reserved_headers(headers)?;
         }
 
+        if let Some(policy) = input.retry_policy
+            && !policy.is_empty()
+        {
+            RetryPolicy::try_from(policy)
+                .map_err(|error| CoreError::InvalidWebhookRetryPolicy(error.to_string()))?;
+        }
+
         let webhook = self
             .webhook_repository
             .update_webhook(
@@ -234,6 +260,7 @@ where
                 endpoint.to_string(),
                 input.headers,
                 input.subscribers,
+                input.retry_policy,
             )
             .await?;
 
@@ -392,6 +419,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::entities::retry_policy::RetryPolicyOverride;
     use crate::ports::{MockWebhookDeliveryRepository, MockWebhookRepository};
 
     fn test_realm() -> Realm {
@@ -450,6 +478,8 @@ mod tests {
             name: Some("existing".to_string()),
             description: None,
             subscribers: Vec::new(),
+            retry_policy: RetryPolicyOverride::default(),
+            effective_retry_policy: None,
             triggered_at: None,
             updated_at: Utc::now(),
             created_at: Utc::now(),
@@ -465,6 +495,7 @@ mod tests {
             endpoint: "https://93.184.216.34/hook".to_string(),
             headers: Some(HashMap::new()),
             subscribers: Vec::new(),
+            retry_policy: None,
         }
     }
 
@@ -596,7 +627,7 @@ mod tests {
         webhook_repo
             .expect_update_webhook()
             .times(1)
-            .returning(move |_, _, _, _, _, _, _| {
+            .returning(move |_, _, _, _, _, _, _, _| {
                 let webhook = updated.clone();
                 Box::pin(async move { Ok(webhook) })
             });

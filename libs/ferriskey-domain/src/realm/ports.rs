@@ -89,6 +89,10 @@ pub trait RealmRepository: Send + Sync {
         seawatch_pseudo_key: Option<Option<String>>,
         require_mfa: Option<bool>,
         edit_username_enabled: Option<bool>,
+        webhook_retry_max_attempts: Option<Option<i32>>,
+        webhook_retry_base_delay_ms: Option<Option<i32>>,
+        webhook_retry_max_delay_ms: Option<Option<i32>>,
+        webhook_retry_max_total_delay_ms: Option<Option<i32>>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(

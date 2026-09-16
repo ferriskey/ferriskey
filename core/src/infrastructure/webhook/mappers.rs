@@ -6,6 +6,7 @@ use serde_json::from_value;
 use ferriskey_domain::realm::RealmId;
 
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::webhook::entities::retry_policy::RetryPolicyOverride;
 use crate::domain::webhook::entities::webhook_delivery::{
     DeliveryErrorCode, DeliveryStatus, WebhookDelivery, WebhookDeliveryId,
 };
@@ -30,6 +31,17 @@ impl From<&WebhookModel> for Webhook {
             id: value.id,
             endpoint: value.endpoint.clone(),
             subscribers: Vec::new(),
+            retry_policy: RetryPolicyOverride {
+                max_attempts: value.retry_max_attempts.and_then(|v| u32::try_from(v).ok()),
+                base_delay_ms: value
+                    .retry_base_delay_ms
+                    .and_then(|v| u32::try_from(v).ok()),
+                max_delay_ms: value.retry_max_delay_ms.and_then(|v| u32::try_from(v).ok()),
+                max_total_delay_ms: value
+                    .retry_max_total_delay_ms
+                    .and_then(|v| u32::try_from(v).ok()),
+            },
+            effective_retry_policy: None,
             description: value.description.clone(),
             name: value.name.clone(),
             headers,
@@ -56,6 +68,17 @@ impl From<WebhookModel> for Webhook {
             id: value.id,
             endpoint: value.endpoint.clone(),
             subscribers: Vec::new(),
+            retry_policy: RetryPolicyOverride {
+                max_attempts: value.retry_max_attempts.and_then(|v| u32::try_from(v).ok()),
+                base_delay_ms: value
+                    .retry_base_delay_ms
+                    .and_then(|v| u32::try_from(v).ok()),
+                max_delay_ms: value.retry_max_delay_ms.and_then(|v| u32::try_from(v).ok()),
+                max_total_delay_ms: value
+                    .retry_max_total_delay_ms
+                    .and_then(|v| u32::try_from(v).ok()),
+            },
+            effective_retry_policy: None,
             description: value.description,
             name: value.name,
             headers,

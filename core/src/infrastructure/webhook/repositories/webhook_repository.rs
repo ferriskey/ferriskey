@@ -25,7 +25,7 @@ use tokio::sync::mpsc;
 use tracing::{error, warn};
 
 use crate::domain::common::generate_timestamp;
-use crate::domain::webhook::entities::retry_policy::RetryPolicy;
+use crate::domain::webhook::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
 use crate::domain::webhook::entities::webhook_delivery::WebhookDelivery;
 use crate::domain::webhook::entities::webhook_subscriber::WebhookSubscriber;
 use crate::domain::webhook::ports::WebhookDeliveryRepository;
@@ -42,6 +42,20 @@ use crate::infrastructure::webhook::repositories::webhook_delivery_repository::P
 
 use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 use crate::infrastructure::webhook::delivery::{self, DeliveryJob};
+
+fn as_column(value: Option<u32>) -> Option<i32> {
+    value.and_then(|value| i32::try_from(value).ok())
+}
+
+fn column_update(
+    policy: Option<RetryPolicyOverride>,
+    field: impl Fn(RetryPolicyOverride) -> Option<u32>,
+) -> sea_orm::ActiveValue<Option<i32>> {
+    match policy {
+        Some(policy) => Set(as_column(field(policy))),
+        None => sea_orm::ActiveValue::NotSet,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresWebhookRepository {
@@ -141,6 +155,7 @@ impl WebhookRepository for PostgresWebhookRepository {
         endpoint: String,
         headers: HashMap<String, String>,
         subscribers: Vec<WebhookTrigger>,
+        retry_policy: RetryPolicyOverride,
     ) -> Result<Webhook, CoreError> {
         let (_, timestamp) = generate_timestamp();
         let subscription_id = Uuid::new_v7(timestamp);
@@ -159,7 +174,10 @@ impl WebhookRepository for PostgresWebhookRepository {
             last_delivery_error: Set(None),
             created_at: Set(Utc::now().naive_utc()),
             updated_at: Set(Utc::now().naive_utc()),
-            ..Default::default()
+            retry_max_attempts: Set(as_column(retry_policy.max_attempts)),
+            retry_base_delay_ms: Set(as_column(retry_policy.base_delay_ms)),
+            retry_max_delay_ms: Set(as_column(retry_policy.max_delay_ms)),
+            retry_max_total_delay_ms: Set(as_column(retry_policy.max_total_delay_ms)),
         })
         .exec_with_returning(&self.db)
         .await
@@ -200,6 +218,7 @@ impl WebhookRepository for PostgresWebhookRepository {
         endpoint: String,
         headers: Option<HashMap<String, String>>,
         subscribers: Vec<WebhookTrigger>,
+        retry_policy: Option<RetryPolicyOverride>,
     ) -> Result<Webhook, CoreError> {
         let update_result = WebhookEntity::update_many()
             .set(WebhookActiveModel {
@@ -213,6 +232,10 @@ impl WebhookRepository for PostgresWebhookRepository {
                     None => sea_orm::ActiveValue::NotSet,
                 },
                 updated_at: Set(Utc::now().naive_utc()),
+                retry_max_attempts: column_update(retry_policy, |p| p.max_attempts),
+                retry_base_delay_ms: column_update(retry_policy, |p| p.base_delay_ms),
+                retry_max_delay_ms: column_update(retry_policy, |p| p.max_delay_ms),
+                retry_max_total_delay_ms: column_update(retry_policy, |p| p.max_total_delay_ms),
                 ..Default::default()
             })
             .filter(WebhookColumn::Id.eq(id))
@@ -465,6 +488,7 @@ mod tests {
             endpoint.to_string(),
             HashMap::new(),
             vec![WebhookTrigger::UserCreated],
+            RetryPolicyOverride::default(),
         )
         .await
         .expect("create webhook")
@@ -487,6 +511,7 @@ mod tests {
                 "https://attacker.example/hook".to_string(),
                 Some(HashMap::new()),
                 Vec::new(),
+                None,
             )
             .await;
 
@@ -548,6 +573,7 @@ mod tests {
                 "https://example.com/updated".to_string(),
                 Some(HashMap::new()),
                 vec![WebhookTrigger::UserDeleted],
+                None,
             )
             .await
             .expect("update webhook in its own realm");

@@ -181,6 +181,9 @@ pub enum CoreError {
     #[error("Realm not found for webhook")]
     WebhookRealmNotFound,
 
+    #[error("Invalid webhook retry policy: {0}")]
+    InvalidWebhookRetryPolicy(String),
+
     #[error("Webhook delivery not found")]
     WebhookDeliveryNotFound,
 

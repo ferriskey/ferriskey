@@ -879,6 +879,10 @@ where
                 input.seawatch_pseudo_key,
                 input.require_mfa,
                 input.edit_username_enabled,
+                input.webhook_retry_max_attempts,
+                input.webhook_retry_base_delay_ms,
+                input.webhook_retry_max_delay_ms,
+                input.webhook_retry_max_total_delay_ms,
             )
             .await?;
 

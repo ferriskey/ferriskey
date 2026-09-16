@@ -79,6 +79,18 @@ pub struct UpdateRealmSettingValidator {
     pub seawatch_pseudo_key: Option<Option<String>>,
     pub require_mfa: Option<bool>,
     pub edit_username_enabled: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<i32>)]
+    pub webhook_retry_max_attempts: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<i32>)]
+    pub webhook_retry_base_delay_ms: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<i32>)]
+    pub webhook_retry_max_delay_ms: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<i32>)]
+    pub webhook_retry_max_total_delay_ms: Option<Option<i32>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

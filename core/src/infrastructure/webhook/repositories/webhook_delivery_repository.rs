@@ -854,9 +854,15 @@ mod tests {
         assert_eq!(stored.status, DeliveryStatus::Pending);
         assert_eq!(stored.attempt_count, 1);
         assert!(stored.last_error_code.is_some());
+
+        let next = stored.next_attempt_at.expect("a retry must be scheduled");
         assert!(
-            stored.next_attempt_at.expect("a retry must be scheduled") > Utc::now(),
-            "the next attempt must be in the future"
+            next >= stored.created_at,
+            "a retry must not be scheduled before the delivery existed"
+        );
+        assert!(
+            next <= Utc::now() + chrono::Duration::seconds(31),
+            "a retry must stay within the backoff ceiling"
         );
     }
 

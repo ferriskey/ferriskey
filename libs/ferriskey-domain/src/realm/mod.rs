@@ -220,6 +220,10 @@ pub struct RealmSetting {
     pub seawatch_pii_mode: String,
     #[serde(skip_serializing)]
     pub seawatch_pseudo_key: Option<String>,
+    pub webhook_retry_max_attempts: Option<i32>,
+    pub webhook_retry_base_delay_ms: Option<i32>,
+    pub webhook_retry_max_delay_ms: Option<i32>,
+    pub webhook_retry_max_total_delay_ms: Option<i32>,
 }
 
 impl RealmSetting {
@@ -254,6 +258,10 @@ impl RealmSetting {
             lockout_duration_seconds: 900,
             seawatch_pii_mode: "off".to_string(),
             seawatch_pseudo_key: None,
+            webhook_retry_max_attempts: None,
+            webhook_retry_base_delay_ms: None,
+            webhook_retry_max_delay_ms: None,
+            webhook_retry_max_total_delay_ms: None,
         }
     }
 }
