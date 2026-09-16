@@ -3,8 +3,15 @@ use std::collections::HashMap;
 use chrono::{TimeZone, Utc};
 use serde_json::from_value;
 
+use ferriskey_domain::realm::RealmId;
+
+use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::webhook::entities::webhook_delivery::{
+    DeliveryErrorCode, DeliveryStatus, WebhookDelivery, WebhookDeliveryId,
+};
 use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
 use crate::domain::webhook::entities::{webhook::Webhook, webhook_subscriber::WebhookSubscriber};
+use crate::entity::webhook_deliveries::Model as WebhookDeliveryModel;
 use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 use crate::entity::webhooks::Model as WebhookModel;
 
@@ -57,6 +64,51 @@ impl From<WebhookModel> for Webhook {
             created_at,
             updated_at,
         }
+    }
+}
+
+impl TryFrom<WebhookDeliveryModel> for WebhookDelivery {
+    type Error = CoreError;
+
+    fn try_from(value: WebhookDeliveryModel) -> Result<Self, Self::Error> {
+        let event: WebhookTrigger = value
+            .event
+            .try_into()
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let status = DeliveryStatus::parse(&value.status).ok_or(CoreError::InternalServerError)?;
+
+        let last_error_code = match value.last_error_code.as_deref() {
+            Some(raw) => Some(DeliveryErrorCode::parse(raw).ok_or(CoreError::InternalServerError)?),
+            None => None,
+        };
+
+        let last_status_code = match value.last_status_code {
+            Some(code) => Some(u16::try_from(code).map_err(|_| CoreError::InternalServerError)?),
+            None => None,
+        };
+
+        let attempt_count =
+            u32::try_from(value.attempt_count).map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(Self {
+            id: WebhookDeliveryId::from_uuid(value.id),
+            realm_id: RealmId::from(value.realm_id),
+            webhook_id: value.webhook_id,
+            event,
+            resource_id: value.resource_id,
+            payload: value.payload,
+            status,
+            attempt_count,
+            next_attempt_at: value.next_attempt_at.map(|at| Utc.from_utc_datetime(&at)),
+            leased_until: value.leased_until.map(|at| Utc.from_utc_datetime(&at)),
+            last_attempt_at: value.last_attempt_at.map(|at| Utc.from_utc_datetime(&at)),
+            last_status_code,
+            last_error_code,
+            last_error_detail: value.last_error_detail,
+            created_at: Utc.from_utc_datetime(&value.created_at),
+            updated_at: Utc.from_utc_datetime(&value.updated_at),
+        })
     }
 }
 

@@ -181,6 +181,12 @@ pub enum CoreError {
     #[error("Realm not found for webhook")]
     WebhookRealmNotFound,
 
+    #[error("Webhook delivery not found")]
+    WebhookDeliveryNotFound,
+
+    #[error("Webhook delivery is still in flight and cannot be replayed")]
+    WebhookDeliveryNotReplayable,
+
     #[error("Failed to create client")]
     CreateClientError,
 
