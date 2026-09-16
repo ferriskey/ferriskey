@@ -392,6 +392,10 @@ export namespace Schemas {
     temporary_token_lifetime: number;
     updated_at: string;
     user_registration_enabled: boolean;
+    webhook_retry_base_delay_ms?: (number | null) | undefined;
+    webhook_retry_max_attempts?: (number | null) | undefined;
+    webhook_retry_max_delay_ms?: (number | null) | undefined;
+    webhook_retry_max_total_delay_ms?: (number | null) | undefined;
   };
   export type Realm = {
     created_at: string;
@@ -428,6 +432,12 @@ export namespace Schemas {
     username: string;
   }>;
   export type CreateWebOriginValidator = Partial<{ value: string }>;
+  export type RetryPolicyOverride = Partial<{
+    base_delay_ms: number | null;
+    max_attempts: number | null;
+    max_delay_ms: number | null;
+    max_total_delay_ms: number | null;
+  }>;
   export type WebhookTrigger =
     | "user.created"
     | "user.email_verified"
@@ -471,9 +481,11 @@ export namespace Schemas {
   export type Webhook = {
     created_at: string;
     description?: (string | null) | undefined;
+    effective_retry_policy?: (null | RetryPolicyOverride) | undefined;
     endpoint: string;
     id: string;
     name?: (string | null) | undefined;
+    retry_policy?: RetryPolicyOverride | undefined;
     subscribers: Array<WebhookSubscriber>;
     triggered_at?: (string | null) | undefined;
     updated_at: string;
@@ -484,6 +496,7 @@ export namespace Schemas {
     endpoint: string;
     headers: Record<string, string>;
     name: string | null;
+    retry_policy: null | RetryPolicyOverride;
     subscribers: Array<WebhookTrigger>;
   }>;
   export type CredentialDataOverview =
@@ -525,6 +538,22 @@ export namespace Schemas {
   export type DeleteUserCredentialResponse = { message: string; realm_name: string; user_id: string };
   export type DeleteUserResponse = { count: number };
   export type DeleteWebhookResponse = { message: string; realm_name: string };
+  export type DeliverySummary = {
+    attempt_count: number;
+    created_at: string;
+    event: WebhookTrigger;
+    id: string;
+    last_attempt_at?: (string | null) | undefined;
+    last_error_code?: (string | null) | undefined;
+    last_error_detail?: (string | null) | undefined;
+    last_status_code?: (number | null) | undefined;
+    next_attempt_at?: (string | null) | undefined;
+    resource_id: string;
+    status: string;
+    updated_at: string;
+    webhook_id: string;
+  };
+  export type DeliveryDetail = DeliverySummary & { payload: unknown };
   export type DeviceAuthorizationRequest = Partial<{
     client_id: string | null;
     client_secret: string | null;
@@ -555,6 +584,7 @@ export namespace Schemas {
     tree: Array<Record<string, unknown>>;
     version: number;
   };
+  export type FetchDeliveriesResponse = { data: Array<DeliverySummary>; total: number };
   export type FlowStats = {
     avg_duration_ms?: (number | null) | undefined;
     failure_count: number;
@@ -572,6 +602,7 @@ export namespace Schemas {
   export type GetClientRolesResponse = { data: Array<Role> };
   export type GetClientWhitelistResponse = { data: Array<MaintenanceWhitelistEntry> };
   export type GetDailyActivityStatsResponse = { data: Array<DailyActivityStats> };
+  export type GetDeliveryResponse = { data: DeliveryDetail };
   export type GetEmailTemplateResponse = { data: EmailTemplate };
   export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> };
   export type GetFlowResponse = { data: CompassFlow };
@@ -622,6 +653,7 @@ export namespace Schemas {
     | "session_created"
     | "session_revoked"
     | "identity_provider_link_removed"
+    | "webhook_delivery_exhausted"
     | "unknown";
   export type SecurityEventId = string;
   export type SecurityEvent = {
@@ -937,6 +969,7 @@ export namespace Schemas {
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string };
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
+  export type RetryDeliveryResponse = { delivery_id: string; requeued: boolean };
   export type RevokeTokenRequestValidator = Partial<{
     client_id: string;
     token: string;
@@ -1160,6 +1193,10 @@ export namespace Schemas {
     seawatch_pseudo_key: string | null;
     temporary_token_lifetime: number | null;
     user_registration_enabled: boolean | null;
+    webhook_retry_base_delay_ms: number | null;
+    webhook_retry_max_attempts: number | null;
+    webhook_retry_max_delay_ms: number | null;
+    webhook_retry_max_total_delay_ms: number | null;
   }>;
   export type UpdateRealmValidator = { display_name?: (string | null) | undefined; name: string };
   export type UpdateRedirectUriResponse = { data: RedirectUri };
@@ -1197,6 +1234,7 @@ export namespace Schemas {
     endpoint: string;
     headers: Record<string, string> | null;
     name: string | null;
+    retry_policy: null | RetryPolicyOverride;
     subscribers: Array<WebhookTrigger>;
   }>;
   export type UpsertAttributeValidator = { value: string };
@@ -1507,45 +1545,6 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
-    };
-  };
-  export type get_Get_realm_whitelist = {
-    method: "GET";
-    path: "/realms/{realm_name}/settings/maintenance/whitelist";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string };
-    };
-    responses: { 200: Schemas.GetRealmWhitelistResponse; 401: Schemas.ApiErrorResponse; 403: Schemas.ApiErrorResponse };
-  };
-  export type post_Add_realm_whitelist_entry = {
-    method: "POST";
-    path: "/realms/{realm_name}/settings/maintenance/whitelist";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string };
-
-      body: Schemas.AddWhitelistEntryValidator;
-    };
-    responses: {
-      201: Schemas.AddRealmWhitelistEntryResponse;
-      400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-    };
-  };
-  export type delete_Remove_realm_whitelist_entry = {
-    method: "DELETE";
-    path: "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}";
-    requestFormat: "json";
-    parameters: {
-      path: { realm_name: string; entry_id: string };
-    };
-    responses: {
-      200: Schemas.RemoveRealmWhitelistEntryResponse;
-      401: Schemas.ApiErrorResponse;
-      403: Schemas.ApiErrorResponse;
-      404: Schemas.ApiErrorResponse;
     };
   };
   export type get_Get_client = {
@@ -3742,6 +3741,45 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_Get_realm_whitelist = {
+    method: "GET";
+    path: "/realms/{realm_name}/settings/maintenance/whitelist";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: { 200: Schemas.GetRealmWhitelistResponse; 401: Schemas.ApiErrorResponse; 403: Schemas.ApiErrorResponse };
+  };
+  export type post_Add_realm_whitelist_entry = {
+    method: "POST";
+    path: "/realms/{realm_name}/settings/maintenance/whitelist";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.AddWhitelistEntryValidator;
+    };
+    responses: {
+      201: Schemas.AddRealmWhitelistEntryResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Remove_realm_whitelist_entry = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; entry_id: string };
+    };
+    responses: {
+      200: Schemas.RemoveRealmWhitelistEntryResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_smtp_config = {
     method: "GET";
     path: "/realms/{realm_name}/smtp-config";
@@ -4236,6 +4274,96 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_Fetch_deliveries = {
+    method: "GET";
+    path: "/realms/{realm_name}/webhooks/{webhook_id}/deliveries";
+    requestFormat: "json";
+    parameters: {
+      query: Partial<{
+        status: string;
+        event:
+          | "user.created"
+          | "user.email_verified"
+          | "user.updated"
+          | "user.deleted"
+          | "user.role.assigned"
+          | "user.role.unassigned"
+          | "user.bulk_deleted"
+          | "user.credentials.deleted"
+          | "auth.reset_password"
+          | "auth.device_flow.initiated"
+          | "auth.device_flow.denied"
+          | "auth.device_flow.expired"
+          | "client.created"
+          | "client.updated"
+          | "client.deleted"
+          | "client.role.created"
+          | "client.role.updated"
+          | "redirect_uri.created"
+          | "redirect_uri.updated"
+          | "redirect_uri.deleted"
+          | "web_origin.created"
+          | "web_origin.deleted"
+          | "client.saml_config.updated"
+          | "client.saml_attribute_mapper.created"
+          | "client.saml_attribute_mapper.deleted"
+          | "role.created"
+          | "role.updated"
+          | "role.deleted"
+          | "role.permission.updated"
+          | "realm.created"
+          | "realm.updated"
+          | "realm.deleted"
+          | "realm.settings.updated"
+          | "webhook.created"
+          | "webhook.updated"
+          | "webhook.deleted"
+          | "client.maintenance.enabled"
+          | "client.maintenance.disabled";
+        limit: number;
+        offset: number;
+      }>;
+      path: { realm_name: string; webhook_id: string };
+    };
+    responses: {
+      200: Schemas.FetchDeliveriesResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_delivery = {
+    method: "GET";
+    path: "/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; webhook_id: string; delivery_id: string };
+    };
+    responses: {
+      200: Schemas.GetDeliveryResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Retry_delivery = {
+    method: "POST";
+    path: "/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}/retry";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; webhook_id: string; delivery_id: string };
+    };
+    responses: {
+      202: Schemas.RetryDeliveryResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
 
   // </Endpoints>
 }
@@ -4251,7 +4379,6 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
     "/realms/{realm_name}/clients": Endpoints.get_Get_clients;
-    "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.get_Get_realm_whitelist;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.get_Get_client;
     "/realms/{realm_name}/clients/{client_id}/client-scopes": Endpoints.get_Get_client_client_scopes;
     "/realms/{realm_name}/clients/{client_id}/client-secret": Endpoints.get_Get_client_secret;
@@ -4311,6 +4438,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
     "/realms/{realm_name}/seawatch/v1/security-events": Endpoints.get_Get_security_events;
+    "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.get_Get_realm_whitelist;
     "/realms/{realm_name}/smtp-config": Endpoints.get_Get_smtp_config;
     "/realms/{realm_name}/users": Endpoints.get_Get_users;
     "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
@@ -4325,6 +4453,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}/sessions": Endpoints.get_List_user_sessions;
     "/realms/{realm_name}/webhooks": Endpoints.get_Fetch_webhooks;
     "/realms/{realm_name}/webhooks/{webhook_id}": Endpoints.get_Get_webhook;
+    "/realms/{realm_name}/webhooks/{webhook_id}/deliveries": Endpoints.get_Fetch_deliveries;
+    "/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}": Endpoints.get_Get_delivery;
   };
   post: {
     "/realms": Endpoints.post_Create_realm;
@@ -4332,7 +4462,6 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes": Endpoints.post_Create_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
     "/realms/{realm_name}/clients": Endpoints.post_Create_client;
-    "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
@@ -4384,10 +4513,12 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/protocol/openid-connect/token/introspect": Endpoints.post_Introspect_token;
     "/realms/{realm_name}/protocol/saml": Endpoints.post_Saml_sso_post;
     "/realms/{realm_name}/roles": Endpoints.post_Create_realm_role;
+    "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
     "/realms/{realm_name}/users": Endpoints.post_Create_user;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
     "/realms/{realm_name}/users/{user_id}/unlock": Endpoints.post_Unlock_user;
     "/realms/{realm_name}/webhooks": Endpoints.post_Create_webhook;
+    "/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}/retry": Endpoints.post_Retry_delivery;
   };
   put: {
     "/realms/{name}": Endpoints.put_Update_realm;
@@ -4423,7 +4554,6 @@ export type EndpointByMethod = {
     "/realms/{name}": Endpoints.delete_Delete_realm;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper;
-    "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_realm_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client;
     "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.delete_Unassign_default_scope;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_client_whitelist_entry;
@@ -4446,6 +4576,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal-layouts/{layout_id}": Endpoints.delete_Delete_layout;
     "/realms/{realm_name}/portal/themes/{theme_id}": Endpoints.delete_Delete_theme;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.delete_Delete_role;
+    "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_realm_whitelist_entry;
     "/realms/{realm_name}/smtp-config": Endpoints.delete_Delete_smtp_config;
     "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
     "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;

@@ -15,6 +15,13 @@ import { useCrumbLabel } from '@/components/shell/crumb-store'
 
 type WebhookField = 'name' | 'endpoint' | 'description'
 
+export interface RetryPolicyDraft {
+  max_attempts: string
+  base_delay_ms: string
+  max_delay_ms: string
+  max_total_delay_ms: string
+}
+
 interface Draft {
   key: string
   name: string
@@ -22,6 +29,23 @@ interface Draft {
   description: string
   headers: WebhookHeader[]
   subscribers: WebhookTrigger[]
+  retryPolicy: RetryPolicyDraft
+}
+
+const EMPTY_RETRY_POLICY: RetryPolicyDraft = {
+  max_attempts: '',
+  base_delay_ms: '',
+  max_delay_ms: '',
+  max_total_delay_ms: '',
+}
+
+const asField = (value?: number | null) => (value === null || value === undefined ? '' : String(value))
+
+const asNumber = (value: string) => {
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 const EMPTY_DRAFT: Draft = {
@@ -31,6 +55,7 @@ const EMPTY_DRAFT: Draft = {
   description: '',
   headers: [],
   subscribers: [],
+  retryPolicy: EMPTY_RETRY_POLICY,
 }
 
 const WEBHOOK_TABS = [
@@ -70,6 +95,12 @@ export default function PageWebhookDetailFeature() {
         description: webhook.description ?? '',
         headers: [],
         subscribers: webhook.subscribers.map((subscriber) => subscriber.name),
+        retryPolicy: {
+          max_attempts: asField(webhook.retry_policy?.max_attempts),
+          base_delay_ms: asField(webhook.retry_policy?.base_delay_ms),
+          max_delay_ms: asField(webhook.retry_policy?.max_delay_ms),
+          max_total_delay_ms: asField(webhook.retry_policy?.max_total_delay_ms),
+        },
       }
     : EMPTY_DRAFT
 
@@ -101,7 +132,8 @@ export default function PageWebhookDetailFeature() {
       (current.subscribers.length !== pristine.subscribers.length ||
       current.subscribers.some((s) => !pristine.subscribers.includes(s))
         ? 1
-        : 0)
+        : 0) +
+      (JSON.stringify(current.retryPolicy) !== JSON.stringify(pristine.retryPolicy) ? 1 : 0)
     : 0
 
   const patch = (next: Partial<Draft>) =>
@@ -125,6 +157,12 @@ export default function PageWebhookDetailFeature() {
           endpoint: current.endpoint,
           description: current.description,
           subscribers: current.subscribers,
+          retry_policy: {
+            max_attempts: asNumber(current.retryPolicy.max_attempts),
+            base_delay_ms: asNumber(current.retryPolicy.base_delay_ms),
+            max_delay_ms: asNumber(current.retryPolicy.max_delay_ms),
+            max_total_delay_ms: asNumber(current.retryPolicy.max_total_delay_ms),
+          },
           ...(headers ? { headers } : {}),
         },
         path: { realm_name, webhook_id },
@@ -174,6 +212,7 @@ export default function PageWebhookDetailFeature() {
 
   return (
     <PageWebhookDetail
+      realm={realm}
       webhook={webhook}
       isLoading={isLoading}
       tab={tab}
@@ -183,6 +222,8 @@ export default function PageWebhookDetailFeature() {
       description={current.description}
       headers={current.headers}
       subscribers={current.subscribers}
+      retryPolicy={current.retryPolicy}
+      effectiveRetryPolicy={webhook?.effective_retry_policy ?? undefined}
       errors={errors}
       dirtyCount={dirtyCount}
       onNameChange={(v) => patch({ name: v })}
@@ -190,6 +231,7 @@ export default function PageWebhookDetailFeature() {
       onDescriptionChange={(v) => patch({ description: v })}
       onHeadersChange={(next) => patch({ headers: next })}
       onSubscribersChange={(next) => patch({ subscribers: next })}
+      onRetryPolicyChange={(next) => patch({ retryPolicy: { ...current.retryPolicy, ...next } })}
       onBack={() => navigate(WEBHOOKS_URL(realm))}
       onDiscard={() => setDraft(pristine)}
       onSave={save}
