@@ -21,9 +21,9 @@ pub struct CreateWebhookValidator {
     #[serde(default)]
     pub headers: HashMap<String, String>,
 
-    #[validate(length(min = 1, message = "subscribers is required"))]
     #[serde(default)]
     pub subscribers: Vec<WebhookTrigger>,
+
     #[serde(default)]
     pub retry_policy: Option<RetryPolicyOverride>,
 }

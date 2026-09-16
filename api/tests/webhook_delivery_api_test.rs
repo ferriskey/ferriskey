@@ -619,4 +619,48 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn a_webhook_can_be_created_without_any_subscriber() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+
+            let response = server
+                .post(&format!("/realms/{}/webhooks", realm()))
+                .add_header("Authorization", auth_header(&token))
+                .json(&json!({
+                    "endpoint": "https://example.com/hook",
+                    "subscribers": [],
+                    "headers": {},
+                }))
+                .await;
+
+            assert_eq!(
+                response.status_code(),
+                200,
+                "a webhook with no subscriber must be creatable: {}",
+                response.text()
+            );
+
+            let body: Value = response.json();
+            let webhook_id = body["data"]["id"].as_str().expect("webhook id");
+
+            let listed = server
+                .get(&format!("/realms/{}/webhooks/{}", realm(), webhook_id))
+                .add_header("Authorization", auth_header(&token))
+                .await;
+
+            assert_eq!(listed.status_code(), 200);
+            let listed_body: Value = listed.json();
+            assert_eq!(
+                listed_body["subscribers"]
+                    .as_array()
+                    .expect("subscribers array")
+                    .len(),
+                0
+            );
+        });
+    }
 }

@@ -15,6 +15,8 @@ import { useCrumbLabel } from '@/components/shell/crumb-store'
 
 type WebhookField = 'name' | 'endpoint' | 'description'
 
+const FORM_FIELDS: WebhookField[] = ['name', 'endpoint', 'description']
+
 export interface RetryPolicyDraft {
   max_attempts: string
   base_delay_ms: string
@@ -181,10 +183,18 @@ export default function PageWebhookDetailFeature() {
 
           if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
             const next: Partial<Record<WebhookField, string>> = {}
+            const unmapped: string[] = []
+
             for (const { field, message } of fieldErrors) {
-              next[field as WebhookField] = message
+              if (FORM_FIELDS.includes(field as WebhookField)) {
+                next[field as WebhookField] = message
+              } else {
+                unmapped.push(message)
+              }
             }
+
             setServerErrors(next)
+            if (unmapped.length > 0) toast.error(unmapped.join(' · '))
           } else {
             toast.error(body?.message ?? 'Failed to update webhook')
           }
