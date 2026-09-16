@@ -6,7 +6,7 @@
 //! rebinding — so the address that is actually about to receive the request must be checked too.
 
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use thiserror::Error;
 use url::{Host, Url};
@@ -47,7 +47,7 @@ impl PrivateEndpoints {
         }
     }
 
-    fn allows_private(self) -> bool {
+    pub(crate) fn allows_private(self) -> bool {
         matches!(self, Self::Allowed)
     }
 }
@@ -66,9 +66,6 @@ pub enum EndpointError {
 
     #[error("webhook endpoint has no host")]
     MissingHost,
-
-    #[error("webhook endpoint host could not be resolved")]
-    UnresolvableHost,
 
     #[error("webhook endpoint resolves to an address that must not be reachable")]
     ForbiddenAddress,
@@ -90,8 +87,8 @@ impl From<EndpointError> for CoreError {
                 "the endpoint must not embed credentials in the URL"
             }
             EndpointError::MissingHost => "the endpoint has no host",
-            EndpointError::UnresolvableHost | EndpointError::ForbiddenAddress => {
-                "the endpoint must be a publicly reachable address"
+            EndpointError::ForbiddenAddress => {
+                "the endpoint must not point at a loopback or private address"
             }
             EndpointError::ReservedHeader(_) => {
                 return CoreError::InvalidWebhookEndpoint(error.to_string());
@@ -102,15 +99,40 @@ impl From<EndpointError> for CoreError {
     }
 }
 
-/// Parses `raw`, rejecting it unless it is an `https` URL, carries no userinfo credentials, and
-/// has a host whose every resolved address passes [`is_forbidden_address`]. An IP-literal host
-/// is checked directly; a domain name is resolved via the system resolver and every returned
-/// address is checked, so a name that resolves to both a public and a private address is
-/// rejected rather than allowed on the strength of one good answer.
+/// Parses `raw` and rejects what can be judged from the string alone: a non-http(s) scheme,
+/// embedded credentials, a missing host, and an IP-literal host that [`is_forbidden_address`]
+/// refuses.
+///
+/// A domain name is deliberately **not** resolved here. Resolving at configuration time protects
+/// nothing — a name that answers a public address now can answer a private one at delivery, which
+/// is why `core` re-resolves and re-checks on every attempt. It only made configuration depend on
+/// the resolver being up, so a transient DNS outage blocked editing an otherwise valid webhook.
+/// A name that does not resolve surfaces as a failed delivery, with `dns_resolution_failed`
+/// recorded on the row.
+/// Whether cleartext http may be used towards `address`.
+///
+/// Only loopback qualifies, and only once private endpoints are opted in. A request that never
+/// leaves the machine has no network segment on which the payload and its signature could be
+/// observed; a private LAN address has one, so it keeps requiring https.
+pub fn allows_cleartext(address: IpAddr, policy: PrivateEndpoints) -> bool {
+    policy.allows_private() && is_loopback(address)
+}
+
+fn is_loopback(address: IpAddr) -> bool {
+    match address {
+        IpAddr::V4(v4) => v4.is_loopback(),
+        IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
+            Some(mapped) => mapped.is_loopback(),
+            None => v6.is_loopback(),
+        },
+    }
+}
+
 pub fn validate_endpoint(raw: &str, policy: PrivateEndpoints) -> Result<Url, EndpointError> {
     let url = Url::parse(raw).map_err(|_| EndpointError::Malformed)?;
 
-    if url.scheme() != "https" {
+    let is_https = url.scheme() == "https";
+    if !is_https && url.scheme() != "http" {
         return Err(EndpointError::SchemeNotHttps);
     }
 
@@ -120,34 +142,50 @@ pub fn validate_endpoint(raw: &str, policy: PrivateEndpoints) -> Result<Url, End
 
     let host = url.host().ok_or(EndpointError::MissingHost)?;
 
-    let addresses: Vec<IpAddr> = match host {
-        Host::Ipv4(ip) => vec![IpAddr::V4(ip)],
-        Host::Ipv6(ip) => vec![IpAddr::V6(ip)],
-        Host::Domain(domain) => {
-            let port = url
-                .port_or_known_default()
-                .ok_or(EndpointError::MissingHost)?;
-
-            (domain, port)
-                .to_socket_addrs()
-                .map_err(|_| EndpointError::UnresolvableHost)?
-                .map(|socket_addr| socket_addr.ip())
-                .collect()
-        }
+    let literal = match host {
+        Host::Ipv4(ip) => Some(IpAddr::V4(ip)),
+        Host::Ipv6(ip) => Some(IpAddr::V6(ip)),
+        Host::Domain(_) => None,
     };
 
-    if addresses.is_empty() {
-        return Err(EndpointError::UnresolvableHost);
+    if let Some(address) = literal {
+        if is_forbidden_address(address, policy) {
+            return Err(EndpointError::ForbiddenAddress);
+        }
+
+        if !is_https && !allows_cleartext(address, policy) {
+            return Err(EndpointError::SchemeNotHttps);
+        }
+
+        return Ok(url);
     }
 
-    if addresses
-        .into_iter()
-        .any(|address| is_forbidden_address(address, policy))
-    {
-        return Err(EndpointError::ForbiddenAddress);
+    if is_reserved_loopback_name(host) {
+        if !policy.allows_private() {
+            return Err(EndpointError::ForbiddenAddress);
+        }
+
+        return Ok(url);
+    }
+
+    if !is_https {
+        return Err(EndpointError::SchemeNotHttps);
     }
 
     Ok(url)
+}
+
+/// `localhost` and anything under `.localhost` are reserved by RFC 6761 to resolve to loopback,
+/// so they can be trusted by name. Every other name is only checked against the address actually
+/// dialled, at delivery time.
+fn is_reserved_loopback_name(host: Host<&str>) -> bool {
+    match host {
+        Host::Domain(domain) => {
+            let domain = domain.trim_end_matches('.').to_ascii_lowercase();
+            domain == "localhost" || domain.ends_with(".localhost")
+        }
+        _ => false,
+    }
 }
 
 /// True for any address a webhook endpoint must never reach: loopback, link-local (including the
@@ -434,24 +472,11 @@ mod conversion_tests {
     }
 
     #[test]
-    fn an_unresolvable_host_is_indistinguishable_from_a_forbidden_one() {
-        assert_eq!(
-            message(EndpointError::UnresolvableHost),
-            message(EndpointError::ForbiddenAddress),
-            "telling these apart would answer whether a name resolves to an internal address"
-        );
-    }
-
-    #[test]
     fn no_message_echoes_the_submitted_host() {
-        for error in [
-            EndpointError::UnresolvableHost,
-            EndpointError::ForbiddenAddress,
-        ] {
-            let message = message(error);
-            assert!(!message.contains("localhost"));
-            assert!(!message.contains("127.0.0.1"));
-        }
+        let message = message(EndpointError::ForbiddenAddress);
+
+        assert!(!message.contains("localhost"));
+        assert!(!message.contains("127.0.0.1"));
     }
 
     #[test]
@@ -525,14 +550,6 @@ mod private_endpoint_tests {
     }
 
     #[test]
-    fn opting_in_does_not_relax_the_https_requirement() {
-        assert_eq!(
-            validate_endpoint("http://127.0.0.1/hook", PrivateEndpoints::Allowed),
-            Err(EndpointError::SchemeNotHttps)
-        );
-    }
-
-    #[test]
     fn a_loopback_endpoint_is_accepted_once_opted_in() {
         assert!(validate_endpoint("https://127.0.0.1/hook", PrivateEndpoints::Allowed).is_ok());
         assert_eq!(
@@ -549,6 +566,74 @@ mod private_endpoint_tests {
                 PrivateEndpoints::Allowed
             ),
             Err(EndpointError::EmbeddedCredentials)
+        );
+    }
+}
+
+#[cfg(test)]
+mod resolution_tests {
+    use super::*;
+
+    #[test]
+    fn a_domain_is_not_resolved_at_configuration_time() {
+        let unresolvable = "https://nonexistent-webhook-host.invalid/hook";
+
+        assert!(
+            validate_endpoint(unresolvable, PrivateEndpoints::Forbidden).is_ok(),
+            "a name that cannot resolve must still be configurable; the failure belongs to delivery"
+        );
+    }
+
+    #[test]
+    fn an_ip_literal_is_still_checked_without_resolving_anything() {
+        assert_eq!(
+            validate_endpoint("https://127.0.0.1/hook", PrivateEndpoints::Forbidden),
+            Err(EndpointError::ForbiddenAddress)
+        );
+        assert!(
+            validate_endpoint("https://93.184.216.34/hook", PrivateEndpoints::Forbidden).is_ok()
+        );
+    }
+
+    #[test]
+    fn cleartext_is_accepted_for_localhost_once_opted_in() {
+        for raw in [
+            "http://localhost/hook",
+            "http://localhost:3000/hook",
+            "http://api.localhost/hook",
+            "http://127.0.0.1:3000/hook",
+        ] {
+            assert!(
+                validate_endpoint(raw, PrivateEndpoints::Allowed).is_ok(),
+                "{raw} should be usable for local development"
+            );
+            assert!(
+                validate_endpoint(raw, PrivateEndpoints::Forbidden).is_err(),
+                "{raw} must stay refused without the opt-in"
+            );
+        }
+    }
+
+    #[test]
+    fn cleartext_is_refused_for_anything_that_is_not_loopback() {
+        for raw in [
+            "http://example.com/hook",
+            "http://93.184.216.34/hook",
+            "http://192.168.1.10/hook",
+        ] {
+            assert_eq!(
+                validate_endpoint(raw, PrivateEndpoints::Allowed),
+                Err(EndpointError::SchemeNotHttps),
+                "{raw} would put the payload and its signature on a network segment"
+            );
+        }
+    }
+
+    #[test]
+    fn a_name_that_merely_looks_local_is_not_trusted() {
+        assert_eq!(
+            validate_endpoint("http://localhost.evil.com/hook", PrivateEndpoints::Allowed),
+            Err(EndpointError::SchemeNotHttps)
         );
     }
 }
