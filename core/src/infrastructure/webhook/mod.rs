@@ -1,4 +1,4 @@
 mod delivery;
 pub mod mappers;
 pub mod repositories;
-mod retry;
+pub mod worker;

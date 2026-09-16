@@ -9,6 +9,7 @@ use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::{Realm, RealmId};
 
+use crate::entities::retry_policy::RetryPolicy;
 use crate::entities::webhook_delivery::{
     DeliveryFilter, DeliveryOutcome, DeliveryPage, WebhookDelivery, WebhookDeliveryId,
 };
@@ -158,6 +159,12 @@ pub trait WebhookDeliveryRepository: Send + Sync {
         &self,
         cutoff: DateTime<Utc>,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    fn resolve_retry_policy(
+        &self,
+        realm_id: RealmId,
+        webhook_id: Uuid,
+    ) -> impl Future<Output = Result<RetryPolicy, CoreError>> + Send;
 }
 
 pub trait WebhookPolicy: Send + Sync {

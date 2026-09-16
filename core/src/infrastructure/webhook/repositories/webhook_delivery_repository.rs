@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -8,21 +6,28 @@ use sea_orm::{
     ColumnTrait, DatabaseConnection, DbBackend, EntityTrait, PaginatorTrait, QueryFilter,
     QueryOrder, QuerySelect, Statement,
 };
-use tracing::error;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use ferriskey_domain::realm::RealmId;
 
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::webhook::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
 use crate::domain::webhook::entities::webhook_delivery::{
     DeliveryFilter, DeliveryOutcome, DeliveryPage, DeliveryStatus, WebhookDelivery,
     WebhookDeliveryId,
 };
 use crate::domain::webhook::ports::WebhookDeliveryRepository;
+use crate::entity::realm_settings::{Column as RealmSettingsColumn, Entity as RealmSettingsEntity};
 use crate::entity::webhook_deliveries::{
     ActiveModel as WebhookDeliveryActiveModel, Column as WebhookDeliveryColumn,
     Entity as WebhookDeliveryEntity,
 };
+use crate::entity::webhooks::{Column as WebhookColumn, Entity as WebhookEntity};
+
+fn optional_u32(value: Option<i32>) -> Option<u32> {
+    value.and_then(|value| u32::try_from(value).ok())
+}
 
 const CLAIM_DUE_SQL: &str = r#"
 UPDATE webhook_deliveries
@@ -70,15 +75,17 @@ fn persisted_state(delivery: &WebhookDelivery) -> Result<WebhookDeliveryActiveMo
 
 impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
     async fn enqueue(&self, delivery: WebhookDelivery) -> Result<(), CoreError> {
+        let state = persisted_state(&delivery)?;
+
         let model = WebhookDeliveryActiveModel {
             id: Set(delivery.id.as_uuid()),
             realm_id: Set(delivery.realm_id.into()),
             webhook_id: Set(delivery.webhook_id),
             event: Set(delivery.event.to_string()),
             resource_id: Set(delivery.resource_id),
-            payload: Set(delivery.payload.clone()),
+            payload: Set(delivery.payload),
             created_at: Set(delivery.created_at.naive_utc()),
-            ..persisted_state(&delivery)?
+            ..state
         };
 
         WebhookDeliveryEntity::insert(model)
@@ -254,6 +261,54 @@ impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
 
         Ok(result.rows_affected)
     }
+
+    async fn resolve_retry_policy(
+        &self,
+        realm_id: RealmId,
+        webhook_id: Uuid,
+    ) -> Result<RetryPolicy, CoreError> {
+        let webhook = WebhookEntity::find_by_id(webhook_id)
+            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let webhook_override = webhook
+            .map(|webhook| RetryPolicyOverride {
+                max_attempts: optional_u32(webhook.retry_max_attempts),
+                base_delay_ms: optional_u32(webhook.retry_base_delay_ms),
+                max_delay_ms: optional_u32(webhook.retry_max_delay_ms),
+                max_total_delay_ms: optional_u32(webhook.retry_max_total_delay_ms),
+            })
+            .unwrap_or_default();
+
+        let settings = RealmSettingsEntity::find()
+            .filter(RealmSettingsColumn::RealmId.eq::<Uuid>(realm_id.into()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let realm_override = settings
+            .map(|settings| RetryPolicyOverride {
+                max_attempts: optional_u32(settings.webhook_retry_max_attempts),
+                base_delay_ms: optional_u32(settings.webhook_retry_base_delay_ms),
+                max_delay_ms: optional_u32(settings.webhook_retry_max_delay_ms),
+                max_total_delay_ms: optional_u32(settings.webhook_retry_max_total_delay_ms),
+            })
+            .unwrap_or_default();
+
+        match RetryPolicy::resolve(webhook_override, realm_override) {
+            Ok(policy) => Ok(policy),
+            Err(error) => {
+                warn!(
+                    webhook_id = %webhook_id,
+                    error = %error,
+                    "stored webhook retry policy is out of bounds, falling back to the system default"
+                );
+                Ok(RetryPolicy::SYSTEM_DEFAULT)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -261,6 +316,8 @@ mod tests {
     use super::*;
     use crate::domain::webhook::entities::webhook_delivery::DeliveryErrorCode;
     use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+    use crate::infrastructure::seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository;
+    use crate::infrastructure::webhook::delivery::{DeliveryJob, deliver_once};
     use sea_orm::Database as SeaOrmDatabase;
     use sqlx::Executor as _;
 
@@ -752,6 +809,151 @@ mod tests {
             .expect("count deliveries");
 
         assert_eq!(remaining, 1);
+    }
+
+    fn job_for(fixture: &Fixture, id: WebhookDeliveryId, endpoint: &str) -> DeliveryJob {
+        DeliveryJob {
+            delivery_id: id,
+            realm_id: fixture.realm_a,
+            webhook_id: fixture.webhook_a,
+            event: WebhookTrigger::UserCreated,
+            endpoint: endpoint.to_string(),
+            headers: std::collections::HashMap::new(),
+            secret: "test-secret".to_string(),
+            body: std::sync::Arc::new(b"{}".to_vec()),
+            attempt_count: 0,
+            elapsed: Duration::ZERO,
+            policy: RetryPolicy::SYSTEM_DEFAULT,
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_transient_failure_schedules_another_attempt_instead_of_giving_up() {
+        let fixture = setup().await;
+        let ids = enqueue_due(&fixture, 1).await;
+        let security = PostgresSecurityEventRepository::new(fixture.repository.db.clone());
+
+        let endpoint = format!(
+            "https://nonexistent-{}.invalid/hook",
+            Uuid::new_v4().simple()
+        );
+        deliver_once(
+            job_for(&fixture, ids[0], &endpoint),
+            &fixture.repository,
+            &security,
+        )
+        .await;
+
+        let stored = fixture
+            .repository
+            .get(fixture.realm_a, ids[0])
+            .await
+            .expect("reload delivery");
+
+        assert_eq!(stored.status, DeliveryStatus::Pending);
+        assert_eq!(stored.attempt_count, 1);
+        assert!(stored.last_error_code.is_some());
+        assert!(
+            stored.next_attempt_at.expect("a retry must be scheduled") > Utc::now(),
+            "the next attempt must be in the future"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_blocked_address_exhausts_immediately_and_is_audited() {
+        let fixture = setup().await;
+        let ids = enqueue_due(&fixture, 1).await;
+        let security = PostgresSecurityEventRepository::new(fixture.repository.db.clone());
+
+        deliver_once(
+            job_for(&fixture, ids[0], "http://127.0.0.1:1/hook"),
+            &fixture.repository,
+            &security,
+        )
+        .await;
+
+        let stored = fixture
+            .repository
+            .get(fixture.realm_a, ids[0])
+            .await
+            .expect("reload delivery");
+
+        assert_eq!(stored.status, DeliveryStatus::Failed);
+        assert_eq!(stored.next_attempt_at, None);
+        assert_eq!(
+            stored.last_error_code,
+            Some(DeliveryErrorCode::NoUsableAddress)
+        );
+
+        let audited: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM security_events WHERE event_type = 'webhook_delivery_exhausted'",
+        )
+        .fetch_one(&fixture.pool)
+        .await
+        .expect("count security events");
+
+        assert_eq!(audited, 1, "exhaustion must leave exactly one audit event");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_webhook_without_any_override_inherits_the_system_default() {
+        let fixture = setup().await;
+
+        let policy = fixture
+            .repository
+            .resolve_retry_policy(fixture.realm_a, fixture.webhook_a)
+            .await
+            .expect("resolve policy");
+
+        assert_eq!(policy, RetryPolicy::SYSTEM_DEFAULT);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_partial_webhook_override_keeps_the_other_fields_at_their_default() {
+        let fixture = setup().await;
+
+        sqlx::query("UPDATE webhooks SET retry_max_attempts = 12 WHERE id = $1")
+            .bind(fixture.webhook_a)
+            .execute(&fixture.pool)
+            .await
+            .expect("set webhook override");
+
+        let policy = fixture
+            .repository
+            .resolve_retry_policy(fixture.realm_a, fixture.webhook_a)
+            .await
+            .expect("resolve policy");
+
+        assert_eq!(policy.max_attempts(), 12);
+        assert_eq!(
+            policy.base_delay(),
+            RetryPolicy::SYSTEM_DEFAULT.base_delay()
+        );
+        assert_eq!(policy.max_delay(), RetryPolicy::SYSTEM_DEFAULT.max_delay());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn an_out_of_bounds_stored_override_falls_back_to_the_system_default() {
+        let fixture = setup().await;
+
+        sqlx::query("UPDATE webhooks SET retry_max_attempts = 0 WHERE id = $1")
+            .bind(fixture.webhook_a)
+            .execute(&fixture.pool)
+            .await
+            .expect("set invalid override");
+
+        let policy = fixture
+            .repository
+            .resolve_retry_policy(fixture.realm_a, fixture.webhook_a)
+            .await
+            .expect("an invalid stored policy must not fail the delivery");
+
+        assert_eq!(policy, RetryPolicy::SYSTEM_DEFAULT);
     }
 
     #[tokio::test]

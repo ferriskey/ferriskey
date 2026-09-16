@@ -22,10 +22,13 @@ use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, RelationTrait,
 };
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::domain::common::generate_timestamp;
+use crate::domain::webhook::entities::retry_policy::RetryPolicy;
+use crate::domain::webhook::entities::webhook_delivery::WebhookDelivery;
 use crate::domain::webhook::entities::webhook_subscriber::WebhookSubscriber;
+use crate::domain::webhook::ports::WebhookDeliveryRepository;
 use crate::entity::webhook_subscribers::{
     ActiveModel as WebhookSubscriberActiveModel, Column as WebhookSubscriberColumn,
     Entity as WebhookSubscriberEntity,
@@ -34,6 +37,8 @@ use crate::entity::webhooks::{
     ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
     Relation as WebhookRelation,
 };
+use crate::infrastructure::seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository;
+use crate::infrastructure::webhook::repositories::webhook_delivery_repository::PostgresWebhookDeliveryRepository;
 
 use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 use crate::infrastructure::webhook::delivery::{self, DeliveryJob};
@@ -41,15 +46,19 @@ use crate::infrastructure::webhook::delivery::{self, DeliveryJob};
 #[derive(Debug, Clone)]
 pub struct PostgresWebhookRepository {
     pub db: DatabaseConnection,
+    deliveries: PostgresWebhookDeliveryRepository,
     delivery_sender: mpsc::Sender<DeliveryJob>,
 }
 
 impl PostgresWebhookRepository {
     pub fn new(db: DatabaseConnection) -> Self {
-        let delivery_sender = delivery::spawn_dispatcher(db.clone());
+        let deliveries = PostgresWebhookDeliveryRepository::new(db.clone());
+        let security_events = PostgresSecurityEventRepository::new(db.clone());
+        let delivery_sender = delivery::spawn_dispatcher(deliveries.clone(), security_events);
 
         Self {
             db,
+            deliveries,
             delivery_sender,
         }
     }
@@ -278,11 +287,6 @@ impl WebhookRepository for PostgresWebhookRepository {
         Ok(())
     }
 
-    /// Enqueues a delivery job per matching webhook and returns without waiting for any of them
-    /// to be attempted. A full queue is shed rather than awaited: this method runs inline in
-    /// request-handling code paths (user creation, client updates, ...), and blocking those on a
-    /// backlog caused entirely by a slow or stuck third-party endpoint would turn an unrelated
-    /// API outage into a webhook-subsystem outage.
     async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: RealmId,
@@ -299,7 +303,19 @@ impl WebhookRepository for PostgresWebhookRepository {
             }
         };
 
-        let body = match serde_json::to_vec(&payload) {
+        if webhooks.is_empty() {
+            return Ok(());
+        }
+
+        let document = match to_value(&payload) {
+            Ok(document) => document,
+            Err(err) => {
+                error!("Failed to serialize webhook payload: {:?}", err);
+                return Ok(());
+            }
+        };
+
+        let body = match serde_json::to_vec(&document) {
             Ok(body) => std::sync::Arc::new(body),
             Err(err) => {
                 error!("Failed to serialize webhook payload: {:?}", err);
@@ -308,28 +324,60 @@ impl WebhookRepository for PostgresWebhookRepository {
         };
 
         for webhook in webhooks {
+            let delivery = WebhookDelivery::pending(
+                realm_id,
+                webhook.id,
+                payload.event.clone(),
+                payload.resource_id,
+                document.clone(),
+                Utc::now(),
+            );
+            let delivery_id = delivery.id;
+            let attempt_count = delivery.attempt_count;
+
+            if let Err(err) = self.deliveries.enqueue(delivery).await {
+                error!(
+                    webhook_id = %webhook.id,
+                    error = ?err,
+                    "failed to record a webhook delivery; the event is lost"
+                );
+                continue;
+            }
+
+            let policy = match self
+                .deliveries
+                .resolve_retry_policy(realm_id, webhook.id)
+                .await
+            {
+                Ok(policy) => policy,
+                Err(_) => RetryPolicy::SYSTEM_DEFAULT,
+            };
+
             let job = DeliveryJob {
+                delivery_id,
+                realm_id,
                 webhook_id: webhook.id,
+                event: payload.event.clone(),
                 endpoint: webhook.endpoint,
                 headers: webhook.headers,
                 secret: webhook.secret,
                 body: body.clone(),
+                attempt_count,
+                elapsed: std::time::Duration::ZERO,
+                policy,
             };
 
-            match self.delivery_sender.try_send(job) {
-                Ok(()) => {}
-                Err(mpsc::error::TrySendError::Full(_)) => {
-                    error!(
-                        webhook_id = %webhook.id,
-                        "webhook delivery queue is full; dropping this delivery"
-                    );
-                }
-                Err(mpsc::error::TrySendError::Closed(_)) => {
-                    error!(
-                        webhook_id = %webhook.id,
-                        "webhook delivery dispatcher is not running; dropping this delivery"
-                    );
-                }
+            if let Err(err) = self.delivery_sender.try_send(job) {
+                let reason = match err {
+                    mpsc::error::TrySendError::Full(_) => "queue is full",
+                    mpsc::error::TrySendError::Closed(_) => "dispatcher is not running",
+                };
+                warn!(
+                    webhook_id = %webhook.id,
+                    delivery_id = %delivery_id,
+                    reason,
+                    "deferring the first webhook delivery attempt to the outbox worker"
+                );
             }
         }
 

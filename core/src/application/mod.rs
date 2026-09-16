@@ -122,7 +122,9 @@ use crate::{
             },
             repository::PostgresUserRepository,
         },
+        webhook::repositories::webhook_delivery_repository::PostgresWebhookDeliveryRepository,
         webhook::repositories::webhook_repository::PostgresWebhookRepository,
+        webhook::worker::{webhook_delivery_retention_task, webhook_delivery_worker_task},
     },
 };
 
@@ -264,6 +266,14 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     tokio::spawn(compass_retention_task(PostgresCompassFlowRepository::new(
         postgres.get_db(),
     )));
+    tokio::spawn(webhook_delivery_worker_task(
+        PostgresWebhookDeliveryRepository::new(postgres.get_db()),
+        webhook.as_ref().clone(),
+        PostgresSecurityEventRepository::new(postgres.get_db()),
+    ));
+    tokio::spawn(webhook_delivery_retention_task(
+        PostgresWebhookDeliveryRepository::new(postgres.get_db()),
+    ));
     let flow_recorder = FlowRecorder::new(compass_tx);
 
     let policy = Arc::new(FerriskeyPolicy::new(

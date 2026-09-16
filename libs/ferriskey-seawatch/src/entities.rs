@@ -82,6 +82,9 @@ pub enum SecurityEventType {
     #[serde(rename = "identity_provider_link_removed")]
     IdentityProviderLinkRemoved,
 
+    #[serde(rename = "webhook_delivery_exhausted")]
+    WebhookDeliveryExhausted,
+
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
     /// version. Never constructed by write-path code; the read path falls
@@ -121,6 +124,7 @@ impl SecurityEventType {
             "session_created" => Self::SessionCreated,
             "session_revoked" => Self::SessionRevoked,
             "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
+            "webhook_delivery_exhausted" => Self::WebhookDeliveryExhausted,
             _ => Self::Unknown,
         }
     }
@@ -158,6 +162,9 @@ impl Display for SecurityEventType {
             SecurityEventType::SessionRevoked => write!(f, "session_revoked"),
             SecurityEventType::IdentityProviderLinkRemoved => {
                 write!(f, "identity_provider_link_removed")
+            }
+            SecurityEventType::WebhookDeliveryExhausted => {
+                write!(f, "webhook_delivery_exhausted")
             }
             SecurityEventType::Unknown => write!(f, "unknown"),
         }

@@ -6,22 +6,22 @@ use std::time::Duration;
 use chrono::Utc;
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, StatusCode, Url, redirect};
-use sea_orm::ActiveValue::Set;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use tokio::sync::{Semaphore, mpsc};
-use tokio::time::sleep;
 use tracing::error;
 use uuid::Uuid;
 
+use ferriskey_domain::realm::RealmId;
+use ferriskey_seawatch::entities::{EventStatus, SecurityEvent, SecurityEventType};
+use ferriskey_seawatch::ports::SecurityEventRepository;
 use ferriskey_webhook::endpoint::{is_forbidden_address, reject_reserved_headers};
 use ferriskey_webhook::signing::{DELIVERY_HEADER, SIGNATURE_HEADER, TIMESTAMP_HEADER, sign};
 
-use crate::domain::common::generate_uuid_v7;
-use crate::entity::webhooks::{
-    ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
+use crate::domain::webhook::entities::retry_policy::RetryPolicy;
+use crate::domain::webhook::entities::webhook_delivery::{
+    DeliveryErrorCode, DeliveryOutcome, WebhookDeliveryId,
 };
-
-use super::retry::{self, DeliveryOutcome};
+use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+use crate::domain::webhook::ports::WebhookDeliveryRepository;
 
 const QUEUE_CAPACITY: usize = 1024;
 const MAX_CONCURRENT_DELIVERIES: usize = 16;
@@ -30,11 +30,17 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone)]
 pub struct DeliveryJob {
+    pub delivery_id: WebhookDeliveryId,
+    pub realm_id: RealmId,
     pub webhook_id: Uuid,
+    pub event: WebhookTrigger,
     pub endpoint: String,
     pub headers: HashMap<String, String>,
     pub secret: String,
     pub body: Arc<Vec<u8>>,
+    pub attempt_count: u32,
+    pub elapsed: Duration,
+    pub policy: RetryPolicy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,41 +57,26 @@ enum DeliveryFailure {
 }
 
 impl DeliveryFailure {
-    fn code(self) -> String {
+    fn error_code(self) -> DeliveryErrorCode {
         match self {
-            Self::ReservedHeader => "reserved_header".to_string(),
-            Self::MalformedEndpoint => "malformed_endpoint".to_string(),
-            Self::MissingHost => "missing_host".to_string(),
-            Self::DnsResolutionFailed => "dns_resolution_failed".to_string(),
-            Self::NoUsableAddress => "no_usable_address".to_string(),
-            Self::ClientBuildFailed => "client_build_failed".to_string(),
-            Self::HeaderEncodingFailed => "header_encoding_failed".to_string(),
-            Self::Transport => "transport_error".to_string(),
-            Self::Status(status) => format!("http_{}", status.as_u16()),
-        }
-    }
-
-    /// `ReservedHeader`, `MalformedEndpoint`, `MissingHost` and `NoUsableAddress` describe the
-    /// webhook's own configuration rather than a transient failure of its endpoint: retrying
-    /// leaves the same rejection in place, and for `NoUsableAddress` specifically, retrying a
-    /// request that was just correctly refused as a possible SSRF target is the wrong instinct
-    /// even if a future resolution would come back public again.
-    fn outcome(self) -> Option<DeliveryOutcome> {
-        match self {
-            Self::ReservedHeader
-            | Self::MalformedEndpoint
-            | Self::MissingHost
-            | Self::NoUsableAddress => None,
-            Self::DnsResolutionFailed | Self::ClientBuildFailed | Self::HeaderEncodingFailed => {
-                Some(DeliveryOutcome::Transport)
-            }
-            Self::Transport => Some(DeliveryOutcome::Transport),
-            Self::Status(status) => Some(DeliveryOutcome::Status(status)),
+            Self::ReservedHeader => DeliveryErrorCode::ReservedHeader,
+            Self::MalformedEndpoint => DeliveryErrorCode::MalformedEndpoint,
+            Self::MissingHost => DeliveryErrorCode::MissingHost,
+            Self::DnsResolutionFailed => DeliveryErrorCode::DnsResolutionFailed,
+            Self::NoUsableAddress => DeliveryErrorCode::NoUsableAddress,
+            Self::ClientBuildFailed => DeliveryErrorCode::ClientBuildFailed,
+            Self::HeaderEncodingFailed => DeliveryErrorCode::HeaderEncodingFailed,
+            Self::Transport => DeliveryErrorCode::Transport,
+            Self::Status(status) => DeliveryErrorCode::HttpStatus(status.as_u16()),
         }
     }
 }
 
-pub fn spawn_dispatcher(db: DatabaseConnection) -> mpsc::Sender<DeliveryJob> {
+pub fn spawn_dispatcher<D, S>(deliveries: D, security_events: S) -> mpsc::Sender<DeliveryJob>
+where
+    D: WebhookDeliveryRepository + Clone + 'static,
+    S: SecurityEventRepository + Clone + 'static,
+{
     let (sender, mut receiver) = mpsc::channel::<DeliveryJob>(QUEUE_CAPACITY);
 
     tokio::spawn(async move {
@@ -97,9 +88,10 @@ pub fn spawn_dispatcher(db: DatabaseConnection) -> mpsc::Sender<DeliveryJob> {
                 Err(_) => break,
             };
 
-            let db = db.clone();
+            let deliveries = deliveries.clone();
+            let security_events = security_events.clone();
             tokio::spawn(async move {
-                deliver_with_retry(job, &db).await;
+                deliver_once(job, &deliveries, &security_events).await;
                 drop(permit);
             });
         }
@@ -108,72 +100,126 @@ pub fn spawn_dispatcher(db: DatabaseConnection) -> mpsc::Sender<DeliveryJob> {
     sender
 }
 
-async fn deliver_with_retry(job: DeliveryJob, db: &DatabaseConnection) {
-    if let Err(err) = reject_reserved_headers(&job.headers) {
-        error!(
-            webhook_id = %job.webhook_id,
-            error = %err,
-            "refusing webhook delivery: a configured header collides with a reserved name"
-        );
-        persist_outcome(
-            db,
-            job.webhook_id,
-            Some(DeliveryFailure::ReservedHeader.code()),
-        )
-        .await;
-        return;
-    }
+pub async fn deliver_once<D, S>(job: DeliveryJob, deliveries: &D, security_events: &S)
+where
+    D: WebhookDeliveryRepository,
+    S: SecurityEventRepository,
+{
+    let at = Utc::now();
 
-    let delivery_id = generate_uuid_v7();
-    let mut attempt: u32 = 1;
-    let mut cumulative_delay = Duration::ZERO;
+    let failure = match attempt_delivery(&job).await {
+        Ok(status_code) => {
+            record(
+                deliveries,
+                &job,
+                DeliveryOutcome::Succeeded { at, status_code },
+            )
+            .await;
+            return;
+        }
+        Err(failure) => failure,
+    };
 
-    loop {
-        match attempt_delivery(&job, delivery_id).await {
-            Ok(()) => {
-                persist_outcome(db, job.webhook_id, None).await;
-                return;
-            }
-            Err(failure) => {
-                let code = failure.code();
-                let retry_eligible = match failure.outcome() {
-                    Some(outcome) => retry::should_retry(attempt, outcome, cumulative_delay),
-                    None => false,
-                };
+    let error = failure.error_code();
+    let attempt_count = job.attempt_count.saturating_add(1);
 
-                if !retry_eligible {
-                    error!(
-                        webhook_id = %job.webhook_id,
-                        attempt,
-                        reason = %code,
-                        "webhook delivery failed permanently"
-                    );
-                    persist_outcome(db, job.webhook_id, Some(code)).await;
-                    return;
-                }
+    let next_delay = if error.is_retryable() {
+        job.policy
+            .next_attempt_delay(attempt_count, job.elapsed, &mut rand::thread_rng())
+            .and_then(|delay| chrono::Duration::from_std(delay).ok())
+    } else {
+        None
+    };
 
-                let delay =
-                    retry::apply_jitter(retry::backoff_delay(attempt), &mut rand::thread_rng());
-                cumulative_delay += delay;
-                error!(
-                    webhook_id = %job.webhook_id,
-                    attempt,
-                    reason = %code,
-                    delay_ms = delay.as_millis() as u64,
-                    "webhook delivery failed, retrying with backoff"
-                );
-                sleep(delay).await;
-                attempt += 1;
-            }
+    match next_delay {
+        Some(delay) => {
+            error!(
+                webhook_id = %job.webhook_id,
+                delivery_id = %job.delivery_id,
+                attempt = attempt_count,
+                reason = %error.as_code(),
+                delay_ms = delay.num_milliseconds(),
+                "webhook delivery failed, scheduling another attempt"
+            );
+            record(
+                deliveries,
+                &job,
+                DeliveryOutcome::Retrying {
+                    at,
+                    next_attempt_at: at + delay,
+                    error,
+                    detail: None,
+                },
+            )
+            .await;
+        }
+        None => {
+            error!(
+                webhook_id = %job.webhook_id,
+                delivery_id = %job.delivery_id,
+                attempt = attempt_count,
+                reason = %error.as_code(),
+                "webhook delivery exhausted its attempts"
+            );
+            record(
+                deliveries,
+                &job,
+                DeliveryOutcome::Exhausted {
+                    at,
+                    error,
+                    detail: None,
+                },
+            )
+            .await;
+            emit_exhausted_event(security_events, &job, error).await;
         }
     }
 }
 
-/// Resolves the endpoint's host over DNS and pins the outgoing connection to the resolved
-/// address that passed [`is_forbidden_address`]. Resolution happens again on every attempt,
-/// including retries: a name that answered with a public address a minute ago can answer with a
-/// private one now, and only the address actually dialed protects against that.
-async fn attempt_delivery(job: &DeliveryJob, delivery_id: Uuid) -> Result<(), DeliveryFailure> {
+async fn record<D>(deliveries: &D, job: &DeliveryJob, outcome: DeliveryOutcome)
+where
+    D: WebhookDeliveryRepository,
+{
+    if let Err(err) = deliveries.record_outcome(job.delivery_id, outcome).await {
+        error!(
+            webhook_id = %job.webhook_id,
+            delivery_id = %job.delivery_id,
+            error = ?err,
+            "failed to persist webhook delivery outcome"
+        );
+    }
+}
+
+async fn emit_exhausted_event<S>(security_events: &S, job: &DeliveryJob, error: DeliveryErrorCode)
+where
+    S: SecurityEventRepository,
+{
+    let event = SecurityEvent::without_actor(
+        job.realm_id,
+        SecurityEventType::WebhookDeliveryExhausted,
+        EventStatus::Failure,
+    )
+    .with_target("webhook".to_string(), job.webhook_id, None)
+    .with_details(serde_json::json!({
+        "delivery_id": job.delivery_id.as_uuid(),
+        "event": job.event.to_string(),
+        "error_code": error.as_code(),
+        "attempts": job.attempt_count.saturating_add(1),
+    }));
+
+    if let Err(err) = security_events.store_event(event).await {
+        error!(
+            webhook_id = %job.webhook_id,
+            delivery_id = %job.delivery_id,
+            error = ?err,
+            "failed to record the webhook delivery exhaustion event"
+        );
+    }
+}
+
+async fn attempt_delivery(job: &DeliveryJob) -> Result<u16, DeliveryFailure> {
+    reject_reserved_headers(&job.headers).map_err(|_| DeliveryFailure::ReservedHeader)?;
+
     let url = Url::parse(&job.endpoint).map_err(|_| DeliveryFailure::MalformedEndpoint)?;
     let host = url
         .host_str()
@@ -206,10 +252,10 @@ async fn attempt_delivery(job: &DeliveryJob, delivery_id: Uuid) -> Result<(), De
                 headers.insert(name, val);
             }
             (Err(e), _) => {
-                error!(webhook_id = %job.webhook_id, key = %key, error = %e, "invalid webhook header name");
+                error!(webhook_id = %job.webhook_id, key = %key, error = %e, "invalid webhook header name")
             }
             (_, Err(e)) => {
-                error!(webhook_id = %job.webhook_id, key = %key, error = %e, "invalid webhook header value");
+                error!(webhook_id = %job.webhook_id, key = %key, error = %e, "invalid webhook header value")
             }
         }
     }
@@ -225,7 +271,7 @@ async fn attempt_delivery(job: &DeliveryJob, delivery_id: Uuid) -> Result<(), De
     );
     headers.insert(
         HeaderName::from_static(DELIVERY_HEADER),
-        HeaderValue::from_str(&delivery_id.to_string())
+        HeaderValue::from_str(&job.delivery_id.to_string())
             .map_err(|_| DeliveryFailure::HeaderEncodingFailed)?,
     );
     headers.insert(
@@ -241,40 +287,69 @@ async fn attempt_delivery(job: &DeliveryJob, delivery_id: Uuid) -> Result<(), De
         .await
         .map_err(|_| DeliveryFailure::Transport)?;
 
-    if response.status().is_success() {
-        Ok(())
+    let status = response.status();
+    if status.is_success() {
+        Ok(status.as_u16())
     } else {
-        Err(DeliveryFailure::Status(response.status()))
+        Err(DeliveryFailure::Status(status))
     }
 }
 
-/// Records the terminal outcome of a delivery job: `error_code` is `None` for a success and
-/// `Some(reason)` — one of [`DeliveryFailure::code`]'s values — once retries are exhausted or the
-/// failure was never retryable to begin with.
-async fn persist_outcome(db: &DatabaseConnection, webhook_id: Uuid, error_code: Option<String>) {
-    let now = Utc::now().naive_utc();
-    let status = if error_code.is_none() {
-        "success"
-    } else {
-        "failed"
-    };
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let result = WebhookEntity::update_many()
-        .set(WebhookActiveModel {
-            triggered_at: Set(Some(now)),
-            last_delivery_status: Set(Some(status.to_string())),
-            last_delivery_error: Set(error_code),
-            ..Default::default()
-        })
-        .filter(WebhookColumn::Id.eq(webhook_id))
-        .exec(db)
-        .await;
+    #[test]
+    fn every_failure_maps_to_its_persisted_error_code() {
+        let cases = [
+            (DeliveryFailure::ReservedHeader, "reserved_header"),
+            (DeliveryFailure::MalformedEndpoint, "malformed_endpoint"),
+            (DeliveryFailure::MissingHost, "missing_host"),
+            (
+                DeliveryFailure::DnsResolutionFailed,
+                "dns_resolution_failed",
+            ),
+            (DeliveryFailure::NoUsableAddress, "no_usable_address"),
+            (DeliveryFailure::ClientBuildFailed, "client_build_failed"),
+            (
+                DeliveryFailure::HeaderEncodingFailed,
+                "header_encoding_failed",
+            ),
+            (DeliveryFailure::Transport, "transport_error"),
+            (
+                DeliveryFailure::Status(StatusCode::SERVICE_UNAVAILABLE),
+                "http_503",
+            ),
+        ];
 
-    if let Err(err) = result {
-        error!(
-            webhook_id = %webhook_id,
-            error = %err,
-            "failed to persist webhook delivery outcome"
-        );
+        for (failure, expected) in cases {
+            assert_eq!(failure.error_code().as_code(), expected);
+        }
+    }
+
+    #[test]
+    fn configuration_failures_stay_non_retryable_across_the_boundary() {
+        for failure in [
+            DeliveryFailure::ReservedHeader,
+            DeliveryFailure::MalformedEndpoint,
+            DeliveryFailure::MissingHost,
+            DeliveryFailure::NoUsableAddress,
+        ] {
+            assert!(!failure.error_code().is_retryable(), "{failure:?}");
+        }
+    }
+
+    #[test]
+    fn transport_and_server_failures_stay_retryable_across_the_boundary() {
+        for failure in [
+            DeliveryFailure::Transport,
+            DeliveryFailure::DnsResolutionFailed,
+            DeliveryFailure::ClientBuildFailed,
+            DeliveryFailure::HeaderEncodingFailed,
+            DeliveryFailure::Status(StatusCode::INTERNAL_SERVER_ERROR),
+            DeliveryFailure::Status(StatusCode::TOO_MANY_REQUESTS),
+        ] {
+            assert!(failure.error_code().is_retryable(), "{failure:?}");
+        }
     }
 }
