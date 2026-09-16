@@ -13,7 +13,9 @@ use uuid::Uuid;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_seawatch::entities::{EventStatus, SecurityEvent, SecurityEventType};
 use ferriskey_seawatch::ports::SecurityEventRepository;
-use ferriskey_webhook::endpoint::{is_forbidden_address, reject_reserved_headers};
+use ferriskey_webhook::endpoint::{
+    PrivateEndpoints, is_forbidden_address, reject_reserved_headers,
+};
 use ferriskey_webhook::signing::{DELIVERY_HEADER, SIGNATURE_HEADER, TIMESTAMP_HEADER, sign};
 
 use crate::domain::webhook::entities::retry_policy::RetryPolicy;
@@ -41,6 +43,7 @@ pub struct DeliveryJob {
     pub attempt_count: u32,
     pub elapsed: Duration,
     pub policy: RetryPolicy,
+    pub private_endpoints: PrivateEndpoints,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -234,7 +237,7 @@ async fn attempt_delivery(job: &DeliveryJob) -> Result<u16, DeliveryFailure> {
         .map_err(|_| DeliveryFailure::DnsResolutionFailed)?;
 
     let addr = resolved
-        .find(|candidate| !is_forbidden_address(candidate.ip()))
+        .find(|candidate| !is_forbidden_address(candidate.ip(), job.private_endpoints))
         .ok_or(DeliveryFailure::NoUsableAddress)?;
 
     let client = Client::builder()

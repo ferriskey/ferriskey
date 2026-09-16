@@ -25,6 +25,33 @@ const RESERVED_HEADERS: [&str; 7] = [
     DELIVERY_HEADER,
 ];
 
+/// Whether a webhook endpoint may resolve to a loopback or private address.
+///
+/// `Forbidden` is the [`Default`] so that a code path which forgets to thread the setting through
+/// fails closed. Link-local addresses stay refused under both values: `169.254.169.254` and its
+/// IPv6 equivalent serve cloud instance metadata, which is the SSRF payoff this guard exists for
+/// and which no local development setup needs.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PrivateEndpoints {
+    #[default]
+    Forbidden,
+    Allowed,
+}
+
+impl PrivateEndpoints {
+    pub fn from_allowed(allowed: bool) -> Self {
+        if allowed {
+            Self::Allowed
+        } else {
+            Self::Forbidden
+        }
+    }
+
+    fn allows_private(self) -> bool {
+        matches!(self, Self::Allowed)
+    }
+}
+
 /// Every reason [`validate_endpoint`] or [`reject_reserved_headers`] can refuse a caller's input.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum EndpointError {
@@ -80,7 +107,7 @@ impl From<EndpointError> for CoreError {
 /// is checked directly; a domain name is resolved via the system resolver and every returned
 /// address is checked, so a name that resolves to both a public and a private address is
 /// rejected rather than allowed on the strength of one good answer.
-pub fn validate_endpoint(raw: &str) -> Result<Url, EndpointError> {
+pub fn validate_endpoint(raw: &str, policy: PrivateEndpoints) -> Result<Url, EndpointError> {
     let url = Url::parse(raw).map_err(|_| EndpointError::Malformed)?;
 
     if url.scheme() != "https" {
@@ -113,7 +140,10 @@ pub fn validate_endpoint(raw: &str) -> Result<Url, EndpointError> {
         return Err(EndpointError::UnresolvableHost);
     }
 
-    if addresses.into_iter().any(is_forbidden_address) {
+    if addresses
+        .into_iter()
+        .any(|address| is_forbidden_address(address, policy))
+    {
         return Err(EndpointError::ForbiddenAddress);
     }
 
@@ -125,28 +155,26 @@ pub fn validate_endpoint(raw: &str) -> Result<Url, EndpointError> {
 /// and multicast — plus the IPv4-mapped IPv6 form of every one of those, checked by unwrapping
 /// the mapping and recursing into the IPv4 rules, since `::ffff:127.0.0.1` must be rejected
 /// exactly like `127.0.0.1` is rather than slipping past a check that only looks at IPv6 ranges.
-pub fn is_forbidden_address(ip: IpAddr) -> bool {
+pub fn is_forbidden_address(ip: IpAddr, policy: PrivateEndpoints) -> bool {
     match ip {
-        IpAddr::V4(v4) => is_forbidden_ipv4(v4),
+        IpAddr::V4(v4) => is_forbidden_ipv4(v4, policy),
         IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
-            Some(mapped) => is_forbidden_ipv4(mapped),
+            Some(mapped) => is_forbidden_ipv4(mapped, policy),
             None => {
-                v6.is_loopback()
-                    || v6.is_unspecified()
+                v6.is_unspecified()
                     || v6.is_multicast()
-                    || is_ipv6_unique_local(v6)
                     || is_ipv6_link_local(v6)
+                    || (!policy.allows_private() && (v6.is_loopback() || is_ipv6_unique_local(v6)))
             }
         },
     }
 }
 
-fn is_forbidden_ipv4(v4: Ipv4Addr) -> bool {
-    v4.is_loopback()
-        || v4.is_private()
-        || v4.is_link_local()
-        || v4.is_unspecified()
+fn is_forbidden_ipv4(v4: Ipv4Addr, policy: PrivateEndpoints) -> bool {
+    v4.is_unspecified()
         || v4.is_multicast()
+        || v4.is_link_local()
+        || (!policy.allows_private() && (v4.is_loopback() || v4.is_private()))
 }
 
 /// `fc00::/7`, checked on the raw segment rather than via a standard-library helper so this
@@ -179,121 +207,117 @@ pub fn reject_reserved_headers(headers: &HashMap<String, String>) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
+    fn forbidden(ip: std::net::IpAddr) -> bool {
+        super::is_forbidden_address(ip, super::PrivateEndpoints::Forbidden)
+    }
+
+    fn validate(raw: &str) -> Result<super::Url, super::EndpointError> {
+        super::validate_endpoint(raw, super::PrivateEndpoints::Forbidden)
+    }
+
     use super::*;
 
     #[test]
     fn rejects_loopback_v4() {
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::new(
-            127, 0, 0, 1
-        ))));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))));
     }
 
     #[test]
     fn rejects_unspecified_v4() {
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::UNSPECIFIED)));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::UNSPECIFIED)));
     }
 
     #[test]
     fn rejects_link_local_metadata_address() {
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::new(
-            169, 254, 169, 254
-        ))));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::new(169, 254, 169, 254))));
     }
 
     #[test]
     fn rejects_private_ranges_v4() {
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1))));
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::new(
-            172, 16, 0, 1
-        ))));
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::new(
-            192, 168, 1, 1
-        ))));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1))));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::new(172, 16, 0, 1))));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1))));
     }
 
     #[test]
     fn rejects_multicast_v4() {
-        assert!(is_forbidden_address(IpAddr::V4(Ipv4Addr::new(
-            224, 0, 0, 1
-        ))));
+        assert!(forbidden(IpAddr::V4(Ipv4Addr::new(224, 0, 0, 1))));
     }
 
     #[test]
     fn rejects_loopback_v6() {
-        assert!(is_forbidden_address(IpAddr::V6(Ipv6Addr::LOCALHOST)));
+        assert!(forbidden(IpAddr::V6(Ipv6Addr::LOCALHOST)));
     }
 
     #[test]
     fn rejects_unspecified_v6() {
-        assert!(is_forbidden_address(IpAddr::V6(Ipv6Addr::UNSPECIFIED)));
+        assert!(forbidden(IpAddr::V6(Ipv6Addr::UNSPECIFIED)));
     }
 
     #[test]
     fn rejects_multicast_v6() {
-        assert!(is_forbidden_address(IpAddr::V6(Ipv6Addr::new(
+        assert!(forbidden(IpAddr::V6(Ipv6Addr::new(
             0xff02, 0, 0, 0, 0, 0, 0, 1
         ))));
     }
 
     #[test]
     fn rejects_unique_local_v6() {
-        assert!(is_forbidden_address(IpAddr::V6(Ipv6Addr::new(
+        assert!(forbidden(IpAddr::V6(Ipv6Addr::new(
             0xfd00, 0, 0, 0, 0, 0, 0, 1
         ))));
     }
 
     #[test]
     fn rejects_link_local_v6() {
-        assert!(is_forbidden_address(IpAddr::V6(Ipv6Addr::new(
+        assert!(forbidden(IpAddr::V6(Ipv6Addr::new(
             0xfe80, 0, 0, 0, 0, 0, 0, 1
         ))));
     }
 
     #[test]
     fn rejects_ipv4_mapped_loopback() {
-        assert!(is_forbidden_address(IpAddr::V6(
+        assert!(forbidden(IpAddr::V6(
             Ipv4Addr::new(127, 0, 0, 1).to_ipv6_mapped()
         )));
     }
 
     #[test]
     fn rejects_ipv4_mapped_metadata_address() {
-        assert!(is_forbidden_address(IpAddr::V6(
+        assert!(forbidden(IpAddr::V6(
             Ipv4Addr::new(169, 254, 169, 254).to_ipv6_mapped()
         )));
     }
 
     #[test]
     fn rejects_ipv4_mapped_private_range() {
-        assert!(is_forbidden_address(IpAddr::V6(
+        assert!(forbidden(IpAddr::V6(
             Ipv4Addr::new(10, 0, 0, 1).to_ipv6_mapped()
         )));
     }
 
     #[test]
     fn rejects_ipv4_mapped_unspecified() {
-        assert!(is_forbidden_address(IpAddr::V6(
+        assert!(forbidden(IpAddr::V6(
             Ipv4Addr::UNSPECIFIED.to_ipv6_mapped()
         )));
     }
 
     #[test]
     fn allows_public_v4() {
-        assert!(!is_forbidden_address(IpAddr::V4(Ipv4Addr::new(
-            93, 184, 216, 34
-        ))));
+        assert!(!forbidden(IpAddr::V4(Ipv4Addr::new(93, 184, 216, 34))));
     }
 
     #[test]
     fn allows_public_v6() {
-        assert!(!is_forbidden_address(IpAddr::V6(Ipv6Addr::new(
+        assert!(!forbidden(IpAddr::V6(Ipv6Addr::new(
             0x2606, 0x2800, 0x220, 1, 0x248, 0x1893, 0x25c8, 0x1946
         ))));
     }
 
     #[test]
     fn allows_ipv4_mapped_public_address() {
-        assert!(!is_forbidden_address(IpAddr::V6(
+        assert!(!forbidden(IpAddr::V6(
             Ipv4Addr::new(93, 184, 216, 34).to_ipv6_mapped()
         )));
     }
@@ -301,23 +325,20 @@ mod tests {
     #[test]
     fn rejects_http_scheme() {
         assert_eq!(
-            validate_endpoint("http://93.184.216.34/hook"),
+            validate("http://93.184.216.34/hook"),
             Err(EndpointError::SchemeNotHttps)
         );
     }
 
     #[test]
     fn rejects_malformed_url() {
-        assert_eq!(
-            validate_endpoint("not a url"),
-            Err(EndpointError::Malformed)
-        );
+        assert_eq!(validate("not a url"), Err(EndpointError::Malformed));
     }
 
     #[test]
     fn rejects_embedded_credentials() {
         assert_eq!(
-            validate_endpoint("https://user:pass@93.184.216.34/hook"),
+            validate("https://user:pass@93.184.216.34/hook"),
             Err(EndpointError::EmbeddedCredentials)
         );
     }
@@ -325,7 +346,7 @@ mod tests {
     #[test]
     fn rejects_loopback_ip_literal_endpoint() {
         assert_eq!(
-            validate_endpoint("https://127.0.0.1/hook"),
+            validate("https://127.0.0.1/hook"),
             Err(EndpointError::ForbiddenAddress)
         );
     }
@@ -333,7 +354,7 @@ mod tests {
     #[test]
     fn rejects_ipv4_mapped_ip_literal_endpoint() {
         assert_eq!(
-            validate_endpoint("https://[::ffff:127.0.0.1]/hook"),
+            validate("https://[::ffff:127.0.0.1]/hook"),
             Err(EndpointError::ForbiddenAddress)
         );
     }
@@ -341,14 +362,14 @@ mod tests {
     #[test]
     fn rejects_metadata_ip_literal_endpoint() {
         assert_eq!(
-            validate_endpoint("https://169.254.169.254/hook"),
+            validate("https://169.254.169.254/hook"),
             Err(EndpointError::ForbiddenAddress)
         );
     }
 
     #[test]
     fn accepts_public_ip_literal_endpoint_with_non_default_port() {
-        let url = validate_endpoint("https://93.184.216.34:8443/hook")
+        let url = validate("https://93.184.216.34:8443/hook")
             .expect("a public IP-literal endpoint on a non-default port must be accepted");
 
         assert_eq!(url.port(), Some(8443));
@@ -357,7 +378,7 @@ mod tests {
 
     #[test]
     fn accepts_public_ip_literal_endpoint_on_default_port() {
-        assert!(validate_endpoint("https://93.184.216.34/hook").is_ok());
+        assert!(validate("https://93.184.216.34/hook").is_ok());
     }
 
     #[test]
@@ -440,5 +461,94 @@ mod conversion_tests {
         ));
 
         assert!(message.contains("x-ferriskey-signature"));
+    }
+}
+
+#[cfg(test)]
+mod private_endpoint_tests {
+    use super::*;
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
+    fn allowed(ip: IpAddr) -> bool {
+        !is_forbidden_address(ip, PrivateEndpoints::Allowed)
+    }
+
+    fn refused_by_default(ip: IpAddr) -> bool {
+        is_forbidden_address(ip, PrivateEndpoints::Forbidden)
+    }
+
+    #[test]
+    fn the_default_is_to_refuse() {
+        assert_eq!(PrivateEndpoints::default(), PrivateEndpoints::Forbidden);
+        assert_eq!(
+            PrivateEndpoints::from_allowed(false),
+            PrivateEndpoints::Forbidden
+        );
+    }
+
+    #[test]
+    fn opting_in_admits_loopback_and_private_ranges() {
+        for ip in [
+            IpAddr::V4(Ipv4Addr::LOCALHOST),
+            IpAddr::V4(Ipv4Addr::new(192, 168, 1, 10)),
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+            IpAddr::V6(Ipv6Addr::LOCALHOST),
+        ] {
+            assert!(refused_by_default(ip), "{ip} must be refused by default");
+            assert!(allowed(ip), "{ip} must be admitted once opted in");
+        }
+    }
+
+    #[test]
+    fn opting_in_still_refuses_link_local_metadata_addresses() {
+        for ip in [
+            IpAddr::V4(Ipv4Addr::new(169, 254, 169, 254)),
+            IpAddr::V4(Ipv4Addr::new(169, 254, 0, 1)),
+            IpAddr::V6(Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1)),
+        ] {
+            assert!(
+                !allowed(ip),
+                "{ip} serves cloud instance metadata and must stay refused even when opted in"
+            );
+        }
+    }
+
+    #[test]
+    fn opting_in_still_refuses_unspecified_and_multicast() {
+        for ip in [
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            IpAddr::V4(Ipv4Addr::new(224, 0, 0, 1)),
+            IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+        ] {
+            assert!(!allowed(ip), "{ip} is never a valid endpoint");
+        }
+    }
+
+    #[test]
+    fn opting_in_does_not_relax_the_https_requirement() {
+        assert_eq!(
+            validate_endpoint("http://127.0.0.1/hook", PrivateEndpoints::Allowed),
+            Err(EndpointError::SchemeNotHttps)
+        );
+    }
+
+    #[test]
+    fn a_loopback_endpoint_is_accepted_once_opted_in() {
+        assert!(validate_endpoint("https://127.0.0.1/hook", PrivateEndpoints::Allowed).is_ok());
+        assert_eq!(
+            validate_endpoint("https://127.0.0.1/hook", PrivateEndpoints::Forbidden),
+            Err(EndpointError::ForbiddenAddress)
+        );
+    }
+
+    #[test]
+    fn opting_in_does_not_relax_the_credentials_rule() {
+        assert_eq!(
+            validate_endpoint(
+                "https://user:pass@127.0.0.1/hook",
+                PrivateEndpoints::Allowed
+            ),
+            Err(EndpointError::EmbeddedCredentials)
+        );
     }
 }

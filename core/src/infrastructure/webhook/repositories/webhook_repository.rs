@@ -39,6 +39,7 @@ use crate::entity::webhooks::{
 };
 use crate::infrastructure::seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository;
 use crate::infrastructure::webhook::repositories::webhook_delivery_repository::PostgresWebhookDeliveryRepository;
+use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::entity::webhook_subscribers::Model as WebhookSubscriberModel;
 use crate::infrastructure::webhook::delivery::{self, DeliveryJob};
@@ -62,10 +63,11 @@ pub struct PostgresWebhookRepository {
     pub db: DatabaseConnection,
     deliveries: PostgresWebhookDeliveryRepository,
     delivery_sender: mpsc::Sender<DeliveryJob>,
+    private_endpoints: PrivateEndpoints,
 }
 
 impl PostgresWebhookRepository {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new(db: DatabaseConnection, private_endpoints: PrivateEndpoints) -> Self {
         let deliveries = PostgresWebhookDeliveryRepository::new(db.clone());
         let security_events = PostgresSecurityEventRepository::new(db.clone());
         let delivery_sender = delivery::spawn_dispatcher(deliveries.clone(), security_events);
@@ -74,6 +76,7 @@ impl PostgresWebhookRepository {
             db,
             deliveries,
             delivery_sender,
+            private_endpoints,
         }
     }
 }
@@ -392,6 +395,7 @@ impl WebhookRepository for PostgresWebhookRepository {
                 attempt_count,
                 elapsed: std::time::Duration::ZERO,
                 policy,
+                private_endpoints: self.private_endpoints,
             };
 
             if let Err(err) = self.delivery_sender.try_send(job) {
@@ -474,7 +478,7 @@ mod tests {
             .expect("sea-orm connect");
 
         (
-            PostgresWebhookRepository::new(db),
+            PostgresWebhookRepository::new(db, PrivateEndpoints::Forbidden),
             RealmId::from(realm_a),
             RealmId::from(realm_b),
         )

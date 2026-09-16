@@ -6,6 +6,7 @@ use tokio::time::{MissedTickBehavior, interval};
 use tracing::{error, info, warn};
 
 use ferriskey_seawatch::ports::SecurityEventRepository;
+use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::domain::webhook::ports::{WebhookDeliveryRepository, WebhookRepository};
 
@@ -17,8 +18,12 @@ const LEASE: Duration = Duration::from_secs(600);
 const SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const RETENTION_DAYS: i64 = 30;
 
-pub async fn webhook_delivery_worker_task<D, W, S>(deliveries: D, webhooks: W, security_events: S)
-where
+pub async fn webhook_delivery_worker_task<D, W, S>(
+    deliveries: D,
+    webhooks: W,
+    security_events: S,
+    private_endpoints: PrivateEndpoints,
+) where
     D: WebhookDeliveryRepository,
     W: WebhookRepository,
     S: SecurityEventRepository,
@@ -110,6 +115,7 @@ where
                 attempt_count: delivery.attempt_count,
                 elapsed,
                 policy,
+                private_endpoints,
             };
 
             deliver_once(job, &deliveries, &security_events).await;

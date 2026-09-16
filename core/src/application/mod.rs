@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::{
     domain::{
@@ -195,7 +196,16 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db()));
     let user_attribute = Arc::new(PostgresUserAttributeRepository::new(postgres.get_db()));
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
-    let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
+    let private_endpoints = PrivateEndpoints::from_allowed(config.webhook_allow_private_endpoints);
+    if config.webhook_allow_private_endpoints {
+        tracing::warn!(
+            "WEBHOOK_ALLOW_PRIVATE_ENDPOINTS is on: webhooks may reach loopback and private addresses. Never enable this in production."
+        );
+    }
+    let webhook = Arc::new(PostgresWebhookRepository::new(
+        postgres.get_db(),
+        private_endpoints,
+    ));
     let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
@@ -271,6 +281,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         webhook_delivery.as_ref().clone(),
         webhook.as_ref().clone(),
         PostgresSecurityEventRepository::new(postgres.get_db()),
+        private_endpoints,
     ));
     tokio::spawn(webhook_delivery_retention_task(
         webhook_delivery.as_ref().clone(),
@@ -456,6 +467,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             webhook.clone(),
             webhook_delivery.clone(),
             policy.clone(),
+            private_endpoints,
         ),
         email_template_service: EmailTemplateServiceImpl::new(
             realm.clone(),
@@ -671,6 +683,7 @@ mod tests {
             .expect("run migrations");
 
         let app = create_service(FerriskeyConfig {
+            webhook_allow_private_endpoints: false,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -843,6 +856,7 @@ mod tests {
             .expect("run migrations");
 
         let app = create_service(FerriskeyConfig {
+            webhook_allow_private_endpoints: false,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
