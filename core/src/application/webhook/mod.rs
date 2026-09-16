@@ -5,9 +5,11 @@ use crate::{
         common::entities::app_errors::CoreError,
         webhook::{
             entities::webhook::Webhook,
+            entities::webhook_delivery::{DeliveryPage, WebhookDelivery},
             ports::{
-                CreateWebhookInput, DeleteWebhookInput, GetWebhookInput,
-                GetWebhookSubscribersInput, GetWebhooksInput, UpdateWebhookInput, WebhookService,
+                CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput,
+                GetWebhookDeliveryInput, GetWebhookInput, GetWebhookSubscribersInput,
+                GetWebhooksInput, RetryWebhookDeliveryInput, UpdateWebhookInput, WebhookService,
             },
         },
     },
@@ -64,5 +66,35 @@ impl WebhookService for ApplicationService {
         input: UpdateWebhookInput,
     ) -> Result<Webhook, CoreError> {
         self.webhook_service.update_webhook(identity, input).await
+    }
+
+    async fn get_webhook_deliveries(
+        &self,
+        identity: Identity,
+        input: GetWebhookDeliveriesInput,
+    ) -> Result<DeliveryPage, CoreError> {
+        self.webhook_service
+            .get_webhook_deliveries(identity, input)
+            .await
+    }
+
+    async fn get_webhook_delivery(
+        &self,
+        identity: Identity,
+        input: GetWebhookDeliveryInput,
+    ) -> Result<WebhookDelivery, CoreError> {
+        self.webhook_service
+            .get_webhook_delivery(identity, input)
+            .await
+    }
+
+    async fn retry_webhook_delivery(
+        &self,
+        identity: Identity,
+        input: RetryWebhookDeliveryInput,
+    ) -> Result<(), CoreError> {
+        self.webhook_service
+            .retry_webhook_delivery(identity, input)
+            .await
     }
 }

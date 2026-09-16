@@ -8,57 +8,66 @@ use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 use crate::endpoint::{reject_reserved_headers, validate_endpoint};
+use crate::entities::webhook_delivery::{DeliveryPage, WebhookDelivery};
 use crate::entities::{
     webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
 };
 use crate::ports::{
-    CreateWebhookInput, DeleteWebhookInput, GetWebhookInput, GetWebhookSubscribersInput,
-    GetWebhooksInput, UpdateWebhookInput, WebhookPolicy, WebhookRepository, WebhookService,
+    CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput, GetWebhookDeliveryInput,
+    GetWebhookInput, GetWebhookSubscribersInput, GetWebhooksInput, RetryWebhookDeliveryInput,
+    UpdateWebhookInput, WebhookDeliveryRepository, WebhookPolicy, WebhookRepository,
+    WebhookService,
 };
 
 #[derive(Clone, Debug)]
-pub struct WebhookServiceImpl<R, U, C, UR, W>
+pub struct WebhookServiceImpl<R, U, C, UR, W, D>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     W: WebhookRepository,
+    D: WebhookDeliveryRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) webhook_repository: Arc<W>,
+    pub(crate) webhook_delivery_repository: Arc<D>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, W> WebhookServiceImpl<R, U, C, UR, W>
+impl<R, U, C, UR, W, D> WebhookServiceImpl<R, U, C, UR, W, D>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     W: WebhookRepository,
+    D: WebhookDeliveryRepository,
 {
     pub fn new(
         realm_repository: Arc<R>,
         webhook_repository: Arc<W>,
+        webhook_delivery_repository: Arc<D>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
             realm_repository,
             webhook_repository,
+            webhook_delivery_repository,
             policy,
         }
     }
 }
 
-impl<R, U, C, UR, W> WebhookService for WebhookServiceImpl<R, U, C, UR, W>
+impl<R, U, C, UR, W, D> WebhookService for WebhookServiceImpl<R, U, C, UR, W, D>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
     W: WebhookRepository,
+    D: WebhookDeliveryRepository,
 {
     async fn get_webhooks_by_realm(
         &self,
@@ -284,6 +293,88 @@ where
 
         Ok(())
     }
+
+    async fn get_webhook_deliveries(
+        &self,
+        identity: Identity,
+        input: GetWebhookDeliveriesInput,
+    ) -> Result<DeliveryPage, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_webhook(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.webhook_delivery_repository
+            .list_by_webhook(realm.id, input.webhook_id, input.filter)
+            .await
+    }
+
+    async fn get_webhook_delivery(
+        &self,
+        identity: Identity,
+        input: GetWebhookDeliveryInput,
+    ) -> Result<WebhookDelivery, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_view_webhook(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let delivery = self
+            .webhook_delivery_repository
+            .get(realm.id, input.delivery_id)
+            .await?;
+
+        if delivery.webhook_id != input.webhook_id {
+            return Err(CoreError::WebhookDeliveryNotFound);
+        }
+
+        Ok(delivery)
+    }
+
+    async fn retry_webhook_delivery(
+        &self,
+        identity: Identity,
+        input: RetryWebhookDeliveryInput,
+    ) -> Result<(), CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_webhook(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let delivery = self
+            .webhook_delivery_repository
+            .get(realm.id, input.delivery_id)
+            .await?;
+
+        if delivery.webhook_id != input.webhook_id {
+            return Err(CoreError::WebhookDeliveryNotFound);
+        }
+
+        self.webhook_delivery_repository
+            .requeue(realm.id, input.delivery_id)
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -301,7 +392,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::ports::MockWebhookRepository;
+    use crate::ports::{MockWebhookDeliveryRepository, MockWebhookRepository};
 
     fn test_realm() -> Realm {
         Realm {
@@ -396,6 +487,7 @@ mod tests {
         MockClientRepository,
         MockUserRoleRepository,
         MockWebhookRepository,
+        MockWebhookDeliveryRepository,
     > {
         let client_repo = MockClientRepository::new();
         let policy = Arc::new(FerriskeyPolicy::new(
@@ -403,7 +495,12 @@ mod tests {
             Arc::new(client_repo),
             Arc::new(user_role_repo),
         ));
-        WebhookServiceImpl::new(Arc::new(realm_repo), Arc::new(webhook_repo), policy)
+        WebhookServiceImpl::new(
+            Arc::new(realm_repo),
+            Arc::new(webhook_repo),
+            Arc::new(MockWebhookDeliveryRepository::new()),
+            policy,
+        )
     }
 
     fn allowing_realm_and_role_mocks(
