@@ -52,3 +52,64 @@ export const useDeleteWebhook = () => {
     },
   })
 }
+
+export const useGetWebhookDeliveries = ({
+  realm = 'master',
+  webhookId,
+  status,
+  limit,
+  offset,
+}: BaseQuery & { webhookId: string; status?: string; limit: number; offset: number }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/webhooks/{webhook_id}/deliveries', {
+      path: {
+        realm_name: realm,
+        webhook_id: webhookId,
+      },
+      query: {
+        status: status || undefined,
+        limit,
+        offset,
+      },
+    }).queryOptions,
+    enabled: Boolean(webhookId),
+  })
+}
+
+export const useGetWebhookDelivery = ({
+  realm = 'master',
+  webhookId,
+  deliveryId,
+}: BaseQuery & { webhookId: string; deliveryId: string | null }) => {
+  return useQuery({
+    ...window.tanstackApi.get(
+      '/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}',
+      {
+        path: {
+          realm_name: realm,
+          webhook_id: webhookId,
+          delivery_id: deliveryId ?? '',
+        },
+      }
+    ).queryOptions,
+    enabled: Boolean(deliveryId),
+  })
+}
+
+export const useRetryWebhookDelivery = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    ...window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}/retry'
+    ).mutationOptions,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0] as { _id?: string } | undefined
+          return key?._id === '/realms/{realm_name}/webhooks/{webhook_id}/deliveries'
+        },
+      })
+    },
+  })
+}

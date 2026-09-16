@@ -1,3 +1,4 @@
+import type { RetryPolicyDraft } from '../feature/page-webhook-detail-feature'
 import { ArrowLeft, Webhook as WebhookIcon } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
@@ -16,6 +17,7 @@ import WebhookTrigger = Schemas.WebhookTrigger
 import { formatDateTime } from '@/utils/format-date'
 
 export interface PageWebhookDetailProps {
+  realm: string
   webhook?: Webhook
   isLoading: boolean
   tab: string
@@ -24,6 +26,9 @@ export interface PageWebhookDetailProps {
   endpoint: string
   description: string
   headers: WebhookHeader[]
+  retryPolicy: RetryPolicyDraft
+  effectiveRetryPolicy?: Schemas.RetryPolicyOverride
+  onRetryPolicyChange: (next: Partial<RetryPolicyDraft>) => void
   subscribers: WebhookTrigger[]
   errors: Partial<Record<'name' | 'endpoint' | 'description', string>>
   dirtyCount: number
@@ -39,6 +44,7 @@ export interface PageWebhookDetailProps {
 }
 
 export default function PageWebhookDetail({
+  realm,
   webhook,
   isLoading,
   tab,
@@ -47,6 +53,9 @@ export default function PageWebhookDetail({
   endpoint,
   description,
   headers,
+  retryPolicy,
+  effectiveRetryPolicy,
+  onRetryPolicyChange,
   subscribers,
   errors,
   dirtyCount,
@@ -131,6 +140,9 @@ export default function PageWebhookDetail({
         <div className={tokens.page.blockGap}>
           {tab === 'settings' && (
             <WebhookSettingsTab
+              retryPolicy={retryPolicy}
+              effectiveRetryPolicy={effectiveRetryPolicy}
+              onRetryPolicyChange={onRetryPolicyChange}
               label={label}
               name={name}
               endpoint={endpoint}
@@ -162,7 +174,9 @@ export default function PageWebhookDetail({
             </Section>
           )}
 
-          {tab === 'deliveries' && <WebhookDeliveriesTab />}
+          {tab === 'deliveries' && webhook && (
+            <WebhookDeliveriesTab realm={realm} webhookId={webhook.id} />
+          )}
         </div>
       </PageTabs>
 

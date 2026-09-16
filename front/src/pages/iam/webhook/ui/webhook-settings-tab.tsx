@@ -3,6 +3,37 @@ import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import WebhookHeadersField, { type WebhookHeader } from './webhook-headers-field'
+import type { RetryPolicyDraft } from '../feature/page-webhook-detail-feature'
+import { Schemas } from '@/api/api.client'
+
+import RetryPolicyOverride = Schemas.RetryPolicyOverride
+
+const RETRY_FIELDS: {
+  key: keyof RetryPolicyDraft
+  label: string
+  description: string
+}[] = [
+  {
+    key: 'max_attempts',
+    label: 'Attempts',
+    description: 'How many times to try before giving up. Between 1 and 20.',
+  },
+  {
+    key: 'base_delay_ms',
+    label: 'First wait (ms)',
+    description: 'How long to wait after the first failure. It doubles each time.',
+  },
+  {
+    key: 'max_delay_ms',
+    label: 'Longest wait (ms)',
+    description: 'The wait never grows past this.',
+  },
+  {
+    key: 'max_total_delay_ms',
+    label: 'Give up after (ms)',
+    description: 'Total time a delivery may spend retrying.',
+  },
+]
 
 export interface WebhookSettingsTabProps {
   label: string
@@ -10,6 +41,9 @@ export interface WebhookSettingsTabProps {
   endpoint: string
   description: string
   headers: WebhookHeader[]
+  retryPolicy: RetryPolicyDraft
+  effectiveRetryPolicy?: RetryPolicyOverride
+  onRetryPolicyChange: (next: Partial<RetryPolicyDraft>) => void
   errors: Partial<Record<'name' | 'endpoint' | 'description', string>>
   onNameChange: (v: string) => void
   onEndpointChange: (v: string) => void
@@ -24,6 +58,9 @@ export default function WebhookSettingsTab({
   endpoint,
   description,
   headers,
+  retryPolicy,
+  effectiveRetryPolicy,
+  onRetryPolicyChange,
   errors,
   onNameChange,
   onEndpointChange,
@@ -110,6 +147,36 @@ export default function WebhookSettingsTab({
             ••••••••••••••••
           </span>
         </FieldRow>
+      </Section>
+
+      <Section
+        title='Retry policy'
+        description='Leave a field empty to inherit the realm setting. The greyed-out value is what applies today.'
+      >
+        {RETRY_FIELDS.map((field) => (
+          <FieldRow
+            key={field.key}
+            label={field.label}
+            description={field.description}
+            htmlFor={`retry-${field.key}`}
+          >
+            <Input
+              id={`retry-${field.key}`}
+              type='number'
+              inputMode='numeric'
+              min={0}
+              value={retryPolicy[field.key]}
+              placeholder={
+                effectiveRetryPolicy?.[field.key] === null ||
+                effectiveRetryPolicy?.[field.key] === undefined
+                  ? 'Inherited'
+                  : String(effectiveRetryPolicy[field.key])
+              }
+              onChange={(e) => onRetryPolicyChange({ [field.key]: e.target.value })}
+              className='max-w-[12rem]'
+            />
+          </FieldRow>
+        ))}
       </Section>
 
       <DangerZone
