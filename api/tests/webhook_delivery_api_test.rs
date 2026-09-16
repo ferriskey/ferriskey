@@ -663,4 +663,43 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn a_rejected_endpoint_says_why() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+
+            let plain_http = server
+                .post(&format!("/realms/{}/webhooks", realm()))
+                .add_header("Authorization", auth_header(&token))
+                .json(&json!({ "endpoint": "http://example.com/hook", "subscribers": [] }))
+                .await;
+
+            assert_eq!(plain_http.status_code(), 400);
+            assert!(
+                plain_http.text().contains("https"),
+                "a plain-http endpoint must be told to use https: {}",
+                plain_http.text()
+            );
+
+            let loopback = server
+                .post(&format!("/realms/{}/webhooks", realm()))
+                .add_header("Authorization", auth_header(&token))
+                .json(&json!({ "endpoint": "https://localhost/hook", "subscribers": [] }))
+                .await;
+
+            assert_eq!(loopback.status_code(), 400);
+            let body = loopback.text();
+            assert!(
+                body.contains("publicly reachable"),
+                "a loopback endpoint must be told it is unreachable: {body}"
+            );
+            assert!(
+                !body.contains("localhost") && !body.contains("127.0.0.1"),
+                "the rejection must not echo the host back: {body}"
+            );
+        });
+    }
 }
