@@ -196,6 +196,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let user_attribute = Arc::new(PostgresUserAttributeRepository::new(postgres.get_db()));
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
     let webhook = Arc::new(PostgresWebhookRepository::new(postgres.get_db()));
+    let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
     let user_session = Arc::new(PostgresUserSessionRepository::new(postgres.get_db()));
@@ -267,12 +268,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     )));
     tokio::spawn(webhook_delivery_worker_task(
-        PostgresWebhookDeliveryRepository::new(postgres.get_db()),
+        webhook_delivery.as_ref().clone(),
         webhook.as_ref().clone(),
         PostgresSecurityEventRepository::new(postgres.get_db()),
     ));
     tokio::spawn(webhook_delivery_retention_task(
-        PostgresWebhookDeliveryRepository::new(postgres.get_db()),
+        webhook_delivery.as_ref().clone(),
     ));
     let flow_recorder = FlowRecorder::new(compass_tx);
 
@@ -450,7 +451,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             token_revocation.clone(),
             policy.clone(),
         ),
-        webhook_service: WebhookServiceImpl::new(realm.clone(), webhook.clone(), policy.clone()),
+        webhook_service: WebhookServiceImpl::new(
+            realm.clone(),
+            webhook.clone(),
+            webhook_delivery.clone(),
+            policy.clone(),
+        ),
         email_template_service: EmailTemplateServiceImpl::new(
             realm.clone(),
             email_template.clone(),

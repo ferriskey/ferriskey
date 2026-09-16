@@ -145,6 +145,7 @@ use crate::{
             },
             repository::PostgresUserRepository,
         },
+        webhook::repositories::webhook_delivery_repository::PostgresWebhookDeliveryRepository,
         webhook::repositories::webhook_repository::PostgresWebhookRepository,
     },
 };
@@ -156,6 +157,7 @@ type UserRoleRepo = PostgresUserRoleRepository;
 type SecurityEventRepo = PostgresSecurityEventRepository;
 type CredentialRepo = PostgresCredentialRepository;
 type WebhookRepo = PostgresWebhookRepository;
+type WebhookDeliveryRepo = PostgresWebhookDeliveryRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
 type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type WebOriginRepo = PostgresWebOriginRepository;
@@ -390,8 +392,14 @@ pub struct ApplicationService {
     pub(crate) trident_service: ApplicationTridentService,
     pub(crate) user_service: ApplicationUserService,
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
-    pub(crate) webhook_service:
-        WebhookServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, WebhookRepo>,
+    pub(crate) webhook_service: WebhookServiceImpl<
+        RealmRepo,
+        UserRepo,
+        ClientRepo,
+        UserRoleRepo,
+        WebhookRepo,
+        WebhookDeliveryRepo,
+    >,
 
     pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,

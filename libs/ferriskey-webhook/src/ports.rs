@@ -53,6 +53,24 @@ pub trait WebhookService: Send + Sync {
         identity: Identity,
         input: DeleteWebhookInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_webhook_deliveries(
+        &self,
+        identity: Identity,
+        input: GetWebhookDeliveriesInput,
+    ) -> impl Future<Output = Result<DeliveryPage, CoreError>> + Send;
+
+    fn get_webhook_delivery(
+        &self,
+        identity: Identity,
+        input: GetWebhookDeliveryInput,
+    ) -> impl Future<Output = Result<WebhookDelivery, CoreError>> + Send;
+
+    fn retry_webhook_delivery(
+        &self,
+        identity: Identity,
+        input: RetryWebhookDeliveryInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -230,4 +248,22 @@ pub struct UpdateWebhookInput {
 pub struct DeleteWebhookInput {
     pub realm_name: String,
     pub webhook_id: Uuid,
+}
+
+pub struct GetWebhookDeliveriesInput {
+    pub realm_name: String,
+    pub webhook_id: Uuid,
+    pub filter: DeliveryFilter,
+}
+
+pub struct GetWebhookDeliveryInput {
+    pub realm_name: String,
+    pub webhook_id: Uuid,
+    pub delivery_id: WebhookDeliveryId,
+}
+
+pub struct RetryWebhookDeliveryInput {
+    pub realm_name: String,
+    pub webhook_id: Uuid,
+    pub delivery_id: WebhookDeliveryId,
 }
