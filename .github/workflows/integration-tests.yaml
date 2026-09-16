@@ -138,3 +138,8 @@ jobs:
       # these are in-source unit tests, not a `--test <name>` target.
       - name: run webhook delivery outbox repository tests
         run: cargo test -p ferriskey-core webhook_delivery -- --ignored
+
+      # Delivery history and manual replay (#1336): realm/webhook scoping,
+      # page-size rejection, replay conflict on a non-terminal delivery.
+      - name: run webhook delivery API integration tests
+        run: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored
