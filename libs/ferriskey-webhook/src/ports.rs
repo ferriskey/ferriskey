@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -7,6 +9,9 @@ use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::{Realm, RealmId};
 
+use crate::entities::webhook_delivery::{
+    DeliveryFilter, DeliveryOutcome, DeliveryPage, WebhookDelivery, WebhookDeliveryId,
+};
 use crate::entities::{
     webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
 };
@@ -104,6 +109,55 @@ pub trait WebhookRepository: Send + Sync {
         realm_id: RealmId,
         payload: WebhookPayload<T>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait WebhookDeliveryRepository: Send + Sync {
+    fn enqueue(
+        &self,
+        delivery: WebhookDelivery,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn claim_due(
+        &self,
+        limit: u32,
+        lease: Duration,
+    ) -> impl Future<Output = Result<Vec<WebhookDelivery>, CoreError>> + Send;
+
+    fn record_outcome(
+        &self,
+        id: WebhookDeliveryId,
+        outcome: DeliveryOutcome,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn reclaim_expired(
+        &self,
+        now: DateTime<Utc>,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    fn list_by_webhook(
+        &self,
+        realm_id: RealmId,
+        webhook_id: Uuid,
+        filter: DeliveryFilter,
+    ) -> impl Future<Output = Result<DeliveryPage, CoreError>> + Send;
+
+    fn get(
+        &self,
+        realm_id: RealmId,
+        id: WebhookDeliveryId,
+    ) -> impl Future<Output = Result<WebhookDelivery, CoreError>> + Send;
+
+    fn requeue(
+        &self,
+        realm_id: RealmId,
+        id: WebhookDeliveryId,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn purge_older_than(
+        &self,
+        cutoff: DateTime<Utc>,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
 pub trait WebhookPolicy: Send + Sync {
