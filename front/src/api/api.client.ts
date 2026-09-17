@@ -975,6 +975,7 @@ export namespace Schemas {
     token: string;
     token_type_hint: string | null;
   }>;
+  export type RotateSecretResponse = { secret: string };
   export type SamlAttributeName = string;
   export type SamlAttributeNameFormat =
     | "urn:oasis:names:tc:SAML:2.0:attrname-format:basic"
@@ -4364,6 +4365,21 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type post_Rotate_secret = {
+    method: "POST";
+    path: "/realms/{realm_name}/webhooks/{webhook_id}/secret/rotate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; webhook_id: string };
+    };
+    responses: {
+      200: Schemas.RotateSecretResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
 
   // </Endpoints>
 }
@@ -4519,6 +4535,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/{user_id}/unlock": Endpoints.post_Unlock_user;
     "/realms/{realm_name}/webhooks": Endpoints.post_Create_webhook;
     "/realms/{realm_name}/webhooks/{webhook_id}/deliveries/{delivery_id}/retry": Endpoints.post_Retry_delivery;
+    "/realms/{realm_name}/webhooks/{webhook_id}/secret/rotate": Endpoints.post_Rotate_secret;
   };
   put: {
     "/realms/{name}": Endpoints.put_Update_realm;

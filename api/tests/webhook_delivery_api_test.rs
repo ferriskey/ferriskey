@@ -703,4 +703,122 @@ mod tests {
             );
         });
     }
+
+    async fn stored_secret(webhook_id: Uuid) -> String {
+        sqlx::query_scalar("SELECT secret FROM webhooks WHERE id = $1")
+            .bind(webhook_id)
+            .fetch_one(&shared_ctx().pool)
+            .await
+            .expect("load webhook secret")
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn rotating_returns_a_new_secret_once_and_replaces_the_stored_one() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let webhook_id = create_webhook(&server, &token).await;
+
+            let before = stored_secret(webhook_id).await;
+
+            let response = server
+                .post(&format!(
+                    "/realms/{}/webhooks/{}/secret/rotate",
+                    realm(),
+                    webhook_id
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            let body: Value = response.json();
+            let revealed = body["secret"].as_str().expect("secret in response");
+
+            assert_ne!(revealed, before, "rotation must mint a different secret");
+            assert!(revealed.len() >= 32, "a secret must not be trivially short");
+
+            let after = stored_secret(webhook_id).await;
+            assert_eq!(
+                after, revealed,
+                "the returned secret must be the stored one"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn the_secret_is_returned_by_rotation_and_by_nothing_else() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let webhook_id = create_webhook(&server, &token).await;
+
+            let rotated = server
+                .post(&format!(
+                    "/realms/{}/webhooks/{}/secret/rotate",
+                    realm(),
+                    webhook_id
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .await;
+            let secret = rotated.json::<Value>()["secret"]
+                .as_str()
+                .expect("secret")
+                .to_string();
+
+            for path in [
+                format!("/realms/{}/webhooks", realm()),
+                format!("/realms/{}/webhooks/{}", realm(), webhook_id),
+            ] {
+                let response = server
+                    .get(&path)
+                    .add_header("Authorization", auth_header(&token))
+                    .await;
+
+                assert!(
+                    !response.text().contains(&secret),
+                    "{path} disclosed the signing secret"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn rotating_an_unknown_webhook_is_not_found() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+
+            let response = server
+                .post(&format!(
+                    "/realms/{}/webhooks/{}/secret/rotate",
+                    realm(),
+                    Uuid::new_v4()
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .await;
+
+            assert_eq!(response.status_code(), 404, "{}", response.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored"]
+    fn an_anonymous_caller_cannot_rotate_a_secret() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = server
+                .post(&format!(
+                    "/realms/{}/webhooks/{}/secret/rotate",
+                    realm(),
+                    Uuid::new_v4()
+                ))
+                .await;
+
+            assert_eq!(response.status_code(), 401);
+        });
+    }
 }

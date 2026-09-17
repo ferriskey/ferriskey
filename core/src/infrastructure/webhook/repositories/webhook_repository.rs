@@ -317,6 +317,31 @@ impl WebhookRepository for PostgresWebhookRepository {
         Ok(())
     }
 
+    async fn rotate_secret(&self, realm_id: RealmId, id: Uuid) -> Result<String, CoreError> {
+        let secret = generate_secret();
+
+        let result = WebhookEntity::update_many()
+            .set(WebhookActiveModel {
+                secret: Set(secret.clone()),
+                updated_at: Set(Utc::now().naive_utc()),
+                ..Default::default()
+            })
+            .filter(WebhookColumn::Id.eq(id))
+            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to rotate webhook secret: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(CoreError::WebhookNotFound);
+        }
+
+        Ok(secret)
+    }
+
     async fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
         realm_id: RealmId,

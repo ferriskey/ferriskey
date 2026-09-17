@@ -140,6 +140,8 @@ export default function PageWebhookDetail({
         <div className={tokens.page.blockGap}>
           {tab === 'settings' && (
             <WebhookSettingsTab
+              realm={realm}
+              webhookId={webhook.id}
               retryPolicy={retryPolicy}
               effectiveRetryPolicy={effectiveRetryPolicy}
               onRetryPolicyChange={onRetryPolicyChange}

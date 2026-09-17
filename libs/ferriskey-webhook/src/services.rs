@@ -16,8 +16,8 @@ use crate::entities::{
 use crate::ports::{
     CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput, GetWebhookDeliveryInput,
     GetWebhookInput, GetWebhookSubscribersInput, GetWebhooksInput, RetryWebhookDeliveryInput,
-    UpdateWebhookInput, WebhookDeliveryRepository, WebhookPolicy, WebhookRepository,
-    WebhookService,
+    RotateWebhookSecretInput, UpdateWebhookInput, WebhookDeliveryRepository, WebhookPolicy,
+    WebhookRepository, WebhookService,
 };
 
 #[derive(Clone, Debug)]
@@ -403,6 +403,28 @@ where
 
         self.webhook_delivery_repository
             .requeue(realm.id, input.delivery_id)
+            .await
+    }
+
+    async fn rotate_webhook_secret(
+        &self,
+        identity: Identity,
+        input: RotateWebhookSecretInput,
+    ) -> Result<String, CoreError> {
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidRealm)?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        ensure_policy(
+            self.policy.can_update_webhook(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.webhook_repository
+            .rotate_secret(realm.id, input.webhook_id)
             .await
     }
 }

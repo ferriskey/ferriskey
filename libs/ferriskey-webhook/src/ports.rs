@@ -71,6 +71,12 @@ pub trait WebhookService: Send + Sync {
         identity: Identity,
         input: RetryWebhookDeliveryInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn rotate_webhook_secret(
+        &self,
+        identity: Identity,
+        input: RotateWebhookSecretInput,
+    ) -> impl Future<Output = Result<String, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -125,6 +131,12 @@ pub trait WebhookRepository: Send + Sync {
         realm_id: RealmId,
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn rotate_secret(
+        &self,
+        realm_id: RealmId,
+        id: Uuid,
+    ) -> impl Future<Output = Result<String, CoreError>> + Send;
 
     fn notify<T: Send + Sync + Serialize + Clone + 'static>(
         &self,
@@ -265,6 +277,11 @@ pub struct GetWebhookDeliveryInput {
     pub realm_name: String,
     pub webhook_id: Uuid,
     pub delivery_id: WebhookDeliveryId,
+}
+
+pub struct RotateWebhookSecretInput {
+    pub realm_name: String,
+    pub webhook_id: Uuid,
 }
 
 pub struct RetryWebhookDeliveryInput {
