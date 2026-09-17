@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { DurationInput } from '@/components/ui/duration-input'
 import { FieldRow, Section } from '@/components/kit'
+import { REALM_NAMESPACE } from '../realm-namespace'
 
 export interface TokensDraft {
   accessTokenLifetime: number
@@ -15,57 +17,50 @@ export interface RealmTokensTabProps {
 
 const LIFETIMES: {
   key: string
-  label: string
-  description: string
+  labelKey: string
   read: (draft: TokensDraft) => number
   patch: (v: number) => Partial<TokensDraft>
 }[] = [
   {
     key: 'access',
-    label: 'Access Token Lifetime',
-    description: 'How long access tokens remain valid.',
+    labelKey: 'tokens.access',
     read: (d) => d.accessTokenLifetime,
     patch: (v) => ({ accessTokenLifetime: v }),
   },
   {
     key: 'refresh',
-    label: 'Refresh Token Lifetime',
-    description: 'How long refresh tokens remain valid.',
+    labelKey: 'tokens.refresh',
     read: (d) => d.refreshTokenLifetime,
     patch: (v) => ({ refreshTokenLifetime: v }),
   },
   {
     key: 'id',
-    label: 'ID Token Lifetime',
-    description: 'How long ID tokens remain valid.',
+    labelKey: 'tokens.id',
     read: (d) => d.idTokenLifetime,
     patch: (v) => ({ idTokenLifetime: v }),
   },
   {
     key: 'temporary',
-    label: 'Temporary Token Lifetime',
-    description:
-      'How long temporary tokens remain valid — password reset, for example.',
+    labelKey: 'tokens.temporary',
     read: (d) => d.temporaryTokenLifetime,
     patch: (v) => ({ temporaryTokenLifetime: v }),
   },
 ]
 
 export default function RealmTokensTab({ value, onChange }: RealmTokensTabProps) {
+  const { t } = useTranslation(REALM_NAMESPACE)
+
   return (
-    <Section
-      title='Default token lifetimes'
-      description='Inherited by every client of this realm that does not override them.'
-    >
+    <Section title={t('tokens.title')} description={t('tokens.description')}>
       {LIFETIMES.map((lifetime) => (
         <FieldRow
           key={lifetime.key}
-          label={lifetime.label}
-          description={lifetime.description}
+          label={t(`${lifetime.labelKey}.label`)}
+          description={t(`${lifetime.labelKey}.description`)}
         >
           <div className='max-w-sm'>
             <DurationInput
-              label={lifetime.label}
+              label={t(`${lifetime.labelKey}.label`)}
               value={lifetime.read(value)}
               onChange={(seconds) => onChange(lifetime.patch(seconds ?? 0))}
             />

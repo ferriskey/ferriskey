@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import {
   useDeleteUserFederation,
   useGetUserFederation,
@@ -18,6 +19,7 @@ import PageProviderDetail, { type ConnectionTestResult } from '../ui/page-provid
 import type { ProviderErrors } from '../ui/provider-form-fields'
 import {
   PRIORITY_SCORE,
+  USER_FEDERATION_NAMESPACE,
   asLdapConfig,
   asSyncMode,
   buildLdapConfig,
@@ -67,8 +69,8 @@ const EMPTY_DRAFT: Draft = {
 }
 
 const PROVIDER_TABS = [
-  { key: 'settings', label: 'Settings' },
-  { key: 'sync', label: 'Synchronisation' },
+  { key: 'settings', labelKey: 'detail.tabs.settings' },
+  { key: 'sync', labelKey: 'detail.tabs.sync' },
 ] as const
 
 const latencyOf = (details: unknown): number | null => {
@@ -80,6 +82,7 @@ const latencyOf = (details: unknown): number | null => {
 export default function PageProviderDetailFeature() {
   const { realm_name, provider_id } = useParams<RouterParams & { provider_id: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
   const realm = realm_name ?? 'master'
   const base = USER_FEDERATION_URL(realm)
   const providerId = provider_id ?? ''
@@ -92,7 +95,12 @@ export default function PageProviderDetailFeature() {
   const { mutateAsync: syncUsers, isPending: isSyncing } = useSyncUsers()
   const { fire } = useConfettiFireworks()
 
-  const { value: tab, tabs } = useRouteTabs(`${base}/${providerId}`, PROVIDER_TABS)
+  const translatedTabs = useMemo(
+    () => PROVIDER_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
+    [t]
+  )
+
+  const { value: tab, tabs } = useRouteTabs(`${base}/${providerId}`, translatedTabs)
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [testResult, setTestResult] = useState<ConnectionTestResult>()
@@ -170,7 +178,7 @@ export default function PageProviderDetailFeature() {
         connectionUrl:
           issue('connectionUrl') ??
           (current.ldap.connectionUrl && !endpoint
-            ? 'This URL cannot be read as an LDAP endpoint.'
+            ? t('validation.connection_url_invalid')
             : undefined),
         baseDn: issue('baseDn'),
         userSearchFilter: issue('userSearchFilter'),
@@ -211,9 +219,9 @@ export default function PageProviderDetailFeature() {
         },
       })
       setDraft((d) => ({ ...d, key: '', bindPassword: '' }))
-      toast.success('Provider updated')
+      toast.success(t('detail.toast.updated'))
     } catch {
-      toast.error('Failed to update the provider')
+      toast.error(t('detail.toast.update_failed'))
     }
   }
 
@@ -231,12 +239,12 @@ export default function PageProviderDetailFeature() {
       })
       if (result.success) {
         fire()
-        toast.success('Connection test successful', { description: result.message })
+        toast.success(t('detail.toast.test_success'), { description: result.message })
       } else {
-        toast.error('Connection test failed', { description: result.message })
+        toast.error(t('detail.toast.test_failed'), { description: result.message })
       }
     } catch {
-      toast.error('Failed to test the connection')
+      toast.error(t('detail.toast.test_error'))
     }
   }
 
@@ -247,18 +255,21 @@ export default function PageProviderDetailFeature() {
       const result = await syncUsers({ path: { realm_name: realm, id: provider.id } })
       setLastRun(result)
       const stats = [
-        result.created > 0 ? `${result.created} created` : null,
-        result.updated > 0 ? `${result.updated} updated` : null,
-        result.disabled > 0 ? `${result.disabled} disabled` : null,
-        result.failed > 0 ? `${result.failed} failed` : null,
+        result.created > 0 ? t('detail.toast.stats.created', { total: result.created }) : null,
+        result.updated > 0 ? t('detail.toast.stats.updated', { total: result.updated }) : null,
+        result.disabled > 0
+          ? t('detail.toast.stats.disabled', { total: result.disabled })
+          : null,
+        result.failed > 0 ? t('detail.toast.stats.failed', { total: result.failed }) : null,
       ]
         .filter(Boolean)
         .join(', ')
-      toast.success('Synchronisation completed', {
-        description: stats || `Processed ${result.total_processed} accounts`,
+      toast.success(t('detail.toast.sync_completed'), {
+        description:
+          stats || t('detail.toast.sync_processed', { count: result.total_processed }),
       })
     } catch {
-      toast.error('Failed to synchronise the accounts')
+      toast.error(t('detail.toast.sync_failed'))
     }
   }
 
@@ -266,10 +277,10 @@ export default function PageProviderDetailFeature() {
     if (!provider) return
     try {
       await deleteProvider({ path: { realm_name: realm, id: provider.id } })
-      toast.success('Provider deleted')
+      toast.success(t('detail.toast.deleted'))
       navigate(base)
     } catch {
-      toast.error('Failed to delete the provider')
+      toast.error(t('detail.toast.delete_failed'))
     }
   }
 

@@ -1,4 +1,5 @@
 import { ArrowLeft, Database, KeyRound, Plug, RefreshCw, Server } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
@@ -6,6 +7,9 @@ import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import {
+  LDAP_PROVIDER_TYPE,
+  PRIORITY_LABEL_KEY,
+  USER_FEDERATION_NAMESPACE,
   formatDuration,
   isLdapLike,
   priorityFromScore,
@@ -64,10 +68,12 @@ export interface PageProviderDetailProps {
   onDelete: () => void
 }
 
+const KERBEROS_PROVIDER_TYPE = 'Kerberos'
+
 const providerIcon = (providerType: string) =>
   isLdapLike(providerType) ? (
     <Database className='size-6' strokeWidth={1.5} />
-  ) : providerType === 'Kerberos' ? (
+  ) : providerType === KERBEROS_PROVIDER_TYPE ? (
     <KeyRound className='size-6' strokeWidth={1.5} />
   ) : (
     <Server className='size-6' strokeWidth={1.5} />
@@ -110,6 +116,8 @@ export default function PageProviderDetail({
   onSave,
   onDelete,
 }: PageProviderDetailProps) {
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
+
   if (isLoading) {
     return (
       <PageShell>
@@ -130,12 +138,14 @@ export default function PageProviderDetail({
       <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
-          User Federation
+          {t('detail.back')}
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Provider not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -148,10 +158,10 @@ export default function PageProviderDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='User Federation'
+        backLabel={t('detail.back')}
         icon={
           <IconTile
-            tone={provider.provider_type === 'Ldap' ? 'violet' : 'info'}
+            tone={provider.provider_type === LDAP_PROVIDER_TYPE ? 'violet' : 'info'}
             className='size-15'
           >
             {providerIcon(provider.provider_type)}
@@ -160,14 +170,14 @@ export default function PageProviderDetail({
         title={name}
         pills={
           <>
-            <Pill tone={provider.provider_type === 'Ldap' ? 'violet' : 'info'} mono>
+            <Pill tone={provider.provider_type === LDAP_PROVIDER_TYPE ? 'violet' : 'info'} mono>
               {provider.provider_type}
             </Pill>
             <Pill mono>{provider.sync_mode}</Pill>
-            <Pill>{priorityFromScore(provider.priority)}</Pill>
+            <Pill>{t(PRIORITY_LABEL_KEY[priorityFromScore(provider.priority)])}</Pill>
             <Pill tone={enabled ? 'success' : 'neutral'}>
               <StatusDot on={enabled} />
-              {enabled ? 'enabled' : 'disabled'}
+              {enabled ? t('detail.status.enabled') : t('detail.status.disabled')}
             </Pill>
           </>
         }
@@ -177,14 +187,10 @@ export default function PageProviderDetail({
               variant='outline'
               onClick={onTestConnection}
               disabled={!testable || isTesting || isSyncing}
-              title={
-                testable
-                  ? undefined
-                  : 'The server only tests LDAP and Active Directory providers.'
-              }
+              title={testable ? undefined : t('detail.actions.test_unavailable')}
             >
               <Plug />
-              {isTesting ? 'Testing…' : 'Test connection'}
+              {isTesting ? t('detail.actions.testing') : t('detail.actions.test')}
             </Button>
             <Button
               variant='outline'
@@ -192,14 +198,14 @@ export default function PageProviderDetail({
               disabled={!testable || !provider.enabled || isTesting || isSyncing}
               title={
                 !testable
-                  ? 'The server only synchronises LDAP and Active Directory providers.'
+                  ? t('detail.actions.sync_unavailable')
                   : !provider.enabled
-                    ? 'A disabled provider is not queried.'
+                    ? t('detail.actions.sync_disabled')
                     : undefined
               }
             >
               <RefreshCw className={cn(isSyncing && 'animate-spin')} />
-              {isSyncing ? 'Synchronising…' : 'Synchronise'}
+              {isSyncing ? t('detail.actions.syncing') : t('detail.actions.sync')}
             </Button>
           </div>
         }
@@ -215,7 +221,7 @@ export default function PageProviderDetail({
           )}
         >
           <Pill tone={testResult.success ? 'success' : 'danger'} mono>
-            {testResult.success ? 'reachable' : 'unreachable'}
+            {testResult.success ? t('detail.test.reachable') : t('detail.test.unreachable')}
           </Pill>
           <span className='text-neutral-700 dark:text-neutral-300'>{testResult.message}</span>
           {testResult.latencyMs !== null && (
@@ -228,8 +234,7 @@ export default function PageProviderDetail({
 
       {!provider.enabled && (
         <div className='mt-4 rounded-sm border border-fk-line bg-neutral-50 px-3 py-2 text-xs text-neutral-600 dark:bg-fk-surface dark:text-neutral-400'>
-          This provider is disabled: it is no longer queried and its synchronisation does not
-          run. The accounts already imported stay linked.
+          {t('detail.disabled_notice')}
         </div>
       )}
 
@@ -273,15 +278,11 @@ export default function PageProviderDetail({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description={
-          canSave
-            ? 'Review the provider before applying the changes.'
-            : 'One field still blocks the save — see the message under it.'
-        }
+        title={t('detail.save.title', { count: dirtyCount })}
+        description={canSave ? t('detail.save.description') : t('detail.save.blocked')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={canSave ? [{ label: 'Save changes', onClick: onSave }] : []}
+        cancelLabel={t('detail.save.cancel')}
+        actions={canSave ? [{ label: t('detail.save.action'), onClick: onSave }] : []}
       />
     </PageShell>
   )

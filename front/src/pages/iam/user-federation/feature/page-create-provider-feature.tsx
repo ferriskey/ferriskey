@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useCreateUserFederation } from '@/api/user-federation.api'
 import { RouterParams } from '@/routes/router'
 import { createLdapProviderSchema } from '@/pages/iam/user-federation/schemas/ldap-provider.schema'
@@ -8,7 +9,9 @@ import { USER_FEDERATION_URL } from '@/routes/router'
 import PageCreateProvider from '../ui/page-create-provider'
 import type { ProviderErrors } from '../ui/provider-form-fields'
 import {
+  LDAP_PROVIDER_TYPE,
   PRIORITY_SCORE,
+  USER_FEDERATION_NAMESPACE,
   buildLdapConfig,
   encodeSecret,
   parseLdapEndpoint,
@@ -21,6 +24,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 export default function PageCreateProviderFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
   const realm = realm_name ?? 'master'
   const base = USER_FEDERATION_URL(realm)
 
@@ -67,7 +71,9 @@ export default function PageCreateProviderFeature() {
     name: issue('name'),
     connectionUrl:
       issue('connectionUrl') ??
-      (ldap.connectionUrl && !endpoint ? 'This URL cannot be read as an LDAP endpoint.' : undefined),
+      (ldap.connectionUrl && !endpoint
+        ? t('validation.connection_url_invalid')
+        : undefined),
     baseDn: issue('baseDn'),
     userSearchFilter: issue('userSearchFilter'),
     syncInterval: issue('syncInterval'),
@@ -75,7 +81,7 @@ export default function PageCreateProviderFeature() {
 
   const canSubmit = parsed.success && endpoint !== null
 
-  if (kind !== 'Ldap') return <Navigate to={`${base}?create=1`} replace />
+  if (kind !== LDAP_PROVIDER_TYPE) return <Navigate to={`${base}?create=1`} replace />
 
   const handleSubmit = async () => {
     if (!parsed.success || !endpoint) return
@@ -86,7 +92,7 @@ export default function PageCreateProviderFeature() {
         body: {
           name,
           enabled,
-          provider_type: 'Ldap',
+          provider_type: LDAP_PROVIDER_TYPE,
           priority: PRIORITY_SCORE[priority],
           sync_enabled: syncEnabled,
           sync_mode: syncMode,
@@ -94,10 +100,10 @@ export default function PageCreateProviderFeature() {
           config: buildLdapConfig(ldap, endpoint, encodeSecret(bindPassword)),
         },
       })
-      toast.success('Provider created')
+      toast.success(t('create.toast.created'))
       navigate(base)
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'The provider could not be created'))
+      toast.error(apiErrorMessage(error, t('create.toast.failed')))
     }
   }
 

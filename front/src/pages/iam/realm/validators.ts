@@ -1,19 +1,30 @@
 import { SigningAlgorithm } from '@/api/core.interface'
+import { translate } from '@/lib/i18n'
 import { z } from 'zod'
+
+const DISPLAY_NAME_MAX_LENGTH = 255
 
 export const updateRealmValidator = z.object({
   name: z.string().min(1),
   display_name: z
     .string()
-    .max(255, { message: 'Display name must be at most 255 characters' })
+    .max(DISPLAY_NAME_MAX_LENGTH, {
+      error: () =>
+        translate('realm:validation.display_name_max', { max: DISPLAY_NAME_MAX_LENGTH }),
+    })
     .optional(),
   default_signing_algorithm: z.nativeEnum(SigningAlgorithm),
 })
 
 export const createWebhookValidator = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1, { error: () => translate('webhook:validation.name_required') }),
   description: z.string().optional(),
-  endpoint: z.union([z.string().url(), z.literal('')]).optional(),
+  endpoint: z
+    .union([
+      z.string().url({ error: () => translate('webhook:validation.endpoint_invalid') }),
+      z.literal(''),
+    ])
+    .optional(),
   subscribers: z.array(z.string()),
   headers: z
     .array(

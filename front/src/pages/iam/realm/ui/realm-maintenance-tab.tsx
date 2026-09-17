@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { EntityPicker, FieldRow, Section } from '@/components/kit'
 import type { PickableEntity } from '@/components/kit'
+import { REALM_NAMESPACE } from '../realm-namespace'
 
 export interface RealmMaintenanceTabProps {
   users: PickableEntity[]
@@ -18,49 +20,50 @@ export default function RealmMaintenanceTab({
   onUsersChange,
   onRolesChange,
 }: RealmMaintenanceTabProps) {
+  const { t } = useTranslation(REALM_NAMESPACE)
+
   return (
     <>
       <div className='rounded-lg border border-fk-info-border bg-fk-info-soft/40 px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300'>
-        These entries add to the whitelist of each client: they allow authentication on
-        every client of this realm placed under maintenance.
+        {t('maintenance.notice')}
       </div>
 
       <Section
-        title='Default maintenance members'
-        description='Accounts and roles always allowed during a maintenance of this realm.'
+        title={t('maintenance.title')}
+        description={t('maintenance.description')}
         divided={false}
       >
         <FieldRow
           layout='stacked'
-          label='Users'
-          description='Individual accounts always allowed during maintenance.'
+          label={t('maintenance.users.label')}
+          description={t('maintenance.users.description')}
         >
           <EntityPicker
             fullWidth
             items={users}
             value={selectedUserIds}
             onChange={onUsersChange}
-            addLabel='Add a user'
-            searchPlaceholder='Search users…'
-            emptyHint='No users available.'
-            exhaustedHint='Every account of this realm is already allowed.'
+            addLabel={t('maintenance.users.add')}
+            searchPlaceholder={t('maintenance.users.search_placeholder')}
+            emptyHint={t('maintenance.users.empty_hint')}
+            exhaustedHint={t('maintenance.users.exhausted_hint')}
           />
         </FieldRow>
 
         <FieldRow
           layout='stacked'
-          label='Roles'
-          description='Everyone holding one of these roles is allowed during maintenance.'
+          label={t('maintenance.roles.label')}
+          description={t('maintenance.roles.description')}
         >
           <EntityPicker
             fullWidth
             items={roles}
             value={selectedRoleIds}
             onChange={onRolesChange}
-            addLabel='Add a role'
-            searchPlaceholder='Search roles…'
-            emptyHint='No roles available.'
-            exhaustedHint='Every role of this realm is already allowed.'
+            addLabel={t('maintenance.roles.add')}
+            searchPlaceholder={t('maintenance.roles.search_placeholder')}
+            emptyHint={t('maintenance.roles.empty_hint')}
+            exhaustedHint={t('maintenance.roles.exhausted_hint')}
           />
         </FieldRow>
       </Section>

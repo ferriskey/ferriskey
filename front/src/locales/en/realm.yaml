@@ -1,0 +1,173 @@
+settings:
+  title: Realm Settings
+  description: Global configuration of the realm {{name}}.
+  not_found:
+    title: Realm not found
+    description: It may have been deleted, or your account no longer has access to it.
+  tabs:
+    general: General
+    login: Login
+    tokens: Tokens
+    password_policy: Password Policy
+    maintenance: Maintenance
+  save:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review the realm configuration before applying the changes.
+    cancel: Discard
+    action: Save changes
+  toast:
+    updated: Realm updated successfully.
+    deleted: 'Realm "{{name}}" has been deleted.'
+    policy_updated: Password policy updated successfully
+    policy_failed: Failed to update password policy
+
+general:
+  identity:
+    title: Realm identity
+  name:
+    label: Realm name
+    description: Immutable after creation — it appears in every URL of this realm.
+  display_name:
+    label: Display name
+    description: Human-readable name shown in the console and the login screens. Leave empty to use the realm name.
+  signing_algorithm:
+    label: Default signing algorithm
+    description: Algorithm used to sign the tokens issued by this realm.
+    note: 'Read-only: the console never sends this setting, and the OpenID discovery document of this realm announces one algorithm only.'
+  danger:
+    label: Delete this realm
+    description: Once deleted, every client, account, role and session of this realm is permanently removed.
+    # Same warning on the master realm, which the API refuses to delete.
+    description_master: Once deleted, every client, account, role and session of this realm is permanently removed. The master realm cannot be deleted.
+    button: Delete realm
+    confirm_title: Delete realm
+    confirm_description: 'This will permanently delete the realm "{{name}}" and all its data including users, clients, and roles.'
+
+login:
+  identifiers:
+    title: Login identifiers
+    description: What users type to authenticate.
+    field:
+      label: Login identifiers
+      description: Which identifiers users may sign in with. Order sets precedence.
+    # Screen-reader label of the ordered card picker.
+    picker_label: Login identifiers
+    min_selected: Select at least one login identifier
+  # Keyed on the LoginAlias value the API returns. Translate the label, never the key.
+  alias:
+    username:
+      label: Username
+      description: The account username.
+    email:
+      label: Email
+      description: The verified email address of the account.
+  capabilities:
+    title: Authentication capabilities
+    description: What users can do from the login screen.
+    user_registration:
+      label: User Registration
+      description: Allow users to register themselves through the login page.
+    email_verification:
+      label: Email Verification
+      description: Require users to verify their email address before they can sign in.
+    forgot_password:
+      label: Forgot Password
+      description: Show a forgot password link on the login page.
+    remember_me:
+      label: Remember Me
+      description: Show a remember me checkbox on the login page.
+    passkey:
+      label: Passkey Authentication
+      description: Allow users to sign in with a passkey instead of a password.
+    magic_link:
+      label: Magic Link
+      description: Allow users to sign in via a magic link sent by email.
+  magic_link_ttl:
+    label: Magic Link TTL
+    description: How long a magic link remains valid, in minutes.
+    # Unit shown right of the number input; it inflects with the value typed.
+    unit_one: minute
+    unit_other: minutes
+
+tokens:
+  title: Default token lifetimes
+  description: Inherited by every client of this realm that does not override them.
+  access:
+    label: Access Token Lifetime
+    description: How long access tokens remain valid.
+  refresh:
+    label: Refresh Token Lifetime
+    description: How long refresh tokens remain valid.
+  id:
+    label: ID Token Lifetime
+    description: How long ID tokens remain valid.
+  temporary:
+    label: Temporary Token Lifetime
+    description: How long temporary tokens remain valid — password reset, for example.
+
+policy:
+  title: Password Policy
+  description: Rules applied to the passwords of the accounts of this realm.
+  error:
+    title: Failed to load password policy
+    description: The realm has no password policy the console can read.
+  min_length:
+    label: Minimum Length
+    description: The minimum number of characters required.
+    # Unit shown right of the number input; it inflects with the value typed.
+    unit_one: character
+    unit_other: characters
+  requirements:
+    uppercase:
+      label: Require Uppercase
+      description: Force users to include at least one uppercase letter.
+    lowercase:
+      label: Require Lowercase
+      description: Force users to include at least one lowercase letter.
+    number:
+      label: Require Number
+      description: Force users to include at least one numeric digit.
+    special:
+      label: Require Special Character
+      description: 'Force users to include at least one special character (!@#$%…).'
+  max_age:
+    label: Password Expiry
+    description: Force a password change after this many days. 0 to disable.
+    unit_one: day
+    unit_other: days
+  entropy:
+    label: Minimum Entropy
+    description: Reject passwords weaker than this Shannon entropy. 0 to disable — CNIL deliberation 2022-100 suggests 80.
+    unit_one: bit
+    unit_other: bits
+  forbid_common:
+    label: Forbid Common Passwords
+    description: Reject passwords from the common-password list, and those reusing the username or the email address.
+  check_breached:
+    label: Check Breached Passwords
+    description: Reject passwords reported as breached. Without an external provider configured, this setting has no effect.
+
+maintenance:
+  notice: 'These entries add to the whitelist of each client: they allow authentication on every client of this realm placed under maintenance.'
+  title: Default maintenance members
+  description: Accounts and roles always allowed during a maintenance of this realm.
+  users:
+    label: Users
+    description: Individual accounts always allowed during maintenance.
+    add: Add a user
+    search_placeholder: Search users…
+    empty_hint: No users available.
+    exhausted_hint: Every account of this realm is already allowed.
+  roles:
+    label: Roles
+    description: Everyone holding one of these roles is allowed during maintenance.
+    add: Add a role
+    search_placeholder: Search roles…
+    empty_hint: No roles available.
+    exhausted_hint: Every role of this realm is already allowed.
+
+validation:
+  # "max" is the length limit the console enforces before sending the realm; it is a constant, so
+  # this sentence is always plural.
+  display_name_max: Display name must be at most {{max}} characters

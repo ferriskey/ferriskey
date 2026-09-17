@@ -372,3 +372,9 @@ trigger:
     deleted:
       label: Webhook Deleted
       description: A webhook has been deleted.
+
+# Client-side form checks of the create and settings screens. They live in
+# src/pages/iam/realm/validators.ts, which the webhook batch did not own.
+validation:
+  name_required: Webhook name is required
+  endpoint_invalid: Endpoint must be a valid URL

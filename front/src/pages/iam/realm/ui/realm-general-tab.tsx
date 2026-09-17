@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -8,6 +9,7 @@ import {
 } from '@/components/ui/select'
 import { FieldRow, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
+import { REALM_NAMESPACE } from '../realm-namespace'
 
 export interface RealmGeneralTabProps {
   realmName: string
@@ -28,12 +30,14 @@ export default function RealmGeneralTab({
   onDisplayNameChange,
   onDelete,
 }: RealmGeneralTabProps) {
+  const { t } = useTranslation(REALM_NAMESPACE)
+
   return (
     <>
-      <Section title='Realm identity'>
+      <Section title={t('general.identity.title')}>
         <FieldRow
-          label='Realm name'
-          description='Immutable after creation — it appears in every URL of this realm.'
+          label={t('general.name.label')}
+          description={t('general.name.description')}
           htmlFor='realm-name'
         >
           <Input
@@ -45,8 +49,8 @@ export default function RealmGeneralTab({
         </FieldRow>
 
         <FieldRow
-          label='Display name'
-          description='Human-readable name shown in the console and the login screens. Leave empty to use the realm name.'
+          label={t('general.display_name.label')}
+          description={t('general.display_name.description')}
           htmlFor='realm-display-name'
         >
           <Input
@@ -62,8 +66,8 @@ export default function RealmGeneralTab({
         </FieldRow>
 
         <FieldRow
-          label='Default signing algorithm'
-          description='Algorithm used to sign the tokens issued by this realm.'
+          label={t('general.signing_algorithm.label')}
+          description={t('general.signing_algorithm.description')}
         >
           <div className='max-w-sm'>
             <Select value={signingAlgorithm} disabled>
@@ -75,21 +79,22 @@ export default function RealmGeneralTab({
               </SelectContent>
             </Select>
             <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>
-              Read-only: the console never sends this setting, and the OpenID discovery
-              document of this realm announces one algorithm only.
+              {t('general.signing_algorithm.note')}
             </p>
           </div>
         </FieldRow>
       </Section>
 
       <DangerZone
-        label='Delete this realm'
-        description={`Once deleted, every client, account, role and session of this realm is permanently removed.${
-          isMaster ? ' The master realm cannot be deleted.' : ''
-        }`}
-        buttonLabel='Delete realm'
-        confirmTitle='Delete realm'
-        confirmDescription={`This will permanently delete the realm "${realmName}" and all its data including users, clients, and roles.`}
+        label={t('general.danger.label')}
+        description={
+          isMaster
+            ? t('general.danger.description_master')
+            : t('general.danger.description')
+        }
+        buttonLabel={t('general.danger.button')}
+        confirmTitle={t('general.danger.confirm_title')}
+        confirmDescription={t('general.danger.confirm_description', { name: realmName })}
         confirmText={realmName}
         disabled={isMaster}
         onConfirm={onDelete}
