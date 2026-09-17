@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { MetricsBand } from '@/components/kit'
 import type { ListingQuery, Metric } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
@@ -12,6 +13,8 @@ import { JournalSection } from './journal-section'
 
 import SecurityEvent = Schemas.SecurityEvent
 
+const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
+
 export interface PageLogsProps {
   events: SecurityEvent[]
   isLoading: boolean
@@ -23,13 +26,7 @@ export interface PageLogsProps {
   directory: RealmDirectory
 }
 
-const filters = [
-  { key: 'all', label: 'All' },
-  { key: 'failures', label: 'Failures' },
-  { key: 'authentication', label: 'Authentication' },
-  { key: 'credentials', label: 'Credentials' },
-  { key: 'administration', label: 'Administration' },
-]
+const DETAIL_SEPARATOR = ' · '
 
 const dominant = (values: (string | null | undefined)[]) => {
   const counts = new Map<string, number>()
@@ -62,7 +59,21 @@ export default function PageLogs({
   listing,
   directory,
 }: PageLogsProps) {
-  const windowLabel = `last ${windowDays} days`
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
+
+  const windowLabel = t('activity.window', { count: windowDays })
+  const overWindow = t('activity.over_window', { window: windowLabel })
+
+  const filters = useMemo(
+    () => [
+      { key: 'all', label: t('activity.filter.all') },
+      { key: 'failures', label: t('activity.logs.filters.failures') },
+      { key: 'authentication', label: t('activity.logs.filters.authentication') },
+      { key: 'credentials', label: t('activity.logs.filters.credentials') },
+      { key: 'administration', label: t('activity.logs.filters.administration') },
+    ],
+    [t]
+  )
 
   const failures = events.filter((e) => e.status === 'failure')
   const successes = events.length - failures.length
@@ -83,26 +94,30 @@ export default function PageLogs({
     return Math.round(((bucket.length - failed) / bucket.length) * 100)
   })
 
+  const latest = latestTimestamp(events)
+
   const metrics: Metric[] = [
     {
       key: 'total',
-      label: 'Events',
-      value: events.length.toLocaleString(),
+      label: t('activity.logs.metrics.events'),
+      value: t('number', { value: events.length }),
       hint: truncated
-        ? `capped, ${windowLabel}`
-        : (latestTimestamp(events) ? `last ${latestTimestamp(events)}` : windowLabel),
+        ? t('activity.logs.metrics.capped', { window: windowLabel })
+        : latest
+          ? t('activity.logs.metrics.latest', { timestamp: latest })
+          : windowLabel,
       series: measured(buckets.map((bucket) => bucket.length)),
       tone: 'info',
     },
     {
       key: 'failures',
-      label: 'Failures',
-      value: failures.length.toLocaleString(),
+      label: t('activity.logs.metrics.failures'),
+      value: t('number', { value: failures.length }),
       hint: topErrorCode
         ? topErrorCode[0]
         : topFailure
           ? topFailure[0].toLowerCase()
-          : 'no failure recorded',
+          : t('activity.no_failure'),
       series: measured(
         buckets.map((bucket) => bucket.filter((event) => event.status === 'failure').length)
       ),
@@ -110,17 +125,17 @@ export default function PageLogs({
     },
     {
       key: 'rate',
-      label: 'Success rate',
+      label: t('activity.logs.metrics.rate'),
       value: `${successRate}%`,
-      hint: `${successes.toLocaleString()} successful`,
+      hint: t('activity.logs.metrics.successful', { total: successes }),
       series: measured(successRatePerDay),
       tone: 'success',
     },
     {
       key: 'actors',
-      label: 'Distinct accounts',
-      value: uniqueActors.toLocaleString(),
-      hint: `over the ${windowLabel}`,
+      label: t('activity.logs.metrics.actors'),
+      value: t('number', { value: uniqueActors }),
+      hint: overWindow,
       series: measured(
         buckets.map(
           (bucket) => new Set(bucket.map((event) => event.actor_id ?? 'unknown')).size
@@ -135,8 +150,8 @@ export default function PageLogs({
       ? [
           {
             tone: 'error' as const,
-            title: 'Event feed unavailable',
-            detail: 'We could not fetch the latest events. Please try again later.',
+            title: t('activity.logs.notices.error.title'),
+            detail: t('activity.logs.notices.error.detail'),
           },
         ]
       : []),
@@ -144,8 +159,11 @@ export default function PageLogs({
       ? [
           {
             tone: 'warn' as const,
-            title: `Capped at ${windowLimit} events`,
-            detail: `The realm recorded more over the ${windowLabel}; the figures below cover the ${windowLimit} most recent only.`,
+            title: t('activity.capped.title', { limit: windowLimit }),
+            detail: t('activity.capped.detail_below', {
+              window: windowLabel,
+              limit: windowLimit,
+            }),
           },
         ]
       : []),
@@ -153,19 +171,29 @@ export default function PageLogs({
       ? [
           {
             tone: 'error' as const,
-            title: `${failures.length} failed event${failures.length > 1 ? 's' : ''} over the ${windowLabel}`,
+            title: t('activity.logs.notices.failures.title', {
+              count: failures.length,
+              window: windowLabel,
+            }),
             detail: [
-              topFailure ? `${topFailure[0]} accounts for ${topFailure[1]}` : null,
-              topErrorCode ? `mostly ${topErrorCode[0]}` : null,
+              topFailure
+                ? t('activity.logs.notices.failures.top_failure', {
+                    label: topFailure[0],
+                    count: topFailure[1],
+                  })
+                : null,
+              topErrorCode
+                ? t('activity.logs.notices.failures.top_error_code', { code: topErrorCode[0] })
+                : null,
             ]
               .filter(Boolean)
-              .join(' · '),
+              .join(DETAIL_SEPARATOR),
           },
         ]
       : []),
   ]
 
-  const columns = eventColumns(directory)
+  const columns = eventColumns(directory, t)
 
   const filtered = useMemo(() => {
     const out =
@@ -177,16 +205,16 @@ export default function PageLogs({
 
   return (
     <ActivityPage
-      title='Logs & events'
-      description={`Every authentication, credential and administrative event recorded in this realm over the ${windowLabel}, most recent first.`}
+      title={t('activity.logs.title')}
+      description={t('activity.logs.description', { window: windowLabel })}
     >
       <NoticeList notices={notices} />
 
       <MetricsBand metrics={metrics} />
 
       <JournalSection
-        title='Event feed'
-        description='Event families are applied by the server; the search box narrows what was loaded above.'
+        title={t('activity.logs.feed.title')}
+        description={t('activity.logs.feed.description')}
         rows={filtered}
         total={events.length}
         columns={[
@@ -197,7 +225,7 @@ export default function PageLogs({
           columns.origin,
           columns.when,
         ]}
-        card={eventCard(directory)}
+        card={eventCard(directory, t)}
         getKey={(e) => e.id}
         loading={isLoading}
         filters={filters}
@@ -205,14 +233,14 @@ export default function PageLogs({
         onFilter={listing.setFilter}
         query={listing.draft}
         onQuery={listing.setDraft}
-        searchPlaceholder='Search by event, account, IP…'
+        searchPlaceholder={t('activity.logs.feed.search_placeholder')}
         aggregates={{
-          event_type: `${events.length} event${events.length !== 1 ? 's' : ''}`,
-          status: `${failures.length} failed`,
-          actor: `${uniqueActors} account${uniqueActors !== 1 ? 's' : ''}`,
+          event_type: t('activity.logs.aggregates.events', { count: events.length }),
+          status: t('activity.logs.aggregates.failed', { total: failures.length }),
+          actor: t('activity.logs.aggregates.accounts', { count: uniqueActors }),
         }}
-        emptyLabel='No event'
-        emptyHint={`This feed fills as customers sign in, reset credentials and as administrators change the realm. Nothing was recorded over the ${windowLabel}.`}
+        emptyLabel={t('activity.logs.feed.empty_label')}
+        emptyHint={t('activity.logs.feed.empty_hint', { window: windowLabel })}
       />
     </ActivityPage>
   )

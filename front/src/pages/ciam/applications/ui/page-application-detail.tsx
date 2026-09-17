@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { DetailHeader, PageShell, PageTabs, Pill, Squircle, type TabItem } from '@/components/kit'
@@ -27,6 +28,8 @@ export default function PageApplicationDetail({
   onBack,
   children,
 }: PageApplicationDetailProps) {
+  const { t } = useTranslation('console')
+
   const backButton = (
     <Button
       variant='ghost'
@@ -35,7 +38,7 @@ export default function PageApplicationDetail({
       onClick={onBack}
     >
       <ArrowLeft className='size-3.5' />
-      Applications
+      {t('applications.detail.back')}
     </Button>
   )
 
@@ -60,24 +63,24 @@ export default function PageApplicationDetail({
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
-            Application not found
+            {t('applications.detail.not_found.title')}
           </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('applications.detail.not_found.description')}
           </p>
         </div>
       </PageShell>
     )
   }
 
-  const meta = applicationTypeMeta(inferApplicationType(application))
+  const meta = applicationTypeMeta(inferApplicationType(application), t)
   const label = application.name || application.client_id
 
   return (
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Applications'
+        backLabel={t('applications.detail.back')}
         icon={<Squircle name={label} size='xl' />}
         title={label}
         caption={
@@ -89,17 +92,25 @@ export default function PageApplicationDetail({
           <>
             <Pill tone={meta.tone}>{meta.label}</Pill>
             <Pill tone={application.enabled ? 'success' : 'neutral'} mono>
-              {application.enabled ? 'enabled' : 'disabled'}
+              {application.enabled
+                ? t('applications.detail.state.enabled')
+                : t('applications.detail.state.disabled')}
             </Pill>
-            {application.maintenance_enabled && <Pill tone='amber'>in maintenance</Pill>}
+            {application.maintenance_enabled && (
+              <Pill tone='amber'>{t('applications.detail.state.maintenance')}</Pill>
+            )}
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Sign-in flow</dt>
+            <dt className='sr-only'>{t('applications.detail.meta.flow_label')}</dt>
             <dd>{meta.flow}</dd>
-            <dt className='sr-only'>Created at</dt>
-            <dd className='tnum'>Created {formatDate(application.created_at)}</dd>
+            <dt className='sr-only'>{t('applications.detail.meta.created_label')}</dt>
+            <dd className='tnum'>
+              {t('applications.detail.meta.created', {
+                date: formatDate(application.created_at),
+              })}
+            </dd>
           </dl>
         }
       />

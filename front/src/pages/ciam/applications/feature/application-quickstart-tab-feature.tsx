@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Schemas } from '@/api/api.client'
-import { inferApplicationType } from '../application-types'
+import { inferApplicationType, type ConsoleTranslate } from '../application-types'
 import ApplicationQuickstartTab, {
   type QuickstartEndpoint,
 } from '../ui/application-quickstart-tab'
@@ -12,61 +13,68 @@ export interface ApplicationQuickstartTabFeatureProps {
   realm: string
 }
 
-function buildEndpoints(realm: string, includeDevice: boolean): QuickstartEndpoint[] {
+const DEVICE_ENDPOINT_KEY = 'device-authorization'
+const TOKEN_ENDPOINT_KEY = 'token'
+const AUTHORIZATION_ENDPOINT_KEY = 'authorization'
+
+const FALLBACK_CALLBACK = 'https://your-app.example.com/callback'
+
+function buildEndpoints(
+  realm: string,
+  includeDevice: boolean,
+  t: ConsoleTranslate
+): QuickstartEndpoint[] {
   const base = (window.apiUrl ?? '').replace(/\/$/, '')
   const issuer = `${base}/realms/${realm}`
+
+  const describe = (catalog: string) => ({
+    label: t(`applications.quickstart.endpoints.${catalog}.label`),
+    description: t(`applications.quickstart.endpoints.${catalog}.description`),
+  })
 
   return [
     {
       key: 'issuer',
-      label: 'Issuer',
-      description: 'The value your library checks in the iss claim of every token.',
+      ...describe('issuer'),
       value: issuer,
     },
     {
       key: 'discovery',
-      label: 'Discovery document',
-      description: 'Give this one URL to your library and it finds the others by itself.',
+      ...describe('discovery'),
       value: `${issuer}/.well-known/openid-configuration`,
     },
     {
-      key: 'authorization',
-      label: 'Authorization',
-      description: 'Where you send the user to sign in.',
+      key: AUTHORIZATION_ENDPOINT_KEY,
+      ...describe('authorization'),
       value: `${issuer}/protocol/openid-connect/auth`,
     },
     ...(includeDevice
       ? [
           {
-            key: 'device-authorization',
-            label: 'Device authorization',
-            description: 'Where a browserless device asks for the code it shows to the user.',
+            key: DEVICE_ENDPOINT_KEY,
+            ...describe('device_authorization'),
             value: `${issuer}/protocol/openid-connect/auth/device`,
           },
         ]
       : []),
     {
-      key: 'token',
-      label: 'Token',
-      description: 'Where the authorization code, or the credentials, are exchanged for tokens.',
+      key: TOKEN_ENDPOINT_KEY,
+      ...describe('token'),
       value: `${issuer}/protocol/openid-connect/token`,
     },
     {
       key: 'userinfo',
-      label: 'User info',
-      description: 'Returns the profile claims for the signed-in user.',
+      ...describe('userinfo'),
       value: `${issuer}/protocol/openid-connect/userinfo`,
     },
     {
       key: 'jwks',
-      label: 'JWKS',
-      description: 'The public keys your backend uses to verify a token signature.',
+      ...describe('jwks'),
       value: `${issuer}/protocol/openid-connect/jwks.json`,
     },
     {
       key: 'logout',
-      label: 'Logout',
-      description: 'Ends the FerrisKey session, not only your application session.',
+      ...describe('logout'),
       value: `${issuer}/protocol/openid-connect/logout`,
     },
   ]
@@ -76,19 +84,22 @@ export default function ApplicationQuickstartTabFeature({
   application,
   realm,
 }: ApplicationQuickstartTabFeatureProps) {
+  const { t } = useTranslation('console')
   const type = inferApplicationType(application)
 
-  const endpoints = useMemo(() => buildEndpoints(realm, type === 'device'), [realm, type])
+  const endpoints = useMemo(
+    () => buildEndpoints(realm, type === 'device', t),
+    [realm, type, t]
+  )
 
   const tokenEndpoint =
-    endpoints.find((endpoint) => endpoint.key === 'token')?.value ?? ''
+    endpoints.find((endpoint) => endpoint.key === TOKEN_ENDPOINT_KEY)?.value ?? ''
   const authorizationEndpoint =
-    endpoints.find((endpoint) => endpoint.key === 'authorization')?.value ?? ''
+    endpoints.find((endpoint) => endpoint.key === AUTHORIZATION_ENDPOINT_KEY)?.value ?? ''
   const deviceEndpoint =
-    endpoints.find((endpoint) => endpoint.key === 'device-authorization')?.value ?? ''
+    endpoints.find((endpoint) => endpoint.key === DEVICE_ENDPOINT_KEY)?.value ?? ''
 
-  const firstCallback =
-    application.redirect_uris?.[0]?.value ?? 'https://your-app.example.com/callback'
+  const firstCallback = application.redirect_uris?.[0]?.value ?? FALLBACK_CALLBACK
 
   const snippet =
     type === 'm2m'
@@ -123,19 +134,11 @@ curl -s -X POST '${tokenEndpoint}' \\
   -d 'redirect_uri=${firstCallback}' \\
   -d 'code=<AUTHORIZATION_CODE>'`
 
-  const snippetTitle =
-    type === 'm2m'
-      ? 'Get a token with the client credentials'
-      : type === 'device'
-        ? 'Get a token with the device flow'
-        : 'Sign a user in with the authorization code flow'
+  const snippetCatalog =
+    type === 'm2m' ? 'm2m' : type === 'device' ? 'device' : 'authorization_code'
 
-  const snippetDescription =
-    type === 'm2m'
-      ? 'No user is involved: the application authenticates as itself and receives an access token.'
-      : type === 'device'
-        ? 'The device shows a code, the user approves it on another screen, then the device gets its tokens.'
-        : 'Redirect the user to sign in, then exchange the returned code for tokens on your side.'
+  const snippetTitle = t(`applications.quickstart.snippet.${snippetCatalog}.title`)
+  const snippetDescription = t(`applications.quickstart.snippet.${snippetCatalog}.description`)
 
   return (
     <ApplicationQuickstartTab

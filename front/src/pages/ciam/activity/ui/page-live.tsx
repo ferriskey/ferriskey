@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import {
   ActivityChart,
   MetricsBand,
@@ -28,11 +29,7 @@ export interface PageLiveProps {
   directory: RealmDirectory
 }
 
-const ranges: SegmentedItem[] = [
-  { key: '7', label: '7 days' },
-  { key: '30', label: '30 days' },
-  { key: '90', label: '90 days' },
-]
+const RANGE_DAYS = [7, 30, 90] as const
 
 const flowTones: Record<FlowStatus, 'success' | 'danger' | 'amber' | 'info'> = {
   success: 'success',
@@ -52,11 +49,22 @@ export default function PageLive({
   isError,
   directory,
 }: PageLiveProps) {
-  const [range, setRange] = useState('7')
+  const { t } = useTranslation('console')
+  const [range, setRange] = useState(String(RANGE_DAYS[0]))
 
   const days = Number(range)
   const visible = activity.slice(-days)
-  const windowLabel = `last ${days} days`
+  const windowLabel = t('activity.window', { count: days })
+  const overWindow = t('activity.over_window', { window: windowLabel })
+
+  const ranges = useMemo<SegmentedItem[]>(
+    () =>
+      RANGE_DAYS.map((count) => ({
+        key: String(count),
+        label: t('activity.live.range', { count }),
+      })),
+    [t]
+  )
 
   const signups = sum(visible, 'signups')
   const logins = sum(visible, 'logins')
@@ -68,33 +76,33 @@ export default function PageLive({
   const metrics: Metric[] = [
     {
       key: 'signups',
-      label: 'Sign-ups',
-      value: signups.toLocaleString(),
-      hint: signups === 0 ? 'nothing recorded' : `over the ${windowLabel}`,
+      label: t('activity.live.metrics.signups'),
+      value: t('number', { value: signups }),
+      hint: signups === 0 ? t('activity.nothing_recorded') : overWindow,
       series: measured(visible.map((day) => day.signups)),
       tone: 'violet',
     },
     {
       key: 'logins',
-      label: 'Logins',
-      value: logins.toLocaleString(),
-      hint: logins === 0 ? 'nothing recorded' : `over the ${windowLabel}`,
+      label: t('activity.live.metrics.logins'),
+      value: t('number', { value: logins }),
+      hint: logins === 0 ? t('activity.nothing_recorded') : overWindow,
       series: measured(visible.map((day) => day.logins)),
       tone: 'success',
     },
     {
       key: 'failures',
-      label: 'Failed logins',
-      value: loginFailures.toLocaleString(),
-      hint: loginFailures === 0 ? 'no failure recorded' : `over the ${windowLabel}`,
+      label: t('activity.live.metrics.failures'),
+      value: t('number', { value: loginFailures }),
+      hint: loginFailures === 0 ? t('activity.no_failure') : overWindow,
       series: measured(visible.map((day) => day.login_failures)),
       tone: 'brand',
     },
     {
       key: 'accounts',
-      label: 'Peak daily accounts',
-      value: uniqueUsers.toLocaleString(),
-      hint: `busiest day of the ${windowLabel}`,
+      label: t('activity.live.metrics.accounts'),
+      value: t('number', { value: uniqueUsers }),
+      hint: t('activity.live.metrics.busiest', { window: windowLabel }),
       series: measured(visible.map((day) => day.unique_login_users)),
       tone: 'info',
     },
@@ -105,9 +113,8 @@ export default function PageLive({
       ? [
           {
             tone: 'note' as const,
-            title: 'Compass tracing is off for this realm',
-            detail:
-              'Sign-ups and logins are counted from traced authentication flows. With tracing off nothing is recorded, so this page has nothing to measure.',
+            title: t('activity.live.notices.compass_off.title'),
+            detail: t('activity.live.notices.compass_off.detail'),
           },
         ]
       : []),
@@ -115,8 +122,8 @@ export default function PageLive({
       ? [
           {
             tone: 'error' as const,
-            title: 'Activity unavailable',
-            detail: 'We could not fetch the activity of this realm. Please try again later.',
+            title: t('activity.live.notices.error.title'),
+            detail: t('activity.live.notices.error.detail'),
           },
         ]
       : []),
@@ -126,8 +133,8 @@ export default function PageLive({
 
   return (
     <ActivityPage
-      title='Live'
-      description={`Sign-ups and logins recorded in this realm over the ${windowLabel}, counted from the authentication flows Compass traces.`}
+      title={t('activity.live.title')}
+      description={t('activity.live.description', { window: windowLabel })}
       action={<Segmented items={ranges} value={range} onChange={setRange} />}
     >
       <NoticeList notices={notices} />
@@ -137,18 +144,26 @@ export default function PageLive({
       {hasSeries && (
         <>
           <Section
-            title='Logins'
-            description={`Successful and failed sign-ins per day over the ${windowLabel}.`}
+            title={t('activity.live.logins.title')}
+            description={t('activity.live.logins.description', { window: windowLabel })}
             contained={false}
             action={
               <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
                 <span className='inline-flex items-center gap-1'>
                   <span className='size-1.5 rounded-full bg-fk-success' />
-                  <span className='tnum'>{logins}</span> logins
+                  <Trans
+                    i18nKey='console:activity.live.logins.legend_logins'
+                    values={{ total: logins }}
+                    components={{ num: <span className='tnum' /> }}
+                  />
                 </span>
                 <span className='inline-flex items-center gap-1'>
                   <span className='size-1.5 rounded-full bg-fk-danger' />
-                  <span className='tnum'>{loginFailures}</span> failures
+                  <Trans
+                    i18nKey='console:activity.live.logins.legend_failures'
+                    values={{ total: loginFailures }}
+                    components={{ num: <span className='tnum' /> }}
+                  />
                 </span>
               </div>
             }
@@ -159,12 +174,16 @@ export default function PageLive({
           </Section>
 
           <Section
-            title='Sign-ups'
-            description={`New accounts created per day over the ${windowLabel}.`}
+            title={t('activity.live.signups.title')}
+            description={t('activity.live.signups.description', { window: windowLabel })}
             contained={false}
             action={
               <span className='text-[11px] text-neutral-500 dark:text-neutral-400'>
-                <span className='tnum'>{signups}</span> sign-ups
+                <Trans
+                  i18nKey='console:activity.live.signups.legend'
+                  values={{ total: signups }}
+                  components={{ num: <span className='tnum' /> }}
+                />
               </span>
             }
           >
@@ -185,20 +204,19 @@ export default function PageLive({
 
       {compassEnabled && (
         <Section
-          title='Latest authentication attempts'
-          description='The most recent traced flows, as of the moment this page was loaded. Nothing here refreshes on its own.'
+          title={t('activity.live.flows.title')}
+          description={t('activity.live.flows.description')}
           contained={false}
         >
           <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
             {isLoading && flows.length === 0 && (
               <div className='px-3 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-                Loading…
+                {t('activity.live.flows.loading')}
               </div>
             )}
             {!isLoading && flows.length === 0 && (
               <div className='px-3 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-                No authentication flow has been traced yet. Each sign-in attempt adds a line
-                here.
+                {t('activity.live.flows.empty')}
               </div>
             )}
             {flows.map((flow) => (
@@ -212,7 +230,7 @@ export default function PageLive({
                 <span className='min-w-0 flex-1 truncate'>
                   {directory.userLabel(flow.user_id) ??
                     flow.user_id ??
-                    'no account identified'}
+                    t('activity.live.flows.unidentified')}
                 </span>
                 <span className='hidden min-w-0 flex-1 truncate font-mono-ui text-[11px] text-neutral-400 sm:block dark:text-neutral-500'>
                   {flow.grant_type}

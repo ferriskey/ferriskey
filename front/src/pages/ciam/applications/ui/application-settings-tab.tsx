@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { DurationInput } from '@/components/ui/duration-input'
 import SaveBar from '@/components/kit/save-bar'
@@ -6,23 +7,31 @@ import { ChipInput, ChoiceCards, FieldRow, Pill, Section, SwitchField } from '@/
 import type { Choice } from '@/components/kit'
 import { Power, PowerOff } from 'lucide-react'
 import { Schemas } from '@/api/api.client'
-import { APPLICATION_FIELDS, applicationTypeMeta, inferApplicationType } from '../application-types'
+import {
+  applicationFields,
+  applicationTypeMeta,
+  inferApplicationType,
+  type ConsoleTranslate,
+} from '../application-types'
 
 import Client = Schemas.Client
 
 type ApplicationState = 'enabled' | 'disabled'
 
-const stateChoices: Choice<ApplicationState>[] = [
+const ENABLED_STATE: ApplicationState = 'enabled'
+const DISABLED_STATE: ApplicationState = 'disabled'
+
+const stateChoices = (t: ConsoleTranslate): Choice<ApplicationState>[] => [
   {
     value: 'enabled',
-    label: 'Enabled',
-    description: 'Your users can sign in through this application.',
+    label: t('applications.settings.state.enabled.label'),
+    description: t('applications.settings.state.enabled.description'),
     icon: Power,
   },
   {
     value: 'disabled',
-    label: 'Disabled',
-    description: 'Every sign-in is refused. The configuration is kept.',
+    label: t('applications.settings.state.disabled.label'),
+    description: t('applications.settings.state.disabled.description'),
     icon: PowerOff,
   },
 ]
@@ -57,26 +66,10 @@ export interface ApplicationSettingsTabProps {
 }
 
 const LIFETIMES = [
-  {
-    key: 'accessTokenLifetime',
-    label: 'Access token',
-    description: 'How long a token is accepted by your API before it must be refreshed.',
-  },
-  {
-    key: 'refreshTokenLifetime',
-    label: 'Refresh token',
-    description: 'How long a signed-in user stays signed in without typing their password again.',
-  },
-  {
-    key: 'idTokenLifetime',
-    label: 'ID token',
-    description: 'How long the identity token describing the user stays valid.',
-  },
-  {
-    key: 'temporaryTokenLifetime',
-    label: 'Temporary token',
-    description: 'How long a one-off link, such as a password reset, keeps working.',
-  },
+  { key: 'accessTokenLifetime', catalog: 'access_token' },
+  { key: 'refreshTokenLifetime', catalog: 'refresh_token' },
+  { key: 'idTokenLifetime', catalog: 'id_token' },
+  { key: 'temporaryTokenLifetime', catalog: 'temporary_token' },
 ] as const
 
 export default function ApplicationSettingsTab({
@@ -95,20 +88,25 @@ export default function ApplicationSettingsTab({
   onSave,
   onDelete,
 }: ApplicationSettingsTabProps) {
+  const { t } = useTranslation('console')
+
   const type = inferApplicationType(application)
-  const meta = applicationTypeMeta(type)
-  const fields = APPLICATION_FIELDS[type]
+  const meta = applicationTypeMeta(type, t)
+  const fields = applicationFields(type, t)
 
   const pkceDescription = meta.holdsSecret
-    ? 'Refuses a sign-in that carries no S256 code challenge (RFC 7636). The plain method is refused too.'
-    : 'Refuses a sign-in that carries no S256 code challenge (RFC 7636). Strongly recommended: this application ships to your users, so it cannot keep a secret.'
+    ? t('applications.settings.methods.pkce_description_confidential')
+    : t('applications.settings.methods.pkce_description_public')
 
   return (
     <>
-      <Section title='General' description='How this application appears and whether it works.'>
+      <Section
+        title={t('applications.settings.general.title')}
+        description={t('applications.settings.general.description')}
+      >
         <FieldRow
-          label='Application name'
-          description='Shown to your users on the sign-in page.'
+          label={t('applications.settings.general.name_label')}
+          description={t('applications.settings.general.name_description')}
           htmlFor='application-name'
         >
           <Input
@@ -122,8 +120,8 @@ export default function ApplicationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Client ID'
-          description='Sent on every OAuth request and hardcoded in your application. Changing it would break every running integration, so it is fixed here.'
+          label={t('applications.settings.general.client_id_label')}
+          description={t('applications.settings.general.client_id_description')}
         >
           <p className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>
             {application.client_id}
@@ -131,8 +129,8 @@ export default function ApplicationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Application type'
-          description='Chosen at creation. It decides the sign-in flow and whether a secret exists, so it cannot be switched afterwards — create a new application instead.'
+          label={t('applications.settings.general.type_label')}
+          description={t('applications.settings.general.type_description')}
         >
           <div className='flex flex-wrap items-center gap-2'>
             <Pill tone={meta.tone}>{meta.label}</Pill>
@@ -143,42 +141,42 @@ export default function ApplicationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Availability'
-          description='Disabling stops every sign-in immediately, including for users already using the application.'
+          label={t('applications.settings.general.availability_label')}
+          description={t('applications.settings.general.availability_description')}
         >
           <ChoiceCards
-            label='Application state'
-            value={draft.enabled ? 'enabled' : 'disabled'}
-            onChange={(v: ApplicationState) => onDraftChange({ enabled: v === 'enabled' })}
-            options={stateChoices}
+            label={t('applications.settings.general.state_picker_label')}
+            value={draft.enabled ? ENABLED_STATE : DISABLED_STATE}
+            onChange={(v: ApplicationState) => onDraftChange({ enabled: v === ENABLED_STATE })}
+            options={stateChoices(t)}
           />
         </FieldRow>
       </Section>
 
       {meta.usesAuthorizationCode && (
         <Section
-          title='Where users come back'
-          description='Addresses FerrisKey is allowed to send the user to. Every entry is saved as you add it.'
+          title={t('applications.settings.urls.title')}
+          description={t('applications.settings.urls.description')}
         >
           <FieldRow label={fields.callbacksLabel} description={fields.callbacksHint}>
             <ChipInput
               values={callbacks}
               onChange={onCallbacksChange}
               placeholder={fields.callbacksPlaceholder}
-              emptyHint='No callback URL — sign-in cannot complete.'
+              emptyHint={t('applications.fields.empty.callbacks_required')}
             />
             {callbackError && <p className='mt-1.5 text-xs text-fk-danger'>{callbackError}</p>}
           </FieldRow>
 
           <FieldRow
-            label='Allowed web origins'
-            description='Origins allowed to call FerrisKey from a browser. Scheme, host and port only — no path. Enter + to derive them from the callback URLs above; regex patterns are skipped. Removing one takes a few minutes to clear browser preflight caches, and up to 30 seconds on the other API replicas.'
+            label={t('applications.settings.urls.origins_label')}
+            description={t('applications.settings.urls.origins_description')}
           >
             <ChipInput
               values={origins}
               onChange={onOriginsChange}
-              placeholder='https://app.acme.com'
-              emptyHint='No origin — browser calls from another host will be refused.'
+              placeholder={t('applications.settings.urls.origins_placeholder')}
+              emptyHint={t('applications.fields.empty.origins')}
             />
             {originError && <p className='mt-1.5 text-xs text-fk-danger'>{originError}</p>}
           </FieldRow>
@@ -186,12 +184,12 @@ export default function ApplicationSettingsTab({
       )}
 
       <Section
-        title='Sign-in methods'
-        description='Ways this application is allowed to obtain a token.'
+        title={t('applications.settings.methods.title')}
+        description={t('applications.settings.methods.description')}
       >
         <FieldRow
-          label='Password exchange'
-          description='Lets the application collect a username and password itself and swap them for tokens. It bypasses the FerrisKey sign-in page, so MFA and social sign-in never run. Leave off unless a legacy integration needs it.'
+          label={t('applications.settings.methods.password_label')}
+          description={t('applications.settings.methods.password_description')}
         >
           <SwitchField
             checked={draft.directAccessGrants}
@@ -200,8 +198,8 @@ export default function ApplicationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Device authorization'
-          description='Lets a browserless client (CLI, IoT, TV) show a code the user approves on another screen.'
+          label={t('applications.settings.methods.device_label')}
+          description={t('applications.settings.methods.device_description')}
         >
           <SwitchField
             checked={draft.deviceCodeGrant}
@@ -210,50 +208,63 @@ export default function ApplicationSettingsTab({
         </FieldRow>
 
         {meta.usesAuthorizationCode && (
-          <FieldRow label='Require PKCE' description={pkceDescription}>
+          <FieldRow
+            label={t('applications.settings.methods.pkce_label')}
+            description={pkceDescription}
+          >
             <SwitchField
               checked={draft.requirePkce}
               onCheckedChange={(v) => onDraftChange({ requirePkce: v })}
-              onLabel='Required'
-              offLabel='Optional'
+              onLabel={t('applications.settings.methods.pkce_on')}
+              offLabel={t('applications.settings.methods.pkce_off')}
             />
           </FieldRow>
         )}
       </Section>
 
       <Section
-        title='Session length'
-        description='Leave a field empty to follow the realm default.'
+        title={t('applications.settings.lifetimes.title')}
+        description={t('applications.settings.lifetimes.description')}
       >
-        {LIFETIMES.map((lifetime) => (
-          <FieldRow key={lifetime.key} label={lifetime.label} description={lifetime.description}>
-            <DurationInput
-              label={lifetime.label}
-              value={draft[lifetime.key]}
-              onChange={(seconds) => onDraftChange({ [lifetime.key]: seconds })}
-              nullable
-            />
-          </FieldRow>
-        ))}
+        {LIFETIMES.map((lifetime) => {
+          const label = t(`applications.settings.lifetimes.${lifetime.catalog}.label`)
+
+          return (
+            <FieldRow
+              key={lifetime.key}
+              label={label}
+              description={t(`applications.settings.lifetimes.${lifetime.catalog}.description`)}
+            >
+              <DurationInput
+                label={label}
+                value={draft[lifetime.key]}
+                onChange={(seconds) => onDraftChange({ [lifetime.key]: seconds })}
+                nullable
+              />
+            </FieldRow>
+          )
+        })}
       </Section>
 
       <DangerZone
         resourceName={application.name || application.client_id}
-        label='Delete this application'
-        description='Every token it issued stops being accepted and the integration breaks immediately. This cannot be undone.'
-        buttonLabel='Delete application'
-        confirmTitle='Delete application'
-        confirmDescription={`This permanently deletes "${application.name || application.client_id}" and all of its configuration.`}
+        label={t('applications.settings.danger.label')}
+        description={t('applications.settings.danger.description')}
+        buttonLabel={t('applications.settings.danger.button')}
+        confirmTitle={t('applications.settings.danger.confirm_title')}
+        confirmDescription={t('applications.settings.danger.confirm_description', {
+          name: application.name || application.client_id,
+        })}
         onConfirm={onDelete}
       />
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the application before applying the changes.'
+        title={t('applications.settings.save_bar.title', { count: dirtyCount })}
+        description={t('applications.settings.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('applications.settings.save_bar.cancel')}
+        actions={[{ label: t('applications.settings.save_bar.submit'), onClick: onSave }]}
       />
     </>
   )

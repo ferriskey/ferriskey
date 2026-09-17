@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useBulkDeleteUser, useGetUser, useUpdateUser } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
@@ -15,6 +16,8 @@ import { CONSOLE_IDENTITIES_URL, CONSOLE_IDENTITY_URL } from '../urls'
 
 import RequiredAction = Schemas.RequiredAction
 import { apiErrorMessage } from '@/lib/api-error'
+
+const CONSOLE_NAMESPACES = ['console', 'user'] as const
 
 interface Draft {
   key: string
@@ -37,24 +40,34 @@ const EMPTY_DRAFT: Draft = {
 }
 
 const IDENTITY_TABS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'credentials', label: 'Credentials' },
-  { key: 'role-mapping', label: 'Role mapping' },
-  { key: 'organizations', label: 'Organizations' },
-  { key: 'attributes', label: 'Attributes' },
+  { key: 'overview', catalog: 'overview' },
+  { key: 'credentials', catalog: 'credentials' },
+  { key: 'role-mapping', catalog: 'role_mapping' },
+  { key: 'organizations', catalog: 'organizations' },
+  { key: 'attributes', catalog: 'attributes' },
 ] as const
 
 export default function PageIdentityDetailFeature() {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const { realm_name, user_id } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
+
+  const tabList = useMemo(
+    () =>
+      IDENTITY_TABS.map((tab) => ({
+        key: tab.key,
+        label: t(`identities.detail.tabs.${tab.catalog}`),
+      })),
+    [t]
+  )
 
   const { data: userResponse, isLoading } = useGetUser({ realm, userId: user_id })
   const { mutate: updateUser } = useUpdateUser()
   const { mutateAsync: deleteUser } = useBulkDeleteUser()
 
   const user = userResponse?.data
-  const { value: tab, tabs } = useRouteTabs(CONSOLE_IDENTITY_URL(realm, user_id), IDENTITY_TABS)
+  const { value: tab, tabs } = useRouteTabs(CONSOLE_IDENTITY_URL(realm, user_id), tabList)
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
 
@@ -118,7 +131,7 @@ export default function PageIdentityDetailFeature() {
         path: { realm_name, user_id },
       },
       {
-        onSuccess: () => toast.success('Identity updated'),
+        onSuccess: () => toast.success(t('identities.toast.updated')),
         onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
@@ -130,7 +143,7 @@ export default function PageIdentityDetailFeature() {
       await deleteUser({ path: { realm_name }, body: { ids: [user_id] } })
       navigate(CONSOLE_IDENTITIES_URL(realm))
     } catch {
-      toast.error('The identity could not be deleted')
+      toast.error(t('identities.toast.delete_failed'))
     }
   }
 

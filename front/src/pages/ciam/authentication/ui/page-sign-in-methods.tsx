@@ -1,4 +1,6 @@
 import { AlertTriangle, Fingerprint, KeyRound, Link2, Mail, ShieldCheck, User } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, OrderedChoiceCards, PageShell, Section, SwitchField } from '@/components/kit'
@@ -39,17 +41,19 @@ export interface PageSignInMethodsProps {
   onSave: () => void
 }
 
-const ALIAS_CHOICES: Choice<LoginAlias>[] = [
+type ConsoleTranslate = TFunction<'console'>
+
+const aliasChoices = (t: ConsoleTranslate): Choice<LoginAlias>[] => [
   {
     value: 'username',
-    label: 'Username',
-    description: 'The name the person chose when the account was opened.',
+    label: t('authentication.sign_in.identifiers.username.label'),
+    description: t('authentication.sign_in.identifiers.username.description'),
     icon: User,
   },
   {
     value: 'email',
-    label: 'Email',
-    description: 'The email address recorded on the account.',
+    label: t('authentication.sign_in.identifiers.email.label'),
+    description: t('authentication.sign_in.identifiers.email.description'),
     icon: Mail,
   },
 ]
@@ -62,55 +66,49 @@ interface Capability {
   patch: (v: boolean) => Partial<SignInDraft>
 }
 
-const METHODS: Capability[] = [
+const methods = (t: ConsoleTranslate): Capability[] => [
   {
     key: 'passkey',
-    label: 'Passkey',
-    description:
-      'The sign-in page offers a passkey button. The person unlocks their device with a fingerprint, a face or a security key and never types a password.',
+    label: t('authentication.sign_in.passwordless.passkey_label'),
+    description: t('authentication.sign_in.passwordless.passkey_description'),
     read: (d) => d.passkey,
     patch: (v) => ({ passkey: v }),
   },
   {
     key: 'magic-link',
-    label: 'Magic link',
-    description:
-      'The person types their email address and receives a one-time sign-in link. Opening the link signs them in without a password.',
+    label: t('authentication.sign_in.passwordless.magic_link_label'),
+    description: t('authentication.sign_in.passwordless.magic_link_description'),
     read: (d) => d.magicLink,
     patch: (v) => ({ magicLink: v }),
   },
 ]
 
-const ACCESS: Capability[] = [
+const access = (t: ConsoleTranslate): Capability[] => [
   {
     key: 'user-registration',
-    label: 'Self-service sign-up',
-    description:
-      'A "Create an account" link appears on the sign-in page and anyone can open an account without an operator.',
+    label: t('authentication.sign_in.access.registration_label'),
+    description: t('authentication.sign_in.access.registration_description'),
     read: (d) => d.userRegistration,
     patch: (v) => ({ userRegistration: v }),
   },
   {
     key: 'email-verification',
-    label: 'Email verification',
-    description:
-      'A new account has to confirm its email address from a message before its first sign-in completes.',
+    label: t('authentication.sign_in.access.email_verification_label'),
+    description: t('authentication.sign_in.access.email_verification_description'),
     read: (d) => d.emailVerification,
     patch: (v) => ({ emailVerification: v }),
   },
   {
     key: 'forgot-password',
-    label: 'Password recovery',
-    description:
-      'A "Forgot password" link appears on the sign-in page and sends a reset message to the address on the account.',
+    label: t('authentication.sign_in.access.forgot_password_label'),
+    description: t('authentication.sign_in.access.forgot_password_description'),
     read: (d) => d.forgotPassword,
     patch: (v) => ({ forgotPassword: v }),
   },
   {
     key: 'remember-me',
-    label: 'Stay signed in',
-    description:
-      'A "Remember me" checkbox appears on the sign-in page and keeps the session across browser restarts.',
+    label: t('authentication.sign_in.access.remember_me_label'),
+    description: t('authentication.sign_in.access.remember_me_description'),
     read: (d) => d.rememberMe,
     patch: (v) => ({ rememberMe: v }),
   },
@@ -190,6 +188,8 @@ export default function PageSignInMethods({
   onDiscard,
   onSave,
 }: PageSignInMethodsProps) {
+  const { t } = useTranslation('console')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -205,10 +205,10 @@ export default function PageSignInMethods({
       <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
-            Sign-in methods unavailable
+            {t('authentication.sign_in.loading_failed.title')}
           </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            This realm carries no settings the console can read.
+            {t('authentication.sign_in.loading_failed.description')}
           </p>
         </div>
       </PageShell>
@@ -221,9 +221,9 @@ export default function PageSignInMethods({
     <PageShell>
       <div className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}>
         <div className='min-w-0'>
-          <h1 className={tokens.header.title}>Sign-in methods</h1>
+          <h1 className={tokens.header.title}>{t('authentication.sign_in.title')}</h1>
           <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-            What the people of this realm can use to prove who they are.
+            {t('authentication.sign_in.description')}
           </p>
         </div>
       </div>
@@ -233,28 +233,25 @@ export default function PageSignInMethods({
           <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
             <AlertTriangle className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
             <p className='text-xs text-neutral-700 dark:text-neutral-300'>
-              Magic link, email verification and password recovery all send a message, and this
-              realm has no SMTP configuration recorded. Every one of them fails silently for the
-              person signing in until a server is configured under Branding, in the SMTP tab of
-              Email templates.
+              {t('authentication.sign_in.smtp_warning')}
             </p>
           </div>
         )}
 
         <Section
-          title='Identifiers'
-          description='What the person types on the sign-in page to name their account.'
+          title={t('authentication.sign_in.identifiers.title')}
+          description={t('authentication.sign_in.identifiers.description')}
         >
           <FieldRow
-            label='Accepted identifiers'
-            description='Both may be accepted at once. The order decides which one is tried first when a value matches two accounts.'
+            label={t('authentication.sign_in.identifiers.label')}
+            description={t('authentication.sign_in.identifiers.description_row')}
           >
             <OrderedChoiceCards
-              label='Accepted identifiers'
+              label={t('authentication.sign_in.identifiers.label')}
               value={value.loginAliases}
               onChange={(next) => onChange({ loginAliases: next })}
-              options={ALIAS_CHOICES}
-              minSelectedReason='Select at least one identifier'
+              options={aliasChoices(t)}
+              minSelectedReason={t('authentication.sign_in.identifiers.min_selected')}
             />
             {errors.loginAliases && (
               <p className='mt-1.5 text-xs text-fk-danger'>{errors.loginAliases}</p>
@@ -263,21 +260,21 @@ export default function PageSignInMethods({
         </Section>
 
         <Section
-          title='Passwordless methods'
-          description='Offered next to the password field. A password always remains accepted.'
+          title={t('authentication.sign_in.passwordless.title')}
+          description={t('authentication.sign_in.passwordless.description')}
         >
-          <CapabilityRows capabilities={METHODS} value={value} onChange={onChange} />
+          <CapabilityRows capabilities={methods(t)} value={value} onChange={onChange} />
 
           {value.magicLink && (
             <FieldRow
-              label='Magic link validity'
-              description='How long the link stays usable after the message is sent. Past it the person has to ask for another one.'
+              label={t('authentication.sign_in.passwordless.magic_link_ttl_label')}
+              description={t('authentication.sign_in.passwordless.magic_link_ttl_description')}
               htmlFor='sign-in-magic-link-ttl'
             >
               <NumberField
                 id='sign-in-magic-link-ttl'
                 value={value.magicLinkTtl}
-                unit='minutes'
+                unit={t('authentication.sign_in.passwordless.minutes')}
                 min={1}
                 error={errors.magicLinkTtl}
                 onChange={(v) => onChange({ magicLinkTtl: v })}
@@ -287,12 +284,12 @@ export default function PageSignInMethods({
         </Section>
 
         <Section
-          title='Multi-factor authentication'
-          description='A second factor asked once the first one succeeded.'
+          title={t('authentication.sign_in.mfa.title')}
+          description={t('authentication.sign_in.mfa.description')}
         >
           <FieldRow
-            label='Require a second factor'
-            description='Everyone of this realm is asked for a one-time code after their password. Accounts with no second factor enrolled are sent through the enrolment screen before they can continue.'
+            label={t('authentication.sign_in.mfa.label')}
+            description={t('authentication.sign_in.mfa.description_row')}
           >
             <SwitchField
               checked={value.requireMfa}
@@ -302,25 +299,25 @@ export default function PageSignInMethods({
         </Section>
 
         <Section
-          title='Account access'
-          description='The links and checkboxes the sign-in page offers around the form.'
+          title={t('authentication.sign_in.access.title')}
+          description={t('authentication.sign_in.access.description')}
         >
-          <CapabilityRows capabilities={ACCESS} value={value} onChange={onChange} />
+          <CapabilityRows capabilities={access(t)} value={value} onChange={onChange} />
         </Section>
 
         <Section
-          title='Sign-in protection'
-          description='What happens after repeated failures on the same account.'
+          title={t('authentication.sign_in.protection.title')}
+          description={t('authentication.sign_in.protection.description')}
         >
           <FieldRow
-            label='Failed attempts before lockout'
-            description='How many consecutive wrong passwords lock the account. 0 never locks it.'
+            label={t('authentication.sign_in.protection.threshold_label')}
+            description={t('authentication.sign_in.protection.threshold_description')}
             htmlFor='sign-in-lockout-threshold'
           >
             <NumberField
               id='sign-in-lockout-threshold'
               value={value.lockoutThreshold}
-              unit='attempts'
+              unit={t('authentication.sign_in.protection.attempts')}
               min={0}
               error={errors.lockoutThreshold}
               onChange={(v) => onChange({ lockoutThreshold: v })}
@@ -328,14 +325,14 @@ export default function PageSignInMethods({
           </FieldRow>
 
           <FieldRow
-            label='Lockout duration'
-            description='How long a locked account refuses every password before it accepts one again.'
+            label={t('authentication.sign_in.protection.duration_label')}
+            description={t('authentication.sign_in.protection.duration_description')}
             htmlFor='sign-in-lockout-duration'
           >
             <NumberField
               id='sign-in-lockout-duration'
               value={value.lockoutDuration}
-              unit='seconds'
+              unit={t('authentication.sign_in.protection.seconds')}
               min={0}
               error={errors.lockoutDuration}
               onChange={(v) => onChange({ lockoutDuration: v })}
@@ -346,34 +343,44 @@ export default function PageSignInMethods({
         <div className='flex flex-wrap gap-x-6 gap-y-1 text-xs text-neutral-400 dark:text-neutral-500'>
           <span className='inline-flex items-center gap-1.5'>
             <Fingerprint className='size-3.5' strokeWidth={1.75} />
-            Passkey {value.passkey ? 'offered' : 'hidden'}
+            {value.passkey
+              ? t('authentication.sign_in.summary.passkey_on')
+              : t('authentication.sign_in.summary.passkey_off')}
           </span>
           <span className='inline-flex items-center gap-1.5'>
             <Link2 className='size-3.5' strokeWidth={1.75} />
-            Magic link {value.magicLink ? 'offered' : 'hidden'}
+            {value.magicLink
+              ? t('authentication.sign_in.summary.magic_link_on')
+              : t('authentication.sign_in.summary.magic_link_off')}
           </span>
           <span className='inline-flex items-center gap-1.5'>
             <ShieldCheck className='size-3.5' strokeWidth={1.75} />
-            Second factor {value.requireMfa ? 'required' : 'optional'}
+            {value.requireMfa
+              ? t('authentication.sign_in.summary.mfa_on')
+              : t('authentication.sign_in.summary.mfa_off')}
           </span>
           <span className='inline-flex items-center gap-1.5'>
             <KeyRound className='size-3.5' strokeWidth={1.75} />
             {value.lockoutThreshold > 0
-              ? `Locks after ${value.lockoutThreshold} failed attempts`
-              : 'Never locks an account'}
+              ? t('authentication.sign_in.summary.lockout_on', {
+                  count: value.lockoutThreshold,
+                })
+              : t('authentication.sign_in.summary.lockout_off')}
           </span>
         </div>
       </div>
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='These changes take effect on the next sign-in of this realm.'
+        title={t('authentication.sign_in.save_bar.title', { count: dirtyCount })}
+        description={t('authentication.sign_in.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
+        cancelLabel={t('authentication.sign_in.save_bar.cancel')}
         actions={[
           {
-            label: isSaving ? 'Saving...' : 'Save changes',
+            label: isSaving
+              ? t('authentication.sign_in.save_bar.saving')
+              : t('authentication.sign_in.save_bar.submit'),
             onClick: onSave,
             variant: canSave && !isSaving ? 'default' : 'secondary',
           },

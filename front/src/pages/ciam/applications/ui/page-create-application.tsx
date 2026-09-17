@@ -1,15 +1,16 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
 import { ChipInput, FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import {
-  APPLICATION_FIELDS,
-  applicationTypeMeta,
-  type ApplicationType,
-} from '../application-types'
+import { applicationFields, applicationTypeMeta, type ApplicationType } from '../application-types'
+
+const CLIENT_CREDENTIALS_GRANT = 'grant_type=client_credentials'
+
+const DEVICE_CODE_GRANT = 'grant_type=urn:ietf:params:oauth:grant-type:device_code'
 
 export interface CreateApplicationErrors {
   name?: string
@@ -53,8 +54,9 @@ export default function PageCreateApplication({
   onCancel,
   onSubmit,
 }: PageCreateApplicationProps) {
-  const meta = applicationTypeMeta(type)
-  const fields = APPLICATION_FIELDS[type]
+  const { t } = useTranslation('console')
+  const meta = applicationTypeMeta(type, t)
+  const fields = applicationFields(type, t)
 
   return (
     <PageShell>
@@ -66,57 +68,65 @@ export default function PageCreateApplication({
       >
         <Link to={listUrl}>
           <ArrowLeft className='size-3.5' />
-          Applications
+          {t('applications.create.back')}
         </Link>
       </Button>
 
       <div className='flex flex-wrap items-center gap-2 pb-3'>
-        <h1 className={tokens.header.title}>New application</h1>
+        <h1 className={tokens.header.title}>{t('applications.create.title')}</h1>
         <Pill tone={meta.tone}>{meta.label}</Pill>
         <Link
           to={pickerUrl}
           className='text-xs text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline dark:text-neutral-400'
         >
-          change type
+          {t('applications.create.change_type')}
         </Link>
       </div>
 
       <div className={tokens.page.blockGap}>
         <Section
-          title='What this type gives you'
-          description='Chosen at creation. It decides the sign-in flow and whether the application gets a secret.'
+          title={t('applications.create.type.title')}
+          description={t('applications.create.type.description')}
         >
-          <FieldRow label='Sign-in flow' description={meta.description}>
+          <FieldRow
+            label={t('applications.create.type.flow_label')}
+            description={meta.description}
+          >
             <p className='font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
               {meta.flow}
             </p>
           </FieldRow>
 
           <FieldRow
-            label='Client secret'
+            label={t('applications.create.type.secret_label')}
             description={
               meta.holdsSecret
-                ? 'A secret is generated when the application is created. Keep it on your server: anyone holding it can sign in as this application.'
-                : 'No secret is generated. This application ships to the user, so a secret could be read out of it — the sign-in is protected by PKCE instead.'
+                ? t('applications.create.type.secret_held')
+                : t('applications.create.type.secret_none')
             }
           >
             <Pill tone={meta.holdsSecret ? 'violet' : 'info'}>
-              {meta.holdsSecret ? 'Generated' : 'None'}
+              {meta.holdsSecret
+                ? t('applications.create.type.secret_generated')
+                : t('applications.create.type.secret_absent')}
             </Pill>
           </FieldRow>
         </Section>
 
-        <Section title='Identity' description='How this application is named and identified.'>
+        <Section
+          title={t('applications.create.identity.title')}
+          description={t('applications.create.identity.description')}
+        >
           <FieldRow
-            label='Application name'
-            description='Shown to your users on the sign-in page.'
+            label={t('applications.create.identity.name_label')}
+            description={t('applications.create.identity.name_description')}
             htmlFor='new-application-name'
           >
             <Input
               id='new-application-name'
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
-              placeholder='Acme Mobile'
+              placeholder={t('applications.create.identity.name_placeholder')}
               className='max-w-sm'
               aria-invalid={Boolean(errors.name)}
             />
@@ -124,15 +134,15 @@ export default function PageCreateApplication({
           </FieldRow>
 
           <FieldRow
-            label='Client ID'
-            description='Sent on every OAuth request. Derived from the name; change it before creating, it is what your code will hardcode.'
+            label={t('applications.create.identity.client_id_label')}
+            description={t('applications.create.identity.client_id_description')}
             htmlFor='new-application-client-id'
           >
             <Input
               id='new-application-client-id'
               value={clientId}
               onChange={(e) => onClientIdChange(e.target.value)}
-              placeholder='acme-mobile'
+              placeholder={t('applications.create.identity.client_id_placeholder')}
               className='max-w-sm font-mono-ui text-xs'
               aria-invalid={Boolean(errors.clientId)}
             />
@@ -144,8 +154,8 @@ export default function PageCreateApplication({
 
         {(fields.showCallbacks || fields.showOrigins) && (
           <Section
-            title='Where users come back'
-            description='Addresses FerrisKey is allowed to send the user to once they have signed in.'
+            title={t('applications.create.urls.title')}
+            description={t('applications.create.urls.description')}
           >
             {fields.showCallbacks && (
               <FieldRow label={fields.callbacksLabel} description={fields.callbacksHint}>
@@ -155,8 +165,8 @@ export default function PageCreateApplication({
                   placeholder={fields.callbacksPlaceholder}
                   emptyHint={
                     fields.callbackRequired
-                      ? 'No callback URL — sign-in cannot complete.'
-                      : 'No callback URL registered.'
+                      ? t('applications.fields.empty.callbacks_required')
+                      : t('applications.fields.empty.callbacks_optional')
                   }
                 />
                 {errors.callbacks && (
@@ -171,7 +181,7 @@ export default function PageCreateApplication({
                   values={origins}
                   onChange={onOriginsChange}
                   placeholder={fields.originsPlaceholder}
-                  emptyHint='No origin — browser calls from another host will be refused.'
+                  emptyHint={t('applications.fields.empty.origins')}
                 />
                 {errors.origins && (
                   <p className='mt-1.5 text-xs text-fk-danger'>{errors.origins}</p>
@@ -183,15 +193,15 @@ export default function PageCreateApplication({
 
         {type === 'm2m' && (
           <Section
-            title='No callback URL needed'
-            description='Machine-to-machine applications never send a user through a browser.'
+            title={t('applications.create.m2m.title')}
+            description={t('applications.create.m2m.description')}
           >
             <FieldRow
-              label='How it gets a token'
-              description='It posts its client ID and secret to the token endpoint with the client_credentials grant. The secret is on the Credentials tab once the application exists.'
+              label={t('applications.create.m2m.how_label')}
+              description={t('applications.create.m2m.how_description')}
             >
               <p className='font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
-                grant_type=client_credentials
+                {CLIENT_CREDENTIALS_GRANT}
               </p>
             </FieldRow>
           </Section>
@@ -199,15 +209,15 @@ export default function PageCreateApplication({
 
         {type === 'device' && (
           <Section
-            title='No callback URL needed'
-            description='The device flow never redirects: the user opens a verification page on another screen.'
+            title={t('applications.create.device.title')}
+            description={t('applications.create.device.description')}
           >
             <FieldRow
-              label='How it gets a token'
-              description='The device asks for a user code, shows it, and polls the token endpoint until the user has approved it.'
+              label={t('applications.create.device.how_label')}
+              description={t('applications.create.device.how_description')}
             >
               <p className='font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
-                grant_type=urn:ietf:params:oauth:grant-type:device_code
+                {DEVICE_CODE_GRANT}
               </p>
             </FieldRow>
           </Section>
@@ -216,11 +226,11 @@ export default function PageCreateApplication({
 
       <SaveBar
         show={canSubmit}
-        title='Create application'
-        description='The application is created, then its callback URLs and origins are registered.'
+        title={t('applications.create.save_bar.title')}
+        description={t('applications.create.save_bar.description')}
         onCancel={onCancel}
-        cancelLabel='Cancel'
-        actions={[{ label: 'Create application', onClick: onSubmit }]}
+        cancelLabel={t('applications.create.save_bar.cancel')}
+        actions={[{ label: t('applications.create.save_bar.submit'), onClick: onSubmit }]}
       />
     </PageShell>
   )

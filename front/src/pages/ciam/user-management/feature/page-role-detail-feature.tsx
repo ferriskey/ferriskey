@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useDeleteRole,
   useGetRole,
@@ -12,6 +13,8 @@ import { updateRoleSchema } from '@/pages/iam/role/schemas/update-role.schema'
 import PageRoleDetail from '@/pages/iam/role/ui/page-role-detail'
 import { CONSOLE_ROLE_URL, CONSOLE_ROLES_URL } from '../urls'
 
+const CONSOLE_NAMESPACES = ['console', 'role'] as const
+
 interface Draft {
   key: string
   name: string
@@ -22,15 +25,25 @@ interface Draft {
 const EMPTY_DRAFT: Draft = { key: '', name: '', description: '', permissions: [] }
 
 const ROLE_TABS = [
-  { key: 'settings', label: 'Settings' },
-  { key: 'permissions', label: 'Permissions' },
-  { key: 'users', label: 'Identities' },
+  { key: 'settings', catalog: 'settings' },
+  { key: 'permissions', catalog: 'permissions' },
+  { key: 'users', catalog: 'users' },
 ] as const
 
 export default function PageRoleDetailFeature() {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const { realm_name, role_id } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
+
+  const tabList = useMemo(
+    () =>
+      ROLE_TABS.map((tab) => ({
+        key: tab.key,
+        label: t(`roles.detail.tabs.${tab.catalog}`),
+      })),
+    [t]
+  )
 
   const { data: roleResponse, isLoading } = useGetRole({ realm, roleId: role_id })
   const { mutate: updateRole } = useUpdateRole()
@@ -38,7 +51,7 @@ export default function PageRoleDetailFeature() {
   const { mutateAsync: deleteRole } = useDeleteRole()
 
   const role = roleResponse?.data
-  const { value: tab, tabs } = useRouteTabs(CONSOLE_ROLE_URL(realm, role_id), ROLE_TABS)
+  const { value: tab, tabs } = useRouteTabs(CONSOLE_ROLE_URL(realm, role_id), tabList)
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
 

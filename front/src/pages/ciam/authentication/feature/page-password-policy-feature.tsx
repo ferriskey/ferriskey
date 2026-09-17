@@ -1,4 +1,5 @@
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetRealmPasswordPolicy, useUpdateRealmPasswordPolicy } from '@/api/realm.api'
 import { updatePasswordPolicyValidator } from '@/pages/iam/realm/validators'
@@ -21,6 +22,7 @@ const DEFAULT_POLICY: PolicyDraft = {
 }
 
 export default function PagePasswordPolicyFeature() {
+  const { t } = useTranslation('console')
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
 
@@ -66,9 +68,11 @@ export default function PagePasswordPolicyFeature() {
     updatePolicy(
       { path: { realm_name }, body: value },
       {
-        onSuccess: () => toast.success('Password policy updated.'),
+        onSuccess: () => toast.success(t('authentication.password_policy.toast.updated')),
         onError: (error: Error) =>
-          toast.error(apiErrorMessage(error, 'Failed to update the password policy')),
+          toast.error(
+            apiErrorMessage(error, t('authentication.password_policy.toast.update_failed'))
+          ),
       }
     )
   }

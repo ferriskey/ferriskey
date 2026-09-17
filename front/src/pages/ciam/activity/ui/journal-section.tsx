@@ -1,10 +1,18 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LayoutGrid, List, Search } from 'lucide-react'
 import { Button, DataView, Section } from '@/components/kit'
 import type { CardSpec, Column, ViewMode } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { useLayoutTier } from '@/hooks/use-media-query'
+
+const ALL_FILTER = 'all'
+
+const VIEW_TOGGLES = [
+  { mode: 'list', icon: List, labelKey: 'activity.journal.view.list' },
+  { mode: 'cards', icon: LayoutGrid, labelKey: 'activity.journal.view.cards' },
+] as const
 
 export interface JournalFilter {
   key: string
@@ -41,7 +49,7 @@ export function JournalSection<T>({
   getKey,
   loading,
   filters,
-  filter = 'all',
+  filter = ALL_FILTER,
   onFilter,
   query,
   onQuery,
@@ -50,12 +58,13 @@ export function JournalSection<T>({
   emptyLabel,
   emptyHint,
 }: JournalSectionProps<T>) {
+  const { t } = useTranslation('console')
   const [view, setView] = useState<ViewMode>('list')
 
   const tier = useLayoutTier()
   const effectiveView = tier === 'phone' ? 'cards' : view
 
-  const narrowed = Boolean(query.trim()) || filter !== 'all'
+  const narrowed = Boolean(query.trim()) || filter !== ALL_FILTER
   const filteredOut = narrowed && rows.length === 0
 
   return (
@@ -96,17 +105,12 @@ export function JournalSection<T>({
           </label>
           {tokens.toolbar.showViewToggle && tier !== 'phone' && (
             <div className='flex rounded-md border border-fk-line p-0.5'>
-              {(
-                [
-                  ['list', List, 'List view'],
-                  ['cards', LayoutGrid, 'Card view'],
-                ] as const
-              ).map(([mode, Icon, label]) => (
+              {VIEW_TOGGLES.map(({ mode, icon: Icon, labelKey }) => (
                 <button
                   key={mode}
                   type='button'
                   onClick={() => setView(mode)}
-                  aria-label={label}
+                  aria-label={t(labelKey)}
                   aria-pressed={view === mode}
                   className={cn(
                     'grid size-6 cursor-pointer place-items-center rounded transition-colors',
@@ -132,22 +136,18 @@ export function JournalSection<T>({
           view={effectiveView}
           loading={loading}
           aggregates={aggregates}
-          emptyLabel={filteredOut ? 'No match' : emptyLabel}
-          emptyHint={
-            filteredOut
-              ? 'No entry matches the current search and filter.'
-              : emptyHint
-          }
+          emptyLabel={filteredOut ? t('activity.journal.filtered.label') : emptyLabel}
+          emptyHint={filteredOut ? t('activity.journal.filtered.hint') : emptyHint}
           emptyAction={
             filteredOut ? (
               <Button
                 variant='outline'
                 onClick={() => {
                   onQuery('')
-                  onFilter?.('all')
+                  onFilter?.(ALL_FILTER)
                 }}
               >
-                Clear filter
+                {t('activity.journal.filtered.action')}
               </Button>
             ) : undefined
           }
@@ -156,8 +156,8 @@ export function JournalSection<T>({
         {!loading && total > 0 && (
           <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
             {rows.length === total
-              ? `${total} ${total > 1 ? 'entries' : 'entry'}`
-              : `${rows.length} of ${total}`}
+              ? t('activity.journal.count', { count: total })
+              : t('activity.journal.partial', { shown: rows.length, total })}
           </p>
         )}
       </div>

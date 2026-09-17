@@ -1,4 +1,5 @@
 import { MailCheck, MailX, Plus, UserCog } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
@@ -22,6 +23,12 @@ const displayName = (user: User) => {
 
 const pendingCount = (user: User) => user.required_actions.length
 
+const NAME_SEPARATOR = ', '
+
+const PENDING_FILTER = 'pending'
+
+const QUERY_SYNTAX = 'username:ada*  email_verified:false  enabled:true'
+
 export default function PageIdentities({
   identities,
   isLoading,
@@ -29,10 +36,12 @@ export default function PageIdentities({
   onCreate,
   onReviewPending,
 }: PageIdentitiesProps) {
+  const { t } = useTranslation('console')
+
   const columns: Column<User>[] = [
     {
       key: 'identity',
-      header: 'Identity',
+      header: t('identities.list.columns.identity'),
       render: (u) => (
         <span className='flex min-w-0 flex-col'>
           <span className='truncate text-neutral-900 dark:text-neutral-100'>{displayName(u)}</span>
@@ -45,7 +54,7 @@ export default function PageIdentities({
     },
     {
       key: 'email',
-      header: 'Email',
+      header: t('identities.list.columns.email'),
       render: (u) =>
         u.email ? (
           <span className='inline-flex items-center gap-1.5'>
@@ -57,19 +66,21 @@ export default function PageIdentities({
             <span className='text-neutral-600 dark:text-neutral-400'>{u.email}</span>
           </span>
         ) : (
-          <span className='text-neutral-400 dark:text-neutral-500'>no email</span>
+          <span className='text-neutral-400 dark:text-neutral-500'>
+            {t('identities.list.no_email')}
+          </span>
         ),
       sortValue: (u) => u.email ?? '',
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('identities.list.columns.status'),
       render: (u) => {
         if (!u.enabled) {
           return (
             <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
               <StatusDot on={false} />
-              Disabled
+              {t('identities.list.status.disabled')}
             </span>
           )
         }
@@ -78,14 +89,14 @@ export default function PageIdentities({
           return (
             <Pill tone='amber'>
               <UserCog className='size-3' strokeWidth={1.75} />
-              {pending} action{pending > 1 ? 's' : ''}
+              {t('identities.list.status.pending', { count: pending })}
             </Pill>
           )
         }
         return (
           <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
             <StatusDot on />
-            Active
+            {t('identities.list.status.active')}
           </span>
         )
       },
@@ -93,7 +104,7 @@ export default function PageIdentities({
     },
     {
       key: 'created',
-      header: 'Signed up',
+      header: t('identities.list.columns.created'),
       render: (u) => (
         <span className='tnum text-neutral-600 dark:text-neutral-400'>
           {formatRelative(u.created_at)}
@@ -103,7 +114,7 @@ export default function PageIdentities({
     },
     {
       key: 'roles',
-      header: 'Roles',
+      header: t('identities.list.columns.roles'),
       align: 'right',
       render: (u) => {
         const count = u.roles?.length ?? 0
@@ -125,24 +136,33 @@ export default function PageIdentities({
       <>
         <Pill tone={u.enabled ? 'success' : 'neutral'}>
           <StatusDot on={u.enabled} />
-          {u.enabled ? 'active' : 'disabled'}
+          {u.enabled ? t('identities.list.card.active') : t('identities.list.card.disabled')}
         </Pill>
         <Pill tone={u.email_verified ? 'info' : 'amber'} mono>
-          {u.email_verified ? 'email verified' : 'email unverified'}
+          {u.email_verified
+            ? t('identities.list.card.email_verified')
+            : t('identities.list.card.email_unverified')}
         </Pill>
         {pendingCount(u) > 0 && (
           <Pill tone='amber'>
-            {pendingCount(u)} pending action{pendingCount(u) > 1 ? 's' : ''}
+            {t('identities.list.card.pending', { count: pendingCount(u) })}
           </Pill>
         )}
       </>
     ),
     flags: (u) => [
-      { label: 'Can sign in', on: u.enabled },
-      { label: 'Email verified', on: u.email_verified },
-      { label: 'Nothing required at next sign-in', on: pendingCount(u) === 0 },
+      { label: t('identities.list.card.flags.can_sign_in'), on: u.enabled },
+      { label: t('identities.list.card.flags.email_verified'), on: u.email_verified },
+      {
+        label: t('identities.list.card.flags.nothing_required'),
+        on: pendingCount(u) === 0,
+      },
     ],
-    footer: (u) => <span className='truncate'>Signed up {formatRelative(u.created_at)}</span>,
+    footer: (u) => (
+      <span className='truncate'>
+        {t('identities.list.card.signed_up', { when: formatRelative(u.created_at) })}
+      </span>
+    ),
   }
 
   const active = identities.filter((u) => u.enabled)
@@ -152,43 +172,45 @@ export default function PageIdentities({
 
   const createButton = (
     <Button onClick={onCreate}>
-      <Plus /> New identity
+      <Plus /> {t('identities.list.create')}
     </Button>
   )
 
   return (
     <ListingPage
-      title='Identities'
-      description='Customer accounts of this realm. Search them, review their sign-in state and what they still have to do.'
+      title={t('identities.list.title')}
+      description={t('identities.list.description')}
       loading={isLoading}
       actions={createButton}
       metrics={[
         {
           key: 'total',
-          label: 'Total',
+          label: t('identities.list.metrics.total.label'),
           value: identities.length,
-          hint: `identit${identities.length === 1 ? 'y' : 'ies'}`,
+          hint: t('identities.list.metrics.total.hint', { count: identities.length }),
         },
         {
           key: 'verified',
-          label: 'Email verified',
+          label: t('identities.list.metrics.verified.label'),
           value: verified.length,
           hint:
             verified.length > 0 && identities.length > 0
-              ? `${((verified.length / identities.length) * 100).toFixed(0)}% of total`
-              : 'none verified',
+              ? t('identities.list.metrics.verified.hint', {
+                  percent: ((verified.length / identities.length) * 100).toFixed(0),
+                })
+              : t('identities.list.metrics.verified.empty_hint'),
         },
         {
           key: 'pending',
-          label: 'Pending actions',
+          label: t('identities.list.metrics.pending.label'),
           value: pending.length,
-          hint: 'blocked at next sign-in',
+          hint: t('identities.list.metrics.pending.hint'),
         },
         {
           key: 'disabled',
-          label: 'Disabled',
+          label: t('identities.list.metrics.disabled.label'),
           value: disabled.length,
-          hint: 'cannot sign in',
+          hint: t('identities.list.metrics.disabled.hint'),
         },
       ]}
       alerts={
@@ -196,22 +218,36 @@ export default function PageIdentities({
           ? [
               {
                 tone: 'warn' as const,
-                title: `${pending.length} identit${pending.length > 1 ? 'ies have' : 'y has'} an action pending at next sign-in`,
-                detail: `${pending.map((u) => u.username).join(', ')} — they cannot complete a sign-in until it is done.`,
-                action: 'Review',
+                title: t('identities.list.alerts.pending.title', { count: pending.length }),
+                detail: t('identities.list.alerts.pending.detail', {
+                  names: pending.map((u) => u.username).join(NAME_SEPARATOR),
+                }),
+                action: t('identities.list.alerts.pending.action'),
                 onAction: onReviewPending,
               },
             ]
           : []
       }
       filters={[
-        { key: 'active', label: 'Active', predicate: (u) => u.enabled },
-        { key: 'unverified', label: 'Unverified email', predicate: (u) => !u.email_verified },
-        { key: 'pending', label: 'Pending actions', predicate: (u) => pendingCount(u) > 0 },
-        { key: 'disabled', label: 'Disabled', predicate: (u) => !u.enabled },
+        { key: 'active', label: t('identities.list.filters.active'), predicate: (u) => u.enabled },
+        {
+          key: 'unverified',
+          label: t('identities.list.filters.unverified'),
+          predicate: (u) => !u.email_verified,
+        },
+        {
+          key: PENDING_FILTER,
+          label: t('identities.list.filters.pending'),
+          predicate: (u) => pendingCount(u) > 0,
+        },
+        {
+          key: 'disabled',
+          label: t('identities.list.filters.disabled'),
+          predicate: (u) => !u.enabled,
+        },
       ]}
-      searchPlaceholder='Filter by name, email or username…'
-      querySyntax='username:ada*  email_verified:false  enabled:true'
+      searchPlaceholder={t('identities.list.search_placeholder')}
+      querySyntax={QUERY_SYNTAX}
       searchIn={(u) => `${u.username} ${u.email ?? ''} ${u.firstname ?? ''} ${u.lastname ?? ''}`}
       rows={identities}
       columns={columns}
@@ -219,11 +255,11 @@ export default function PageIdentities({
       getKey={(u) => u.id}
       getHref={identityHref}
       aggregates={{
-        identity: `${identities.length} identit${identities.length === 1 ? 'y' : 'ies'}`,
-        status: `${active.length} active`,
+        identity: t('identities.list.aggregates.identities', { count: identities.length }),
+        status: t('identities.list.aggregates.active', { total: active.length }),
       }}
-      emptyLabel='No identity'
-      emptyHint='An identity is a customer account of this realm. Service accounts belong to applications and are listed there.'
+      emptyLabel={t('identities.list.empty.label')}
+      emptyHint={t('identities.list.empty.hint')}
       emptyAction={createButton}
     />
   )
