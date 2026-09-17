@@ -57,10 +57,12 @@ export default function WebhookSigningSecret({ realm, webhookId }: WebhookSignin
 
   return (
     <>
-      <Button variant='outline' onClick={() => setOpen(true)}>
-        <KeyRound className='mr-1.5 size-3.5' />
-        Generate a new secret
-      </Button>
+      <div className='flex h-full items-center'>
+        <Button variant='outline' onClick={() => setOpen(true)}>
+          <KeyRound className='mr-1.5 size-3.5' />
+          Generate a new secret
+        </Button>
+      </div>
 
       <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : close())}>
         <DialogContent className='max-w-lg'>
