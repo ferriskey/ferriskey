@@ -1,21 +1,26 @@
-const LOCALE = 'en-GB'
+import i18next, { getActiveLocale, translate, type SupportedLocale } from '@/lib/i18n'
 
-const dateOnly = new Intl.DateTimeFormat(LOCALE, {
+const INTL_LOCALES: Record<SupportedLocale, string> = {
+  en: 'en-GB',
+  'zh-CN': 'zh-CN',
+}
+
+const dateOnlyOptions: Intl.DateTimeFormatOptions = {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
-})
+}
 
-const dateTime = new Intl.DateTimeFormat(LOCALE, {
+const dateTimeOptions: Intl.DateTimeFormatOptions = {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
   hour12: false,
-})
+}
 
-const timestamp = new Intl.DateTimeFormat(LOCALE, {
+const timestampOptions: Intl.DateTimeFormatOptions = {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
@@ -23,14 +28,29 @@ const timestamp = new Intl.DateTimeFormat(LOCALE, {
   minute: '2-digit',
   second: '2-digit',
   hour12: false,
-})
+}
 
-const timeOnly = new Intl.DateTimeFormat(LOCALE, {
+const timeOnlyOptions: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
   hour12: false,
-})
+}
+
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
+i18next.on('languageChanged', () => formatters.clear())
+
+const formatterFor = (name: string, options: Intl.DateTimeFormatOptions) => {
+  const locale = getActiveLocale()
+  const cacheKey = `${locale}:${name}`
+  const cached = formatters.get(cacheKey)
+  if (cached) return cached
+
+  const created = new Intl.DateTimeFormat(INTL_LOCALES[locale], options)
+  formatters.set(cacheKey, created)
+  return created
+}
 
 const parse = (iso: string) => {
   const date = new Date(iso)
@@ -39,22 +59,22 @@ const parse = (iso: string) => {
 
 export const formatDate = (iso: string) => {
   const date = parse(iso)
-  return date ? dateOnly.format(date) : iso
+  return date ? formatterFor('dateOnly', dateOnlyOptions).format(date) : iso
 }
 
 export const formatDateTime = (iso: string) => {
   const date = parse(iso)
-  return date ? dateTime.format(date) : iso
+  return date ? formatterFor('dateTime', dateTimeOptions).format(date) : iso
 }
 
 export const formatTimestamp = (iso: string) => {
   const date = parse(iso)
-  return date ? timestamp.format(date) : iso
+  return date ? formatterFor('timestamp', timestampOptions).format(date) : iso
 }
 
 export const formatTime = (iso: string) => {
   const date = parse(iso)
-  return date ? timeOnly.format(date) : iso
+  return date ? formatterFor('timeOnly', timeOnlyOptions).format(date) : iso
 }
 
 const MINUTE = 60_000
@@ -66,10 +86,16 @@ export const formatRelative = (iso: string, now: number = Date.now()) => {
   if (!date) return iso
 
   const elapsed = now - date.getTime()
-  if (elapsed < 0) return dateTime.format(date)
-  if (elapsed < MINUTE) return 'just now'
-  if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min ago`
-  if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)} h ago`
-  if (elapsed < 7 * DAY) return `${Math.floor(elapsed / DAY)} d ago`
-  return dateOnly.format(date)
+  if (elapsed < 0) return formatterFor('dateTime', dateTimeOptions).format(date)
+  if (elapsed < MINUTE) return translate('common:relative_time.just_now')
+  if (elapsed < HOUR) {
+    return translate('common:relative_time.minutes', { count: Math.floor(elapsed / MINUTE) })
+  }
+  if (elapsed < DAY) {
+    return translate('common:relative_time.hours', { count: Math.floor(elapsed / HOUR) })
+  }
+  if (elapsed < 7 * DAY) {
+    return translate('common:relative_time.days', { count: Math.floor(elapsed / DAY) })
+  }
+  return formatterFor('dateOnly', dateOnlyOptions).format(date)
 }

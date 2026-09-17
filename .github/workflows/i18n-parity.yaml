@@ -1,0 +1,49 @@
+name: i18n-parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: catalogue parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: set up node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: install pnpm
+        run: npm install -g pnpm@latest-10
+
+      - name: cache node modules
+        uses: actions/cache@v4
+        with:
+          path: front/node_modules
+          key: node-${{ runner.arch }}-${{ hashFiles('front/pnpm-lock.yaml') }}
+          restore-keys: |
+            node-${{ runner.arch }}-
+
+      - name: install node modules
+        working-directory: front
+        run: pnpm install
+
+      - name: run i18n tests
+        working-directory: front
+        run: pnpm run test:i18n
+
+      - name: check catalogue parity
+        working-directory: front
+        run: pnpm run i18n:parity

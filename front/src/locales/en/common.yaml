@@ -1,0 +1,17 @@
+language:
+  switcher_label: Language
+  names:
+    en: English
+    zh-CN: 简体中文
+
+relative_time:
+  just_now: just now
+  # Abbreviated "minutes" — rendered inside narrow table cells, keep it short.
+  minutes_one: '{{count}} min ago'
+  minutes_other: '{{count}} min ago'
+  # Abbreviated "hours".
+  hours_one: '{{count}} h ago'
+  hours_other: '{{count}} h ago'
+  # Abbreviated "days".
+  days_one: '{{count}} d ago'
+  days_other: '{{count}} d ago'
