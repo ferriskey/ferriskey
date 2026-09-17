@@ -17,6 +17,7 @@ use thiserror::Error;
 
 use axum::extract::Path;
 
+use crate::api_entities::api_error::{ApiError, ApiErrorBody};
 use crate::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,50 +38,16 @@ pub enum AuthError {
     InvalidSignature,
 }
 
-#[derive(Serialize, Deserialize)]
-struct ErrorResponse {
-    code: String,
-    message: String,
-    status: i64,
-}
-
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
-        let (status, code, message) = match self {
-            AuthError::InvalidToken => {
-                (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Invalid token")
-            }
-            AuthError::TokenExpired => {
-                (StatusCode::UNAUTHORIZED, "E_UNAUTHORIZED", "Token expired")
-            }
-            AuthError::TokenNotFound => (
-                StatusCode::UNAUTHORIZED,
-                "E_UNAUTHORIZED",
-                "Token not found",
-            ),
-            AuthError::InvalidSignature => (
-                StatusCode::UNAUTHORIZED,
-                "E_UNAUTHORIZED",
-                "Invalid signature",
-            ),
+        let (message, reason) = match self {
+            AuthError::InvalidToken => ("Invalid token", "invalid_token"),
+            AuthError::TokenExpired => ("Token expired", "expired_token"),
+            AuthError::TokenNotFound => ("Token not found", "token_not_found"),
+            AuthError::InvalidSignature => ("Invalid signature", "invalid_signature"),
         };
 
-        let error_response = ErrorResponse {
-            code: code.to_string(),
-            message: message.to_string(),
-            status: status.as_u16() as i64,
-        };
-
-        let body = serde_json::to_string(&error_response).unwrap_or_else(|_| {
-            r#"{"code":"INTERNAL_SERVER_ERROR","message":"Failed to serialize error response"}"#
-                .to_string()
-        });
-
-        axum::response::Response::builder()
-            .status(status)
-            .header("Content-Type", "application/json")
-            .body(body.clone().into())
-            .unwrap_or_else(|_| axum::response::Response::new(body.clone().into()))
+        ApiError::Unauthorized(ApiErrorBody::new(message, reason)).into_response()
     }
 }
 
@@ -239,4 +206,52 @@ pub async fn auth_login_actions(
     }
 
     Ok(response)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api_entities::api_error::serialized_error;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn the_middleware_emits_the_same_shape_as_the_handlers() {
+        let from_middleware = serialized_error(AuthError::InvalidToken.into_response()).await;
+        let from_handler = serialized_error(
+            ApiError::Unauthorized(ApiErrorBody::new("Invalid token", "invalid_token"))
+                .into_response(),
+        )
+        .await;
+
+        assert_eq!(from_middleware, from_handler);
+        assert_eq!(
+            from_middleware,
+            json!({
+                "code": "E_UNAUTHORIZED",
+                "status": 401,
+                "reason": "invalid_token",
+                "message": "Invalid token",
+            })
+        );
+        assert!(from_middleware["status"].is_u64());
+    }
+
+    #[tokio::test]
+    async fn every_middleware_rejection_carries_its_own_reason() {
+        let cases = [
+            (AuthError::InvalidToken, "invalid_token"),
+            (AuthError::TokenExpired, "expired_token"),
+            (AuthError::TokenNotFound, "token_not_found"),
+            (AuthError::InvalidSignature, "invalid_signature"),
+        ];
+
+        for (error, expected) in cases {
+            let body = serialized_error(error.into_response()).await;
+
+            assert_eq!(body["reason"], json!(expected));
+            assert_eq!(body["code"], json!("E_UNAUTHORIZED"));
+            assert_eq!(body["status"], json!(401));
+            assert!(body["message"].as_str().is_some_and(|m| !m.is_empty()));
+        }
+    }
 }

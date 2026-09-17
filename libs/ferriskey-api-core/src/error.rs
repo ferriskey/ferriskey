@@ -5,11 +5,13 @@ use ferriskey_core::domain::{
 };
 use serde_json::{from_str, to_string};
 
-use crate::api_entities::api_error::{ApiError, ValidationError};
+use crate::api_entities::api_error::{ApiError, ApiErrorBody, ValidationError};
 
 impl From<CoreError> for ApiError {
     fn from(error: CoreError) -> Self {
-        match error {
+        let reason = error.reason();
+
+        let api_error = match error {
             CoreError::NotFound => Self::NotFound("Resource not found".into()),
             CoreError::AlreadyExists => Self::BadRequest("Resource already exists".into()),
             CoreError::EmailAlreadyExists => {
@@ -40,20 +42,20 @@ impl From<CoreError> for ApiError {
             CoreError::WebOriginNotFound => {
                 Self::NotFound("No web origin is registered under this identifier".into())
             }
-            CoreError::InvalidWebOrigin(reason) => {
-                Self::BadRequest(CoreError::InvalidWebOrigin(reason).to_string().into())
+            CoreError::InvalidWebOrigin(detail) => {
+                Self::BadRequest(CoreError::InvalidWebOrigin(detail).to_string().into())
             }
             CoreError::SamlConfigNotFound => {
                 Self::NotFound("No SAML configuration is registered for this client".into())
             }
-            CoreError::InvalidSamlConfig(reason) => {
-                Self::BadRequest(CoreError::InvalidSamlConfig(reason).to_string().into())
+            CoreError::InvalidSamlConfig(detail) => {
+                Self::BadRequest(CoreError::InvalidSamlConfig(detail).to_string().into())
             }
             CoreError::SamlAttributeMapperNotFound => Self::NotFound(
                 "No SAML attribute mapper is registered under this identifier".into(),
             ),
-            CoreError::InvalidSamlAttributeMapper(reason) => Self::BadRequest(
-                CoreError::InvalidSamlAttributeMapper(reason).to_string().into(),
+            CoreError::InvalidSamlAttributeMapper(detail) => Self::BadRequest(
+                CoreError::InvalidSamlAttributeMapper(detail).to_string().into(),
             ),
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
             CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
@@ -171,7 +173,7 @@ impl From<CoreError> for ApiError {
             CoreError::RecoveryCodeGenError(msg) => Self::BadRequest(msg.into()),
             CoreError::RecoveryCodeBurnError(msg) => Self::BadRequest(msg.into()),
             CoreError::AuthorizationCodeStorageFailed => {
-                Self::InternalServerError("".into())
+                Self::InternalServerError("Failed to store the authorization code".into())
             },
             CoreError::ProtocolNotSupported(protocol) => {
                 Self::BadRequest(CoreError::ProtocolNotSupported(protocol).to_string().into())
@@ -268,7 +270,7 @@ impl From<CoreError> for ApiError {
             CoreError::AccountLocked => Self::Unauthorized(
                 "Account is temporarily locked due to too many failed login attempts".into(),
             ),
-            CoreError::ClientUnderMaintenance(reason) => Self::ServiceUnavailable(reason.into()),
+            CoreError::ClientUnderMaintenance(detail) => Self::ServiceUnavailable(detail.into()),
             CoreError::EmailTemplateNotFound => {
                 Self::NotFound("Email template not found".into())
             }
@@ -288,25 +290,21 @@ impl From<CoreError> for ApiError {
                 Self::BadRequest("Email verification template is not configured for this realm".into())
             }
             CoreError::PortalThemePageInvalid(details) => {
-                Self::validation_error(details, "tree")
+                Self::validation_error("tree", reason, details)
             }
             CoreError::PortalThemeInvalidForActivation(details) => {
-                // `details` is a JSON-encoded `Vec<MissingBlocks>` — one entry
-                // per page that failed validation. Surface them as individual
-                // ValidationErrors so the client can render them per page.
                 match from_str::<Vec<MissingBlocks>>(&details) {
                     Ok(items) => Self::validation_errors(
                         items
                             .into_iter()
-                            .map(|item| ValidationError {
-                                field: format!("tree.{:?}", item.page_type).into(),
-                                message: to_string(&item)
-                                    .unwrap_or_default()
-                                    .into(),
-                            })
+                            .map(|item| ValidationError::new(
+                                format!("tree.{:?}", item.page_type),
+                                reason,
+                                to_string(&item).unwrap_or_default(),
+                            ))
                             .collect(),
                     ),
-                    Err(_) => Self::validation_error(details, "tree"),
+                    Err(_) => Self::validation_error("tree", reason, details),
                 }
             }
             CoreError::PortalThemeActive => {
@@ -318,22 +316,20 @@ impl From<CoreError> for ApiError {
             CoreError::PortalLayoutInUse => Self::BadRequest(
                 "Portal layout is referenced by one or more themes and cannot be deleted".into(),
             ),
-            CoreError::PortalLayoutInvalidTree(details) => Self::validation_error(details, "tree"),
+            CoreError::PortalLayoutInvalidTree(details) => {
+                Self::validation_error("tree", reason, details)
+            }
             CoreError::PasswordPolicyViolation(details) => {
-                match from_str::<Vec<PasswordPolicyViolation>>(&details) {
-                    Ok(violations) => Self::validation_errors(
+                match PasswordPolicyViolation::decode(&details) {
+                    Some(violations) => Self::validation_errors(
                         violations
                             .into_iter()
-                            .map(|v| ValidationError {
-                                field: "password".into(),
-                                message: v.message.into(),
+                            .map(|violation| {
+                                ValidationError::new("password", violation.code, violation.message)
                             })
                             .collect(),
                     ),
-                    Err(_) => Self::validation_errors(vec![ValidationError {
-                        field: "password".into(),
-                        message: details.into(),
-                    }]),
+                    None => Self::validation_error("password", reason, details),
                 }
             }
             // PKCE errors (RFC 7636) → OAuth2 invalid_request / invalid_grant
@@ -357,7 +353,9 @@ impl From<CoreError> for ApiError {
                 error: "invalid_grant".into(),
                 error_description: "code_verifier is required when code_challenge was used at authorization".into(),
             },
-        }
+        };
+
+        api_error.with_default_reason(reason)
     }
 }
 
@@ -398,18 +396,24 @@ impl From<DeviceFlowError> for ApiError {
                 "invalid_scope",
                 "The requested scope is not permitted for this client.",
             ),
-            DeviceFlowError::Forbidden => {
-                Self::Forbidden("You cannot act on a device session of another realm".into())
-            }
+            DeviceFlowError::Forbidden => Self::Forbidden(ApiErrorBody::new(
+                "You cannot act on a device session of another realm",
+                "device_session_forbidden",
+            )),
             DeviceFlowError::UserCodeGenerationExhausted => {
-                Self::InternalServerError("Failed to generate a unique user code".into())
+                Self::InternalServerError(ApiErrorBody::new(
+                    "Failed to generate a unique user code",
+                    "user_code_generation_exhausted",
+                ))
             }
-            DeviceFlowError::TokenIssuance(msg) => {
-                Self::InternalServerError(format!("Token issuance failed: {msg}").into())
-            }
-            DeviceFlowError::Repository(_) => {
-                Self::InternalServerError("Internal server error".into())
-            }
+            DeviceFlowError::TokenIssuance(msg) => Self::InternalServerError(ApiErrorBody::new(
+                format!("Token issuance failed: {msg}"),
+                "token_issuance_failed",
+            )),
+            DeviceFlowError::Repository(_) => Self::InternalServerError(ApiErrorBody::new(
+                "Internal server error",
+                "internal_server_error",
+            )),
         }
     }
 }
@@ -417,33 +421,45 @@ impl From<DeviceFlowError> for ApiError {
 impl From<CredentialError> for ApiError {
     fn from(value: CredentialError) -> Self {
         match value {
-            CredentialError::CreateCredentialError => {
-                ApiError::InternalServerError("Failed to create credential".into())
-            }
-            CredentialError::GetUserCredentialsError => {
-                ApiError::InternalServerError("Failed to get credential".into())
-            }
-            CredentialError::DeleteCredentialError => {
-                ApiError::InternalServerError("Failed to delete credential".into())
-            }
+            CredentialError::CreateCredentialError => ApiError::InternalServerError(
+                ApiErrorBody::new("Failed to create credential", "create_credential_error"),
+            ),
+            CredentialError::GetUserCredentialsError => ApiError::InternalServerError(
+                ApiErrorBody::new("Failed to get credential", "get_user_credentials_error"),
+            ),
+            CredentialError::DeleteCredentialError => ApiError::InternalServerError(
+                ApiErrorBody::new("Failed to delete credential", "delete_credential_error"),
+            ),
             CredentialError::VerifyPasswordError(error) => {
-                ApiError::InternalServerError(format!("Failed to verify password: {error}").into())
+                ApiError::InternalServerError(ApiErrorBody::new(
+                    format!("Failed to verify password: {error}"),
+                    "verify_password_error",
+                ))
             }
             CredentialError::DeletePasswordCredentialError => {
-                ApiError::InternalServerError("Failed to delete password credential".into())
+                ApiError::InternalServerError(ApiErrorBody::new(
+                    "Failed to delete password credential",
+                    "delete_password_credential_error",
+                ))
             }
             CredentialError::GetPasswordCredentialError => {
-                ApiError::InternalServerError("Failed to get password credential".into())
+                ApiError::InternalServerError(ApiErrorBody::new(
+                    "Failed to get password credential",
+                    "get_password_credential_error",
+                ))
             }
             CredentialError::HashPasswordError(error) => {
-                ApiError::InternalServerError(format!("Failed to hash password: {error}").into())
+                ApiError::InternalServerError(ApiErrorBody::new(
+                    format!("Failed to hash password: {error}"),
+                    "hash_password_error",
+                ))
             }
-            CredentialError::UpdateCredentialError => {
-                ApiError::InternalServerError("Internal server error".into())
-            }
-            CredentialError::UnexpectedCredentialData => {
-                ApiError::InternalServerError("Internal server error".into())
-            }
+            CredentialError::UpdateCredentialError => ApiError::InternalServerError(
+                ApiErrorBody::new("Internal server error", "update_credential_error"),
+            ),
+            CredentialError::UnexpectedCredentialData => ApiError::InternalServerError(
+                ApiErrorBody::new("Internal server error", "unexpected_credential_data"),
+            ),
         }
     }
 }
@@ -451,6 +467,13 @@ impl From<CredentialError> for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api_entities::api_error::serialized_error;
+    use axum::response::IntoResponse;
+    use serde_json::{Value, json};
+
+    async fn body_of(error: CoreError) -> Value {
+        serialized_error(ApiError::from(error).into_response()).await
+    }
 
     #[test]
     fn maps_username_already_exists_to_bad_request() {
@@ -458,7 +481,173 @@ mod tests {
 
         assert_eq!(
             error,
-            ApiError::BadRequest("Username already exists in this realm".into())
+            ApiError::BadRequest(ApiErrorBody::new(
+                "Username already exists in this realm",
+                "username_already_exists"
+            ))
         );
+    }
+
+    #[tokio::test]
+    async fn a_business_error_keeps_its_http_code_and_gains_a_reason() {
+        let body = body_of(CoreError::EmailAlreadyExists).await;
+
+        assert_eq!(
+            body,
+            json!({
+                "code": "E_BAD_REQUEST",
+                "status": 400,
+                "reason": "email_already_exists",
+                "message": "Email already exists in this realm",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn errors_sharing_a_http_code_are_told_apart_by_their_reason() {
+        let errors = [
+            CoreError::EmailAlreadyExists,
+            CoreError::UsernameAlreadyExists,
+            CoreError::AlreadyExists,
+            CoreError::Invalid,
+            CoreError::InvalidRedirectUri,
+        ];
+
+        let mut reasons = Vec::new();
+
+        for error in errors {
+            let body = body_of(error).await;
+            assert_eq!(body["code"], json!("E_BAD_REQUEST"));
+            reasons.push(
+                body["reason"]
+                    .as_str()
+                    .expect("every error response carries a reason")
+                    .to_string(),
+            );
+        }
+
+        assert_eq!(
+            reasons,
+            vec![
+                "email_already_exists",
+                "username_already_exists",
+                "already_exists",
+                "invalid",
+                "invalid_redirect_uri",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_password_policy_violation_reports_one_coded_entry_per_broken_rule() {
+        let payload = to_string(&vec![
+            PasswordPolicyViolation {
+                code: "too_short".to_string(),
+                message: "Password is too short: 4 characters (minimum 12 required)".to_string(),
+            },
+            PasswordPolicyViolation {
+                code: "missing_uppercase".to_string(),
+                message: "Password must contain at least one uppercase letter".to_string(),
+            },
+        ])
+        .expect("violations serialize");
+
+        let body = body_of(CoreError::PasswordPolicyViolation(payload)).await;
+
+        assert_eq!(
+            body,
+            json!({
+                "errors": [
+                    {
+                        "field": "password",
+                        "code": "too_short",
+                        "message": "Password is too short: 4 characters (minimum 12 required)",
+                    },
+                    {
+                        "field": "password",
+                        "code": "missing_uppercase",
+                        "message": "Password must contain at least one uppercase letter",
+                    },
+                ]
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unparsable_password_policy_payload_falls_back_to_the_core_reason() {
+        let body = body_of(CoreError::PasswordPolicyViolation("not json".to_string())).await;
+
+        assert_eq!(
+            body,
+            json!({
+                "errors": [
+                    {
+                        "field": "password",
+                        "code": "password_policy_violation",
+                        "message": "not json",
+                    },
+                ]
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn invalid_grant_keeps_its_rfc_6749_code_and_does_not_leak_a_reason() {
+        let body = body_of(CoreError::InvalidGrant(
+            "Refresh token is expired".to_string(),
+        ))
+        .await;
+
+        assert_eq!(
+            body,
+            json!({
+                "error": "invalid_grant",
+                "error_description": "Refresh token is expired",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn an_invalid_authorization_code_stays_a_single_opaque_cause() {
+        let body = body_of(CoreError::InvalidAuthorizationCode).await;
+
+        assert_eq!(
+            body,
+            json!({
+                "error": "invalid_grant",
+                "error_description": "The authorization code is invalid, expired, already used, or was not issued to this client.",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn no_error_renders_an_empty_message() {
+        let errors = [
+            CoreError::AuthorizationCodeStorageFailed,
+            CoreError::NotFound,
+            CoreError::InternalServerError,
+            CoreError::InvalidCredentials,
+            CoreError::SessionRevoked,
+            CoreError::UserDisabled,
+            CoreError::AccountLocked,
+            CoreError::RealmKeyNotFound,
+            CoreError::WebhookDeliveryNotReplayable,
+            CoreError::ClientUnderMaintenance("Scheduled maintenance".to_string()),
+            CoreError::Forbidden("You cannot do that".to_string()),
+            CoreError::ServiceUnavailable("Try again later".to_string()),
+        ];
+
+        for error in errors {
+            let reason = error.reason();
+            let body = body_of(error).await;
+            let message = body["message"]
+                .as_str()
+                .expect("every error response carries a message");
+
+            assert!(
+                !message.is_empty() && !message.ends_with(": "),
+                "reason {reason} renders an empty message: {message:?}"
+            );
+        }
     }
 }

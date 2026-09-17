@@ -82,6 +82,18 @@ pub struct PasswordPolicyViolation {
     pub message: String,
 }
 
+impl PasswordPolicyViolation {
+    pub fn encode(errors: &[PasswordPolicyError]) -> String {
+        let violations: Vec<Self> = errors.iter().map(Into::into).collect();
+
+        serde_json::to_string(&violations).unwrap_or_default()
+    }
+
+    pub fn decode(payload: &str) -> Option<Vec<Self>> {
+        serde_json::from_str(payload).ok()
+    }
+}
+
 impl From<&PasswordPolicyError> for PasswordPolicyViolation {
     fn from(e: &PasswordPolicyError) -> Self {
         Self {
