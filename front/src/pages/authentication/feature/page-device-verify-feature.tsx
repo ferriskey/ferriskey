@@ -1,6 +1,7 @@
 import { useDevicePreview, useDeviceVerify } from '@/api/device.api'
 import { Form } from '@/components/ui/form'
 import { useAuth } from '@/hooks/use-auth'
+import { apiErrorMessage } from '@/lib/api-error'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -84,11 +85,7 @@ export default function PageDeviceVerifyFeature() {
       })
       setStatus(response.status === 'denied' ? 'denied' : 'approved')
     } catch (err) {
-      const error = err as {
-        status?: number
-        data?: { error?: string; error_description?: string; redirect_uri?: string }
-        message?: string
-      }
+      const error = err as { status?: number; data?: { redirect_uri?: string } }
 
       // 401: backend tells us to log in and come back. Stash the current URL
       // so the callback returns the user to the verification page once the
@@ -109,10 +106,7 @@ export default function PageDeviceVerifyFeature() {
         return
       }
 
-      const description =
-        error.data?.error_description ??
-        error.message ??
-        'Unable to verify this code. Please try again.'
+      const description = apiErrorMessage(err, 'Unable to verify this code. Please try again.')
 
       // 400 from the backend means unknown / expired / already-used code;
       // surface inline so the user can re-enter without losing the page.

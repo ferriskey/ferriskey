@@ -8,6 +8,15 @@ import { buildSetCredentialPasswordSchema } from '@/pages/iam/user/schemas'
 import { RouterParams } from '@/routes/router'
 import UserCredentialsTab from '../ui/user-credentials-tab'
 import type { PasswordValidity } from '../ui/user-password-form'
+import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
+
+type PasswordField = 'password' | 'confirmPassword'
+
+const FIELD_BY_API_FIELD: Record<string, PasswordField> = {
+  password: 'password',
+  value: 'password',
+  confirmPassword: 'confirmPassword',
+}
 
 export default function UserCredentialsFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
@@ -24,6 +33,7 @@ export default function UserCredentialsFeature() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [validity, setValidity] = useState<PasswordValidity>('temporary')
+  const [serverErrors, setServerErrors] = useState<Partial<Record<PasswordField, string>>>({})
 
   const schema = useMemo(
     () => buildSetCredentialPasswordSchema(passwordPolicy),
@@ -38,7 +48,7 @@ export default function UserCredentialsFeature() {
 
   const touched = password.length > 0 || confirmPassword.length > 0
 
-  const errors = parsed.success || !touched
+  const clientErrors = parsed.success || !touched
     ? {}
     : {
         password: parsed.error.issues.find((i) => i.path[0] === 'password')?.message,
@@ -46,10 +56,18 @@ export default function UserCredentialsFeature() {
           ?.message,
       }
 
+  const errors = { ...clientErrors, ...serverErrors }
+
   const resetForm = () => {
     setPassword('')
     setConfirmPassword('')
     setValidity('temporary')
+    setServerErrors({})
+  }
+
+  const changePassword = (value: string) => {
+    setServerErrors({})
+    setPassword(value)
   }
 
   const handleDelete = (credentialId: string) => {
@@ -67,6 +85,8 @@ export default function UserCredentialsFeature() {
     }
     if (!parsed.success) return
 
+    setServerErrors({})
+
     resetPassword(
       {
         body: {
@@ -81,7 +101,20 @@ export default function UserCredentialsFeature() {
           toast.success('Password has been set successfully')
           resetForm()
         },
-        onError: () => toast.error('Failed to set password'),
+        onError: (error) => {
+          const { byField, unattached } = partitionFieldErrors(
+            validationErrorsFrom(error),
+            (field) => FIELD_BY_API_FIELD[field]
+          )
+
+          setServerErrors(Object.fromEntries(byField) as Partial<Record<PasswordField, string>>)
+
+          if (byField.size === 0 || unattached.length > 0) {
+            toast.error(
+              unattached.join(' — ') || apiErrorMessage(error, 'Failed to set password')
+            )
+          }
+        },
       }
     )
   }
@@ -97,7 +130,7 @@ export default function UserCredentialsFeature() {
         validity,
         errors,
         canSubmit: parsed.success,
-        onPasswordChange: setPassword,
+        onPasswordChange: changePassword,
         onConfirmPasswordChange: setConfirmPassword,
         onValidityChange: setValidity,
         onSubmit: handleSubmitPassword,

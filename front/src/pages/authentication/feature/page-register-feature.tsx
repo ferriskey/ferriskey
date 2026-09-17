@@ -9,6 +9,13 @@ import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
 import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
 import { evaluatePassword } from '../utils/password-policy'
+import { toast } from 'sonner'
+import {
+  apiErrorMessage,
+  apiErrorReason,
+  partitionFieldErrors,
+  validationErrorsFrom,
+} from '@/lib/api-error'
 
 function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
   return z
@@ -38,6 +45,18 @@ function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
 }
 
 export type RegisterSchema = z.infer<ReturnType<typeof buildRegisterSchema>>
+
+const FIELD_BY_API_FIELD: Record<string, keyof RegisterSchema> = {
+  email: 'email',
+  username: 'username',
+  password: 'password',
+  value: 'password',
+}
+
+const FIELD_BY_REASON: Record<string, keyof RegisterSchema> = {
+  email_already_exists: 'email',
+  username_already_exists: 'username',
+}
 
 export default function PageRegisterFeature() {
   const navigate = useNavigate()
@@ -79,18 +98,46 @@ export default function PageRegisterFeature() {
   }, [isPolicyLoading, resolvedPolicy, form])
 
   function onSubmit(data: RegisterSchema) {
-    registration({
-      body: {
-        email: data.email,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        password: data.password,
-        username: data.username,
+    registration(
+      {
+        body: {
+          email: data.email,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          password: data.password,
+          username: data.username,
+        },
+        path: {
+          realm_name: realm_name ?? 'master',
+        },
       },
-      path: {
-        realm_name: realm_name ?? 'master',
-      },
-    })
+      {
+        onError: (error) => {
+          const { byField, unattached } = partitionFieldErrors(
+            validationErrorsFrom(error),
+            (field) => FIELD_BY_API_FIELD[field]
+          )
+
+          for (const [field, message] of byField) {
+            form.setError(field, { type: 'server', message })
+          }
+
+          if (byField.size > 0 && unattached.length === 0) return
+
+          const message =
+            unattached.join(' — ') ||
+            apiErrorMessage(error, 'We could not create your account. Please try again.')
+          const field = FIELD_BY_REASON[apiErrorReason(error) ?? '']
+
+          if (field) {
+            form.setError(field, { type: 'server', message })
+            return
+          }
+
+          toast.error(message)
+        },
+      }
+    )
   }
 
   useEffect(() => {

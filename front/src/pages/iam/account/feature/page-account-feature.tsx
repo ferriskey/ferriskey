@@ -6,6 +6,7 @@ import { useGetRealm } from '@/api/realm.api'
 import { RouterParams } from '@/routes/router'
 import { updateOwnProfileValidator } from '@/pages/iam/account/validators'
 import PageAccount from '../ui/page-account'
+import { apiErrorMessage } from '@/lib/api-error'
 
 interface Draft {
   key: string
@@ -77,7 +78,7 @@ export default function PageAccountFeature() {
       },
       {
         onSuccess: () => toast.success('Your profile was updated'),
-        onError: (error) => toast.error(error.message),
+        onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
   }

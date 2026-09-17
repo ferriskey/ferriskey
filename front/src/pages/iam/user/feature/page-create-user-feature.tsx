@@ -6,6 +6,7 @@ import { RouterParams } from '@/routes/router'
 import { createUserValidator } from '@/pages/iam/user/validators'
 import { USERS_URL } from '@/routes/router'
 import PageCreateUser from '../ui/page-create-user'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export default function PageCreateUserFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -53,7 +54,7 @@ export default function PageCreateUserFeature() {
           toast.success('The user has been successfully created')
           navigate(USERS_URL(realm))
         },
-        onError: (error) => toast.error(error.message),
+        onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
   }

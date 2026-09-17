@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export const useGetPortalLayouts = ({ realm = 'master' }: BaseQuery) => {
   return useQuery(
@@ -142,7 +143,7 @@ export const useImportPortalLayout = () => {
     // The server refuses a file that belongs to the other builder or that uses
     // a format version it cannot read; its message says which, so surface it.
     onError: (error) => {
-      toast.error('Failed to import', { description: error.message })
+      toast.error('Failed to import', { description: apiErrorMessage(error) })
     },
   })
 }

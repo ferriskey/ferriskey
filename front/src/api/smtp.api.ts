@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export const useGetSmtpConfig = ({ realm }: BaseQuery) => {
   return useQuery({
@@ -26,7 +27,7 @@ export const useUpsertSmtpConfig = () => {
       toast.success('SMTP configuration saved successfully')
     },
     onError: (error) => {
-      toast.error('Failed to save SMTP configuration', { description: error.message })
+      toast.error('Failed to save SMTP configuration', { description: apiErrorMessage(error) })
     },
   })
 }
@@ -45,7 +46,7 @@ export const useDeleteSmtpConfig = () => {
       toast.success('SMTP configuration deleted')
     },
     onError: (error) => {
-      toast.error('Failed to delete SMTP configuration', { description: error.message })
+      toast.error('Failed to delete SMTP configuration', { description: apiErrorMessage(error) })
     },
   })
 }

@@ -16,6 +16,7 @@ import {
 } from '@/api/webhook.api'
 import { Schemas } from '@/api/api.client'
 import { formatRelative, formatTimestamp } from '@/utils/format-date'
+import { apiErrorMessage } from '@/lib/api-error'
 import {
   DELIVERY_STATUS_FILTERS,
   describeDeliveryStatus,
@@ -76,12 +77,11 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
       {
         onSuccess: () => toast.success('Delivery queued for another attempt'),
         onError: (error: unknown) => {
-          const body = error as { status?: number; message?: string }
-          if (body?.status === 409) {
+          if ((error as { status?: number })?.status === 409) {
             toast.error('This delivery is still in flight. Wait for it to finish.')
             return
           }
-          toast.error(body?.message ?? 'Could not queue this delivery')
+          toast.error(apiErrorMessage(error, 'Could not queue this delivery'))
         },
       }
     )

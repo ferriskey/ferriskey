@@ -24,6 +24,7 @@ export interface PageLoginProps {
   isLoading?: boolean
   loginSettings?: RealmLoginSetting
   errorMessage?: string | null
+  isMaintenanceError?: boolean
   onPasskeyLogin?: () => void
   isPasskeyLoading?: boolean
   onMagicLinkLogin?: () => void
@@ -41,6 +42,7 @@ export default function PageLogin({
   isLoading,
   loginSettings,
   errorMessage,
+  isMaintenanceError,
   onPasskeyLogin,
   isPasskeyLoading,
   onMagicLinkLogin,
@@ -104,10 +106,10 @@ export default function PageLogin({
                           </h1>
                         </div>
                         {errorMessage && (
-                          errorMessage.includes('under maintenance') ? (
+                          isMaintenanceError ? (
                             <div className='rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-2'>
                               <Wrench className='h-4 w-4 mt-0.5 shrink-0' />
-                              <span>{errorMessage.replace(/^.*under maintenance:\s*/i, '')}</span>
+                              <span>{errorMessage}</span>
                             </div>
                           ) : (
                             <div className='rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive'>

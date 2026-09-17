@@ -8,6 +8,7 @@ import PageEmails from '../ui/page-emails'
 import TemplatesTabFeature from './templates-tab-feature'
 import SmtpTabFeature from './smtp-tab-feature'
 import { useEmailTemplatesBase } from '@/hooks/use-section-base'
+import { apiErrorMessage } from '@/lib/api-error'
 
 const EMAIL_TABS = [
   { key: 'templates', label: 'Templates' },
@@ -29,7 +30,7 @@ export default function PageEmailsFeature() {
       .then((envelope) => {
         importTemplate({ path: { realm_name: realm }, body: envelope as never })
       })
-      .catch((error: Error) => toast.error(error.message))
+      .catch((error: Error) => toast.error(apiErrorMessage(error)))
   }
 
   return (

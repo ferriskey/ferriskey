@@ -15,7 +15,7 @@ import { useAuthenticateMutation } from '@/api/auth.api'
 import { AuthenticationStatus } from '@/api/api.interface'
 import { usePublicPasswordPolicy } from '@/api/password-policy.api'
 import { passwordPolicyRequirements } from '@/lib/password-policy'
-import { validationErrorsFrom } from '@/lib/api-error'
+import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 
 const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
   password: 'password',
@@ -54,20 +54,19 @@ export default function UpdatePasswordFeature() {
       {
         onError: (error) => {
           const fieldErrors = validationErrorsFrom(error)
-          const unattached: string[] = []
+          const { byField, unattached } = partitionFieldErrors(
+            fieldErrors,
+            (field) => FIELD_BY_API_FIELD[field]
+          )
 
-          for (const fieldError of fieldErrors) {
-            const field = FIELD_BY_API_FIELD[fieldError.field]
-            if (field) {
-              form.setError(field, { type: 'server', message: fieldError.message })
-            } else {
-              unattached.push(fieldError.message)
-            }
+          for (const [field, message] of byField) {
+            form.setError(field, { type: 'server', message })
           }
 
           if (fieldErrors.length === 0 || unattached.length > 0) {
             toast.error(
-              unattached.join(' — ') || error.message || 'Failed to update your password'
+              unattached.join(' — ') ||
+                apiErrorMessage(error, 'Failed to update your password')
             )
           }
         },

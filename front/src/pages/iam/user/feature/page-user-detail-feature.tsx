@@ -15,6 +15,7 @@ import UserAttributesFeature from './user-attributes-feature'
 
 import RequiredAction = Schemas.RequiredAction
 import { useCrumbLabel } from '@/components/shell/crumb-store'
+import { apiErrorMessage } from '@/lib/api-error'
 
 interface Draft {
   key: string
@@ -120,7 +121,7 @@ export default function PageUserDetailFeature() {
       },
       {
         onSuccess: () => toast.success('User was updated'),
-        onError: (error) => toast.error(error.message),
+        onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
   }

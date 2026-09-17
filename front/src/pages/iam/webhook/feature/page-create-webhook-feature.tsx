@@ -8,6 +8,7 @@ import { Schemas } from '@/api/api.client'
 import { WEBHOOKS_URL } from '@/routes/router'
 import PageCreateWebhook from '../ui/page-create-webhook'
 import type { WebhookHeader } from '../ui/webhook-headers-field'
+import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 
 import WebhookTrigger = Schemas.WebhookTrigger
 
@@ -67,29 +68,19 @@ export default function PageCreateWebhookFeature() {
           navigate(WEBHOOKS_URL(realm))
         },
         onError: (error: unknown) => {
-          const body = error as {
-            message?: string
-            data?: { errors?: { field: string; message: string }[] }
+          const fieldErrors = validationErrorsFrom(error)
+
+          if (fieldErrors.length > 0) {
+            const { byField, unattached } = partitionFieldErrors(fieldErrors, (field) =>
+              FORM_FIELDS.includes(field as WebhookField) ? (field as WebhookField) : undefined
+            )
+
+            setServerErrors(Object.fromEntries(byField) as Partial<Record<WebhookField, string>>)
+            if (unattached.length > 0) toast.error(unattached.join(' · '))
+            return
           }
-          const fieldErrors = body?.data?.errors
 
-          if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
-            const next: Partial<Record<WebhookField, string>> = {}
-            const unmapped: string[] = []
-
-            for (const { field, message } of fieldErrors) {
-              if (FORM_FIELDS.includes(field as WebhookField)) {
-                next[field as WebhookField] = message
-              } else {
-                unmapped.push(message)
-              }
-            }
-
-            setServerErrors(next)
-            if (unmapped.length > 0) toast.error(unmapped.join(' · '))
-          } else {
-            toast.error(body?.message ?? 'Failed to create webhook')
-          }
+          toast.error(apiErrorMessage(error, 'Failed to create webhook'))
         },
       }
     )

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useParams } from 'react-router'
 import { useVerifyMagicLink } from '@/api/trident.api'
+import { apiErrorMessage } from '@/lib/api-error'
 import PageMagicLinkVerify from '../ui/page-magic-link-verify'
 
 type VerifyStatus = 'loading' | 'error'
@@ -42,7 +43,7 @@ export default function PageMagicLinkVerifyFeature() {
         }
       })
       .catch((err: Error) => {
-        setErrorMessage(err.message)
+        setErrorMessage(apiErrorMessage(err, 'This magic link could not be verified.'))
         setStatus('error')
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

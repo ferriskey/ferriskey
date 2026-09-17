@@ -13,6 +13,7 @@ import ApplicationSettingsTab, {
 } from '../ui/application-settings-tab'
 
 import Client = Schemas.Client
+import { apiErrorMessage } from '@/lib/api-error'
 
 const CALLBACK_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.+/
 const CALLBACK_ERROR = 'Enter a full URL such as https://app.acme.com/callback.'
@@ -132,7 +133,7 @@ export default function ApplicationSettingsTabFeature({
         await refetch()
         toast.success('Callback URL added')
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to add the callback URL')
+        toast.error(apiErrorMessage(error, 'Failed to add the callback URL'))
       }
       return
     }
@@ -147,7 +148,7 @@ export default function ApplicationSettingsTabFeature({
         await refetch()
         toast.success('Callback URL removed')
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to remove the callback URL')
+        toast.error(apiErrorMessage(error, 'Failed to remove the callback URL'))
       }
     }
   }
@@ -170,7 +171,7 @@ export default function ApplicationSettingsTabFeature({
         })
         toast.success('Web origin added')
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to add the web origin')
+        toast.error(apiErrorMessage(error, 'Failed to add the web origin'))
       }
       return
     }
@@ -184,7 +185,7 @@ export default function ApplicationSettingsTabFeature({
         })
         toast.success('Web origin removed')
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to remove the web origin')
+        toast.error(apiErrorMessage(error, 'Failed to remove the web origin'))
       }
     }
   }

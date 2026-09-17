@@ -19,6 +19,7 @@ import {
 } from '@/api/organization-member.api'
 
 import User = Schemas.User
+import { apiErrorMessage } from '@/lib/api-error'
 
 interface ManageMemberRolesModalFeatureProps {
   realm?: string
@@ -44,7 +45,7 @@ export default function ManageMemberRolesModalFeature({
   const revokeRole = useRevokeOrganizationMemberRole(realm, orgId, userId)
 
   const fail = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : 'Failed to update member roles')
+    toast.error(apiErrorMessage(e, 'Failed to update member roles'))
 
   const options: Option[] = useMemo(
     () => (rolesData ?? []).map((r) => ({ value: r.id, label: r.name })),

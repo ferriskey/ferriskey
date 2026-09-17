@@ -11,6 +11,7 @@ import PageSignInMethods, {
 } from '../ui/page-sign-in-methods'
 
 import LoginAlias = Schemas.LoginAlias
+import { apiErrorMessage } from '@/lib/api-error'
 
 const DEFAULT_DRAFT: SignInDraft = {
   loginAliases: ['username'],
@@ -106,7 +107,7 @@ export default function PageSignInMethodsFeature() {
       {
         onSuccess: () => toast.success('Sign-in methods updated.'),
         onError: (error: Error) =>
-          toast.error(error.message || 'Failed to update the sign-in methods'),
+          toast.error(apiErrorMessage(error, 'Failed to update the sign-in methods')),
       }
     )
   }

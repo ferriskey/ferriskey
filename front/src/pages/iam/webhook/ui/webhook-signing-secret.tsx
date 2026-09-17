@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useRotateWebhookSecret } from '@/api/webhook.api'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export interface WebhookSigningSecretProps {
   realm: string
@@ -36,8 +37,7 @@ export default function WebhookSigningSecret({ realm, webhookId }: WebhookSignin
       {
         onSuccess: (data) => setSecret(data.secret),
         onError: (error: unknown) => {
-          const body = error as { message?: string }
-          toast.error(body?.message ?? 'Could not generate a new secret')
+          toast.error(apiErrorMessage(error, 'Could not generate a new secret'))
           close()
         },
       }

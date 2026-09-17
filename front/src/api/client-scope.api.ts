@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
 import { toast } from 'sonner'
+import { apiErrorMessage } from '@/lib/api-error'
 
 type ProtocolMapperQuery = BaseQuery & { scopeId: string }
 
@@ -42,7 +43,7 @@ export const useCreateClientScope = () => {
     },
     onError: (error) => {
       toast.error('Failed to create client scope', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })
@@ -67,7 +68,7 @@ export const useCreateProtocolMapper = () => {
       toast.success('Protocol mapper created successfully')
     },
     onError: (error) => {
-      toast.error('Failed to create protocol mapper', { description: error.message })
+      toast.error('Failed to create protocol mapper', { description: apiErrorMessage(error) })
     },
   })
 }
@@ -91,7 +92,7 @@ export const useUpdateProtocolMapper = () => {
       toast.success('Protocol mapper updated successfully')
     },
     onError: (error) => {
-      toast.error('Failed to update protocol mapper', { description: error.message })
+      toast.error('Failed to update protocol mapper', { description: apiErrorMessage(error) })
     },
   })
 }
@@ -115,7 +116,7 @@ export const useDeleteProtocolMapper = () => {
       toast.success('Protocol mapper deleted successfully')
     },
     onError: (error) => {
-      toast.error('Failed to delete protocol mapper', { description: error.message })
+      toast.error('Failed to delete protocol mapper', { description: apiErrorMessage(error) })
     },
   })
 }
@@ -146,7 +147,7 @@ export const useUpdateClientScope = () => {
       toast.success('Client scope updated successfully')
     },
     onError: (error) => {
-      toast.error('Failed to update client scope', { description: error.message })
+      toast.error('Failed to update client scope', { description: apiErrorMessage(error) })
     },
   })
 }
@@ -165,7 +166,7 @@ export const useDeleteClientScope = () => {
       toast.success('Client scope deleted successfully')
     },
     onError: (error) => {
-      toast.error('Failed to delete client scope', { description: error.message })
+      toast.error('Failed to delete client scope', { description: apiErrorMessage(error) })
     },
   })
 }

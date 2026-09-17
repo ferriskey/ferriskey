@@ -19,6 +19,7 @@ import {
 import PageCreateApplication, {
   type CreateApplicationErrors,
 } from '../ui/page-create-application'
+import { apiErrorMessage } from '@/lib/api-error'
 
 const CLIENT_ID_PATTERN = /^[a-z0-9-_]+$/
 const CLIENT_ID_ERROR = 'Only lowercase letters, numbers, hyphens and underscores.'
@@ -147,7 +148,7 @@ export default function PageCreateApplicationFeature() {
       toast.success('Application created')
       navigate(listUrl)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create application')
+      toast.error(apiErrorMessage(error, 'Failed to create application'))
     } finally {
       setSubmitting(false)
     }

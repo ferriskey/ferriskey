@@ -6,6 +6,7 @@ import { RouterParams } from '@/routes/router'
 import { createUserValidator } from '@/pages/iam/user/validators'
 import PageCreateUser from '@/pages/iam/user/ui/page-create-user'
 import { CONSOLE_IDENTITIES_URL } from '../urls'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export default function PageCreateIdentityFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -53,7 +54,7 @@ export default function PageCreateIdentityFeature() {
           toast.success('The identity has been successfully created')
           navigate(CONSOLE_IDENTITIES_URL(realm))
         },
-        onError: (error) => toast.error(error.message),
+        onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
   }
