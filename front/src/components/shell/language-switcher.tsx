@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useLocale } from '@/lib/i18n/use-locale'
+import { useLocale } from '@/hooks/use-locale'
 import { cn } from '@/lib/utils'
 
 export function LanguageSwitcher() {

@@ -11,6 +11,7 @@ import { Toaster } from './components/ui/sonner'
 import { BasicSpinner } from './components/ui/spinner'
 import { useAuth } from './hooks/use-auth'
 import { useConfig } from './hooks/use-config'
+import { useLocaleSync } from './hooks/use-locale'
 import PageAuthentication from './pages/authentication/page-authentication'
 import IamApp from './iam-app'
 
@@ -200,6 +201,8 @@ function AppRoutes() {
   const { data: responseConfig } = useGetConfig()
 
   const currentRealm = useMemo(() => realmFromPath(pathname), [pathname])
+
+  useLocaleSync()
 
   useEffect(() => {
     if (responseConfig) {
