@@ -51,12 +51,27 @@ pub enum EndpointError {
 }
 
 impl From<EndpointError> for CoreError {
-    /// `CoreError` has no webhook-endpoint-specific variant to add without touching
-    /// `ferriskey-domain`, which is out of scope here, so every rejection collapses to the
-    /// existing generic `CoreError::Invalid` ("Invalid resource", HTTP 400). The precise reason
-    /// is still available to anyone matching on the `EndpointError` before this conversion runs.
-    fn from(_error: EndpointError) -> Self {
-        CoreError::Invalid
+    /// `UnresolvableHost` and `ForbiddenAddress` deliberately share one message. Telling them
+    /// apart would answer "does this name resolve, and is it internal?" for any caller who can
+    /// create a webhook, which is the probe an SSRF attempt starts with. Every other variant
+    /// describes the submitted string itself and discloses nothing about the network.
+    fn from(error: EndpointError) -> Self {
+        let message = match error {
+            EndpointError::Malformed => "the endpoint is not a valid URL",
+            EndpointError::SchemeNotHttps => "the endpoint must use https",
+            EndpointError::EmbeddedCredentials => {
+                "the endpoint must not embed credentials in the URL"
+            }
+            EndpointError::MissingHost => "the endpoint has no host",
+            EndpointError::UnresolvableHost | EndpointError::ForbiddenAddress => {
+                "the endpoint must be a publicly reachable address"
+            }
+            EndpointError::ReservedHeader(_) => {
+                return CoreError::InvalidWebhookEndpoint(error.to_string());
+            }
+        };
+
+        CoreError::InvalidWebhookEndpoint(message.to_string())
     }
 }
 
@@ -375,5 +390,55 @@ mod tests {
         headers.insert("X-Custom-Trace".to_string(), "abc123".to_string());
 
         assert!(reject_reserved_headers(&headers).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod conversion_tests {
+    use super::*;
+
+    fn message(error: EndpointError) -> String {
+        match CoreError::from(error) {
+            CoreError::InvalidWebhookEndpoint(message) => message,
+            other => panic!("expected InvalidWebhookEndpoint, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_rejection_says_what_to_change() {
+        assert!(message(EndpointError::SchemeNotHttps).contains("https"));
+        assert!(message(EndpointError::EmbeddedCredentials).contains("credentials"));
+        assert!(message(EndpointError::Malformed).contains("valid URL"));
+        assert!(message(EndpointError::MissingHost).contains("host"));
+    }
+
+    #[test]
+    fn an_unresolvable_host_is_indistinguishable_from_a_forbidden_one() {
+        assert_eq!(
+            message(EndpointError::UnresolvableHost),
+            message(EndpointError::ForbiddenAddress),
+            "telling these apart would answer whether a name resolves to an internal address"
+        );
+    }
+
+    #[test]
+    fn no_message_echoes_the_submitted_host() {
+        for error in [
+            EndpointError::UnresolvableHost,
+            EndpointError::ForbiddenAddress,
+        ] {
+            let message = message(error);
+            assert!(!message.contains("localhost"));
+            assert!(!message.contains("127.0.0.1"));
+        }
+    }
+
+    #[test]
+    fn a_reserved_header_names_the_offending_header() {
+        let message = message(EndpointError::ReservedHeader(
+            "x-ferriskey-signature".to_string(),
+        ));
+
+        assert!(message.contains("x-ferriskey-signature"));
     }
 }
