@@ -2,6 +2,7 @@
 
 import type React from 'react'
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Command,
   CommandEmpty,
@@ -22,11 +23,10 @@ import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { AlertCircle, Check, Plus, X } from 'lucide-react'
+import { translate } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
-// i18n Configuration Interface
 export interface FilterI18nConfig {
-  // UI Labels
   addFilter: string;
   searchFields: string;
   noFieldsFound: string;
@@ -44,8 +44,9 @@ export interface FilterI18nConfig {
   defaultCurrency: string;
   defaultColor: string;
   addFilterTitle: string;
+  selectedGroup: string;
+  fieldsGroup: string;
 
-  // Operators
   operators: {
     is: string;
     isNot: string;
@@ -75,7 +76,6 @@ export interface FilterI18nConfig {
     notEmpty: string;
   };
 
-  // Placeholders
   placeholders: {
     enterField: (fieldType: string) => string;
     selectField: string;
@@ -84,12 +84,10 @@ export interface FilterI18nConfig {
     enterValue: string;
   };
 
-  // Helper functions
   helpers: {
     formatOperator: (operator: string) => string;
   };
 
-  // Validation
   validation: {
     invalidEmail: string;
     invalidUrl: string;
@@ -98,78 +96,84 @@ export interface FilterI18nConfig {
   };
 }
 
-// Default English i18n configuration
-export const DEFAULT_I18N: FilterI18nConfig = {
-  // UI Labels
-  addFilter: 'Add filter',
-  searchFields: 'Search fields...',
-  noFieldsFound: 'No fields found.',
-  noResultsFound: 'No results found.',
-  select: 'Select...',
-  true: 'True',
-  false: 'False',
-  min: 'Min',
-  max: 'Max',
-  to: 'to',
-  typeAndPressEnter: 'Type and press Enter to add tag',
-  selected: 'selected',
-  selectedCount: 'selected',
-  percent: '%',
-  defaultCurrency: '$',
-  defaultColor: '#000000',
-  addFilterTitle: 'Add filter',
+const DEFAULT_FIELD_TYPE = 'text'
+const PERCENT_SYMBOL = '%'
+const DEFAULT_CURRENCY_SYMBOL = '$'
+const DEFAULT_COLOR_VALUE = '#000000'
 
-  // Operators
-  operators: {
-    is: 'is',
-    isNot: 'is not',
-    isAnyOf: 'is any of',
-    isNotAnyOf: 'is not any of',
-    includesAll: 'includes all',
-    excludesAll: 'excludes all',
-    before: 'before',
-    after: 'after',
-    between: 'between',
-    notBetween: 'not between',
-    contains: 'contains',
-    notContains: 'does not contain',
-    startsWith: 'starts with',
-    endsWith: 'ends with',
-    isExactly: 'is exactly',
-    equals: 'equals',
-    notEquals: 'not equals',
-    greaterThan: 'greater than',
-    lessThan: 'less than',
-    overlaps: 'overlaps',
-    includes: 'includes',
-    excludes: 'excludes',
-    includesAllOf: 'includes all of',
-    includesAnyOf: 'includes any of',
-    empty: 'is empty',
-    notEmpty: 'is not empty',
-  },
+const filterText = (key: string, options?: Record<string, unknown>) =>
+  translate(`common:filters.${key}`, options)
 
-  // Placeholders
-  placeholders: {
-    enterField: (fieldType: string) => `Enter ${fieldType}...`,
-    selectField: 'Select...',
-    searchField: (fieldName: string) => `Search ${fieldName.toLowerCase()}...`,
-    enterKey: 'Enter key...',
-    enterValue: 'Enter value...',
-  },
+export function defaultFilterI18n(): FilterI18nConfig {
+  return {
+    addFilter: filterText('add'),
+    searchFields: filterText('search_fields'),
+    noFieldsFound: filterText('no_fields'),
+    noResultsFound: filterText('no_results'),
+    select: filterText('select'),
+    true: filterText('boolean.true'),
+    false: filterText('boolean.false'),
+    min: filterText('range.min'),
+    max: filterText('range.max'),
+    to: filterText('range.to'),
+    typeAndPressEnter: filterText('tag_hint'),
+    selected: filterText('selected'),
+    selectedCount: filterText('selected'),
+    percent: PERCENT_SYMBOL,
+    defaultCurrency: DEFAULT_CURRENCY_SYMBOL,
+    defaultColor: DEFAULT_COLOR_VALUE,
+    addFilterTitle: filterText('add'),
+    selectedGroup: filterText('group.selected'),
+    fieldsGroup: filterText('group.fields'),
 
-  // Helper functions
-  helpers: {
-    formatOperator: (operator: string) => operator.replace(/_/g, ' '),
-  },
+    operators: {
+      is: filterText('operator.is'),
+      isNot: filterText('operator.is_not'),
+      isAnyOf: filterText('operator.is_any_of'),
+      isNotAnyOf: filterText('operator.is_not_any_of'),
+      includesAll: filterText('operator.includes_all'),
+      excludesAll: filterText('operator.excludes_all'),
+      before: filterText('operator.before'),
+      after: filterText('operator.after'),
+      between: filterText('operator.between'),
+      notBetween: filterText('operator.not_between'),
+      contains: filterText('operator.contains'),
+      notContains: filterText('operator.not_contains'),
+      startsWith: filterText('operator.starts_with'),
+      endsWith: filterText('operator.ends_with'),
+      isExactly: filterText('operator.is_exactly'),
+      equals: filterText('operator.equals'),
+      notEquals: filterText('operator.not_equals'),
+      greaterThan: filterText('operator.greater_than'),
+      lessThan: filterText('operator.less_than'),
+      overlaps: filterText('operator.overlaps'),
+      includes: filterText('operator.includes'),
+      excludes: filterText('operator.excludes'),
+      includesAllOf: filterText('operator.includes_all_of'),
+      includesAnyOf: filterText('operator.includes_any_of'),
+      empty: filterText('operator.empty'),
+      notEmpty: filterText('operator.not_empty'),
+    },
 
-  // Validation
-  validation: {
-    invalidEmail: 'Invalid email format',
-    invalidUrl: 'Invalid URL format',
-    invalidTel: 'Invalid phone format',
-    invalid: 'Invalid input format',
-  },
+    placeholders: {
+      enterField: (fieldType: string) => filterText('placeholder.enter_field', { field: fieldType }),
+      selectField: filterText('select'),
+      searchField: (fieldName: string) => filterText('placeholder.search_field', { field: fieldName }),
+      enterKey: filterText('placeholder.enter_key'),
+      enterValue: filterText('placeholder.enter_value'),
+    },
+
+    helpers: {
+      formatOperator: (operator: string) => operator.replace(/_/g, ' '),
+    },
+
+    validation: {
+      invalidEmail: filterText('validation.email'),
+      invalidUrl: filterText('validation.url'),
+      invalidTel: filterText('validation.tel'),
+      invalid: filterText('validation.generic'),
+    },
+  }
 }
 
 // Context for all Filter component props
@@ -194,7 +198,9 @@ const FilterContext = createContext<FilterContextValue>({
   variant: 'outline',
   size: 'md',
   radius: 'md',
-  i18n: DEFAULT_I18N,
+  get i18n() {
+    return defaultFilterI18n()
+  },
   cursorPointer: true,
   className: undefined,
   showAddButton: true,
@@ -873,8 +879,8 @@ const createOperatorsFromI18n = (i18n: FilterI18nConfig): Record<string, FilterO
   ],
 })
 
-// Default operators for different field types (using default i18n)
-export const DEFAULT_OPERATORS: Record<string, FilterOperator[]> = createOperatorsFromI18n(DEFAULT_I18N)
+export const defaultOperators = (): Record<string, FilterOperator[]> =>
+  createOperatorsFromI18n(defaultFilterI18n())
 
 // Helper function to get operators for a field
 const getOperatorsForField = <T = unknown,>(
@@ -1002,7 +1008,7 @@ function SelectOptionsPopover<T = unknown>({
 
             {/* Selected items */}
             {selectedOptions.length > 0 && (
-              <CommandGroup heading={field.label || 'Selected'}>
+              <CommandGroup heading={field.label || context.i18n.selectedGroup}>
                 {selectedOptions.map((option) => (
                   <CommandItem
                     key={String(option.value)}
@@ -1368,7 +1374,7 @@ function FilterValueSelector<T = unknown>({ field, values, onChange, operator }:
         value={(values[0] as string) || ''}
         onChange={(e) => onChange([e.target.value] as T[])}
         onInputChange={field.onInputChange}
-        placeholder={field.placeholder || context.i18n.placeholders.enterField(field.type || 'text')}
+        placeholder={field.placeholder || context.i18n.placeholders.enterField(field.type || DEFAULT_FIELD_TYPE)}
         pattern={field.pattern || getPattern()}
         className={field.className}
         field={field}
@@ -1753,20 +1759,22 @@ export function Filters<T = unknown>({
   const [selectedFieldForOptions, setSelectedFieldForOptions] = useState<FilterFieldConfig<T> | null>(null)
   const [tempSelectedValues, setTempSelectedValues] = useState<unknown[]>([])
 
-  // Merge provided i18n with defaults
+  useTranslation()
+
+  const defaults = defaultFilterI18n()
   const mergedI18n: FilterI18nConfig = {
-    ...DEFAULT_I18N,
+    ...defaults,
     ...i18n,
     operators: {
-      ...DEFAULT_I18N.operators,
+      ...defaults.operators,
       ...i18n?.operators,
     },
     placeholders: {
-      ...DEFAULT_I18N.placeholders,
+      ...defaults.placeholders,
       ...i18n?.placeholders,
     },
     validation: {
-      ...DEFAULT_I18N.validation,
+      ...defaults.validation,
       ...i18n?.validation,
     },
   }
@@ -1993,7 +2001,10 @@ export function Filters<T = unknown>({
                           if (groupFields.length === 0) return null
 
                           return (
-                            <CommandGroup key={`group-${index}`} heading={item.group || 'Fields'}>
+                            <CommandGroup
+                              key={`group-${index}`}
+                              heading={item.group || mergedI18n.fieldsGroup}
+                            >
                               {groupFields.map((field, fieldIndex) => {
                                 // Handle separator
                                 if (field.type === 'separator') {
@@ -2030,7 +2041,10 @@ export function Filters<T = unknown>({
                           if (groupFields.length === 0) return null
 
                           return (
-                            <CommandGroup key={`group-${index}`} heading={item.group || 'Fields'}>
+                            <CommandGroup
+                              key={`group-${index}`}
+                              heading={item.group || mergedI18n.fieldsGroup}
+                            >
                               {groupFields.map((field, fieldIndex) => {
                                 // Handle separator
                                 if (field.type === 'separator') {

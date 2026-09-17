@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ComponentType } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronsUpDown, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import {
@@ -25,11 +26,11 @@ export function EntityPicker({
   items,
   value,
   onChange,
-  addLabel = 'Add',
-  searchPlaceholder = 'Search…',
-  emptyHint = 'None configured.',
+  addLabel,
+  searchPlaceholder,
+  emptyHint,
   emptyIcon = Users,
-  exhaustedHint = 'Everything is already added.',
+  exhaustedHint,
   disabled,
   fullWidth = false,
 }: {
@@ -39,14 +40,17 @@ export function EntityPicker({
   addLabel?: string
   searchPlaceholder?: string
   emptyHint?: string
-  /** Icon of the empty state — the kind of entity the field points at. */
   emptyIcon?: ComponentType<{ className?: string; strokeWidth?: number }>
   exhaustedHint?: string
   disabled?: boolean
-  /** Span the container instead of capping at a form field's width. */
   fullWidth?: boolean
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const addText = addLabel ?? t('action.add')
+  const searchText = searchPlaceholder ?? t('entity_picker.search_placeholder')
+  const emptyText = emptyHint ?? t('entity_picker.empty')
+  const exhaustedText = exhaustedHint ?? t('entity_picker.exhausted')
 
   const selected = value
     .map((id) => items.find((i) => i.id === id))
@@ -63,18 +67,18 @@ export function EntityPicker({
           disabled={disabled || available.length === 0}
           aria-expanded={open}
         >
-          <Plus /> {addLabel}
+          <Plus /> {addText}
           <ChevronsUpDown className='text-neutral-400 dark:text-neutral-500' />
         </Button>
       </PopoverTrigger>
       <PopoverContent align='start' sideOffset={6} className='w-64 p-0'>
         <Command>
           <CommandInput
-            placeholder={searchPlaceholder}
+            placeholder={searchText}
             className='h-8 py-0 text-[13px]'
           />
           <CommandList className='max-h-56'>
-            <CommandEmpty className='py-3 text-[13px]'>No match.</CommandEmpty>
+            <CommandEmpty className='py-3 text-[13px]'>{t('entity_picker.no_match')}</CommandEmpty>
             <CommandGroup className='p-1'>
               {available.map((entity) => (
                 <CommandItem
@@ -112,7 +116,7 @@ export function EntityPicker({
         <EmptyState
           icon={emptyIcon}
           compact
-          label={exhausted ? exhaustedHint : emptyHint}
+          label={exhausted ? exhaustedText : emptyText}
           action={exhausted ? undefined : addControl}
         />
       </div>
@@ -139,7 +143,7 @@ export function EntityPicker({
                 variant='ghost'
                 size='icon'
                 disabled={disabled}
-                aria-label={`Remove ${entity.label}`}
+                aria-label={t('entity_picker.remove', { label: entity.label })}
                 onClick={() => onChange(value.filter((id) => id !== entity.id))}
                 className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
               >
@@ -153,7 +157,7 @@ export function EntityPicker({
       {addControl}
 
       {available.length === 0 && (
-        <p className='text-xs text-neutral-400 dark:text-neutral-500'>{exhaustedHint}</p>
+        <p className='text-xs text-neutral-400 dark:text-neutral-500'>{exhaustedText}</p>
       )}
     </div>
   )

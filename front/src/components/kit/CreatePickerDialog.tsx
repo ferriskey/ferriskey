@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/kit/button'
 import {
@@ -19,7 +20,7 @@ export function CreatePickerDialog<T extends string>({
   options,
   defaultValue,
   createUrl,
-  confirmLabel = 'Continue',
+  confirmLabel,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -30,6 +31,7 @@ export function CreatePickerDialog<T extends string>({
   createUrl: (value: T) => string
   confirmLabel?: string
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [value, setValue] = useState<T>(defaultValue)
 
@@ -56,9 +58,11 @@ export function CreatePickerDialog<T extends string>({
 
         <DialogFooter>
           <Button variant='ghost' onClick={() => handleOpenChange(false)}>
-            Cancel
+            {t('action.cancel')}
           </Button>
-          <Button onClick={() => navigate(createUrl(value))}>{confirmLabel}</Button>
+          <Button onClick={() => navigate(createUrl(value))}>
+            {confirmLabel ?? t('action.continue')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

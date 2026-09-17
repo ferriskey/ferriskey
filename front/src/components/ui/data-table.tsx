@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, MoreVertical, Search, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ReactNode, useMemo, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { Button } from './button'
 import { Checkbox } from './checkbox'
 import {
@@ -65,7 +66,7 @@ export function DataTable<T extends { id: string }>({
   title,
   description,
   isLoading = false,
-  searchPlaceholder = 'Rechercher...',
+  searchPlaceholder,
   searchKeys = [],
   rowActions = [],
   enablePagination = true,
@@ -81,6 +82,7 @@ export function DataTable<T extends { id: string }>({
   filters = [],
   onFiltersChange,
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [selectedItems, setSelectedItems] = useState<T[]>([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -140,9 +142,7 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div className='space-y-6 flex flex-col'>
-      {/* Header Section */}
       <div className='flex flex-col gap-4'>
-        {/* Title and Description */}
         {(title || description) && (
           <div className='flex flex-col gap-1'>
             {title && <h2 className='text-2xl font-semibold tracking-tight'>{title}</h2>}
@@ -150,7 +150,6 @@ export function DataTable<T extends { id: string }>({
           </div>
         )}
 
-        {/* Search Bar and Create Button */}
         <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
           <div className='flex flex-1 items-center gap-3 w-full sm:w-auto'>
             {searchKeys.length > 0 && (
@@ -158,7 +157,7 @@ export function DataTable<T extends { id: string }>({
                 <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
                 <Input
                   type='search'
-                  placeholder={searchPlaceholder}
+                  placeholder={searchPlaceholder ?? t('data_view.search_placeholder')}
                   className='pl-10 h-10 bg-background'
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -174,7 +173,6 @@ export function DataTable<T extends { id: string }>({
           )}
         </div>
 
-        {/* Filters Section */}
         {enableFilters && filterFields && filterFields.length > 0 && (
           <div className='flex items-center gap-2'>
             <Filters
@@ -188,7 +186,6 @@ export function DataTable<T extends { id: string }>({
         )}
       </div>
 
-      {/* Table Section */}
       <div className='rounded-lg border bg-card shadow-sm'>
         {isLoading ? (
           <TableSkeleton columns={columns.length} enableSelection={enableSelection} />
@@ -205,7 +202,7 @@ export function DataTable<T extends { id: string }>({
                           selectedItems.length === paginatedData.length
                         }
                         onCheckedChange={handleSelectAll}
-                        aria-label='Select all'
+                        aria-label={t('data_view.select_all')}
                       />
                     </TableHead>
                   )}
@@ -230,7 +227,7 @@ export function DataTable<T extends { id: string }>({
                           <Checkbox
                             checked={selectedItems.some((item) => item.id === row.id)}
                             onCheckedChange={() => handleSelectItem(row)}
-                            aria-label={'Select row'}
+                            aria-label={t('data_view.select_row_generic')}
                           />
                         </TableCell>
                       )}
@@ -261,12 +258,12 @@ export function DataTable<T extends { id: string }>({
                                 size='icon'
                                 className='h-8 w-8 cursor-pointer'
                               >
-                                <span className='sr-only'>Ouvrir le menu</span>
+                                <span className='sr-only'>{t('data_view.open_menu')}</span>
                                 <MoreVertical className='h-4 w-4' />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align='end'>
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuLabel>{t('data_view.actions')}</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               {rowActions.map((action, index) => (
                                 <DropdownMenuItem
@@ -297,7 +294,8 @@ export function DataTable<T extends { id: string }>({
                       }
                       className='h-24 text-center'
                     >
-                      {emptyState || (search ? 'No result found' : 'No data available.')}
+                      {emptyState ||
+                        (search ? t('data_view.no_result_found') : t('data_view.no_data'))}
                     </TableCell>
                   </TableRow>
                 )}
@@ -307,22 +305,28 @@ export function DataTable<T extends { id: string }>({
         )}
       </div>
 
-      {/* Pagination */}
       {enablePagination && totalPages > 1 && (
         <div className='flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4 border-t bg-muted/30'>
           <div className='flex items-center gap-2'>
             <p className='text-sm text-muted-foreground'>
-              Showing <span className='font-medium text-foreground'>{(currentPage - 1) * pageSize + 1}</span> to{' '}
-              <span className='font-medium text-foreground'>
-                {Math.min(currentPage * pageSize, filteredData.length)}
-              </span>{' '}
-              of <span className='font-medium text-foreground'>{filteredData.length}</span> results
+              <Trans
+                i18nKey='data_view.pagination.range'
+                values={{
+                  from: (currentPage - 1) * pageSize + 1,
+                  to: Math.min(currentPage * pageSize, filteredData.length),
+                  total: filteredData.length,
+                }}
+                components={{ num: <span className='font-medium text-foreground' /> }}
+              />
             </p>
           </div>
           <div className='flex items-center gap-2'>
             <p className='text-sm text-muted-foreground'>
-              Page <span className='font-medium text-foreground'>{currentPage}</span> of{' '}
-              <span className='font-medium text-foreground'>{totalPages}</span>
+              <Trans
+                i18nKey='data_view.pagination.page'
+                values={{ current: currentPage, total: totalPages }}
+                components={{ num: <span className='font-medium text-foreground' /> }}
+              />
             </p>
             <div className='flex items-center gap-1'>
               <Button
@@ -333,7 +337,7 @@ export function DataTable<T extends { id: string }>({
                 className='h-8 w-8 p-0'
               >
                 <ChevronLeft className='h-4 w-4' />
-                <span className='sr-only'>Previous page</span>
+                <span className='sr-only'>{t('data_view.pagination.previous')}</span>
               </Button>
               <Button
                 variant='outline'
@@ -343,14 +347,13 @@ export function DataTable<T extends { id: string }>({
                 className='h-8 w-8 p-0'
               >
                 <ChevronRight className='h-4 w-4' />
-                <span className='sr-only'>Next page</span>
+                <span className='sr-only'>{t('data_view.pagination.next')}</span>
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bannière flottante de confirmation de suppression (style Discord) */}
       <AnimatePresence>
         {selectedItems.length > 0 && onDeleteSelected && (
           <motion.div
@@ -367,10 +370,12 @@ export function DataTable<T extends { id: string }>({
                 </div>
                 <div>
                   <p className='font-semibold text-base'>
-                    {selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'} selected
+                    {t('data_view.bulk.selected', { count: selectedItems.length })}
                   </p>
                   <p className='text-sm text-muted-foreground'>
-                    {isConfirmingDelete ? 'Click confirm to delete permanently' : 'Ready to delete?'}
+                    {isConfirmingDelete
+                      ? t('data_view.bulk.confirm_hint')
+                      : t('data_view.bulk.ready_hint')}
                   </p>
                 </div>
               </div>
@@ -384,7 +389,7 @@ export function DataTable<T extends { id: string }>({
                   }}
                   className='hover:bg-muted'
                 >
-                  Cancel
+                  {t('action.cancel')}
                 </Button>
                 <Button
                   variant='destructive'
@@ -394,7 +399,7 @@ export function DataTable<T extends { id: string }>({
                   }
                   className='min-w-[80px]'
                 >
-                  {isConfirmingDelete ? 'Confirm' : 'Delete'}
+                  {isConfirmingDelete ? t('action.confirm') : t('action.delete')}
                 </Button>
               </div>
             </div>

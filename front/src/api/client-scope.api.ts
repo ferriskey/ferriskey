@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
 import { toast } from 'sonner'
 import { apiErrorMessage } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
 
 type ProtocolMapperQuery = BaseQuery & { scopeId: string }
 
@@ -39,10 +40,10 @@ export const useCreateClientScope = () => {
         },
       })
       await queryClient.invalidateQueries({ queryKey })
-      toast.success('Client scope created successfully')
+      toast.success(translate('common:toast.client_scope.created'))
     },
     onError: (error) => {
-      toast.error('Failed to create client scope', {
+      toast.error(translate('common:toast.client_scope.create_failed'), {
         description: apiErrorMessage(error),
       })
     },
@@ -65,10 +66,12 @@ export const useCreateProtocolMapper = () => {
         },
       })
       await queryClient.invalidateQueries({ queryKey })
-      toast.success('Protocol mapper created successfully')
+      toast.success(translate('common:toast.protocol_mapper.created'))
     },
     onError: (error) => {
-      toast.error('Failed to create protocol mapper', { description: apiErrorMessage(error) })
+      toast.error(translate('common:toast.protocol_mapper.create_failed'), {
+        description: apiErrorMessage(error),
+      })
     },
   })
 }
@@ -89,10 +92,12 @@ export const useUpdateProtocolMapper = () => {
         },
       })
       await queryClient.invalidateQueries({ queryKey })
-      toast.success('Protocol mapper updated successfully')
+      toast.success(translate('common:toast.protocol_mapper.updated'))
     },
     onError: (error) => {
-      toast.error('Failed to update protocol mapper', { description: apiErrorMessage(error) })
+      toast.error(translate('common:toast.protocol_mapper.update_failed'), {
+        description: apiErrorMessage(error),
+      })
     },
   })
 }
@@ -113,10 +118,12 @@ export const useDeleteProtocolMapper = () => {
         },
       })
       await queryClient.invalidateQueries({ queryKey })
-      toast.success('Protocol mapper deleted successfully')
+      toast.success(translate('common:toast.protocol_mapper.deleted'))
     },
     onError: (error) => {
-      toast.error('Failed to delete protocol mapper', { description: apiErrorMessage(error) })
+      toast.error(translate('common:toast.protocol_mapper.delete_failed'), {
+        description: apiErrorMessage(error),
+      })
     },
   })
 }
@@ -144,10 +151,12 @@ export const useUpdateClientScope = () => {
         queryClient.invalidateQueries({ queryKey: scopeKey }),
         queryClient.invalidateQueries({ queryKey: listKey }),
       ])
-      toast.success('Client scope updated successfully')
+      toast.success(translate('common:toast.client_scope.updated'))
     },
     onError: (error) => {
-      toast.error('Failed to update client scope', { description: apiErrorMessage(error) })
+      toast.error(translate('common:toast.client_scope.update_failed'), {
+        description: apiErrorMessage(error),
+      })
     },
   })
 }
@@ -163,10 +172,12 @@ export const useDeleteClientScope = () => {
         path: { realm_name: variables.path.realm_name },
       })
       await queryClient.invalidateQueries({ queryKey })
-      toast.success('Client scope deleted successfully')
+      toast.success(translate('common:toast.client_scope.deleted'))
     },
     onError: (error) => {
-      toast.error('Failed to delete client scope', { description: apiErrorMessage(error) })
+      toast.error(translate('common:toast.client_scope.delete_failed'), {
+        description: apiErrorMessage(error),
+      })
     },
   })
 }

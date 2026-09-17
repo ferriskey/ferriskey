@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -7,6 +8,11 @@ import { tokens } from '@/styles/style-tokens'
 import { EmptyState } from './empty-state'
 
 export type ViewMode = 'list' | 'cards'
+
+const CARD_SELECTED_CLASS = 'rounded-sm border border-fk-primary-border bg-fk-primary-soft/40'
+const CARD_BASE_CLASS = 'group relative flex flex-col transition-all'
+const CARD_LINKED_CLASS =
+  'hover:border-fk-primary-border hover:shadow-[0_2px_12px_rgb(0_0_0/0.05)]'
 
 export interface Column<T> {
   key: string
@@ -49,11 +55,12 @@ export function DataView<T>({
   getHref,
   view,
   aggregates,
-  emptyLabel = 'No results',
+  emptyLabel,
   emptyHint,
   emptyAction,
   loading = false,
 }: DataViewProps<T>) {
+  const { t } = useTranslation()
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null)
   const [selected, setSelected] = useState<string[]>([])
 
@@ -86,7 +93,13 @@ export function DataView<T>({
   }
 
   if (rows.length === 0) {
-    return <EmptyState label={emptyLabel} hint={emptyHint} action={emptyAction} />
+    return (
+      <EmptyState
+        label={emptyLabel ?? t('data_view.no_results')}
+        hint={emptyHint}
+        action={emptyAction}
+      />
+    )
   }
 
   const selectable = tokens.table.selectable
@@ -114,7 +127,7 @@ export function DataView<T>({
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => toggleOne(key)}
-                      aria-label={`Select ${key}`}
+                      aria-label={t('data_view.select_row', { label: key })}
                       className='relative z-10 mt-0.5 shrink-0'
                     />
                   )}
@@ -166,13 +179,10 @@ export function DataView<T>({
             )
 
             const className = cn(
-              isSelected
-                ? 'rounded-sm border border-fk-primary-border bg-fk-primary-soft/40'
-                : tokens.surface.panel,
+              isSelected ? CARD_SELECTED_CLASS : tokens.surface.panel,
               tokens.card.padding,
-              'group relative flex flex-col transition-all',
-              href &&
-                'hover:border-fk-primary-border hover:shadow-[0_2px_12px_rgb(0_0_0/0.05)]'
+              CARD_BASE_CLASS,
+              href && CARD_LINKED_CLASS
             )
 
             return (
@@ -227,7 +237,7 @@ export function DataView<T>({
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={toggleAll}
-                  aria-label='Select all'
+                  aria-label={t('data_view.select_all')}
                 />
               </th>
             )}
@@ -284,7 +294,7 @@ export function DataView<T>({
                     <Checkbox
                       checked={selected.includes(key)}
                       onCheckedChange={() => toggleOne(key)}
-                      aria-label={`Select ${key}`}
+                      aria-label={t('data_view.select_row', { label: key })}
                     />
                   </td>
                 )}

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import { apiErrorMessage } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
 
 export const useGetClients = ({ realm }: BaseQuery) => {
   return useQuery(
@@ -79,7 +80,7 @@ export const useUpdateClient = () => {
         },
       }).queryKey
 
-      toast.success(`Client ${payload.data.name} was updated successfully`)
+      toast.success(translate('common:toast.client.updated', { name: payload.data.name }))
       queryClient.invalidateQueries({
         queryKey: keys,
       })
@@ -190,10 +191,10 @@ export const useAssignScope = () => {
         }
       )
       await queryClient.invalidateQueries({ queryKey })
-      toast.success(`Scope assigned as ${variables.type} successfully`)
+      toast.success(translate(`common:toast.client.scope_assigned.${variables.type}`))
     },
     onError: (error) => {
-      toast.error('Failed to assign scope', {
+      toast.error(translate('common:toast.client.scope_assign_failed'), {
         description: apiErrorMessage(error),
       })
     },
@@ -228,12 +229,10 @@ export const useUnassignScope = () => {
         }
       )
       await queryClient.invalidateQueries({ queryKey })
-      toast.success(
-        `${variables.type.charAt(0).toUpperCase() + variables.type.slice(1)} scope unassigned successfully`
-      )
+      toast.success(translate(`common:toast.client.scope_unassigned.${variables.type}`))
     },
     onError: (error) => {
-      toast.error('Failed to unassign scope', {
+      toast.error(translate('common:toast.client.scope_unassign_failed'), {
         description: apiErrorMessage(error),
       })
     },

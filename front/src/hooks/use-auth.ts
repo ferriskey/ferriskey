@@ -6,6 +6,7 @@ import userStore from '@/store/user.store'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { IUser, OrganizationClaim } from '@/contracts/states.interface'
+import { translate } from '@/lib/i18n'
 import { authRefreshController } from './auth-refresh-controller'
 
 type JwtPayload = {
@@ -214,7 +215,7 @@ export function useAuth() {
       )
     }).catch((error: unknown) => {
       const message = error instanceof Error && error.message !== 'refresh temporarily blocked'
-        ? 'Your session expired. Please sign in again.'
+        ? translate('common:session.expired')
         : undefined
 
       clearAuthState(Boolean(message), message)

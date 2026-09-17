@@ -1,56 +1,67 @@
 import { z } from 'zod'
 import { DEFAULT_PASSWORD_POLICY, type PublicPasswordPolicy } from '@/api/password-policy.api'
+import { translate } from '@/lib/i18n'
+
+const MAX_PASSWORD_LENGTH = 100
+
+export type PasswordRuleCode =
+  | 'too_short'
+  | 'missing_uppercase'
+  | 'missing_lowercase'
+  | 'missing_number'
+  | 'missing_special'
 
 export interface PasswordRequirement {
-  id: string
+  id: PasswordRuleCode
   label: string
   message: string
   isMet: (password: string) => boolean
 }
 
-export function passwordPolicyRequirements(
-  policy?: PublicPasswordPolicy
-): PasswordRequirement[] {
+const ruleText = (code: PasswordRuleCode, field: 'label' | 'message', count?: number) =>
+  translate(`common:password.rule.${code}.${field}`, count === undefined ? undefined : { count })
+
+export function passwordPolicyRequirements(policy?: PublicPasswordPolicy): PasswordRequirement[] {
   const minLength = policy?.min_length ?? DEFAULT_PASSWORD_POLICY.min_length
 
   const requirements: PasswordRequirement[] = [
     {
-      id: 'length',
-      label: `At least ${minLength} characters`,
-      message: `Password must be at least ${minLength} characters long`,
+      id: 'too_short',
+      label: ruleText('too_short', 'label', minLength),
+      message: ruleText('too_short', 'message', minLength),
       isMet: (password) => password.length >= minLength,
     },
   ]
 
   if (policy?.require_uppercase) {
     requirements.push({
-      id: 'uppercase',
-      label: 'One uppercase letter',
-      message: 'Password must contain at least one uppercase letter',
+      id: 'missing_uppercase',
+      label: ruleText('missing_uppercase', 'label'),
+      message: ruleText('missing_uppercase', 'message'),
       isMet: (password) => /[A-Z]/.test(password),
     })
   }
   if (policy?.require_lowercase) {
     requirements.push({
-      id: 'lowercase',
-      label: 'One lowercase letter',
-      message: 'Password must contain at least one lowercase letter',
+      id: 'missing_lowercase',
+      label: ruleText('missing_lowercase', 'label'),
+      message: ruleText('missing_lowercase', 'message'),
       isMet: (password) => /[a-z]/.test(password),
     })
   }
   if (policy?.require_number) {
     requirements.push({
-      id: 'number',
-      label: 'One number',
-      message: 'Password must contain at least one number',
+      id: 'missing_number',
+      label: ruleText('missing_number', 'label'),
+      message: ruleText('missing_number', 'message'),
       isMet: (password) => /[0-9]/.test(password),
     })
   }
   if (policy?.require_special) {
     requirements.push({
-      id: 'special',
-      label: 'One special character',
-      message: 'Password must contain at least one special character',
+      id: 'missing_special',
+      label: ruleText('missing_special', 'label'),
+      message: ruleText('missing_special', 'message'),
       isMet: (password) => /[^A-Za-z0-9]/.test(password),
     })
   }
@@ -59,13 +70,14 @@ export function passwordPolicyRequirements(
 }
 
 export function buildPasswordField(policy?: PublicPasswordPolicy) {
-  const requirements = passwordPolicyRequirements(policy)
-
   return z
     .string()
-    .max(100, { message: 'Password must be at most 100 characters long' })
+    .max(MAX_PASSWORD_LENGTH, {
+      error: () =>
+        translate('common:password.rule.too_long.message', { total: MAX_PASSWORD_LENGTH }),
+    })
     .superRefine((password, ctx) => {
-      for (const requirement of requirements) {
+      for (const requirement of passwordPolicyRequirements(policy)) {
         if (requirement.isMet(password)) continue
         ctx.addIssue({ code: 'custom', message: requirement.message })
       }

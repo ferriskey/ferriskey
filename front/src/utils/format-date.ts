@@ -30,6 +30,11 @@ const timestampOptions: Intl.DateTimeFormatOptions = {
   hour12: false,
 }
 
+const dayMonthOptions: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+}
+
 const timeOnlyOptions: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
@@ -70,6 +75,11 @@ export const formatDateTime = (iso: string) => {
 export const formatTimestamp = (iso: string) => {
   const date = parse(iso)
   return date ? formatterFor('timestamp', timestampOptions).format(date) : iso
+}
+
+export const formatDayMonth = (iso: string) => {
+  const date = parse(iso)
+  return date ? formatterFor('dayMonth', dayMonthOptions).format(date) : iso
 }
 
 export const formatTime = (iso: string) => {

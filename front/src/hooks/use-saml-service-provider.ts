@@ -7,6 +7,7 @@ import {
   useUpsertSamlConfig,
 } from '@/api/saml.api'
 import { apiErrorMessage } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
 import { AttributeMapperDraft, DEFAULT_ATTRIBUTE_NAME_FORMAT } from '@/lib/saml'
 import { toast } from 'sonner'
 
@@ -35,11 +36,13 @@ export function useSamlServiceProvider(realmName?: string, clientId?: string) {
     try {
       await upsertConfig({ realmName, clientId, payload })
       toast.success(
-        isConfigured ? 'Service provider updated' : 'Service provider configured',
+        translate(
+          isConfigured ? 'common:toast.saml.sp_updated' : 'common:toast.saml.sp_configured'
+        ),
       )
       return true
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not save the service provider'))
+      toast.error(apiErrorMessage(error, translate('common:toast.saml.sp_save_failed')))
       return false
     }
   }
@@ -57,10 +60,10 @@ export function useSamlServiceProvider(realmName?: string, clientId?: string) {
           name_format: input.nameFormat ?? DEFAULT_ATTRIBUTE_NAME_FORMAT,
         },
       })
-      toast.success(`Attribute ${input.name.trim()} mapped`)
+      toast.success(translate('common:toast.saml.attribute_mapped', { name: input.name.trim() }))
       return true
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not map the attribute'))
+      toast.error(apiErrorMessage(error, translate('common:toast.saml.attribute_map_failed')))
       return false
     }
   }
@@ -70,10 +73,10 @@ export function useSamlServiceProvider(realmName?: string, clientId?: string) {
 
     try {
       await removeMapper({ realmName, clientId, mapperId })
-      toast.success('Attribute mapping removed')
+      toast.success(translate('common:toast.saml.attribute_removed'))
       return true
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not remove the attribute mapping'))
+      toast.error(apiErrorMessage(error, translate('common:toast.saml.attribute_remove_failed')))
       return false
     }
   }

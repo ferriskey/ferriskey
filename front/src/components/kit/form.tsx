@@ -1,4 +1,5 @@
 import { useState, type ComponentType, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
@@ -63,8 +64,8 @@ export function FieldRow({
 export function SwitchField({
   checked,
   onCheckedChange,
-  onLabel = 'Enabled',
-  offLabel = 'Disabled',
+  onLabel,
+  offLabel,
   disabled,
   id,
 }: {
@@ -75,6 +76,10 @@ export function SwitchField({
   disabled?: boolean
   id?: string
 }) {
+  const { t } = useTranslation()
+  const on = onLabel ?? t('state.enabled')
+  const off = offLabel ?? t('state.disabled')
+
   return (
     <label
       className={cn(
@@ -94,7 +99,7 @@ export function SwitchField({
           checked ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400'
         )}
       >
-        {checked ? onLabel : offLabel}
+        {checked ? on : off}
       </span>
     </label>
   )
@@ -187,7 +192,7 @@ export function OrderedChoiceCards<T extends string>({
   options,
   label,
   className,
-  minSelectedReason = 'At least one entry is required.',
+  minSelectedReason,
 }: {
   value: T[]
   onChange: (v: T[]) => void
@@ -196,6 +201,9 @@ export function OrderedChoiceCards<T extends string>({
   className?: string
   minSelectedReason?: string
 }) {
+  const { t } = useTranslation()
+  const pinnedReason = minSelectedReason ?? t('form.min_selected')
+
   const toggle = (v: T) => {
     if (value.includes(v)) {
       if (value.length === 1) return
@@ -224,7 +232,7 @@ export function OrderedChoiceCards<T extends string>({
             role='checkbox'
             aria-checked={selected}
             aria-disabled={pinned}
-            title={pinned ? minSelectedReason : undefined}
+            title={pinned ? pinnedReason : undefined}
             onClick={() => toggle(o.value)}
             className={cn(
               'relative flex flex-col gap-1 border border-fk-line p-3 text-left transition-colors',
@@ -319,6 +327,7 @@ export function ChipInput({
   emptyHint?: string
   disabled?: boolean
 }) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState('')
 
   const commit = () => {
@@ -340,7 +349,7 @@ export function ChipInput({
               {v}
               <button
                 type='button'
-                aria-label={`Remove ${v}`}
+                aria-label={t('form.chip_remove', { value: v })}
                 disabled={disabled}
                 onClick={() => onChange(values.filter((x) => x !== v))}
                 className='grid size-4 cursor-pointer place-items-center rounded text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-700 dark:hover:text-neutral-300 disabled:cursor-not-allowed'
@@ -373,7 +382,7 @@ export function ChipInput({
           size='icon'
           disabled={disabled}
           onClick={commit}
-          aria-label='Add'
+          aria-label={t('action.add')}
         >
           <Plus className='size-4' />
         </Button>

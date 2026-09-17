@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import { translate } from '@/lib/i18n'
 
 export interface UserMutateContract<T> {
   realm?: string
@@ -260,7 +261,7 @@ export const useDeleteUserAttribute = () => {
           user_id: variables.path.user_id,
         },
       }).queryKey
-      toast.success('Attribute deleted')
+      toast.success(translate('common:toast.attribute.deleted'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })

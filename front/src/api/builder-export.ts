@@ -1,4 +1,5 @@
 import { authStore } from '@/store/auth.store.ts'
+import { translate } from '@/lib/i18n'
 
 /**
  * Downloading an export cannot go through the generated client: it hands back a
@@ -72,6 +73,6 @@ export async function readExportFile(file: File): Promise<Record<string, unknown
   try {
     return JSON.parse(text) as Record<string, unknown>
   } catch {
-    throw new Error('This file is not valid JSON.')
+    throw new Error(translate('common:toast.import_invalid_json'))
   }
 }
