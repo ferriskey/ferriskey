@@ -398,6 +398,7 @@ session:
 # Confirmations raised by the mutation layer. They fire after the API answered, so they state
 # what happened, not what was asked.
 toast:
+  unexpected_error: Something went wrong. Please try again.
   import_failed: Failed to import
   import_invalid_json: This file is not valid JSON.
   attribute:

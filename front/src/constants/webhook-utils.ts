@@ -41,6 +41,47 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
 
 export const webhookCategoryLabelKey = (category: string) => `category.${category}`
 
+export const catalogedTriggers: Record<Schemas.WebhookTrigger, true> = {
+  'client.created': true,
+  'client.updated': true,
+  'client.deleted': true,
+  'client.role.created': true,
+  'client.role.updated': true,
+  'client.maintenance.enabled': true,
+  'client.maintenance.disabled': true,
+  'client.saml_config.updated': true,
+  'client.saml_attribute_mapper.created': true,
+  'client.saml_attribute_mapper.deleted': true,
+  'redirect_uri.created': true,
+  'redirect_uri.updated': true,
+  'redirect_uri.deleted': true,
+  'web_origin.created': true,
+  'web_origin.deleted': true,
+  'realm.created': true,
+  'realm.updated': true,
+  'realm.deleted': true,
+  'realm.settings.updated': true,
+  'role.created': true,
+  'role.updated': true,
+  'role.deleted': true,
+  'role.permission.updated': true,
+  'user.created': true,
+  'user.updated': true,
+  'user.deleted': true,
+  'user.email_verified': true,
+  'user.bulk_deleted': true,
+  'user.role.assigned': true,
+  'user.role.unassigned': true,
+  'user.credentials.deleted': true,
+  'auth.reset_password': true,
+  'auth.device_flow.initiated': true,
+  'auth.device_flow.denied': true,
+  'auth.device_flow.expired': true,
+  'webhook.created': true,
+  'webhook.updated': true,
+  'webhook.deleted': true,
+}
+
 export const webhookTriggerLabelKey = (trigger: Schemas.WebhookTrigger) =>
   `trigger.${trigger}.label`
 

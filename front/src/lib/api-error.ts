@@ -3,7 +3,7 @@ import i18n, { preloadNamespaces, translate } from '@/lib/i18n'
 
 export const ERRORS_NAMESPACE = 'errors'
 
-const LAST_RESORT_MESSAGE = 'Something went wrong. Please try again.'
+const LAST_RESORT_KEY = 'common:toast.unexpected_error'
 
 const FIELD_ERROR_SEPARATOR = ' — '
 
@@ -148,7 +148,7 @@ export function apiErrorReason(error: unknown): string | undefined {
   return typeof reason === 'string' && reason.length > 0 ? reason : undefined
 }
 
-export function apiErrorMessage(error: unknown, fallback: string = LAST_RESORT_MESSAGE): string {
+export function apiErrorMessage(error: unknown, fallback: string = translate(LAST_RESORT_KEY)): string {
   const payload = apiErrorPayload(error)
 
   const fieldErrors = validationErrorsFromBody(payload)

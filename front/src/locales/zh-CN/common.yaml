@@ -338,6 +338,7 @@ session:
   expired: Your session expired. Please sign in again.
   login_expired: Your login session expired. Please restart the sign-in.
 toast:
+  unexpected_error: Something went wrong. Please try again.
   import_failed: Failed to import
   import_invalid_json: This file is not valid JSON.
   attribute:

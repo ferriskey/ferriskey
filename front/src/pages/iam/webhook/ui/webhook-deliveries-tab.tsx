@@ -95,7 +95,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
             toast.error(t('delivery.toast.in_flight'))
             return
           }
-          toast.error(apiErrorMessage(error, 'Could not queue this delivery'))
+          toast.error(apiErrorMessage(error, t('delivery.retry_failed')))
         },
       }
     )
