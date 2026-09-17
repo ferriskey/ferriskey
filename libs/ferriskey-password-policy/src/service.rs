@@ -89,10 +89,7 @@ where
             .await?
             .unwrap_or_else(|| PasswordPolicy::default(realm_id));
         validator::validate(password, &policy, username, email_local).map_err(|errors| {
-            let violations: Vec<PasswordPolicyViolation> = errors.iter().map(Into::into).collect();
-            CoreError::PasswordPolicyViolation(
-                serde_json::to_string(&violations).unwrap_or_default(),
-            )
+            CoreError::PasswordPolicyViolation(PasswordPolicyViolation::encode(&errors))
         })
     }
 
@@ -126,15 +123,8 @@ where
     }
 }
 
-/// Convert a list of policy violations into a single [`CoreError`] whose message
-/// enumerates all failed rules, separated by "; ".
 pub fn violations_to_core_error(violations: Vec<PasswordPolicyError>) -> CoreError {
-    let msg = violations
-        .iter()
-        .map(|v| v.to_string())
-        .collect::<Vec<_>>()
-        .join("; ");
-    CoreError::PasswordPolicyViolation(msg)
+    CoreError::PasswordPolicyViolation(PasswordPolicyViolation::encode(&violations))
 }
 
 #[cfg(test)]
@@ -257,17 +247,23 @@ mod tests {
     }
 
     #[test]
-    fn violations_to_core_error_formats_message() {
+    fn violations_to_core_error_keeps_one_coded_entry_per_rule() {
         let violations = vec![
             PasswordPolicyError::MissingUppercase,
             PasswordPolicyError::MissingNumber,
         ];
         let err = violations_to_core_error(violations);
-        assert!(matches!(err, CoreError::PasswordPolicyViolation(_)));
-        if let CoreError::PasswordPolicyViolation(msg) = err {
-            assert!(msg.contains("uppercase"));
-            assert!(msg.contains("number"));
-        }
+
+        let CoreError::PasswordPolicyViolation(payload) = err else {
+            panic!("expected a password policy violation, got {err:?}");
+        };
+
+        let decoded = PasswordPolicyViolation::decode(&payload)
+            .expect("violations travel as a structured payload");
+        let codes: Vec<&str> = decoded.iter().map(|v| v.code.as_str()).collect();
+
+        assert_eq!(codes, vec!["missing_uppercase", "missing_number"]);
+        assert!(decoded.iter().all(|v| !v.message.is_empty()));
     }
 
     struct MockRepository;
