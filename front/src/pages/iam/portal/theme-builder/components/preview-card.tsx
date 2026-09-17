@@ -1,4 +1,5 @@
 import { useMemo, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertCircle } from 'lucide-react'
 import { usePortalThemeContext } from '../context/portal-theme-context'
 import { themeToCssVars } from '@/lib/portal-theme/theme'
@@ -123,12 +124,16 @@ const separatorLineStyle: CSSProperties = {
   opacity: 0.3,
 }
 
+const EMAIL_PLACEHOLDER = 'you@example.com'
+const MASKED_PASSWORD = '••••••••'
+
 const SOCIAL_PROVIDERS = [
-  { id: 'google', label: 'Continue with Google', glyph: 'G' },
-  { id: 'github', label: 'Continue with GitHub', glyph: 'GH' },
+  { id: 'google', labelKey: 'builder.preview.social.google', glyph: 'G' },
+  { id: 'github', labelKey: 'builder.preview.social.github', glyph: 'GH' },
 ]
 
 export function PreviewCard() {
+  const { t } = useTranslation('portal')
   const { theme } = usePortalThemeContext()
   const vars = useMemo(() => themeToCssVars(theme), [theme])
 
@@ -161,34 +166,34 @@ export function PreviewCard() {
         <div style={groupStyle}>
           <div className='flex flex-col items-center gap-2 text-center'>
             <div className='h-9 w-9 rounded bg-muted' aria-hidden />
-            <h3 style={titleStyle}>Welcome back</h3>
-            <p style={subtitleStyle}>Sign in to your workspace.</p>
+            <h3 style={titleStyle}>{t('builder.preview.title')}</h3>
+            <p style={subtitleStyle}>{t('builder.preview.subtitle')}</p>
           </div>
 
           {/* Error banner exercises `--fk-color-error` so the admin can see
               the impact of recolouring the destructive token. */}
           <div style={errorBannerStyle}>
             <AlertCircle size={16} aria-hidden />
-            <span>Invalid email or password.</span>
+            <span>{t('builder.preview.error')}</span>
           </div>
 
           <div style={formStyle}>
             <div className='flex flex-col gap-1.5'>
-              <label style={labelStyle}>Email</label>
+              <label style={labelStyle}>{t('builder.preview.email')}</label>
               <input
                 style={inputStyle}
                 className='h-10 px-3 text-sm outline-none'
-                placeholder='you@example.com'
+                placeholder={EMAIL_PLACEHOLDER}
                 readOnly
               />
             </div>
             <div className='flex flex-col gap-1.5'>
-              <label style={labelStyle}>Password</label>
+              <label style={labelStyle}>{t('builder.preview.password')}</label>
               <input
                 style={inputStyle}
                 className='h-10 px-3 text-sm outline-none'
                 type='password'
-                value='••••••••'
+                value={MASKED_PASSWORD}
                 readOnly
               />
             </div>
@@ -198,7 +203,7 @@ export function PreviewCard() {
               style={primaryButtonStyle}
               className='h-10 w-full px-4 transition-opacity hover:opacity-95'
             >
-              Continue
+              {t('builder.preview.submit')}
             </button>
 
             <button
@@ -206,13 +211,13 @@ export function PreviewCard() {
               style={secondaryButtonStyle}
               className='h-10 w-full px-4 transition-opacity hover:opacity-95'
             >
-              Use another account
+              {t('builder.preview.other_account')}
             </button>
           </div>
 
           <div style={separatorStyle}>
             <span style={separatorLineStyle} />
-            <span>or continue with</span>
+            <span>{t('builder.preview.separator')}</span>
             <span style={separatorLineStyle} />
           </div>
 
@@ -231,14 +236,14 @@ export function PreviewCard() {
                 >
                   {p.glyph}
                 </span>
-                <span className='flex-1 text-left'>{p.label}</span>
+                <span className='flex-1 text-left'>{t(p.labelKey)}</span>
               </button>
             ))}
           </div>
 
           <div className='flex justify-center'>
             <a href='#' style={linkStyle} onClick={(e) => e.preventDefault()}>
-              Forgot password?
+              {t('builder.preview.forgot_password')}
             </a>
           </div>
         </div>

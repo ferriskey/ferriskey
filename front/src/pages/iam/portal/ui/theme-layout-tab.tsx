@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   Select,
   SelectContent,
@@ -23,17 +24,18 @@ export default function ThemeLayoutTab({
   savedLayoutId,
   onLayoutChange,
 }: ThemeLayoutTabProps) {
+  const { t } = useTranslation('portal')
   const selected = layouts.find((l) => l.id === layoutId)
   const detaching = layouts.find((l) => l.id === savedLayoutId && savedLayoutId !== layoutId)
 
   return (
     <Section
-      title='Layout'
-      description='The header, footer and card wrapper every page of this theme is rendered inside.'
+      title={t('detail.layout.title')}
+      description={t('detail.layout.description')}
     >
       <FieldRow
-        label='Portal layout'
-        description='Optional. Without a layout the portal renders the page tree on its own.'
+        label={t('detail.layout.field.label')}
+        description={t('detail.layout.field.description')}
       >
         <div className='max-w-sm'>
           <Select value={layoutId} onValueChange={onLayoutChange}>
@@ -41,11 +43,12 @@ export default function ThemeLayoutTab({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_LAYOUT}>No layout — render the page bare</SelectItem>
+              <SelectItem value={NO_LAYOUT}>{t('detail.layout.option_none')}</SelectItem>
               {layouts.map((layout) => (
                 <SelectItem key={layout.id} value={layout.id}>
-                  {layout.name}
-                  {layout.is_default ? ' · default' : ''}
+                  {layout.is_default
+                    ? t('detail.layout.option_default', { name: layout.name })
+                    : layout.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -53,13 +56,12 @@ export default function ThemeLayoutTab({
 
           {selected && (
             <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
-              While this theme uses it, “{selected.name}” cannot be deleted.
+              {t('detail.layout.locked', { name: selected.name })}
             </p>
           )}
           {detaching && (
             <p className='mt-1.5 text-xs text-fk-amber'>
-              Saving detaches “{detaching.name}” from this theme; it becomes deletable
-              unless another theme holds it.
+              {t('detail.layout.detaching', { name: detaching.name })}
             </p>
           )}
         </div>

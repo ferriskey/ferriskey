@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Save } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Pill } from '@/components/kit'
@@ -39,10 +40,12 @@ export default function PagePortalPageBuilder({
   onBack,
   onSave,
 }: PagePortalPageBuilderProps) {
+  const { t } = useTranslation('portal')
+
   const nav = (
     <nav className='flex flex-col gap-0.5 p-2'>
       <p className='px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500'>
-        Pages
+        {t('detail.pages.title')}
       </p>
       {PORTAL_PAGES.map((page) => (
         <Link
@@ -55,7 +58,7 @@ export default function PagePortalPageBuilder({
               : 'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
           )}
         >
-          {page.label}
+          {t(page.labelKey)}
         </Link>
       ))}
     </nav>
@@ -76,20 +79,22 @@ export default function PagePortalPageBuilder({
 
         <div className='flex min-w-0 flex-1 flex-wrap items-center gap-2'>
           <h1 className='truncate text-[13px] font-semibold text-neutral-900 dark:text-neutral-100'>
-            {labelForPortalPage(pageType)} page
+            {t('page_builder.title', { page: labelForPortalPage(pageType) })}
           </h1>
           <Pill tone='neutral' mono>
             {pageType}
           </Pill>
           <Pill tone={layoutName ? 'violet' : 'neutral'}>
-            {layoutName ? `framed by ${layoutName}` : 'no layout'}
+            {layoutName
+              ? t('page_builder.framed_by', { name: layoutName })
+              : t('page_builder.no_layout')}
           </Pill>
-          {isDirty && <Pill tone='amber'>unsaved</Pill>}
+          {isDirty && <Pill tone='amber'>{t('page_builder.unsaved')}</Pill>}
         </div>
 
         <Button onClick={onSave} disabled={isSaving || !isDirty}>
           <Save className='size-4' />
-          {isSaving ? 'Saving…' : 'Save page'}
+          {isSaving ? t('page_builder.saving') : t('page_builder.save')}
         </Button>
       </header>
 

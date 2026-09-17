@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   describePortalPageError,
@@ -25,12 +26,13 @@ import { NO_LAYOUT } from '../ui/theme-layout-tab'
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 
 const THEME_TABS = [
-  { key: 'theme', label: 'Theme' },
-  { key: 'layout', label: 'Layout' },
-  { key: 'pages', label: 'Pages' },
+  { key: 'theme', labelKey: 'detail.tabs.theme' },
+  { key: 'layout', labelKey: 'detail.tabs.layout' },
+  { key: 'pages', labelKey: 'detail.tabs.pages' },
 ] as const
 
 export default function PagePortalThemeDetailFeature() {
+  const { t } = useTranslation('portal')
   const portal = usePortalUrls()
   const { realm_name, theme_id } = useParams<RouterParams & { theme_id: string }>()
   const navigate = useNavigate()
@@ -42,7 +44,12 @@ export default function PagePortalThemeDetailFeature() {
   const { data: requirementsData } = useGetPortalPageRequirements({ realm })
   const { data: activeData } = useGetActivePortalTheme({ realm, pageType: 'login' })
 
-  const { value: tab, tabs } = useRouteTabs(portal.theme(themeId), THEME_TABS)
+  const translatedTabs = useMemo(
+    () => THEME_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
+    [t]
+  )
+
+  const { value: tab, tabs } = useRouteTabs(portal.theme(themeId), translatedTabs)
 
   const theme = themeData?.data
 
@@ -113,6 +120,7 @@ function ThemeDetailInner({
   tab,
   tabs,
 }: InnerProps) {
+  const { t } = useTranslation('portal')
   const portal = usePortalUrls()
   const navigate = useNavigate()
   const { theme: config, isDirty, discard, markSaved } = usePortalThemeContext()
@@ -125,7 +133,8 @@ function ThemeDetailInner({
   const { mutate: activateTheme, isPending: isActivating } = useActivatePortalTheme()
   const { mutate: deleteTheme } = useDeletePortalTheme()
 
-  const nameError = name.trim().length === 0 ? 'A theme needs a name.' : undefined
+  const nameError =
+    name.trim().length === 0 ? t('detail.identity.name.required') : undefined
 
   const dirtyCount =
     (name !== theme.name ? 1 : 0) + (layoutId !== savedLayoutId ? 1 : 0) + (isDirty ? 1 : 0)
@@ -150,11 +159,11 @@ function ThemeDetailInner({
       {
         onSuccess: () => {
           markSaved(config)
-          toast.success('Portal theme saved')
+          toast.success(t('detail.toast.saved'))
         },
         onError: (error) => {
-          toast.error('Failed to save portal theme', {
-            description: describePortalPageError(error) ?? 'Unknown error',
+          toast.error(t('detail.toast.save_failed'), {
+            description: describePortalPageError(error) ?? t('page_builder.toast.unknown_error'),
           })
         },
       }

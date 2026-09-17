@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
   BuilderProvider,
@@ -17,6 +18,13 @@ import { PREVIEW_WIDTHS, type PreviewMode } from '@/lib/builder-mjml/types'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { useLayoutTier } from '@/hooks/use-media-query'
+import { EMAIL_TEMPLATE_NAMESPACE } from '../email-types'
+
+const DESKTOP: PreviewMode = 'desktop'
+const TABLET: PreviewMode = 'tablet'
+const MOBILE: PreviewMode = 'mobile'
+
+const DESKTOP_TIER = 'desktop'
 
 export interface PageEmailTemplateBuilderProps {
   adapter: BuilderAdapter
@@ -49,7 +57,8 @@ export default function PageEmailTemplateBuilder({
   onBack,
   onApplyPreset,
 }: PageEmailTemplateBuilderProps) {
-  const [viewport, setViewport] = useState<PreviewMode>('desktop')
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
+  const [viewport, setViewport] = useState<PreviewMode>(DESKTOP)
   const tier = useLayoutTier()
 
   return (
@@ -58,20 +67,20 @@ export default function PageEmailTemplateBuilder({
         <div className='flex flex-wrap items-center gap-3 border-b border-fk-line px-4 py-2'>
           <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
             <ArrowLeft className='size-3.5' />
-            Emails
+            {t('builder.back')}
           </Button>
 
           <input
             type='text'
             className='min-w-0 flex-1 bg-transparent text-lg font-semibold tracking-tight outline-none placeholder:text-neutral-400'
-            placeholder='Template name…'
+            placeholder={t('builder.name_placeholder')}
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
           />
 
           {isNew ? (
             <select
-              aria-label='Email type'
+              aria-label={t('builder.email_type')}
               className='rounded-md border border-fk-line bg-white dark:bg-fk-surface px-2 py-1 text-[13px]'
               value={emailType}
               onChange={(event) => onEmailTypeChange(event.target.value)}
@@ -88,26 +97,26 @@ export default function PageEmailTemplateBuilder({
             </Pill>
           )}
 
-          {tier === 'desktop' && (
+          {tier === DESKTOP_TIER && (
             <div className='flex items-center gap-1 rounded-md border border-fk-line p-0.5'>
               <ViewportButton
-                active={viewport === 'desktop'}
-                label='Desktop'
-                onClick={() => setViewport('desktop')}
+                active={viewport === DESKTOP}
+                label={t('builder.viewport.desktop')}
+                onClick={() => setViewport(DESKTOP)}
               >
                 <Monitor className='size-3.5' />
               </ViewportButton>
               <ViewportButton
-                active={viewport === 'tablet'}
-                label='Tablet'
-                onClick={() => setViewport('tablet')}
+                active={viewport === TABLET}
+                label={t('builder.viewport.tablet')}
+                onClick={() => setViewport(TABLET)}
               >
                 <Tablet className='size-3.5' />
               </ViewportButton>
               <ViewportButton
-                active={viewport === 'mobile'}
-                label='Mobile'
-                onClick={() => setViewport('mobile')}
+                active={viewport === MOBILE}
+                label={t('builder.viewport.mobile')}
+                onClick={() => setViewport(MOBILE)}
               >
                 <Smartphone className='size-3.5' />
               </ViewportButton>
@@ -116,7 +125,7 @@ export default function PageEmailTemplateBuilder({
 
           <Button onClick={onSave} disabled={isSaving || !name}>
             <Save />
-            {isSaving ? 'Saving…' : 'Save'}
+            {isSaving ? t('builder.saving') : t('builder.save')}
           </Button>
         </div>
 

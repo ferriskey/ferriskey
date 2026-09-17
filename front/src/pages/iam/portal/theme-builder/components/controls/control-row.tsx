@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ControlRowProps {
   label: string
@@ -21,6 +22,8 @@ interface ControlRowProps {
  * input blocks.
  */
 export function ControlRow({ label, modified, onReset, children }: ControlRowProps) {
+  const { t } = useTranslation('portal')
+
   return (
     <div className='flex min-h-7 items-center gap-2'>
       <div className='flex w-[42%] shrink-0 items-center gap-1.5'>
@@ -29,8 +32,8 @@ export function ControlRow({ label, modified, onReset, children }: ControlRowPro
             type='button'
             onClick={onReset}
             className='h-1.5 w-1.5 shrink-0 rounded-full bg-orange-500 transition-transform hover:scale-125'
-            title='Reset to default'
-            aria-label={`Reset ${label} to default`}
+            title={t('builder.control.reset')}
+            aria-label={t('builder.control.reset_field', { label })}
           />
         ) : (
           // Reserve the same hit-zone so the label column stays aligned

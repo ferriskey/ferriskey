@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Check } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Pill, Section } from '@/components/kit'
@@ -13,15 +14,16 @@ export interface ThemePagesTabProps {
 }
 
 export default function ThemePagesTab({ statuses, pageHref }: ThemePagesTabProps) {
+  const { t } = useTranslation('portal')
   const failures = statuses.filter((s) => s.missing.length > 0)
 
   return (
     <Section
-      title='Pages'
+      title={t('detail.pages.title')}
       description={
         failures.length === 0
-          ? 'Every page carries its required blocks: this theme can be activated.'
-          : `${failures.length} page${failures.length > 1 ? 's' : ''} block${failures.length > 1 ? '' : 's'} activation. All of them are listed below — fixing one does not reveal a new one.`
+          ? t('detail.pages.all_valid')
+          : t('detail.pages.blocking', { count: failures.length })
       }
     >
       <ul className={tokens.surface.divider}>
@@ -50,13 +52,19 @@ export default function ThemePagesTab({ statuses, pageHref }: ThemePagesTabProps
 
               <div className='min-w-0 flex-1'>
                 <div className='flex flex-wrap items-center gap-2'>
-                  <p className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>{page.label}</p>
+                  <p className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>
+                    {t(page.labelKey)}
+                  </p>
                   <Pill tone='neutral' mono>
                     {page.type}
                   </Pill>
-                  {required.length === 0 && <Pill tone='neutral'>no required block</Pill>}
+                  {required.length === 0 && (
+                    <Pill tone='neutral'>{t('detail.pages.no_required_block')}</Pill>
+                  )}
                 </div>
-                <p className='mt-0.5 text-xs text-neutral-500 dark:text-neutral-400'>{page.description}</p>
+                <p className='mt-0.5 text-xs text-neutral-500 dark:text-neutral-400'>
+                  {t(page.descriptionKey)}
+                </p>
 
                 {required.length > 0 && (
                   <div className='mt-1.5 flex flex-wrap gap-1.5'>
@@ -71,7 +79,13 @@ export default function ThemePagesTab({ statuses, pageHref }: ThemePagesTabProps
                               ? 'border-fk-success-border bg-fk-success-soft text-fk-success'
                               : 'border-fk-amber-border bg-fk-amber-soft text-fk-amber'
                           )}
-                          title={on ? undefined : `${humanizeBlockType(block)} is missing`}
+                          title={
+                            on
+                              ? undefined
+                              : t('detail.pages.block_missing', {
+                                  block: humanizeBlockType(block),
+                                })
+                          }
                         >
                           {on ? (
                             <Check className='size-2.5' strokeWidth={3} />
@@ -87,7 +101,7 @@ export default function ThemePagesTab({ statuses, pageHref }: ThemePagesTabProps
               </div>
 
               <Button variant='ghost' size='sm' className='shrink-0 text-xs' asChild>
-                <Link to={pageHref(page.type)}>Edit</Link>
+                <Link to={pageHref(page.type)}>{t('detail.pages.edit')}</Link>
               </Button>
             </li>
           )

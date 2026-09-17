@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Download, Mail, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
   Select,
@@ -14,7 +15,16 @@ import { IconTile, MetricsBand, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
-import { EMAIL_TYPES, emailTypeSpec, formatRelative, type EmailTypeSpec } from '../email-types'
+import {
+  ALL_EMAIL_TYPES,
+  EMAIL_TEMPLATE_NAMESPACE,
+  EMAIL_TYPES,
+  EXPORT_JSON,
+  EXPORT_MJML,
+  emailTypeSpec,
+  formatRelative,
+  type EmailTypeSpec,
+} from '../email-types'
 
 import EmailTemplate = Schemas.EmailTemplate
 
@@ -34,6 +44,8 @@ export interface TemplatesTabProps {
 
 const NONE = '__none__'
 
+const LIST_SEPARATOR = ', '
+
 export default function TemplatesTab({
   templates,
   isLoading,
@@ -45,17 +57,21 @@ export default function TemplatesTab({
   onDelete,
   onExport,
 }: TemplatesTabProps) {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const [query, setQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>(ALL_EMAIL_TYPES)
   const [pendingDelete, setPendingDelete] = useState<EmailTemplate | undefined>(undefined)
 
   const usedBy = (templateId: string) =>
     EMAIL_TYPES.filter((spec) => assignments[spec.assignmentField] === templateId)
 
+  const nameList = (specs: EmailTypeSpec[]) =>
+    specs.map((spec) => t(spec.labelKey)).join(LIST_SEPARATOR)
+
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase()
     const matching = templates.filter((template) => {
-      if (typeFilter !== 'all' && template.email_type !== typeFilter) return false
+      if (typeFilter !== ALL_EMAIL_TYPES && template.email_type !== typeFilter) return false
       if (!needle) return true
       return `${template.name} ${template.email_type}`.toLowerCase().includes(needle)
     })
@@ -76,10 +92,10 @@ export default function TemplatesTab({
           <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
             <AlertTriangle className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
             <p className='text-xs text-neutral-700 dark:text-neutral-300'>
-              {unassigned.map((spec) => spec.label).join(', ')}{' '}
-              {unassigned.length > 1 ? 'have no template assigned' : 'has no template assigned'} —
-              FerrisKey sends its plain-text default email for{' '}
-              {unassigned.length > 1 ? 'those' : 'that one'}.
+              {t('list.alert.unassigned', {
+                count: unassigned.length,
+                names: nameList(unassigned),
+              })}
             </p>
           </div>
         )}
@@ -88,22 +104,24 @@ export default function TemplatesTab({
           metrics={[
             {
               key: 'total',
-              label: 'Templates',
+              label: t('list.metrics.total.label'),
               value: templates.length,
-              hint: 'in this realm',
+              hint: t('list.metrics.total.hint'),
             },
             ...EMAIL_TYPES.map((spec) => ({
               key: spec.key,
-              label: spec.short,
+              label: t(spec.shortKey),
               value: templates.filter((template) => template.email_type === spec.key).length,
-              hint: assignments[spec.assignmentField] ? 'assigned' : 'none assigned',
+              hint: assignments[spec.assignmentField]
+                ? t('list.metrics.type.assigned')
+                : t('list.metrics.type.none'),
             })),
           ]}
         />
 
         <Section
-          title='Assignment'
-          description='One template per email. Without an assignment, FerrisKey sends its plain-text default email.'
+          title={t('list.assignment.title')}
+          description={t('list.assignment.description')}
         >
           {EMAIL_TYPES.map((spec) => {
             const candidates = templates.filter((template) => template.email_type === spec.key)
@@ -117,9 +135,11 @@ export default function TemplatesTab({
                     <spec.icon className='size-3.5' strokeWidth={1.75} />
                   </IconTile>
                   <div className='min-w-0'>
-                    <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>{spec.label}</p>
+                    <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
+                      {t(spec.labelKey)}
+                    </p>
                     <p className='mt-0.5 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400'>
-                      {spec.trigger}
+                      {t(spec.triggerKey)}
                     </p>
                   </div>
                 </div>
@@ -134,7 +154,7 @@ export default function TemplatesTab({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent position='popper'>
-                      <SelectItem value={NONE}>Not configured</SelectItem>
+                      <SelectItem value={NONE}>{t('list.assignment.not_configured')}</SelectItem>
                       {candidates.map((template) => (
                         <SelectItem key={template.id} value={template.id}>
                           {template.name}
@@ -144,7 +164,7 @@ export default function TemplatesTab({
                   </Select>
                   {candidates.length === 0 && (
                     <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
-                      No template of this type in this realm.
+                      {t('list.assignment.empty')}
                     </p>
                   )}
                 </div>
@@ -154,8 +174,8 @@ export default function TemplatesTab({
         </Section>
 
         <Section
-          title='Templates'
-          description='The type of a template is fixed at creation: it decides the variables available to it.'
+          title={t('list.templates.title')}
+          description={t('list.templates.description')}
           action={
             <div className='flex items-center gap-2'>
               <label className='relative flex h-8 w-52 items-center'>
@@ -164,12 +184,12 @@ export default function TemplatesTab({
                   type='search'
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder='Filter templates…'
+                  placeholder={t('list.templates.search_placeholder')}
                   className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-[13px] outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
                 />
               </label>
               <div className='flex overflow-hidden rounded-md border border-fk-line'>
-                {['all', ...EMAIL_TYPES.map((spec) => spec.key)].map((key) => (
+                {[ALL_EMAIL_TYPES, ...EMAIL_TYPES.map((spec) => spec.key)].map((key) => (
                   <button
                     key={key}
                     type='button'
@@ -182,7 +202,9 @@ export default function TemplatesTab({
                         : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-fk-surface'
                     )}
                   >
-                    {key === 'all' ? 'All' : emailTypeSpec(key).short}
+                    {key === ALL_EMAIL_TYPES
+                      ? t('list.templates.filter_all')
+                      : t(emailTypeSpec(key).shortKey)}
                   </button>
                 ))}
               </div>
@@ -221,36 +243,39 @@ export default function TemplatesTab({
                       <Pill tone='neutral' mono>
                         {template.email_type}
                       </Pill>
-                      {uses.length > 0 && <Pill tone='success'>assigned</Pill>}
+                      {uses.length > 0 && <Pill tone='success'>{t('list.templates.assigned')}</Pill>}
                     </div>
                     <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                      {spec.label} · updated {formatRelative(template.updated_at || template.created_at)}
+                      {t('list.templates.meta', {
+                        type: t(spec.labelKey),
+                        when: formatRelative(template.updated_at || template.created_at),
+                      })}
                     </p>
                   </div>
 
                   <Button variant='ghost' size='sm' className='text-xs' onClick={() => onEdit(template.id)}>
-                    <Pencil /> Edit
+                    <Pencil /> {t('list.templates.edit')}
                   </Button>
                   <Button
                     variant='ghost'
                     size='sm'
                     className='text-xs'
-                    onClick={() => onExport(template.id, 'json')}
+                    onClick={() => onExport(template.id, EXPORT_JSON)}
                   >
-                    <Download /> JSON
+                    <Download /> {t('list.templates.export_json')}
                   </Button>
                   <Button
                     variant='ghost'
                     size='sm'
                     className='font-mono-ui text-xs'
-                    onClick={() => onExport(template.id, 'mjml')}
+                    onClick={() => onExport(template.id, EXPORT_MJML)}
                   >
-                    MJML
+                    {t('list.templates.export_mjml')}
                   </Button>
                   <Button
                     variant='ghost'
                     size='icon'
-                    aria-label={`Delete ${template.name}`}
+                    aria-label={t('list.templates.delete_aria', { name: template.name })}
                     className={uses.length > 0 ? 'text-fk-amber' : 'text-neutral-400 dark:text-neutral-500'}
                     onClick={() => setPendingDelete(template)}
                   >
@@ -263,12 +288,14 @@ export default function TemplatesTab({
             <div className='grid place-items-center rounded-sm border border-dashed border-fk-line px-6 py-12'>
               <Mail className='size-6 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
               <p className='mt-3 text-sm font-medium text-neutral-700 dark:text-neutral-300'>
-                {templates.length === 0 ? 'No email template' : 'No template matches the filter'}
+                {templates.length === 0
+                  ? t('list.empty.none.label')
+                  : t('list.empty.filtered.label')}
               </p>
               <p className='mt-1 max-w-sm text-center text-xs text-neutral-500 dark:text-neutral-400'>
                 {templates.length === 0
-                  ? 'Until a template is assigned, FerrisKey sends its plain-text default emails.'
-                  : 'Adjust the search or the type filter.'}
+                  ? t('list.empty.none.hint')
+                  : t('list.empty.filtered.hint')}
               </p>
               <div className='mt-3 flex gap-2'>
                 {templates.length > 0 && (
@@ -277,14 +304,14 @@ export default function TemplatesTab({
                     size='sm'
                     onClick={() => {
                       setQuery('')
-                      setTypeFilter('all')
+                      setTypeFilter(ALL_EMAIL_TYPES)
                     }}
                   >
-                    Clear filters
+                    {t('list.empty.clear')}
                   </Button>
                 )}
                 <Button size='sm' onClick={onCreate}>
-                  <Plus /> New template
+                  <Plus /> {t('list.empty.create')}
                 </Button>
               </div>
             </div>
@@ -294,13 +321,15 @@ export default function TemplatesTab({
 
       <ConfirmDeleteAlert
         open={Boolean(pendingDelete)}
-        title='Delete email template'
+        title={t('list.delete.title')}
         description={
           pendingUses.length > 0
-            ? `"${pendingDelete?.name}" is assigned to ${pendingUses
-                .map((spec) => spec.label)
-                .join(', ')}. Deleting it succeeds and unassigns it: those emails fall back to the plain-text default.`
-            : `This permanently deletes "${pendingDelete?.name}", its structure and its MJML.`
+            ? t('list.delete.assigned', {
+                count: pendingUses.length,
+                name: pendingDelete?.name,
+                targets: nameList(pendingUses),
+              })
+            : t('list.delete.plain', { name: pendingDelete?.name })
         }
         onConfirm={() => {
           if (pendingDelete) onDelete(pendingDelete.id)

@@ -1,6 +1,14 @@
+import { useTranslation } from 'react-i18next'
 import { Layers, Sparkles, Wrench } from 'lucide-react'
 
-export type SidebarTab = 'components' | 'presets' | 'tree'
+export const SIDEBAR_TAB_COMPONENTS = 'components'
+export const SIDEBAR_TAB_PRESETS = 'presets'
+export const SIDEBAR_TAB_TREE = 'tree'
+
+export type SidebarTab =
+  | typeof SIDEBAR_TAB_COMPONENTS
+  | typeof SIDEBAR_TAB_PRESETS
+  | typeof SIDEBAR_TAB_TREE
 
 interface Props {
   current: SidebarTab
@@ -17,25 +25,27 @@ interface Props {
  *    are hidden in the canvas (e.g., display:none at the active breakpoint).
  */
 export function SidebarTabs({ current, onChange }: Props) {
+  const { t } = useTranslation('portal')
+
   return (
     <div className='flex items-center gap-1 overflow-x-auto scrollbar-none border-b border-border bg-muted/30 p-1'>
       <TabButton
-        active={current === 'components'}
-        onClick={() => onChange('components')}
+        active={current === SIDEBAR_TAB_COMPONENTS}
+        onClick={() => onChange(SIDEBAR_TAB_COMPONENTS)}
         icon={<Wrench size={13} />}
-        label='Components'
+        label={t('builder.sidebar.components')}
       />
       <TabButton
-        active={current === 'presets'}
-        onClick={() => onChange('presets')}
+        active={current === SIDEBAR_TAB_PRESETS}
+        onClick={() => onChange(SIDEBAR_TAB_PRESETS)}
         icon={<Sparkles size={13} />}
-        label='Presets'
+        label={t('builder.sidebar.presets')}
       />
       <TabButton
-        active={current === 'tree'}
-        onClick={() => onChange('tree')}
+        active={current === SIDEBAR_TAB_TREE}
+        onClick={() => onChange(SIDEBAR_TAB_TREE)}
         icon={<Layers size={13} />}
-        label='Tree'
+        label={t('builder.sidebar.tree')}
       />
     </div>
   )

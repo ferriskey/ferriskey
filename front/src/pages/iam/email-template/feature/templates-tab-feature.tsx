@@ -1,15 +1,17 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { useDeleteEmailTemplate, useGetEmailTemplates } from '@/api/email-template.api'
 import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { downloadEmailTemplateExport } from '@/api/builder-export'
 import { toast } from 'sonner'
 import { RouterParams } from '@/routes/router'
 import TemplatesTab from '../ui/templates-tab'
-import type { EmailTypeSpec } from '../email-types'
+import { EMAIL_TEMPLATE_NAMESPACE, type EmailTypeSpec } from '../email-types'
 import { useEmailTemplatesBase } from '@/hooks/use-section-base'
 
 export default function TemplatesTabFeature() {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
@@ -47,7 +49,7 @@ export default function TemplatesTabFeature() {
       onDelete={(id: string) => deleteTemplate({ path: { realm_name: realm, template_id: id } })}
       onExport={(id: string, format: 'json' | 'mjml') =>
         downloadEmailTemplateExport(realm, id, format).catch(() =>
-          toast.error('Could not export this template')
+          toast.error(t('list.toast.export_failed'))
         )
       }
     />

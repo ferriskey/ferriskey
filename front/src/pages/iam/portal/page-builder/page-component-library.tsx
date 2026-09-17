@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import { ChevronDown, Sparkles } from 'lucide-react'
 import { Fragment, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   HIDDEN_BLOCKS_BY_PAGE_TYPE,
   LAYOUT_ONLY_BLOCK_TYPES,
@@ -14,8 +15,16 @@ import { ComponentTree, useBuilderContext, type ComponentDefinition } from '@/li
 import type { Schemas } from '@/api/api.client'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { SidebarTabs, type SidebarTab } from '@/pages/iam/portal/layout-builder/sidebar-tabs'
+import {
+  SIDEBAR_TAB_COMPONENTS,
+  SIDEBAR_TAB_PRESETS,
+  SIDEBAR_TAB_TREE,
+  SidebarTabs,
+  type SidebarTab,
+} from '@/pages/iam/portal/layout-builder/sidebar-tabs'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
+
+const PRESET_CONFIRM_TOKEN = 'confirm'
 
 interface Props {
   /** Block types the API requires for the currently-edited page. */
@@ -34,16 +43,20 @@ interface Props {
  * blocks (those returned by the API for the current page) keep their own
  * "Required for this page" group, which short-circuits this mapping.
  */
-const COMPONENT_GROUPS: Array<{ id: string; label: string; types: string[] }> = [
-  { id: 'layout', label: 'Layout', types: ['container', 'div', 'card'] },
+const COMPONENT_GROUPS: Array<{ id: string; labelKey: string; types: string[] }> = [
+  {
+    id: 'layout',
+    labelKey: 'builder.library.group.layout',
+    types: ['container', 'div', 'card'],
+  },
   {
     id: 'content',
-    label: 'Content',
+    labelKey: 'builder.library.group.content',
     types: ['heading', 'text', 'image', 'spacer', 'divider', 'form_error_banner'],
   },
   {
     id: 'form',
-    label: 'Form & Actions',
+    labelKey: 'builder.library.group.form',
     types: [
       'input',
       'button',
@@ -56,13 +69,14 @@ const COMPONENT_GROUPS: Array<{ id: string; label: string; types: string[] }> = 
   },
   {
     id: 'identity',
-    label: 'Identity fields',
+    labelKey: 'builder.library.group.identity',
     types: ['first_name_input', 'last_name_input', 'username_input'],
   },
 ]
 
 export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
-  const [tab, setTab] = useState<SidebarTab>('components')
+  const { t } = useTranslation('portal')
+  const [tab, setTab] = useState<SidebarTab>(SIDEBAR_TAB_COMPONENTS)
   const hidden = (pageType && HIDDEN_BLOCKS_BY_PAGE_TYPE[pageType]) ?? null
   const isHidden = (type: string) => (hidden ? hidden.has(type) : false)
   // A block restricted to a set of page types is hidden when the current
@@ -108,11 +122,11 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
         <SidebarTabs current={tab} onChange={setTab} />
       </div>
       <div className='min-h-0 min-w-0 flex-1 overflow-auto'>
-      {tab === 'components' && (
+      {tab === SIDEBAR_TAB_COMPONENTS && (
         <div className='flex w-full min-w-0 flex-col gap-3 p-2'>
           {groupedItems.map((g) =>
             g.items.length === 0 ? null : (
-              <Group key={g.id} title={g.label}>
+              <Group key={g.id} title={t(g.labelKey)}>
                 {g.items.map((def) => (
                   <DraggableComponent key={def.type} definition={def} />
                 ))}
@@ -120,14 +134,14 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
             )
           )}
           {ungrouped.length > 0 && (
-            <Group title='Other'>
+            <Group title={t('builder.library.group.other')}>
               {ungrouped.map((def) => (
                 <DraggableComponent key={def.type} definition={def} />
               ))}
             </Group>
           )}
           {required.length > 0 && (
-            <Group title='Required for this page' defaultOpen>
+            <Group title={t('builder.library.required_for_page')} defaultOpen>
               {required.map((def) => (
                 <DraggableComponent key={def.type} definition={def} />
               ))}
@@ -135,8 +149,8 @@ export function PageComponentLibrary({ requiredTypes, pageType }: Props) {
           )}
         </div>
       )}
-      {tab === 'presets' && <PresetsTab />}
-      {tab === 'tree' && <ComponentTree />}
+      {tab === SIDEBAR_TAB_PRESETS && <PresetsTab />}
+      {tab === SIDEBAR_TAB_TREE && <ComponentTree />}
       </div>
     </div>
   )
@@ -208,6 +222,7 @@ function DraggableComponent({ definition }: { definition: ComponentDefinition })
  * root, which is always the safe insertion point.
  */
 function PresetsTab() {
+  const { t } = useTranslation('portal')
   const { tree, setTree } = useBuilderContext()
   const [selectedPreset, setSelectedPreset] = useState<PortalPreset | null>(null)
   const [open, setOpen] = useState(false)
@@ -237,16 +252,16 @@ function PresetsTab() {
     <Fragment>
       <ConfirmDeleteAlert
         open={open}
-        title='Confirm actual preset deletion'
-        description='This action cannot be undone.'
-        confirmText='confirm'
+        title={t('builder.presets.confirm_title')}
+        description={t('builder.presets.confirm_description')}
+        confirmText={PRESET_CONFIRM_TOKEN}
         onConfirm={handleSubmit}
         onCancel={handleCancel}
       />
       <div className='flex flex-col gap-2 p-2'>
         <div className='flex items-center gap-1.5 px-1 pb-1 text-[11px] text-muted-foreground'>
           <Sparkles size={12} />
-          <span>Click a preset to append it to the page.</span>
+          <span>{t('builder.presets.hint')}</span>
         </div>
         {PORTAL_PRESETS.map((p) => (
           <button

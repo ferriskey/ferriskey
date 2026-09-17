@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next'
 import { Download, LayoutTemplate, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -6,7 +7,7 @@ import { IconTile, MetricsBand, PageShell, Pill, Section } from '@/components/ki
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
-import { PortalPageHeader } from './portal-page-header'
+import { PORTAL_TAB_LAYOUTS, PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
 import { formatDate } from '@/utils/format-date'
 
@@ -27,13 +28,9 @@ export interface PagePortalLayoutsProps {
 }
 
 
-function refusalFor({ layout, usedBy }: PortalLayoutRow): string | null {
-  if (layout.is_default) {
-    return 'The default layout cannot be deleted. Make another layout the default first.'
-  }
-  if (usedBy.length > 0) {
-    return `Used by ${usedBy.join(', ')}. Detach it from ${usedBy.length > 1 ? 'those themes' : 'that theme'} first.`
-  }
+function refusalKeyFor({ layout, usedBy }: PortalLayoutRow): string | null {
+  if (layout.is_default) return 'layouts.row.refusal.default'
+  if (usedBy.length > 0) return 'layouts.row.refusal.in_use'
   return null
 }
 
@@ -46,9 +43,11 @@ export default function PagePortalLayouts({
   onExport,
   onImport,
 }: PagePortalLayoutsProps) {
+  const { t } = useTranslation('portal')
+
   const createButton = (
     <Button onClick={onCreate}>
-      <Plus /> New layout
+      <Plus /> {t('layouts.create')}
     </Button>
   )
 
@@ -56,32 +55,42 @@ export default function PagePortalLayouts({
 
   return (
     <PageShell>
-      <PortalPageHeader tab='layouts' actions={createButton} />
+      <PortalPageHeader tab={PORTAL_TAB_LAYOUTS} actions={createButton} />
 
       <div className={cn('mt-4', tokens.page.blockGap)}>
         <MetricsBand
           metrics={[
-            { key: 'total', label: 'Layouts', value: rows.length, hint: 'in this realm' },
+            {
+              key: 'total',
+              label: t('layouts.metrics.total.label'),
+              value: rows.length,
+              hint: t('layouts.metrics.total.hint'),
+            },
             {
               key: 'default',
-              label: 'Default',
+              label: t('layouts.metrics.default.label'),
               value: rows.filter((r) => r.layout.is_default).length,
-              hint: 'used when a theme names none',
+              hint: t('layouts.metrics.default.hint'),
             },
-            { key: 'used', label: 'Attached', value: used, hint: 'held by a theme' },
+            {
+              key: 'used',
+              label: t('layouts.metrics.used.label'),
+              value: used,
+              hint: t('layouts.metrics.used.hint'),
+            },
             {
               key: 'free',
-              label: 'Deletable',
-              value: rows.filter((r) => refusalFor(r) === null).length,
-              hint: 'neither default nor held',
+              label: t('layouts.metrics.free.label'),
+              value: rows.filter((r) => refusalKeyFor(r) === null).length,
+              hint: t('layouts.metrics.free.hint'),
             },
           ]}
         />
 
         <Section
-          title='Layouts'
-          description='The page structure a theme reuses: where the card, the visual and the footer sit.'
-          action={<ImportButton label='Import' onImport={onImport} />}
+          title={t('layouts.section.title')}
+          description={t('layouts.section.description')}
+          action={<ImportButton label={t('actions.import')} onImport={onImport} />}
         >
           {isLoading ? (
             <ul className={tokens.surface.divider}>
@@ -100,8 +109,7 @@ export default function PagePortalLayouts({
             <div className='grid place-items-center gap-3 py-16'>
               <LayoutTemplate className='size-8 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
               <p className='max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-                No layout yet. A theme without a layout renders its pages bare, which is a
-                valid composition.
+                {t('layouts.empty')}
               </p>
               {createButton}
             </div>
@@ -109,7 +117,7 @@ export default function PagePortalLayouts({
             <ul className={tokens.surface.divider}>
               {rows.map((row) => {
                 const { layout, nodes, usedBy } = row
-                const refusal = refusalFor(row)
+                const refusalKey = refusalKeyFor(row)
                 return (
                   <li key={layout.id} className='flex items-center gap-3 py-3'>
                     <IconTile tone={layout.is_default ? 'violet' : 'info'}>
@@ -125,37 +133,41 @@ export default function PagePortalLayouts({
                         >
                           {layout.name}
                         </button>
-                        {layout.is_default && <Pill tone='violet'>default</Pill>}
+                        {layout.is_default && <Pill tone='violet'>{t('layouts.row.default')}</Pill>}
                         <Pill tone={usedBy.length > 0 ? 'info' : 'neutral'}>
                           {usedBy.length > 0
-                            ? `${usedBy.length} theme${usedBy.length > 1 ? 's' : ''}`
-                            : 'unused'}
+                            ? t('layouts.row.theme_count', { count: usedBy.length })
+                            : t('layouts.row.unused')}
                         </Pill>
                       </div>
                       <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                        <span className='tnum'>{nodes}</span> block{nodes === 1 ? '' : 's'} ·
-                        updated {formatDate(layout.updated_at)}
+                        <Trans
+                          i18nKey='portal:layouts.row.summary'
+                          count={nodes}
+                          values={{ date: formatDate(layout.updated_at) }}
+                          components={{ num: <span className='tnum' /> }}
+                        />
                       </p>
                       <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
-                        layout_id: {layout.id}
+                        {t('layouts.row.identifier', { id: layout.id })}
                       </p>
                     </div>
 
                     <Button variant='outline' size='sm' onClick={() => onEdit(layout.id)}>
-                      Open
+                      {t('layouts.row.open')}
                     </Button>
 
                     <Button
                       variant='ghost'
                       size='icon'
                       className='size-8 text-neutral-400 dark:text-neutral-500'
-                      aria-label={`Export ${layout.name}`}
+                      aria-label={t('layouts.row.export', { name: layout.name })}
                       onClick={() => onExport(layout.id)}
                     >
                       <Download className='size-4' />
                     </Button>
 
-                    {refusal ? (
+                    {refusalKey ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className='grid size-8 place-items-center text-neutral-200'>
@@ -163,14 +175,17 @@ export default function PagePortalLayouts({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side='left' className='max-w-xs'>
-                          {refusal}
+                          {t(refusalKey, {
+                            themes: usedBy.join(', '),
+                            count: usedBy.length,
+                          })}
                         </TooltipContent>
                       </Tooltip>
                     ) : (
                       <Button
                         variant='ghost'
                         size='icon'
-                        aria-label={`Delete ${layout.name}`}
+                        aria-label={t('layouts.row.delete', { name: layout.name })}
                         className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                         onClick={() => onDelete(layout.id)}
                       >

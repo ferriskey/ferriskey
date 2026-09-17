@@ -10,8 +10,6 @@ const outOfScopeForTranslation = [
   'src/lib/builder-core/**',
   'src/lib/builder-mjml/**',
   'src/lib/builder-portal/**',
-  'src/pages/iam/portal/**',
-  'src/pages/iam/email-template/**',
   'src/api/portal-theme.api.tsx',
   '**/*.test.{ts,tsx}',
   '**/*.spec.{ts,tsx}',

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { HexColorPicker } from 'react-colorful'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
@@ -21,6 +22,7 @@ type ColorPickerProps = {
  * single line so a panel can stack 6–10 colors at a glance.
  */
 export function ColorPicker({ label, value, onChange, defaultValue }: ColorPickerProps) {
+  const { t } = useTranslation('portal')
   const modified = defaultValue !== undefined && defaultValue !== value
   return (
     <ControlRow
@@ -35,7 +37,7 @@ export function ColorPicker({ label, value, onChange, defaultValue }: ColorPicke
               type='button'
               className='h-6 w-6 shrink-0 rounded border border-border'
               style={{ backgroundColor: value }}
-              aria-label={`Pick color for ${label}`}
+              aria-label={t('builder.control.pick_color', { label })}
             />
           </PopoverTrigger>
           <PopoverContent className='w-auto p-2' align='start'>

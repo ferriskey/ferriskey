@@ -1,28 +1,38 @@
+import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useImportEmailTemplate } from '@/api/email-template.api'
 import { readExportFile } from '@/api/builder-export'
-import { useRouteTabs } from '@/components/kit'
+import { useRouteTabs, type TabItem } from '@/components/kit'
 import { RouterParams } from '@/routes/router'
 import PageEmails from '../ui/page-emails'
 import TemplatesTabFeature from './templates-tab-feature'
 import SmtpTabFeature from './smtp-tab-feature'
 import { useEmailTemplatesBase } from '@/hooks/use-section-base'
 import { apiErrorMessage } from '@/lib/api-error'
+import { EMAIL_TEMPLATE_NAMESPACE } from '../email-types'
 
-const EMAIL_TABS = [
-  { key: 'templates', label: 'Templates' },
-  { key: 'smtp', label: 'SMTP' },
-] as const
+const TEMPLATES_TAB = 'templates'
+const SMTP_TAB = 'smtp'
 
 export default function PageEmailsFeature() {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
   const listUrl = emailTemplatesBase
 
-  const { value: tab, tabs } = useRouteTabs(listUrl, EMAIL_TABS)
+  const tabList = useMemo<TabItem[]>(
+    () => [
+      { key: TEMPLATES_TAB, label: t('page.tabs.templates') },
+      { key: SMTP_TAB, label: t('page.tabs.smtp') },
+    ],
+    [t]
+  )
+
+  const { value: tab, tabs } = useRouteTabs(listUrl, tabList)
   const { mutate: importTemplate } = useImportEmailTemplate()
 
   const handleImport = (file: File) => {
@@ -40,7 +50,7 @@ export default function PageEmailsFeature() {
       onCreate={() => navigate(`${listUrl}/create/builder`)}
       onImport={handleImport}
     >
-      {tab === 'templates' ? <TemplatesTabFeature /> : <SmtpTabFeature />}
+      {tab === TEMPLATES_TAB ? <TemplatesTabFeature /> : <SmtpTabFeature />}
     </PageEmails>
   )
 }

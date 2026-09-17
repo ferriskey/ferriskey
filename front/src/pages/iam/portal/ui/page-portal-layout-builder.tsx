@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Monitor, Save, Smartphone, Tablet } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +23,11 @@ import { PortalPreview } from '@/lib/builder-portal/preview'
 import { LayoutComponentLibrary } from '@/pages/iam/portal/layout-builder/layout-component-library'
 import { useLayoutTier } from '@/hooks/use-media-query'
 
-type Viewport = 'iphone' | 'tablet' | 'desktop'
+const VIEWPORT_IPHONE = 'iphone'
+const VIEWPORT_TABLET = 'tablet'
+const VIEWPORT_DESKTOP = 'desktop'
+
+type Viewport = typeof VIEWPORT_IPHONE | typeof VIEWPORT_TABLET | typeof VIEWPORT_DESKTOP
 
 const VIEWPORT_WIDTHS: Record<Viewport, number> = {
   iphone: 402,
@@ -72,7 +77,8 @@ export default function PagePortalLayoutBuilder({
   onSave,
   onBack,
 }: PagePortalLayoutBuilderProps) {
-  const [viewport, setViewport] = useState<Viewport>('desktop')
+  const { t } = useTranslation('portal')
+  const [viewport, setViewport] = useState<Viewport>(VIEWPORT_DESKTOP)
   const tier = useLayoutTier()
   const iframeRectRef = useRef<DOMRect | null>(null)
   const iframeScaleRef = useRef<number>(1)
@@ -100,45 +106,43 @@ export default function PagePortalLayoutBuilder({
         <header className='flex shrink-0 flex-wrap items-center gap-3 border-b border-fk-line px-5 py-2.5'>
           <Button variant='ghost' size='sm' className='-ml-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
             <ArrowLeft className='size-3.5' />
-            Portal
+            {t('header.title')}
           </Button>
 
           <Input
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
-            placeholder='Layout name'
-            aria-label='Layout name'
+            placeholder={t('layout_builder.name_placeholder')}
+            aria-label={t('layout_builder.name_placeholder')}
             className='max-w-xs'
           />
 
-          {isDefault && <Pill tone='violet'>default</Pill>}
+          {isDefault && <Pill tone='violet'>{t('layouts.row.default')}</Pill>}
           {usedBy.length > 0 && (
-            <Pill tone='info'>
-              {usedBy.length} theme{usedBy.length > 1 ? 's' : ''}
-            </Pill>
+            <Pill tone='info'>{t('layouts.row.theme_count', { count: usedBy.length })}</Pill>
           )}
 
           <div className='ml-auto flex items-center gap-3'>
             {tier === 'desktop' && (
               <div className='flex items-center gap-1 rounded-md border border-fk-line p-0.5'>
                 <ViewportButton
-                  active={viewport === 'iphone'}
-                  onClick={() => setViewport('iphone')}
-                  label='iPhone — 402 (base, below Tailwind sm)'
+                  active={viewport === VIEWPORT_IPHONE}
+                  onClick={() => setViewport(VIEWPORT_IPHONE)}
+                  label={t('viewport.iphone')}
                 >
                   <Smartphone className='size-3.5' />
                 </ViewportButton>
                 <ViewportButton
-                  active={viewport === 'tablet'}
-                  onClick={() => setViewport('tablet')}
-                  label='Tablet — 768 (Tailwind md)'
+                  active={viewport === VIEWPORT_TABLET}
+                  onClick={() => setViewport(VIEWPORT_TABLET)}
+                  label={t('viewport.tablet')}
                 >
                   <Tablet className='size-3.5' />
                 </ViewportButton>
                 <ViewportButton
-                  active={viewport === 'desktop'}
-                  onClick={() => setViewport('desktop')}
-                  label='Desktop — 1280 (Tailwind xl)'
+                  active={viewport === VIEWPORT_DESKTOP}
+                  onClick={() => setViewport(VIEWPORT_DESKTOP)}
+                  label={t('viewport.desktop')}
                 >
                   <Monitor className='size-3.5' />
                 </ViewportButton>
@@ -147,7 +151,11 @@ export default function PagePortalLayoutBuilder({
 
             <Button onClick={onSave} disabled={isSaving || !name}>
               <Save className='size-4' />
-              {isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'}
+              {isSaving
+                ? t('layout_builder.saving')
+                : isNew
+                  ? t('layout_builder.create')
+                  : t('layout_builder.save')}
             </Button>
           </div>
         </header>

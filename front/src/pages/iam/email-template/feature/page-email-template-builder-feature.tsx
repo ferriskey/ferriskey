@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useCreateEmailTemplate,
   useGetEmailTemplate,
@@ -8,11 +9,16 @@ import {
 } from '@/api/email-template.api'
 import type { BuilderNode } from '@/lib/builder-core'
 import { createMjmlAdapter, type EmailTemplatePreset } from '@/lib/builder-mjml'
-import { EMAIL_TYPES } from '../email-types'
+import {
+  DEFAULT_EMAIL_TYPE,
+  EMAIL_TEMPLATE_NAMESPACE,
+  EMAIL_TYPES,
+} from '../email-types'
 import PageEmailTemplateBuilder from '../ui/page-email-template-builder'
 import { useEmailTemplatesBase } from '@/hooks/use-section-base'
 
 export default function PageEmailTemplateBuilderFeature() {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name, template_id } = useParams<{ realm_name: string; template_id: string }>()
   const navigate = useNavigate()
@@ -28,7 +34,7 @@ export default function PageEmailTemplateBuilderFeature() {
   if (!isNew && isLoading) {
     return (
       <div className='grid h-full place-items-center p-12 text-sm text-neutral-500 dark:text-neutral-400'>
-        Loading template…
+        {t('builder.loading')}
       </div>
     )
   }
@@ -40,7 +46,7 @@ export default function PageEmailTemplateBuilderFeature() {
       templateId={isNew ? '' : (template_id ?? '')}
       isNew={isNew}
       initialName={templateResponse?.data?.name ?? ''}
-      initialEmailType={templateResponse?.data?.email_type ?? 'reset_password'}
+      initialEmailType={templateResponse?.data?.email_type ?? DEFAULT_EMAIL_TYPE}
       initialTree={
         templateResponse?.data?.structure
           ? ((templateResponse.data.structure as { children?: BuilderNode[] }).children ?? [])
@@ -71,6 +77,7 @@ function BuilderFeatureInner({
   navigate: ReturnType<typeof useNavigate>
   listUrl: string
 }) {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const [name, setName] = useState(initialName)
   const [emailType, setEmailType] = useState(initialEmailType)
   const [tree, setTree] = useState<BuilderNode[]>(initialTree)
@@ -121,7 +128,7 @@ function BuilderFeatureInner({
       onNameChange={setName}
       emailType={emailType}
       onEmailTypeChange={setEmailType}
-      emailTypes={EMAIL_TYPES.map((spec) => ({ label: spec.label, value: spec.key }))}
+      emailTypes={EMAIL_TYPES.map((spec) => ({ label: t(spec.labelKey), value: spec.key }))}
       isNew={isNew}
       isSaving={isCreating || isUpdating}
       onSave={handleSave}

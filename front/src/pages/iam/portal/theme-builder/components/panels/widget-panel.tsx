@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   Select,
   SelectContent,
@@ -11,78 +12,92 @@ import { ControlRow } from '../controls/control-row'
 import { ColorPicker } from '../controls/color-picker'
 import { ValueSlider } from '../controls/value-slider'
 import { PanelHeader, PanelSection } from './section'
+import { UNIT_PX } from './units'
 
 const D = defaultTheme
 
+const TOKENS = {
+  background: 'widgetBackground',
+  radius: 'widgetRadius',
+  borderWeight: 'widgetBorderWeight',
+  shadow: 'widgetShadow',
+  padding: 'widgetPadding',
+} as const
+
+const SHADOWS: ThemeShadow[] = ['none', 'small', 'large']
+
 export function WidgetPanel() {
+  const { t } = useTranslation('portal')
   const { theme, setColor, setBorder, setSpacing } = usePortalThemeContext()
   const { colors, borders, spacing } = theme
 
   return (
     <div className='flex flex-col'>
       <PanelHeader
-        title='Widget'
-        description='The card that wraps every auth flow — Login, Register, Magic link, etc.'
+        title={t('builder.panel.widget.title')}
+        description={t('builder.panel.widget.description')}
       />
 
-      <PanelSection title='Surface'>
+      <PanelSection title={t('builder.panel.widget.section.surface')}>
         <ColorPicker
-          label='Background'
+          label={t('builder.control.background')}
           value={colors.widgetBackground}
           defaultValue={D.colors.widgetBackground}
-          onChange={(v) => setColor('widgetBackground', v)}
+          onChange={(v) => setColor(TOKENS.background, v)}
         />
       </PanelSection>
 
-      <PanelSection title='Shape'>
+      <PanelSection title={t('builder.panel.widget.section.shape')}>
         <ValueSlider
-          label='Radius'
+          label={t('builder.control.radius')}
           value={borders.widgetRadius}
           defaultValue={D.borders.widgetRadius}
-          onChange={(v) => setBorder('widgetRadius', v)}
+          onChange={(v) => setBorder(TOKENS.radius, v)}
           min={0}
           max={32}
-          unit='px'
+          unit={UNIT_PX}
         />
         <ValueSlider
-          label='Border'
+          label={t('builder.control.border')}
           value={borders.widgetBorderWeight}
           defaultValue={D.borders.widgetBorderWeight}
-          onChange={(v) => setBorder('widgetBorderWeight', v)}
+          onChange={(v) => setBorder(TOKENS.borderWeight, v)}
           min={0}
           max={6}
-          unit='px'
+          unit={UNIT_PX}
         />
         <ControlRow
-          label='Shadow'
+          label={t('builder.control.shadow')}
           modified={borders.widgetShadow !== D.borders.widgetShadow}
-          onReset={() => setBorder('widgetShadow', D.borders.widgetShadow)}
+          onReset={() => setBorder(TOKENS.shadow, D.borders.widgetShadow)}
         >
           <Select
             value={borders.widgetShadow}
-            onValueChange={(value: ThemeShadow) => setBorder('widgetShadow', value)}
+            onValueChange={(value: ThemeShadow) => setBorder(TOKENS.shadow, value)}
           >
             <SelectTrigger className='h-7 w-full text-xs'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='none'>None</SelectItem>
-              <SelectItem value='small'>Small</SelectItem>
-              <SelectItem value='large'>Large</SelectItem>
+              {SHADOWS.map((shadow) => (
+                <SelectItem key={shadow} value={shadow}>
+                  {t(`builder.shadow.${shadow}`)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </ControlRow>
       </PanelSection>
 
-      <PanelSection title='Spacing'>
+      <PanelSection title={t('builder.panel.widget.section.spacing')}>
         <ValueSlider
-          label='Padding'
+          label={t('builder.control.padding')}
           value={spacing.widgetPadding}
           defaultValue={D.spacing.widgetPadding}
-          onChange={(v) => setSpacing('widgetPadding', v)}
+          onChange={(v) => setSpacing(TOKENS.padding, v)}
           min={0}
           max={64}
-          unit='px'
+          unit={UNIT_PX}
         />
       </PanelSection>
     </div>

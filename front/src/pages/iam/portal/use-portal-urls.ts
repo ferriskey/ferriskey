@@ -1,5 +1,7 @@
 import { usePortalBase } from '@/hooks/use-section-base'
 
+export const NEW_LAYOUT_ID = 'new'
+
 export function usePortalUrls() {
   const base = usePortalBase()
 
