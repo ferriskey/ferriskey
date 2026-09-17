@@ -1,15 +1,18 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
 
 export const providerTypeSchema = z.enum(['oidc', 'oauth2', 'saml', 'ldap'])
 
 export const createProviderSchema = z.object({
   alias: z
     .string()
-    .min(1, { message: 'Alias is required' })
+    .min(1, { error: () => translate('identity-provider:validation.alias_required') })
     .regex(/^[a-z0-9-]+$/, {
-      message: 'Alias must contain only lowercase letters, numbers, and hyphens',
+      error: () => translate('identity-provider:validation.alias_format'),
     }),
-  displayName: z.string().min(1, { message: 'Display name is required' }),
+  displayName: z
+    .string()
+    .min(1, { error: () => translate('identity-provider:validation.display_name_required') }),
   providerType: providerTypeSchema,
   enabled: z.boolean().default(true),
   // OIDC/OAuth2 specific fields

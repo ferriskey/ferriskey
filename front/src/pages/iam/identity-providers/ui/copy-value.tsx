@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils'
 
 export interface CopyValueProps {
   value: string
-  label: string
+  copyLabel: string
   className?: string
 }
 
-export default function CopyValue({ value, label, className }: CopyValueProps) {
+export default function CopyValue({ value, copyLabel, className }: CopyValueProps) {
   const [copied, setCopied] = useState(false)
 
   const copy = () => {
@@ -29,7 +29,7 @@ export default function CopyValue({ value, label, className }: CopyValueProps) {
       </code>
       <button
         type='button'
-        aria-label={`Copy ${label}`}
+        aria-label={copyLabel}
         onClick={copy}
         className='shrink-0 cursor-pointer text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
       >

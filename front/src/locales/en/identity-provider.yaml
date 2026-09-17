@@ -1,0 +1,293 @@
+# Protocol acronyms, not prose. Keep OIDC, OAuth2, SAML and LDAP verbatim in every locale.
+provider_type:
+  oidc: OIDC
+  oauth2: OAuth2
+  saml: SAML
+  ldap: LDAP
+
+state:
+  enabled: Enabled
+  disabled: Disabled
+
+# Lowercase on purpose: these two sit inside a pill, next to a status dot, never at the start of
+# a sentence.
+badge:
+  enabled: enabled
+  disabled: disabled
+
+not_set: Not set
+none: None
+
+redirect_uri:
+  label: Redirect URI
+  copy: Copy the redirect URI
+
+template_category:
+  social: Social
+  enterprise: Enterprise
+  developer: Developer tools
+  custom: Custom
+
+# Vendor names never reach this catalogue — only the sentence around them does. Wherever
+# "{{provider}}" appears it is filled with the vendor name, spelled as the vendor spells it
+# (Google, GitHub, GitLab, LinkedIn, "X (Twitter)"…). Leave those spellings untouched.
+template:
+  google:
+    description: Sign in with Google accounts
+  discord:
+    description: Sign in with Discord accounts
+  github:
+    description: Sign in with GitHub accounts
+  microsoft:
+    description: Sign in with Microsoft & Azure AD
+  apple:
+    description: Sign in with Apple ID
+  facebook:
+    description: Sign in with Facebook accounts
+  gitlab:
+    description: Sign in with GitLab accounts
+  twitter:
+    description: Sign in with X/Twitter accounts
+  linkedin:
+    description: Sign in with LinkedIn accounts
+  # The only template that is not a vendor: "Custom Provider" is our own wording and does
+  # translate, unlike the nine names above it.
+  custom:
+    display_name: Custom Provider
+    description: Configure a custom OAuth2/OIDC provider
+
+status:
+  complete:
+    label: complete
+    detail: Every value the broker needs is recorded.
+  no_scope:
+    label: no scope
+    detail: No scope is requested; most providers reject an authorization request without one.
+  incomplete:
+    label: incomplete
+    # "{{keys}}" is a comma-separated list of raw API field names (client_id, token_url…) and is
+    # never translated. English does not inflect here — the two forms exist for locales that do.
+    detail_one: 'Broker login will fail — {{keys}} missing from the configuration.'
+    detail_other: 'Broker login will fail — {{keys}} missing from the configuration.'
+
+list:
+  title: Identity Providers
+  description: External authentication sources federated into this realm.
+  add: Add provider
+  search_placeholder: Filter by name or alias…
+  row_delete: Delete {{name}}
+  columns:
+    provider: Provider
+    alias: Alias
+    type: Type
+    configuration: Configuration
+    status: Status
+  flags:
+    enabled: Offered on the login page
+    trust_email: Email address trusted as verified
+    link_only: Links to existing accounts only
+  metrics:
+    total:
+      label: Total providers
+      hint: configured
+    enabled:
+      label: Enabled providers
+      hint: '{{percent}}% active'
+      empty_hint: no enabled provider
+    disabled:
+      label: Disabled providers
+      hint: hidden from the login page
+    types:
+      label: Provider types
+      hint: distinct protocols
+  alerts:
+    broken:
+      title: '{{name}} cannot broker a login'
+      action: Fix
+    degraded:
+      title: '{{name}} requests no scope'
+      action: Review
+  filters:
+    enabled: Enabled
+    disabled: Disabled
+    issues: Misconfigured
+  aggregates:
+    provider_count_one: '{{count}} provider'
+    provider_count_other: '{{count}} providers'
+    # Raw counter over the misconfigured rows, never inflected.
+    to_review: '{{total}} to review'
+  empty:
+    label: No identity provider
+    hint: Federate an external provider so accounts can sign in with credentials they already have.
+    popular: Popular providers
+  picker:
+    title: Add an identity provider
+    description: The protocol decides which endpoints the provider must declare, so it is chosen before the form.
+    oidc:
+      description: Identity claims come from the ID token, with a userinfo endpoint as a fallback.
+    oauth2:
+      description: Plain authorization code flow; the profile is read from a userinfo endpoint.
+    saml:
+      description: Federating a SAML identity provider is not implemented yet.
+      disabled_reason: FerrisKey cannot broker a SAML provider — the broker only speaks OAuth2 and OIDC.
+    ldap:
+      description: A directory is a user federation source, not an identity provider.
+      disabled_reason: A directory is configured under User Federation, not here.
+  delete:
+    title: Delete provider?
+    description: Are you sure you want to delete "{{name}}"?
+    success: Provider "{{name}}" deleted
+    error: Failed to delete "{{name}}"
+
+create:
+  back: Identity Providers
+  title: Add an identity provider
+  # "{{protocol}}" is an uppercased protocol acronym (OIDC, OAUTH2), taken from the URL.
+  description: Connecting an external {{protocol}} provider to this realm.
+  steps:
+    provider: Provider
+    configuration: Configuration
+    review: Review
+  templates:
+    title: Choose a provider
+    description: A template fills the endpoints and the scopes in; only your application credentials are left.
+    search_placeholder: Search providers…
+    empty: No provider found matching '{{query}}'
+  credentials:
+    title: Configure {{provider}}
+    description: Credentials issued by the provider console.
+  alias:
+    label: Alias
+    description: Technical name of the provider in this realm. It appears in the Redirect URI and cannot be changed after creation.
+  display_name:
+    label: Display Name
+    description: Label of the button users click on the login page.
+  client_id:
+    label: Client ID
+    description: Identifier of the OAuth application created at {{provider}}.
+  client_secret:
+    label: Client Secret
+    description: Stored encrypted; it is never displayed again after creation.
+    show: Show the secret
+    hide: Hide the secret
+  endpoints:
+    title: Endpoints
+    description_custom: 'Required: no template knows them for a custom provider.'
+    description_template: Pre-filled from the {{provider}} template — change them only for a self-hosted instance.
+  authorization_url:
+    label: Authorization URL
+    description: Where the user is sent to grant consent.
+  token_url:
+    label: Token URL
+    description: Where the authorization code is exchanged for a token.
+  userinfo_url:
+    label: Userinfo URL
+    description_oidc: 'Optional in OIDC: the claims can come from the ID token.'
+    description_oauth2: Where the user profile is read once the token is issued.
+  scopes:
+    label: Scopes
+    description: Requested at every authorization.
+    empty_hint: No scope requested — most providers reject an authorization request without one.
+  review:
+    title: Review
+    description: What will be created in the realm.
+    template: Template
+    protocol: Protocol
+  actions:
+    cancel: Cancel
+    back: Back
+    continue: Continue
+    submit: Create provider
+  success: Identity provider created successfully
+  error: The identity provider could not be created
+
+setup:
+  title: Preparation guide
+  description: What has to exist on the provider side.
+  # "{{type}}" is the raw protocol value (oidc, oauth2); the interface uppercases it in CSS.
+  provider_subtitle: '{{type}} provider'
+  documentation: View setup guide
+  redirect_uri_hint: Declare it as-is in the OAuth application. It changes if you change the alias.
+  steps:
+    title: Setup steps
+    custom:
+      console: Open the developer console of your OAuth provider
+      application: Create a new OAuth application
+      credentials: Copy the Client ID and the Client Secret
+      redirect_uri: Add the Redirect URI below to the application
+      urls: Fill in the authorization and token URLs
+    template:
+      console: Open the {{provider}} developer console
+      application: Create a new OAuth application
+      redirect_uri: Add the Redirect URI below
+      credentials: Copy your Client ID and Client Secret
+      paste: Paste them into the form
+  note:
+    custom: 'Nothing is pre-filled for a custom provider: the authorization and token URLs are yours to enter.'
+    template: The OAuth URLs are already filled in for {{provider}}. Only the credentials from its console are missing.
+  scopes:
+    title: Default scopes
+    hint: Requested at every authorization. Editable in the form.
+    empty: None — this template declares no default scope.
+  secret_note: The secret is encrypted on save and never readable afterwards — only replacing it is possible.
+
+detail:
+  back: Identity Providers
+  internal_id: Internal identifier
+  not_found:
+    title: Provider not found
+    hint: It may have been deleted, or it belongs to another realm.
+  general:
+    title: General Settings
+    description: How this provider identifies itself in the realm.
+  alias:
+    label: Alias
+    description: 'Unique identifier of the provider in this realm. Sealed at creation: it is part of the Redirect URI already declared at the provider, so changing it would break the callback.'
+  display_name:
+    label: Display Name
+    description: Label of the button users click on the login page.
+  enabled:
+    label: Enabled
+    description: Whether users may authenticate through this provider.
+    choices_label: Provider state
+    on:
+      label: Enabled
+      description: The provider appears on the login page of this realm.
+    off:
+      label: Disabled
+      description: Hidden from the login page; already linked accounts stay linked.
+  redirect_uri_description: Declare this URL in the OAuth application of the provider.
+  config:
+    title: Configuration
+    description: Protocol settings, as the API returns them. Secrets never leave the server in clear text.
+    secret_title: The API never returns this value in clear text.
+    empty: No configuration setting recorded — this provider cannot broker a login.
+  metadata:
+    title: Metadata
+    description: System information, not editable.
+    provider_id: Provider ID
+    first_broker_flow: First Broker Flow
+    post_broker_flow: Post Broker Flow
+  danger:
+    label: Delete this identity provider
+    description: All associated data will be permanently removed. This action is irreversible.
+    button: Delete provider
+    confirm_title: Delete identity provider
+    confirm_description: This will permanently delete the provider "{{name}}" and all its associated data.
+  save:
+    dirty_one: '{{count}} unsaved change'
+    dirty_other: '{{count}} unsaved changes'
+    description: Review the provider before applying the changes.
+    discard: Discard
+    submit: Save changes
+  update_success: Provider updated successfully
+  delete_success: Provider deleted successfully
+  delete_error: Failed to delete provider
+
+validation:
+  alias_required: Alias is required
+  alias_format: Alias must contain only lowercase letters, numbers, and hyphens
+  display_name_required: Display name is required
+  client_id_required: Client ID is required
+  client_secret_required: Client Secret is required
+  url_invalid: Must be a valid URL

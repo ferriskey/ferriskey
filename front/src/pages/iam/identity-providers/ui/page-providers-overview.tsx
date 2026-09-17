@@ -1,10 +1,14 @@
 import { KeyRound, Plus, Shield, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { CreatePickerDialog, ListingPage, Pill, StatusDot } from '@/components/kit'
 import type { CardSpec, Choice, Column, PillTone } from '@/components/kit'
 import ProviderIcon from '@/components/provider-icon'
-import { PROVIDER_TEMPLATES } from '@/constants/identity-provider-templates'
+import {
+  PROVIDER_TEMPLATES,
+  templateDisplayName,
+} from '@/constants/identity-provider-templates'
 import { Schemas } from '@/api/api.client'
 import {
   providerName,
@@ -39,6 +43,10 @@ export interface PageProvidersOverviewProps {
 
 const POPULAR_TEMPLATE_IDS = ['google', 'discord', 'github', 'microsoft']
 
+const DEFAULT_PROTOCOL: ProviderProtocol = 'oidc'
+
+const QUERY_SYNTAX_HINT = 'alias:git*  type:oidc  status:disabled'
+
 const popularTemplates = PROVIDER_TEMPLATES.filter((template) =>
   POPULAR_TEMPLATE_IDS.includes(template.id)
 )
@@ -52,35 +60,6 @@ const typeTones: Record<string, PillTone> = {
 
 const typeTone = (providerId: string) => typeTones[providerId.toLowerCase()] ?? 'primary'
 
-const protocolChoices: Choice<ProviderProtocol>[] = [
-  {
-    value: 'oidc',
-    label: 'OIDC',
-    description: 'Identity claims come from the ID token, with a userinfo endpoint as a fallback.',
-    icon: KeyRound,
-  },
-  {
-    value: 'oauth2',
-    label: 'OAuth2',
-    description: 'Plain authorization code flow; the profile is read from a userinfo endpoint.',
-    icon: KeyRound,
-  },
-  {
-    value: 'saml',
-    label: 'SAML',
-    description: 'Federating a SAML identity provider is not implemented yet.',
-    icon: Shield,
-    disabledReason: 'FerrisKey cannot broker a SAML provider — the broker only speaks OAuth2 and OIDC.',
-  },
-  {
-    value: 'ldap',
-    label: 'LDAP',
-    description: 'A directory is a user federation source, not an identity provider.',
-    icon: Shield,
-    disabledReason: 'A directory is configured under User Federation, not here.',
-  },
-]
-
 export default function PageProvidersOverview({
   providers,
   isLoading,
@@ -93,22 +72,53 @@ export default function PageProvidersOverview({
   onDelete,
   onConfirmClose,
 }: PageProvidersOverviewProps) {
+  const { t } = useTranslation('identity-provider')
+
+  const protocolChoices: Choice<ProviderProtocol>[] = [
+    {
+      value: 'oidc',
+      label: t('provider_type.oidc'),
+      description: t('list.picker.oidc.description'),
+      icon: KeyRound,
+    },
+    {
+      value: 'oauth2',
+      label: t('provider_type.oauth2'),
+      description: t('list.picker.oauth2.description'),
+      icon: KeyRound,
+    },
+    {
+      value: 'saml',
+      label: t('provider_type.saml'),
+      description: t('list.picker.saml.description'),
+      icon: Shield,
+      disabledReason: t('list.picker.saml.disabled_reason'),
+    },
+    {
+      value: 'ldap',
+      label: t('provider_type.ldap'),
+      description: t('list.picker.ldap.description'),
+      icon: Shield,
+      disabledReason: t('list.picker.ldap.disabled_reason'),
+    },
+  ]
+
   const columns: Column<IdentityProvider>[] = [
     {
       key: 'provider',
-      header: 'Provider',
+      header: t('list.columns.provider'),
       render: (p) => providerName(p),
       sortValue: (p) => providerName(p),
     },
     {
       key: 'alias',
-      header: 'Alias',
+      header: t('list.columns.alias'),
       render: (p) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{p.alias}</span>,
       sortValue: (p) => p.alias,
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('list.columns.type'),
       render: (p) => (
         <Pill tone={typeTone(p.provider_id)} mono>
           {providerTypeLabel(p.provider_id)}
@@ -118,7 +128,7 @@ export default function PageProvidersOverview({
     },
     {
       key: 'configuration',
-      header: 'Configuration',
+      header: t('list.columns.configuration'),
       render: (p) => {
         const status = providerStatus(p)
         return (
@@ -132,11 +142,11 @@ export default function PageProvidersOverview({
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('list.columns.status'),
       render: (p) => (
         <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={p.enabled} />
-          {p.enabled ? 'Enabled' : 'Disabled'}
+          {p.enabled ? t('state.enabled') : t('state.disabled')}
         </span>
       ),
       sortValue: (p) => (p.enabled ? 'enabled' : 'disabled'),
@@ -149,7 +159,7 @@ export default function PageProvidersOverview({
         <Button
           variant='ghost'
           size='icon'
-          aria-label={`Delete ${providerName(p)}`}
+          aria-label={t('list.row_delete', { name: providerName(p) })}
           className='text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
           onClick={() => onDelete(p)}
         >
@@ -173,15 +183,15 @@ export default function PageProvidersOverview({
           <ProviderStatusPill health={status.health} label={status.label} />
           <Pill tone={p.enabled ? 'success' : 'neutral'}>
             <StatusDot on={p.enabled} />
-            {p.enabled ? 'enabled' : 'disabled'}
+            {p.enabled ? t('badge.enabled') : t('badge.disabled')}
           </Pill>
         </>
       )
     },
     flags: (p) => [
-      { label: 'Offered on the login page', on: p.enabled },
-      { label: 'Email address trusted as verified', on: p.trust_email },
-      { label: 'Links to existing accounts only', on: p.link_only },
+      { label: t('list.flags.enabled'), on: p.enabled },
+      { label: t('list.flags.trust_email'), on: p.trust_email },
+      { label: t('list.flags.link_only'), on: p.link_only },
     ],
     footer: (p) => <span className='truncate'>{providerStatus(p).detail}</span>,
   }
@@ -194,71 +204,73 @@ export default function PageProvidersOverview({
 
   const addButton = (
     <Button onClick={() => onPickerOpenChange(true)}>
-      <Plus /> Add provider
+      <Plus /> {t('list.add')}
     </Button>
   )
 
   return (
     <>
       <ListingPage
-        title='Identity Providers'
-        description='External authentication sources federated into this realm.'
+        title={t('list.title')}
+        description={t('list.description')}
         loading={isLoading}
         actions={addButton}
         metrics={[
           {
             key: 'total',
-            label: 'Total providers',
+            label: t('list.metrics.total.label'),
             value: providers.length,
-            hint: 'configured',
+            hint: t('list.metrics.total.hint'),
           },
           {
             key: 'enabled',
-            label: 'Enabled providers',
+            label: t('list.metrics.enabled.label'),
             value: enabled.length,
             hint:
               enabled.length > 0 && providers.length > 0
-                ? `${((enabled.length / providers.length) * 100).toFixed(0)}% active`
-                : 'no enabled provider',
+                ? t('list.metrics.enabled.hint', {
+                    percent: ((enabled.length / providers.length) * 100).toFixed(0),
+                  })
+                : t('list.metrics.enabled.empty_hint'),
           },
           {
             key: 'disabled',
-            label: 'Disabled providers',
+            label: t('list.metrics.disabled.label'),
             value: disabled.length,
-            hint: 'hidden from the login page',
+            hint: t('list.metrics.disabled.hint'),
           },
           {
             key: 'types',
-            label: 'Provider types',
+            label: t('list.metrics.types.label'),
             value: types.size,
-            hint: 'distinct protocols',
+            hint: t('list.metrics.types.hint'),
           },
         ]}
         alerts={[
           ...broken.map((p) => ({
             tone: 'error' as const,
-            title: `${providerName(p)} cannot broker a login`,
+            title: t('list.alerts.broken.title', { name: providerName(p) }),
             detail: providerStatus(p).detail,
-            action: 'Fix',
+            action: t('list.alerts.broken.action'),
           })),
           ...degraded.map((p) => ({
             tone: 'warn' as const,
-            title: `${providerName(p)} requests no scope`,
+            title: t('list.alerts.degraded.title', { name: providerName(p) }),
             detail: providerStatus(p).detail,
-            action: 'Review',
+            action: t('list.alerts.degraded.action'),
           })),
         ]}
         filters={[
-          { key: 'enabled', label: 'Enabled', predicate: (p) => p.enabled },
-          { key: 'disabled', label: 'Disabled', predicate: (p) => !p.enabled },
+          { key: 'enabled', label: t('list.filters.enabled'), predicate: (p) => p.enabled },
+          { key: 'disabled', label: t('list.filters.disabled'), predicate: (p) => !p.enabled },
           {
             key: 'issues',
-            label: 'Misconfigured',
+            label: t('list.filters.issues'),
             predicate: (p) => providerStatus(p).health !== 'healthy',
           },
         ]}
-        searchPlaceholder='Filter by name or alias…'
-        querySyntax='alias:git*  type:oidc  status:disabled'
+        searchPlaceholder={t('list.search_placeholder')}
+        querySyntax={QUERY_SYNTAX_HINT}
         searchIn={(p) => `${p.display_name ?? ''} ${p.alias}`}
         rows={providers}
         columns={columns}
@@ -266,16 +278,20 @@ export default function PageProvidersOverview({
         getKey={(p) => p.alias}
         getHref={providerHref}
         aggregates={{
-          provider: `${providers.length} provider${providers.length !== 1 ? 's' : ''}`,
-          configuration: `${broken.length + degraded.length} to review`,
+          provider: t('list.aggregates.provider_count', { count: providers.length }),
+          configuration: t('list.aggregates.to_review', {
+            total: broken.length + degraded.length,
+          }),
         }}
-        emptyLabel='No identity provider'
-        emptyHint='Federate an external provider so accounts can sign in with credentials they already have.'
+        emptyLabel={t('list.empty.label')}
+        emptyHint={t('list.empty.hint')}
         emptyAction={
           <div className='flex flex-col items-center gap-4'>
             {addButton}
             <div>
-              <p className='text-center text-xs text-neutral-500 dark:text-neutral-400'>Popular providers</p>
+              <p className='text-center text-xs text-neutral-500 dark:text-neutral-400'>
+                {t('list.empty.popular')}
+              </p>
               <div className='mt-2 flex items-center justify-center gap-2'>
                 {popularTemplates.map((template) => (
                   <button
@@ -285,7 +301,9 @@ export default function PageProvidersOverview({
                     className='flex cursor-pointer flex-col items-center gap-1.5 rounded-md px-2.5 py-2 transition-colors hover:bg-neutral-50 dark:hover:bg-fk-surface'
                   >
                     <ProviderIcon icon={template.icon} size='sm' />
-                    <span className='text-xs text-neutral-500 dark:text-neutral-400'>{template.displayName}</span>
+                    <span className='text-xs text-neutral-500 dark:text-neutral-400'>
+                      {templateDisplayName(template)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -297,10 +315,10 @@ export default function PageProvidersOverview({
       <CreatePickerDialog
         open={pickerOpen}
         onOpenChange={onPickerOpenChange}
-        title='Add an identity provider'
-        description='The protocol decides which endpoints the provider must declare, so it is chosen before the form.'
+        title={t('list.picker.title')}
+        description={t('list.picker.description')}
         options={protocolChoices}
-        defaultValue='oidc'
+        defaultValue={DEFAULT_PROTOCOL}
         createUrl={createUrl}
       />
 

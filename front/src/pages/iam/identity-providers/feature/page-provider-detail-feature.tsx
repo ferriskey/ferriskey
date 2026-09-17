@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
@@ -19,6 +20,7 @@ interface Draft {
 const EMPTY_DRAFT: Draft = { key: '', displayName: '', enabled: true }
 
 export default function PageProviderDetailFeature() {
+  const { t } = useTranslation('identity-provider')
   const identityProvidersBase = useIdentityProvidersBase()
   const { realm_name, alias } = useParams<{ realm_name: string; alias: string }>()
   const navigate = useNavigate()
@@ -64,7 +66,7 @@ export default function PageProviderDetailFeature() {
         path: { realm_name: realm, alias: providerAlias },
         body: { display_name: displayName, enabled },
       },
-      { onSuccess: () => toast.success('Provider updated successfully') }
+      { onSuccess: () => toast.success(t('detail.update_success')) }
     )
   }
 
@@ -75,10 +77,10 @@ export default function PageProviderDetailFeature() {
       { path: { realm_name: realm, alias: providerAlias } },
       {
         onSuccess: () => {
-          toast.success('Provider deleted successfully')
+          toast.success(t('detail.delete_success'))
           navigate(listUrl)
         },
-        onError: () => toast.error('Failed to delete provider'),
+        onError: () => toast.error(t('detail.delete_error')),
       }
     )
   }

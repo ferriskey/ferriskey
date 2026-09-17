@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
@@ -17,6 +18,7 @@ import IdentityProvider = Schemas.IdentityProviderResponse
 import { useIdentityProvidersBase } from '@/hooks/use-section-base'
 
 export default function PageProvidersOverviewFeature() {
+  const { t } = useTranslation('identity-provider')
   const identityProvidersBase = useIdentityProvidersBase()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
@@ -38,14 +40,14 @@ export default function PageProvidersOverviewFeature() {
     const name = providerName(provider)
 
     ask({
-      title: 'Delete provider?',
-      description: `Are you sure you want to delete "${name}"?`,
+      title: t('list.delete.title'),
+      description: t('list.delete.description', { name }),
       onConfirm: () => {
         deleteProvider(
           { path: { realm_name: realm, alias: provider.alias } },
           {
-            onSuccess: () => toast.success(`Provider "${name}" deleted`),
-            onError: () => toast.error(`Failed to delete "${name}"`),
+            onSuccess: () => toast.success(t('list.delete.success', { name })),
+            onError: () => toast.error(t('list.delete.error', { name })),
           }
         )
         close()
