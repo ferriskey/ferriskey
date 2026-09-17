@@ -1,0 +1,288 @@
+# 简体中文 catalogue for User Federation. Batch #1371.
+# Administrator audience — the glossary terms apply directly.
+#
+# LDAP, Kerberos, Active Directory, "Base DN" and "Bind DN" are protocol and standard names and stay
+# in English.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+#
+# STATUS: awaiting native review.
+
+# Query order of a federation provider. The console derives the key from the numeric score the API
+# stores, so translate the label and the hint, never the key.
+priority:
+  primary:
+    label: 主要
+    hint: 最先查询。
+  secondary:
+    label: 次要
+    hint: 主要提供商未响应时查询。
+  development:
+    label: 开发
+    hint: 工作环境。
+  legacy:
+    label: 遗留
+    hint: 在迁移期间保留。
+
+# Latency of a connection test and length of a synchronisation run, both abbreviated because they
+# sit in a narrow slot beside a status pill.
+duration:
+  milliseconds: '{{value}} ms'
+  seconds: '{{value}} s'
+
+# Kinds offered by the "add a provider" dialog.
+kind:
+  ldap:
+    label: LDAP
+    description: 用于认证账户并将其导入的目录。
+  kerberos:
+    label: Kerberos
+    description: 基于票据的网络认证。
+    disabled_reason: 服务器会存储 Kerberos 提供商，但既不同步也不测试它。
+
+list:
+  title: 用户联合
+  description: 账户会被导入此域的外部目录。
+  create: 添加提供商
+  search_placeholder: 按名称或端点筛选…
+  count_other: '{{count}} 个提供商'
+  no_endpoint: 无端点
+  never_synced: 从未同步
+  columns:
+    name: 提供商
+    endpoint: 端点
+    type: 类型
+    sync_mode: 同步模式
+    schedule: 计划
+    last_sync: 上次同步
+    status: 状态
+  schedule:
+    # Abbreviated "minutes" — rendered inside a narrow table cell, keep it short.
+    interval_other: 每 {{count}} 分钟
+    on_demand: 仅按需
+  status:
+    enabled: 已启用
+    disabled: 已禁用
+  metrics:
+    total:
+      label: 提供商
+      hint: 已配置
+    enabled:
+      label: 已启用
+      # Raw count of the providers that are not queried; "disabled" follows it uninflected.
+      hint: '{{total}} 个已禁用'
+      empty_hint: 全部参与查询
+    scheduled:
+      label: 计划同步
+      hint: 无需手动触发即可运行
+    stale:
+      label: 从未同步
+      hint: 未导入任何账户
+      empty_hint: 全部已运行过一次
+  alerts:
+    stale:
+      title_other: '{{count}} 个提供商从未同步过'
+      # "names" is the list of providers that never ran, already joined.
+      detail: '{{names}} — 目前尚未导入任何账户。'
+  filters:
+    enabled: 已启用
+    ldap: LDAP
+    scheduled: 计划同步
+    stale: 从未同步
+  aggregates:
+    # Footer total, never inflected — it always reads as a raw count of enabled providers.
+    status: '{{total}} 个已启用'
+  card:
+    status:
+      enabled: 已启用
+      disabled: 已禁用
+    flags:
+      queried: 参与认证查询
+      scheduled: 已计划同步
+      synced: 已同步过
+  empty:
+    label: 无联合提供商
+    hint: 连接一个目录，以认证其中的账户并将它们导入此域。
+  picker:
+    title: 提供商类型
+    # REVIEW: "Kerberos domain" becomes Kerberos 域, which collides with realm → 域 elsewhere in
+    # the product. Kept because it is the standard rendering of the Kerberos term.
+    description: '它决定需要填写的配置：LDAP 目录与 Kerberos 域没有任何共同的设置项。'
+
+# Fields shared by the creation screen and the settings tab of an existing provider.
+form:
+  basic:
+    title: 基本设置
+    description: 该提供商是什么，以及它在查询顺序中的位置。
+  name:
+    label: 提供商名称
+    description: 在此控制台中标识该提供商；它在域内必须唯一。
+  priority:
+    label: 优先级
+    description: 查找账户时查询各提供商的顺序。
+  enabled:
+    label: 已启用
+    description: 被禁用的提供商不再被查询，也不再同步。
+    # Screen-reader label of the two-card state picker.
+    picker_label: 提供商状态
+    choices:
+      enabled:
+        label: 已启用
+        description: 该提供商参与认证。
+      disabled:
+        label: 已禁用
+        description: 会被忽略，但已导入的账户仍保持关联。
+  connection:
+    title: 连接设置
+    description: 如何访问该目录，以及用于读取它的服务账户。
+  connection_url:
+    label: 连接 URL
+    description: '未指定协议时，启用 TLS 则默认使用 ldaps://，否则使用 ldap://。'
+  base_dn:
+    label: Base DN
+    description: 搜索账户时所依据的根节点。
+  bind_dn:
+    label: Bind DN
+    description: '可选：留空时将以匿名方式读取该目录。'
+  bind_password:
+    label: 绑定凭据
+    description:
+      stored: 已加密存储且从不返回。输入新的凭据即可替换它。
+      empty: 保存后将加密存储且从不返回。
+    # "mask" is the row of asterisks the API returns in place of the stored credential.
+    stored_hint: '{{mask}} · 已保存，不可读取'
+    reveal: 显示该凭据
+    hide: 隐藏该凭据
+    required: 更改连接会重写整份配置，而已保存的凭据无法被读回，请重新输入以便保存。
+  use_tls:
+    label: 使用 TLS
+    description: 加密与该目录之间的连接。
+  search:
+    title: 用户搜索设置
+    description: 如何在目录中找到一个账户。
+  search_filter:
+    label: 用户搜索过滤器
+    description: 查找时应用的 LDAP 过滤器。
+  sync:
+    title: 同步设置
+    description: 何时再次遍历该目录，以及这会对账户产生什么影响。
+    scheduled:
+      label: 计划同步
+      description: 关闭后，该提供商仅在从本页发起请求时才同步。
+    mode:
+      label: 同步模式
+      description: 计划运行时如何处理遇到的账户。手动发起的运行始终执行导入。
+      # Screen-reader label of the three-card mode picker.
+      picker_label: 同步模式
+      choices:
+        import:
+          label: 导入
+          description: 创建缺失的账户并更新已有的账户。
+        force:
+          label: 强制
+          description: 同时禁用该目录不再返回的本地账户。
+        link_only:
+          label: 仅关联
+          description: 关联已存在的账户，从不创建新账户。
+    interval:
+      label: 同步间隔
+      description: 两次运行之间的时间。服务器只保留整分钟，最少 60 秒。
+      # Placeholder of the duration input, shown while no value is typed.
+      input_label: 间隔
+
+create:
+  back: 用户联合
+  title: 新建提供商
+  # Inline link that sends the administrator back to the provider-type dialog.
+  change_type: 更改类型
+  save:
+    title: 创建提供商
+    description: 创建完成后，即可在该提供商的页面上测试并同步它。
+    action: 创建提供商
+  toast:
+    created: 提供商已创建
+    failed: 无法创建该提供商
+
+detail:
+  back: 用户联合
+  not_found:
+    title: 未找到该提供商
+    description: 它可能已被删除，也可能属于另一个域。
+  status:
+    enabled: 已启用
+    disabled: 已禁用
+  actions:
+    test: 测试连接
+    testing: 测试中…
+    test_unavailable: 服务器只测试 LDAP 与 Active Directory 提供商。
+    sync: 同步
+    syncing: 同步中…
+    sync_unavailable: 服务器只同步 LDAP 与 Active Directory 提供商。
+    sync_disabled: 被禁用的提供商不会被查询。
+  test:
+    reachable: 可访问
+    unreachable: 不可访问
+  disabled_notice: '此提供商已被禁用：它不再被查询，其同步也不会运行。已导入的账户仍保持关联。'
+  tabs:
+    settings: 设置
+    sync: 同步
+  save:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用这些更改前，请先检查该提供商。
+    blocked: 仍有一个字段阻止保存，请查看它下方的提示。
+    cancel: 放弃
+    action: 保存更改
+  settings:
+    type:
+      label: 类型
+      description: '在创建时确定：它决定下方配置的结构，更改类型会将其清空。'
+    config:
+      title: 配置
+      description: 按 API 存储的原样返回。此类型在控制台中没有表单，且密钥绝不会以明文返回。
+      empty: 未记录任何配置。
+    danger:
+      label: 删除此提供商
+      description: 已导入的账户将失去与该目录的关联。此操作无法撤销。
+      button: 删除提供商
+      confirm_title: 删除提供商
+      confirm_description: '这将永久删除提供商“{{name}}”，以及它与该目录之间的所有关联。'
+  sync:
+    last:
+      title: 上次同步
+      started: 开始于 {{date}}。
+      never_started: 从未开始。
+      unknown_outcome: 结果未知
+      finished: 于 {{date}} 结束
+      hint: 从页首运行此提供商，即可看到一次同步会创建什么、更新什么，以及在什么上失败。
+      empty: 此提供商从未同步过，目前尚未导入任何账户。
+    stats:
+      processed: 已处理
+      created: 已创建
+      updated: 已更新
+      disabled: 已禁用
+      failed: 失败
+  toast:
+    updated: 提供商已更新
+    update_failed: 无法更新该提供商
+    test_success: 连接测试成功
+    test_failed: 连接测试失败
+    test_error: 无法测试该连接
+    sync_completed: 同步已完成
+    sync_failed: 无法同步这些账户
+    sync_processed_other: 已处理 {{count}} 个账户
+    # Segments joined with a comma to summarise what a run did. Each figure stands beside a past
+    # participle that never inflects.
+    stats:
+      created: '{{total}} 个已创建'
+      updated: '{{total}} 个已更新'
+      disabled: '{{total}} 个已禁用'
+      failed: '{{total}} 个失败'
+    deleted: 提供商已删除
+    delete_failed: 无法删除该提供商
+
+validation:
+  name_required: 请填写提供商名称
+  connection_url_required: 请填写连接 URL
+  base_dn_required: 请填写 Base DN
+  connection_url_invalid: 此 URL 无法解析为 LDAP 端点。

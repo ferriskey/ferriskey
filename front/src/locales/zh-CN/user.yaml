@@ -1,0 +1,337 @@
+# 简体中文 catalogue for the user screens: list, creation, overview, credentials, role mapping,
+# organizations and attributes.
+#
+# Produced without a native reviewer — see front/src/locales/GLOSSARY.md, which fixes the domain
+# terms used here (realm → 域, credential → 凭据, required action → 必需操作, passkey → 通行密钥,
+# organization → 组织, attribute → 属性).
+#
+# The keys, the {{placeholders}} and the <tags> are contract. Chinese declares a single plural
+# category ("other"), so the *_one forms of the English catalogue have no counterpart here on
+# purpose. The *_empty keys are ordinary keys, not plural forms, and are kept.
+#
+# Note on one false friend: "Realm Name" is 域名称, never 域名 — 域名 means "domain name".
+list:
+  title: 用户
+  description: 此域的账户及其类型和认证状态。
+  create: 新建用户
+  search_placeholder: 按名称或邮箱筛选…
+  # Fallback name shown in place of a person's name when the account belongs to a client.
+  service_account_name: 服务账户
+  columns:
+    user: 用户
+    email: 邮箱
+    type: 类型
+    status: 状态
+  no_email: 无邮箱
+  type:
+    service: 服务账户
+    user: 用户账户
+  status:
+    enabled: 已启用
+    disabled: 已禁用
+  card:
+    badge:
+      enabled: 已启用
+      disabled: 已禁用
+    flags:
+      enabled: 账户已启用
+      email_verified: 邮箱已验证
+      no_required_action: 下次登录时无需完成任何操作
+  metrics:
+    total:
+      label: 总计
+      hint: 个用户
+    enabled:
+      label: 已启用用户
+      hint: '{{percent}}% 活跃'
+      empty_hint: 没有已启用的用户
+    disabled:
+      label: 已禁用用户
+      hint: 无法认证
+    verified:
+      label: 已验证用户
+      hint: 邮箱已验证
+  alerts:
+    unverified_email:
+      title_other: '{{count}} 个账户的邮箱未验证'
+      detail: '{{names}}：密码找回邮件将无法送达。'
+      action: 查看
+  filters:
+    users: 用户
+    service_accounts: 服务账户
+    unverified: 邮箱未验证
+  aggregates:
+    count_other: '{{count}} 个用户'
+    # Raw total in a table footer, it never inflects.
+    enabled: '{{total}} 个已启用'
+  empty:
+    label: 暂无用户
+    hint: 账户用于对此域进行认证；服务账户则属于某个客户端。
+
+create:
+  back: 用户
+  title: 新建用户
+  description: 创建的账户不带任何凭据，之后请在其“凭据”标签页中设置密码。
+  identity:
+    title: 身份
+    username:
+      label: 用户名
+      description: 登录标识符，在域内唯一。创建后无法更改。
+    name:
+      label: 名字和姓氏
+      description: 可选，会显示在控制台以及为此账户签发的令牌中。
+      firstname_placeholder: 名字
+      lastname_placeholder: 姓氏
+    email:
+      label: 邮箱
+      description: 用于验证和密码找回。如果该账户从不接收邮件，请留空。
+    email_verified:
+      label: 邮箱已验证
+      description: 将该地址标记为已验证，因此首次登录时不会要求验证。
+      switch_on: 已验证
+      switch_off: 未验证
+  save_bar:
+    title: 创建用户
+    description: 账户创建后即为启用状态，且未附加任何凭据。
+    submit: 创建用户
+  toast:
+    created: 用户创建成功
+
+detail:
+  back: 用户
+  not_found:
+    title: 未找到用户
+    description: 它可能已被删除，或属于另一个域。
+  pills:
+    enabled: 已启用
+    disabled: 已禁用
+    email_verified: 邮箱已验证
+    email_unverified: 邮箱未验证
+    service_account: 服务账户
+  meta:
+    identity_label: 身份
+    no_name: 未记录姓名
+    created_label: 创建时间
+    created: 创建于 {{date}}
+    identifier_label: 标识符
+  tabs:
+    overview: 概览
+    credentials: 凭据
+    role_mapping: 角色映射
+    organizations: 组织
+    attributes: 属性
+  save_bar:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请复核此账户。
+    cancel: 放弃
+    submit: 保存更改
+  toast:
+    updated: 用户已更新
+    delete_failed: 无法删除该用户
+
+  overview:
+    identity:
+      title: 身份
+      username:
+        label: 用户名
+        description: '登录标识符，在创建时固定：更新端点不接受新的用户名。'
+      name:
+        label: 名字和姓氏
+        description: 可选，服务账户没有姓名。会显示在控制台以及已签发的令牌中。
+        firstname_placeholder: 名字
+        lastname_placeholder: 姓氏
+      email:
+        label: 邮箱
+        description: 用于验证和密码找回。
+      enabled:
+        label: 用户已启用
+        description: 已禁用的账户无法再获取令牌。
+      email_verified:
+        label: 邮箱已验证
+        description: 无需经过验证邮件即可将该地址标记为已验证。
+        switch_on: 已验证
+        switch_off: 未验证
+    required_actions:
+      title: 必需操作
+      description_other: '下次登录时需要完成 {{count}} 项操作。'
+      empty_description: '未强制任何操作：该用户可直接登录。'
+      options:
+        verify_email:
+          label: 验证邮箱
+          hint: 下次登录时会发送一条验证链接。
+        update_password:
+          label: 更新密码
+          hint: 必须先替换当前密码，才能进行任何访问。
+        configure_otp:
+          label: 配置 OTP
+          hint: 必须先完成 TOTP 注册，才能进行任何访问。
+        configure_passkey:
+          label: 注册通行密钥
+          hint: 下次登录时会要求提供 WebAuthn 密钥。
+    danger:
+      label: 删除此用户
+      description: 删除后，所有关联的会话、凭据和角色分配都将被永久移除。
+      button: 删除用户
+      confirm_title: 删除用户
+      confirm_description: 这将永久删除用户“{{username}}”及其所有关联数据。
+
+  credentials:
+    metrics:
+      total:
+        label: 凭据总数
+        hint: 已注册
+      passwords:
+        label: 密码
+        hint: '占总数的 {{percent}}%'
+        empty_hint: 没有密码凭据
+      otp:
+        label: TOTP
+        hint: 身份验证器应用
+      other:
+        label: 其他
+        hint: 恢复代码等
+    types:
+      password: 密码
+      otp: 一次性密码
+      recovery_code: 恢复代码
+    list:
+      title: 认证方式
+      description: 为此账户注册的凭据。
+      search_placeholder: 筛选凭据…
+      added: 添加于 {{date}}
+      delete: 删除该 {{type}} 凭据
+      no_match: 没有与“{{query}}”匹配的凭据。
+      empty: 未注册任何凭据，此账户无法认证。
+    delete:
+      title: 删除凭据？
+      description: 确定要删除此“{{type}}”凭据吗？
+    warning: '删除凭据会立即生效且不可撤销：该用户将失去这种认证方式，并且不会收到任何通知。'
+    password:
+      title_reset: 重置密码
+      title_set: 设置密码
+      description_reset: 当前密码会被立即替换；已打开的会话仍然有效。
+      description_set: '此账户没有密码：它只能通过其他方式进行认证。'
+      validity:
+        label: 有效性
+        description: 决定下方输入的密码是否必须在首次使用时更改。
+        group_label: 密码有效性
+        temporary:
+          label: 临时
+          description: 用户必须在下次登录时更改它。
+        permanent:
+          label: 永久
+          description: 在用户主动更改之前一直有效。
+      new:
+        label: 新密码
+        description: '已存储的密码绝不会显示：只能将其替换。'
+      confirm:
+        label: 确认密码
+        description: 两次输入必须一致，密码才能生效。
+      submit_replace: 替换密码
+      submit_set: 设置密码
+      cancel: 取消
+    toast:
+      deleted: 凭据已删除
+      missing_context: 缺少用户 ID 或域名称
+      password_set: 密码设置成功
+      password_failed: 设置密码失败
+
+  role_mapping:
+    metrics:
+      total:
+        label: 已分配角色
+        hint: 在此账户上
+      realm:
+        label: 域角色
+        hint: '占总数的 {{percent}}%'
+        empty_hint: 没有域角色
+      client:
+        label: 客户端角色
+        hint: 限定于某个客户端
+      granting:
+        label: 含权限
+        hint: 至少授予一项权限
+    role:
+      client: 客户端
+      realm: 域
+      # "client" names the owning client of the role, it is not the client ID itself.
+      client_ref: '客户端：{{clientId}}'
+      # "role_id" is the API field name, keep it verbatim.
+      identifier: 'role_id: {{id}}'
+      permission_count_other: '{{count}} 项权限'
+    list:
+      title: 已分配角色
+      description: 此账户被授权执行的一切操作都来自此列表。
+      search_placeholder: 筛选角色…
+      error: 无法加载此账户的角色。
+      unassign: 解除分配 {{name}}
+      no_match: 没有与“{{query}}”匹配的角色。
+      empty: 未分配任何角色，此账户无法访问任何受保护的资源。
+    assign:
+      title: 分配角色
+      description: 此账户尚未拥有的、属于该域及其客户端的角色。
+      add: 选择角色
+      search_placeholder: 搜索角色…
+      empty_hint: 尚未选择任何角色。
+      exhausted_hint: 此账户已拥有该域的所有角色。
+      # Label of the disabled button, before anything is picked — it carries no count.
+      submit_empty: 分配角色
+      submit_other: '分配 {{count}} 个角色'
+    toast:
+      missing_context: 未找到用户或域
+      assigned: 角色分配成功
+      unassigned_title: 角色解除分配成功
+      unassigned_description: 该角色已成功从此用户中移除。
+
+  organizations:
+    list:
+      title: 组织
+      description: 此账户所属的、该域中的组织。
+      search_placeholder: 筛选组织…
+      error: 无法加载此账户的组织。
+      disabled: 组织已禁用
+      meta: 自 {{date}} 起成为成员 · {{detail}}
+      # "org_id" is the API field name, keep it verbatim.
+      identifier: 'org_id: {{id}}'
+      remove: 从 {{name}} 中移除
+      no_match: 没有与“{{query}}”匹配的组织。
+      empty: 此账户不属于任何组织。
+    assign:
+      title: 添加到组织
+      description: 此账户尚未加入的、该域中的组织。
+      add: 选择组织
+      search_placeholder: 搜索组织…
+      empty_hint: 尚未选择任何组织。
+      exhausted_hint: 此账户已属于该域的所有组织。
+      # Label of the disabled button, before anything is picked — it carries no count.
+      submit_empty: 添加到组织
+      submit_other: '添加到 {{count}} 个组织'
+    toast:
+      missing_context: 未找到用户或域
+      assigned: 组织分配成功
+
+  attributes:
+    list:
+      title: 自定义属性
+      description_other: '此账户上有 {{count}} 个属性。'
+      empty_description: 此账户携带的键值元数据。
+      empty: 未为此用户定义任何属性。
+      save: 保存 {{key}}
+      cancel: 取消编辑 {{key}}
+      edit: 编辑 {{key}}
+      delete: 删除 {{key}}
+    add:
+      title: 添加属性
+      description: 属性通过客户端作用域的映射器进入令牌。
+      # Generic input hints, not literal sample values: translated like the surrounding labels.
+      key_placeholder: 键
+      value_placeholder: 值
+      duplicate: 此键已存在，添加它将替换其值。
+      submit: 添加
+
+validation:
+  username_required: 用户名为必填项
+  email_invalid: 电子邮件地址无效
+  passwords_must_match: 两次输入的密码必须一致
+  role_required: 必须至少选择一个角色
+  organization_required: 必须至少选择一个组织

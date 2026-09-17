@@ -1,0 +1,427 @@
+# 简体中文 catalogue for client scopes and protocol mappers.
+#
+# Produced without a native reviewer — pending native review. Lines marked with a TRANSLATOR note
+# are the ones where a reviewer's judgement matters most.
+#
+# Mapper type identifiers (oidc-usermodel-property-mapper and friends), config field keys
+# (claim.name, include.domain…), claim names written into the token (email, preferred_username,
+# address…) and the OAuth `scope` request parameter are wire identifiers — they stay verbatim.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+scope_type:
+  DEFAULT: 默认
+  OPTIONAL: 可选
+  NONE: 无
+
+scope:
+  # Identifier shown when a scope carries no description. "scope_id" is the API field name, keep it verbatim.
+  identifier: 'scope_id: {{id}}'
+  mapper_count_other: '{{count}} 个映射器'
+
+scope_form:
+  name:
+    label: 名称
+    # "scope" here is the OAuth authorization-request parameter, kept verbatim.
+    description: 由客户端在授权请求的 scope 参数中按原样请求。
+  description:
+    label: 描述
+    description: 仅供管理员阅读，它绝不会出现在已签发的令牌中。
+  protocol:
+    label: 协议
+    description: 创建时固定：目前仅支持 OpenID Connect，它决定了此作用域可以承载哪些协议映射器。
+  type:
+    label: 类型
+    description: 决定此作用域如何附加到域内的客户端。
+    placeholder: 选择类型
+    options:
+      optional: 可选
+      default: 默认
+    hint:
+      default: 附加到每个新建的客户端，无需客户端请求即会签发。
+      optional: 向客户端开放，但仅在客户端按名称请求时才签发。
+
+list:
+  title: 客户端作用域
+  description: 此域的客户端按名称请求的可复用声明集合。
+  create: 新建客户端作用域
+  search_placeholder: 按名称筛选…
+  row_delete: 删除 {{name}}
+  count_other: '{{count}} 个作用域'
+  columns:
+    name: 作用域
+    description: 描述
+    # "Assignment" is how the scope is attached to clients (default / optional / none).
+    type: 分配方式
+    protocol: 协议
+    mappers: 映射器
+  metrics:
+    total:
+      label: 总计
+      hint: 个作用域
+    default:
+      label: 默认作用域
+      hint: 占总数的 {{percent}}%
+      empty_hint: 无默认作用域
+    optional:
+      label: 可选作用域
+      hint: 按请求授予
+    mappers:
+      label: 含映射器
+      hint: 至少写入一项声明
+  alerts:
+    without_mappers:
+      title_other: '{{count}} 个作用域未写入任何声明'
+      detail: '{{names}}：未携带任何协议映射器。'
+      action: 查看
+  filters:
+    default: 默认
+    optional: 可选
+    without_mappers: 无映射器
+  card:
+    # Always plural by design: the card footer shows a raw total, never a singular row.
+    footer_mappers: '{{count}} 个映射器'
+    flags:
+      default: 默认授予每个客户端
+      has_mappers: 至少写入一项声明
+  empty:
+    label: 暂无客户端作用域
+    hint: 客户端作用域将客户端可在其令牌中请求的声明归为一组。
+  delete:
+    title: 删除客户端作用域
+    description: 此操作将永久删除“{{name}}”及其所有关联的协议映射器和客户端映射。
+
+create:
+  back: 客户端作用域
+  title: 新建客户端作用域
+  subtitle: 客户端作用域将客户端可在其令牌中请求的声明归为一组。
+  section:
+    title: 客户端作用域详情
+    description: 作用域的标识，以及客户端如何获得它。
+  save_bar:
+    title: 创建客户端作用域
+    description: 作用域创建时为空，其协议映射器随后添加。
+    submit: 创建
+    submitting: 创建中…
+
+detail:
+  back: 客户端作用域
+  not_found:
+    title: 未找到客户端作用域
+    description: 它可能已被删除，或属于另一个域。
+  meta:
+    created_label: 创建时间
+    created: 创建于 {{date}}
+    updated_label: 更新时间
+    updated: 更新于 {{date}}
+    identifier_label: 标识符
+  tabs:
+    details: 设置
+    mappers: 协议映射器
+  save_bar:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请先检查该客户端作用域。
+    cancel: 放弃
+    submit: 保存更改
+    submitting: 保存中…
+  settings:
+    general:
+      title: 基本信息
+      description: 作用域的标识，以及客户端如何获得它。
+    # TRANSLATOR: none / optional / default are the wire values the API stores and accepts, so they
+    # stay in English here even though the Type selector above shows them translated.
+    none_warning: 此作用域当前存储为 none。API 仅接受 optional 或 default，因此保存时会将其转换为上方选定的值。
+    attributes:
+      title: 属性
+      description: 此客户端作用域的属性，按 API 返回的原样展示。
+      empty: 未配置任何属性。
+    danger:
+      label: 删除此客户端作用域
+      description: 删除后，所有关联的协议映射器和客户端映射都将被永久移除。
+      button: 删除作用域
+      confirm_title: 删除客户端作用域
+      confirm_description: 此操作将永久删除作用域“{{name}}”及其所有关联的协议映射器和客户端映射。
+  mappers:
+    title: 协议映射器
+    description: 当客户端请求此作用域时，它会向令牌中写入的内容。
+    add: 添加映射器
+    configure: 配置
+    delete_mapper: 删除 {{name}}
+    # TRANSLATOR: "it only opens a right" is unclear in English — the scope grants access without
+    # writing anything into the token. Rendered literally (权利, not 权限) until the English is fixed.
+    empty: 未配置任何协议映射器：此作用域不写入任何声明，它只开放一项权利。
+    metrics:
+      share: 占总数的 {{percent}}%
+      total:
+        label: 映射器总数
+        hint: 已在此作用域上配置
+      role:
+        label: 角色映射器
+        empty_hint: 无角色映射器
+      identity:
+        label: 身份映射器
+        empty_hint: 无身份映射器
+    delete:
+      title: 删除协议映射器
+      description: 确定要删除“{{name}}”吗？此操作无法撤销。
+
+mapper_picker:
+  title: 添加协议映射器
+  # "leaves everything to type" reads as "you have to type everything yourself".
+  description: 模板会填入映射器类型及其所需的字段。自定义映射器则需要您手动输入全部内容。
+  quick_start:
+    label: 快速开始
+    hint: 针对常见声明的预配置映射器，命名后即可使用。
+  catalog:
+    label: 按配置
+    hint: 选择任意映射器类型，并自行设置每个字段。
+
+mapper_form:
+  name:
+    label: 名称
+    description: 映射器的管理名称，它不是映射器写入的声明。
+  type:
+    label: 映射器类型
+    description:
+      create: 服务器在签发令牌时运行的映射器实现的标识符。
+      settings: 创建时设定：更改实现会使下方的配置失效。
+  config:
+    label: 配置
+    description: 原始 JSON 对象，完全按照映射器期望的格式。
+
+mapper_create:
+  back: 协议映射器
+  identity:
+    title: 标识
+    description: 此映射器在作用域上的命名方式。
+  settings:
+    title: 设置
+    description: 签发令牌时传递给映射器的配置。
+  save_bar:
+    title: 创建协议映射器
+    description: 映射器会立即添加到此客户端作用域。
+    submit: 创建映射器
+    submitting: 创建中…
+
+mapper_settings:
+  back: 协议映射器
+  not_found:
+    title: 未找到协议映射器
+    description: 它可能已被删除，或属于另一个客户端作用域。
+  meta:
+    created_label: 创建时间
+    created: 创建于 {{date}}
+    identifier_label: 标识符
+  general:
+    title: 常规
+    description: 此映射器在作用域上的命名方式。
+  settings:
+    title: 设置
+    description: 签发令牌时传递给映射器的配置。
+  raw:
+    title: 配置（JSON）
+    description: 没有模板与此映射器类型匹配，因此其配置以原始形式编辑。
+  save_bar:
+    title: 未保存的更改
+    description: 应用更改前请先检查该映射器。
+    cancel: 放弃
+    submit: 保存更改
+    submitting: 保存中…
+
+mapper_entity:
+  # Badge on a picker whose stored value no longer matches any client or role.
+  unknown: 未知
+  clear: 清除
+  client:
+    placeholder: 选择客户端…
+    search_placeholder: 搜索客户端…
+    empty: 未找到客户端。
+  role:
+    placeholder: 选择角色…
+    search_placeholder: 搜索角色…
+    empty: 未找到角色。
+    realm_role: 域角色
+
+mapper_category:
+  role: 角色
+  audience: 受众
+  hardcoded: 硬编码
+  attribute: 属性
+  organization: 组织
+  identity: 身份
+  custom: 自定义
+
+mapper_template:
+  qs-email:
+    name: 邮箱
+    description: 将用户的电子邮件地址映射到令牌的 email 声明
+  qs-username:
+    name: 用户名
+    description: 将用户名映射到 preferred_username 声明
+  qs-full-name:
+    name: 全名
+    description: 将用户的全名映射到 name 声明
+  qs-realm-roles:
+    name: 域角色
+    description: 将所有域角色作为多值令牌声明添加
+  qs-audience:
+    name: 受众
+    description: 向令牌中添加自定义受众值
+  qs-org-membership:
+    name: 组织成员关系
+    # TRANSLATOR: "domain & attributes" names the Include domain / Include attributes options of
+    # this mapper. 域名 is used for the organization domain to avoid colliding with realm → 域.
+    description: 将用户所属的所有组织作为 JSON 数组添加（支持域名与属性）
+  qs-org-role:
+    name: 组织角色
+    description: 将用户在每个组织内持有的角色（域角色与客户端角色）添加到 organizations.<alias> 之下
+  qs-org-detail:
+    name: 组织详情
+    description: 向令牌中添加单个组织的详细信息
+  cat-role-name:
+    name: 角色名称映射器
+    description: 在角色注入令牌之前对其重命名
+  cat-user-attribute:
+    name: 用户属性
+    description: 将任意用户属性映射到令牌声明
+  cat-user-property:
+    # TRANSLATOR: English distinguishes "attribute" (custom key/value) from "property" (built-in
+    # field). Chinese has one word for both, so 内置 is added here to keep the pair apart.
+    name: 用户内置属性
+    description: 将内置的用户属性（email、username…）映射到令牌声明
+  cat-user-client-role:
+    name: 用户客户端角色
+    description: 将指定客户端的客户端级角色映射到令牌声明
+  cat-realm-role:
+    name: 域角色
+    description: 将域级角色映射到令牌声明，并可完全控制各项配置
+  cat-group-membership:
+    name: 组成员关系
+    description: 将用户的组成员关系映射到令牌声明
+  cat-audience:
+    name: 受众
+    description: 向令牌中添加客户端受众或自定义受众值
+  cat-hardcoded-claim:
+    name: 硬编码声明
+    description: 以指定名称的声明向令牌注入固定的静态值
+  cat-hardcoded-role:
+    name: 硬编码角色
+    description: 始终为令牌分配指定的角色，与用户无关
+  cat-address:
+    name: 地址
+    description: 将用户的地址属性映射到 address 声明
+  cat-org-membership:
+    name: 组织成员关系
+    description: 将用户所属的所有组织作为 JSON 数组注入，适用于隶属多个组织的用户
+  cat-org-role:
+    name: 组织角色
+    description: 注入用户在每个组织内持有的角色：域角色位于 organizations.<alias>.roles 之下，客户端角色位于 organizations.<alias>.clients.<client_id>.roles 之下
+  cat-org-detail:
+    name: 组织详情
+    description: 向令牌中注入单个组织的详细信息
+  cat-custom:
+    name: 自定义映射器
+    description: 手动输入映射器类型和原始 JSON 配置
+
+mapper_field:
+  claim_value_type:
+    label: 声明的 JSON 类型
+    # TRANSLATOR: these labels name the JSON type stored in the mapper config (String, JSON, long,
+    # int, boolean). Left in English so the picker matches the raw configuration.
+    options:
+      string: String
+      json: JSON
+      long: Long
+      int: Integer
+      boolean: Boolean
+  id_token_claim:
+    label: 添加到 ID 令牌
+  access_token_claim:
+    label: 添加到访问令牌
+  userinfo_token_claim:
+    label: 添加到 userinfo
+  introspection_token_claim:
+    label: 添加到令牌内省
+  user_property:
+    label: 用户内置属性
+  user_property_builtin:
+    label: 内置属性
+    description: 用户对象上的内置属性名称。
+  user_attribute:
+    label: 用户属性
+    description: 要映射的用户属性名称。
+  token_claim_name:
+    label: 令牌声明名称
+    description_nested: 该声明在令牌中呈现的名称。嵌套声明请使用点号表示法（例如 custom.team）。
+  claim_name:
+    label: 声明名称
+    description_organization_list: 用于存放组织列表的令牌声明名称。
+    description_organization_root: 存放各组织对象的根声明（以别名为键）。当同时启用“组织成员关系”映射器时，两者会进行深度合并。
+    description_organization_object: 用于存放组织对象的令牌声明名称。
+  claim_value:
+    label: 声明值
+  multivalued:
+    label: 多值
+    description_attribute: 指示该属性是否支持多个值。
+    description_roles: 角色始终为多值。
+  aggregate_attrs:
+    label: 聚合属性值
+    description: 合并来自用户本身及其所有组成员关系的值。
+  role:
+    label: 角色
+    description_rename: 要重命名的角色。域角色使用 "roleName"，客户端角色使用 "clientId.roleName"。
+    description_hardcoded: 始终注入的角色。使用 "roleName" 或 "clientId.roleName"。
+  new_role_name:
+    label: 新角色名称
+    description: 此角色在令牌中呈现的值。
+  client_id:
+    label: 客户端 ID
+    description: 留空则包含所有客户端的角色。
+  membership:
+    label: 成员关系
+    description: “有效”会添加每一个父级组（与继承的角色一致）。“仅直接组”只输出用户直接隶属的组（与 Keycloak 兼容，令牌更小）。
+    options:
+      effective: 有效（直接组 + 父级组）
+      direct: 仅直接组
+  full_path:
+    label: 完整组路径
+    description: 包含完整路径（例如 /parent/child），而不仅仅是组名称。
+  prefix_org:
+    label: 以组织作为前缀
+    description: 在路径前加上组织别名（例如 /acme/parent/child），以区分来自不同组织的同名组。仅适用于完整路径。
+  client_audience:
+    label: 客户端受众
+    description: 要添加其受众的客户端。若使用自定义值，请留空。
+  custom_audience:
+    label: 自定义受众
+    description: 要注入的自定义受众字符串。
+  include_domain:
+    label: 包含域名
+    description: 为每个组织条目添加 domain 字段（未设置时为 null）。
+  include_attributes:
+    label: 包含属性
+    description_claim: 启用后，组织的自定义属性会被添加到该声明中。
+    description_entry: 为每个条目添加组织的自定义属性。
+  organization_alias:
+    label: 组织别名筛选
+    description_short: 留空则使用用户所属的第一个组织。
+    description_long: 要输出的组织的别名。留空则使用用户所属的第一个组织。
+  address_formatted:
+    label: 格式化地址属性
+  address_street:
+    label: 街道属性
+  # TRANSLATOR: locality / region / country are the OIDC address claim members. Rendered by their
+  # usual meaning (city / province-state / country) rather than transliterated.
+  address_locality:
+    label: 城市属性
+  address_region:
+    label: 省/州属性
+  address_postal_code:
+    label: 邮政编码属性
+  address_country:
+    label: 国家/地区属性
+
+validation:
+  scope_name_required: 客户端作用域名称为必填项
+  mapper_name_required: 名称为必填项
+  mapper_config_invalid_json: 配置必须是有效的 JSON

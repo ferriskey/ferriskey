@@ -1,0 +1,243 @@
+# 简体中文 catalogue for roles and the permission catalogue.
+#
+# Produced without a native reviewer — pending native review. Lines marked with a TRANSLATOR note
+# are the ones where a reviewer's judgement matters most.
+#
+# The keys under `permissions.entries` are the permission names the API grants. They travel in
+# tokens and in the administration API, so they are never translated — only the label and the
+# description below each one are.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+role_scope:
+  realm: 域
+  client: 客户端
+
+role:
+  # Identifier shown when a role carries no description. "role_id" is the API field name, keep it verbatim.
+  identifier: 'role_id: {{id}}'
+  permission_count_other: '{{count}} 项权限'
+
+validation:
+  name_required: 角色名称为必填项
+  client_id_required: 客户端角色必须提供客户端 ID
+
+form:
+  name:
+    label: 角色名称
+    description: 在此域签发的令牌中按原样引用。
+  description:
+    label: 描述
+    description: 帮助管理员了解此角色的权限覆盖范围。
+  scope:
+    label: 作用域
+    picker_label: 角色作用域
+    create_description: 创建时设定且不可更改：角色之后无法在作用域之间迁移。
+    options:
+      realm:
+        label: 域角色
+        description: 可授予此域的任意账户。
+      client:
+        label: 客户端角色
+        description: 仅对其所附属的客户端有意义。
+    hint:
+      realm: 在整个域内共享。不支持在作用域之间迁移角色。
+      client: 创建时附属到某个客户端。不支持在作用域之间迁移角色。
+  client:
+    label: 客户端
+    description: 此角色所附属的客户端。
+    placeholder: 选择客户端…
+    search_placeholder: 搜索客户端…
+    empty: 未找到客户端。
+
+list:
+  title: 角色
+  description: 适用于此域账户的权限与策略。
+  create: 新建角色
+  search_placeholder: 按名称筛选…
+  count_other: '{{count}} 个角色'
+  columns:
+    name: 角色
+    description: 描述
+    scope: 作用域
+    permissions: 权限
+  metrics:
+    total:
+      label: 总计
+      hint: 个角色
+    realm:
+      label: 域角色
+      hint: 占总数的 {{percent}}%
+      empty_hint: 无域角色
+    client:
+      label: 客户端角色
+      hint: 限定于某个客户端
+    granting:
+      label: 含权限
+      hint: 至少授予一项
+  alerts:
+    without_permissions:
+      title_other: '{{count}} 个角色未授予任何权限'
+      detail: '{{names}}：未携带任何权限。'
+      action: 查看
+  filters:
+    realm: 域
+    client: 客户端
+    without_permissions: 无权限
+  card:
+    flags:
+      grants: 至少授予一项权限
+      client_scoped: 限定于某个客户端
+  empty:
+    label: 暂无角色
+    hint: 角色将您授予账户和客户端的权限归为一组。
+
+create:
+  back: 角色
+  title: 新建角色
+  subtitle: 角色将您授予账户和客户端的权限捆绑在一起。
+  section:
+    title: 定义
+  save_bar:
+    title: 创建角色
+    description: 该角色将按上方选定的权限创建。
+    submit: 创建角色
+
+detail:
+  back: 角色
+  not_found:
+    title: 未找到角色
+    description: 它可能已被删除，或属于另一个域。
+  meta:
+    created_label: 创建时间
+    created: 创建于 {{date}}
+    identifier_label: 标识符
+  tabs:
+    settings: 设置
+    permissions: 权限
+    users: 用户
+  save_bar:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请先检查该角色。
+    cancel: 放弃
+    submit: 保存更改
+  settings:
+    title: 定义
+    danger:
+      label: 删除此角色
+      description: 删除后，此角色的所有用户分配都将被永久移除。已签发的令牌在过期前仍然有效。
+      button: 删除角色
+      confirm_title: 删除角色
+      confirm_description: 此操作将永久删除角色“{{name}}”并移除所有用户分配。
+  users:
+    title: 持有此角色的账户
+    description: API 尚未提供列出角色持有者的能力。
+
+permissions:
+  title: 权限
+  description: 此角色在管理 API 上所授权的操作。
+  search_placeholder: 筛选权限…
+  granted: 已授予 {{granted}}/{{total}}
+  clear_all: 全部清除
+  no_match: 没有与“{{query}}”匹配的权限。
+  # Always plural by design: the group header shows a raw ratio, never a singular row.
+  group_enabled: 已启用 {{total}} 项权限中的 {{enabled}} 项
+  select_all: 全部
+  select_none: 无
+  state:
+    enabled: 已启用
+    disabled: 已禁用
+  groups:
+    user_management: 用户管理
+    client_management: 客户端管理
+    role_authorization: 角色与授权
+    realm_management: 域管理
+    identity_providers: 身份提供商
+    events_audit: 事件与审计
+    groups: 组
+    client_scopes: 客户端作用域
+    webhooks: Webhook
+    email_templates: 邮件模板
+  # Keyed by the permission name the API grants. Translate the label and the description, never the key.
+  entries:
+    manage_users:
+      label: 管理用户
+      description: 创建、编辑和删除账户，并重置其凭据。
+    view_users:
+      label: 查看用户
+      description: 读取账户及其属性。
+    query_users:
+      label: 查询用户
+      description: 列出并搜索账户。
+    create_client:
+      label: 创建客户端
+      description: 在域中注册新的客户端。
+    manage_clients:
+      label: 管理客户端
+      description: 编辑和删除现有客户端。
+    view_clients:
+      label: 查看客户端
+      description: 读取客户端配置。
+    query_clients:
+      label: 查询客户端
+      description: 列出并搜索客户端。
+    manage_roles:
+      label: 管理角色
+      description: 创建、编辑和删除角色及其权限。
+    view_roles:
+      label: 查看角色
+      description: 读取角色及其所授予的权限。
+    manage_authorization:
+      label: 管理授权
+      description: 编辑此域的授权策略。
+    view_authorization:
+      label: 查看授权
+      description: 读取此域的授权策略。
+    manage_realm:
+      label: 管理域
+      description: 编辑域设置、令牌和登录策略。
+    view_realm:
+      label: 查看域
+      description: 读取域设置。
+    query_realms:
+      label: 查询域
+      description: 列出该账户可访问的域。
+    manage_identity_providers:
+      label: 管理身份提供商
+      description: 声明、编辑和移除联合身份提供商。
+    view_identity_providers:
+      label: 查看身份提供商
+      description: 读取联合身份提供商的配置。
+    manage_events:
+      label: 管理事件
+      description: 配置事件采集与保留。
+    view_events:
+      label: 查看事件
+      description: 读取安全事件记录。
+    query_groups:
+      label: 查询组
+      description: 列出并搜索组。
+    manage_client_scopes:
+      label: 管理客户端作用域
+      description: 创建、编辑和删除作用域及其协议映射器。
+    view_client_scopes:
+      label: 查看客户端作用域
+      description: 读取作用域以及它们向令牌添加的声明。
+    query_client_scopes:
+      label: 查询客户端作用域
+      description: 列出并搜索作用域。
+    manage_webhooks:
+      label: 管理 Webhook
+      description: 声明端点并选择它们接收的事件。
+    view_webhooks:
+      label: 查看 Webhook
+      description: 读取端点配置，不含密钥。
+    query_webhooks:
+      label: 查询 Webhook
+      description: 列出并搜索端点。
+    manage_email_templates:
+      label: 管理邮件模板
+      description: 编辑此域发送的邮件，并选择使用哪一个。
+    view_email_templates:
+      label: 查看邮件模板
+      description: 读取此域发送的邮件。

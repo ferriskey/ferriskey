@@ -1,0 +1,430 @@
+# 简体中文 catalogue for the webhook screens and the trigger catalogue.
+#
+# Produced without a native reviewer — see front/src/locales/GLOSSARY.md, which fixes the domain
+# terms used here (realm → 域, credential → 凭据, trigger → 触发器, delivery → 投递, webhook left in
+# English). Entries carrying a "TRANSLATOR NOTE" are the ones the glossary lists as ambiguous *in
+# English*: their Chinese follows the English literally, defect included, and must be re-read once a
+# maintainer answers the question raised in the note.
+#
+# The keys, the {{placeholders}} and the <tags> are contract. In particular every key under
+# trigger.* is a WebhookTrigger enum value sent by the API and must never be touched.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+
+# Ratio pill shown on the overview card and on the detail header: subscribed triggers over the
+# size of the trigger catalogue. Never inflects — both numbers are raw counters.
+events_ratio: '{{selected}}/{{total}} 个事件'
+
+form:
+  general:
+    title: 常规信息
+    description: Webhook 配置。
+  name:
+    label: Webhook 名称
+    description: 用于描述此 Webhook 的名称。
+  endpoint:
+    label: 端点 URL
+    description: 将接收事件的 HTTPS URL。
+  description:
+    label: 描述
+    description: 此 Webhook 的可选描述。
+
+list:
+  title: Webhook
+  description: 接收此域事件通知的端点。
+  create: 新建 Webhook
+  search_placeholder: 按名称或端点筛选…
+  count_other: '{{count}} 个 Webhook'
+  columns:
+    name: Webhook
+    endpoint: 端点
+    subscribers: 事件
+    triggered_at: 最近触发
+  never_triggered: 从未
+  metrics:
+    total:
+      label: 总计
+      hint: 个端点
+    subscriptions:
+      label: 订阅
+      hint: '共 {{total}} 个触发器'
+    never:
+      label: 从未触发
+      hint: 尚无投递
+    silent:
+      label: 无事件
+      hint: 永远不会触发
+  alerts:
+    silent:
+      title: '{{name}} 未订阅任何事件'
+      detail: 它不含任何触发器，因此永远不会被调用。
+      action: 查看
+    insecure:
+      title: '{{name}} 通过明文 HTTP 投递'
+      detail: '{{endpoint}}：负载及其签名请求头以未加密方式传输。'
+      action: 查看
+  filters:
+    triggered: 已触发
+    silent: 无事件
+  card:
+    triggered: 已触发
+    never_triggered: 从未触发
+    # Always plural by design: the card footer shows a raw total, never a singular row.
+    footer_events: '{{total}} 个事件'
+    flags:
+      subscribed: 至少订阅了一个事件
+      triggered: 已触发
+      secure: 通过 HTTPS 投递
+  empty:
+    label: 暂无 Webhook
+    hint: Webhook 会将此域的事件通知给外部服务。
+
+create:
+  back: Webhook
+  title: 新建 Webhook
+  description: 配置一个端点以接收实时事件通知。
+  headers:
+    title: HTTP 请求头
+    description: 附加到每次外发调用的请求头。读取时绝不返回其值。
+  events:
+    title: 要订阅的事件
+    description_other: '{{total}} 个触发器中有 {{count}} 个将通知此端点。'
+    description_empty: '未选择触发器：此端点将永远不会被调用。'
+  save:
+    title: 创建 Webhook
+    description: 为此域创建一个 Webhook。
+    action: 创建
+  toast:
+    created: Webhook 创建成功
+    create_failed: 创建 Webhook 失败
+
+detail:
+  back: Webhook
+  not_found:
+    title: 未找到 Webhook
+    hint: 它可能已被删除，或属于另一个域。
+  meta:
+    last_triggered: 最近触发
+    triggered: 触发于 {{date}}
+    never: 从未触发
+    identifier: 标识符
+  tabs:
+    settings: 设置
+    events: 事件
+    deliveries: 投递
+  events:
+    title: 要订阅的事件
+    # The English keeps "notify" uninflected in its singular form; Chinese has no inflection to
+    # carry over, and the singular form itself does not exist in this catalogue.
+    description_other: '{{total}} 个触发器中有 {{count}} 个会通知此端点。'
+    description_empty: '无触发器：此端点将永远不会被调用。'
+  save:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请复核此 Webhook。
+    cancel: 放弃
+    action: 保存更改
+  toast:
+    updated: Webhook 更新成功
+    update_failed: 更新 Webhook 失败
+    deleted: Webhook 删除成功
+
+settings:
+  headers:
+    title: HTTP 请求头
+    description: 附加到每次外发调用的请求头。API 绝不返回已存储的值，因此此处不会预填任何内容。
+    note: 此列表留空将保留已存储的请求头。添加任何一项都会替换整个集合。
+  signature:
+    title: 签名
+    description: 每次投递都会签名，以便接收方能够证明该调用来自此域。
+    secret:
+      label: 签名密钥
+      description: 已存储但绝不返回。生成新密钥时只显示一次，以便将其提供给接收方。
+  retry:
+    title: 重试策略
+    description: 将字段留空以继承域设置。灰显的值即为当前生效的值。
+    inherited: 继承
+    max_attempts:
+      label: 尝试次数
+      description: 放弃前尝试的次数。介于 1 和 20 之间。
+    base_delay_ms:
+      label: 首次等待（毫秒）
+      description: 首次失败后的等待时长。之后每次翻倍。
+    max_delay_ms:
+      label: 最长等待（毫秒）
+      description: 等待时长永远不会超过此值。
+    max_total_delay_ms:
+      label: 放弃时限（毫秒）
+      description: 一次投递用于重试的总时长上限。
+  danger:
+    label: 删除此 Webhook
+    description: 其订阅将被永久移除，并且不再向此端点投递任何事件。
+    button: 删除 Webhook
+    confirm_title: 删除 Webhook
+    confirm_description: '确定要删除“{{name}}”吗？此操作无法撤销。'
+
+headers:
+  empty: 尚未配置请求头。添加请求头即可在 Webhook 请求中发送自定义 HTTP 请求头。
+  name_label: 请求头名称
+  value_label: 请求头值
+  new_name_label: 新请求头名称
+  new_value_label: 新请求头值
+  # Generic input hint, not a literal header value: translated like the surrounding labels.
+  value_placeholder: 值
+  remove: 移除请求头 {{name}}
+  add: 添加
+  add_header: 添加请求头
+  cancel: 取消
+
+secret:
+  generate: 生成新密钥
+  confirm:
+    title: 生成新的签名密钥？
+    description: 当前密钥会立即失效。任何仍使用它验证签名的接收方都会拒绝你的投递，直到你向其提供新密钥为止。
+    cancel: 取消
+    pending: 正在生成…
+    action: 生成
+  reveal:
+    title: 你的新签名密钥
+    description: 请立即复制，这是它唯一一次显示。关闭此对话框是最后的机会；之后将无法再次读取。
+    copy: 复制
+    copied: 已复制
+    done: 完成
+  toast:
+    copy_failed: 无法复制。请选中密钥并手动复制。
+    regenerate_failed: 无法生成新密钥
+
+events:
+  search_placeholder: 筛选事件…
+  selected: '已选 {{selected}}/{{total}}'
+  clear_all: 清除全部
+  no_match: '没有与“{{query}}”匹配的事件。'
+  # Lowercase on purpose in English: these two sit as inline links inside a category header row.
+  # Chinese has no case, so only the brevity is carried over.
+  select_all: 全选
+  select_none: 全不选
+
+delivery:
+  title: 投递
+  description: FerrisKey 调用此端点的每一次尝试，最新的在前。
+  error: 投递历史不可用。请稍后重试。
+  retry_failed: 无法将此投递加入队列
+  status:
+    pending: 已排队
+    delivering: 发送中
+    succeeded: 已投递
+    failed: 失败
+  filters:
+    all: 全部
+  columns:
+    status: 状态
+    event: 事件
+    attempts: 尝试次数
+    outcome: 结果
+    created_at: 时间
+  inspect: 查看详情
+  retry: 重新发送
+  # Footer aggregate of the current page only, never inflected.
+  failed_on_page: '本页有 {{total}} 次失败'
+  range: '第 {{from}}-{{to}} 项，共 {{total}} 项'
+  previous: 上一页
+  next: 下一页
+  show_all: 显示全部
+  empty:
+    all:
+      label: 尚无投递
+      hint: 此 Webhook 一旦触发，投递记录就会显示在这里。
+    filtered:
+      label: 没有符合此筛选条件的投递
+      hint: 更改筛选条件以查看其他投递。
+  dialog:
+    title: 投递
+    loading: 正在加载投递…
+    attempts_other: '{{count}} 次尝试'
+    payload: 已发送的负载
+
+# Grouping headers of the trigger picker. They group the catalogue below; they are not sent to the API.
+category:
+  client: 客户端
+  realm: 域
+  role: 角色
+  user: 用户
+  authentication: 认证
+  webhook: Webhook
+
+# Trigger catalogue, nested on the WebhookTrigger enum value the API sends, so "client.role.created"
+# reads as trigger.client.role.created. Each description tells an administrator what the event means:
+# an approximate translation makes them subscribe to the wrong thing.
+#
+# Labels follow one shape throughout — "<对象>已<动作>" — mirroring the Title Case event names of the
+# English. Descriptions render the English indefinite article as 某个/某项 so that they stay full
+# sentences and remain distinguishable from their label.
+trigger:
+  client:
+    created:
+      label: 客户端已创建
+      description: 已创建新的客户端。
+    updated:
+      label: 客户端已更新
+      description: 某个客户端已被更新。
+    deleted:
+      label: 客户端已删除
+      description: 某个客户端已被删除。
+    role:
+      created:
+        label: 客户端角色已创建
+        description: 已创建新的客户端角色。
+      updated:
+        label: 客户端角色已更新
+        description: 某个客户端角色已被更新。
+    maintenance:
+      # TRANSLATOR NOTE (glossary, unresolved in English): the copy never says what maintenance mode
+      # actually does to a client — reject authentication? read-only? The Chinese below states only
+      # that the mode was switched on, exactly as the English does, and deliberately adds no
+      # explanation. Revisit once a maintainer documents the behaviour.
+      enabled:
+        label: 客户端维护模式已启用
+        description: 某个客户端上的维护模式已被启用。
+      # TRANSLATOR NOTE: same unresolved question as .enabled above.
+      disabled:
+        label: 客户端维护模式已禁用
+        description: 某个客户端上的维护模式已被禁用。
+    saml_config:
+      # TRANSLATOR NOTE (glossary, unresolved in English): this assumes FerrisKey is the IdP and the
+      # client is the SAML service provider, which is what the English says but has not been
+      # confirmed. If the roles are the other way round, 服务提供商 must become 身份提供商 here.
+      updated:
+        label: 客户端 SAML 配置已更新
+        description: 某个客户端的 SAML 服务提供商配置已被更新。
+    saml_attribute_mapper:
+      created:
+        label: 客户端 SAML 属性映射器已创建
+        description: 已向某个客户端添加 SAML 属性映射器。
+      deleted:
+        label: 客户端 SAML 属性映射器已删除
+        description: 已从某个客户端移除 SAML 属性映射器。
+  redirect_uri:
+    created:
+      label: 重定向 URI 已创建
+      description: 已创建新的重定向 URI。
+    updated:
+      label: 重定向 URI 已更新
+      description: 某个重定向 URI 已被更新。
+    deleted:
+      label: 重定向 URI 已删除
+      description: 某个重定向 URI 已被删除。
+  web_origin:
+    # TRANSLATOR NOTE (glossary, unresolved in English): the English says "registered on a client"
+    # where the structurally identical redirect_uri.created says "has been created". The Chinese
+    # keeps that asymmetry rather than harmonising the two, so a reader sees the same oddity.
+    created:
+      label: Web 源已创建
+      description: 已在某个客户端上注册 Web 源。
+    deleted:
+      label: Web 源已删除
+      description: 已从某个客户端移除 Web 源。
+  realm:
+    created:
+      label: 域已创建
+      description: 已创建新的域。
+    updated:
+      label: 域已更新
+      description: 某个域已被更新。
+    deleted:
+      label: 域已删除
+      description: 某个域已被删除。
+    settings:
+      updated:
+        label: 域设置已更新
+        description: 域设置已被更新。
+  role:
+    created:
+      label: 角色已创建
+      description: 已创建新的角色。
+    updated:
+      label: 角色已更新
+      description: 某个角色已被更新。
+    deleted:
+      label: 角色已删除
+      description: 某个角色已被删除。
+    permission:
+      # TRANSLATOR NOTE (glossary, unresolved in English): with a bitmask permission model, "a role
+      # permission" may mean a single bit or the whole mask. 某项 below mirrors the English singular
+      # and claims nothing more; if the event actually carries the whole mask, it must become
+      # 某个角色的权限集合已被更新。
+      updated:
+        label: 角色权限已更新
+        description: 某项角色权限已被更新。
+  user:
+    created:
+      label: 用户已创建
+      description: 已创建新的用户。
+    updated:
+      label: 用户已更新
+      description: 某个用户已被更新。
+    deleted:
+      label: 用户已删除
+      description: 某个用户已被删除。
+    email_verified:
+      label: 用户邮箱已验证
+      description: 某个用户已验证其电子邮件地址。
+    # TRANSLATOR NOTE (glossary, unresolved in English): the label is singular ("User Bulk Deleted")
+    # and the description plural ("Multiple users"). Chinese marks no number, so the disagreement
+    # cannot be reproduced and simply disappears here — the English still needs fixing.
+    bulk_deleted:
+      label: 用户已批量删除
+      description: 多个用户已被删除。
+    role:
+      assigned:
+        label: 已为用户分配角色
+        description: 已为某个用户分配角色。
+      unassigned:
+        label: 已解除用户的角色分配
+        description: 已解除某个用户的角色分配。
+    credentials:
+      # TRANSLATOR NOTE (glossary, unresolved in English): "A user credentials have been deleted" is
+      # ungrammatical, and the label "User Deleted Credentials" reads as if the user were the actor.
+      # The Chinese below uses an agentless passive, which names no actor at all — the closest thing
+      # to leaving the question open — and 凭据 marks no number, so "all of them" versus "one of
+      # them" stays as undecided as in the English. Both need a maintainer's answer.
+      deleted:
+        label: 用户凭据已删除
+        description: 某个用户的凭据已被删除。
+  auth:
+    # TRANSLATOR NOTE (glossary, unresolved in English): the description does not say who reset the
+    # password — the user themselves or an administrator — and the two take different verbs in
+    # Chinese. 已被重置 below is agentless and therefore says no more than the English does.
+    # The label "Auth Reset Password" is also ungrammatical and, unlike its device_flow siblings,
+    # carries an "Auth" category prefix; 认证：密码重置 keeps that prefix rather than dropping it.
+    reset_password:
+      label: 认证：密码重置
+      description: 某个用户的密码已被重置。
+    device_flow:
+      initiated:
+        label: 设备流程已发起
+        description: 某个设备授权流程已被发起。
+      # TRANSLATOR NOTE (glossary, unresolved in English): denied by the user refusing the request,
+      # or by policy? The two take different verbs in Chinese. 已被拒绝 is agentless and names
+      # neither, which is as far as the English goes.
+      denied:
+        label: 设备流程已被拒绝
+        description: 某个设备授权流程已被拒绝。
+      expired:
+        label: 设备流程已过期
+        description: 某个设备授权流程已过期。
+  webhook:
+    created:
+      label: Webhook 已创建
+      description: 已创建新的 Webhook。
+    updated:
+      label: Webhook 已更新
+      description: 某个 Webhook 已被更新。
+    deleted:
+      label: Webhook 已删除
+      description: 某个 Webhook 已被删除。
+
+# Client-side form checks of the create and settings screens. They live in
+# src/pages/iam/realm/validators.ts, which the webhook batch did not own.
+validation:
+  name_required: Webhook 名称为必填项
+  endpoint_invalid: 端点必须是有效的 URL

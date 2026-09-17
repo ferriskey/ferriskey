@@ -1,0 +1,146 @@
+# 简体中文 catalogue for Sea Watch, the FerrisKey audit module. Batch #1371.
+# Administrator audience — the glossary terms apply directly.
+#
+# "Sea Watch" is a product name and stays in English. The event keys are the SecurityEventType enum
+# values the API sends and are never translated.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+#
+# STATUS: awaiting native review.
+page:
+  title: Sea Watch
+  # {{days}} is the width of the observation window. The screen fixes it at 7, so it never inflects.
+  description: '此域在过去 {{days}} 天内记录的安全事件，最新的排在最前。'
+
+# Labels for the SecurityEventType values the API sends, keyed on the enum value itself. The raw
+# value stays on screen in a monospace font right next to the label, so the label never has to echo
+# the identifier — it has to say what happened. These are read to reconstruct an incident: prefer the
+# literal action over a smoother phrase, and keep "failed" distinct from "not sent".
+event:
+  login_success: 登录成功
+  login_failure: 登录失败
+  password_reset: 密码已重置
+  password_reset_requested: 已请求重置密码
+  password_reset_completed: 密码重置已完成
+  user_created: 用户已创建
+  user_email_verified: 邮箱地址已验证
+  user_deleted: 用户已删除
+  role_assigned: 角色已分配
+  role_unassigned: 角色已解除分配
+  role_created: 角色已创建
+  role_removed: 角色已移除
+  client_created: 客户端已创建
+  client_deleted: 客户端已删除
+  client_secret_rotated: 客户端密钥已轮换
+  client_secret_viewed: 客户端密钥已被查看
+  realm_config_changed: 域配置已更改
+  email_not_sent: 邮件投递失败
+  email_sent: 邮件已投递
+  client_maintenance_enabled: 客户端维护模式已启用
+  client_maintenance_disabled: 客户端维护模式已禁用
+  session_created: 会话已开启
+  session_revoked: 会话已撤销
+  webhook_delivery_exhausted: Webhook 投递已放弃
+  identity_provider_link_removed: 身份提供商关联已移除
+  unknown: 无法识别的事件
+
+metrics:
+  # A raw counter rendered on its own. The "number" formatter applies the digit grouping of the
+  # active locale — do not replace it with a bare {{total}}.
+  value: '{{total, number}}'
+  total:
+    label: 事件
+    hint_capped: '已达上限，过去 {{days}} 天'
+    hint_latest: '最近一次 {{timestamp}}'
+    hint_window: '过去 {{days}} 天'
+  failures:
+    label: 失败
+    hint_none: 未记录任何失败
+  rate:
+    label: 成功率
+    value: '{{total}}%'
+    hint: '{{total, number}} 次成功'
+  actors:
+    label: 独立操作者
+    hint: '在过去 {{days}} 天内'
+
+activity:
+  title: 认证流量
+  description: '由 Compass 追踪的过去 {{days}} 天内的登录与失败次数。'
+  # The count sits in its own element so it can be rendered with tabular figures. Keep <value>
+  # around the number and nothing else.
+  logins_other: '<value>{{count}}</value> 次登录'
+  failures_other: '<value>{{count}}</value> 次失败'
+
+stream:
+  title: 事件流
+  description: 事件族由服务器应用；搜索框只在上方已加载的事件中缩小范围。
+  search_placeholder: 筛选事件流…
+  no_activity: 暂无活动
+  count_other: '{{count}} 条记录'
+  # Two raw counters side by side, neither of which inflects.
+  filtered: '{{total}} 条中的 {{shown}} 条'
+  columns:
+    event: 事件
+    status: 结果
+    actor: 操作者
+    target: 目标
+    ip_address: IP 地址
+    timestamp: 时间
+  filters:
+    all: 全部
+    failures: 失败
+    authentication: 认证
+    credentials: 凭据
+    administration: 管理
+  view:
+    list: 列表视图
+    cards: 卡片视图
+  actor:
+    unattributed: 未归属
+    unknown_type: 未知类型
+  target:
+    none: 无
+    unknown_type: 未知类型
+  ip:
+    not_recorded: 未记录
+  card:
+    no_detail: 无其他详情
+    flags:
+      actor: 已识别操作者
+      target: 已记录目标
+      origin: 已记录来源
+  aggregates:
+    events_other: '{{count}} 条事件'
+    # Never inflects: the noun it qualifies is the column header, not a word in this string.
+    failures: '{{total}} 次失败'
+    actors_other: '{{count}} 位操作者'
+  empty:
+    label: 无安全事件
+    hint: 'Sea Watch 会记录此域中每一项与安全相关的操作：登录、凭据变更以及管理操作。过去 {{days}} 天内没有记录到任何内容。'
+    filtered_label: 无匹配结果
+    filtered_hint: 没有事件与当前的搜索和筛选条件匹配。
+    clear: 清除筛选
+
+alerts:
+  unavailable:
+    title: 安全事件不可用
+    detail: 我们无法获取最新的事件。请稍后重试。
+  capped:
+    # {{limit}} is a fixed ceiling in the hundreds, so this reads as a plural in every case.
+    title: '已限制为 {{limit}} 条事件'
+    detail: '此域在过去 {{days}} 天内记录的事件多于此数；下方数据仅涵盖最近的 {{limit}} 条。'
+  failures:
+    title_other: '过去 {{days}} 天内有 {{count}} 条失败事件'
+    # {{label}} is an event label from the catalogue above; {{total}} is how many of them occurred.
+    share: '{{label}} 占其中 {{total}} 条'
+    # {{code}} is a server error code. It is never translated.
+    error_code: '多数为 {{code}}'
+    resource: '位于 {{resource}}'
+  actor:
+    unknown: 未知操作者
+    # {{actor}} is a user identifier or, failing that, the label above. It is never translated.
+    title_other: '{{actor}} — {{count}} 次失败'
+    detail_with_ip: '最后一次于 {{timestamp}} 来自 {{ip}}。'
+    detail_without_ip: '最后一次于 {{timestamp}}，来源未记录。'

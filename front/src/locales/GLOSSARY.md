@@ -51,7 +51,41 @@ standard, or stored data.
 | member | 成员 | |
 | attribute | 属性 | |
 | redirect URI | 重定向 URI | |
-| web origin | Web 来源 | |
+| web origin | Web 源 | The CORS sense. **Not** 来源, which is reserved below — the two appear on adjacent screens and meant the same word before this line existed. |
+| origin (audit) | 来源 | Where a security event came from. A different concept from `web origin`, and the console renders both. |
+| revoke | 撤销 | Sessions, tokens, consents. **Not** 吊销 (which reads as a punitive withdrawal of a licence) and never 注销 — 注销账号 means *delete the account*. One verb everywhere: a user and an administrator must be told the same action by the same word. |
+| panel | 面板 | |
+| portal | 门户 | |
+| layout | 布局 | |
+| theme | 主题 | |
+| service provider | 服务提供商 | The SAML sense. |
+| protocol mapper | 协议映射器 | |
+| token | 令牌 | access / refresh / ID / temporary → 访问令牌 / 刷新令牌 / ID 令牌 / 临时令牌. **`ID 令牌`, not 身份令牌**, even where the English says "identity token". |
+| client secret | 客户端密钥 | ⚠ "secret" and "signing key" both fall to 密钥 in natural Chinese, collapsing a distinction English keeps. Qualify: 客户端密钥 vs 签名密钥. |
+| signing key | 签名密钥 | |
+| grant | 授权类型 | ⚠ The OAuth sense. One rendering everywhere — `direct access grants` → 直接访问授权类型, `device authorization grant` → 设备授权类型. Reported as a real three-way drift on #1371; do not optimise per sentence. |
+| flow | 流程 | authorization code flow → 授权码流程, device flow → 设备流程 |
+| assertion | 断言 | The SAML sense. |
+| service account | 服务账户 | |
+| single sign-on | 单点登录 | |
+| lifetime | 有效期 | |
+| confidential / public | 机密 / 公开 | The client type. |
+| whitelist | 白名单 | |
+| application | 应用 | The CIAM panel's word for a client. Not 应用程序 — badge and column width. |
+| identity | 身份 | The CIAM panel's word for a user. |
+| account | 账户 | English contrasts *account* and *user*; collapsing both to 用户 loses "Accounts holding this role". Not 账号, not 帐户. |
+| customer | 客户 | ⚠ One character from 客户端 (`client`). Deliberate, and fragile. |
+| sign-up / registration | 注册 | |
+| journal | 事件记录 | ⚠ The four activity lists. **Not** 日志, which is taken by "Logs & events" → 日志与事件 and would make two adjacent screens share a name. |
+| endpoint | 端点 | |
+| issuer | 颁发者 | |
+| callback URL | 回调 URL | |
+| pending action | 待处理操作 | The console's wording for a `required action` (必需操作). Two different English phrases for one concept; keep both renderings until the English is unified. |
+| audience | 受众 | The OIDC `aud`. |
+| membership | 成员关系 | |
+| alias | 别名 | |
+| lockout | 锁定 | |
+| second factor / MFA | 第二因素 / 多因素认证 | |
 | audit / security event | 安全事件 | |
 | authentication flow | 认证流程 | |
 | maintenance mode | 维护模式 | |
@@ -65,8 +99,19 @@ is. Prefer plain wording over the table above wherever the English already avoid
 English *does* leak jargon — "device code charset", "WebAuthn is not supported", "Invalid OTP code" —
 translate it faithfully and flag it: the fix is a copy change in English first.
 
+**`account.yaml` — end users too.** The signed-in user's self-service area is routed inside the admin
+shell but read by the account holder, not by an operator. Same plain register as `auth.yaml`.
+
 **Every other catalogue — administrators.** The table above applies directly. An administrator
 configuring authentication needs precision more than approachability.
+
+## Second person
+
+**Drop the pronoun wherever Chinese allows it.** `会话已过期，请重新登录。` rather than
+`您的会话已过期`. Use **您** only when possession must be explicit, and never 你.
+
+This is the most visible single choice in the product and nothing fixed it before, so two catalogues
+translated by two people would have diverged on every other sentence.
 
 ## Terms whose English is itself unclear
 
@@ -86,6 +131,22 @@ answered by a maintainer before their Chinese is trusted:
 | `client.saml_config.updated` | Needs confirming FerrisKey is the IdP and the client the SP, otherwise the translation inverts the roles. |
 
 Until these are answered, their Chinese follows the English literally, defect included.
+
+## One collision the glossary cannot remove
+
+`realm` is 域, and an organization's **domain** is also 域 in ordinary Chinese. They appear together
+in `client-scope` and `organization`. Render the organization's domain as **域名** to keep them apart,
+and accept that this is a workaround rather than a clean distinction.
+
+`permission` is 权限, which leaves nothing for the English "right" / "access right". Where the source
+says "right", use **权利** and flag it — asserting 权限 would claim a link to the bitmask permission
+model that the English does not make.
+
+## SAML wire values stay in English
+
+`Entity ID`, `Assertion Consumer Service URL`, `Name ID`, `NameFormat`. The English copy itself says
+these are values the administrator copies from the application's own SAML settings page, so they are
+strings to match against a third-party UI, not prose. Translating them makes the matching harder.
 
 ## Mechanical rules
 

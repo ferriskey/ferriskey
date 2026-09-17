@@ -1,0 +1,298 @@
+# 简体中文 catalogue for identity providers. Awaiting native review.
+#
+# TRANSLATORS' NOTES
+#   - Vendor names (Google, GitHub, GitLab, Microsoft, Apple, Facebook, Discord, X/Twitter,
+#     LinkedIn) and protocol acronyms (OIDC, OAuth2, SAML, LDAP, PKCE) are never translated.
+#     "{{provider}}" is filled with the vendor name as the vendor spells it — leave it alone.
+#   - "broker" is rendered 身份代理 as a noun and 代理登录 as a verb phrase. Not in the glossary;
+#     see the report.
+#   - Chinese declares a single plural category ("other"), so the *_one forms of the English
+#     catalogue have no counterpart here on purpose.
+#   - English separates "Enabled" (sentence case) from "enabled" (pill case). Chinese has no case,
+#     so both render as 已启用. The distinction is lost by design, not by omission.
+
+# Protocol acronyms, not prose. Keep OIDC, OAuth2, SAML and LDAP verbatim in every locale.
+provider_type:
+  oidc: OIDC
+  oauth2: OAuth2
+  saml: SAML
+  ldap: LDAP
+
+state:
+  enabled: 已启用
+  disabled: 已禁用
+
+badge:
+  enabled: 已启用
+  disabled: 已禁用
+
+not_set: 未设置
+none: 无
+
+redirect_uri:
+  label: 重定向 URI
+  copy: 复制重定向 URI
+
+template_category:
+  social: 社交
+  enterprise: 企业
+  developer: 开发者工具
+  custom: 自定义
+
+template:
+  google:
+    description: 使用 Google 账户登录
+  discord:
+    description: 使用 Discord 账户登录
+  github:
+    description: 使用 GitHub 账户登录
+  microsoft:
+    description: 使用 Microsoft 和 Azure AD 登录
+  apple:
+    description: 使用 Apple ID 登录
+  facebook:
+    description: 使用 Facebook 账户登录
+  gitlab:
+    description: 使用 GitLab 账户登录
+  twitter:
+    description: 使用 X/Twitter 账户登录
+  linkedin:
+    description: 使用 LinkedIn 账户登录
+  # "Custom Provider" is FerrisKey's own wording, not a vendor name, so it is translated.
+  custom:
+    display_name: 自定义提供商
+    description: 配置自定义 OAuth2/OIDC 提供商
+
+status:
+  complete:
+    label: 完整
+    detail: 身份代理所需的每个值均已记录。
+  no_scope:
+    label: 无作用域
+    detail: 未请求任何作用域；大多数提供商会拒绝不带作用域的授权请求。
+  incomplete:
+    label: 不完整
+    # "{{keys}}" is a comma-separated list of raw API field names (client_id, token_url…) and is
+    # never translated.
+    detail_other: '代理登录将失败，配置中缺少 {{keys}}。'
+
+list:
+  title: 身份提供商
+  description: 联合到此域的外部认证源。
+  add: 添加提供商
+  search_placeholder: 按名称或别名筛选…
+  row_delete: '删除 {{name}}'
+  columns:
+    provider: 提供商
+    alias: 别名
+    type: 类型
+    configuration: 配置
+    status: 状态
+  flags:
+    enabled: 在登录页面上提供
+    trust_email: 电子邮件地址被信任为已验证
+    link_only: 仅关联到已有账户
+  metrics:
+    total:
+      label: 提供商总数
+      hint: 已配置
+    enabled:
+      label: 已启用的提供商
+      # "active" here means "in service on the login page", not the account sense of active.
+      hint: '{{percent}}% 处于活动状态'
+      empty_hint: 没有已启用的提供商
+    disabled:
+      label: 已禁用的提供商
+      hint: 在登录页面上隐藏
+    types:
+      label: 提供商类型
+      hint: 不同的协议
+  alerts:
+    broken:
+      title: '{{name}} 无法代理登录'
+      action: 修复
+    degraded:
+      title: '{{name}} 未请求任何作用域'
+      action: 检查
+  filters:
+    enabled: 已启用
+    disabled: 已禁用
+    issues: 配置有误
+  aggregates:
+    provider_count_other: '{{count}} 个提供商'
+    # Raw counter over the misconfigured rows, never inflected.
+    to_review: '{{total}} 项待检查'
+  empty:
+    label: 暂无身份提供商
+    hint: 联合一个外部提供商，让账户可以使用已有的凭据登录。
+    popular: 常用提供商
+  picker:
+    title: 添加身份提供商
+    description: 协议决定提供商必须声明哪些端点，因此需要在填写表单前先选定协议。
+    oidc:
+      description: 身份声明来自 ID 令牌，并以 userinfo 端点作为回退。
+    oauth2:
+      description: 普通的授权码流程；用户资料从 userinfo 端点读取。
+    saml:
+      description: 联合 SAML 身份提供商的功能尚未实现。
+      disabled_reason: FerrisKey 无法代理 SAML 提供商，身份代理仅支持 OAuth2 和 OIDC。
+    ldap:
+      description: 目录是用户联合源，而不是身份提供商。
+      disabled_reason: 目录在“用户联合”中配置，而不是在此处。
+  delete:
+    title: 删除提供商？
+    description: '确定要删除“{{name}}”吗？'
+    success: '提供商“{{name}}”已删除'
+    error: '删除“{{name}}”失败'
+
+create:
+  back: 身份提供商
+  title: 添加身份提供商
+  # "{{protocol}}" is an uppercased protocol acronym (OIDC, OAUTH2), taken from the URL.
+  description: '将外部 {{protocol}} 提供商连接到此域。'
+  steps:
+    provider: 提供商
+    configuration: 配置
+    review: 确认
+  templates:
+    title: 选择提供商
+    description: 模板会填好端点和作用域，只剩下您的应用凭据需要填写。
+    search_placeholder: 搜索提供商…
+    empty: '未找到与“{{query}}”匹配的提供商'
+  credentials:
+    title: '配置 {{provider}}'
+    description: 由提供商控制台签发的凭据。
+  alias:
+    label: 别名
+    description: 提供商在此域中的技术名称。它会出现在重定向 URI 中，且创建后无法更改。
+  display_name:
+    label: 显示名称
+    description: 用户在登录页面上点击的按钮的标签。
+  client_id:
+    label: 客户端 ID
+    description: '在 {{provider}} 创建的 OAuth 应用的标识符。'
+  client_secret:
+    label: 客户端密钥
+    description: 以加密方式存储；创建后不会再次显示。
+    show: 显示密钥
+    hide: 隐藏密钥
+  endpoints:
+    title: 端点
+    description_custom: '必填：对于自定义提供商，没有任何模板知道这些端点。'
+    description_template: '已根据 {{provider}} 模板预先填好，仅在使用自托管实例时才需要修改。'
+  authorization_url:
+    label: 授权 URL
+    description: 用户被引导至此地址授予同意。
+  token_url:
+    label: 令牌 URL
+    description: 在此地址用授权码换取令牌。
+  userinfo_url:
+    label: Userinfo URL
+    description_oidc: 'OIDC 中可选：声明可以来自 ID 令牌。'
+    description_oauth2: 令牌签发后，从此地址读取用户资料。
+  scopes:
+    label: 作用域
+    description: 每次授权时都会请求。
+    empty_hint: 未请求任何作用域，大多数提供商会拒绝不带作用域的授权请求。
+  review:
+    title: 确认
+    description: 将在此域中创建的内容。
+    template: 模板
+    protocol: 协议
+  actions:
+    cancel: 取消
+    back: 上一步
+    continue: 继续
+    submit: 创建提供商
+  success: 身份提供商创建成功
+  error: 无法创建该身份提供商
+
+setup:
+  title: 准备指南
+  description: 提供商一侧需要准备的内容。
+  # "{{type}}" is the raw protocol value (oidc, oauth2); the interface uppercases it in CSS.
+  provider_subtitle: '{{type}} 提供商'
+  documentation: 查看配置指南
+  redirect_uri_hint: 在 OAuth 应用中原样声明该地址。更改别名后它也会随之改变。
+  steps:
+    title: 配置步骤
+    custom:
+      console: 打开 OAuth 提供商的开发者控制台
+      application: 创建一个新的 OAuth 应用
+      credentials: 复制客户端 ID 和客户端密钥
+      redirect_uri: 将下方的重定向 URI 添加到该应用
+      urls: 填写授权 URL 和令牌 URL
+    template:
+      console: '打开 {{provider}} 开发者控制台'
+      application: 创建一个新的 OAuth 应用
+      redirect_uri: 添加下方的重定向 URI
+      credentials: 复制客户端 ID 和客户端密钥
+      paste: 将它们粘贴到表单中
+  note:
+    custom: '自定义提供商没有任何预填内容：授权 URL 和令牌 URL 需要自行填写。'
+    template: '{{provider}} 的 OAuth URL 已经填好，只缺少其控制台中的凭据。'
+  scopes:
+    title: 默认作用域
+    hint: 每次授权时都会请求。可在表单中修改。
+    empty: 无，此模板未声明任何默认作用域。
+  secret_note: 密钥在保存时会被加密，之后无法再读取，只能替换。
+
+detail:
+  back: 身份提供商
+  internal_id: 内部标识符
+  not_found:
+    title: 未找到该提供商
+    hint: 它可能已被删除，或者属于另一个域。
+  general:
+    title: 常规设置
+    description: 此提供商在域中的标识方式。
+  alias:
+    label: 别名
+    description: '提供商在此域中的唯一标识符。创建时即固定：它是已在提供商处声明的重定向 URI 的一部分，更改它会导致回调失效。'
+  display_name:
+    label: 显示名称
+    description: 用户在登录页面上点击的按钮的标签。
+  enabled:
+    label: 已启用
+    description: 用户是否可以通过此提供商进行认证。
+    choices_label: 提供商状态
+    on:
+      label: 已启用
+      description: 此提供商会出现在该域的登录页面上。
+    off:
+      label: 已禁用
+      description: 在登录页面上隐藏；已关联的账户保持关联。
+  redirect_uri_description: 在该提供商的 OAuth 应用中声明此 URL。
+  config:
+    title: 配置
+    description: 协议设置，按 API 返回的原样呈现。密钥绝不会以明文形式离开服务器。
+    secret_title: API 绝不会以明文形式返回此值。
+    empty: 未记录任何配置项，此提供商无法代理登录。
+  metadata:
+    title: 元数据
+    description: 系统信息，不可编辑。
+    provider_id: 提供商 ID
+    first_broker_flow: 首次代理流程
+    post_broker_flow: 代理后流程
+  danger:
+    label: 删除此身份提供商
+    description: 所有关联数据都将被永久移除。此操作不可撤销。
+    button: 删除提供商
+    confirm_title: 删除身份提供商
+    confirm_description: '此操作将永久删除提供商“{{name}}”及其所有关联数据。'
+  save:
+    dirty_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请先检查该提供商。
+    discard: 放弃
+    submit: 保存更改
+  update_success: 提供商更新成功
+  delete_success: 提供商删除成功
+  delete_error: 删除提供商失败
+
+validation:
+  alias_required: 别名为必填项
+  alias_format: 别名只能包含小写字母、数字和连字符
+  display_name_required: 显示名称为必填项
+  client_id_required: 客户端 ID 为必填项
+  client_secret_required: 客户端密钥为必填项
+  url_invalid: 必须是有效的 URL

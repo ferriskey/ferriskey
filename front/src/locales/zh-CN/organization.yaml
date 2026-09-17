@@ -1,0 +1,272 @@
+# 简体中文 catalogue for organizations, their members and their groups. Awaiting native review.
+#
+# TRANSLATORS' NOTES
+#   - Two senses of "domain" collide in Chinese. The tenant boundary (realm) is 域 per the
+#     glossary; the DNS / email domain of an organization is 域名. Never swap them.
+#   - "account" is rendered 账户 throughout, following the glossary's 服务账户. The glossary pins
+#     the compound but not the head noun; see the report.
+#   - Chinese declares a single plural category ("other"), so the *_one forms of the English
+#     catalogue have no counterpart here on purpose.
+#   - English separates "Enabled" (sentence case) from "enabled" (pill case). Chinese has no case,
+#     so both render as 已启用.
+
+organization:
+  # "organization_id" is the API field name, kept verbatim.
+  identifier: 'organization_id: {{id}}'
+  no_domain: 无域名
+  status:
+    enabled: 已启用
+    disabled: 已禁用
+
+member:
+  # Stands in for the display name of a service account, which has no first or last name.
+  service_account: 服务账户
+  kind:
+    service_account: 服务账户
+    user_account: 用户账户
+  status:
+    active: 活动
+    inactive: 非活动
+
+form:
+  sections:
+    definition: 定义
+    general: 常规
+    routing:
+      title: 联系方式与路由
+      description: 可选的元数据，均非必填。
+  name:
+    label: 名称
+    description: 在所有列出该组织的位置向管理员显示。
+  alias:
+    label: 别名
+    description:
+      create: 用于 URL 和查询的稳定标识符。仅允许小写字母、数字、连字符和下划线。
+      settings: 用于 URL 和查询的稳定标识符。重命名会使已经指向此处的链接失效。
+  enabled:
+    label: 已启用
+    description:
+      create: 已禁用的组织，其成员无法访问。
+      settings: 已禁用的组织会在终端用户流程中隐藏。
+  domain:
+    label: 域名
+    # "acme.com" is an example domain, not copy. Keep it verbatim.
+    description:
+      create: '与此组织关联的电子邮件域名，例如 acme.com。'
+      settings: '与此组织关联的主域名，例如 acme.com。'
+  redirect_url:
+    label: 重定向 URL
+    description: 成员完成认证后到达的地址。
+  description:
+    label: 描述
+    description: 仅管理员可见的备注。
+
+list:
+  title: 组织
+  description: 共享同一域名、同一重定向并拥有各自角色的账户集合。
+  create: 新建组织
+  search_placeholder: 按名称、别名或域名筛选…
+  count_other: '{{count}} 个组织'
+  columns:
+    name: 组织
+    alias: 别名
+    domain: 域名
+    description: 描述
+    status: 状态
+  metrics:
+    total:
+      label: 总数
+      # Bare noun under the total, the figure itself sits above it — no measure word here.
+      hint_other: 组织
+    enabled:
+      label: 已启用
+      hint: '占总数的 {{percent}}%'
+      empty_hint: 无已启用的组织
+    disabled:
+      label: 已禁用
+      hint: 在终端用户流程中隐藏
+    domain:
+      label: 已设置域名
+      hint: 已绑定电子邮件域名
+  aggregates:
+    # Footer total, never inflected — it always reads as a raw count of enabled organizations.
+    status: '{{total}} 个已启用'
+  alerts:
+    disabled:
+      title_other: '{{count}} 个组织已被禁用'
+      # "names" is the list of disabled organizations, already joined.
+      detail_other: '{{names}}，其成员无法访问。'
+      action: 检查
+  filters:
+    enabled: 已启用
+    disabled: 已禁用
+    without_domain: 无域名
+  card:
+    flags:
+      reachable: 其成员可以访问
+      domain: 已绑定电子邮件域名
+      redirect: 登录后重定向
+  empty:
+    label: 暂无组织
+    hint: 组织将同一家公司的账户聚合在一起，并拥有自己的域名和角色。
+
+create:
+  back: 组织
+  title: 新建组织
+  subtitle: 组织将同一家公司的账户聚合在一起，并拥有自己的域名和角色。
+  save_bar:
+    title: 创建组织
+    description: 该组织将在此域中创建，暂时没有任何成员。
+    submit: 创建组织
+  toast:
+    failed: 创建组织失败
+
+detail:
+  back: 组织
+  not_found:
+    title: 未找到该组织
+    description: 它可能已被删除，或者属于另一个域。
+  meta:
+    created_label: 创建时间
+    created: '创建于 {{date}}'
+    identifier_label: 标识符
+  tabs:
+    settings: 设置
+    attributes: 属性
+    members: 成员
+    groups: 组
+  save_bar:
+    title: 未保存的更改
+    description: 应用更改前请先检查该组织。
+    cancel: 放弃
+    submit: 保存更改
+  settings:
+    danger:
+      label: 删除此组织
+      description: 所有成员、属性、组和配置都将被永久移除。账户本身会被保留。
+      button: 删除组织
+      confirm_title: 删除组织
+      confirm_description: '此操作将永久删除“{{name}}”及其所有关联数据。'
+  attributes:
+    title: '属性（{{total}}）'
+    description: 此组织携带的自定义键值元数据。
+    add: 添加属性
+    columns:
+      key: 键
+      value: 值
+    key_placeholder: 键
+    value_placeholder: 值
+    save: 保存属性
+    cancel: 取消
+    edit: '编辑 {{key}}'
+    delete: '删除 {{key}}'
+    empty: 此组织未定义任何属性。
+  members:
+    add:
+      title: 添加成员
+      description: 只能选择此域中尚未成为成员的账户。
+      pick: 选择一个账户
+      search_placeholder: 搜索账户…
+      empty_hint: 尚未选择任何账户。
+      exhausted_hint: 此域中的每个账户都已是成员。
+      submit_other: '添加 {{count}} 个成员'
+    title: '成员（{{total}}）'
+    description: 归属于此组织的账户，以及它们在该组织范围内的角色。
+    search_placeholder: 搜索成员…
+    empty: 此组织暂无成员。
+    no_match: 没有成员与此搜索匹配。
+    manage_roles: 管理角色
+    manage_roles_for: '管理 {{name}} 的角色'
+    remove: 从组织中移除
+    remove_member: '移除 {{name}}'
+    confirm_remove:
+      title: 移除成员？
+      description: '要将“{{name}}”从此组织中移除吗？其在该组织范围内的角色将被撤销。此操作不会删除该用户。'
+
+member_roles:
+  title: 管理角色
+  title_for: '管理角色 — {{username}}'
+  description: 为该成员分配在此组织范围内生效的域角色或客户端角色。这些角色会在组织上下文中出现在该成员的令牌里。
+  search_placeholder: 搜索并分配角色…
+  empty: 未找到角色。
+
+groups:
+  tree:
+    new_placeholder: 新建顶级组
+    add: 添加
+    loading: 加载中…
+    empty: 暂无组。
+    # Screen-reader label of the chevron that folds a branch of the tree.
+    toggle: 展开或折叠
+    add_child: 添加子组
+    delete: 删除组
+  no_selection: 选择一个组以管理其成员、角色和属性。
+  tabs:
+    members: 成员
+    roles: 角色映射
+    attributes: 属性
+    subgroups: 子组
+  members:
+    title: '成员（{{total}}）'
+    search_placeholder: 搜索成员…
+    loading: 加载中…
+    no_match: 没有成员与当前搜索匹配。
+    empty: 没有直接成员。
+    remove: 移除成员
+    status:
+      enabled: 已启用
+      disabled: 已禁用
+    pagination:
+      range: '{{from}}-{{to}}，共 {{total}}'
+      previous: 上一页
+      next: 下一页
+    add:
+      trigger: 添加成员
+      title: 添加成员
+      columns:
+        username: 用户
+        name: 姓名
+      search_placeholder: 搜索用户…
+      cancel: 取消
+      submit: 添加
+      # Same button once accounts are ticked, the figure is the selection size.
+      submit_count: '添加（{{total}}）'
+      added_other: '已添加 {{count}} 个成员'
+      failed_other: '{{count}} 个成员添加失败'
+  roles:
+    description: 在此处分配的角色会被该组及其子组的成员继承。
+    search_placeholder: 搜索并分配角色…
+    empty: 未找到角色。
+  attributes:
+    columns:
+      key: 键
+      value: 值
+    empty: 暂无属性。
+    key_placeholder: 键
+    value_placeholder: 值
+    add: 添加
+  subgroups:
+    name_placeholder: 新子组的名称
+    add: 添加
+    empty: 暂无子组。
+    # Number of sub-groups a child carries, shown right after its name.
+    child_count: '（{{total}}）'
+  create:
+    title: 添加子组
+    description: '在“{{name}}”下创建一个子组。'
+    description_unknown: 创建一个子组。
+    name_placeholder: 子组名称
+    cancel: 取消
+    submit: 创建
+  delete:
+    title: 删除组
+    description: '要删除组“{{name}}”及其所有子组吗？此操作无法撤销。'
+    cancel: 取消
+    submit: 删除
+
+validation:
+  name_required: 名称为必填项
+  alias_required: 别名为必填项
+  alias_pattern:
+    create: 仅允许小写字母、数字、连字符和下划线
+    settings: 别名只能包含小写字母、数字、连字符或下划线

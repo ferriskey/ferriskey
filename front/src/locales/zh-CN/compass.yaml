@@ -1,0 +1,142 @@
+# 简体中文 catalogue for Compass, the FerrisKey authentication-tracing module. Batch #1371.
+# Administrator audience — the glossary terms apply directly.
+#
+# "Compass" is a product name and stays in English. The step keys are the FlowStepName enum values
+# the API sends and are never translated.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+#
+# STATUS: awaiting native review.
+page:
+  title: Compass
+  description: 此域中认证流程执行过程的追踪记录。
+
+# Labels and descriptions for the FlowStepName values the API sends, keyed on the enum value itself.
+# The raw value stays on screen in a monospace font next to the label. The description is read while
+# diagnosing a failed sign-in, so keep it factual and in the past tense — it states what the step
+# did, not what it is for. "AuthnRequest" is the SAML element name and stays as spelled.
+step:
+  authorize:
+    label: 授权请求
+    description: 客户端向此域请求了授权码。
+  credential_validation:
+    label: 凭据校验
+    description: 已将提交的密钥与存储的凭据进行比对。
+  mfa_challenge:
+    label: 第二因素
+    description: 在签发任何令牌之前，已请求并验证了第二因素。
+  token_exchange:
+    label: 令牌交换
+    description: 已用授权码或刷新令牌换取了访问令牌。
+  idp_redirect:
+    label: 重定向至提供商
+    description: 浏览器已移交给外部身份提供商。
+  idp_callback:
+    label: 提供商回调
+    description: 外部提供商已将浏览器连同其响应送回。
+  finalize:
+    label: 会话已开启
+    description: 已持久化会话，并将令牌返回给客户端。
+  saml_authn_request:
+    label: SAML AuthnRequest
+    description: 已解析服务提供商的请求并校验了它的签名。
+  saml_assertion:
+    label: SAML 断言
+    description: 已构建签名断言并回传给服务提供商。
+
+# Rendered in a badge next to a progress bar, so keep them short. "ms" and "s" are the SI symbols.
+duration:
+  milliseconds: '{{value}} ms'
+  seconds: '{{value}} s'
+
+list:
+  search_hint: 筛选条件由服务器应用；搜索框只在上方已加载的执行记录中缩小范围。
+  search_placeholder: 按 id、客户端或用户筛选…
+  columns:
+    started_at: 开始时间
+    grant_type: 授权类型
+    status: 结果
+    client_id: 客户端
+    user_id: 用户
+    steps: 步骤
+    duration: 耗时
+  client:
+    unresolved: 未解析
+  user:
+    never_identified: 从未识别
+  card:
+    unresolved_client: 未解析的客户端
+    flags:
+      user: 已识别用户
+      completed: 执行已完成
+      no_failure: 无失败步骤
+  metrics:
+    total:
+      label: 执行次数
+      hint: 在此域中记录
+    success:
+      label: 成功
+      hint: '占总数的 {{rate}}%'
+      hint_none: 未记录任何执行
+    failure:
+      label: 失败
+      hint: 有步骤失败
+    duration:
+      label: 平均耗时
+      hint: 已完成的执行
+  filters:
+    failed: 失败
+    unfinished: 未完成
+    anonymous: 无用户
+  aggregates:
+    executions_other: '{{count}} 次执行'
+    # Never inflects: the noun it qualifies is the column header, not a word in this string.
+    unfinished: '{{total}} 次未完成'
+  alerts:
+    unavailable:
+      title: 流程不可用
+      detail: 我们无法获取最新的流程。请稍后重试。
+    failed:
+      title_other: '{{count}} 次执行失败'
+      # {{step}} is a step label from the catalogue above; {{total}} is how many executions failed there.
+      detail: '{{step}} 占其中 {{total}} 次。'
+      no_step: 未记录失败步骤
+    expired:
+      title_other: '{{count}} 次执行已过期'
+      detail: 已转到外部提供商后再未返回，没有任何步骤失败。
+  empty:
+    label: 未记录任何执行
+    hint: Compass 会记录针对此域发起的每一次认证尝试。
+
+detail:
+  back: Compass
+  not_found:
+    title: 未找到该执行记录
+    detail: 它可能已随域的保留策略被清除，也可能属于另一个域。
+  failure:
+    title: '在 {{step}} 步骤失败'
+  expired: 此次执行从未返回。没有任何步骤失败，用户只是没有回来，因此既没有记录结束时间，也没有记录耗时。
+  meta:
+    started: 开始时间
+    completed: 完成时间
+    client: 客户端
+    user: 用户
+    in_progress: 进行中
+    never: 从未
+    unresolved: 未解析
+    never_identified: 从未识别
+  steps:
+    title: 步骤
+    description_other: '已记录 {{count}} 个步骤，累计处理耗时 {{duration}}，不含等待用户的时间。'
+    empty: 此次执行未记录任何步骤。
+    skipped: 不适用于此次执行。
+    waiting: 正在等待下一个步骤…
+  origin:
+    title: 来源
+    grant_type: 授权类型
+    ip_address: IP 地址
+    # "User-Agent" is an HTTP header name — left in English per the glossary's "never translated"
+    # rule. REVIEW: a native reader may prefer 用户代理, which Chrome's Chinese UI uses.
+    user_agent: User agent
+    not_recorded: 未记录

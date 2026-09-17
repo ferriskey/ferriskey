@@ -12,6 +12,7 @@ const outOfScopeForTranslation = [
   'src/lib/builder-portal/**',
   'src/pages/iam/portal/**',
   'src/pages/iam/email-template/**',
+  'src/api/portal-theme.api.tsx',
   '**/*.test.{ts,tsx}',
   '**/*.spec.{ts,tsx}',
 ]
@@ -108,7 +109,7 @@ export default tseslint.config(
     },
     rules: {
       'i18next/no-literal-string': [
-        'warn',
+        'error',
         {
           framework: 'react',
           mode: 'jsx-only',

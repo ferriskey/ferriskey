@@ -1,0 +1,128 @@
+# 简体中文 catalogue for the realm overview dashboard.
+#
+# Produced without a native reviewer — pending native review. Lines marked with a TRANSLATOR note
+# are the ones where a reviewer's judgement matters most.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+header:
+  greeting: 欢迎回来，{{name}} 👋
+  realm: '{{realm}} 域'
+
+metrics:
+  users:
+    label: 用户
+    hint: '{{percent}}% 已验证邮箱'
+    empty_hint: 暂无用户
+  clients:
+    label: 客户端
+    # Raw count of enabled clients, never inflected — the label that follows stays "active".
+    hint: '{{active}} 个已启用'
+    empty_hint: 暂无客户端
+  roles:
+    label: 角色
+    hint: 权限与策略
+  flows:
+    label: 认证流程
+    hint: '{{percent}}% 成功'
+    empty_hint: 暂无追踪记录
+
+alerts:
+  failed_flows:
+    title_other: '{{count}} 个认证流程失败'
+    detail: 在 {{total}} 个已追踪的流程中，有 {{failed}} 个从未签发令牌。
+    action: 检查
+  disabled_clients:
+    title_other: '{{count}} 个客户端已禁用'
+    detail_other: '{{names}}：没有账户能够通过它们进行认证。'
+    action: 查看
+  unverified_users:
+    title_other: '{{count}} 个账户的邮箱未验证'
+    detail: 此域要求验证邮箱，因此这些账户仍处于未完成状态。
+    action: 查看
+  compass_off:
+    title: Compass 追踪已关闭
+    detail: 认证流程不会被记录，因此本页面没有可展示的活动。
+    action: 启用
+
+activity:
+  title: 认证活动
+  description: 最近 {{days}} 天记录的登录与失败。
+  # Always plural by design: the chart legend shows a window total, never a singular row.
+  logins: <num>{{total}}</num> 次登录
+  failures: <num>{{total}}</num> 次失败
+  empty: 此时间范围内未记录任何认证流程。
+  empty_compass_off: Compass 追踪已关闭，此域不会记录任何活动。
+
+capabilities:
+  title: 功能
+  description: 此域向其账户开放的认证功能。
+  ratio: '{{enabled}}/{{total}}'
+  state:
+    enabled: 开启
+    disabled: 关闭
+  passkey:
+    label: 通行密钥
+    description: WebAuthn 无密码登录
+  magic_link:
+    label: 魔法链接
+    description: 基于邮件的登录
+  registration:
+    label: 自助注册
+    description: 公开注册
+  forgot_password:
+    label: 密码重置
+    description: 忘记密码流程
+  remember_me:
+    label: 记住我
+    description: 持久会话
+  compass:
+    label: Compass 追踪
+    description: 认证流程分析
+
+events:
+  title: 最近的认证流程
+  description: Compass 为此域记录的最新追踪。
+  link: Compass
+  empty: 尚未追踪到任何流程。
+  empty_compass_off: Compass 追踪已关闭，此域不会追踪任何流程。
+  columns:
+    status: 状态
+    # TRANSLATOR: "Grant" is the OAuth2 grant type of the traced flow, not a verb. Rendered as
+    # 授权类型 to remove the ambiguity the English column header carries.
+    grant: 授权类型
+    client: 客户端
+    account: 账户
+    duration: 时长
+    started: 开始时间
+  no_client: 无客户端
+  not_identified: 未识别
+  not_measured: 未测量
+  duration:
+    milliseconds: '{{value}} ms'
+    seconds: '{{value}} s'
+
+# Keyed by the flow status the API returns. Translate the label, never the key.
+event_status:
+  # TRANSLATOR: "pending" is read as "the flow started and has not concluded yet" (hence 进行中),
+  # not as "waiting for an operator to act" (待处理). Confirm against the API semantics.
+  pending: 进行中
+  success: 成功
+  failure: 失败
+  expired: 已过期
+
+quick_links:
+  title: 开始使用
+  description: 进入此域的某个工作区。
+  users:
+    label: 用户
+    description: 邀请、编辑和审计账户
+  clients:
+    label: 客户端
+    description: 配置 OAuth 应用
+  roles:
+    label: 角色
+    description: 定义权限
+  compass:
+    label: Compass
+    description: 追踪认证流程
