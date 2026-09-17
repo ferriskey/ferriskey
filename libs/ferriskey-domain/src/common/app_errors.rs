@@ -372,6 +372,135 @@ pub enum CoreError {
     PasswordPolicyViolation(String),
 }
 
+impl CoreError {
+    pub fn reason(&self) -> &'static str {
+        match self {
+            CoreError::NotFound => "not_found",
+            CoreError::AlreadyExists => "already_exists",
+            CoreError::EmailAlreadyExists => "email_already_exists",
+            CoreError::UsernameAlreadyExists => "username_already_exists",
+            CoreError::Invalid => "invalid",
+            CoreError::InvalidRequiredAction(_) => "invalid_required_action",
+            CoreError::Forbidden(_) => "forbidden",
+            CoreError::InternalServerError => "internal_server_error",
+            CoreError::RedirectUriNotFound => "redirect_uri_not_found",
+            CoreError::InvalidRedirectUri => "invalid_redirect_uri",
+            CoreError::WebOriginNotFound => "web_origin_not_found",
+            CoreError::InvalidWebOrigin(_) => "invalid_web_origin",
+            CoreError::SamlConfigNotFound => "saml_config_not_found",
+            CoreError::InvalidSamlConfig(_) => "invalid_saml_config",
+            CoreError::SamlAttributeMapperNotFound => "saml_attribute_mapper_not_found",
+            CoreError::InvalidSamlAttributeMapper(_) => "invalid_saml_attribute_mapper",
+            CoreError::InvalidClient => "invalid_client",
+            CoreError::InvalidRealm => "invalid_realm",
+            CoreError::RealmAlreadyExists(_) => "realm_already_exists",
+            CoreError::InvalidUser => "invalid_user",
+            CoreError::InvalidPassword => "invalid_password",
+            CoreError::InvalidState => "invalid_state",
+            CoreError::InvalidRefreshToken => "invalid_refresh_token",
+            CoreError::SessionRevoked => "session_revoked",
+            CoreError::InvalidGrant(_) => "invalid_grant",
+            CoreError::InvalidClientSecret => "invalid_client_secret",
+            CoreError::InvalidRequest => "invalid_request",
+            CoreError::InvalidCredentials => "invalid_credentials",
+            CoreError::ServiceAccountNotFound => "service_account_not_found",
+            CoreError::HashPasswordError(_) => "hash_password_error",
+            CoreError::VerifyPasswordError(_) => "verify_password_error",
+            CoreError::DeletePasswordCredentialError => "delete_password_credential_error",
+            CoreError::CreateCredentialError => "create_credential_error",
+            CoreError::GetPasswordCredentialError => "get_password_credential_error",
+            CoreError::GetUserCredentialsError => "get_user_credentials_error",
+            CoreError::DeleteCredentialError => "delete_credential_error",
+            CoreError::TokenGenerationError(_) => "token_generation_error",
+            CoreError::TokenValidationError(_) => "token_validation_error",
+            CoreError::TokenParsingError(_) => "token_parsing_error",
+            CoreError::TokenExpirationError(_) => "token_expiration_error",
+            CoreError::RealmKeyNotFound => "realm_key_not_found",
+            CoreError::InvalidToken => "invalid_token",
+            CoreError::ExpiredToken => "expired_token",
+            CoreError::InvalidKey(_) => "invalid_key",
+            CoreError::SessionNotFound => "session_not_found",
+            CoreError::SessionExpired => "session_expired",
+            CoreError::InvalidSession => "invalid_session",
+            CoreError::SessionCreateError => "session_create_error",
+            CoreError::SessionDeleteError => "session_delete_error",
+            CoreError::InvalidTotpSecretFormat => "invalid_totp_secret_format",
+            CoreError::TotpGenerationFailed(_) => "totp_generation_failed",
+            CoreError::TotpVerificationFailed(_) => "totp_verification_failed",
+            CoreError::RecoveryCodeGenError(_) => "recovery_code_gen_error",
+            CoreError::RecoveryCodeBurnError(_) => "recovery_code_burn_error",
+            CoreError::CannotDeleteMasterRealm => "cannot_delete_master_realm",
+            CoreError::WebhookNotFound => "webhook_not_found",
+            CoreError::WebhookForbidden => "webhook_forbidden",
+            CoreError::FailedWebhookNotification(_) => "failed_webhook_notification",
+            CoreError::WebhookRealmNotFound => "webhook_realm_not_found",
+            CoreError::InvalidWebhookEndpoint(_) => "invalid_webhook_endpoint",
+            CoreError::InvalidWebhookRetryPolicy(_) => "invalid_webhook_retry_policy",
+            CoreError::WebhookDeliveryNotFound => "webhook_delivery_not_found",
+            CoreError::WebhookDeliveryNotReplayable => "webhook_delivery_not_replayable",
+            CoreError::CreateClientError => "create_client_error",
+            CoreError::ClientIdAlreadyExists(_) => "client_id_already_exists",
+            CoreError::ServiceUnavailable(_) => "service_unavailable",
+            CoreError::AuthorizationCodeStorageFailed => "authorization_code_storage_failed",
+            CoreError::ProtocolNotSupported(_) => "protocol_not_supported",
+            CoreError::WebAuthnMissingChallenge => "webauthn_missing_challenge",
+            CoreError::WebAuthnCredentialNotFound => "webauthn_credential_not_found",
+            CoreError::WebAuthnChallengeFailed => "webauthn_challenge_failed",
+            CoreError::MagicLinkNotEnabled => "magic_link_not_enabled",
+            CoreError::InvalidMagicLink => "invalid_magic_link",
+            CoreError::MagicLinkExpired => "magic_link_expired",
+            CoreError::MagicLinkAlreadyUsed => "magic_link_already_used",
+            CoreError::ProviderNotFound => "provider_not_found",
+            CoreError::ProviderNameAlreadyExists => "provider_name_already_exists",
+            CoreError::InvalidProviderConfiguration(_) => "invalid_provider_configuration",
+            CoreError::ProviderDisabled => "provider_disabled",
+            CoreError::InvalidProviderUrl => "invalid_provider_url",
+            CoreError::External(_) => "external",
+            CoreError::Database(_) => "database",
+            CoreError::Configuration(_) => "configuration",
+            CoreError::FederationAuthenticationFailed(_) => "federation_authentication_failed",
+            CoreError::BrokerSessionNotFound => "broker_session_not_found",
+            CoreError::BrokerSessionExpired => "broker_session_expired",
+            CoreError::InvalidBrokerState => "invalid_broker_state",
+            CoreError::IdpTokenExchangeFailed(_) => "idp_token_exchange_failed",
+            CoreError::IdpUserInfoFailed(_) => "idp_user_info_failed",
+            CoreError::IdpAuthenticationFailed(_) => "idp_authentication_failed",
+            CoreError::UserLinkingFailed(_) => "user_linking_failed",
+            CoreError::LinkOnlyUserNotFound => "link_only_user_not_found",
+            CoreError::LinkNotFound => "link_not_found",
+            CoreError::InvalidIdToken => "invalid_id_token",
+            CoreError::MissingAuthorizationCode => "missing_authorization_code",
+            CoreError::InvalidAuthorizationCode => "invalid_authorization_code",
+            CoreError::PkceRequired => "pkce_required",
+            CoreError::InvalidCodeVerifier => "invalid_code_verifier",
+            CoreError::CodeChallengeMissing => "code_challenge_missing",
+            CoreError::CodeVerifierMissing => "code_verifier_missing",
+            CoreError::UserNotFound => "user_not_found",
+            CoreError::ClientNotFound => "client_not_found",
+            CoreError::HintsNotFound => "hints_not_found",
+            CoreError::InvalidScope(_) => "invalid_scope",
+            CoreError::UserDisabled => "user_disabled",
+            CoreError::AccountLocked => "account_locked",
+            CoreError::ClientUnderMaintenance(_) => "client_under_maintenance",
+            CoreError::EmailTemplateNotFound => "email_template_not_found",
+            CoreError::NoActiveEmailTemplate(_) => "no_active_email_template",
+            CoreError::InvalidEmailTemplateStructure(_) => "invalid_email_template_structure",
+            CoreError::EmailTemplateRenderError(_) => "email_template_render_error",
+            CoreError::InvalidOrExpiredToken => "invalid_or_expired_token",
+            CoreError::EmailVerificationTemplateNotConfigured => {
+                "email_verification_template_not_configured"
+            }
+            CoreError::PortalThemePageInvalid(_) => "portal_theme_page_invalid",
+            CoreError::PortalThemeInvalidForActivation(_) => "portal_theme_invalid_for_activation",
+            CoreError::PortalThemeActive => "portal_theme_active",
+            CoreError::PortalLayoutDefault => "portal_layout_default",
+            CoreError::PortalLayoutInUse => "portal_layout_in_use",
+            CoreError::PortalLayoutInvalidTree(_) => "portal_layout_invalid_tree",
+            CoreError::PasswordPolicyViolation(_) => "password_policy_violation",
+        }
+    }
+}
+
 impl From<AuthenticationError> for CoreError {
     fn from(err: AuthenticationError) -> Self {
         match err {
@@ -388,5 +517,345 @@ impl From<AuthenticationError> for CoreError {
             AuthenticationError::InvalidClientSecret => CoreError::InvalidClientSecret,
             AuthenticationError::InvalidRequest => CoreError::InvalidRequest,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CoreError;
+    use std::collections::HashMap;
+
+    fn every_variant_with_expected_reason() -> Vec<(CoreError, &'static str)> {
+        let payload = String::new();
+        vec![
+            (CoreError::NotFound, "not_found"),
+            (CoreError::AlreadyExists, "already_exists"),
+            (CoreError::EmailAlreadyExists, "email_already_exists"),
+            (CoreError::UsernameAlreadyExists, "username_already_exists"),
+            (CoreError::Invalid, "invalid"),
+            (
+                CoreError::InvalidRequiredAction(payload.clone()),
+                "invalid_required_action",
+            ),
+            (CoreError::Forbidden(payload.clone()), "forbidden"),
+            (CoreError::InternalServerError, "internal_server_error"),
+            (CoreError::RedirectUriNotFound, "redirect_uri_not_found"),
+            (CoreError::InvalidRedirectUri, "invalid_redirect_uri"),
+            (CoreError::WebOriginNotFound, "web_origin_not_found"),
+            (
+                CoreError::InvalidWebOrigin(payload.clone()),
+                "invalid_web_origin",
+            ),
+            (CoreError::SamlConfigNotFound, "saml_config_not_found"),
+            (
+                CoreError::InvalidSamlConfig(payload.clone()),
+                "invalid_saml_config",
+            ),
+            (
+                CoreError::SamlAttributeMapperNotFound,
+                "saml_attribute_mapper_not_found",
+            ),
+            (
+                CoreError::InvalidSamlAttributeMapper(payload.clone()),
+                "invalid_saml_attribute_mapper",
+            ),
+            (CoreError::InvalidClient, "invalid_client"),
+            (CoreError::InvalidRealm, "invalid_realm"),
+            (
+                CoreError::RealmAlreadyExists(payload.clone()),
+                "realm_already_exists",
+            ),
+            (CoreError::InvalidUser, "invalid_user"),
+            (CoreError::InvalidPassword, "invalid_password"),
+            (CoreError::InvalidState, "invalid_state"),
+            (CoreError::InvalidRefreshToken, "invalid_refresh_token"),
+            (CoreError::SessionRevoked, "session_revoked"),
+            (CoreError::InvalidGrant(payload.clone()), "invalid_grant"),
+            (CoreError::InvalidClientSecret, "invalid_client_secret"),
+            (CoreError::InvalidRequest, "invalid_request"),
+            (CoreError::InvalidCredentials, "invalid_credentials"),
+            (
+                CoreError::ServiceAccountNotFound,
+                "service_account_not_found",
+            ),
+            (
+                CoreError::HashPasswordError(payload.clone()),
+                "hash_password_error",
+            ),
+            (
+                CoreError::VerifyPasswordError(payload.clone()),
+                "verify_password_error",
+            ),
+            (
+                CoreError::DeletePasswordCredentialError,
+                "delete_password_credential_error",
+            ),
+            (CoreError::CreateCredentialError, "create_credential_error"),
+            (
+                CoreError::GetPasswordCredentialError,
+                "get_password_credential_error",
+            ),
+            (
+                CoreError::GetUserCredentialsError,
+                "get_user_credentials_error",
+            ),
+            (CoreError::DeleteCredentialError, "delete_credential_error"),
+            (
+                CoreError::TokenGenerationError(payload.clone()),
+                "token_generation_error",
+            ),
+            (
+                CoreError::TokenValidationError(payload.clone()),
+                "token_validation_error",
+            ),
+            (
+                CoreError::TokenParsingError(payload.clone()),
+                "token_parsing_error",
+            ),
+            (
+                CoreError::TokenExpirationError(payload.clone()),
+                "token_expiration_error",
+            ),
+            (CoreError::RealmKeyNotFound, "realm_key_not_found"),
+            (CoreError::InvalidToken, "invalid_token"),
+            (CoreError::ExpiredToken, "expired_token"),
+            (CoreError::InvalidKey(payload.clone()), "invalid_key"),
+            (CoreError::SessionNotFound, "session_not_found"),
+            (CoreError::SessionExpired, "session_expired"),
+            (CoreError::InvalidSession, "invalid_session"),
+            (CoreError::SessionCreateError, "session_create_error"),
+            (CoreError::SessionDeleteError, "session_delete_error"),
+            (
+                CoreError::InvalidTotpSecretFormat,
+                "invalid_totp_secret_format",
+            ),
+            (
+                CoreError::TotpGenerationFailed(payload.clone()),
+                "totp_generation_failed",
+            ),
+            (
+                CoreError::TotpVerificationFailed(payload.clone()),
+                "totp_verification_failed",
+            ),
+            (
+                CoreError::RecoveryCodeGenError(payload.clone()),
+                "recovery_code_gen_error",
+            ),
+            (
+                CoreError::RecoveryCodeBurnError(payload.clone()),
+                "recovery_code_burn_error",
+            ),
+            (
+                CoreError::CannotDeleteMasterRealm,
+                "cannot_delete_master_realm",
+            ),
+            (CoreError::WebhookNotFound, "webhook_not_found"),
+            (CoreError::WebhookForbidden, "webhook_forbidden"),
+            (
+                CoreError::FailedWebhookNotification(payload.clone()),
+                "failed_webhook_notification",
+            ),
+            (CoreError::WebhookRealmNotFound, "webhook_realm_not_found"),
+            (
+                CoreError::InvalidWebhookEndpoint(payload.clone()),
+                "invalid_webhook_endpoint",
+            ),
+            (
+                CoreError::InvalidWebhookRetryPolicy(payload.clone()),
+                "invalid_webhook_retry_policy",
+            ),
+            (
+                CoreError::WebhookDeliveryNotFound,
+                "webhook_delivery_not_found",
+            ),
+            (
+                CoreError::WebhookDeliveryNotReplayable,
+                "webhook_delivery_not_replayable",
+            ),
+            (CoreError::CreateClientError, "create_client_error"),
+            (
+                CoreError::ClientIdAlreadyExists(payload.clone()),
+                "client_id_already_exists",
+            ),
+            (
+                CoreError::ServiceUnavailable(payload.clone()),
+                "service_unavailable",
+            ),
+            (
+                CoreError::AuthorizationCodeStorageFailed,
+                "authorization_code_storage_failed",
+            ),
+            (
+                CoreError::ProtocolNotSupported(payload.clone()),
+                "protocol_not_supported",
+            ),
+            (
+                CoreError::WebAuthnMissingChallenge,
+                "webauthn_missing_challenge",
+            ),
+            (
+                CoreError::WebAuthnCredentialNotFound,
+                "webauthn_credential_not_found",
+            ),
+            (
+                CoreError::WebAuthnChallengeFailed,
+                "webauthn_challenge_failed",
+            ),
+            (CoreError::MagicLinkNotEnabled, "magic_link_not_enabled"),
+            (CoreError::InvalidMagicLink, "invalid_magic_link"),
+            (CoreError::MagicLinkExpired, "magic_link_expired"),
+            (CoreError::MagicLinkAlreadyUsed, "magic_link_already_used"),
+            (CoreError::ProviderNotFound, "provider_not_found"),
+            (
+                CoreError::ProviderNameAlreadyExists,
+                "provider_name_already_exists",
+            ),
+            (
+                CoreError::InvalidProviderConfiguration(payload.clone()),
+                "invalid_provider_configuration",
+            ),
+            (CoreError::ProviderDisabled, "provider_disabled"),
+            (CoreError::InvalidProviderUrl, "invalid_provider_url"),
+            (CoreError::External(payload.clone()), "external"),
+            (CoreError::Database(payload.clone()), "database"),
+            (CoreError::Configuration(payload.clone()), "configuration"),
+            (
+                CoreError::FederationAuthenticationFailed(payload.clone()),
+                "federation_authentication_failed",
+            ),
+            (CoreError::BrokerSessionNotFound, "broker_session_not_found"),
+            (CoreError::BrokerSessionExpired, "broker_session_expired"),
+            (CoreError::InvalidBrokerState, "invalid_broker_state"),
+            (
+                CoreError::IdpTokenExchangeFailed(payload.clone()),
+                "idp_token_exchange_failed",
+            ),
+            (
+                CoreError::IdpUserInfoFailed(payload.clone()),
+                "idp_user_info_failed",
+            ),
+            (
+                CoreError::IdpAuthenticationFailed(payload.clone()),
+                "idp_authentication_failed",
+            ),
+            (
+                CoreError::UserLinkingFailed(payload.clone()),
+                "user_linking_failed",
+            ),
+            (CoreError::LinkOnlyUserNotFound, "link_only_user_not_found"),
+            (CoreError::LinkNotFound, "link_not_found"),
+            (CoreError::InvalidIdToken, "invalid_id_token"),
+            (
+                CoreError::MissingAuthorizationCode,
+                "missing_authorization_code",
+            ),
+            (
+                CoreError::InvalidAuthorizationCode,
+                "invalid_authorization_code",
+            ),
+            (CoreError::PkceRequired, "pkce_required"),
+            (CoreError::InvalidCodeVerifier, "invalid_code_verifier"),
+            (CoreError::CodeChallengeMissing, "code_challenge_missing"),
+            (CoreError::CodeVerifierMissing, "code_verifier_missing"),
+            (CoreError::UserNotFound, "user_not_found"),
+            (CoreError::ClientNotFound, "client_not_found"),
+            (CoreError::HintsNotFound, "hints_not_found"),
+            (CoreError::InvalidScope(payload.clone()), "invalid_scope"),
+            (CoreError::UserDisabled, "user_disabled"),
+            (CoreError::AccountLocked, "account_locked"),
+            (
+                CoreError::ClientUnderMaintenance(payload.clone()),
+                "client_under_maintenance",
+            ),
+            (CoreError::EmailTemplateNotFound, "email_template_not_found"),
+            (
+                CoreError::NoActiveEmailTemplate(payload.clone()),
+                "no_active_email_template",
+            ),
+            (
+                CoreError::InvalidEmailTemplateStructure(payload.clone()),
+                "invalid_email_template_structure",
+            ),
+            (
+                CoreError::EmailTemplateRenderError(payload.clone()),
+                "email_template_render_error",
+            ),
+            (CoreError::InvalidOrExpiredToken, "invalid_or_expired_token"),
+            (
+                CoreError::EmailVerificationTemplateNotConfigured,
+                "email_verification_template_not_configured",
+            ),
+            (
+                CoreError::PortalThemePageInvalid(payload.clone()),
+                "portal_theme_page_invalid",
+            ),
+            (
+                CoreError::PortalThemeInvalidForActivation(payload.clone()),
+                "portal_theme_invalid_for_activation",
+            ),
+            (CoreError::PortalThemeActive, "portal_theme_active"),
+            (CoreError::PortalLayoutDefault, "portal_layout_default"),
+            (CoreError::PortalLayoutInUse, "portal_layout_in_use"),
+            (
+                CoreError::PortalLayoutInvalidTree(payload.clone()),
+                "portal_layout_invalid_tree",
+            ),
+            (
+                CoreError::PasswordPolicyViolation(payload),
+                "password_policy_violation",
+            ),
+        ]
+    }
+
+    #[test]
+    fn reason_codes_are_stable() {
+        for (error, expected) in every_variant_with_expected_reason() {
+            assert_eq!(
+                error.reason(),
+                expected,
+                "reason code changed for {error:?}; these codes are part of the public API contract"
+            );
+        }
+    }
+
+    #[test]
+    fn reason_codes_are_unique() {
+        let mut seen: HashMap<&'static str, String> = HashMap::new();
+
+        for (error, _) in every_variant_with_expected_reason() {
+            let label = format!("{error:?}");
+            if let Some(previous) = seen.insert(error.reason(), label.clone()) {
+                panic!(
+                    "reason code {} is shared by {previous} and {label}",
+                    error.reason()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reason_codes_cover_every_variant() {
+        assert_eq!(every_variant_with_expected_reason().len(), 120);
+    }
+
+    #[test]
+    fn conflicting_writes_are_told_apart_by_their_reason() {
+        let codes = [
+            CoreError::AlreadyExists.reason(),
+            CoreError::EmailAlreadyExists.reason(),
+            CoreError::UsernameAlreadyExists.reason(),
+            CoreError::Invalid.reason(),
+            CoreError::InvalidRedirectUri.reason(),
+        ];
+
+        let mut unique = codes.to_vec();
+        unique.sort_unstable();
+        unique.dedup();
+
+        assert_eq!(
+            unique.len(),
+            codes.len(),
+            "these five errors all map to HTTP 400 and must stay distinguishable: {codes:?}"
+        );
     }
 }
