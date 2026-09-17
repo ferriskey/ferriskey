@@ -1,0 +1,121 @@
+header:
+  greeting: Welcome back, {{name}} 👋
+  realm: '{{realm}} realm'
+
+metrics:
+  users:
+    label: Users
+    hint: '{{percent}}% email verified'
+    empty_hint: no user yet
+  clients:
+    label: Clients
+    # Raw count of enabled clients, never inflected — the label that follows stays "active".
+    hint: '{{active}} active'
+    empty_hint: no client yet
+  roles:
+    label: Roles
+    hint: permissions & policies
+  flows:
+    label: Auth flows
+    hint: '{{percent}}% success'
+    empty_hint: no trace yet
+
+alerts:
+  failed_flows:
+    title_one: '{{count}} authentication flow failed'
+    title_other: '{{count}} authentication flows failed'
+    detail: '{{failed}} of {{total}} traced flows never issued a token.'
+    action: Inspect
+  disabled_clients:
+    title_one: '{{count}} client is disabled'
+    title_other: '{{count}} clients are disabled'
+    detail_one: '{{names}} — no account can authenticate through it.'
+    detail_other: '{{names}} — no account can authenticate through them.'
+    action: Review
+  unverified_users:
+    title_one: '{{count}} account carries an unverified email'
+    title_other: '{{count}} accounts carry an unverified email'
+    detail: Email verification is required on this realm, so those accounts stay incomplete.
+    action: Review
+  compass_off:
+    title: Compass tracing is off
+    detail: Authentication flows are not recorded, so this page has no activity to show.
+    action: Enable
+
+activity:
+  title: Authentication activity
+  description: Logins and failures recorded over the last {{days}} days.
+  # Always plural by design: the chart legend shows a window total, never a singular row.
+  logins: '<num>{{total}}</num> logins'
+  failures: '<num>{{total}}</num> failures'
+  empty: No authentication flow recorded over this window.
+  empty_compass_off: Compass tracing is off — no activity is recorded for this realm.
+
+capabilities:
+  title: Capabilities
+  description: Authentication features this realm exposes to its accounts.
+  ratio: '{{enabled}}/{{total}}'
+  state:
+    enabled: 'on'
+    disabled: 'off'
+  passkey:
+    label: Passkey
+    description: WebAuthn passwordless
+  magic_link:
+    label: Magic links
+    description: Email-based sign-in
+  registration:
+    label: Self registration
+    description: Public sign-up
+  forgot_password:
+    label: Password reset
+    description: Forgot password flow
+  remember_me:
+    label: Remember me
+    description: Persistent sessions
+  compass:
+    label: Compass tracing
+    description: Auth flow analytics
+
+events:
+  title: Recent authentication flows
+  description: The last traces Compass recorded for this realm.
+  link: Compass
+  empty: No flow traced yet.
+  empty_compass_off: Compass tracing is off — no flow is traced for this realm.
+  columns:
+    status: Status
+    grant: Grant
+    client: Client
+    account: Account
+    duration: Duration
+    started: Started
+  no_client: no client
+  not_identified: not identified
+  not_measured: not measured
+  duration:
+    milliseconds: '{{value}} ms'
+    seconds: '{{value}} s'
+
+# Keyed by the flow status the API returns. Translate the label, never the key.
+event_status:
+  pending: pending
+  success: success
+  failure: failure
+  expired: expired
+
+quick_links:
+  title: Get started
+  description: Jump into a workspace of this realm.
+  users:
+    label: Users
+    description: Invite, edit and audit accounts
+  clients:
+    label: Clients
+    description: Configure OAuth applications
+  roles:
+    label: Roles
+    description: Define permissions
+  compass:
+    label: Compass
+    description: Trace authentication flows

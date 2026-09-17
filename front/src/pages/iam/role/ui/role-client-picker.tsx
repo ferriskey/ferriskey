@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
   Command,
@@ -21,6 +22,7 @@ export interface RoleClientPickerProps {
 }
 
 export default function RoleClientPicker({ clients, value, onChange }: RoleClientPickerProps) {
+  const { t } = useTranslation('role')
   const [open, setOpen] = useState(false)
   const selected = clients.find((c) => c.id === value)
 
@@ -42,16 +44,18 @@ export default function RoleClientPicker({ clients, value, onChange }: RoleClien
               </span>
             </span>
           ) : (
-            <span className='text-neutral-500 dark:text-neutral-400'>Select a client…</span>
+            <span className='text-neutral-500 dark:text-neutral-400'>
+              {t('form.client.placeholder')}
+            </span>
           )}
           <ChevronsUpDown className='opacity-50' />
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-(--radix-popover-trigger-width) p-0' align='start'>
         <Command>
-          <CommandInput placeholder='Search a client…' className='h-9' />
+          <CommandInput placeholder={t('form.client.search_placeholder')} className='h-9' />
           <CommandList>
-            <CommandEmpty>No client found.</CommandEmpty>
+            <CommandEmpty>{t('form.client.empty')}</CommandEmpty>
             <CommandGroup>
               {clients.map((client) => (
                 <CommandItem

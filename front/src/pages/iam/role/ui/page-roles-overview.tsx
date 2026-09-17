@@ -1,4 +1,5 @@
 import { Plus, Shield, ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
@@ -6,6 +7,9 @@ import { Schemas } from '@/api/api.client'
 
 import Role = Schemas.Role
 import { cumulativeSeries } from '@/utils/cumulative-series'
+import { roleScopeLabelKey } from '../role-scope'
+
+const QUERY_SYNTAX = 'name:realm*  scope:client  permissions:0'
 
 export interface PageRolesOverviewProps {
   roles: Role[]
@@ -22,38 +26,40 @@ export default function PageRolesOverview({
   roleHref,
   onCreate,
 }: PageRolesOverviewProps) {
+  const { t } = useTranslation('role')
+
   const columns: Column<Role>[] = [
     {
       key: 'name',
-      header: 'Role',
+      header: t('list.columns.name'),
       render: (r) => r.name,
       sortValue: (r) => r.name,
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('list.columns.description'),
       render: (r) =>
         r.description ? (
           <span className='text-neutral-600 dark:text-neutral-400'>{r.description}</span>
         ) : (
           <span className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
-            role_id: {r.id}
+            {t('role.identifier', { id: r.id })}
           </span>
         ),
     },
     {
       key: 'scope',
-      header: 'Scope',
+      header: t('list.columns.scope'),
       render: (r) => (
         <Pill tone={isClientRole(r) ? 'violet' : 'info'} mono>
-          {isClientRole(r) ? 'client' : 'realm'}
+          {t(roleScopeLabelKey(isClientRole(r)))}
         </Pill>
       ),
-      sortValue: (r) => (isClientRole(r) ? 'client' : 'realm'),
+      sortValue: (r) => t(roleScopeLabelKey(isClientRole(r))),
     },
     {
       key: 'permissions',
-      header: 'Permissions',
+      header: t('list.columns.permissions'),
       align: 'right',
       render: (r) =>
         r.permissions.length > 0 ? (
@@ -76,22 +82,24 @@ export default function PageRolesOverview({
       </IconTile>
     ),
     title: (r) => r.name,
-    subtitle: (r) => (isClientRole(r) ? 'client' : 'realm'),
+    subtitle: (r) => t(roleScopeLabelKey(isClientRole(r))),
     badges: (r) => (
       <>
         <Pill tone={isClientRole(r) ? 'violet' : 'info'} mono>
-          {isClientRole(r) ? 'client' : 'realm'}
+          {t(roleScopeLabelKey(isClientRole(r)))}
         </Pill>
         <Pill tone={r.permissions.length > 0 ? 'success' : 'amber'}>
-          {r.permissions.length} permission{r.permissions.length !== 1 ? 's' : ''}
+          {t('role.permission_count', { count: r.permissions.length })}
         </Pill>
       </>
     ),
     flags: (r) => [
-      { label: 'Grants at least one permission', on: r.permissions.length > 0 },
-      { label: 'Scoped to a client', on: isClientRole(r) },
+      { label: t('list.card.flags.grants'), on: r.permissions.length > 0 },
+      { label: t('list.card.flags.client_scoped'), on: isClientRole(r) },
     ],
-    footer: (r) => <span className='truncate'>{r.description || `role_id: ${r.id}`}</span>,
+    footer: (r) => (
+      <span className='truncate'>{r.description || t('role.identifier', { id: r.id })}</span>
+    ),
   }
 
   const realmRoles = roles.filter((r) => !isClientRole(r))
@@ -101,42 +109,51 @@ export default function PageRolesOverview({
 
   const createButton = (
     <Button onClick={onCreate}>
-      <Plus /> New role
+      <Plus /> {t('list.create')}
     </Button>
   )
 
   return (
     <ListingPage
-      title='Roles'
-      description='Permissions and policies applicable to the accounts of this realm.'
+      title={t('list.title')}
+      description={t('list.description')}
       loading={isLoading}
       actions={createButton}
       metrics={[
-        { key: 'total', label: 'Total', value: roles.length, hint: 'roles', series: cumulativeSeries(roles.map((r) => r.created_at)), tone: 'info' },
+        {
+          key: 'total',
+          label: t('list.metrics.total.label'),
+          value: roles.length,
+          hint: t('list.metrics.total.hint'),
+          series: cumulativeSeries(roles.map((r) => r.created_at)),
+          tone: 'info',
+        },
         {
           key: 'realm',
-          label: 'Realm roles',
+          label: t('list.metrics.realm.label'),
           value: realmRoles.length,
           hint:
             realmRoles.length > 0 && roles.length > 0
-              ? `${((realmRoles.length / roles.length) * 100).toFixed(0)}% of total`
-              : 'no realm role',
+              ? t('list.metrics.realm.hint', {
+                  percent: ((realmRoles.length / roles.length) * 100).toFixed(0),
+                })
+              : t('list.metrics.realm.empty_hint'),
           series: cumulativeSeries(realmRoles.map((r) => r.created_at)),
           tone: 'info',
         },
         {
           key: 'client',
-          label: 'Client roles',
+          label: t('list.metrics.client.label'),
           value: clientRoles.length,
-          hint: 'scoped to a client',
+          hint: t('list.metrics.client.hint'),
           series: cumulativeSeries(clientRoles.map((r) => r.created_at)),
           tone: 'violet',
         },
         {
           key: 'granting',
-          label: 'With permissions',
+          label: t('list.metrics.granting.label'),
           value: withPermissions.length,
-          hint: 'grant at least one',
+          hint: t('list.metrics.granting.hint'),
           series: cumulativeSeries(withPermissions.map((r) => r.created_at)),
           tone: 'success',
         },
@@ -146,20 +163,26 @@ export default function PageRolesOverview({
           ? [
               {
                 tone: 'warn' as const,
-                title: `${empty.length} role grant${empty.length > 1 ? '' : 's'} nothing`,
-                detail: `${empty.map((r) => r.name).join(', ')} — carries no permission.`,
-                action: 'Review',
+                title: t('list.alerts.without_permissions.title', { count: empty.length }),
+                detail: t('list.alerts.without_permissions.detail', {
+                  names: empty.map((r) => r.name).join(', '),
+                }),
+                action: t('list.alerts.without_permissions.action'),
               },
             ]
           : []
       }
       filters={[
-        { key: 'realm', label: 'Realm', predicate: (r) => !isClientRole(r) },
-        { key: 'client', label: 'Client', predicate: isClientRole },
-        { key: 'empty', label: 'Without permissions', predicate: (r) => r.permissions.length === 0 },
+        { key: 'realm', label: t('list.filters.realm'), predicate: (r) => !isClientRole(r) },
+        { key: 'client', label: t('list.filters.client'), predicate: isClientRole },
+        {
+          key: 'empty',
+          label: t('list.filters.without_permissions'),
+          predicate: (r) => r.permissions.length === 0,
+        },
       ]}
-      searchPlaceholder='Filter by name…'
-      querySyntax='name:realm*  scope:client  permissions:0'
+      searchPlaceholder={t('list.search_placeholder')}
+      querySyntax={QUERY_SYNTAX}
       searchIn={(r) => `${r.name} ${r.description ?? ''}`}
       rows={roles}
       columns={columns}
@@ -167,11 +190,11 @@ export default function PageRolesOverview({
       getKey={(r) => r.id}
       getHref={roleHref}
       aggregates={{
-        name: `${roles.length} role${roles.length !== 1 ? 's' : ''}`,
+        name: t('list.count', { count: roles.length }),
         permissions: roles.reduce((n, r) => n + r.permissions.length, 0),
       }}
-      emptyLabel='No role'
-      emptyHint='Roles group the permissions you grant to accounts and clients.'
+      emptyLabel={t('list.empty.label')}
+      emptyHint={t('list.empty.hint')}
       emptyAction={createButton}
     />
   )

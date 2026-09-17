@@ -1,4 +1,5 @@
 import { ArrowLeft, Shield, ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, type TabItem } from '@/components/kit'
@@ -11,6 +12,7 @@ import RoleUsersTab from './role-users-tab'
 
 import Role = Schemas.Role
 import { formatDate } from '@/utils/format-date'
+import { roleScopeLabelKey } from '../role-scope'
 
 export interface PageRoleDetailProps {
   role?: Role
@@ -49,6 +51,8 @@ export default function PageRoleDetail({
   onSave,
   onDelete,
 }: PageRoleDetailProps) {
+  const { t } = useTranslation('role')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -69,12 +73,14 @@ export default function PageRoleDetail({
       <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
-          Roles
+          {t('detail.back')}
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Role not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -87,7 +93,7 @@ export default function PageRoleDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Roles'
+        backLabel={t('detail.back')}
         icon={
           <IconTile tone={isClientRole ? 'violet' : 'info'} className='size-15'>
             {isClientRole ? (
@@ -101,21 +107,18 @@ export default function PageRoleDetail({
         pills={
           <>
             <Pill tone={isClientRole ? 'violet' : 'info'} mono>
-              {isClientRole ? 'client' : 'realm'}
+              {t(roleScopeLabelKey(isClientRole))}
             </Pill>
             <Pill tone={role.permissions.length > 0 ? 'success' : 'amber'}>
-              {role.permissions.length} permission
-              {role.permissions.length !== 1 ? 's' : ''}
+              {t('role.permission_count', { count: role.permissions.length })}
             </Pill>
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Created at</dt>
-            <dd className='tnum'>
-              Created {formatDate(role.created_at)}
-            </dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('detail.meta.created_label')}</dt>
+            <dd className='tnum'>{t('detail.meta.created', { date: formatDate(role.created_at) })}</dd>
+            <dt className='sr-only'>{t('detail.meta.identifier_label')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{role.id}</dd>
           </dl>
         }
@@ -145,11 +148,11 @@ export default function PageRoleDetail({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the role before applying the changes.'
+        title={t('detail.save_bar.title', { count: dirtyCount })}
+        description={t('detail.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save_bar.cancel')}
+        actions={[{ label: t('detail.save_bar.submit'), onClick: onSave }]}
       />
     </PageShell>
   )

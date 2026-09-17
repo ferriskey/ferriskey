@@ -1,8 +1,9 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
 
 export const createRoleSchema = z
   .object({
-    name: z.string().min(1, { message: 'Role name is required' }),
+    name: z.string().min(1, { error: () => translate('role:validation.name_required') }),
     scope: z.enum(['realm', 'client']),
     clientId: z.string().optional(),
     description: z.string().optional(),
@@ -13,7 +14,7 @@ export const createRoleSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['clientId'],
-        message: 'Client ID is required for client roles',
+        message: translate('role:validation.client_id_required'),
       })
     }
   })

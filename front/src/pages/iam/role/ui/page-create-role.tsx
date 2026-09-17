@@ -1,4 +1,5 @@
 import { ArrowLeft, Building2, Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,20 +32,10 @@ export interface PageCreateRoleProps {
   onSubmit: () => void
 }
 
-const scopeOptions: Choice<RoleScope>[] = [
-  {
-    value: 'realm',
-    label: 'Realm role',
-    description: 'Grantable to any account of the realm.',
-    icon: Globe,
-  },
-  {
-    value: 'client',
-    label: 'Client role',
-    description: 'Only meaningful for the client it is attached to.',
-    icon: Building2,
-  },
-]
+const SCOPE_CHOICES = [
+  { value: 'realm', icon: Globe },
+  { value: 'client', icon: Building2 },
+] as const
 
 export default function PageCreateRole({
   clients,
@@ -63,25 +54,34 @@ export default function PageCreateRole({
   onBack,
   onSubmit,
 }: PageCreateRoleProps) {
+  const { t } = useTranslation('role')
+
+  const scopeOptions: Choice<RoleScope>[] = SCOPE_CHOICES.map((choice) => ({
+    value: choice.value,
+    label: t(`form.scope.options.${choice.value}.label`),
+    description: t(`form.scope.options.${choice.value}.description`),
+    icon: choice.icon,
+  }))
+
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        Roles
+        {t('create.back')}
       </Button>
 
       <div className='pb-3'>
-        <h1 className={tokens.header.title}>New role</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          A role bundles the permissions you grant to accounts and clients.
+          {t('create.subtitle')}
         </p>
       </div>
 
       <div className={tokens.page.blockGap}>
-        <Section title='Definition'>
+        <Section title={t('create.section.title')}>
           <FieldRow
-            label='Role name'
-            description='Referenced as-is in the tokens issued for this realm.'
+            label={t('form.name.label')}
+            description={t('form.name.description')}
             htmlFor='new-role-name'
           >
             <Input
@@ -95,8 +95,8 @@ export default function PageCreateRole({
           </FieldRow>
 
           <FieldRow
-            label='Description'
-            description='Helps administrators understand how far this role reaches.'
+            label={t('form.description.label')}
+            description={t('form.description.description')}
             htmlFor='new-role-description'
           >
             <Textarea
@@ -109,11 +109,11 @@ export default function PageCreateRole({
           </FieldRow>
 
           <FieldRow
-            label='Scope'
-            description='Set at creation and final: a role cannot move between scopes afterwards.'
+            label={t('form.scope.label')}
+            description={t('form.scope.create_description')}
           >
             <ChoiceCards
-              label='Role scope'
+              label={t('form.scope.picker_label')}
               value={scope}
               onChange={onScopeChange}
               options={scopeOptions}
@@ -121,10 +121,7 @@ export default function PageCreateRole({
           </FieldRow>
 
           {scope === 'client' && (
-            <FieldRow
-              label='Client'
-              description='The client this role is attached to.'
-            >
+            <FieldRow label={t('form.client.label')} description={t('form.client.description')}>
               <RoleClientPicker
                 clients={clients}
                 value={clientId}
@@ -142,10 +139,10 @@ export default function PageCreateRole({
 
       <SaveBar
         show={canSubmit}
-        title='Create role'
-        description='The role is created with the permissions selected above.'
+        title={t('create.save_bar.title')}
+        description={t('create.save_bar.description')}
         onCancel={onBack}
-        actions={[{ label: 'Create role', onClick: onSubmit }]}
+        actions={[{ label: t('create.save_bar.submit'), onClick: onSubmit }]}
       />
     </PageShell>
   )

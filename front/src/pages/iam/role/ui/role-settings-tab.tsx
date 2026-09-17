@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Pill, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { Schemas } from '@/api/api.client'
+import { roleScopeHintKey, roleScopeLabelKey } from '../role-scope'
 
 import Role = Schemas.Role
 
@@ -25,12 +27,15 @@ export default function RoleSettingsTab({
   onDescriptionChange,
   onDelete,
 }: RoleSettingsTabProps) {
+  const { t } = useTranslation('role')
+  const isClientRole = Boolean(role.client_id)
+
   return (
     <>
-      <Section title='Definition'>
+      <Section title={t('detail.settings.title')}>
         <FieldRow
-          label='Role name'
-          description='Referenced as-is in the tokens issued for this realm.'
+          label={t('form.name.label')}
+          description={t('form.name.description')}
           htmlFor='role-name'
         >
           <Input
@@ -44,8 +49,8 @@ export default function RoleSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Description'
-          description='Helps administrators understand how far this role reaches.'
+          label={t('form.description.label')}
+          description={t('form.description.description')}
           htmlFor='role-description'
         >
           <Textarea
@@ -57,32 +62,23 @@ export default function RoleSettingsTab({
           />
         </FieldRow>
 
-        <FieldRow
-          label='Scope'
-          description={
-            role.client_id
-              ? 'Attached to a client at creation. Moving a role between scopes is not supported.'
-              : 'Shared across the realm. Moving a role between scopes is not supported.'
-          }
-        >
+        <FieldRow label={t('form.scope.label')} description={t(roleScopeHintKey(isClientRole))}>
           <div className='flex items-center gap-2'>
-            <Pill tone={role.client_id ? 'violet' : 'info'} mono>
-              {role.client_id ? 'client' : 'realm'}
+            <Pill tone={isClientRole ? 'violet' : 'info'} mono>
+              {t(roleScopeLabelKey(isClientRole))}
             </Pill>
-            {role.client?.client_id && (
-              <Pill mono>{role.client.client_id}</Pill>
-            )}
+            {role.client?.client_id && <Pill mono>{role.client.client_id}</Pill>}
           </div>
         </FieldRow>
       </Section>
 
       <DangerZone
         resourceName={role.name}
-        label='Delete this role'
-        description='Once deleted, all user assignments for this role will be permanently removed. Tokens already issued stay valid until they expire.'
-        buttonLabel='Delete role'
-        confirmTitle='Delete role'
-        confirmDescription={`This will permanently delete the role "${role.name}" and remove all user assignments.`}
+        label={t('detail.settings.danger.label')}
+        description={t('detail.settings.danger.description')}
+        buttonLabel={t('detail.settings.danger.button')}
+        confirmTitle={t('detail.settings.danger.confirm_title')}
+        confirmDescription={t('detail.settings.danger.confirm_description', { name: role.name })}
         onConfirm={onDelete}
       />
     </>

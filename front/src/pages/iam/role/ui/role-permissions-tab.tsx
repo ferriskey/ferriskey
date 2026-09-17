@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Section, IconTile } from '@/components/kit'
-import { permissionCatalogue, permissionCount } from '../permission-catalogue'
+import {
+  permissionCatalogue,
+  permissionCount,
+  permissionDescriptionKey,
+  permissionGroupLabelKey,
+  permissionLabelKey,
+} from '../permission-catalogue'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 
@@ -11,23 +18,26 @@ export interface RolePermissionsTabProps {
 }
 
 export default function RolePermissionsTab({ value, onChange }: RolePermissionsTabProps) {
+  const { t } = useTranslation('role')
   const [query, setQuery] = useState('')
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
     return permissionCatalogue
       .map((g) => ({
-        group: g.group,
+        key: g.key,
         icon: g.icon,
         total: g.permissions.length,
         permissions: q
           ? g.permissions.filter((p) =>
-              `${p.key} ${p.label} ${p.description}`.toLowerCase().includes(q)
+              `${p} ${t(permissionLabelKey(p))} ${t(permissionDescriptionKey(p))}`
+                .toLowerCase()
+                .includes(q)
             )
           : [...g.permissions],
       }))
       .filter((g) => g.permissions.length > 0)
-  }, [query])
+  }, [query, t])
 
   const toggle = (key: string) =>
     onChange(value.includes(key) ? value.filter((x) => x !== key) : [...value, key])
@@ -37,8 +47,8 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
 
   return (
     <Section
-      title='Permissions'
-      description='What this role authorises on the administration API.'
+      title={t('permissions.title')}
+      description={t('permissions.description')}
       contained={false}
     >
       <div className='space-y-3'>
@@ -49,12 +59,12 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
               type='search'
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Filter permissions…'
+              placeholder={t('permissions.search_placeholder')}
               className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
             />
           </label>
           <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
-            {value.length}/{permissionCount} granted
+            {t('permissions.granted', { granted: value.length, total: permissionCount })}
           </span>
           {value.length > 0 && (
             <button
@@ -62,34 +72,31 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
               onClick={() => onChange([])}
               className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-danger hover:underline'
             >
-              Clear all
+              {t('permissions.clear_all')}
             </button>
           )}
         </div>
 
         {groups.length === 0 ? (
           <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-            No permission matches “{query}”.
+            {t('permissions.no_match', { query })}
           </p>
         ) : (
           <div className='grid gap-3 lg:grid-cols-2 xl:grid-cols-3'>
             {groups.map((group) => {
-              const keys = group.permissions.map((p) => p.key)
+              const keys = [...group.permissions]
               const enabled = keys.filter((k) => value.includes(k)).length
               const all = enabled === keys.length
 
               return (
-                <section
-                  key={group.group}
-                  className={cn(tokens.surface.panel, 'flex flex-col p-4')}
-                >
+                <section key={group.key} className={cn(tokens.surface.panel, 'flex flex-col p-4')}>
                   <div className='flex items-start gap-2.5'>
                     <IconTile tone={enabled > 0 ? 'primary' : 'info'}>
                       <group.icon className='size-4' strokeWidth={1.75} />
                     </IconTile>
                     <div className='min-w-0 flex-1'>
                       <p className='text-sm font-semibold text-neutral-900 dark:text-neutral-100'>
-                        {group.group}
+                        {t(permissionGroupLabelKey(group.key))}
                       </p>
                       <p
                         className={cn(
@@ -97,7 +104,7 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                           enabled > 0 ? 'text-fk-primary-text' : 'text-neutral-500 dark:text-neutral-400'
                         )}
                       >
-                        {enabled} of {group.total} permissions enabled
+                        {t('permissions.group_enabled', { enabled, total: group.total })}
                       </p>
                     </div>
                     <button
@@ -105,21 +112,21 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                       onClick={() => (all ? clearAll(keys) : selectAll(keys))}
                       className='shrink-0 cursor-pointer text-xs text-neutral-400 dark:text-neutral-500 underline-offset-2 hover:text-fk-primary-text hover:underline'
                     >
-                      {all ? 'none' : 'all'}
+                      {all ? t('permissions.select_none') : t('permissions.select_all')}
                     </button>
                   </div>
 
                   <div className='mt-3 space-y-1.5'>
                     {group.permissions.map((p) => {
-                      const on = value.includes(p.key)
+                      const on = value.includes(p)
                       return (
                         <button
-                          key={p.key}
+                          key={p}
                           type='button'
                           role='switch'
                           aria-checked={on}
-                          title={p.description}
-                          onClick={() => toggle(p.key)}
+                          title={t(permissionDescriptionKey(p))}
+                          onClick={() => toggle(p)}
                           className={cn(
                             'flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left transition-colors',
                             'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
@@ -135,10 +142,10 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                                 on ? 'font-medium text-fk-primary-text' : 'text-neutral-700 dark:text-neutral-300'
                               )}
                             >
-                              {p.label}
+                              {t(permissionLabelKey(p))}
                             </span>
                             <span className='block truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
-                              {p.key}
+                              {p}
                             </span>
                           </span>
                           <span
@@ -149,7 +156,7 @@ export default function RolePermissionsTab({ value, onChange }: RolePermissionsT
                                 : 'border-fk-line bg-neutral-50 text-neutral-400 dark:bg-fk-surface dark:text-neutral-500'
                             )}
                           >
-                            {on ? 'Enabled' : 'Disabled'}
+                            {on ? t('permissions.state.enabled') : t('permissions.state.disabled')}
                           </span>
                         </button>
                       )
