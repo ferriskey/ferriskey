@@ -1,11 +1,14 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
 
 export const createOrganizationSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, { error: () => translate('organization:validation.name_required') }),
   alias: z
     .string()
-    .min(1, 'Alias is required')
-    .regex(/^[a-z0-9_-]+$/, 'Only lowercase letters, numbers, hyphens and underscores'),
+    .min(1, { error: () => translate('organization:validation.alias_required') })
+    .regex(/^[a-z0-9_-]+$/, {
+      error: () => translate('organization:validation.alias_pattern.create'),
+    }),
   domain: z.string().nullable().optional(),
   redirectUrl: z.string().nullable().optional(),
   description: z.string().nullable().optional(),

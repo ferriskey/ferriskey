@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
@@ -30,12 +31,14 @@ export default function OrganizationSettingsTab({
   onChange,
   onDelete,
 }: OrganizationSettingsTabProps) {
+  const { t } = useTranslation('organization')
+
   return (
     <>
-      <Section title='General'>
+      <Section title={t('form.sections.general')}>
         <FieldRow
-          label='Name'
-          description='Shown to administrators wherever the organization is listed.'
+          label={t('form.name.label')}
+          description={t('form.name.description')}
           htmlFor='organization-name'
         >
           <Input
@@ -49,8 +52,8 @@ export default function OrganizationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Alias'
-          description='Stable identifier used in URLs and lookups. Renaming it breaks the links that already point here.'
+          label={t('form.alias.label')}
+          description={t('form.alias.description.settings')}
           htmlFor='organization-alias'
         >
           <Input
@@ -64,8 +67,8 @@ export default function OrganizationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Enabled'
-          description='A disabled organization is hidden from end-user flows.'
+          label={t('form.enabled.label')}
+          description={t('form.enabled.description.settings')}
           htmlFor='organization-enabled'
         >
           <SwitchField
@@ -76,10 +79,13 @@ export default function OrganizationSettingsTab({
         </FieldRow>
       </Section>
 
-      <Section title='Contact & routing' description='Optional metadata, none of it required.'>
+      <Section
+        title={t('form.sections.routing.title')}
+        description={t('form.sections.routing.description')}
+      >
         <FieldRow
-          label='Domain'
-          description='Primary domain associated with this organization, for example acme.com.'
+          label={t('form.domain.label')}
+          description={t('form.domain.description.settings')}
           htmlFor='organization-domain'
         >
           <Input
@@ -91,8 +97,8 @@ export default function OrganizationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Redirect URL'
-          description='Where members land once they finished authenticating.'
+          label={t('form.redirect_url.label')}
+          description={t('form.redirect_url.description')}
           htmlFor='organization-redirect-url'
         >
           <Input
@@ -104,8 +110,8 @@ export default function OrganizationSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Description'
-          description='Notes visible to administrators only.'
+          label={t('form.description.label')}
+          description={t('form.description.description')}
           htmlFor='organization-description'
         >
           <Textarea
@@ -120,11 +126,13 @@ export default function OrganizationSettingsTab({
 
       <DangerZone
         resourceName={organization.name}
-        label='Delete this organization'
-        description='All members, attributes, groups and configuration are permanently removed. The accounts themselves are kept.'
-        buttonLabel='Delete organization'
-        confirmTitle='Delete organization'
-        confirmDescription={`This will permanently delete "${organization.name}" and all its associated data.`}
+        label={t('detail.settings.danger.label')}
+        description={t('detail.settings.danger.description')}
+        buttonLabel={t('detail.settings.danger.button')}
+        confirmTitle={t('detail.settings.danger.confirm_title')}
+        confirmDescription={t('detail.settings.danger.confirm_description', {
+          name: organization.name,
+        })}
         onConfirm={onDelete}
       />
     </>

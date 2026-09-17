@@ -1,0 +1,266 @@
+organization:
+  # Identifier shown when an organization carries no description. "organization_id" is the API field name, keep it verbatim.
+  identifier: 'organization_id: {{id}}'
+  no_domain: no domain
+  status:
+    enabled: enabled
+    disabled: disabled
+
+member:
+  # Stands in for the display name of a service account, which has no first or last name.
+  service_account: Service Account
+  kind:
+    service_account: service account
+    user_account: user account
+  status:
+    active: active
+    inactive: inactive
+
+form:
+  sections:
+    definition: Definition
+    general: General
+    routing:
+      title: Contact & routing
+      description: Optional metadata, none of it required.
+  name:
+    label: Name
+    description: Shown to administrators wherever the organization is listed.
+  alias:
+    label: Alias
+    description:
+      create: Stable identifier used in URLs and lookups. Lowercase letters, digits, hyphens and underscores only.
+      settings: Stable identifier used in URLs and lookups. Renaming it breaks the links that already point here.
+  enabled:
+    label: Enabled
+    description:
+      create: A disabled organization is not accessible to its members.
+      settings: A disabled organization is hidden from end-user flows.
+  domain:
+    label: Domain
+    description:
+      create: 'Email domain associated with this organization, for example acme.com.'
+      settings: 'Primary domain associated with this organization, for example acme.com.'
+  redirect_url:
+    label: Redirect URL
+    description: Where members land once they finished authenticating.
+  description:
+    label: Description
+    description: Notes visible to administrators only.
+
+list:
+  title: Organizations
+  description: Groups of accounts sharing a domain, a redirection and their own roles.
+  create: New organization
+  search_placeholder: Filter by name, alias or domain…
+  count_one: '{{count}} organization'
+  count_other: '{{count}} organizations'
+  columns:
+    name: Organization
+    alias: Alias
+    domain: Domain
+    description: Description
+    status: Status
+  metrics:
+    total:
+      label: Total
+      # Bare noun under the total, the figure itself sits above it.
+      hint_one: organization
+      hint_other: organizations
+    enabled:
+      label: Enabled
+      hint: '{{percent}}% of total'
+      empty_hint: none enabled
+    disabled:
+      label: Disabled
+      hint: hidden from end-user flows
+    domain:
+      label: With a domain
+      hint: bound to an email domain
+  aggregates:
+    # Footer total, never inflected — it always reads as a raw count of enabled organizations.
+    status: '{{total}} enabled'
+  alerts:
+    disabled:
+      title_one: '{{count}} organization is disabled'
+      title_other: '{{count}} organizations are disabled'
+      # "names" is the list of disabled organizations, already joined.
+      detail_one: '{{names}} — members cannot reach it.'
+      detail_other: '{{names}} — members cannot reach them.'
+      action: Review
+  filters:
+    enabled: Enabled
+    disabled: Disabled
+    without_domain: Without domain
+  card:
+    flags:
+      reachable: Reachable by its members
+      domain: Bound to an email domain
+      redirect: Redirects after login
+  empty:
+    label: No organization
+    hint: An organization groups the accounts of a same company, with its own domain and roles.
+
+create:
+  back: Organizations
+  title: New organization
+  subtitle: An organization groups accounts of a same company, with its own domain and roles.
+  save_bar:
+    title: Create organization
+    description: The organization is created in this realm, with no member yet.
+    submit: Create organization
+  toast:
+    failed: Failed to create organization
+
+detail:
+  back: Organizations
+  not_found:
+    title: Organization not found
+    description: It may have been deleted, or it belongs to another realm.
+  meta:
+    created_label: Created at
+    created: Created {{date}}
+    identifier_label: Identifier
+  tabs:
+    settings: Settings
+    attributes: Attributes
+    members: Members
+    groups: Groups
+  save_bar:
+    title: Unsaved changes
+    description: Review the organization before applying the changes.
+    cancel: Discard
+    submit: Save changes
+  settings:
+    danger:
+      label: Delete this organization
+      description: All members, attributes, groups and configuration are permanently removed. The accounts themselves are kept.
+      button: Delete organization
+      confirm_title: Delete organization
+      confirm_description: This will permanently delete "{{name}}" and all its associated data.
+  attributes:
+    title: Attributes ({{total}})
+    description: Custom key-value metadata carried by this organization.
+    add: Add attribute
+    columns:
+      key: Key
+      value: Value
+    key_placeholder: Key
+    value_placeholder: Value
+    save: Save attribute
+    cancel: Cancel
+    edit: Edit {{key}}
+    delete: Delete {{key}}
+    empty: No attribute defined for this organization.
+  members:
+    add:
+      title: Add members
+      description: Only accounts of this realm that are not members yet can be picked.
+      pick: Pick an account
+      search_placeholder: Search an account…
+      empty_hint: No account selected yet.
+      exhausted_hint: Every account of this realm is already a member.
+      submit_one: Add {{count}} member
+      submit_other: Add {{count}} members
+    title: Members ({{total}})
+    description: Accounts attached to this organization, with their organization-scoped roles.
+    search_placeholder: Search members…
+    empty: This organization has no member yet.
+    no_match: No member matches this search.
+    manage_roles: Manage roles
+    manage_roles_for: Manage roles of {{name}}
+    remove: Remove from organization
+    remove_member: Remove {{name}}
+    confirm_remove:
+      title: Remove member?
+      description: Remove "{{name}}" from this organization? Their organization-scoped roles will be revoked. This does not delete the user.
+
+member_roles:
+  title: Manage roles
+  title_for: Manage roles — {{username}}
+  description: Assign realm or client roles scoped to this member within the organization. These roles are surfaced in the member's token under the organization context.
+  search_placeholder: Search and assign roles…
+  empty: No roles found.
+
+groups:
+  tree:
+    new_placeholder: New top-level group
+    add: Add
+    loading: Loading…
+    empty: No groups yet.
+    # Screen-reader label of the chevron that folds a branch of the tree.
+    toggle: toggle
+    add_child: Add sub-group
+    delete: Delete group
+  no_selection: Select a group to manage its members, roles and attributes.
+  tabs:
+    members: Members
+    roles: Role mappings
+    attributes: Attributes
+    subgroups: Sub-groups
+  members:
+    title: Members ({{total}})
+    search_placeholder: Search members...
+    loading: Loading…
+    no_match: No members match your search.
+    empty: No direct members.
+    remove: Remove member
+    status:
+      enabled: enabled
+      disabled: disabled
+    pagination:
+      range: '{{from}}-{{to}} of {{total}}'
+      previous: Previous
+      next: Next
+    add:
+      trigger: Add members
+      title: Add members
+      columns:
+        username: User
+        name: Name
+      search_placeholder: Search users…
+      cancel: Cancel
+      submit: Add
+      # Same button once accounts are ticked, the figure is the selection size.
+      submit_count: Add ({{total}})
+      added_one: '{{count}} member added'
+      added_other: '{{count}} members added'
+      failed_one: '{{count}} member could not be added'
+      failed_other: '{{count}} members could not be added'
+  roles:
+    description: Roles assigned here are inherited by members of this group and its sub-groups.
+    search_placeholder: Search and assign roles…
+    empty: No roles found.
+  attributes:
+    columns:
+      key: Key
+      value: Value
+    empty: No attributes.
+    key_placeholder: Key
+    value_placeholder: Value
+    add: Add
+  subgroups:
+    name_placeholder: New sub-group name
+    add: Add
+    empty: No sub-groups.
+    # Number of sub-groups a child carries, shown right after its name.
+    child_count: ({{total}})
+  create:
+    title: Add sub-group
+    description: Create a sub-group under "{{name}}".
+    description_unknown: Create a sub-group.
+    name_placeholder: Sub-group name
+    cancel: Cancel
+    submit: Create
+  delete:
+    title: Delete group
+    description: Delete group "{{name}}" and all its sub-groups? This action cannot be undone.
+    cancel: Cancel
+    submit: Delete
+
+validation:
+  name_required: Name is required
+  alias_required: Alias is required
+  alias_pattern:
+    create: Only lowercase letters, numbers, hyphens and underscores
+    settings: Alias may only contain lowercase letters, digits, hyphens, or underscores

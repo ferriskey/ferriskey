@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -32,25 +33,27 @@ export default function PageCreateOrganization({
   onBack,
   onSubmit,
 }: PageCreateOrganizationProps) {
+  const { t } = useTranslation('organization')
+
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        Organizations
+        {t('create.back')}
       </Button>
 
       <div className='pb-3'>
-        <h1 className={tokens.header.title}>New organization</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          An organization groups accounts of a same company, with its own domain and roles.
+          {t('create.subtitle')}
         </p>
       </div>
 
       <div className={tokens.page.blockGap}>
-        <Section title='Definition'>
+        <Section title={t('form.sections.definition')}>
           <FieldRow
-            label='Name'
-            description='Shown to administrators wherever the organization is listed.'
+            label={t('form.name.label')}
+            description={t('form.name.description')}
             htmlFor='new-organization-name'
           >
             <Input
@@ -64,8 +67,8 @@ export default function PageCreateOrganization({
           </FieldRow>
 
           <FieldRow
-            label='Alias'
-            description='Stable identifier used in URLs and lookups. Lowercase letters, digits, hyphens and underscores only.'
+            label={t('form.alias.label')}
+            description={t('form.alias.description.create')}
             htmlFor='new-organization-alias'
           >
             <Input
@@ -79,8 +82,8 @@ export default function PageCreateOrganization({
           </FieldRow>
 
           <FieldRow
-            label='Enabled'
-            description='A disabled organization is not accessible to its members.'
+            label={t('form.enabled.label')}
+            description={t('form.enabled.description.create')}
             htmlFor='new-organization-enabled'
           >
             <SwitchField
@@ -91,10 +94,10 @@ export default function PageCreateOrganization({
           </FieldRow>
         </Section>
 
-        <Section title='Contact & routing'>
+        <Section title={t('form.sections.routing.title')}>
           <FieldRow
-            label='Domain'
-            description='Email domain associated with this organization, for example acme.com.'
+            label={t('form.domain.label')}
+            description={t('form.domain.description.create')}
             htmlFor='new-organization-domain'
           >
             <Input
@@ -106,8 +109,8 @@ export default function PageCreateOrganization({
           </FieldRow>
 
           <FieldRow
-            label='Redirect URL'
-            description='Where members land once they finished authenticating.'
+            label={t('form.redirect_url.label')}
+            description={t('form.redirect_url.description')}
             htmlFor='new-organization-redirect-url'
           >
             <Input
@@ -119,8 +122,8 @@ export default function PageCreateOrganization({
           </FieldRow>
 
           <FieldRow
-            label='Description'
-            description='Notes visible to administrators only.'
+            label={t('form.description.label')}
+            description={t('form.description.description')}
             htmlFor='new-organization-description'
           >
             <Textarea
@@ -136,10 +139,10 @@ export default function PageCreateOrganization({
 
       <SaveBar
         show={canSubmit}
-        title='Create organization'
-        description='The organization is created in this realm, with no member yet.'
+        title={t('create.save_bar.title')}
+        description={t('create.save_bar.description')}
         onCancel={onBack}
-        actions={[{ label: 'Create organization', onClick: onSubmit }]}
+        actions={[{ label: t('create.save_bar.submit'), onClick: onSubmit }]}
       />
     </PageShell>
   )

@@ -1,10 +1,13 @@
 import { Building2, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill, StatusDot } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 
 import Organization = Schemas.Organization
+
+const QUERY_SYNTAX = 'name:acme*  alias:acme  domain:*.com'
 
 export interface PageOrganizationsOverviewProps {
   organizations: Organization[]
@@ -21,52 +24,59 @@ export default function PageOrganizationsOverview({
   onCreate,
   onReviewDisabled,
 }: PageOrganizationsOverviewProps) {
+  const { t } = useTranslation('organization')
+
+  const statusLabel = (enabled: boolean) =>
+    enabled ? t('organization.status.enabled') : t('organization.status.disabled')
+
   const columns: Column<Organization>[] = [
     {
       key: 'name',
-      header: 'Organization',
+      header: t('list.columns.name'),
       render: (o) => o.name,
       sortValue: (o) => o.name,
     },
     {
       key: 'alias',
-      header: 'Alias',
+      header: t('list.columns.alias'),
       render: (o) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{o.alias}</span>,
       sortValue: (o) => o.alias,
     },
     {
       key: 'domain',
-      header: 'Domain',
+      header: t('list.columns.domain'),
       render: (o) =>
         o.domain ? (
           <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{o.domain}</span>
         ) : (
-          <span className='text-xs text-neutral-400 dark:text-neutral-500'>no domain</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+            {t('organization.no_domain')}
+          </span>
         ),
       sortValue: (o) => o.domain ?? '',
     },
     {
       key: 'description',
-      header: 'Description',
+      header: t('list.columns.description'),
       render: (o) =>
         o.description ? (
           <span className='text-neutral-600 dark:text-neutral-400'>{o.description}</span>
         ) : (
           <span className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
-            organization_id: {o.id}
+            {t('organization.identifier', { id: o.id })}
           </span>
         ),
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('list.columns.status'),
       render: (o) => (
         <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={o.enabled} />
-          {o.enabled ? 'enabled' : 'disabled'}
+          {statusLabel(o.enabled)}
         </span>
       ),
-      sortValue: (o) => (o.enabled ? 'enabled' : 'disabled'),
+      sortValue: (o) => statusLabel(o.enabled),
     },
   ]
 
@@ -82,18 +92,20 @@ export default function PageOrganizationsOverview({
       <>
         <Pill tone={o.enabled ? 'success' : 'neutral'}>
           <StatusDot on={o.enabled} />
-          {o.enabled ? 'enabled' : 'disabled'}
+          {statusLabel(o.enabled)}
         </Pill>
         {o.domain && <Pill mono>{o.domain}</Pill>}
       </>
     ),
     flags: (o) => [
-      { label: 'Reachable by its members', on: o.enabled },
-      { label: 'Bound to an email domain', on: Boolean(o.domain) },
-      { label: 'Redirects after login', on: Boolean(o.redirect_url) },
+      { label: t('list.card.flags.reachable'), on: o.enabled },
+      { label: t('list.card.flags.domain'), on: Boolean(o.domain) },
+      { label: t('list.card.flags.redirect'), on: Boolean(o.redirect_url) },
     ],
     footer: (o) => (
-      <span className='truncate'>{o.description || `organization_id: ${o.id}`}</span>
+      <span className='truncate'>
+        {o.description || t('organization.identifier', { id: o.id })}
+      </span>
     ),
   }
 
@@ -103,43 +115,45 @@ export default function PageOrganizationsOverview({
 
   const createButton = (
     <Button onClick={onCreate}>
-      <Plus /> New organization
+      <Plus /> {t('list.create')}
     </Button>
   )
 
   return (
     <ListingPage
-      title='Organizations'
-      description='Groups of accounts sharing a domain, a redirection and their own roles.'
+      title={t('list.title')}
+      description={t('list.description')}
       loading={isLoading}
       actions={createButton}
       metrics={[
         {
           key: 'total',
-          label: 'Total',
+          label: t('list.metrics.total.label'),
           value: organizations.length,
-          hint: `organization${organizations.length !== 1 ? 's' : ''}`,
+          hint: t('list.metrics.total.hint', { count: organizations.length }),
         },
         {
           key: 'enabled',
-          label: 'Enabled',
+          label: t('list.metrics.enabled.label'),
           value: enabled.length,
           hint:
             enabled.length > 0 && organizations.length > 0
-              ? `${((enabled.length / organizations.length) * 100).toFixed(0)}% of total`
-              : 'none enabled',
+              ? t('list.metrics.enabled.hint', {
+                  percent: ((enabled.length / organizations.length) * 100).toFixed(0),
+                })
+              : t('list.metrics.enabled.empty_hint'),
         },
         {
           key: 'disabled',
-          label: 'Disabled',
+          label: t('list.metrics.disabled.label'),
           value: disabled.length,
-          hint: 'hidden from end-user flows',
+          hint: t('list.metrics.disabled.hint'),
         },
         {
           key: 'domain',
-          label: 'With a domain',
+          label: t('list.metrics.domain.label'),
           value: withDomain.length,
-          hint: 'bound to an email domain',
+          hint: t('list.metrics.domain.hint'),
         },
       ]}
       alerts={
@@ -147,21 +161,24 @@ export default function PageOrganizationsOverview({
           ? [
               {
                 tone: 'warn' as const,
-                title: `${disabled.length} organization${disabled.length > 1 ? 's are' : ' is'} disabled`,
-                detail: `${disabled.map((o) => o.name).join(', ')} — members cannot reach ${disabled.length > 1 ? 'them' : 'it'}.`,
-                action: 'Review',
+                title: t('list.alerts.disabled.title', { count: disabled.length }),
+                detail: t('list.alerts.disabled.detail', {
+                  count: disabled.length,
+                  names: disabled.map((o) => o.name).join(', '),
+                }),
+                action: t('list.alerts.disabled.action'),
                 onAction: onReviewDisabled,
               },
             ]
           : []
       }
       filters={[
-        { key: 'enabled', label: 'Enabled', predicate: (o) => o.enabled },
-        { key: 'disabled', label: 'Disabled', predicate: (o) => !o.enabled },
-        { key: 'nodomain', label: 'Without domain', predicate: (o) => !o.domain },
+        { key: 'enabled', label: t('list.filters.enabled'), predicate: (o) => o.enabled },
+        { key: 'disabled', label: t('list.filters.disabled'), predicate: (o) => !o.enabled },
+        { key: 'nodomain', label: t('list.filters.without_domain'), predicate: (o) => !o.domain },
       ]}
-      searchPlaceholder='Filter by name, alias or domain…'
-      querySyntax='name:acme*  alias:acme  domain:*.com'
+      searchPlaceholder={t('list.search_placeholder')}
+      querySyntax={QUERY_SYNTAX}
       searchIn={(o) => `${o.name} ${o.alias} ${o.domain ?? ''}`}
       rows={organizations}
       columns={columns}
@@ -169,11 +186,11 @@ export default function PageOrganizationsOverview({
       getKey={(o) => o.id}
       getHref={organizationHref}
       aggregates={{
-        name: `${organizations.length} organization${organizations.length !== 1 ? 's' : ''}`,
-        status: `${enabled.length} enabled`,
+        name: t('list.count', { count: organizations.length }),
+        status: t('list.aggregates.status', { total: enabled.length }),
       }}
-      emptyLabel='No organization'
-      emptyHint='An organization groups the accounts of a same company, with its own domain and roles.'
+      emptyLabel={t('list.empty.label')}
+      emptyHint={t('list.empty.hint')}
       emptyAction={createButton}
     />
   )

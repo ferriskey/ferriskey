@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useAddUserToOrganization,
   useDeleteOrganization,
@@ -13,7 +14,7 @@ import {
 } from '@/api/organization.api'
 import { useGetUsers } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
-import { useRouteTabs } from '@/components/kit'
+import { useRouteTabs, type TabItem } from '@/components/kit'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { updateOrganizationSchema } from '@/pages/iam/organization/schemas/update-organization.schema'
@@ -44,15 +45,16 @@ const EMPTY_DRAFT: Draft = {
 }
 
 const ORGANIZATION_TABS = [
-  { key: 'settings', label: 'Settings' },
-  { key: 'attributes', label: 'Attributes' },
-  { key: 'members', label: 'Members' },
-  { key: 'groups', label: 'Groups' },
+  { key: 'settings', labelKey: 'detail.tabs.settings' },
+  { key: 'attributes', labelKey: 'detail.tabs.attributes' },
+  { key: 'members', labelKey: 'detail.tabs.members' },
+  { key: 'groups', labelKey: 'detail.tabs.groups' },
 ] as const
 
 export default function PageOrganizationDetailFeature() {
   const { realm_name, organizationId } = useParams<RouterParams & { organizationId: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation('organization')
   const realm = realm_name ?? 'master'
 
   const { data: organization, isLoading } = useGetOrganization({ realm, organizationId })
@@ -75,9 +77,13 @@ export default function PageOrganizationDetailFeature() {
   const { mutate: removeMember } = useRemoveOrganizationMember()
   const { confirm, ask, close } = useConfirmDeleteAlert()
 
+  const organizationTabs = useMemo<TabItem[]>(
+    () => ORGANIZATION_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
+    [t]
+  )
   const { value: tab, tabs } = useRouteTabs(
     ORGANIZATION_URL(realm, organizationId),
-    ORGANIZATION_TABS
+    organizationTabs
   )
 
   const [rolesUser, setRolesUser] = useState<User | null>(null)
@@ -171,8 +177,10 @@ export default function PageOrganizationDetailFeature() {
   const handleRemoveMember = (user: User) => {
     if (!organizationId) return
     ask({
-      title: 'Remove member?',
-      description: `Remove "${memberDisplayName(user)}" from this organization? Their organization-scoped roles will be revoked. This does not delete the user.`,
+      title: t('detail.members.confirm_remove.title'),
+      description: t('detail.members.confirm_remove.description', {
+        name: memberDisplayName(user),
+      }),
       onConfirm: () => {
         removeMember({
           path: { realm_name: realm, organization_id: organizationId, user_id: user.id },
