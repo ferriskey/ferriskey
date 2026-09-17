@@ -202,11 +202,15 @@ input[type="number"] {
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    'Geist Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
+    ui-sans-serif, system-ui, sans-serif;
 }
 
 [data-style='ferriskey'] body {
-  font-family: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    'Geist Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
+    ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

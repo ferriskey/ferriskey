@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ChevronRight, Menu } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AccountMenu } from './account-menu'
+import { LanguageSwitcher } from './language-switcher'
 import { ThemeSwitcher } from './theme-switcher'
 import { RealmPicker } from './realm-picker'
 
@@ -42,6 +43,7 @@ export function TopBar({
       {children}
 
       <div className='ml-auto flex items-center gap-2'>
+        <LanguageSwitcher />
         <ThemeSwitcher />
         <AccountMenu />
       </div>

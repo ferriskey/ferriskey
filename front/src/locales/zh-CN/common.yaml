@@ -1,0 +1,11 @@
+language:
+  switcher_label: 语言
+  names:
+    en: English
+    zh-CN: 简体中文
+
+relative_time:
+  just_now: 刚刚
+  minutes_other: '{{count}} 分钟前'
+  hours_other: '{{count}} 小时前'
+  days_other: '{{count}} 天前'
