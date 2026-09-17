@@ -5,6 +5,7 @@ export {
   formatTimestamp,
 } from '@/utils/format-date'
 
+import { translate } from '@/lib/i18n'
 import { Schemas } from '@/api/api.client'
 
 import CompassFlow = Schemas.CompassFlow
@@ -14,28 +15,16 @@ import FlowStatus = Schemas.FlowStatus
 import StepStatus = Schemas.StepStatus
 import type { PillTone } from '@/components/kit'
 
-export const stepLabels: Record<FlowStepName, string> = {
-  authorize: 'Authorization request',
-  credential_validation: 'Credential validation',
-  mfa_challenge: 'Second factor',
-  token_exchange: 'Token exchange',
-  idp_redirect: 'Redirect to provider',
-  idp_callback: 'Provider callback',
-  finalize: 'Session opened',
-  saml_authn_request: 'SAML AuthnRequest',
-  saml_assertion: 'SAML assertion',
-}
-
-export const stepDescriptions: Record<FlowStepName, string> = {
-  authorize: 'The client asked the realm for an authorization code.',
-  credential_validation: 'The submitted secret was compared with the stored credential.',
-  mfa_challenge: 'A second factor was requested and verified before any token was issued.',
-  token_exchange: 'The code or the refresh token was traded for an access token.',
-  idp_redirect: 'The browser was handed over to an external identity provider.',
-  idp_callback: 'The external provider sent the browser back with its answer.',
-  finalize: 'The session was persisted and the tokens returned to the client.',
-  saml_authn_request: 'The service provider request was parsed and its signature checked.',
-  saml_assertion: 'The signed assertion was built and posted back to the service provider.',
+export const catalogedStepNames: Record<FlowStepName, true> = {
+  authorize: true,
+  credential_validation: true,
+  mfa_challenge: true,
+  token_exchange: true,
+  idp_redirect: true,
+  idp_callback: true,
+  finalize: true,
+  saml_authn_request: true,
+  saml_assertion: true,
 }
 
 export const flowStatusTone: Record<FlowStatus, PillTone> = {
@@ -52,11 +41,20 @@ export const stepStatusTone: Record<StepStatus, PillTone> = {
 }
 
 export const stepLabel = (step: CompassFlowStep) =>
-  stepLabels[step.step_name] ?? step.step_name
+  catalogedStepNames[step.step_name]
+    ? translate(`compass:step.${step.step_name}.label`)
+    : step.step_name
+
+export const stepDescription = (step: CompassFlowStep) =>
+  catalogedStepNames[step.step_name]
+    ? translate(`compass:step.${step.step_name}.description`)
+    : null
 
 export const formatDuration = (ms?: number | null) => {
   if (ms == null) return '—'
-  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
+  return ms < 1000
+    ? translate('compass:duration.milliseconds', { value: ms })
+    : translate('compass:duration.seconds', { value: (ms / 1000).toFixed(1) })
 }
 
 export const orderedSteps = (flow: CompassFlow) =>
