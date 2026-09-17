@@ -74,6 +74,11 @@ export interface ActivityChartProps {
 
 const formatDay = (value: string) => formatDayMonth(value)
 
+const TARGET_AXIS_TICKS = 12
+
+const axisTickInterval = (points: number) =>
+  points > TARGET_AXIS_TICKS ? Math.ceil(points / TARGET_AXIS_TICKS) - 1 : 0
+
 export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
   const { t } = useTranslation()
 
@@ -96,7 +101,8 @@ export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
           tickFormatter={formatDay}
           tickLine={false}
           axisLine={false}
-          minTickGap={28}
+          interval={axisTickInterval(data.length)}
+          minTickGap={0}
           tickMargin={8}
           tick={{ fontSize: 11, fill: 'var(--color-fk-muted)' }}
         />
