@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useDeleteClientScope,
   useDeleteProtocolMapper,
@@ -28,13 +29,14 @@ interface Draft {
 const EMPTY_DRAFT: Draft = { key: '', name: '', description: '', scopeType: 'optional' }
 
 const SCOPE_TABS = [
-  { key: 'details', label: 'Settings' },
-  { key: 'mappers', label: 'Protocol Mappers' },
+  { key: 'details', labelKey: 'detail.tabs.details' },
+  { key: 'mappers', labelKey: 'detail.tabs.mappers' },
 ] as const
 
 export default function PageClientScopeDetailFeature() {
   const { realm_name, scope_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('client-scope')
   const realm = realm_name ?? 'master'
 
   const { data: scope, isLoading } = useGetClientScope({ realm, scopeId: scope_id })
@@ -45,8 +47,13 @@ export default function PageClientScopeDetailFeature() {
   const base = clientScopeUrl(realm, scope_id ?? '')
   const mappers = useMemo(() => scope?.protocol_mappers ?? [], [scope])
   const tabsWithCount = useMemo(
-    () => SCOPE_TABS.map((tab) => (tab.key === 'mappers' ? { ...tab, count: mappers.length } : tab)),
-    [mappers.length]
+    () =>
+      SCOPE_TABS.map((tab) =>
+        tab.key === 'mappers'
+          ? { key: tab.key, label: t(tab.labelKey), count: mappers.length }
+          : { key: tab.key, label: t(tab.labelKey) }
+      ),
+    [mappers.length, t]
   )
   const { value: tab, tabs } = useRouteTabs(base, tabsWithCount)
 

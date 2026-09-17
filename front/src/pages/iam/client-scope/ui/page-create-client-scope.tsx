@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,6 +14,7 @@ import {
 import { FieldRow, PageShell, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import ScopeTypeHint from './scope-type-hint'
+import { SCOPE_TYPE_CHOICES } from '../scope-type'
 
 export type ScopeTypeChoice = 'optional' | 'default'
 
@@ -45,28 +47,30 @@ export default function PageCreateClientScope({
   onBack,
   onSubmit,
 }: PageCreateClientScopeProps) {
+  const { t } = useTranslation('client-scope')
+
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        Client Scopes
+        {t('create.back')}
       </Button>
 
       <div className='pb-3'>
-        <h1 className={tokens.header.title}>New client scope</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          A client scope groups the claims a client can ask for in its tokens.
+          {t('create.subtitle')}
         </p>
       </div>
 
       <div className={tokens.page.blockGap}>
         <Section
-          title='Client Scope Details'
-          description='Identity of the scope, and how clients get it.'
+          title={t('create.section.title')}
+          description={t('create.section.description')}
         >
           <FieldRow
-            label='Name'
-            description='Requested as-is by a client in the scope parameter of an authorization request.'
+            label={t('scope_form.name.label')}
+            description={t('scope_form.name.description')}
             htmlFor='new-scope-name'
           >
             <Input
@@ -80,8 +84,8 @@ export default function PageCreateClientScope({
           </FieldRow>
 
           <FieldRow
-            label='Description'
-            description='Read by administrators only — it never reaches an issued token.'
+            label={t('scope_form.description.label')}
+            description={t('scope_form.description.description')}
             htmlFor='new-scope-description'
           >
             <Textarea
@@ -94,8 +98,8 @@ export default function PageCreateClientScope({
           </FieldRow>
 
           <FieldRow
-            label='Protocol'
-            description='Fixed at creation: only OpenID Connect is supported today, and it decides which protocol mappers this scope can carry.'
+            label={t('scope_form.protocol.label')}
+            description={t('scope_form.protocol.description')}
             htmlFor='new-scope-protocol'
           >
             <Input
@@ -107,18 +111,21 @@ export default function PageCreateClientScope({
           </FieldRow>
 
           <FieldRow
-            label='Type'
-            description='Decides how this scope is attached to the clients of the realm.'
+            label={t('scope_form.type.label')}
+            description={t('scope_form.type.description')}
             htmlFor='new-scope-type'
           >
             <div className='max-w-sm'>
               <Select value={scopeType} onValueChange={(v) => onScopeTypeChange(v as ScopeTypeChoice)}>
                 <SelectTrigger id='new-scope-type' className='w-full'>
-                  <SelectValue placeholder='Select type' />
+                  <SelectValue placeholder={t('scope_form.type.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='optional'>Optional</SelectItem>
-                  <SelectItem value='default'>Default</SelectItem>
+                  {SCOPE_TYPE_CHOICES.map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value}>
+                      {t(choice.labelKey)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <ScopeTypeHint scopeType={scopeType} />
@@ -129,10 +136,15 @@ export default function PageCreateClientScope({
 
       <SaveBar
         show={canSubmit}
-        title='Create client scope'
-        description='The scope is created empty — its protocol mappers are added afterwards.'
+        title={t('create.save_bar.title')}
+        description={t('create.save_bar.description')}
         onCancel={onBack}
-        actions={[{ label: isPending ? 'Creating…' : 'Create', onClick: onSubmit }]}
+        actions={[
+          {
+            label: isPending ? t('create.save_bar.submitting') : t('create.save_bar.submit'),
+            onClick: onSubmit,
+          },
+        ]}
       />
     </PageShell>
   )

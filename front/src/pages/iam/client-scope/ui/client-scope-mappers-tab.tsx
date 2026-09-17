@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { MetricsBand, Pill, Section } from '@/components/kit'
@@ -9,6 +10,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import { configToStrings } from '../config-values'
 import { templateForType } from '../mapper-templates'
+import { FALLBACK_MAPPER_ICON } from '../constants/protocol-mapper-templates'
 import { isIdentityMapper, isRoleMapper, mapperCategory } from '../mapper-categories'
 import MapperTemplatePickerDialog from './mapper-template-picker-dialog'
 
@@ -37,6 +39,7 @@ export default function ClientScopeMappersTab({
   onSelectTemplate,
   onDeleteMapper,
 }: ClientScopeMappersTabProps) {
+  const { t } = useTranslation('client-scope')
   const [pendingDelete, setPendingDelete] = useState<ProtocolMapper | null>(null)
 
   const total = mappers.length
@@ -44,34 +47,41 @@ export default function ClientScopeMappersTab({
   const identityMappers = mappers.filter((m) => isIdentityMapper(m.mapper_type)).length
 
   const share = (count: number) =>
-    count > 0 && total > 0 ? `${((count / total) * 100).toFixed(0)}% of total` : undefined
+    count > 0 && total > 0
+      ? t('detail.mappers.metrics.share', { percent: ((count / total) * 100).toFixed(0) })
+      : undefined
 
   return (
     <>
       <MetricsBand
         metrics={[
-          { key: 'total', label: 'Total mappers', value: total, hint: 'configured on this scope' },
+          {
+            key: 'total',
+            label: t('detail.mappers.metrics.total.label'),
+            value: total,
+            hint: t('detail.mappers.metrics.total.hint'),
+          },
           {
             key: 'role',
-            label: 'Role mappers',
+            label: t('detail.mappers.metrics.role.label'),
             value: roleMappers,
-            hint: share(roleMappers) ?? 'no role mapper',
+            hint: share(roleMappers) ?? t('detail.mappers.metrics.role.empty_hint'),
           },
           {
             key: 'identity',
-            label: 'Identity mappers',
+            label: t('detail.mappers.metrics.identity.label'),
             value: identityMappers,
-            hint: share(identityMappers) ?? 'no identity mapper',
+            hint: share(identityMappers) ?? t('detail.mappers.metrics.identity.empty_hint'),
           },
         ]}
       />
 
       <Section
-        title='Protocol Mappers'
-        description='What this scope writes into the tokens when a client requests it.'
+        title={t('detail.mappers.title')}
+        description={t('detail.mappers.description')}
         action={
           <Button size='sm' onClick={() => onPickerOpenChange(true)}>
-            <Plus /> Add mapper
+            <Plus /> {t('detail.mappers.add')}
           </Button>
         }
         contained={mappers.length > 0}
@@ -87,14 +97,14 @@ export default function ClientScopeMappersTab({
               return (
                 <li key={mapper.id} className='flex items-center gap-3 py-2.5'>
                   <span className='w-5 shrink-0 text-center text-base leading-none'>
-                    {template?.icon ?? '⚙️'}
+                    {template?.icon ?? FALLBACK_MAPPER_ICON}
                   </span>
 
                   <div className='min-w-0 flex-1'>
                     <div className='flex flex-wrap items-center gap-2'>
                       <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>{mapper.name}</p>
                       <Pill tone={category.tone} mono>
-                        {category.label}
+                        {t(category.labelKey)}
                       </Pill>
                       {claim && (
                         <code className='rounded border border-fk-line bg-neutral-50 px-1.5 py-0.5 font-mono-ui text-[11px] text-neutral-600 dark:bg-fk-surface dark:text-neutral-400'>
@@ -124,12 +134,12 @@ export default function ClientScopeMappersTab({
                   </span>
 
                   <Button variant='ghost' size='sm' className='text-xs' asChild>
-                    <Link to={mapperHref(mapper)}>Configure</Link>
+                    <Link to={mapperHref(mapper)}>{t('detail.mappers.configure')}</Link>
                   </Button>
                   <Button
                     variant='ghost'
                     size='icon'
-                    aria-label={`Delete ${mapper.name}`}
+                    aria-label={t('detail.mappers.delete_mapper', { name: mapper.name })}
                     onClick={() => setPendingDelete(mapper)}
                     className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                   >
@@ -141,7 +151,7 @@ export default function ClientScopeMappersTab({
           </ul>
         ) : (
           <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-            No protocol mapper configured: this scope writes no claim, it only opens a right.
+            {t('detail.mappers.empty')}
           </p>
         )}
       </Section>
@@ -154,10 +164,10 @@ export default function ClientScopeMappersTab({
 
       <ConfirmDeleteAlert
         open={Boolean(pendingDelete)}
-        title='Delete protocol mapper'
+        title={t('detail.mappers.delete.title')}
         description={
           pendingDelete
-            ? `Are you sure you want to delete "${pendingDelete.name}"? This action cannot be undone.`
+            ? t('detail.mappers.delete.description', { name: pendingDelete.name })
             : ''
         }
         onConfirm={() => {

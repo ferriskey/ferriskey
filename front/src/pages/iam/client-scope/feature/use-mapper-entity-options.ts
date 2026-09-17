@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGetClients } from '@/api/client.api'
 import { useGetRoles } from '@/api/role.api'
 import type { MapperEntityOptions } from '../ui/mapper-config-fields'
 
 export function useMapperEntityOptions(realm: string): MapperEntityOptions {
+  const { t } = useTranslation('client-scope')
   const { data: clientsResponse } = useGetClients({ realm })
   const { data: rolesResponse } = useGetRoles({ realm })
 
@@ -19,10 +21,10 @@ export function useMapperEntityOptions(realm: string): MapperEntityOptions {
       return {
         value: clientId ? `${clientId}.${role.name}` : role.name,
         label: role.name,
-        sublabel: clientId ? `${clientId}.${role.name}` : 'realm role',
+        sublabel: clientId ? `${clientId}.${role.name}` : t('mapper_entity.role.realm_role'),
       }
     })
 
     return { client: clients, role: roles }
-  }, [clientsResponse, rolesResponse])
+  }, [clientsResponse, rolesResponse, t])
 }

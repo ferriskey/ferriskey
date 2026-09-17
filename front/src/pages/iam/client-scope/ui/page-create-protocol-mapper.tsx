@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -7,6 +8,9 @@ import { FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import type { MapperTemplate } from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
 import MapperConfigFields, { type MapperEntityOptions } from './mapper-config-fields'
+
+const MAPPER_TYPE_PLACEHOLDER = 'oidc-usermodel-property-mapper'
+const CONFIG_JSON_PLACEHOLDER = '{"key": "value"}'
 
 export interface PageCreateProtocolMapperProps {
   template: MapperTemplate
@@ -45,20 +49,21 @@ export default function PageCreateProtocolMapper({
   onCancel,
   onSubmit,
 }: PageCreateProtocolMapperProps) {
+  const { t } = useTranslation('client-scope')
   const hasConfig = template.fields.length > 0 || Boolean(template.isCustom)
 
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onCancel}>
         <ArrowLeft className='size-3.5' />
-        Protocol Mappers
+        {t('mapper_create.back')}
       </Button>
 
       <div className='flex items-center gap-3 pb-3'>
         <span className='text-3xl leading-none'>{template.icon}</span>
         <div className='min-w-0'>
-          <h1 className={tokens.header.title}>{template.name}</h1>
-          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{template.description}</p>
+          <h1 className={tokens.header.title}>{t(template.nameKey)}</h1>
+          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{t(template.descriptionKey)}</p>
           {!template.isCustom && (
             <div className='mt-1.5'>
               <Pill mono>{template.mapper_type}</Pill>
@@ -68,10 +73,13 @@ export default function PageCreateProtocolMapper({
       </div>
 
       <div className={tokens.page.blockGap}>
-        <Section title='Identity' description='How this mapper is named on the scope.'>
+        <Section
+          title={t('mapper_create.identity.title')}
+          description={t('mapper_create.identity.description')}
+        >
           <FieldRow
-            label='Name'
-            description='Administrative name of the mapper — it is not the claim it writes.'
+            label={t('mapper_form.name.label')}
+            description={t('mapper_form.name.description')}
             htmlFor='new-mapper-name'
           >
             <Input
@@ -86,14 +94,14 @@ export default function PageCreateProtocolMapper({
 
           {template.isCustom && (
             <FieldRow
-              label='Mapper type'
-              description='Identifier of the mapper implementation the server runs at token time.'
+              label={t('mapper_form.type.label')}
+              description={t('mapper_form.type.description.create')}
               htmlFor='new-mapper-type'
             >
               <Input
                 id='new-mapper-type'
                 value={mapperType}
-                placeholder='oidc-usermodel-property-mapper'
+                placeholder={MAPPER_TYPE_PLACEHOLDER}
                 onChange={(e) => onMapperTypeChange(e.target.value)}
                 className='max-w-sm'
               />
@@ -103,19 +111,19 @@ export default function PageCreateProtocolMapper({
 
         {hasConfig && (
           <Section
-            title='Settings'
-            description='Configuration handed to the mapper when a token is issued.'
+            title={t('mapper_create.settings.title')}
+            description={t('mapper_create.settings.description')}
           >
             {template.isCustom ? (
               <FieldRow
-                label='Config'
-                description='Raw JSON object, exactly as the mapper expects it.'
+                label={t('mapper_form.config.label')}
+                description={t('mapper_form.config.description')}
                 htmlFor='new-mapper-config'
               >
                 <Textarea
                   id='new-mapper-config'
                   value={configJson}
-                  placeholder='{"key": "value"}'
+                  placeholder={CONFIG_JSON_PLACEHOLDER}
                   rows={10}
                   onChange={(e) => onConfigJsonChange(e.target.value)}
                   className='max-w-lg'
@@ -137,10 +145,17 @@ export default function PageCreateProtocolMapper({
 
       <SaveBar
         show={canSubmit}
-        title='Create protocol mapper'
-        description='The mapper is added to this client scope right away.'
+        title={t('mapper_create.save_bar.title')}
+        description={t('mapper_create.save_bar.description')}
         onCancel={onCancel}
-        actions={[{ label: isPending ? 'Creating…' : 'Create mapper', onClick: onSubmit }]}
+        actions={[
+          {
+            label: isPending
+              ? t('mapper_create.save_bar.submitting')
+              : t('mapper_create.save_bar.submit'),
+            onClick: onSubmit,
+          },
+        ]}
       />
     </PageShell>
   )

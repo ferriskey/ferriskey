@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -6,7 +7,10 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import type { MapperTemplate } from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
+import {
+  FALLBACK_MAPPER_ICON,
+  type MapperTemplate,
+} from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
 import { Schemas } from '@/api/api.client'
 import { mapperCategory } from '../mapper-categories'
 import MapperConfigFields, { type MapperEntityOptions } from './mapper-config-fields'
@@ -54,10 +58,12 @@ export default function PageProtocolMapperSettings({
   onReset,
   onSubmit,
 }: PageProtocolMapperSettingsProps) {
+  const { t } = useTranslation('client-scope')
+
   const backButton = (
     <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
-      Protocol Mappers
+      {t('mapper_settings.back')}
     </Button>
   )
 
@@ -78,9 +84,11 @@ export default function PageProtocolMapperSettings({
       <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Protocol mapper not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('mapper_settings.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another client scope.
+            {t('mapper_settings.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -93,37 +101,44 @@ export default function PageProtocolMapperSettings({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Protocol Mappers'
-        icon={<span className='text-3xl leading-none'>{template?.icon ?? '⚙️'}</span>}
-        title={template?.name ?? mapper.name}
+        backLabel={t('mapper_settings.back')}
+        icon={<span className='text-3xl leading-none'>{template?.icon ?? FALLBACK_MAPPER_ICON}</span>}
+        title={template ? t(template.nameKey) : mapper.name}
         caption={
-          template?.description && (
-            <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{template.description}</p>
+          template && (
+            <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
+              {t(template.descriptionKey)}
+            </p>
           )
         }
         pills={
           <>
             <Pill tone={category.tone} mono>
-              {category.label}
+              {t(category.labelKey)}
             </Pill>
             <Pill mono>{mapper.mapper_type}</Pill>
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Created at</dt>
-            <dd className='tnum'>Created {formatDate(mapper.created_at)}</dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('mapper_settings.meta.created_label')}</dt>
+            <dd className='tnum'>
+              {t('mapper_settings.meta.created', { date: formatDate(mapper.created_at) })}
+            </dd>
+            <dt className='sr-only'>{t('mapper_settings.meta.identifier_label')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{mapper.id}</dd>
           </dl>
         }
       />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
-        <Section title='General' description='How this mapper is named on the scope.'>
+        <Section
+          title={t('mapper_settings.general.title')}
+          description={t('mapper_settings.general.description')}
+        >
           <FieldRow
-            label='Name'
-            description='Administrative name of the mapper — it is not the claim it writes.'
+            label={t('mapper_form.name.label')}
+            description={t('mapper_form.name.description')}
             htmlFor='mapper-name'
           >
             <Input
@@ -137,8 +152,8 @@ export default function PageProtocolMapperSettings({
           </FieldRow>
 
           <FieldRow
-            label='Mapper type'
-            description='Set at creation: changing the implementation would invalidate the configuration below.'
+            label={t('mapper_form.type.label')}
+            description={t('mapper_form.type.description.settings')}
             htmlFor='mapper-type'
           >
             <Input
@@ -152,8 +167,8 @@ export default function PageProtocolMapperSettings({
 
         {template && template.fields.length > 0 ? (
           <Section
-            title='Settings'
-            description='Configuration handed to the mapper when a token is issued.'
+            title={t('mapper_settings.settings.title')}
+            description={t('mapper_settings.settings.description')}
           >
             <MapperConfigFields
               fields={template.fields}
@@ -164,12 +179,12 @@ export default function PageProtocolMapperSettings({
           </Section>
         ) : (
           <Section
-            title='Configuration (JSON)'
-            description='No template matches this mapper type, so its configuration is edited raw.'
+            title={t('mapper_settings.raw.title')}
+            description={t('mapper_settings.raw.description')}
           >
             <FieldRow
-              label='Config'
-              description='Raw JSON object, exactly as the mapper expects it.'
+              label={t('mapper_form.config.label')}
+              description={t('mapper_form.config.description')}
               htmlFor='mapper-config'
             >
               <Textarea
@@ -188,11 +203,18 @@ export default function PageProtocolMapperSettings({
 
       <SaveBar
         show={hasChanges && !nameError && !configError}
-        title='Unsaved changes'
-        description='Review the mapper before applying the changes.'
+        title={t('mapper_settings.save_bar.title')}
+        description={t('mapper_settings.save_bar.description')}
         onCancel={onReset}
-        cancelLabel='Discard'
-        actions={[{ label: isPending ? 'Saving…' : 'Save changes', onClick: onSubmit }]}
+        cancelLabel={t('mapper_settings.save_bar.cancel')}
+        actions={[
+          {
+            label: isPending
+              ? t('mapper_settings.save_bar.submitting')
+              : t('mapper_settings.save_bar.submit'),
+            onClick: onSubmit,
+          },
+        ]}
       />
     </PageShell>
   )

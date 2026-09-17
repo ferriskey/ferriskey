@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
 
 /**
  * Form schema for the template picker modal.
@@ -12,7 +13,9 @@ import { z } from 'zod'
  * interpreting dotted keys (e.g. "token.claim.name") as nested object paths.
  */
 export const mapperTemplateFormSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z
+    .string()
+    .min(1, { error: () => translate('client-scope:validation.mapper_name_required') }),
   mapper_type: z.string().optional(),
   config_json: z
     .string()
@@ -27,7 +30,7 @@ export const mapperTemplateFormSchema = z.object({
           return false
         }
       },
-      { message: 'Config must be valid JSON' }
+      { error: () => translate('client-scope:validation.mapper_config_invalid_json') }
     ),
 })
 
