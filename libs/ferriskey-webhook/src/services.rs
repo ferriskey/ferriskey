@@ -7,7 +7,7 @@ use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
-use crate::endpoint::{reject_reserved_headers, validate_endpoint};
+use crate::endpoint::{PrivateEndpoints, reject_reserved_headers, validate_endpoint};
 use crate::entities::retry_policy::RetryPolicy;
 use crate::entities::webhook_delivery::{DeliveryPage, WebhookDelivery};
 use crate::entities::{
@@ -33,6 +33,7 @@ where
     pub(crate) realm_repository: Arc<R>,
     pub(crate) webhook_repository: Arc<W>,
     pub(crate) webhook_delivery_repository: Arc<D>,
+    pub(crate) private_endpoints: PrivateEndpoints,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
@@ -51,12 +52,14 @@ where
         webhook_repository: Arc<W>,
         webhook_delivery_repository: Arc<D>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
+        private_endpoints: PrivateEndpoints,
     ) -> Self {
         Self {
             realm_repository,
             webhook_repository,
             webhook_delivery_repository,
             policy,
+            private_endpoints,
         }
     }
 }
@@ -179,7 +182,7 @@ where
             "insufficient permissions",
         )?;
 
-        let endpoint = validate_endpoint(&input.endpoint)?;
+        let endpoint = validate_endpoint(&input.endpoint, self.private_endpoints)?;
         reject_reserved_headers(&input.headers)?;
 
         if !input.retry_policy.is_empty() {
@@ -238,7 +241,7 @@ where
             .await?
             .ok_or(CoreError::WebhookNotFound)?;
 
-        let endpoint = validate_endpoint(&input.endpoint)?;
+        let endpoint = validate_endpoint(&input.endpoint, self.private_endpoints)?;
         if let Some(headers) = input.headers.as_ref() {
             reject_reserved_headers(headers)?;
         }
@@ -531,6 +534,7 @@ mod tests {
             Arc::new(webhook_repo),
             Arc::new(MockWebhookDeliveryRepository::new()),
             policy,
+            PrivateEndpoints::Forbidden,
         )
     }
 

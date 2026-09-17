@@ -104,6 +104,7 @@ mod tests {
             .expect("run migrations");
 
         let service = create_service(FerriskeyConfig {
+            webhook_allow_private_endpoints: false,
             webapp_url: WEBAPP_URL.to_string(),
             database: DatabaseConfig {
                 host: db_host,
@@ -693,8 +694,8 @@ mod tests {
             assert_eq!(loopback.status_code(), 400);
             let body = loopback.text();
             assert!(
-                body.contains("publicly reachable"),
-                "a loopback endpoint must be told it is unreachable: {body}"
+                body.contains("loopback or private address"),
+                "a loopback endpoint must be told what is wrong with it: {body}"
             );
             assert!(
                 !body.contains("localhost") && !body.contains("127.0.0.1"),

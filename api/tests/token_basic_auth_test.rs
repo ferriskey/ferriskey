@@ -86,6 +86,7 @@ mod tests {
             .expect("run migrations");
 
         let service = create_service(FerriskeyConfig {
+            webhook_allow_private_endpoints: false,
             webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,

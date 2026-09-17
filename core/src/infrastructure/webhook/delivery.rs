@@ -13,7 +13,9 @@ use uuid::Uuid;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_seawatch::entities::{EventStatus, SecurityEvent, SecurityEventType};
 use ferriskey_seawatch::ports::SecurityEventRepository;
-use ferriskey_webhook::endpoint::{is_forbidden_address, reject_reserved_headers};
+use ferriskey_webhook::endpoint::{
+    PrivateEndpoints, allows_cleartext, is_forbidden_address, reject_reserved_headers,
+};
 use ferriskey_webhook::signing::{DELIVERY_HEADER, SIGNATURE_HEADER, TIMESTAMP_HEADER, sign};
 
 use crate::domain::webhook::entities::retry_policy::RetryPolicy;
@@ -41,6 +43,7 @@ pub struct DeliveryJob {
     pub attempt_count: u32,
     pub elapsed: Duration,
     pub policy: RetryPolicy,
+    pub private_endpoints: PrivateEndpoints,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +53,7 @@ enum DeliveryFailure {
     MissingHost,
     DnsResolutionFailed,
     NoUsableAddress,
+    CleartextNotAllowed,
     ClientBuildFailed,
     HeaderEncodingFailed,
     Transport,
@@ -64,6 +68,7 @@ impl DeliveryFailure {
             Self::MissingHost => DeliveryErrorCode::MissingHost,
             Self::DnsResolutionFailed => DeliveryErrorCode::DnsResolutionFailed,
             Self::NoUsableAddress => DeliveryErrorCode::NoUsableAddress,
+            Self::CleartextNotAllowed => DeliveryErrorCode::CleartextNotAllowed,
             Self::ClientBuildFailed => DeliveryErrorCode::ClientBuildFailed,
             Self::HeaderEncodingFailed => DeliveryErrorCode::HeaderEncodingFailed,
             Self::Transport => DeliveryErrorCode::Transport,
@@ -234,8 +239,12 @@ async fn attempt_delivery(job: &DeliveryJob) -> Result<u16, DeliveryFailure> {
         .map_err(|_| DeliveryFailure::DnsResolutionFailed)?;
 
     let addr = resolved
-        .find(|candidate| !is_forbidden_address(candidate.ip()))
+        .find(|candidate| !is_forbidden_address(candidate.ip(), job.private_endpoints))
         .ok_or(DeliveryFailure::NoUsableAddress)?;
+
+    if url.scheme() != "https" && !allows_cleartext(addr.ip(), job.private_endpoints) {
+        return Err(DeliveryFailure::CleartextNotAllowed);
+    }
 
     let client = Client::builder()
         .timeout(REQUEST_TIMEOUT)

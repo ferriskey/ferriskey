@@ -318,6 +318,7 @@ mod tests {
     use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
     use crate::infrastructure::seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository;
     use crate::infrastructure::webhook::delivery::{DeliveryJob, deliver_once};
+    use ferriskey_webhook::endpoint::PrivateEndpoints;
     use sea_orm::Database as SeaOrmDatabase;
     use sqlx::Executor as _;
 
@@ -824,6 +825,7 @@ mod tests {
             attempt_count: 0,
             elapsed: Duration::ZERO,
             policy: RetryPolicy::SYSTEM_DEFAULT,
+            private_endpoints: PrivateEndpoints::Forbidden,
         }
     }
 

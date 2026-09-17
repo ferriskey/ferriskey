@@ -70,6 +70,14 @@ pub struct Args {
         long_help = "The url to the webapp to use"
     )]
     pub webapp_url: String,
+
+    #[arg(
+        long,
+        env = "WEBHOOK_ALLOW_PRIVATE_ENDPOINTS",
+        default_value_t = false,
+        long_help = "Allow webhook endpoints to resolve to loopback or private addresses. For local development only — never enable this in production. Link-local addresses stay refused regardless."
+    )]
+    pub webhook_allow_private_endpoints: bool,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
     #[command(subcommand)]
@@ -84,6 +92,7 @@ impl Default for Args {
             env: Environment::Development,
             log: LogArgs::default(),
             server: ServerArgs::default(),
+            webhook_allow_private_endpoints: false,
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
             command: None,
@@ -390,6 +399,7 @@ impl From<Args> for FerriskeyConfig {
                 schema: value.db.schema,
             },
             webapp_url: value.webapp_url,
+            webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
         }
     }
 }

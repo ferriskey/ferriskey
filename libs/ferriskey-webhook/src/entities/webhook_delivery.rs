@@ -84,6 +84,7 @@ pub enum DeliveryErrorCode {
     MissingHost,
     DnsResolutionFailed,
     NoUsableAddress,
+    CleartextNotAllowed,
     ClientBuildFailed,
     HeaderEncodingFailed,
     Transport,
@@ -98,6 +99,7 @@ impl DeliveryErrorCode {
             Self::MissingHost => "missing_host".to_string(),
             Self::DnsResolutionFailed => "dns_resolution_failed".to_string(),
             Self::NoUsableAddress => "no_usable_address".to_string(),
+            Self::CleartextNotAllowed => "cleartext_not_allowed".to_string(),
             Self::ClientBuildFailed => "client_build_failed".to_string(),
             Self::HeaderEncodingFailed => "header_encoding_failed".to_string(),
             Self::Transport => "transport_error".to_string(),
@@ -112,6 +114,7 @@ impl DeliveryErrorCode {
             "missing_host" => Some(Self::MissingHost),
             "dns_resolution_failed" => Some(Self::DnsResolutionFailed),
             "no_usable_address" => Some(Self::NoUsableAddress),
+            "cleartext_not_allowed" => Some(Self::CleartextNotAllowed),
             "client_build_failed" => Some(Self::ClientBuildFailed),
             "header_encoding_failed" => Some(Self::HeaderEncodingFailed),
             "transport_error" => Some(Self::Transport),
@@ -127,7 +130,8 @@ impl DeliveryErrorCode {
             Self::ReservedHeader
             | Self::MalformedEndpoint
             | Self::MissingHost
-            | Self::NoUsableAddress => false,
+            | Self::NoUsableAddress
+            | Self::CleartextNotAllowed => false,
             Self::DnsResolutionFailed
             | Self::ClientBuildFailed
             | Self::HeaderEncodingFailed
@@ -385,6 +389,7 @@ mod tests {
             DeliveryErrorCode::MissingHost,
             DeliveryErrorCode::DnsResolutionFailed,
             DeliveryErrorCode::NoUsableAddress,
+            DeliveryErrorCode::CleartextNotAllowed,
             DeliveryErrorCode::ClientBuildFailed,
             DeliveryErrorCode::HeaderEncodingFailed,
             DeliveryErrorCode::Transport,
@@ -424,6 +429,7 @@ mod tests {
             DeliveryErrorCode::MalformedEndpoint,
             DeliveryErrorCode::MissingHost,
             DeliveryErrorCode::NoUsableAddress,
+            DeliveryErrorCode::CleartextNotAllowed,
         ] {
             assert!(!code.is_retryable(), "{code:?} should not be retryable");
         }
