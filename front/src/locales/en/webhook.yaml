@@ -1,0 +1,374 @@
+# Ratio pill shown on the overview card and on the detail header: subscribed triggers over the
+# size of the trigger catalogue. Never inflects — both numbers are raw counters.
+events_ratio: '{{selected}}/{{total}} events'
+
+form:
+  general:
+    title: General details
+    description: Webhook configuration.
+  name:
+    label: Webhook name
+    description: A descriptive name for this webhook.
+  endpoint:
+    label: Endpoint URL
+    description: The HTTPS URL that will receive events.
+  description:
+    label: Description
+    description: Optional description for this webhook.
+
+list:
+  title: Webhooks
+  description: Endpoints notified of the events of this realm.
+  create: New webhook
+  search_placeholder: Filter by name or endpoint…
+  count_one: '{{count}} webhook'
+  count_other: '{{count}} webhooks'
+  columns:
+    name: Webhook
+    endpoint: Endpoint
+    subscribers: Events
+    triggered_at: Last triggered
+  never_triggered: never
+  metrics:
+    total:
+      label: Total
+      hint: endpoints
+    subscriptions:
+      label: Subscriptions
+      hint: 'of {{total}} triggers'
+    never:
+      label: Never triggered
+      hint: no delivery yet
+    silent:
+      label: Without event
+      hint: will never fire
+  alerts:
+    silent:
+      title: '{{name}} subscribes to nothing'
+      detail: It carries no trigger, so it will never be called.
+      action: Review
+    insecure:
+      title: '{{name}} delivers over plain HTTP'
+      detail: '{{endpoint}} — the payload and its signature headers travel unencrypted.'
+      action: Review
+  filters:
+    triggered: Already triggered
+    silent: Without event
+  card:
+    triggered: triggered
+    never_triggered: never triggered
+    # Always plural by design: the card footer shows a raw total, never a singular row.
+    footer_events: '{{total}} events'
+    flags:
+      subscribed: Subscribes to at least one event
+      triggered: Already triggered
+      secure: Delivers over HTTPS
+  empty:
+    label: No webhook
+    hint: A webhook notifies an external service of the events of this realm.
+
+create:
+  back: Webhooks
+  title: New webhook
+  description: Configure an endpoint to receive real-time event notifications.
+  headers:
+    title: HTTP headers
+    description: Headers attached to every outgoing call. Their values are never returned on read.
+  events:
+    title: Events to subscribe
+    description_one: '{{count}} trigger of {{total}} will notify this endpoint.'
+    description_other: '{{count}} triggers of {{total}} will notify this endpoint.'
+    description_empty: 'No trigger selected: this endpoint would never be called.'
+  save:
+    title: Create webhook
+    description: Create a webhook for this realm.
+    action: Create
+  toast:
+    created: Webhook created successfully
+
+detail:
+  back: Webhooks
+  not_found:
+    title: Webhook not found
+    hint: It may have been deleted, or it belongs to another realm.
+  meta:
+    last_triggered: Last triggered
+    triggered: Triggered {{date}}
+    never: Never triggered
+    identifier: Identifier
+  tabs:
+    settings: Settings
+    events: Events
+    deliveries: Deliveries
+  events:
+    title: Events to subscribe
+    # "notify" stays uninflected in the singular form: kept verbatim from the screen it replaces.
+    description_one: '{{count}} trigger of {{total}} notify this endpoint.'
+    description_other: '{{count}} triggers of {{total}} notify this endpoint.'
+    description_empty: 'No trigger: this endpoint will never be called.'
+  save:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review the webhook before applying the changes.
+    cancel: Discard
+    action: Save changes
+  toast:
+    updated: Webhook updated successfully
+    deleted: Webhook deleted successfully
+
+settings:
+  headers:
+    title: HTTP headers
+    description: Headers attached to every outgoing call. The API never returns the stored values, so nothing is prefilled here.
+    note: Leaving this list empty keeps the headers already stored. Adding one replaces the whole set.
+  signature:
+    title: Signature
+    description: Each delivery is signed so the receiver can prove the call comes from this realm.
+    secret:
+      label: Signing secret
+      description: Stored but never returned. Generating a new one shows it once, so the receiver can be given it.
+  retry:
+    title: Retry policy
+    description: Leave a field empty to inherit the realm setting. The greyed-out value is what applies today.
+    inherited: Inherited
+    max_attempts:
+      label: Attempts
+      description: How many times to try before giving up. Between 1 and 20.
+    base_delay_ms:
+      label: First wait (ms)
+      description: How long to wait after the first failure. It doubles each time.
+    max_delay_ms:
+      label: Longest wait (ms)
+      description: The wait never grows past this.
+    max_total_delay_ms:
+      label: Give up after (ms)
+      description: Total time a delivery may spend retrying.
+  danger:
+    label: Delete this webhook
+    description: Its subscriptions are permanently removed, and no further event is delivered to this endpoint.
+    button: Delete webhook
+    confirm_title: Delete Webhook
+    confirm_description: 'Are you sure you want to delete "{{name}}"? This action cannot be undone.'
+
+headers:
+  empty: No headers configured. Add headers to send custom HTTP headers with your webhook requests.
+  name_label: Header name
+  value_label: Header value
+  new_name_label: New header name
+  new_value_label: New header value
+  value_placeholder: value
+  remove: Remove the header {{name}}
+  add: Add
+  add_header: Add a header
+  cancel: Cancel
+
+secret:
+  generate: Generate a new secret
+  confirm:
+    title: Generate a new signing secret?
+    description: The current secret stops working immediately. Any receiver still verifying signatures with it will reject your deliveries until you give it the new one.
+    cancel: Cancel
+    pending: Generating…
+    action: Generate
+  reveal:
+    title: Your new signing secret
+    description: Copy it now — this is the only time it is shown. Closing this dialog is the last chance; it cannot be read again afterwards.
+    copy: Copy
+    copied: Copied
+    done: Done
+  toast:
+    copy_failed: Could not copy. Select the secret and copy it manually.
+
+events:
+  search_placeholder: Filter events…
+  selected: '{{selected}}/{{total}} selected'
+  clear_all: Clear all
+  no_match: 'No event matches “{{query}}”.'
+  # Lowercase on purpose: these two sit as inline links inside a category header row.
+  select_all: all
+  select_none: none
+
+delivery:
+  title: Deliveries
+  description: Every attempt FerrisKey made to call this endpoint, newest first.
+  error: Delivery history is unavailable. Try again in a moment.
+  status:
+    pending: Queued
+    delivering: Sending
+    succeeded: Delivered
+    failed: Failed
+  filters:
+    all: All
+  columns:
+    status: Status
+    event: Event
+    attempts: Attempts
+    outcome: Outcome
+    created_at: When
+  inspect: Inspect
+  retry: Send again
+  # Footer aggregate of the current page only, never inflected.
+  failed_on_page: '{{total}} failed on this page'
+  range: '{{from}}-{{to}} of {{total}}'
+  previous: Previous
+  next: Next
+  show_all: Show all
+  empty:
+    all:
+      label: No deliveries yet
+      hint: Deliveries appear here as soon as this webhook fires.
+    filtered:
+      label: No delivery matches this filter
+      hint: Change the filter to see the other deliveries.
+  dialog:
+    title: Delivery
+    loading: Loading the delivery…
+    attempts_one: '{{count}} attempt'
+    attempts_other: '{{count}} attempts'
+    payload: Payload sent
+
+# Grouping headers of the trigger picker. They group the catalogue below; they are not sent to the API.
+category:
+  client: Client
+  realm: Realm
+  role: Role
+  user: User
+  authentication: Authentication
+  webhook: Webhook
+
+# Trigger catalogue, nested on the WebhookTrigger enum value the API sends, so "client.role.created"
+# reads as trigger.client.role.created. Each description tells an administrator what the event means:
+# an approximate translation makes them subscribe to the wrong thing.
+trigger:
+  client:
+    created:
+      label: Client Created
+      description: A new client has been created.
+    updated:
+      label: Client Updated
+      description: A client has been updated.
+    deleted:
+      label: Client Deleted
+      description: A client has been deleted.
+    role:
+      created:
+        label: Client Role Created
+        description: A new client role has been created.
+      updated:
+        label: Client Role Updated
+        description: A client role has been updated.
+    maintenance:
+      enabled:
+        label: Client Maintenance Enabled
+        description: Maintenance mode has been enabled on a client.
+      disabled:
+        label: Client Maintenance Disabled
+        description: Maintenance mode has been disabled on a client.
+    saml_config:
+      updated:
+        label: Client SAML Configuration Updated
+        description: The SAML service provider configuration of a client has been updated.
+    saml_attribute_mapper:
+      created:
+        label: Client SAML Attribute Mapper Created
+        description: A SAML attribute mapper has been added to a client.
+      deleted:
+        label: Client SAML Attribute Mapper Deleted
+        description: A SAML attribute mapper has been removed from a client.
+  redirect_uri:
+    created:
+      label: Redirect URI Created
+      description: A new redirect URI has been created.
+    updated:
+      label: Redirect URI Updated
+      description: A redirect URI has been updated.
+    deleted:
+      label: Redirect URI Deleted
+      description: A redirect URI has been deleted.
+  web_origin:
+    created:
+      label: Web Origin Created
+      description: A web origin has been registered on a client.
+    deleted:
+      label: Web Origin Deleted
+      description: A web origin has been removed from a client.
+  realm:
+    created:
+      label: Realm Created
+      description: A new realm has been created.
+    updated:
+      label: Realm Updated
+      description: A realm has been updated.
+    deleted:
+      label: Realm Deleted
+      description: A realm has been deleted.
+    settings:
+      updated:
+        label: Realm Settings Updated
+        description: Realm settings have been updated.
+  role:
+    created:
+      label: Role Created
+      description: A new role has been created.
+    updated:
+      label: Role Updated
+      description: A role has been updated.
+    deleted:
+      label: Role Deleted
+      description: A role has been deleted.
+    permission:
+      updated:
+        label: Role Permission Updated
+        description: A role permission has been updated.
+  user:
+    created:
+      label: User Created
+      description: A new user has been created.
+    updated:
+      label: User Updated
+      description: A user has been updated.
+    deleted:
+      label: User Deleted
+      description: A user has been deleted.
+    email_verified:
+      label: User Email Verified
+      description: A user has verified their email address.
+    bulk_deleted:
+      label: User Bulk Deleted
+      description: Multiple users have been deleted.
+    role:
+      assigned:
+        label: User Assigned Role
+        description: A user has been assigned a role.
+      unassigned:
+        label: User Unassigned Role
+        description: A user has been unassigned a role.
+    credentials:
+      deleted:
+        label: User Deleted Credentials
+        # Faulty English kept verbatim; it means the credentials of a user were deleted.
+        description: A user credentials have been deleted.
+  auth:
+    reset_password:
+      label: Auth Reset Password
+      description: A user password has been reset.
+    device_flow:
+      initiated:
+        label: Device Flow Initiated
+        description: A device authorization flow has been initiated.
+      denied:
+        label: Device Flow Denied
+        description: A device authorization flow has been denied.
+      expired:
+        label: Device Flow Expired
+        description: A device authorization flow has expired.
+  webhook:
+    created:
+      label: Webhook Created
+      description: A new webhook has been created.
+    updated:
+      label: Webhook Updated
+      description: A webhook has been updated.
+    deleted:
+      label: Webhook Deleted
+      description: A webhook has been deleted.

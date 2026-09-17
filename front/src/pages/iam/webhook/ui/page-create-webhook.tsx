@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,25 +46,27 @@ export default function PageCreateWebhook({
   onBack,
   onSubmit,
 }: PageCreateWebhookProps) {
+  const { t } = useTranslation('webhook')
+
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        Webhooks
+        {t('create.back')}
       </Button>
 
       <div className={tokens.header.spacing}>
-        <h1 className={tokens.header.title}>New webhook</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          Configure an endpoint to receive real-time event notifications.
+          {t('create.description')}
         </p>
       </div>
 
       <div className={tokens.page.blockGap}>
-        <Section title='General details' description='Webhook configuration.'>
+        <Section title={t('form.general.title')} description={t('form.general.description')}>
           <FieldRow
-            label='Webhook name'
-            description='A descriptive name for this webhook.'
+            label={t('form.name.label')}
+            description={t('form.name.description')}
             htmlFor='webhook-name'
           >
             <Input
@@ -77,8 +80,8 @@ export default function PageCreateWebhook({
           </FieldRow>
 
           <FieldRow
-            label='Endpoint URL'
-            description='The HTTPS URL that will receive events.'
+            label={t('form.endpoint.label')}
+            description={t('form.endpoint.description')}
             htmlFor='webhook-endpoint'
           >
             <Input
@@ -94,8 +97,8 @@ export default function PageCreateWebhook({
           </FieldRow>
 
           <FieldRow
-            label='Description'
-            description='Optional description for this webhook.'
+            label={t('form.description.label')}
+            description={t('form.description.description')}
             htmlFor='webhook-description'
           >
             <Textarea
@@ -112,8 +115,8 @@ export default function PageCreateWebhook({
         </Section>
 
         <Section
-          title='HTTP headers'
-          description='Headers attached to every outgoing call. Their values are never returned on read.'
+          title={t('create.headers.title')}
+          description={t('create.headers.description')}
         >
           <div className='py-4'>
             <WebhookHeadersField headers={headers} onChange={onHeadersChange} />
@@ -121,11 +124,14 @@ export default function PageCreateWebhook({
         </Section>
 
         <Section
-          title='Events to subscribe'
+          title={t('create.events.title')}
           description={
             subscribers.length > 0
-              ? `${subscribers.length} trigger${subscribers.length > 1 ? 's' : ''} of ${WEBHOOK_TRIGGER_COUNT} will notify this endpoint.`
-              : 'No trigger selected: this endpoint would never be called.'
+              ? t('create.events.description', {
+                  count: subscribers.length,
+                  total: WEBHOOK_TRIGGER_COUNT,
+                })
+              : t('create.events.description_empty')
           }
           contained={false}
         >
@@ -135,10 +141,10 @@ export default function PageCreateWebhook({
 
       <SaveBar
         show={canSubmit}
-        title='Create webhook'
-        description='Create a webhook for this realm.'
+        title={t('create.save.title')}
+        description={t('create.save.description')}
         onCancel={onBack}
-        actions={[{ label: 'Create', onClick: onSubmit }]}
+        actions={[{ label: t('create.save.action'), onClick: onSubmit }]}
       />
     </PageShell>
   )

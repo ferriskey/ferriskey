@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useCreateWebhook } from '@/api/webhook.api'
 import { RouterParams } from '@/routes/router'
 import { createWebhookValidator } from '@/pages/iam/realm/validators'
@@ -19,6 +20,7 @@ const FORM_FIELDS: WebhookField[] = ['name', 'endpoint', 'description']
 export default function PageCreateWebhookFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('webhook')
   const realm = realm_name ?? 'master'
 
   const { mutate: createWebhook } = useCreateWebhook()
@@ -64,7 +66,7 @@ export default function PageCreateWebhookFeature() {
       },
       {
         onSuccess: () => {
-          toast.success('Webhook created successfully')
+          toast.success(t('create.toast.created'))
           navigate(WEBHOOKS_URL(realm))
         },
         onError: (error: unknown) => {
@@ -92,6 +94,12 @@ export default function PageCreateWebhookFeature() {
     apply()
   }
 
+  const changeName = (value: string) => edit('name', () => setName(value))
+
+  const changeEndpoint = (value: string) => edit('endpoint', () => setEndpoint(value))
+
+  const changeDescription = (value: string) => edit('description', () => setDescription(value))
+
   return (
     <PageCreateWebhook
       name={name}
@@ -101,9 +109,9 @@ export default function PageCreateWebhookFeature() {
       subscribers={subscribers}
       errors={errors}
       canSubmit={parsed.success}
-      onNameChange={(v) => edit('name', () => setName(v))}
-      onEndpointChange={(v) => edit('endpoint', () => setEndpoint(v))}
-      onDescriptionChange={(v) => edit('description', () => setDescription(v))}
+      onNameChange={changeName}
+      onEndpointChange={changeEndpoint}
+      onDescriptionChange={changeDescription}
       onHeadersChange={setHeaders}
       onSubscribersChange={setSubscribers}
       onBack={back}

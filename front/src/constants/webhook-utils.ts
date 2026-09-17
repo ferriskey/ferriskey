@@ -1,7 +1,7 @@
 import { Schemas } from '@/api/api.client'
 
 export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
-  Client: [
+  client: [
     'client.created',
     'client.deleted',
     'client.updated',
@@ -18,9 +18,9 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
     'client.saml_attribute_mapper.created',
     'client.saml_attribute_mapper.deleted',
   ],
-  Realm: ['realm.created', 'realm.deleted', 'realm.settings.updated', 'realm.updated'],
-  Role: ['role.created', 'role.updated'],
-  User: [
+  realm: ['realm.created', 'realm.deleted', 'realm.settings.updated', 'realm.updated'],
+  role: ['role.created', 'role.updated'],
+  user: [
     'user.role.assigned',
     'user.bulk_deleted',
     'user.created',
@@ -31,123 +31,40 @@ export const WEBHOOK_CATEGORIES: Record<string, Schemas.WebhookTrigger[]> = {
     'user.email_verified',
     'auth.reset_password',
   ],
-  Authentication: [
+  authentication: [
     'auth.device_flow.initiated',
     'auth.device_flow.denied',
     'auth.device_flow.expired',
   ],
-  Webhook: ['webhook.created', 'webhook.deleted', 'webhook.updated'],
+  webhook: ['webhook.created', 'webhook.deleted', 'webhook.updated'],
 }
 
-export const WEBHOOK_TRIGGER_LABELS: Record<Schemas.WebhookTrigger, string> = {
-  'client.created': 'Client Created',
-  'client.deleted': 'Client Deleted',
-  'client.updated': 'Client Updated',
-  'client.role.created': 'Client Role Created',
-  'client.role.updated': 'Client Role Updated',
-  'redirect_uri.created': 'Redirect URI Created',
-  'redirect_uri.deleted': 'Redirect URI Deleted',
-  'redirect_uri.updated': 'Redirect URI Updated',
+export const webhookCategoryLabelKey = (category: string) => `category.${category}`
 
-  'realm.created': 'Realm Created',
-  'realm.deleted': 'Realm Deleted',
-  'realm.settings.updated': 'Realm Settings Updated',
-  'realm.updated': 'Realm Updated',
+export const webhookTriggerLabelKey = (trigger: Schemas.WebhookTrigger) =>
+  `trigger.${trigger}.label`
 
-  'role.created': 'Role Created',
-  'role.updated': 'Role Updated',
-  'role.deleted': 'Role Deleted',
-  'role.permission.updated': 'Role Permission Updated',
-
-  'user.role.assigned': 'User Assigned Role',
-  'user.bulk_deleted': 'User Bulk Deleted',
-  'user.created': 'User Created',
-  'user.credentials.deleted': 'User Deleted Credentials',
-  'user.deleted': 'User Deleted',
-  'user.role.unassigned': 'User Unassigned Role',
-  'user.updated': 'User Updated',
-  'user.email_verified': 'User Email Verified',
-  'auth.reset_password': 'Auth Reset Password',
-
-  'auth.device_flow.initiated': 'Device Flow Initiated',
-  'auth.device_flow.denied': 'Device Flow Denied',
-  'auth.device_flow.expired': 'Device Flow Expired',
-
-  'webhook.created': 'Webhook Created',
-  'webhook.deleted': 'Webhook Deleted',
-  'webhook.updated': 'Webhook Updated',
-  'client.maintenance.enabled': 'Client Maintenance Enabled',
-  'client.maintenance.disabled': 'Client Maintenance Disabled',
-  'web_origin.created': 'Web Origin Created',
-  'web_origin.deleted': 'Web Origin Deleted',
-  'client.saml_config.updated': 'Client SAML Configuration Updated',
-  'client.saml_attribute_mapper.created': 'Client SAML Attribute Mapper Created',
-  'client.saml_attribute_mapper.deleted': 'Client SAML Attribute Mapper Deleted',
-}
-
-export const WEBHOOK_TRIGGER_DESCRIPTIONS: Record<Schemas.WebhookTrigger, string> = {
-  'client.created': 'A new client has been created.',
-  'client.deleted': 'A client has been deleted.',
-  'client.updated': 'A client has been updated.',
-  'client.role.created': 'A new client role has been created.',
-  'client.role.updated': 'A client role has been updated.',
-  'redirect_uri.created': 'A new redirect URI has been created.',
-  'redirect_uri.deleted': 'A redirect URI has been deleted.',
-  'redirect_uri.updated': 'A redirect URI has been updated.',
-
-  'realm.created': 'A new realm has been created.',
-  'realm.deleted': 'A realm has been deleted.',
-  'realm.settings.updated': 'Realm settings have been updated.',
-  'realm.updated': 'A realm has been updated.',
-
-  'role.created': 'A new role has been created.',
-  'role.updated': 'A role has been updated.',
-  'role.deleted': 'A role has been deleted.',
-  'role.permission.updated': 'A role permission has been updated.',
-
-  'user.role.assigned': 'A user has been assigned a role.',
-  'user.bulk_deleted': 'Multiple users have been deleted.',
-  'user.created': 'A new user has been created.',
-  'user.credentials.deleted': 'A user credentials have been deleted.',
-  'user.deleted': 'A user has been deleted.',
-  'user.role.unassigned': 'A user has been unassigned a role.',
-  'user.updated': 'A user has been updated.',
-  'user.email_verified': 'A user has verified their email address.',
-  'auth.reset_password': 'A user password has been reset.',
-
-  'auth.device_flow.initiated': 'A device authorization flow has been initiated.',
-  'auth.device_flow.denied': 'A device authorization flow has been denied.',
-  'auth.device_flow.expired': 'A device authorization flow has expired.',
-
-  'webhook.created': 'A new webhook has been created.',
-  'webhook.deleted': 'A webhook has been deleted.',
-  'webhook.updated': 'A webhook has been updated.',
-  'client.maintenance.enabled': 'Maintenance mode has been enabled on a client.',
-  'client.maintenance.disabled': 'Maintenance mode has been disabled on a client.',
-  'web_origin.created': 'A web origin has been registered on a client.',
-  'web_origin.deleted': 'A web origin has been removed from a client.',
-  'client.saml_config.updated':
-    'The SAML service provider configuration of a client has been updated.',
-  'client.saml_attribute_mapper.created': 'A SAML attribute mapper has been added to a client.',
-  'client.saml_attribute_mapper.deleted': 'A SAML attribute mapper has been removed from a client.',
-}
+export const webhookTriggerDescriptionKey = (trigger: Schemas.WebhookTrigger) =>
+  `trigger.${trigger}.description`
 
 export type WebhookCategory = {
   category: string
+  labelKey: string
   events: {
     key: Schemas.WebhookTrigger
-    label: string
-    description: string
+    labelKey: string
+    descriptionKey: string
   }[]
 }
 
 export const getWebhookCategoriesForUI = (): WebhookCategory[] => {
   return Object.entries(WEBHOOK_CATEGORIES).map(([category, triggers]) => ({
     category,
+    labelKey: webhookCategoryLabelKey(category),
     events: triggers.map((trigger) => ({
       key: trigger,
-      label: WEBHOOK_TRIGGER_LABELS[trigger],
-      description: WEBHOOK_TRIGGER_DESCRIPTIONS[trigger],
+      labelKey: webhookTriggerLabelKey(trigger),
+      descriptionKey: webhookTriggerDescriptionKey(trigger),
     })),
   }))
 }

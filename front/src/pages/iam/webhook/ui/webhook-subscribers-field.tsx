@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -20,20 +21,24 @@ export default function WebhookSubscribersField({
   value,
   onChange,
 }: WebhookSubscribersFieldProps) {
+  const { t } = useTranslation('webhook')
   const [query, setQuery] = useState('')
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
     return WEBHOOK_CATEGORIES.map((category) => ({
       category: category.category,
+      labelKey: category.labelKey,
       total: category.events.length,
       events: q
         ? category.events.filter((event) =>
-            `${event.key} ${event.label} ${event.description}`.toLowerCase().includes(q)
+            `${event.key} ${t(event.labelKey)} ${t(event.descriptionKey)}`
+              .toLowerCase()
+              .includes(q)
           )
         : category.events,
     })).filter((category) => category.events.length > 0)
-  }, [query])
+  }, [query, t])
 
   const toggle = (trigger: WebhookTrigger) =>
     onChange(
@@ -57,12 +62,12 @@ export default function WebhookSubscribersField({
             type='search'
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='Filter events…'
+            placeholder={t('events.search_placeholder')}
             className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
           />
         </label>
         <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
-          {value.length}/{WEBHOOK_TRIGGER_COUNT} selected
+          {t('events.selected', { selected: value.length, total: WEBHOOK_TRIGGER_COUNT })}
         </span>
         {value.length > 0 && (
           <button
@@ -70,14 +75,14 @@ export default function WebhookSubscribersField({
             onClick={() => onChange([])}
             className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-danger hover:underline'
           >
-            Clear all
+            {t('events.clear_all')}
           </button>
         )}
       </div>
 
       {groups.length === 0 ? (
         <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-          No event matches “{query}”.
+          {t('events.no_match', { query })}
         </p>
       ) : (
         <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
@@ -90,7 +95,7 @@ export default function WebhookSubscribersField({
               <section key={group.category} className='px-4 py-3'>
                 <div className='flex items-center gap-2 pb-2'>
                   <h3 className='text-xs font-semibold uppercase tracking-wide text-neutral-900 dark:text-neutral-100'>
-                    {group.category}
+                    {t(group.labelKey)}
                   </h3>
                   <span
                     className={cn(
@@ -107,7 +112,7 @@ export default function WebhookSubscribersField({
                     disabled={all}
                     className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline disabled:pointer-events-none disabled:text-neutral-300'
                   >
-                    all
+                    {t('events.select_all')}
                   </button>
                   <span className='text-xs text-neutral-300 dark:text-neutral-600'>·</span>
                   <button
@@ -116,7 +121,7 @@ export default function WebhookSubscribersField({
                     disabled={selected === 0}
                     className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline disabled:pointer-events-none disabled:text-neutral-300'
                   >
-                    none
+                    {t('events.select_none')}
                   </button>
                 </div>
 
@@ -127,7 +132,7 @@ export default function WebhookSubscribersField({
                       <label
                         key={event.key}
                         htmlFor={event.key}
-                        title={event.description}
+                        title={t(event.descriptionKey)}
                         className={cn(
                           'flex min-w-0 cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 transition-colors',
                           on ? 'bg-fk-primary-soft/50' : 'hover:bg-neutral-50 dark:hover:bg-fk-surface'
@@ -146,7 +151,7 @@ export default function WebhookSubscribersField({
                               on ? 'text-fk-primary-text' : 'text-neutral-700 dark:text-neutral-300'
                             )}
                           >
-                            {event.label}
+                            {t(event.labelKey)}
                           </span>
                           <span className='block truncate font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
                             {event.key}
