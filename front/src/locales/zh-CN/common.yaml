@@ -8,6 +8,8 @@
 # catalogue have no counterpart here on purpose.
 language:
   switcher_label: 语言
+  search_placeholder: 搜索语言…
+  no_match: '没有与“{{query}}”匹配的语言。'
   names:
     en: English
     zh-CN: 简体中文

@@ -1,5 +1,7 @@
 language:
   switcher_label: Language
+  search_placeholder: Search a language…
+  no_match: 'No language matches “{{query}}”.'
   names:
     en: English
     zh-CN: 简体中文
