@@ -45,6 +45,8 @@ pub struct Model {
     pub webhook_retry_base_delay_ms: Option<i32>,
     pub webhook_retry_max_delay_ms: Option<i32>,
     pub webhook_retry_max_total_delay_ms: Option<i32>,
+    pub default_locale: String,
+    pub supported_locales: Vec<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -81,6 +83,8 @@ pub enum Column {
     WebhookRetryBaseDelayMs,
     WebhookRetryMaxDelayMs,
     WebhookRetryMaxTotalDelayMs,
+    DefaultLocale,
+    SupportedLocales,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -140,6 +144,8 @@ impl ColumnTrait for Column {
             Self::WebhookRetryBaseDelayMs => ColumnType::Integer.def().null(),
             Self::WebhookRetryMaxDelayMs => ColumnType::Integer.def().null(),
             Self::WebhookRetryMaxTotalDelayMs => ColumnType::Integer.def().null(),
+            Self::DefaultLocale => ColumnType::Text.def(),
+            Self::SupportedLocales => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
         }
     }
 }

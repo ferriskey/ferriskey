@@ -8,8 +8,8 @@ use crate::{
             entities::{
                 AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
                 GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, ResetPasswordInput,
-                SetUserAttributesInput, UnassignRoleInput, UpdateOwnProfileInput, UpdateUserInput,
-                User, UserAttribute,
+                SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput,
+                UpdateOwnProfileInput, UpdateUserInput, User, UserAttribute,
             },
             ports::UserService,
         },
@@ -70,6 +70,14 @@ impl UserService for ApplicationService {
         input: UpdateOwnProfileInput,
     ) -> Result<User, CoreError> {
         self.user_service.update_own_profile(identity, input).await
+    }
+
+    async fn update_own_locale(
+        &self,
+        identity: Identity,
+        input: UpdateOwnLocaleInput,
+    ) -> Result<User, CoreError> {
+        self.user_service.update_own_locale(identity, input).await
     }
 
     async fn get_users(

@@ -53,6 +53,11 @@ pub struct UpdateOwnProfileValidator {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct UpdateOwnLocaleValidator {
+    pub locale: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct BulkDeleteUserValidator {
     #[serde(default)]
     pub ids: Vec<Uuid>,

@@ -28,6 +28,7 @@ use super::handlers::{
     set_user_attributes::{__path_set_user_attributes, set_user_attributes},
     unassign_role::{__path_unassign_role, unassign_role},
     unlock_user::{__path_unlock_user, unlock_user},
+    update_me_locale::{__path_update_me_locale, update_me_locale},
     update_own_profile::{__path_update_own_profile, update_own_profile},
     update_user::{__path_update_user, update_user},
 };
@@ -38,6 +39,7 @@ use super::handlers::{
     get_user,
     get_own_profile,
     update_own_profile,
+    update_me_locale,
     get_user_roles,
     assign_role,
     create_user,
@@ -81,6 +83,13 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             get(get_own_profile).put(update_own_profile),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/@me/locale",
+                state.args.server.root_path
+            ),
+            put(update_me_locale),
         )
         .route(
             &format!(

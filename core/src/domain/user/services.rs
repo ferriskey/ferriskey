@@ -28,8 +28,8 @@ use crate::domain::{
         entities::{
             AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
             GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, RequiredAction,
-            ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnProfileInput,
-            UpdateUserInput, User, UserAttribute,
+            ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput,
+            UpdateOwnProfileInput, UpdateUserInput, User, UserAttribute,
         },
         ports::{
             UserAttributeRepository, UserPolicy, UserRepository, UserRequiredActionRepository,
@@ -730,6 +730,28 @@ where
                     required_actions: None,
                 },
             )
+            .await
+    }
+
+    async fn update_own_locale(
+        &self,
+        identity: Identity,
+        input: UpdateOwnLocaleInput,
+    ) -> Result<User, CoreError> {
+        if !identity.is_regular_user() {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let realm = self
+            .realm_repository
+            .get_by_name(&input.realm_name)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+
+        self.load_user_in_realm(identity.id(), &realm).await?;
+
+        self.user_repository
+            .update_locale(identity.id(), input.locale)
             .await
     }
 

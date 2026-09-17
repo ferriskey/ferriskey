@@ -70,6 +70,11 @@ pub struct UpdateOwnProfileInput {
     pub email: Option<String>,
 }
 
+pub struct UpdateOwnLocaleInput {
+    pub realm_name: String,
+    pub locale: Option<String>,
+}
+
 pub struct GetUserAttributesInput {
     pub realm_name: String,
     pub user_id: Uuid,
