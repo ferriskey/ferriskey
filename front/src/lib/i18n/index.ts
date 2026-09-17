@@ -52,6 +52,10 @@ export async function setLocale(locale: SupportedLocale): Promise<void> {
   await i18next.changeLanguage(locale)
 }
 
+export async function displayLocale(locale: SupportedLocale): Promise<void> {
+  await i18next.changeLanguage(locale)
+}
+
 export async function applyLocalePreferences(
   preferences: LocalePreferences
 ): Promise<SupportedLocale> {
