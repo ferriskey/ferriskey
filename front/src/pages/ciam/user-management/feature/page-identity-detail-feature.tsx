@@ -14,6 +14,7 @@ import UserAttributesFeature from '@/pages/iam/user/feature/user-attributes-feat
 import { CONSOLE_IDENTITIES_URL, CONSOLE_IDENTITY_URL } from '../urls'
 
 import RequiredAction = Schemas.RequiredAction
+import { apiErrorMessage } from '@/lib/api-error'
 
 interface Draft {
   key: string
@@ -118,7 +119,7 @@ export default function PageIdentityDetailFeature() {
       },
       {
         onSuccess: () => toast.success('Identity updated'),
-        onError: (error) => toast.error(error.message),
+        onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
   }

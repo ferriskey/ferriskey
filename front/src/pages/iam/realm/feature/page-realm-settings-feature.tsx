@@ -33,6 +33,7 @@ import type { PolicyDraft } from '../ui/realm-password-policy-tab'
 import { useDraft } from './use-draft'
 
 import LoginAlias = Schemas.LoginAlias
+import { apiErrorMessage } from '@/lib/api-error'
 
 const REALM_TABS = [
   { key: 'general', label: 'General' },
@@ -276,7 +277,7 @@ export default function PageRealmSettingsFeature() {
         {
           onSuccess: () => toast.success('Password policy updated successfully'),
           onError: (error: Error) =>
-            toast.error(error.message || 'Failed to update password policy'),
+            toast.error(apiErrorMessage(error, 'Failed to update password policy')),
         }
       )
     }

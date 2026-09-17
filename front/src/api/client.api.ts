@@ -2,6 +2,7 @@ import { CreateClientSchema } from '@/pages/iam/client/schemas/create-client.sch
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import { apiErrorMessage } from '@/lib/api-error'
 
 export const useGetClients = ({ realm }: BaseQuery) => {
   return useQuery(
@@ -193,7 +194,7 @@ export const useAssignScope = () => {
     },
     onError: (error) => {
       toast.error('Failed to assign scope', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })
@@ -233,7 +234,7 @@ export const useUnassignScope = () => {
     },
     onError: (error) => {
       toast.error('Failed to unassign scope', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })

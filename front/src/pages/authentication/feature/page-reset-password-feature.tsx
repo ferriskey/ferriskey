@@ -8,8 +8,15 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { buildResetPasswordSchema, type ResetPasswordSchema } from '../schemas/reset-password.schema'
 import PageResetPassword from '../ui/page-reset-password'
 import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
+import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 
 type TokenStatus = 'loading' | 'valid' | 'invalid'
+
+const FIELD_BY_API_FIELD: Record<string, keyof ResetPasswordSchema> = {
+  password: 'password',
+  new_password: 'password',
+  value: 'password',
+}
 
 export default function PageResetPasswordFeature() {
   const { realm_name } = useParams()
@@ -22,8 +29,9 @@ export default function PageResetPasswordFeature() {
   const missingParams = !tokenId || !token
 
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>(missingParams ? 'invalid' : 'loading')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { mutate: verifyToken } = useVerifyResetToken()
-  const { mutate: resetPassword, isPending, error } = useResetPassword()
+  const { mutate: resetPassword, isPending } = useResetPassword()
   const { setAuthTokens } = useAuth()
 
   const { data: policy, isLoading: isPolicyLoading } = usePublicPasswordPolicy(realm_name)
@@ -67,6 +75,8 @@ export default function PageResetPasswordFeature() {
   function onSubmit(data: ResetPasswordSchema) {
     if (missingParams) return
 
+    setErrorMessage(null)
+
     resetPassword(
       {
         path: { realm_name: realm_name ?? 'master' },
@@ -87,6 +97,22 @@ export default function PageResetPasswordFeature() {
 
           navigate(`/realms/${realm_name}/overview`)
         },
+        onError: (error) => {
+          const { byField, unattached } = partitionFieldErrors(
+            validationErrorsFrom(error),
+            (field) => FIELD_BY_API_FIELD[field]
+          )
+
+          for (const [field, message] of byField) {
+            form.setError(field, { type: 'server', message })
+          }
+
+          if (byField.size > 0 && unattached.length === 0) return
+
+          setErrorMessage(
+            unattached.join(' — ') || apiErrorMessage(error, 'Could not reset your password.')
+          )
+        },
       }
     )
   }
@@ -98,7 +124,7 @@ export default function PageResetPasswordFeature() {
         onSubmit={onSubmit}
         isPending={isPending}
         tokenStatus={tokenStatus}
-        errorMessage={error?.message ?? null}
+        errorMessage={errorMessage}
         policy={resolvedPolicy}
       />
     </Form>

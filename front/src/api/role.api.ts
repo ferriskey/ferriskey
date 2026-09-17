@@ -2,6 +2,7 @@ import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/re
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Schemas } from './api.client'
+import { apiErrorMessage } from '@/lib/api-error'
 
 const invalidateRole = async (
   queryClient: QueryClient,
@@ -105,7 +106,7 @@ export const useCreateRole = () => {
     },
     onError(error) {
       toast.error('Failed to create role', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })
@@ -124,7 +125,7 @@ export const useUpdateRole = () => {
     },
     onError(error) {
       toast.error('Failed to update role', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })
@@ -144,7 +145,7 @@ export const useUpdateRolePermissions = () => {
     },
     onError(error) {
       toast.error('Failed to update role', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })
@@ -173,7 +174,7 @@ export const useDeleteRole = () => {
     },
     onError(error) {
       toast.error('Failed to delete role', {
-        description: error.message,
+        description: apiErrorMessage(error),
       })
     },
   })

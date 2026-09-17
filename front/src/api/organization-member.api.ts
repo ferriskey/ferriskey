@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authStore } from '@/store/auth.store'
+import { errorMessageFromBody, type ApiRequestError } from '@/lib/api-error'
 
 // Roles scoped to an organization member (Discord-style member roles). These hooks use `fetch`
 // directly (like group.api.ts) for consistency with the sibling organization/group endpoints.
@@ -35,14 +36,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   })
 
   if (!response.ok) {
-    let message = `HTTP ${response.status}`
+    let errorBody: Record<string, unknown> | undefined
     try {
-      const data = await response.json()
-      message = data?.message ?? data?.errors?.[0]?.message ?? message
+      errorBody = await response.json()
     } catch {
-      // keep default message
+      errorBody = undefined
     }
-    throw new Error(message)
+
+    const error: ApiRequestError = new Error(
+      errorMessageFromBody(errorBody) ?? `HTTP ${response.status}`
+    )
+    error.status = response.status
+    error.data = errorBody
+    throw error
   }
 
   if (response.status === 204) {

@@ -28,11 +28,3 @@ export function buildLoginErrorRedirect(realmName: string | undefined, errorMess
 
   return `/realms/${realm}/authentication/login?${params.toString()}`
 }
-
-export function getTokenExchangeErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message
-  }
-
-  return 'Unable to complete sign in. Please try again.'
-}

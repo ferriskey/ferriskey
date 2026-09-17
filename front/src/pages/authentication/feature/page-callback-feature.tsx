@@ -4,11 +4,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
-import {
-  buildLoginErrorRedirect,
-  getTokenExchangeErrorMessage,
-  validateCallbackParams,
-} from './callback-helpers'
+import { buildLoginErrorRedirect, validateCallbackParams } from './callback-helpers'
+import { apiErrorMessage } from '@/lib/api-error'
 import { POST_LOGIN_RETURN_KEY } from './page-device-verify-feature'
 import { takeOAuthFlow } from '../utils/pkce'
 
@@ -93,7 +90,7 @@ export default function PageCallbackFeature() {
         navigate(returnTo ?? `/realms/${realm}/overview`, { replace: true })
       })
       .catch((error: unknown) => {
-        const message = getTokenExchangeErrorMessage(error)
+        const message = apiErrorMessage(error, 'Unable to complete sign in. Please try again.')
         document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
         navigate(buildLoginErrorRedirect(realm_name, message), { replace: true })
       })

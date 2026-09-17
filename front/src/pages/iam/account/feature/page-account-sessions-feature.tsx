@@ -5,6 +5,7 @@ import { useGetOwnProfile, useGetUserSessions, useRevokeUserSession } from '@/ap
 import { authStore } from '@/store/auth.store'
 import { RouterParams } from '@/routes/router'
 import PageAccountSessions from '../ui/page-account-sessions'
+import { apiErrorMessage } from '@/lib/api-error'
 
 function decodeSid(token: string | null): string | null {
   if (!token) return null
@@ -42,7 +43,7 @@ export default function PageAccountSessionsFeature() {
       },
       {
         onSuccess: () => toast.success('Session revoked'),
-        onError: (error) => toast.error(error.message),
+        onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
   }

@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
 import {
+  SESSION_EXPIRED_REASON,
   useAuthenticateMutation,
   useRegistrationMutation,
   useResendVerificationEmailMutation,
 } from '@/api/auth.api'
+import { apiErrorMessage, apiErrorReason } from '@/lib/api-error'
 import { useForgotPassword, useResetPassword } from '@/api/password-reset.api'
 import { useSendMagicLink, useSetupOtp, useVerifyOtp } from '@/api/trident.api'
 import { useDeviceVerify } from '@/api/device.api'
@@ -119,11 +121,12 @@ export function usePortalPageSubmit(
         {
           // Surface the API error so the page can render its
           // `form_error_banner` block inline (mirrors the React default
-          // theme's red banner). For "Session expired" the mutation
-          // itself toasts with a Reload action — we don't double up.
+          // theme's red banner). An expired login session is already
+          // toasted with a Reload action by the mutation — we don't
+          // double up.
           onError: (error: Error) => {
-            if (/session\s+expired/i.test(error.message)) return
-            onFormError?.(error.message || 'Sign-in failed. Please try again.')
+            if (apiErrorReason(error) === SESSION_EXPIRED_REASON) return
+            onFormError?.(apiErrorMessage(error, 'Sign-in failed. Please try again.'))
           },
         },
       )
@@ -296,7 +299,7 @@ export function usePortalPageSubmit(
             navigate(`/realms/${realm_name ?? 'master'}/authentication/login`)
           },
           onError: (error: Error) =>
-            onFormError?.(error.message || 'Could not reset password.'),
+            onFormError?.(apiErrorMessage(error, 'Could not reset password.')),
         },
       )
     },
@@ -308,7 +311,8 @@ export function usePortalPageSubmit(
         { realm: realm_name ?? 'master' },
         {
           onSuccess: () => toast.success('Verification email sent. Check your inbox.'),
-          onError: (error) => toast.error(error.message || 'Failed to resend verification email'),
+          onError: (error) =>
+            toast.error(apiErrorMessage(error, 'Failed to resend verification email')),
         },
       )
     },
@@ -343,11 +347,7 @@ export function usePortalPageSubmit(
         })
         setDeviceResult(response.status === 'denied' ? 'denied' : 'approved')
       } catch (err) {
-        const error = err as {
-          status?: number
-          data?: { error_description?: string; redirect_uri?: string }
-          message?: string
-        }
+        const error = err as { status?: number; data?: { redirect_uri?: string } }
         if (error.status === 401) {
           if (deviceRedirectingToLogin.current) return
           deviceRedirectingToLogin.current = true
@@ -366,11 +366,7 @@ export function usePortalPageSubmit(
           })
           return
         }
-        const description =
-          error.data?.error_description ??
-          error.message ??
-          'Unable to verify this code. Please try again.'
-        onFormError?.(description)
+        onFormError?.(apiErrorMessage(err, 'Unable to verify this code. Please try again.'))
       }
     },
     [navigate, onFormError, realm_name, verifyDevice],

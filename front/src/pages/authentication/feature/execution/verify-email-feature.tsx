@@ -5,6 +5,7 @@ import { Mail, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
+import { apiErrorMessage } from '@/lib/api-error'
 
 const VERIFY_EMAIL_CONTEXT_KEY = 'ferriskey_verify_email_context'
 
@@ -79,7 +80,7 @@ export default function VerifyEmailFeature() {
           setCooldown(60) // 60 second cooldown before allowing another resend
         },
         onError: (error) => {
-          toast.error(error.message || 'Failed to resend verification email')
+          toast.error(apiErrorMessage(error, 'Failed to resend verification email'))
         },
       }
     )

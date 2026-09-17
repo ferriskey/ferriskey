@@ -1,0 +1,114 @@
+access_denied: The authorization request was denied.
+account_locked: Your account is temporarily locked after too many failed sign-in attempts. Try again later.
+already_exists: This resource already exists.
+authorization_code_storage_failed: The sign-in could not be completed. Please start again.
+authorization_pending: Waiting for you to approve this device.
+breached_password: This password has appeared in a data breach. Choose a different one.
+broker_session_expired: The single sign-on session has expired. Please start again.
+broker_session_not_found: The single sign-on session could not be found. Please start again.
+cannot_delete_master_realm: The master realm cannot be deleted.
+client_id_already_exists: A client with this ID already exists in this realm.
+client_not_found: This client could not be found.
+common_password: This password is too common or matches your account details. Choose a stronger one.
+configuration: The server is misconfigured. Contact an administrator.
+create_client_error: The client could not be created.
+create_credential_error: The credential could not be created.
+database: The database is unavailable. Please try again.
+delete_credential_error: The credential could not be deleted.
+delete_password_credential_error: The password credential could not be deleted.
+device_session_forbidden: You cannot act on a device session that belongs to another realm.
+email_already_exists: This email address is already used in this realm.
+email_template_not_found: This email template could not be found.
+email_template_render_error: The email template could not be rendered.
+email_verification_template_not_configured: No email verification template is configured for this realm.
+expired_token: This token has expired.
+external: An external service is unavailable. Please try again.
+failed_webhook_notification: The webhook endpoint could not be notified.
+federation_authentication_failed: Authentication against the federated directory failed.
+get_password_credential_error: The password credential could not be read.
+get_user_credentials_error: The user credentials could not be read.
+hash_password_error: The password could not be secured. Please try again.
+hints_not_found: No account hints were found.
+idp_authentication_failed: The identity provider rejected the authentication.
+idp_token_exchange_failed: The identity provider did not return a token.
+idp_user_info_failed: The identity provider did not return the user profile.
+insufficient_entropy: This password is not strong enough. Make it longer, or mix uppercase and lowercase letters, numbers and symbols.
+internal_server_error: Something went wrong on our side. Please try again.
+invalid: This resource is invalid.
+invalid_broker_state: The single sign-on state is invalid. Please start again.
+invalid_client: This client is invalid.
+invalid_client_secret: This client secret is invalid.
+invalid_credentials: Incorrect username or password.
+invalid_id_token: The identity token is invalid.
+invalid_key: The signing key is invalid.
+invalid_magic_link: This magic link is invalid.
+invalid_or_expired_token: This email verification link is invalid or has expired.
+invalid_password: This password is incorrect.
+invalid_provider_url: The identity provider URL is invalid.
+invalid_realm: This realm is invalid.
+invalid_redirect_uri: This redirect URI is not allowed for this client.
+invalid_refresh_token: This refresh token is invalid.
+invalid_request: This request is invalid.
+invalid_session: This session is invalid.
+invalid_state: The state parameter does not match. Please start again.
+invalid_token: This token is invalid.
+invalid_totp_secret_format: The authenticator secret is not in a readable format.
+invalid_user: This user is invalid.
+link_not_found: No identity provider link was found for this account.
+link_only_user_not_found: No local account matches this identity. Ask an administrator to create one first.
+magic_link_already_used: This magic link has already been used.
+magic_link_expired: This magic link has expired.
+magic_link_not_enabled: Magic link sign-in is not enabled for this realm.
+missing_authorization_code: The authorization code is missing.
+missing_lowercase: The password must contain at least one lowercase letter.
+missing_number: The password must contain at least one number.
+missing_special: The password must contain at least one special character.
+missing_uppercase: The password must contain at least one uppercase letter.
+not_found: This resource could not be found.
+portal_layout_default: This portal layout is the realm default and cannot be deleted.
+portal_layout_in_use: This portal layout is used by one or more themes and cannot be deleted.
+portal_theme_active: This portal theme is active and cannot be deleted.
+protocol_not_supported: This operation is not supported for the client's protocol.
+provider_disabled: This identity provider is disabled.
+provider_name_already_exists: An identity provider with this name already exists.
+provider_not_found: This identity provider could not be found.
+realm_already_exists: A realm with this name already exists.
+realm_key_not_found: No signing key was found for this realm.
+redirect_uri_not_found: No redirect URI is registered for this client.
+saml_attribute_mapper_not_found: No SAML attribute mapper is registered under this identifier.
+saml_config_not_found: No SAML configuration is registered for this client.
+service_account_not_found: The service account for this client could not be found.
+service_unavailable: The service is temporarily unavailable. Please try again.
+session_create_error: The session could not be created.
+session_delete_error: The session could not be deleted.
+session_expired: Your session has expired. Please sign in again.
+session_not_found: This session could not be found.
+session_revoked: This session has been revoked. Please sign in again.
+slow_down: You are checking too often. Please wait a moment.
+token_expiration_error: The token expiry could not be read.
+token_generation_error: The token could not be issued.
+token_issuance_failed: The token could not be issued.
+token_not_found: This token could not be found.
+token_parsing_error: The token could not be read.
+token_validation_error: The token could not be validated.
+too_short: This password is too short.
+totp_generation_failed: The one-time code could not be generated.
+totp_verification_failed: This one-time code is incorrect.
+unauthorized_client: This client is not allowed to use this grant.
+unexpected_credential_data: This credential is stored in an unexpected format.
+update_credential_error: The credential could not be updated.
+user_code_generation_exhausted: No device code could be generated. Please try again.
+user_disabled: This account is disabled.
+user_linking_failed: This identity could not be linked to an account.
+user_not_found: This user could not be found.
+username_already_exists: This username is already used in this realm.
+verify_password_error: The password could not be verified. Please try again.
+web_origin_not_found: No web origin is registered under this identifier.
+webauthn_challenge_failed: The passkey challenge failed. Please try again.
+webauthn_credential_not_found: This passkey could not be found.
+webauthn_missing_challenge: The passkey challenge is missing. Please start again.
+webhook_delivery_not_found: This webhook delivery could not be found.
+webhook_delivery_not_replayable: This webhook delivery is still in flight and cannot be replayed.
+webhook_forbidden: You are not allowed to act on this webhook.
+webhook_not_found: This webhook could not be found.
+webhook_realm_not_found: The realm for this webhook could not be found.

@@ -40,11 +40,12 @@ export default function PageLoginFeature() {
 
   const { data: loginSettings } = useGetLoginSettings({ realm: realm_name })
 
-  const { form, onSubmit, errorMessage, isSessionError, resetAuthenticate } = useLoginForm({
-    realm_name,
-    loginError,
-    getAuthParamsFromUrl,
-  })
+  const { form, onSubmit, errorMessage, isSessionError, isMaintenanceError, resetAuthenticate } =
+    useLoginForm({
+      realm_name,
+      loginError,
+      getAuthParamsFromUrl,
+    })
 
   const { onPasskeyLogin, isPasskeyLoading } = usePasskeyAuth({
     realm_name,
@@ -101,6 +102,7 @@ export default function PageLoginFeature() {
         isError={undefined}
         loginSettings={loginSettings}
         errorMessage={errorMessage}
+        isMaintenanceError={isMaintenanceError}
         onPasskeyLogin={loginSettings?.passkey_enabled ? onPasskeyLogin : undefined}
         isPasskeyLoading={isPasskeyLoading}
         onMagicLinkLogin={loginSettings?.magic_link_enabled ? onMagicLinkLogin : undefined}

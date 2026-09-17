@@ -32,6 +32,7 @@ import {
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
 import { useGetUsers } from '@/api/user.api'
 import { useGetRoles } from '@/api/role.api'
+import { apiErrorMessage } from '@/lib/api-error'
 import {
   GroupNode,
   useAddGroupMember,
@@ -50,7 +51,7 @@ import {
 
 const PAGE_SIZE = 50
 
-const fail = (e: unknown) => toast.error(e instanceof Error ? e.message : 'Request failed')
+const fail = (e: unknown) => toast.error(apiErrorMessage(e, 'Request failed'))
 
 /** Find a node by id in the group tree (so the detail stays fresh after refetches). */
 function findNode(nodes: GroupNode[], id: string): GroupNode | undefined {

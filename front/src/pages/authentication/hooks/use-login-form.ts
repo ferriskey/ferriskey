@@ -5,6 +5,20 @@ import { useNavigate } from 'react-router'
 import { z } from 'zod'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useAuthenticateMutation } from '@/api/auth.api'
+import { apiErrorMessage, apiErrorReason } from '@/lib/api-error'
+
+const MAINTENANCE_REASON = 'client_under_maintenance'
+
+const SESSION_ERROR_REASONS = new Set([
+  'unauthorized',
+  'session_expired',
+  'session_not_found',
+  'session_revoked',
+  'session_create_error',
+  'session_delete_error',
+  'invalid_session',
+  'expired_token',
+])
 
 export const authenticateSchema = z.object({
   username: z.string().min(1, { message: 'Username is required' }),
@@ -73,26 +87,30 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
   )
 
   const authErrorStatus = (authenticateError as { status?: number } | null)?.status
+  const authErrorReason = apiErrorReason(authenticateError)
 
   const authErrorMessage =
     authenticateStatus === 'error'
-      ? (authenticateError?.message ??
-        'Authentication failed. Please check your credentials and try again.')
+      ? apiErrorMessage(
+          authenticateError,
+          'Authentication failed. Please check your credentials and try again.'
+        )
       : null
 
   const errorMessage = loginError ?? authErrorMessage
 
   const isSessionError = Boolean(
-    (errorMessage &&
-      /(session|expired|invalid[_-]?session|session[_-]?not[_-]?found)/i.test(errorMessage)) ||
-      authErrorStatus === 500
+    (authErrorReason && SESSION_ERROR_REASONS.has(authErrorReason)) || authErrorStatus === 500
   )
+
+  const isMaintenanceError = authErrorReason === MAINTENANCE_REASON
 
   return {
     form,
     onSubmit,
     errorMessage,
     isSessionError,
+    isMaintenanceError,
     resetAuthenticate,
   }
 }

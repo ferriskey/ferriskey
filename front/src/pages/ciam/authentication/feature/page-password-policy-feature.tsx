@@ -6,6 +6,7 @@ import { RouterParams } from '@/routes/router'
 import { useDraft } from '@/pages/iam/realm/feature/use-draft'
 import type { PolicyDraft } from '@/pages/iam/realm/ui/realm-password-policy-tab'
 import PagePasswordPolicy from '../ui/page-password-policy'
+import { apiErrorMessage } from '@/lib/api-error'
 
 const DEFAULT_POLICY: PolicyDraft = {
   min_length: 8,
@@ -67,7 +68,7 @@ export default function PagePasswordPolicyFeature() {
       {
         onSuccess: () => toast.success('Password policy updated.'),
         onError: (error: Error) =>
-          toast.error(error.message || 'Failed to update the password policy'),
+          toast.error(apiErrorMessage(error, 'Failed to update the password policy')),
       }
     )
   }
