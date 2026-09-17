@@ -4,13 +4,12 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_api_core::api_entities::{
-    api_error::{ApiError, ApiErrorBody, ApiErrorResponse, ValidateJson},
+    api_error::{ApiError, ApiErrorResponse, ValidateJson},
     response::Response,
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::common::locale::{Locale, LocaleError, SupportedLocales};
-use ferriskey_core::domain::realm::ports::RealmService;
+use ferriskey_core::domain::common::locale::{Locale, LocaleError};
 use ferriskey_core::domain::user::entities::{UpdateOwnLocaleInput, User};
 use ferriskey_core::domain::user::ports::UserService;
 use serde::{Deserialize, Serialize};
@@ -30,34 +29,6 @@ fn locale_rejected(error: &LocaleError) -> ApiError {
     };
 
     ApiError::validation_error("locale", code, error.to_string())
-}
-
-fn realm_locales_corrupted(error: &LocaleError) -> ApiError {
-    ApiError::InternalServerError(ApiErrorBody::new(
-        format!("the realm carries an unusable locale configuration: {error}"),
-        "invalid_realm_locales",
-    ))
-}
-
-async fn supported_locales(
-    state: &AppState,
-    realm_name: &str,
-) -> Result<SupportedLocales, ApiError> {
-    let settings = state
-        .service
-        .get_login_settings(realm_name.to_string())
-        .await
-        .map_err(ApiError::from)?;
-
-    let default =
-        Locale::parse(&settings.default_locale).map_err(|error| realm_locales_corrupted(&error))?;
-    let all = settings
-        .supported_locales
-        .iter()
-        .map(|raw| Locale::parse(raw).map_err(|error| realm_locales_corrupted(&error)))
-        .collect::<Result<Vec<Locale>, ApiError>>()?;
-
-    SupportedLocales::new(default, all).map_err(|error| realm_locales_corrupted(&error))
 }
 
 #[utoipa::path(
@@ -91,14 +62,7 @@ pub async fn update_me_locale(
 ) -> Result<Response<UpdateOwnLocaleResponse>, ApiError> {
     let locale = match payload.locale {
         Some(raw) => {
-            let supported = supported_locales(&state, &realm_name).await?;
             let locale = Locale::parse(&raw).map_err(|error| locale_rejected(&error))?;
-
-            if !supported.contains(&locale) {
-                return Err(locale_rejected(&LocaleError::Unsupported(
-                    locale.to_string(),
-                )));
-            }
 
             Some(locale.to_string())
         }

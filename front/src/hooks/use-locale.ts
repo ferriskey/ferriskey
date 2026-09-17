@@ -117,7 +117,7 @@ export function useLocale(): UseLocaleResult {
         await applyLocale(target)
         commitLocale(target)
 
-        if (isAuthenticated && realm && realmLocales.includes(target)) {
+        if (isAuthenticated && realm) {
           await saveAccountLocale({ realm, locale: target }).catch((error: unknown) => {
             toast.error(apiErrorMessage(error))
           })
@@ -126,15 +126,7 @@ export function useLocale(): UseLocaleResult {
         pendingChoice = null
       }
     },
-    [
-      commitLocale,
-      defaultLocale,
-      isAuthenticated,
-      offeredLocales,
-      realm,
-      realmLocales,
-      saveAccountLocale,
-    ]
+    [commitLocale, defaultLocale, isAuthenticated, offeredLocales, realm, saveAccountLocale]
   )
 
   return useMemo(
