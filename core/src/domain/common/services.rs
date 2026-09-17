@@ -568,6 +568,7 @@ pub mod tests {
             updated_at: Utc::now(),
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 
@@ -589,6 +590,7 @@ pub mod tests {
             roles: Some(Vec::new()),
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 
@@ -615,6 +617,7 @@ pub mod tests {
             roles: Some(Vec::new()),
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 
@@ -647,6 +650,7 @@ pub mod tests {
             roles: Some(Vec::new()),
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 

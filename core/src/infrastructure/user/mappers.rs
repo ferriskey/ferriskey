@@ -25,6 +25,7 @@ impl From<crate::entity::users::Model> for User {
             updated_at,
             failed_login_attempts: value.failed_login_attempts,
             locked_until,
+            locale: value.locale,
         }
     }
 }

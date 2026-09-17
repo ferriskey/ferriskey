@@ -19,6 +19,8 @@ pub struct RealmLoginSetting {
     pub magic_link_ttl: u32,
     pub passkey_enabled: bool,
     pub login_aliases: LoginAliases,
+    pub default_locale: String,
+    pub supported_locales: Vec<String>,
     pub theme: crate::domain::portal_theme::entities::PortalThemeConfig,
 }
 
@@ -36,6 +38,8 @@ impl From<RealmSetting> for RealmLoginSetting {
             magic_link_ttl: value.magic_link_ttl,
             passkey_enabled: value.passkey_enabled,
             login_aliases: value.login_aliases,
+            default_locale: value.default_locale,
+            supported_locales: value.supported_locales,
             theme: crate::domain::portal_theme::entities::PortalThemeConfig::default(),
         }
     }

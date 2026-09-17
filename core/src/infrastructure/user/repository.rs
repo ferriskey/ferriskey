@@ -91,6 +91,7 @@ impl UserRepository for PostgresUserRepository {
             updated_at: Set(user.updated_at.naive_utc()),
             failed_login_attempts: Set(0),
             locked_until: Set(None),
+            locale: Set(user.locale),
         };
 
         let t =
@@ -315,6 +316,33 @@ impl UserRepository for PostgresUserRepository {
                     }
                 },
             )?;
+
+        Ok(updated_user.into())
+    }
+
+    #[instrument(skip(self), err)]
+    async fn update_locale(
+        &self,
+        user_id: Uuid,
+        locale: Option<String>,
+    ) -> Result<User, CoreError> {
+        let user = crate::entity::users::Entity::find()
+            .filter(crate::entity::users::Column::Id.eq(user_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error finding user for locale update: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::NotFound)?;
+
+        let mut active_model: crate::entity::users::ActiveModel = user.into();
+        active_model.locale = Set(locale);
+
+        let updated_user = active_model.update(&self.db).await.map_err(|e| {
+            error!("error updating user locale: {:?}", e);
+            CoreError::InternalServerError
+        })?;
 
         Ok(updated_user.into())
     }

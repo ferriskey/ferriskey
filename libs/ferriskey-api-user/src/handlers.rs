@@ -18,5 +18,6 @@ pub mod revoke_user_session;
 pub mod set_user_attributes;
 pub mod unassign_role;
 pub mod unlock_user;
+pub mod update_me_locale;
 pub mod update_own_profile;
 pub mod update_user;

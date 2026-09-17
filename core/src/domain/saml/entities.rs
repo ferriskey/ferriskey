@@ -361,6 +361,7 @@ pub(crate) mod fixtures {
             updated_at: now,
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 

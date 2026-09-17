@@ -26,6 +26,7 @@ pub struct Model {
     pub updated_at: DateTime,
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTimeWithTimeZone>,
+    pub locale: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -43,6 +44,7 @@ pub enum Column {
     UpdatedAt,
     FailedLoginAttempts,
     LockedUntil,
+    Locale,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -98,6 +100,7 @@ impl ColumnTrait for Column {
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::FailedLoginAttempts => ColumnType::Integer.def(),
             Self::LockedUntil => ColumnType::TimestampWithTimeZone.def().null(),
+            Self::Locale => ColumnType::Text.def().null(),
         }
     }
 }

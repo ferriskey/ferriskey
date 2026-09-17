@@ -42,6 +42,7 @@ pub struct User {
     pub updated_at: DateTime<Utc>,
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTime<Utc>>,
+    pub locale: Option<String>,
 }
 
 impl User {
@@ -74,6 +75,7 @@ mod tests {
             updated_at: now,
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 
@@ -194,6 +196,7 @@ impl User {
             updated_at: now,
             failed_login_attempts: 0,
             locked_until: None,
+            locale: None,
         }
     }
 }

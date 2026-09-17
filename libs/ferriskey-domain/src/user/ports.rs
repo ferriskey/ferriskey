@@ -12,8 +12,8 @@ use crate::role::permission::Permissions;
 use crate::user::commands::{
     AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, DeleteUserAttributeInput,
     GetOwnProfileInput, GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
-    ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnProfileInput,
-    UpdateUserInput,
+    ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput,
+    UpdateOwnProfileInput, UpdateUserInput,
 };
 use crate::user::entities::{RequiredAction, RequiredActionError, User, UserAttribute};
 use crate::user::value_objects::{CreateUserRequest, UpdateUserRequest};
@@ -77,6 +77,12 @@ pub trait UserService: Send + Sync {
         &self,
         identity: Identity,
         input: UpdateOwnProfileInput,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn update_own_locale(
+        &self,
+        identity: Identity,
+        input: UpdateOwnLocaleInput,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
     fn unassign_role(
         &self,
@@ -164,6 +170,12 @@ pub trait UserRepository: Send + Sync {
         &self,
         user_id: Uuid,
         dto: UpdateUserRequest,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+
+    fn update_locale(
+        &self,
+        user_id: Uuid,
+        locale: Option<String>,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 
     fn increment_failed_login_attempts(

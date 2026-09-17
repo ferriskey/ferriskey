@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
+use crate::common::locale::SupportedLocales;
 use crate::realm::{LoginAliases, Realm, RealmId, RealmSetting, SmtpConfig};
 
 pub trait RealmPolicy: Send + Sync {
@@ -85,6 +86,7 @@ pub trait RealmRepository: Send + Sync {
         lockout_threshold: Option<i32>,
         lockout_duration_seconds: Option<i32>,
         login_aliases: Option<LoginAliases>,
+        locales: Option<SupportedLocales>,
         seawatch_pii_mode: Option<String>,
         seawatch_pseudo_key: Option<Option<String>>,
         require_mfa: Option<bool>,

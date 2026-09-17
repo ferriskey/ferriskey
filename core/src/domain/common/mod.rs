@@ -4,6 +4,7 @@ use uuid::{NoContext, Timestamp, Uuid};
 
 pub mod email;
 pub mod entities;
+pub mod locale;
 pub mod policies;
 pub mod ports;
 pub mod services;

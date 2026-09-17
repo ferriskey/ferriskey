@@ -7,6 +7,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::common::locale::Locale;
 use crate::{generate_timestamp, generate_uuid_v7};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Ord, PartialOrd, ToSchema)]
@@ -208,6 +209,8 @@ pub struct RealmSetting {
     pub email_verification_enabled: bool,
     pub email_verification_ttl_hours: i64,
     pub login_aliases: LoginAliases,
+    pub default_locale: String,
+    pub supported_locales: Vec<String>,
     pub require_mfa: bool,
     /// Whether users may change their own username from the self-service
     /// account page. Off by default: usernames are used as-is by login
@@ -251,6 +254,8 @@ impl RealmSetting {
             email_verification_enabled: false,
             email_verification_ttl_hours: 24,
             login_aliases: LoginAliases::default(),
+            default_locale: Locale::en().to_string(),
+            supported_locales: vec![Locale::en().to_string()],
             require_mfa: false,
             edit_username_enabled: false,
             updated_at: now,

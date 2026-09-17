@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use uuid::Uuid;
 
+use crate::domain::common::locale::SupportedLocales;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -146,6 +147,7 @@ pub struct UpdateRealmSettingInput {
     pub lockout_threshold: Option<i32>,
     pub lockout_duration_seconds: Option<i32>,
     pub login_aliases: Option<LoginAliases>,
+    pub locales: Option<SupportedLocales>,
     pub seawatch_pii_mode: Option<String>,
     pub seawatch_pseudo_key: Option<Option<String>>,
     pub require_mfa: Option<bool>,

@@ -10,6 +10,7 @@ use crate::{
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::domain::common::locale::{Locale, SupportedLocales};
 use crate::domain::realm::entities::RealmId;
 use crate::domain::realm::{
     entities::{Realm, RealmSetting},
@@ -221,6 +222,7 @@ impl RealmRepository for PostgresRealmRepository {
         lockout_threshold: Option<i32>,
         lockout_duration_seconds: Option<i32>,
         login_aliases: Option<LoginAliases>,
+        locales: Option<SupportedLocales>,
         seawatch_pii_mode: Option<String>,
         seawatch_pseudo_key: Option<Option<String>>,
         require_mfa: Option<bool>,
@@ -324,6 +326,12 @@ impl RealmRepository for PostgresRealmRepository {
         if let Some(aliases) = login_aliases {
             realm_setting.login_aliases =
                 Set(aliases.as_slice().iter().map(|a| a.to_string()).collect());
+        }
+
+        if let Some(locales) = locales {
+            realm_setting.default_locale = Set(locales.default_locale().to_string());
+            realm_setting.supported_locales =
+                Set(locales.all().iter().map(Locale::to_string).collect());
         }
 
         if let Some(mode) = seawatch_pii_mode {
