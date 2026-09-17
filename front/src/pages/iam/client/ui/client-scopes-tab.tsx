@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { KeyRound, Plus, Search, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -22,11 +23,12 @@ import { EmptyState, IconTile, Pill, Section, Segmented } from '@/components/kit
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
+import { ASSIGNABLE_SCOPE_TYPES } from '../client-choices'
 
 import ClientScope = Schemas.ClientScope
 import ScopeType = Schemas.ScopeType
 
-export type AssignableScopeType = 'default' | 'optional'
+export type AssignableScopeType = (typeof ASSIGNABLE_SCOPE_TYPES)[number]
 
 export interface ClientScopesTabProps {
   view: string
@@ -69,6 +71,7 @@ function AddScopeDialog({
   isAssigning: boolean
   onAdd: (scopeId: string, type: AssignableScopeType) => void
 }) {
+  const { t } = useTranslation('client')
   const [query, setQuery] = useState('')
   const [type, setType] = useState<AssignableScopeType>('default')
   const [selected, setSelected] = useState<string | null>(null)
@@ -90,11 +93,8 @@ function AddScopeDialog({
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(next) : close())}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>Add a client scope</DialogTitle>
-          <DialogDescription>
-            A default scope goes into every token; an optional one only arrives when the client
-            asks for it.
-          </DialogDescription>
+          <DialogTitle>{t('scopes.add.title')}</DialogTitle>
+          <DialogDescription>{t('scopes.add.description')}</DialogDescription>
         </DialogHeader>
 
         <div className='flex items-center gap-2'>
@@ -104,7 +104,7 @@ function AddScopeDialog({
               type='search'
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Search scopes…'
+              placeholder={t('scopes.add.search_placeholder')}
               className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
             />
           </label>
@@ -113,8 +113,11 @@ function AddScopeDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='default'>Default</SelectItem>
-              <SelectItem value='optional'>Optional</SelectItem>
+              {ASSIGNABLE_SCOPE_TYPES.map((candidate) => (
+                <SelectItem key={candidate} value={candidate}>
+                  {t(`scopes.add.type.${candidate}`)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -123,7 +126,7 @@ function AddScopeDialog({
           <div className='max-h-72 overflow-y-auto'>
           {isLoading ? (
             <p className='px-3 py-6 text-center text-xs text-neutral-500 dark:text-neutral-400'>
-              Loading available scopes…
+              {t('scopes.add.loading')}
             </p>
           ) : rows.length > 0 ? (
             <ul className='divide-y divide-fk-line-soft'>
@@ -148,7 +151,7 @@ function AddScopeDialog({
                         <Pill mono>{scope.protocol}</Pill>
                       </span>
                       <span className='mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400'>
-                        {scope.description || 'No description'}
+                        {scope.description || t('shared.no_description')}
                       </span>
                     </span>
                   </label>
@@ -157,9 +160,7 @@ function AddScopeDialog({
             </ul>
           ) : (
             <p className='px-3 py-6 text-center text-xs text-neutral-500 dark:text-neutral-400'>
-              {query
-                ? `No scope matches “${query}”.`
-                : 'Every scope of the realm is already assigned.'}
+              {query ? t('scopes.add.no_match', { query }) : t('scopes.add.exhausted')}
             </p>
           )}
           </div>
@@ -167,7 +168,7 @@ function AddScopeDialog({
 
         <DialogFooter>
           <Button variant='ghost' onClick={close} disabled={isAssigning}>
-            Cancel
+            {t('scopes.add.cancel')}
           </Button>
           <Button
             disabled={!selected || isAssigning}
@@ -176,7 +177,7 @@ function AddScopeDialog({
               close()
             }}
           >
-            {isAssigning ? 'Assigning…' : 'Assign scope'}
+            {isAssigning ? t('scopes.add.submitting') : t('scopes.add.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -200,6 +201,7 @@ export default function ClientScopesTab({
   onRemove,
   evaluatePanel,
 }: ClientScopesTabProps) {
+  const { t } = useTranslation('client')
   const defaults = assignedScopes.filter((s) => s.default_scope_type === 'DEFAULT')
 
   return (
@@ -208,8 +210,8 @@ export default function ClientScopesTab({
         value={view}
         onChange={onViewChange}
         items={[
-          { key: 'assigned', label: 'Assigned scopes' },
-          { key: 'evaluate', label: 'Evaluate' },
+          { key: 'assigned', label: t('scopes.views.assigned') },
+          { key: 'evaluate', label: t('scopes.views.evaluate') },
         ]}
       />
 
@@ -218,15 +220,15 @@ export default function ClientScopesTab({
       ) : (
         <div className={tokens.page.blockGap}>
           <Section
-            title={`Assigned scopes (${assignedScopes.length})`}
-            description='Sets of claims this client is allowed to request.'
+            title={t('scopes.assigned.title', { total: assignedScopes.length })}
+            description={t('scopes.assigned.description')}
             action={
               <Button
                 size='sm'
                 disabled={availableScopes.length === 0}
                 onClick={() => onAddOpenChange(true)}
               >
-                <Plus /> Add scope
+                <Plus /> {t('scopes.assigned.add')}
               </Button>
             }
             contained={assignedScopes.length > 0}
@@ -262,13 +264,13 @@ export default function ClientScopesTab({
                           <Pill mono>{scope.protocol}</Pill>
                         </div>
                         <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                          {scope.description || 'No description'}
+                          {scope.description || t('shared.no_description')}
                         </p>
                       </div>
 
                       {type ? (
                         <div className='flex shrink-0 overflow-hidden rounded-md border border-fk-line'>
-                          {(['default', 'optional'] as const).map((candidate) => (
+                          {ASSIGNABLE_SCOPE_TYPES.map((candidate) => (
                             <button
                               key={candidate}
                               type='button'
@@ -281,13 +283,13 @@ export default function ClientScopesTab({
                                   : 'text-neutral-500 hover:bg-neutral-50 dark:text-neutral-400 dark:hover:bg-fk-surface'
                               )}
                             >
-                              {candidate}
+                              {t(`scopes.assigned.type.${candidate}`)}
                             </button>
                           ))}
                         </div>
                       ) : (
                         <Pill tone='amber' mono>
-                          none
+                          {t('scopes.assigned.type.none')}
                         </Pill>
                       )}
 
@@ -295,7 +297,7 @@ export default function ClientScopesTab({
                         variant='ghost'
                         size='icon'
                         disabled={!type}
-                        aria-label={`Remove ${scope.name}`}
+                        aria-label={t('scopes.assigned.remove', { name: scope.name })}
                         onClick={() => onRemove(scope)}
                         className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                       >
@@ -309,8 +311,8 @@ export default function ClientScopesTab({
               <EmptyState
                 icon={KeyRound}
                 compact
-                label='No scope assigned'
-                hint='The tokens issued for this client will carry no profile claim.'
+                label={t('scopes.assigned.empty.label')}
+                hint={t('scopes.assigned.empty.hint')}
                 action={
                   <Button
                     size='sm'
@@ -318,7 +320,7 @@ export default function ClientScopesTab({
                     disabled={availableScopes.length === 0}
                     onClick={() => onAddOpenChange(true)}
                   >
-                    <Plus /> Add scope
+                    <Plus /> {t('scopes.assigned.add')}
                   </Button>
                 }
               />
@@ -326,8 +328,8 @@ export default function ClientScopesTab({
           </Section>
 
           <Section
-            title='Effective scopes'
-            description='Included in every token issued for this client, without the client having to ask.'
+            title={t('scopes.effective.title')}
+            description={t('scopes.effective.description')}
             contained={defaults.length > 0}
           >
             {defaults.length > 0 ? (
@@ -339,7 +341,7 @@ export default function ClientScopesTab({
                         {scope.name}
                       </Pill>
                       <span className='text-xs text-neutral-500 dark:text-neutral-400'>
-                        {scope.description || 'No description'}
+                        {scope.description || t('shared.no_description')}
                       </span>
                     </div>
                     {scope.protocol_mappers && scope.protocol_mappers.length > 0 ? (
@@ -356,7 +358,7 @@ export default function ClientScopesTab({
                       </div>
                     ) : (
                       <p className='mt-1 text-xs text-neutral-400 dark:text-neutral-500'>
-                        No mapper: this scope produces no claim, it only opens a right.
+                        {t('scopes.effective.no_mapper')}
                       </p>
                     )}
                   </li>
@@ -366,8 +368,8 @@ export default function ClientScopesTab({
               <EmptyState
                 icon={KeyRound}
                 compact
-                label='No default scope'
-                hint='Every claim will have to be requested explicitly by the client.'
+                label={t('scopes.effective.empty.label')}
+                hint={t('scopes.effective.empty.hint')}
               />
             )}
           </Section>

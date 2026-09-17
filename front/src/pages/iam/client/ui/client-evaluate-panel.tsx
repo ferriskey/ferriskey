@@ -1,4 +1,5 @@
 import { Check, Play } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
   Select,
@@ -54,27 +55,33 @@ export default function ClientEvaluatePanel({
   onToggleOptional,
   onEvaluate,
 }: ClientEvaluatePanelProps) {
+  const { t } = useTranslation('client')
+
   return (
     <div className={tokens.page.blockGap}>
       <Section
-        title='Evaluate tokens'
-        description='Simulates the tokens issued for a given account, with the optional scopes the client would request.'
+        title={t('scopes.evaluate.title')}
+        description={t('scopes.evaluate.description')}
         contained={false}
       >
         <div className={cn(tokens.surface.panel, 'space-y-4 p-4')}>
           <div className='max-w-sm'>
             <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100' htmlFor='evaluate-user'>
-              Account
+              {t('scopes.evaluate.account')}
             </label>
             <Select value={userId} onValueChange={onUserChange}>
               <SelectTrigger id='evaluate-user' className='w-full'>
-                <SelectValue placeholder='Select an account to evaluate' />
+                <SelectValue placeholder={t('scopes.evaluate.account_placeholder')} />
               </SelectTrigger>
               <SelectContent>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
-                    {user.username}
-                    {user.email ? ` (${user.email})` : ''}
+                    {user.email
+                      ? t('scopes.evaluate.account_option', {
+                          username: user.username,
+                          email: user.email,
+                        })
+                      : user.username}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -84,7 +91,7 @@ export default function ClientEvaluatePanel({
           {optionalScopes.length > 0 && (
             <div>
               <p className='pb-1.5 text-xs font-medium text-neutral-900 dark:text-neutral-100'>
-                Optional scopes requested
+                {t('scopes.evaluate.optional')}
               </p>
               <div className='flex flex-wrap gap-1.5'>
                 {optionalScopes.map((scope) => {
@@ -113,15 +120,15 @@ export default function ClientEvaluatePanel({
 
           <div>
             <p className='pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
-              Scope string
+              {t('scopes.evaluate.scope_string')}
             </p>
             <code className='block rounded-md border border-fk-line bg-neutral-50 px-2.5 py-1.5 font-mono-ui text-xs text-neutral-700 dark:bg-fk-surface dark:text-neutral-300'>
-              {requestedScope || '—'}
+              {requestedScope || t('scopes.evaluate.scope_string_empty')}
             </code>
           </div>
 
           <Button disabled={!userId || isPending} onClick={onEvaluate}>
-            <Play /> {isPending ? 'Evaluating…' : 'Evaluate'}
+            <Play /> {isPending ? t('scopes.evaluate.running') : t('scopes.evaluate.run')}
           </Button>
         </div>
       </Section>
@@ -129,8 +136,8 @@ export default function ClientEvaluatePanel({
       {result && (
         <>
           <Section
-            title={`Effective protocol mappers (${result.effective_mappers.length})`}
-            description='What the retained scope set produces.'
+            title={t('scopes.evaluate.mappers.title', { total: result.effective_mappers.length })}
+            description={t('scopes.evaluate.mappers.description')}
             contained={result.effective_mappers.length > 0}
           >
             {result.effective_mappers.length > 0 ? (
@@ -146,19 +153,19 @@ export default function ClientEvaluatePanel({
               </ul>
             ) : (
               <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-                No protocol mappers apply for this scope set.
+                {t('scopes.evaluate.mappers.empty')}
               </p>
             )}
           </Section>
 
           <Section
-            title='Effective roles'
-            description='Roles held by this account, as they will be written in the token.'
+            title={t('scopes.evaluate.roles.title')}
+            description={t('scopes.evaluate.roles.description')}
           >
             <div className='space-y-3 py-3'>
               <div>
                 <p className='pb-1 text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
-                  Realm roles
+                  {t('scopes.evaluate.roles.realm')}
                 </p>
                 <div className='flex flex-wrap gap-1.5'>
                   {result.effective_roles.realm_roles.length > 0 ? (
@@ -168,7 +175,9 @@ export default function ClientEvaluatePanel({
                       </Pill>
                     ))
                   ) : (
-                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>none</span>
+                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+                      {t('scopes.evaluate.roles.none')}
+                    </span>
                   )}
                 </div>
               </div>
@@ -188,14 +197,14 @@ export default function ClientEvaluatePanel({
           </Section>
 
           <Section
-            title='Generated claims'
-            description='The three sets produced by this evaluation.'
+            title={t('scopes.evaluate.claims.title')}
+            description={t('scopes.evaluate.claims.description')}
             contained={false}
           >
             <div className='space-y-3'>
-              <JsonPanel title='Access token' value={result.access_token} />
-              <JsonPanel title='ID token' value={result.id_token} />
-              <JsonPanel title='Userinfo' value={result.userinfo} />
+              <JsonPanel title={t('scopes.evaluate.claims.access_token')} value={result.access_token} />
+              <JsonPanel title={t('scopes.evaluate.claims.id_token')} value={result.id_token} />
+              <JsonPanel title={t('scopes.evaluate.claims.userinfo')} value={result.userinfo} />
             </div>
           </Section>
         </>

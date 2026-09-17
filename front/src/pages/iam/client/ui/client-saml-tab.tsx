@@ -1,4 +1,5 @@
 import { Trash2 } from 'lucide-react'
+import { Trans, useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -65,22 +66,9 @@ export interface ClientSamlTabProps {
 }
 
 const SIGNATURE_FIELDS = [
-  {
-    key: 'signAssertions',
-    label: 'Sign assertions',
-    description: 'Sign the assertion itself. Almost every application expects this.',
-  },
-  {
-    key: 'signDocuments',
-    label: 'Sign documents',
-    description: 'Sign the whole SAML response in addition to the assertion.',
-  },
-  {
-    key: 'wantAuthnRequestsSigned',
-    label: 'Require signed authentication requests',
-    description:
-      'Reject sign-in requests from this application unless they carry a valid signature.',
-  },
+  { key: 'signAssertions', field: 'sign_assertions' },
+  { key: 'signDocuments', field: 'sign_documents' },
+  { key: 'wantAuthnRequestsSigned', field: 'want_authn_requests_signed' },
 ] as const
 
 export default function ClientSamlTab({
@@ -104,6 +92,7 @@ export default function ClientSamlTab({
   onAddCommonProfile,
   onDeleteMapper,
 }: ClientSamlTabProps) {
+  const { t } = useTranslation('client')
   const { confirm, ask, close } = useConfirmDeleteAlert()
   const isCustomSource = mapperDraft.source === CUSTOM_ATTRIBUTE_SOURCE
 
@@ -123,9 +112,8 @@ export default function ClientSamlTab({
 
   const askDeleteMapper = (mapper: SamlAttributeMapper) =>
     ask({
-      title: `Stop sending ${mapper.name}?`,
-      description:
-        'The application will no longer receive this attribute on the next sign-in. Anything relying on it may break.',
+      title: t('saml.mappers.delete.title', { name: mapper.name }),
+      description: t('saml.mappers.delete.description'),
       onConfirm: () => {
         onDeleteMapper(mapper.id)
         close()
@@ -137,22 +125,21 @@ export default function ClientSamlTab({
       {!isConfigured && (
         <div className='rounded-sm border border-fk-info-border bg-fk-info-soft/50 px-4 py-3'>
           <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
-            This client does not use SAML yet
+            {t('saml.not_configured.title')}
           </p>
           <p className='mt-0.5 text-xs text-neutral-600 dark:text-neutral-400'>
-            Fill in the two values the application shows on its SAML settings page, then save.
-            FerrisKey will start answering SAML sign-in requests for it.
+            {t('saml.not_configured.hint')}
           </p>
         </div>
       )}
 
       <Section
-        title='Service provider'
-        description='Identifies the application and tells FerrisKey where to send the assertion.'
+        title={t('saml.service_provider.title')}
+        description={t('saml.service_provider.description')}
       >
         <FieldRow
-          label='Entity ID'
-          description='The unique identifier the application publishes for itself, for example https://chat.acme.com/saml/sp/1.'
+          label={t('saml.service_provider.entity_id.label')}
+          description={t('saml.service_provider.entity_id.description')}
           htmlFor='saml-sp-entity-id'
         >
           <Input
@@ -166,8 +153,8 @@ export default function ClientSamlTab({
         </FieldRow>
 
         <FieldRow
-          label='Assertion Consumer Service URL'
-          description='Where the signed assertion is posted after the user signs in.'
+          label={t('saml.service_provider.acs_url.label')}
+          description={t('saml.service_provider.acs_url.description')}
           htmlFor='saml-acs-url'
         >
           <Input
@@ -181,8 +168,8 @@ export default function ClientSamlTab({
         </FieldRow>
 
         <FieldRow
-          label='Name ID format'
-          description='How the user is identified inside the assertion.'
+          label={t('saml.service_provider.name_id_format.label')}
+          description={t('saml.service_provider.name_id_format.description')}
         >
           <div className='max-w-lg'>
             <Select
@@ -190,7 +177,7 @@ export default function ClientSamlTab({
               onValueChange={(v) => onDraftChange({ nameIdFormat: v })}
             >
               <SelectTrigger className='w-full'>
-                <SelectValue placeholder='Select a name ID format' />
+                <SelectValue placeholder={t('saml.service_provider.name_id_format.placeholder')} />
               </SelectTrigger>
               <SelectContent>
                 {NAME_ID_FORMAT_OPTIONS.map((option) => (
@@ -210,12 +197,16 @@ export default function ClientSamlTab({
         </FieldRow>
       </Section>
 
-      <Section title='Signatures' description='What FerrisKey signs, and what it demands signed.'>
-        {SIGNATURE_FIELDS.map((field) => (
-          <FieldRow key={field.key} label={field.label} description={field.description}>
+      <Section title={t('saml.signatures.title')} description={t('saml.signatures.description')}>
+        {SIGNATURE_FIELDS.map((signature) => (
+          <FieldRow
+            key={signature.key}
+            label={t(`saml.signatures.${signature.field}.label`)}
+            description={t(`saml.signatures.${signature.field}.description`)}
+          >
             <SwitchField
-              checked={draft[field.key]}
-              onCheckedChange={(v) => onDraftChange({ [field.key]: v })}
+              checked={draft[signature.key]}
+              onCheckedChange={(v) => onDraftChange({ [signature.key]: v })}
             />
           </FieldRow>
         ))}
@@ -224,22 +215,22 @@ export default function ClientSamlTab({
       {!isConfigured && (
         <div>
           <Button type='button' disabled={isSaving} onClick={onSubmit}>
-            Enable SAML
+            {t('saml.enable')}
           </Button>
         </div>
       )}
 
       {isConfigured && (
         <Section
-          title='Attribute mappings'
-          description='User details sent alongside the assertion. Match the attribute names the application asks for.'
+          title={t('saml.mappers.title')}
+          description={t('saml.mappers.description')}
           contained={false}
         >
           <div className='space-y-3'>
             {mappers.length === 0 ? (
               <div className='space-y-3 rounded-lg border border-dashed border-fk-line px-4 py-3'>
                 <p className='text-xs text-neutral-500 dark:text-neutral-400'>
-                  No attributes are sent yet. Most applications need at least an email address.
+                  {t('saml.mappers.empty')}
                 </p>
                 <Button
                   type='button'
@@ -248,20 +239,31 @@ export default function ClientSamlTab({
                   disabled={isCreatingMapper}
                   onClick={onAddCommonProfile}
                 >
-                  Add email, first_name and last_name
+                  {t('saml.mappers.add_common_profile')}
                 </Button>
               </div>
             ) : (
               <ul className={cn(tokens.surface.panel, 'px-3', tokens.surface.divider)}>
                 {mappers.map((mapper) => (
                   <li key={mapper.id} className='flex items-center gap-3 py-2.5'>
-                    <span className='shrink-0 font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
-                      {mapper.name}
-                    </span>
-                    <span className='shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500'>from</span>
-                    <span className='min-w-0 flex-1 truncate text-xs text-neutral-600 dark:text-neutral-400'>
-                      {describeAttributeSource(mapper.source)}
-                    </span>
+                    <Trans
+                      i18nKey='client:saml.mappers.row'
+                      values={{
+                        name: mapper.name,
+                        source: describeAttributeSource(mapper.source),
+                      }}
+                      components={{
+                        attr: (
+                          <span className='shrink-0 font-mono-ui text-xs text-neutral-900 dark:text-neutral-100' />
+                        ),
+                        from: (
+                          <span className='shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500' />
+                        ),
+                        detail: (
+                          <span className='min-w-0 flex-1 truncate text-xs text-neutral-600 dark:text-neutral-400' />
+                        ),
+                      }}
+                    />
                     <span className='shrink-0 text-[11px] text-neutral-400 dark:text-neutral-500'>
                       {describeAttributeNameFormat(mapper.name_format)}
                     </span>
@@ -269,7 +271,7 @@ export default function ClientSamlTab({
                       variant='ghost'
                       size='icon'
                       disabled={isDeletingMapper}
-                      aria-label={`Remove the ${mapper.name} attribute mapping`}
+                      aria-label={t('saml.mappers.remove', { name: mapper.name })}
                       onClick={() => askDeleteMapper(mapper)}
                       className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                     >
@@ -286,7 +288,7 @@ export default function ClientSamlTab({
                   className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'
                   htmlFor='saml-mapper-name'
                 >
-                  Attribute name
+                  {t('saml.mappers.name.label')}
                 </label>
                 <Input
                   id='saml-mapper-name'
@@ -302,14 +304,14 @@ export default function ClientSamlTab({
 
               <div>
                 <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'>
-                  User detail to send
+                  {t('saml.mappers.source.label')}
                 </label>
                 <Select
                   value={mapperDraft.source}
                   onValueChange={(v) => onMapperDraftChange({ source: v })}
                 >
                   <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Select a user detail' />
+                    <SelectValue placeholder={t('saml.mappers.source.placeholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {BUILT_IN_SOURCE_OPTIONS.map((option) => (
@@ -317,7 +319,9 @@ export default function ClientSamlTab({
                         {option.label}
                       </SelectItem>
                     ))}
-                    <SelectItem value={CUSTOM_ATTRIBUTE_SOURCE}>Custom user attribute</SelectItem>
+                    <SelectItem value={CUSTOM_ATTRIBUTE_SOURCE}>
+                      {t('saml.mappers.source.custom')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -328,7 +332,7 @@ export default function ClientSamlTab({
                     className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'
                     htmlFor='saml-mapper-custom-key'
                   >
-                    Attribute key
+                    {t('saml.mappers.custom_key.label')}
                   </label>
                   <Input
                     id='saml-mapper-custom-key'
@@ -345,14 +349,14 @@ export default function ClientSamlTab({
 
               <div>
                 <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100'>
-                  Name format
+                  {t('saml.mappers.name_format.label')}
                 </label>
                 <Select
                   value={mapperDraft.nameFormat}
                   onValueChange={(v) => onMapperDraftChange({ nameFormat: v })}
                 >
                   <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Select a name format' />
+                    <SelectValue placeholder={t('saml.mappers.name_format.placeholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {ATTRIBUTE_NAME_FORMAT_OPTIONS.map((option) => (
@@ -370,7 +374,7 @@ export default function ClientSamlTab({
                   disabled={!canAddMapper || isCreatingMapper}
                   onClick={onAddMapper}
                 >
-                  Add attribute
+                  {t('saml.mappers.submit')}
                 </Button>
               </div>
             </div>
@@ -381,11 +385,11 @@ export default function ClientSamlTab({
       {isConfigured && (
         <SaveBar
           show={dirtyCount > 0}
-          title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-          description='Save the SAML service provider settings for this client.'
+          title={t('shared.unsaved', { count: dirtyCount })}
+          description={t('saml.save.description')}
           onCancel={onDiscard}
-          cancelLabel='Discard'
-          actions={[{ label: 'Save changes', onClick: onSubmit }]}
+          cancelLabel={t('shared.discard')}
+          actions={[{ label: t('shared.save'), onClick: onSubmit }]}
         />
       )}
 

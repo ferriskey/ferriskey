@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { useGetClient } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
 import { useRouteTabs, type TabItem } from '@/components/kit'
@@ -17,6 +18,7 @@ import { useCrumbLabel } from '@/components/shell/crumb-store'
 export default function PageClientDetailFeature() {
   const { realm_name, client_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('client')
   const realm = realm_name ?? 'master'
 
   const { data: clientResponse, isLoading } = useGetClient({ realm, clientId: client_id })
@@ -27,14 +29,14 @@ export default function PageClientDetailFeature() {
 
   const tabList = useMemo<TabItem[]>(
     () => [
-      { key: 'settings', label: 'Settings' },
-      ...(hasSecret ? [{ key: 'credentials', label: 'Credentials' }] : []),
-      { key: 'roles', label: 'Roles' },
-      { key: 'scopes', label: 'Client Scopes' },
-      ...(isSaml ? [{ key: 'saml', label: 'SAML' }] : []),
-      { key: 'maintenance', label: 'Maintenance' },
+      { key: 'settings', label: t('detail.tabs.settings') },
+      ...(hasSecret ? [{ key: 'credentials', label: t('detail.tabs.credentials') }] : []),
+      { key: 'roles', label: t('detail.tabs.roles') },
+      { key: 'scopes', label: t('detail.tabs.scopes') },
+      ...(isSaml ? [{ key: 'saml', label: t('detail.tabs.saml') }] : []),
+      { key: 'maintenance', label: t('detail.tabs.maintenance') },
     ],
-    [hasSecret, isSaml]
+    [hasSecret, isSaml, t]
   )
 
   const { value: tab, tabs } = useRouteTabs(CLIENT_URL(realm, client_id), tabList)

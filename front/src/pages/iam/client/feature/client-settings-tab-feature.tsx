@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useDeleteClient, useGetClient, useUpdateClient } from '@/api/client.api'
 import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.api'
@@ -16,8 +17,6 @@ import { Schemas } from '@/api/api.client'
 import ClientSettingsTab, { type ClientSettingsDraft } from '../ui/client-settings-tab'
 
 import Client = Schemas.Client
-
-const WEB_ORIGIN_ERROR = `Enter an origin such as https://app.example.com — no path, no wildcard — or ${DERIVED_ORIGIN_SENTINEL} to derive them from this client's redirect URIs`
 
 interface Draft extends ClientSettingsDraft {
   key: string
@@ -47,6 +46,7 @@ export default function ClientSettingsTabFeature({
   realm,
 }: ClientSettingsTabFeatureProps) {
   const navigate = useNavigate()
+  const { t } = useTranslation('client')
 
   const { refetch } = useGetClient({ realm, clientId: client.id })
   const { mutate: updateClient } = useUpdateClient()
@@ -127,7 +127,7 @@ export default function ClientSettingsTabFeature({
 
     if (added !== undefined) {
       if (added.trim() === '') {
-        setRedirectUriError('Redirect URI is required')
+        setRedirectUriError(t('settings.access.redirect_uris.required'))
         return
       }
       setRedirectUriError(undefined)
@@ -137,7 +137,7 @@ export default function ClientSettingsTabFeature({
         payload: { value: added },
       })
       await refetch()
-      toast.success('Redirect URI added successfully')
+      toast.success(t('settings.toast.redirect_uri_added'))
       return
     }
 
@@ -148,7 +148,7 @@ export default function ClientSettingsTabFeature({
         redirectUriId: removed.id,
       })
       await refetch()
-      toast.success('Redirect URI deleted successfully')
+      toast.success(t('settings.toast.redirect_uri_deleted'))
     }
   }
 
@@ -158,7 +158,9 @@ export default function ClientSettingsTabFeature({
 
     if (added !== undefined) {
       if (!isWebOriginValue(added)) {
-        setWebOriginError(WEB_ORIGIN_ERROR)
+        setWebOriginError(
+          t('settings.access.web_origins.invalid', { sentinel: DERIVED_ORIGIN_SENTINEL })
+        )
         return
       }
       setWebOriginError(undefined)
@@ -168,7 +170,7 @@ export default function ClientSettingsTabFeature({
           clientId: client.id,
           payload: { value: added.trim() },
         })
-        toast.success('Web origin added successfully')
+        toast.success(t('settings.toast.web_origin_added'))
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to create web origin')
       }
@@ -182,7 +184,7 @@ export default function ClientSettingsTabFeature({
           clientId: client.id,
           webOriginId: removed.id,
         })
-        toast.success('Web origin deleted successfully')
+        toast.success(t('settings.toast.web_origin_deleted'))
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to delete web origin')
       }
@@ -195,7 +197,7 @@ export default function ClientSettingsTabFeature({
 
     if (added !== undefined) {
       if (added.trim() === '') {
-        setPostLogoutRedirectUriError('Post-logout redirect URI is required')
+        setPostLogoutRedirectUriError(t('settings.logout.post_logout_redirect_uris.required'))
         return
       }
       setPostLogoutRedirectUriError(undefined)
@@ -205,9 +207,9 @@ export default function ClientSettingsTabFeature({
           clientId: client.id,
           payload: { value: added },
         })
-        toast.success('Post-logout redirect URI added successfully')
+        toast.success(t('settings.toast.post_logout_uri_added'))
       } catch {
-        toast.error('Failed to create post-logout redirect URI')
+        toast.error(t('settings.toast.post_logout_uri_create_failed'))
       }
       return
     }
@@ -219,9 +221,9 @@ export default function ClientSettingsTabFeature({
           clientId: client.id,
           redirectUriId: removed.id,
         })
-        toast.success('Post-logout redirect URI deleted successfully')
+        toast.success(t('settings.toast.post_logout_uri_deleted'))
       } catch {
-        toast.error('Failed to delete post-logout redirect URI')
+        toast.error(t('settings.toast.post_logout_uri_delete_failed'))
       }
     }
   }

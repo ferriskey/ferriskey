@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useCreateClient } from '@/api/client.api'
 import { useUpsertSamlConfig } from '@/api/saml.api'
@@ -16,6 +17,7 @@ export default function PageCreateClientFeature() {
   const { realm_name } = useParams<RouterParams>()
   const [params] = useSearchParams()
   const navigate = useNavigate()
+  const { t } = useTranslation('client')
   const realm = realm_name ?? 'master'
 
   const { mutate: createClient } = useCreateClient()
@@ -109,7 +111,7 @@ export default function PageCreateClientFeature() {
             })
           }
 
-          toast.success('The client has been successfully created')
+          toast.success(t('create.toast.created'))
           navigate(listUrl)
         },
         onError: (error) => {

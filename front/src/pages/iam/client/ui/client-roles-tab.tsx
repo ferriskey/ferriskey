@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, Shield, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
@@ -23,6 +24,7 @@ export default function ClientRolesTab({
   isError,
   onDeleteRole,
 }: ClientRolesTabProps) {
+  const { t } = useTranslation('client')
   const { confirm, ask, close } = useConfirmDeleteAlert()
   const [query, setQuery] = useState('')
 
@@ -34,13 +36,9 @@ export default function ClientRolesTab({
 
   if (isError) {
     return (
-      <Section
-        title='Client roles'
-        description='Roles defined on this client, exposed in tokens under resource_access.'
-        contained={false}
-      >
+      <Section title={t('roles.title')} description={t('roles.description')} contained={false}>
         <p className='rounded-lg border border-dashed border-fk-danger-border bg-fk-danger-soft/40 px-4 py-3 text-xs text-fk-danger'>
-          Error while loading roles.
+          {t('roles.error')}
         </p>
       </Section>
     )
@@ -48,8 +46,8 @@ export default function ClientRolesTab({
 
   const askDelete = (role: Role) =>
     ask({
-      title: 'Delete role?',
-      description: `Are you sure you want to delete "${role.name}"? This action cannot be undone.`,
+      title: t('roles.delete.title'),
+      description: t('roles.delete.description', { name: role.name }),
       onConfirm: () => {
         onDeleteRole(role)
         close()
@@ -59,8 +57,8 @@ export default function ClientRolesTab({
   return (
     <>
       <Section
-        title={`Client roles (${roles.length})`}
-        description='Roles defined on this client, exposed in tokens under resource_access.'
+        title={t('roles.title_with_count', { total: roles.length })}
+        description={t('roles.description')}
         action={
           <label className='relative flex h-8 w-52 items-center'>
             <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
@@ -68,7 +66,7 @@ export default function ClientRolesTab({
               type='search'
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Filter roles…'
+              placeholder={t('roles.search_placeholder')}
               className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
             />
           </label>
@@ -95,18 +93,18 @@ export default function ClientRolesTab({
                 <div className='min-w-0 flex-1'>
                   <p className='font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>{role.name}</p>
                   <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                    {role.description || 'No description'}
+                    {role.description || t('shared.no_description')}
                   </p>
                 </div>
 
                 <span className='tnum shrink-0 text-xs text-neutral-400 dark:text-neutral-500'>
-                  {role.permissions.length} permission{role.permissions.length === 1 ? '' : 's'}
+                  {t('roles.permissions', { count: role.permissions.length })}
                 </span>
 
                 <Button
                   variant='ghost'
                   size='icon'
-                  aria-label={`Delete ${role.name}`}
+                  aria-label={t('roles.delete.label', { name: role.name })}
                   onClick={() => askDelete(role)}
                   className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                 >
@@ -117,9 +115,7 @@ export default function ClientRolesTab({
           </ul>
         ) : (
           <p className='rounded-lg border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-            {query
-              ? `No role matches “${query}”.`
-              : 'No role of its own — holders of this client only get realm roles.'}
+            {query ? t('roles.empty.no_match', { query }) : t('roles.empty.none')}
           </p>
         )}
       </Section>

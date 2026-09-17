@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { DurationInput } from '@/components/ui/duration-input'
 import SaveBar from '@/components/kit/save-bar'
@@ -5,6 +6,9 @@ import { DangerZone } from '@/components/kit/danger-zone'
 import { ChipInput, ChoiceCards, FieldRow, Section, SwitchField } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import {
+  clientAuthenticationOf,
+  clientStateOf,
+  isEnabledState,
   lockedAuthenticationChoices,
   stateChoices,
   type ClientState,
@@ -46,26 +50,10 @@ export interface ClientSettingsTabProps {
 }
 
 const LIFETIMES = [
-  {
-    key: 'accessTokenLifetime',
-    label: 'Access token lifetime',
-    description: 'How long access tokens remain valid.',
-  },
-  {
-    key: 'refreshTokenLifetime',
-    label: 'Refresh token lifetime',
-    description: 'How long refresh tokens remain valid.',
-  },
-  {
-    key: 'idTokenLifetime',
-    label: 'ID token lifetime',
-    description: 'How long ID tokens remain valid.',
-  },
-  {
-    key: 'temporaryTokenLifetime',
-    label: 'Temporary token lifetime',
-    description: 'How long temporary tokens (password reset, for instance) remain valid.',
-  },
+  { key: 'accessTokenLifetime', field: 'access_token' },
+  { key: 'refreshTokenLifetime', field: 'refresh_token' },
+  { key: 'idTokenLifetime', field: 'id_token' },
+  { key: 'temporaryTokenLifetime', field: 'temporary_token' },
 ] as const
 
 export default function ClientSettingsTab({
@@ -87,18 +75,19 @@ export default function ClientSettingsTab({
   onSave,
   onDelete,
 }: ClientSettingsTabProps) {
+  const { t } = useTranslation('client')
   const isOidc = client.protocol === 'openid-connect'
 
   const pkceDescription = client.public_client
-    ? 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on. Strongly recommended: this client cannot keep a secret safe.'
-    : 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on.'
+    ? t('settings.capability.pkce.description_public')
+    : t('settings.capability.pkce.description')
 
   return (
     <>
-      <Section title='General' description='How this client is identified in the realm.'>
+      <Section title={t('settings.general.title')} description={t('settings.general.description')}>
         <FieldRow
-          label='Client name'
-          description='Display name shown in the UI.'
+          label={t('settings.general.name.label')}
+          description={t('settings.general.name.description')}
           htmlFor='client-name'
         >
           <Input
@@ -112,8 +101,8 @@ export default function ClientSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Client ID'
-          description='Unique identifier for this client. Applications send it on every request.'
+          label={t('settings.general.client_id.label')}
+          description={t('settings.general.client_id.description')}
           htmlFor='client-client-id'
         >
           <Input
@@ -126,37 +115,40 @@ export default function ClientSettingsTab({
           {errors.clientId && <p className='mt-1.5 text-fk-danger text-xs'>{errors.clientId}</p>}
         </FieldRow>
 
-        <FieldRow label='Client enabled' description='Disabled clients cannot authenticate users.'>
+        <FieldRow
+          label={t('settings.general.enabled.label')}
+          description={t('settings.general.enabled.description')}
+        >
           <ChoiceCards
-            label='Client state'
-            value={draft.enabled ? 'enabled' : 'disabled'}
-            onChange={(v: ClientState) => onDraftChange({ enabled: v === 'enabled' })}
-            options={stateChoices}
+            label={t('settings.general.state_picker')}
+            value={clientStateOf(draft.enabled)}
+            onChange={(v: ClientState) => onDraftChange({ enabled: isEnabledState(v) })}
+            options={stateChoices(t)}
           />
         </FieldRow>
       </Section>
 
       <Section
-        title='Capability config'
-        description='Which authentication flows this client is allowed to take.'
+        title={t('settings.capability.title')}
+        description={t('settings.capability.description')}
       >
         <FieldRow
-          label='Client authentication'
-          description='Set at creation and final: a client cannot move between confidential and public afterwards.'
+          label={t('settings.capability.authentication.label')}
+          description={t('settings.capability.authentication.description')}
         >
           <ChoiceCards
-            label='Client authentication'
-            value={client.public_client ? 'public' : 'confidential'}
+            label={t('settings.capability.authentication.label')}
+            value={clientAuthenticationOf(client.public_client)}
             onChange={() => undefined}
-            options={lockedAuthenticationChoices}
+            options={lockedAuthenticationChoices(t)}
           />
         </FieldRow>
 
         {isOidc && (
           <>
             <FieldRow
-          label='Direct access grants'
-          description='Allows exchanging user credentials directly for tokens. Use only for trusted clients.'
+          label={t('settings.capability.direct_access_grants.label')}
+          description={t('settings.capability.direct_access_grants.description')}
         >
           <SwitchField
             checked={draft.directAccessGrants}
@@ -165,8 +157,8 @@ export default function ClientSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='OAuth 2.0 device authorization grant'
-          description='Lets browserless clients (CLI, IoT, TVs) initiate a device flow against this client. Disable unless this client really needs it.'
+          label={t('settings.capability.device_code_grant.label')}
+          description={t('settings.capability.device_code_grant.description')}
         >
           <SwitchField
             checked={draft.deviceCodeGrant}
@@ -174,12 +166,12 @@ export default function ClientSettingsTab({
           />
         </FieldRow>
 
-        <FieldRow label='Require PKCE' description={pkceDescription}>
+        <FieldRow label={t('settings.capability.pkce.label')} description={pkceDescription}>
           <SwitchField
             checked={draft.requirePkce}
             onCheckedChange={(v) => onDraftChange({ requirePkce: v })}
-            onLabel='Required'
-            offLabel='Optional'
+            onLabel={t('settings.capability.pkce.required')}
+            offLabel={t('settings.capability.pkce.optional')}
           />
         </FieldRow>
           </>
@@ -187,19 +179,16 @@ export default function ClientSettingsTab({
       </Section>
 
       {isOidc && (
-      <Section
-        title='Access'
-        description='Addresses this client may be redirected to, and origins it may call from.'
-      >
+      <Section title={t('settings.access.title')} description={t('settings.access.description')}>
         <FieldRow
-          label='Redirect URIs'
-          description='Allowed redirect URIs after authentication. Every entry is saved as you add it.'
+          label={t('settings.access.redirect_uris.label')}
+          description={t('settings.access.redirect_uris.description')}
         >
           <ChipInput
             values={redirectUris}
             onChange={onRedirectUrisChange}
-            placeholder='https://app.example.com/callback'
-            emptyHint='No URI — the authorization code flow will fail.'
+            placeholder={t('settings.access.redirect_uris.placeholder')}
+            emptyHint={t('settings.access.redirect_uris.empty')}
           />
           {redirectUriError && (
             <p className='mt-1.5 text-xs text-fk-danger'>{redirectUriError}</p>
@@ -207,14 +196,14 @@ export default function ClientSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Web origins'
-          description='Origins this application may call FerrisKey from in a browser. Enter + to derive them from the redirect URIs above — literal ones only, regex patterns are skipped. Removing one takes a few minutes to clear browser preflight caches, and up to 30 seconds on the other API replicas.'
+          label={t('settings.access.web_origins.label')}
+          description={t('settings.access.web_origins.description')}
         >
           <ChipInput
             values={webOrigins}
             onChange={onWebOriginsChange}
-            placeholder='https://app.example.com'
-            emptyHint='No origin — browser calls from another host will be refused.'
+            placeholder={t('settings.access.web_origins.placeholder')}
+            emptyHint={t('settings.access.web_origins.empty')}
           />
           {webOriginError && <p className='mt-1.5 text-xs text-fk-danger'>{webOriginError}</p>}
         </FieldRow>
@@ -222,16 +211,16 @@ export default function ClientSettingsTab({
       )}
 
       {isOidc && (
-      <Section title='Logout' description='Where the user lands once the session is closed.'>
+      <Section title={t('settings.logout.title')} description={t('settings.logout.description')}>
         <FieldRow
-          label='Post-logout redirect URIs'
-          description='Allowed redirect URIs after logout. Without an entry, logout ends on the FerrisKey page.'
+          label={t('settings.logout.post_logout_redirect_uris.label')}
+          description={t('settings.logout.post_logout_redirect_uris.description')}
         >
           <ChipInput
             values={postLogoutRedirectUris}
             onChange={onPostLogoutRedirectUrisChange}
-            placeholder='https://app.example.com'
-            emptyHint='No exit URI declared.'
+            placeholder={t('settings.logout.post_logout_redirect_uris.placeholder')}
+            emptyHint={t('settings.logout.post_logout_redirect_uris.empty')}
           />
           {postLogoutRedirectUriError && (
             <p className='mt-1.5 text-xs text-fk-danger'>{postLogoutRedirectUriError}</p>
@@ -241,38 +230,48 @@ export default function ClientSettingsTab({
       )}
 
       <Section
-        title='Token lifetimes'
-        description='Leave empty to inherit the realm default value.'
+        title={t('settings.lifetimes.title')}
+        description={t('settings.lifetimes.description')}
       >
-        {LIFETIMES.map((lifetime) => (
-          <FieldRow key={lifetime.key} label={lifetime.label} description={lifetime.description}>
-            <DurationInput
-              label={lifetime.label}
-              value={draft[lifetime.key]}
-              onChange={(seconds) => onDraftChange({ [lifetime.key]: seconds })}
-              nullable
-            />
-          </FieldRow>
-        ))}
+        {LIFETIMES.map((lifetime) => {
+          const label = t(`settings.lifetimes.${lifetime.field}.label`)
+
+          return (
+            <FieldRow
+              key={lifetime.key}
+              label={label}
+              description={t(`settings.lifetimes.${lifetime.field}.description`)}
+            >
+              <DurationInput
+                label={label}
+                value={draft[lifetime.key]}
+                onChange={(seconds) => onDraftChange({ [lifetime.key]: seconds })}
+                nullable
+              />
+            </FieldRow>
+          )
+        })}
       </Section>
 
       <DangerZone
         resourceName={client.name || client.client_id}
-        label='Delete this client'
-        description='Once deleted, all associated tokens, roles, and configurations will be permanently removed.'
-        buttonLabel='Delete client'
-        confirmTitle='Delete client'
-        confirmDescription={`This will permanently delete the client "${client.name || client.client_id}" and all its associated data.`}
+        label={t('settings.danger.label')}
+        description={t('settings.danger.description')}
+        buttonLabel={t('settings.danger.button')}
+        confirmTitle={t('settings.danger.confirm_title')}
+        confirmDescription={t('settings.danger.confirm_description', {
+          name: client.name || client.client_id,
+        })}
         onConfirm={onDelete}
       />
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the client before applying the changes.'
+        title={t('shared.unsaved', { count: dirtyCount })}
+        description={t('settings.save.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('shared.discard')}
+        actions={[{ label: t('shared.save'), onClick: onSave }]}
       />
     </>
   )

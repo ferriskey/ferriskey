@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Copy, Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { FieldRow, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ export interface ClientCredentialsTabProps {
 const MASKED_SECRET = '••••••••••••••••••••••••'
 
 function CopyButton({ value, disabled }: { value: string; disabled?: boolean }) {
+  const { t } = useTranslation('client')
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -34,7 +36,7 @@ function CopyButton({ value, disabled }: { value: string; disabled?: boolean }) 
       variant='outline'
       size='icon'
       disabled={disabled}
-      aria-label='Copy'
+      aria-label={t('credentials.copy')}
       onClick={() => void handleCopy()}
     >
       {copied ? <Check className='size-4 text-fk-success' /> : <Copy className='size-4' />}
@@ -64,14 +66,13 @@ export default function ClientCredentialsTab({
   failed,
   onToggleReveal,
 }: ClientCredentialsTabProps) {
+  const { t } = useTranslation('client')
+
   return (
-    <Section
-      title='Client credentials'
-      description='What this client presents to prove who it is.'
-    >
+    <Section title={t('credentials.title')} description={t('credentials.description')}>
       <FieldRow
-        label='Client ID'
-        description='The unique identifier used to authenticate this client.'
+        label={t('credentials.client_id.label')}
+        description={t('credentials.client_id.description')}
       >
         <div className='flex max-w-lg items-center gap-2'>
           <Fingerprint value={client.client_id} />
@@ -80,8 +81,8 @@ export default function ClientCredentialsTab({
       </FieldRow>
 
       <FieldRow
-        label='Client secret'
-        description='The secret used for confidential client authentication. Revealing it is recorded as a security event.'
+        label={t('credentials.secret.label')}
+        description={t('credentials.secret.description')}
       >
         <div className='max-w-lg space-y-2'>
           <div className='flex items-center gap-2'>
@@ -91,7 +92,7 @@ export default function ClientCredentialsTab({
               variant='outline'
               size='sm'
               disabled={isFetching}
-              aria-label={revealed ? 'Hide client secret' : 'Reveal client secret'}
+              aria-label={revealed ? t('credentials.secret.hide_label') : t('credentials.secret.reveal_label')}
               onClick={onToggleReveal}
             >
               {isFetching ? (
@@ -101,7 +102,7 @@ export default function ClientCredentialsTab({
               ) : (
                 <Eye className='size-4' />
               )}
-              {revealed ? 'Hide' : 'Reveal'}
+              {revealed ? t('credentials.secret.hide') : t('credentials.secret.reveal')}
             </Button>
             <CopyButton value={secret ?? ''} disabled={!secret} />
           </div>
@@ -109,18 +110,17 @@ export default function ClientCredentialsTab({
           {forbidden && (
             <p className='flex items-start gap-1.5 text-xs text-fk-amber'>
               <ShieldAlert className='mt-0.5 size-3.5 shrink-0' />
-              You need the manage-clients permission to reveal this secret. Ask a realm
-              administrator for access.
+              {t('credentials.secret.forbidden')}
             </p>
           )}
           {failed && (
             <p className='flex items-start gap-1.5 text-xs text-fk-danger'>
               <ShieldAlert className='mt-0.5 size-3.5 shrink-0' />
-              The secret could not be revealed. Please try again.
+              {t('credentials.secret.failed')}
             </p>
           )}
           <p className='text-xs text-neutral-400 dark:text-neutral-500'>
-            Rotating the secret is not exposed by the administration API yet.
+            {t('credentials.secret.rotation_hint')}
           </p>
         </div>
       </FieldRow>
