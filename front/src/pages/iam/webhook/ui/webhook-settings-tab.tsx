@@ -3,6 +3,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import WebhookHeadersField, { type WebhookHeader } from './webhook-headers-field'
+import WebhookSigningSecret from './webhook-signing-secret'
 import type { RetryPolicyDraft } from '../feature/page-webhook-detail-feature'
 import { Schemas } from '@/api/api.client'
 
@@ -41,6 +42,8 @@ export interface WebhookSettingsTabProps {
   endpoint: string
   description: string
   headers: WebhookHeader[]
+  realm: string
+  webhookId: string
   retryPolicy: RetryPolicyDraft
   effectiveRetryPolicy?: RetryPolicyOverride
   onRetryPolicyChange: (next: Partial<RetryPolicyDraft>) => void
@@ -58,6 +61,8 @@ export default function WebhookSettingsTab({
   endpoint,
   description,
   headers,
+  realm,
+  webhookId,
   retryPolicy,
   effectiveRetryPolicy,
   onRetryPolicyChange,
@@ -141,11 +146,9 @@ export default function WebhookSettingsTab({
       >
         <FieldRow
           label='Signing secret'
-          description='Minted once when the webhook is created. The API never returns it, and no rotation endpoint is exposed yet.'
+          description='Stored but never returned. Generating a new one shows it once, so the receiver can be given it.'
         >
-          <span className='inline-flex max-w-sm items-center rounded-md border border-fk-line bg-neutral-50 px-2.5 py-1.5 font-mono-ui text-sm text-neutral-400 dark:bg-fk-surface dark:text-neutral-500'>
-            ••••••••••••••••
-          </span>
+          <WebhookSigningSecret realm={realm} webhookId={webhookId} />
         </FieldRow>
       </Section>
 

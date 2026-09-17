@@ -113,3 +113,12 @@ export const useRetryWebhookDelivery = () => {
     },
   })
 }
+
+export const useRotateWebhookSecret = () => {
+  return useMutation(
+    window.tanstackApi.mutation(
+      'post',
+      '/realms/{realm_name}/webhooks/{webhook_id}/secret/rotate'
+    ).mutationOptions
+  )
+}

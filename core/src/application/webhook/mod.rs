@@ -9,7 +9,8 @@ use crate::{
             ports::{
                 CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput,
                 GetWebhookDeliveryInput, GetWebhookInput, GetWebhookSubscribersInput,
-                GetWebhooksInput, RetryWebhookDeliveryInput, UpdateWebhookInput, WebhookService,
+                GetWebhooksInput, RetryWebhookDeliveryInput, RotateWebhookSecretInput,
+                UpdateWebhookInput, WebhookService,
             },
         },
     },
@@ -95,6 +96,16 @@ impl WebhookService for ApplicationService {
     ) -> Result<(), CoreError> {
         self.webhook_service
             .retry_webhook_delivery(identity, input)
+            .await
+    }
+
+    async fn rotate_webhook_secret(
+        &self,
+        identity: Identity,
+        input: RotateWebhookSecretInput,
+    ) -> Result<String, CoreError> {
+        self.webhook_service
+            .rotate_webhook_secret(identity, input)
             .await
     }
 }

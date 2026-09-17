@@ -5,4 +5,5 @@ pub mod fetch_webhook;
 pub mod get_delivery;
 pub mod get_webhook;
 pub mod retry_delivery;
+pub mod rotate_secret;
 pub mod update_webhook;
