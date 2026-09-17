@@ -2,12 +2,14 @@ import { GrantType } from '@/api/core.interface'
 import { useTokenMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageCallback from '../ui/page-callback'
 import { buildLoginErrorRedirect, validateCallbackParams } from './callback-helpers'
 import { apiErrorMessage } from '@/lib/api-error'
 import { POST_LOGIN_RETURN_KEY } from './page-device-verify-feature'
 import { takeOAuthFlow } from '../utils/pkce'
+import { AUTH_NAMESPACE } from '../constants'
 
 // Only allow returning to in-app paths to avoid an open-redirect via the
 // sessionStorage channel.
@@ -25,6 +27,7 @@ function safePostLoginReturn(realm: string): string | null {
 
 export default function PageCallbackFeature() {
   const navigate = useNavigate()
+  const { t } = useTranslation(AUTH_NAMESPACE)
 
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const code = useMemo(() => {
@@ -58,7 +61,9 @@ export default function PageCallbackFeature() {
     if (callbackValidationError) {
       if (state) localStorage.removeItem(`oauth_state:${state}`)
       document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
-      navigate(buildLoginErrorRedirect(realm_name, callbackValidationError), { replace: true })
+      navigate(buildLoginErrorRedirect(realm_name, t(`callback.${callbackValidationError}`)), {
+        replace: true,
+      })
       return
     }
 
@@ -90,11 +95,11 @@ export default function PageCallbackFeature() {
         navigate(returnTo ?? `/realms/${realm}/overview`, { replace: true })
       })
       .catch((error: unknown) => {
-        const message = apiErrorMessage(error, 'Unable to complete sign in. Please try again.')
+        const message = apiErrorMessage(error, t('callback.failed'))
         document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
         navigate(buildLoginErrorRedirect(realm_name, message), { replace: true })
       })
-  }, [callbackValidationError, code, exchangeToken, navigate, realm_name, setAuthTokens, state])
+  }, [callbackValidationError, code, exchangeToken, navigate, realm_name, setAuthTokens, state, t])
 
   return <PageCallback code={code} setup={setup} />
 }

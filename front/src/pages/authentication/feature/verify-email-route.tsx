@@ -8,7 +8,8 @@ import PageVerifyEmail from './page-verify-email'
 import {
   clearVerifyEmailContext,
   getVerifyEmailContext,
-} from './execution/verify-email-feature'
+} from './execution/verify-email-context'
+import { PORTAL_PAGE_TYPE } from '../constants'
 
 /**
  * Orchestrates the email-verification flow for `/verify-email?token=…`:
@@ -101,7 +102,7 @@ export default function VerifyEmailRoute() {
   // expired / error states. Either way the orchestration above is what
   // drives the actual flow.
   return (
-    <PortalLayoutWrapper pageType='verify_email'>
+    <PortalLayoutWrapper pageType={PORTAL_PAGE_TYPE.VERIFY_EMAIL}>
       <PageVerifyEmail state={state} />
     </PortalLayoutWrapper>
   )

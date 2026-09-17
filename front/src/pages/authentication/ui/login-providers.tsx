@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
 } from '@/components/provider-icon'
+import { AUTH_NAMESPACE } from '../constants'
 
 import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 
@@ -28,13 +30,15 @@ const buildProviderLoginUrl = (provider: IdentityProviderPresentation) => {
 }
 
 export function LoginProviders({ providers }: LoginProvidersProps) {
+  const { t } = useTranslation(AUTH_NAMESPACE)
+
   if (providers.length === 0) return null
 
   return (
     <>
       <div className='relative text-center text-xs after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border'>
         <span className='relative z-10 bg-card px-2 text-muted-foreground'>
-          Or continue with
+          {t('providers.separator')}
         </span>
       </div>
       <div className='grid gap-2'>
@@ -63,7 +67,9 @@ export function LoginProviders({ providers }: LoginProvidersProps) {
                   </span>
                 )}
               </span>
-              <span className='flex-1 truncate text-left'>Continue with {provider.display_name}</span>
+              <span className='flex-1 truncate text-left'>
+                {t('providers.continue_with', { name: provider.display_name })}
+              </span>
               <span className='text-xs text-muted-foreground'>→</span>
             </Button>
           )

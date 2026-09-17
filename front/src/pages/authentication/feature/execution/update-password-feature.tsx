@@ -10,12 +10,14 @@ import {
 } from '../../schemas/update-password.schema'
 import { Form } from '@/components/ui/form'
 import { useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { AuthenticationStatus } from '@/api/api.interface'
 import { usePublicPasswordPolicy } from '@/api/password-policy.api'
 import { passwordPolicyRequirements } from '@/lib/password-policy'
 import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
+import { AUTH_NAMESPACE } from '../../constants'
 
 const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
   password: 'password',
@@ -24,6 +26,7 @@ const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
 
 export default function UpdatePasswordFeature() {
   const { realm_name } = useParams<RouterParams>()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const { mutate: updatePassword, data: responseUpdatePassword } = useUpdatePassword()
   const { mutate: authenticate, data: authenticateResponse } = useAuthenticateMutation()
   const navigate = useNavigate()
@@ -65,8 +68,7 @@ export default function UpdatePasswordFeature() {
 
           if (fieldErrors.length === 0 || unattached.length > 0) {
             toast.error(
-              unattached.join(' — ') ||
-                apiErrorMessage(error, 'Failed to update your password')
+              unattached.join(' — ') || apiErrorMessage(error, t('update_password.failed'))
             )
           }
         },

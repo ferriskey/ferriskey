@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useRegistrationMutation } from '@/api/auth.api'
 import { useAuth } from '@/hooks/use-auth'
 import { RouterParams } from '@/routes/router'
@@ -16,15 +17,21 @@ import {
   partitionFieldErrors,
   validationErrorsFrom,
 } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
+import { AUTH_NAMESPACE } from '../constants'
 
 function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
   return z
     .object({
-      username: z.string().min(1, 'Username is required'),
-      email: z.string().email('Invalid email address'),
+      username: z
+        .string()
+        .min(1, { error: () => translate(`${AUTH_NAMESPACE}:validation.username_required`) }),
+      email: z
+        .string()
+        .email({ error: () => translate(`${AUTH_NAMESPACE}:validation.email_invalid`) }),
       password: z
         .string()
-        .min(1, 'Password is required')
+        .min(1, { error: () => translate(`${AUTH_NAMESPACE}:validation.password_required`) })
         .superRefine((value, ctx) => {
           const result = evaluatePassword(value, policy)
           if (!result.valid) {
@@ -34,13 +41,15 @@ function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
             })
           }
         }),
-      confirmPassword: z.string().min(1, 'Please confirm your password'),
+      confirmPassword: z.string().min(1, {
+        error: () => translate(`${AUTH_NAMESPACE}:validation.password_confirm_required`),
+      }),
       firstName: z.string().optional(),
       lastName: z.string().optional(),
     })
     .refine((data) => data.password === data.confirmPassword, {
       path: ['confirmPassword'],
-      message: 'Passwords do not match',
+      error: () => translate(`${AUTH_NAMESPACE}:validation.passwords_mismatch`),
     })
 }
 
@@ -60,6 +69,7 @@ const FIELD_BY_REASON: Record<string, keyof RegisterSchema> = {
 
 export default function PageRegisterFeature() {
   const navigate = useNavigate()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const { realm_name } = useParams<RouterParams>()
   const { mutate: registration, data } = useRegistrationMutation()
   const { setAuthTokens } = useAuth()
@@ -126,7 +136,7 @@ export default function PageRegisterFeature() {
 
           const message =
             unattached.join(' — ') ||
-            apiErrorMessage(error, 'We could not create your account. Please try again.')
+            apiErrorMessage(error, t('register.failed'))
           const field = FIELD_BY_REASON[apiErrorReason(error) ?? '']
 
           if (field) {

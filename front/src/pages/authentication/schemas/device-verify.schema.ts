@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
+import { AUTH_NAMESPACE } from '../constants'
 
 // RFC 8628 §6.1: 20-character base20 alphabet, vowels and visually ambiguous
 // glyphs excluded so the code stays unambiguous when read aloud or typed on a
@@ -17,7 +19,7 @@ export const deviceVerifySchema = z.object({
       z
         .string()
         .regex(USER_CODE_REGEX, {
-          message: 'Expected format XXXX-XXXX using the device code charset.',
+          error: () => translate(`${AUTH_NAMESPACE}:validation.device_code_format`),
         })
     ),
 })

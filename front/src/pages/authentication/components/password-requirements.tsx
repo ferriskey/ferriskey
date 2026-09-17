@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { PublicPasswordPolicy } from '@/api/password-policy.api'
 import { evaluatePassword, hasPolicyRules } from '../utils/password-policy'
+import { AUTH_NAMESPACE } from '../constants'
 
 export interface PasswordRequirementsProps {
   password: string
@@ -36,6 +38,8 @@ export default function PasswordRequirements({
   policy,
   className,
 }: PasswordRequirementsProps) {
+  const { t } = useTranslation(AUTH_NAMESPACE)
+
   if (!hasPolicyRules(policy)) return null
 
   const eval_ = evaluatePassword(password, policy)
@@ -43,27 +47,23 @@ export default function PasswordRequirements({
   return (
     <ul className={cn('space-y-1 rounded-md border border-border bg-muted/40 px-3 py-2', className)}>
       <RuleRow
-        label={`At least ${policy.min_length} characters`}
+        label={t('password.rules.min_length', { count: policy.min_length })}
         met={eval_.minLength}
         show={policy.min_length > 0}
       />
       <RuleRow
-        label='At least one uppercase letter'
+        label={t('password.rules.uppercase')}
         met={eval_.uppercase}
         show={policy.require_uppercase}
       />
       <RuleRow
-        label='At least one lowercase letter'
+        label={t('password.rules.lowercase')}
         met={eval_.lowercase}
         show={policy.require_lowercase}
       />
+      <RuleRow label={t('password.rules.number')} met={eval_.number} show={policy.require_number} />
       <RuleRow
-        label='At least one number'
-        met={eval_.number}
-        show={policy.require_number}
-      />
-      <RuleRow
-        label='At least one special character (!@#$%^&*…)'
+        label={t('password.rules.special_detailed')}
         met={eval_.special}
         show={policy.require_special}
       />

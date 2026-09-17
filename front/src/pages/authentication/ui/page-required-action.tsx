@@ -1,16 +1,20 @@
 import { RequiredAction } from '@/api/core.interface'
 import { match } from 'ts-pattern'
+import { useTranslation } from 'react-i18next'
 import ConfigureOtpFeature from '../feature/execution/configure-otp-feature'
 import UpdatePasswordFeature from '@/pages/authentication/feature/execution/update-password-feature.tsx'
 import ConfigurePasskeyFeature from '../feature/execution/configure-passkey-feature'
 import VerifyEmailFeature from '../feature/execution/verify-email-feature'
 import { PortalLayoutWrapper } from '../components/portal-layout-wrapper'
+import { AUTH_NAMESPACE, PORTAL_PAGE_TYPE } from '../constants'
 
 export interface PageRequiredActionProps {
   execution: string
 }
 
 export default function PageRequiredAction({ execution }: PageRequiredActionProps) {
+  const { t } = useTranslation(AUTH_NAMESPACE)
+
   // Wrap executions that have a matching `PortalPageType` in
   // `<PortalLayoutWrapper>` so the realm admin's custom theme tree is
   // applied during the actual auth flow — not just on the direct
@@ -24,16 +28,16 @@ export default function PageRequiredAction({ execution }: PageRequiredActionProp
   // similarly have no portal page type yet.
   return match(execution.toLowerCase())
     .with(RequiredAction.ConfigureOtp, () => (
-      <PortalLayoutWrapper pageType='totp_setup'>
+      <PortalLayoutWrapper pageType={PORTAL_PAGE_TYPE.TOTP_SETUP}>
         <ConfigureOtpFeature />
       </PortalLayoutWrapper>
     ))
     .with(RequiredAction.UpdatePassword, () => <UpdatePasswordFeature />)
     .with(RequiredAction.ConfigurePasskey, () => <ConfigurePasskeyFeature />)
     .with(RequiredAction.VerifyEmail, () => (
-      <PortalLayoutWrapper pageType='verify_email'>
+      <PortalLayoutWrapper pageType={PORTAL_PAGE_TYPE.VERIFY_EMAIL}>
         <VerifyEmailFeature />
       </PortalLayoutWrapper>
     ))
-    .otherwise(() => <div>No action required</div>)
+    .otherwise(() => <div>{t('required_action.none')}</div>)
 }

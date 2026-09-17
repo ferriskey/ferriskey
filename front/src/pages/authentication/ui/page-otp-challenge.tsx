@@ -5,9 +5,12 @@ import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { ShieldCheck } from 'lucide-react'
 import { ChallengeOtpSchema } from '../schemas/challange-otp.schema'
 import { useFormContext } from 'react-hook-form'
+import { Trans, useTranslation } from 'react-i18next'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
 import { BasicSpinner } from '@/components/ui/spinner'
 import './page-login.css'
+import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
+import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 export interface PageOtpChallengeProps {
   handleCancelClick: () => void
@@ -23,9 +26,11 @@ export default function PageOtpChallenge({
   isLoading,
 }: PageOtpChallengeProps) {
   const form = useFormContext<ChallengeOtpSchema>()
+  const { t } = useTranslation(AUTH_NAMESPACE)
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
+      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
@@ -37,25 +42,28 @@ export default function PageOtpChallenge({
                       <div className='flex items-center gap-3'>
                         <img
                           src='/logo_ferriskey.png'
-                          alt='FerrisKey'
+                          alt={BRAND_NAME}
                           className='h-7 w-7 object-contain'
                         />
                         <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                          FerrisKey
+                          {BRAND_NAME}
                         </p>
                       </div>
                       <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                        Verification code
+                        {t('otp.title')}
                       </h1>
                       <p className='text-sm text-muted-foreground'>
-                        Enter the 6-digit code from your authenticator app
-                        {email && (
-                          <>
-                            {' '}for{' '}
-                            <span className='font-medium text-foreground'>{email}</span>
-                          </>
+                        {email ? (
+                          <Trans
+                            i18nKey={`${AUTH_NAMESPACE}:otp.description_for`}
+                            values={{ email }}
+                            components={{
+                              account: <span className='font-medium text-foreground' />,
+                            }}
+                          />
+                        ) : (
+                          t('otp.description')
                         )}
-                        .
                       </p>
                     </div>
 
@@ -95,9 +103,7 @@ export default function PageOtpChallenge({
                           </FormItem>
                         )}
                       />
-                      <p className='text-xs text-muted-foreground'>
-                        Paste your code or enter it digit by digit.
-                      </p>
+                      <p className='text-xs text-muted-foreground'>{t('otp.hint')}</p>
                     </div>
 
                     <div className='flex flex-col gap-2'>
@@ -109,10 +115,10 @@ export default function PageOtpChallenge({
                         {isLoading ? (
                           <div className='flex items-center gap-2'>
                             <BasicSpinner />
-                            <span>Signing in...</span>
+                            <span>{t('otp.submitting')}</span>
                           </div>
                         ) : (
-                          'Sign in'
+                          t('otp.submit')
                         )}
                       </Button>
                       <Button
@@ -121,7 +127,7 @@ export default function PageOtpChallenge({
                         className='w-full rounded-lg py-5 text-sm'
                         onClick={handleCancelClick}
                       >
-                        Cancel
+                        {t('actions.cancel')}
                       </Button>
                     </div>
                   </div>

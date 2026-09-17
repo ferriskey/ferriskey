@@ -1,11 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
 import { AuthenticationStatus } from '@/api/api.interface.ts'
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { apiErrorMessage, apiErrorReason } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
+import { AUTH_NAMESPACE } from '../constants'
 
 const MAINTENANCE_REASON = 'client_under_maintenance'
 
@@ -21,8 +24,12 @@ const SESSION_ERROR_REASONS = new Set([
 ])
 
 export const authenticateSchema = z.object({
-  username: z.string().min(1, { message: 'Username is required' }),
-  password: z.string().min(1, { message: 'Password is required' }),
+  username: z
+    .string()
+    .min(1, { error: () => translate(`${AUTH_NAMESPACE}:validation.username_required`) }),
+  password: z
+    .string()
+    .min(1, { error: () => translate(`${AUTH_NAMESPACE}:validation.password_required`) }),
 })
 
 export type AuthenticateSchema = z.infer<typeof authenticateSchema>
@@ -35,6 +42,7 @@ type Options = {
 
 export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: Options) {
   const navigate = useNavigate()
+  const { t } = useTranslation(AUTH_NAMESPACE)
 
   const {
     mutate: authenticate,
@@ -91,10 +99,7 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
 
   const authErrorMessage =
     authenticateStatus === 'error'
-      ? apiErrorMessage(
-          authenticateError,
-          'Authentication failed. Please check your credentials and try again.'
-        )
+      ? apiErrorMessage(authenticateError, t('login.failed'))
       : null
 
   const errorMessage = loginError ?? authErrorMessage

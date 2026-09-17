@@ -8,11 +8,14 @@ import { useForm } from 'react-hook-form'
 import { verifyOtpSchema, VerifyOtpSchema } from '../../schemas/verify-otp.schema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
+import { AUTH_NAMESPACE } from '../../constants'
 
 export default function ConfigureOtpFeature() {
   const { realm_name } = useParams<RouterParams>()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const {
     mutate: authenticate,
     data: authenticateData,
@@ -26,10 +29,10 @@ export default function ConfigureOtpFeature() {
 
   useEffect(() => {
     if (isError) {
-      toast.error('Error during OTP configuration')
+      toast.error(t('configure_otp.setup_failed'))
       console.error(error)
     }
-  }, [isError, error])
+  }, [isError, error, t])
 
   const form = useForm<VerifyOtpSchema>({
     resolver: zodResolver(verifyOtpSchema),
@@ -49,7 +52,7 @@ export default function ConfigureOtpFeature() {
 
   const handleSubmit = (values: VerifyOtpSchema) => {
     if (!data) {
-      toast.error('OTP setup is not ready yet')
+      toast.error(t('configure_otp.not_ready'))
       return
     }
 

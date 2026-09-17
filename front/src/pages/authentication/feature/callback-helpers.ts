@@ -1,5 +1,7 @@
 const DEFAULT_REALM = 'master'
 
+export type CallbackParamsError = 'missing_code' | 'invalid_state'
+
 export function validateCallbackParams({
   code,
   returnedState,
@@ -8,13 +10,13 @@ export function validateCallbackParams({
   code: string | null
   returnedState: string | null
   expectedState: string | null
-}) {
+}): CallbackParamsError | null {
   if (!code) {
-    return 'Missing authorization code. Please try again.'
+    return 'missing_code'
   }
 
   if (!returnedState || !expectedState || returnedState !== expectedState) {
-    return 'Invalid login state. Please try signing in again.'
+    return 'invalid_state'
   }
 
   return null
