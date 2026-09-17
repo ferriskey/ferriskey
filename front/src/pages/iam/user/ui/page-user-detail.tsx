@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft, Bot } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, Squircle, StatusDot, type TabItem } from '@/components/kit'
@@ -66,6 +67,8 @@ export default function PageUserDetail({
   onDelete,
   children,
 }: PageUserDetailProps) {
+  const { t } = useTranslation('user')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -86,12 +89,14 @@ export default function PageUserDetail({
       <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
-          Users
+          {t('detail.back')}
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>User not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -105,7 +110,7 @@ export default function PageUserDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Users'
+        backLabel={t('detail.back')}
         icon={
           serviceAccount ? (
             <IconTile tone='violet' className='size-15'>
@@ -120,28 +125,29 @@ export default function PageUserDetail({
           <>
             <Pill tone={user.enabled ? 'success' : 'neutral'}>
               <StatusDot on={user.enabled} />
-              {user.enabled ? 'enabled' : 'disabled'}
+              {user.enabled ? t('detail.pills.enabled') : t('detail.pills.disabled')}
             </Pill>
             <Pill tone={user.email_verified ? 'info' : 'amber'} mono>
-              {user.email_verified ? 'email verified' : 'email unverified'}
+              {user.email_verified
+                ? t('detail.pills.email_verified')
+                : t('detail.pills.email_unverified')}
             </Pill>
             {serviceAccount && (
               <Pill tone='violet' mono>
-                service account
+                {t('detail.pills.service_account')}
               </Pill>
             )}
           </>
         }
         meta={
           <dl className='shrink-0 grid grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Identity</dt>
-            <dd>{fullName || (user.email ?? 'no name recorded')}</dd>
-            <dt className='sr-only'>Created at</dt>
+            <dt className='sr-only'>{t('detail.meta.identity_label')}</dt>
+            <dd>{fullName || (user.email ?? t('detail.meta.no_name'))}</dd>
+            <dt className='sr-only'>{t('detail.meta.created_label')}</dt>
             <dd className='tnum'>
-              Created{' '}
-              {formatDate(user.created_at)}
+              {t('detail.meta.created', { date: formatDate(user.created_at) })}
             </dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('detail.meta.identifier_label')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{user.id}</dd>
           </dl>
         }
@@ -176,11 +182,11 @@ export default function PageUserDetail({
 
       <SaveBar
         show={tab === 'overview' && dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the account before applying the changes.'
+        title={t('detail.save_bar.title', { count: dirtyCount })}
+        description={t('detail.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save_bar.cancel')}
+        actions={[{ label: t('detail.save_bar.submit'), onClick: onSave }]}
       />
     </PageShell>
   )

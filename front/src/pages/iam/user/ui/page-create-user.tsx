@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
@@ -38,26 +39,27 @@ export default function PageCreateUser({
   onBack,
   onSubmit,
 }: PageCreateUserProps) {
+  const { t } = useTranslation('user')
+
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        Users
+        {t('create.back')}
       </Button>
 
       <div className='pb-3'>
-        <h1 className={tokens.header.title}>New user</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          The account is created without any credential — set a password from its Credentials
-          tab afterwards.
+          {t('create.description')}
         </p>
       </div>
 
       <div className={tokens.page.blockGap}>
-        <Section title='Identity'>
+        <Section title={t('create.identity.title')}>
           <FieldRow
-            label='Username'
-            description='Login identifier, unique within the realm. It cannot be changed afterwards.'
+            label={t('create.identity.username.label')}
+            description={t('create.identity.username.description')}
             htmlFor='new-user-username'
           >
             <Input
@@ -73,28 +75,28 @@ export default function PageCreateUser({
           </FieldRow>
 
           <FieldRow
-            label='First and last name'
-            description='Optional — shown in the console and in the tokens issued for this account.'
+            label={t('create.identity.name.label')}
+            description={t('create.identity.name.description')}
           >
             <div className='flex max-w-sm gap-2'>
               <Input
                 value={firstname}
                 onChange={(e) => onFirstnameChange(e.target.value)}
-                placeholder='First name'
-                aria-label='First name'
+                placeholder={t('create.identity.name.firstname_placeholder')}
+                aria-label={t('create.identity.name.firstname_placeholder')}
               />
               <Input
                 value={lastname}
                 onChange={(e) => onLastnameChange(e.target.value)}
-                placeholder='Last name'
-                aria-label='Last name'
+                placeholder={t('create.identity.name.lastname_placeholder')}
+                aria-label={t('create.identity.name.lastname_placeholder')}
               />
             </div>
           </FieldRow>
 
           <FieldRow
-            label='Email'
-            description='Used for verification and password recovery. Leave empty if the account never receives mail.'
+            label={t('create.identity.email.label')}
+            description={t('create.identity.email.description')}
             htmlFor='new-user-email'
           >
             <Input
@@ -109,14 +111,14 @@ export default function PageCreateUser({
           </FieldRow>
 
           <FieldRow
-            label='Email verified'
-            description='Marks the address as already verified, so no verification is asked at first sign-in.'
+            label={t('create.identity.email_verified.label')}
+            description={t('create.identity.email_verified.description')}
           >
             <SwitchField
               checked={emailVerified}
               onCheckedChange={onEmailVerifiedChange}
-              onLabel='Verified'
-              offLabel='Unverified'
+              onLabel={t('create.identity.email_verified.switch_on')}
+              offLabel={t('create.identity.email_verified.switch_off')}
             />
           </FieldRow>
         </Section>
@@ -124,10 +126,10 @@ export default function PageCreateUser({
 
       <SaveBar
         show={canSubmit}
-        title='Create user'
-        description='The account is created enabled, with no credential attached.'
+        title={t('create.save_bar.title')}
+        description={t('create.save_bar.description')}
         onCancel={onBack}
-        actions={[{ label: 'Create user', onClick: onSubmit }]}
+        actions={[{ label: t('create.save_bar.submit'), onClick: onSubmit }]}
       />
     </PageShell>
   )

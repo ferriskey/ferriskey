@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetUserCredentials, useResetUserPassword } from '@/api/user.api'
 import { useDeleteUserCredential } from '@/api/credential.api'
@@ -20,6 +21,7 @@ const FIELD_BY_API_FIELD: Record<string, PasswordField> = {
 
 export default function UserCredentialsFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
+  const { t } = useTranslation('user')
   const realm = realm_name ?? 'master'
 
   const { data: credentialsResponse, isLoading } = useGetUserCredentials({
@@ -74,13 +76,13 @@ export default function UserCredentialsFeature() {
     if (!user_id) return
     deleteCredential(
       { path: { realm_name: realm, user_id, credential_id: credentialId } },
-      { onSuccess: () => toast.success('Credential was deleted') }
+      { onSuccess: () => toast.success(t('detail.credentials.toast.deleted')) }
     )
   }
 
   const handleSubmitPassword = () => {
     if (!user_id || !realm_name) {
-      toast.error('User ID or Realm Name is missing')
+      toast.error(t('detail.credentials.toast.missing_context'))
       return
     }
     if (!parsed.success) return
@@ -98,7 +100,7 @@ export default function UserCredentialsFeature() {
       },
       {
         onSuccess: () => {
-          toast.success('Password has been set successfully')
+          toast.success(t('detail.credentials.toast.password_set'))
           resetForm()
         },
         onError: (error) => {
@@ -111,7 +113,8 @@ export default function UserCredentialsFeature() {
 
           if (byField.size === 0 || unattached.length > 0) {
             toast.error(
-              unattached.join(' — ') || apiErrorMessage(error, 'Failed to set password')
+              unattached.join(' — ') ||
+                apiErrorMessage(error, t('detail.credentials.toast.password_failed'))
             )
           }
         },

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useCreateUser } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
@@ -11,6 +12,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 export default function PageCreateUserFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('user')
   const realm = realm_name ?? 'master'
 
   const { mutate: createUser } = useCreateUser()
@@ -51,7 +53,7 @@ export default function PageCreateUserFeature() {
       },
       {
         onSuccess: () => {
-          toast.success('The user has been successfully created')
+          toast.success(t('create.toast.created'))
           navigate(USERS_URL(realm))
         },
         onError: (error) => toast.error(apiErrorMessage(error)),

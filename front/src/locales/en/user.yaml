@@ -1,0 +1,332 @@
+list:
+  title: Users
+  description: Accounts of this realm, their type and their authentication state.
+  create: New user
+  search_placeholder: Filter by name or email…
+  # Fallback name shown in place of a person's name when the account belongs to a client.
+  service_account_name: Service Account
+  columns:
+    user: User
+    email: Email
+    type: Type
+    status: Status
+  no_email: no email
+  type:
+    service: service account
+    user: user account
+  status:
+    enabled: Enabled
+    disabled: Disabled
+  card:
+    badge:
+      enabled: enabled
+      disabled: disabled
+    flags:
+      enabled: Account enabled
+      email_verified: Email verified
+      no_required_action: No action required at next sign-in
+  metrics:
+    total:
+      label: Total
+      hint: users
+    enabled:
+      label: Enabled users
+      hint: '{{percent}}% active'
+      empty_hint: No enabled users
+    disabled:
+      label: Disabled users
+      hint: cannot authenticate
+    verified:
+      label: Verified users
+      hint: email verified
+  alerts:
+    unverified_email:
+      title_one: '{{count}} account has an unverified email'
+      title_other: '{{count}} accounts have an unverified email'
+      detail: '{{names}} — password recovery will not reach them.'
+      action: Review
+  filters:
+    users: Users
+    service_accounts: Service accounts
+    unverified: Unverified email
+  aggregates:
+    count_one: '{{count}} user'
+    count_other: '{{count}} users'
+    # Raw total in a table footer, it never inflects.
+    enabled: '{{total}} enabled'
+  empty:
+    label: No user
+    hint: An account authenticates against this realm; a service account belongs to a client.
+
+create:
+  back: Users
+  title: New user
+  description: The account is created without any credential — set a password from its Credentials tab afterwards.
+  identity:
+    title: Identity
+    username:
+      label: Username
+      description: Login identifier, unique within the realm. It cannot be changed afterwards.
+    name:
+      label: First and last name
+      description: Optional — shown in the console and in the tokens issued for this account.
+      firstname_placeholder: First name
+      lastname_placeholder: Last name
+    email:
+      label: Email
+      description: Used for verification and password recovery. Leave empty if the account never receives mail.
+    email_verified:
+      label: Email verified
+      description: Marks the address as already verified, so no verification is asked at first sign-in.
+      switch_on: Verified
+      switch_off: Unverified
+  save_bar:
+    title: Create user
+    description: The account is created enabled, with no credential attached.
+    submit: Create user
+  toast:
+    created: The user has been successfully created
+
+detail:
+  back: Users
+  not_found:
+    title: User not found
+    description: It may have been deleted, or it belongs to another realm.
+  pills:
+    enabled: enabled
+    disabled: disabled
+    email_verified: email verified
+    email_unverified: email unverified
+    service_account: service account
+  meta:
+    identity_label: Identity
+    no_name: no name recorded
+    created_label: Created at
+    created: Created {{date}}
+    identifier_label: Identifier
+  tabs:
+    overview: Overview
+    credentials: Credentials
+    role_mapping: Role mapping
+    organizations: Organizations
+    attributes: Attributes
+  save_bar:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review the account before applying the changes.
+    cancel: Discard
+    submit: Save changes
+  toast:
+    updated: User was updated
+    delete_failed: The user could not be deleted
+
+  overview:
+    identity:
+      title: Identity
+      username:
+        label: Username
+        description: 'Login identifier, fixed at creation: the update endpoint does not accept a new username.'
+      name:
+        label: First and last name
+        description: Optional — a service account has none. Shown in the console and in issued tokens.
+        firstname_placeholder: First name
+        lastname_placeholder: Last name
+      email:
+        label: Email
+        description: Used for verification and password recovery.
+      enabled:
+        label: User enabled
+        description: A disabled account can no longer obtain a token.
+      email_verified:
+        label: Email verified
+        description: Marks the address as verified without going through the verification mail.
+        switch_on: Verified
+        switch_off: Not verified
+    required_actions:
+      title: Required actions
+      description_one: '{{count}} action to complete at the next sign-in.'
+      description_other: '{{count}} actions to complete at the next sign-in.'
+      empty_description: 'No action enforced: the user signs in directly.'
+      options:
+        verify_email:
+          label: Verify email
+          hint: A verification link is sent at the next sign-in.
+        update_password:
+          label: Update password
+          hint: The current password must be replaced before any access.
+        configure_otp:
+          label: Configure an OTP
+          hint: TOTP enrolment is enforced before any access.
+        configure_passkey:
+          label: Register a passkey
+          hint: A WebAuthn key is requested at the next sign-in.
+    danger:
+      label: Delete this user
+      description: Once deleted, all associated sessions, credentials, and role assignments will be permanently removed.
+      button: Delete user
+      confirm_title: Delete user
+      confirm_description: This will permanently delete the user "{{username}}" and all associated data.
+
+  credentials:
+    metrics:
+      total:
+        label: Total credentials
+        hint: registered
+      passwords:
+        label: Passwords
+        hint: '{{percent}}% of total'
+        empty_hint: No password credentials
+      otp:
+        label: TOTP
+        hint: authenticator app
+      other:
+        label: Other
+        hint: recovery codes & more
+    types:
+      password: Password
+      otp: One-time password
+      recovery_code: Recovery codes
+    list:
+      title: Authentication methods
+      description: Credentials registered for this account.
+      search_placeholder: Filter credentials…
+      added: Added {{date}}
+      delete: Delete the {{type}} credential
+      no_match: No credential matches “{{query}}”.
+      empty: No credential registered — this account cannot authenticate.
+    delete:
+      title: Delete credential?
+      description: Are you sure you want to delete this "{{type}}" credential?
+    warning: 'Deleting a credential is immediate and irreversible: the user loses that authentication method without being notified.'
+    password:
+      title_reset: Reset the password
+      title_set: Set a password
+      description_reset: The current password is replaced immediately; open sessions stay valid.
+      description_set: 'This account has no password: it can only authenticate through its other methods.'
+      validity:
+        label: Validity
+        description: Decides whether the password entered below must be changed at its first use.
+        group_label: Password validity
+        temporary:
+          label: Temporary
+          description: The user must change it at the next sign-in.
+        permanent:
+          label: Permanent
+          description: It stays valid until the user changes it.
+      new:
+        label: New password
+        description: 'The stored password is never displayed: it can only be replaced.'
+      confirm:
+        label: Confirm password
+        description: Both entries must match before the password can be applied.
+      submit_replace: Replace the password
+      submit_set: Set the password
+      cancel: Cancel
+    toast:
+      deleted: Credential was deleted
+      missing_context: User ID or Realm Name is missing
+      password_set: Password has been set successfully
+      password_failed: Failed to set password
+
+  role_mapping:
+    metrics:
+      total:
+        label: Assigned roles
+        hint: on this account
+      realm:
+        label: Realm roles
+        hint: '{{percent}}% of total'
+        empty_hint: No realm roles
+      client:
+        label: Client roles
+        hint: scoped to a client
+      granting:
+        label: With permissions
+        hint: grant at least one
+    role:
+      client: client
+      realm: realm
+      # "client" names the owning client of the role, it is not the client ID itself.
+      client_ref: 'client: {{clientId}}'
+      # "role_id" is the API field name, keep it verbatim.
+      identifier: 'role_id: {{id}}'
+      permission_count_one: '{{count}} permission'
+      permission_count_other: '{{count}} permissions'
+    list:
+      title: Assigned roles
+      description: Everything this account is authorised to do comes from this list.
+      search_placeholder: Filter roles…
+      error: The roles of this account could not be loaded.
+      unassign: Unassign {{name}}
+      no_match: No role matches “{{query}}”.
+      empty: No role assigned — this account cannot reach any protected resource.
+    assign:
+      title: Assign a role
+      description: Roles of the realm and of its clients that this account does not hold yet.
+      add: Pick a role
+      search_placeholder: Search a role…
+      empty_hint: No role selected yet.
+      exhausted_hint: This account already holds every role of the realm.
+      # Label of the disabled button, before anything is picked — it carries no count.
+      submit_empty: Assign role
+      submit_one: 'Assign {{count}} role'
+      submit_other: 'Assign {{count}} roles'
+    toast:
+      missing_context: User or realm not found
+      assigned: Role(s) assigned successfully
+      unassigned_title: Role unassigned successfully
+      unassigned_description: The role has been successfully removed from the user.
+
+  organizations:
+    list:
+      title: Organizations
+      description: Organizations of the realm this account belongs to.
+      search_placeholder: Filter organizations…
+      error: The organizations of this account could not be loaded.
+      disabled: organization disabled
+      meta: Member since {{date}} · {{detail}}
+      # "org_id" is the API field name, keep it verbatim.
+      identifier: 'org_id: {{id}}'
+      remove: Remove from {{name}}
+      no_match: No organization matches “{{query}}”.
+      empty: This account belongs to no organization.
+    assign:
+      title: Add to an organization
+      description: Organizations of the realm this account has not joined yet.
+      add: Pick an organization
+      search_placeholder: Search an organization…
+      empty_hint: No organization selected yet.
+      exhausted_hint: This account already belongs to every organization of the realm.
+      # Label of the disabled button, before anything is picked — it carries no count.
+      submit_empty: Add to organization
+      submit_one: 'Add to {{count}} organization'
+      submit_other: 'Add to {{count}} organizations'
+    toast:
+      missing_context: User or realm not found
+      assigned: Organization(s) assigned successfully
+
+  attributes:
+    list:
+      title: Custom attributes
+      description_one: '{{count}} attribute on this account.'
+      description_other: '{{count}} attributes on this account.'
+      empty_description: Key-value metadata carried by this account.
+      empty: No attribute defined for this user.
+      save: Save {{key}}
+      cancel: Cancel editing {{key}}
+      edit: Edit {{key}}
+      delete: Delete {{key}}
+    add:
+      title: Add an attribute
+      description: Attributes reach the tokens through the mappers of a client scope.
+      key_placeholder: key
+      value_placeholder: value
+      duplicate: This key already exists — adding it replaces its value.
+      submit: Add
+
+validation:
+  username_required: Username is required
+  email_invalid: Invalid email address
+  passwords_must_match: Passwords must match
+  role_required: At least one role must be selected
+  organization_required: At least one organization must be selected

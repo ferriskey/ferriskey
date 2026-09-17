@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetOwnProfile, useGetUserSessions, useRevokeUserSession } from '@/api/user.api.ts'
 import { authStore } from '@/store/auth.store'
@@ -23,6 +24,7 @@ function decodeSid(token: string | null): string | null {
 
 export default function PageAccountSessionsFeature() {
   const { realm_name } = useParams<RouterParams>()
+  const { t } = useTranslation('account')
   const { accessToken } = authStore()
   const { data: profileResponse, isLoading: isProfileLoading } = useGetOwnProfile({ realm: realm_name })
   const userId = profileResponse?.data.id
@@ -42,7 +44,7 @@ export default function PageAccountSessionsFeature() {
         path: { realm_name, user_id: userId, session_id: sessionId },
       },
       {
-        onSuccess: () => toast.success('Session revoked'),
+        onSuccess: () => toast.success(t('sessions.toast.revoked')),
         onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )

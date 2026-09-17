@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { PublicPasswordPolicy } from '@/api/password-policy.api'
 import { buildPasswordField } from '@/lib/password-policy'
+import { translate } from '@/lib/i18n'
 
 /**
  * Build the reset-password validation schema from the realm's actual password policy
@@ -16,7 +17,7 @@ export function buildSetCredentialPasswordSchema(policy?: PublicPasswordPolicy) 
       temporary: z.boolean(),
     })
     .refine((data) => data.password === data.confirmPassword, {
-      message: 'Passwords must match',
+      error: () => translate('user:validation.passwords_must_match'),
       path: ['confirmPassword'],
     })
 }

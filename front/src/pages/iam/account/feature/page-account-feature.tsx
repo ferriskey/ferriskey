@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetOwnProfile, useUpdateOwnProfile } from '@/api/user.api'
 import { useGetRealm } from '@/api/realm.api'
@@ -20,6 +21,7 @@ const EMPTY_DRAFT: Draft = { key: '', username: '', firstname: '', lastname: '',
 
 export default function PageAccountFeature() {
   const { realm_name } = useParams<RouterParams>()
+  const { t } = useTranslation('account')
   const realm = realm_name ?? 'master'
 
   const { data: profileResponse, isLoading } = useGetOwnProfile({ realm })
@@ -77,7 +79,7 @@ export default function PageAccountFeature() {
         path: { realm_name: realm },
       },
       {
-        onSuccess: () => toast.success('Your profile was updated'),
+        onSuccess: () => toast.success(t('profile.toast.updated')),
         onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )

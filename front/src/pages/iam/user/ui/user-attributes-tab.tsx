@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/kit'
@@ -22,6 +23,7 @@ interface AttributeRowProps {
 }
 
 function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
+  const { t } = useTranslation('user')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(attribute.value)
 
@@ -64,7 +66,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
             <Button
               variant='ghost'
               size='icon'
-              aria-label={`Save ${attribute.key}`}
+              aria-label={t('detail.attributes.list.save', { key: attribute.key })}
               onClick={save}
               className='size-7 text-fk-success'
             >
@@ -73,7 +75,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
             <Button
               variant='ghost'
               size='icon'
-              aria-label={`Cancel editing ${attribute.key}`}
+              aria-label={t('detail.attributes.list.cancel', { key: attribute.key })}
               onClick={cancel}
               className='size-7 text-neutral-400 dark:text-neutral-500'
             >
@@ -85,7 +87,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
             <Button
               variant='ghost'
               size='icon'
-              aria-label={`Edit ${attribute.key}`}
+              aria-label={t('detail.attributes.list.edit', { key: attribute.key })}
               onClick={() => setEditing(true)}
               className='size-7 text-neutral-400 hover:text-neutral-900 dark:text-neutral-500 dark:hover:text-neutral-100'
             >
@@ -94,7 +96,7 @@ function AttributeRow({ attribute, onEdit, onDelete }: AttributeRowProps) {
             <Button
               variant='ghost'
               size='icon'
-              aria-label={`Delete ${attribute.key}`}
+              aria-label={t('detail.attributes.list.delete', { key: attribute.key })}
               onClick={() => onDelete(attribute.key)}
               className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
             >
@@ -113,6 +115,7 @@ export default function UserAttributesTab({
   onUpsert,
   onDelete,
 }: UserAttributesTabProps) {
+  const { t } = useTranslation('user')
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
 
@@ -129,11 +132,11 @@ export default function UserAttributesTab({
   return (
     <>
       <Section
-        title='Custom attributes'
+        title={t('detail.attributes.list.title')}
         description={
           attributes.length > 0
-            ? `${attributes.length} attribute${attributes.length > 1 ? 's' : ''} on this account.`
-            : 'Key-value metadata carried by this account.'
+            ? t('detail.attributes.list.description', { count: attributes.length })
+            : t('detail.attributes.list.empty_description')
         }
         contained={!isLoading && attributes.length > 0}
       >
@@ -156,14 +159,14 @@ export default function UserAttributesTab({
           </ul>
         ) : (
           <p className='rounded-md border border-dashed border-fk-line px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400'>
-            No attribute defined for this user.
+            {t('detail.attributes.list.empty')}
           </p>
         )}
       </Section>
 
       <Section
-        title='Add an attribute'
-        description='Attributes reach the tokens through the mappers of a client scope.'
+        title={t('detail.attributes.add.title')}
+        description={t('detail.attributes.add.description')}
         contained={false}
       >
         <div className='flex flex-wrap items-start gap-2'>
@@ -171,12 +174,12 @@ export default function UserAttributesTab({
             <Input
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              placeholder='key'
+              placeholder={t('detail.attributes.add.key_placeholder')}
               className='h-8'
             />
             {duplicate && (
               <p className='mt-1 text-xs text-fk-amber'>
-                This key already exists — adding it replaces its value.
+                {t('detail.attributes.add.duplicate')}
               </p>
             )}
           </div>
@@ -190,11 +193,11 @@ export default function UserAttributesTab({
                 setValue('')
               }
             }}
-            placeholder='value'
+            placeholder={t('detail.attributes.add.value_placeholder')}
             className='h-8 min-w-48 flex-1 font-mono-ui text-xs'
           />
           <Button size='sm' onClick={add} disabled={!canAdd}>
-            <Plus /> Add
+            <Plus /> {t('detail.attributes.add.submit')}
           </Button>
         </div>
       </Section>

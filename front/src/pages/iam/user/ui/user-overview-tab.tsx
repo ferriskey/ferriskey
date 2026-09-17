@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
@@ -8,27 +9,11 @@ import { Schemas } from '@/api/api.client'
 import User = Schemas.User
 import RequiredAction = Schemas.RequiredAction
 
-const requiredActionCatalogue: { value: RequiredAction; label: string; hint: string }[] = [
-  {
-    value: 'verify_email',
-    label: 'Verify email',
-    hint: 'A verification link is sent at the next sign-in.',
-  },
-  {
-    value: 'update_password',
-    label: 'Update password',
-    hint: 'The current password must be replaced before any access.',
-  },
-  {
-    value: 'configure_otp',
-    label: 'Configure an OTP',
-    hint: 'TOTP enrolment is enforced before any access.',
-  },
-  {
-    value: 'configure_passkey',
-    label: 'Register a passkey',
-    hint: 'A WebAuthn key is requested at the next sign-in.',
-  },
+const REQUIRED_ACTIONS: RequiredAction[] = [
+  'verify_email',
+  'update_password',
+  'configure_otp',
+  'configure_passkey',
 ]
 
 export interface UserOverviewTabProps {
@@ -68,6 +53,8 @@ export default function UserOverviewTab({
   onRequiredActionsChange,
   onDelete,
 }: UserOverviewTabProps) {
+  const { t } = useTranslation('user')
+
   const toggleAction = (action: RequiredAction) =>
     onRequiredActionsChange(
       requiredActions.includes(action)
@@ -77,10 +64,10 @@ export default function UserOverviewTab({
 
   return (
     <>
-      <Section title='Identity'>
+      <Section title={t('detail.overview.identity.title')}>
         <FieldRow
-          label='Username'
-          description='Login identifier, fixed at creation: the update endpoint does not accept a new username.'
+          label={t('detail.overview.identity.username.label')}
+          description={t('detail.overview.identity.username.description')}
           htmlFor='user-username'
         >
           <Input
@@ -92,28 +79,28 @@ export default function UserOverviewTab({
         </FieldRow>
 
         <FieldRow
-          label='First and last name'
-          description='Optional — a service account has none. Shown in the console and in issued tokens.'
+          label={t('detail.overview.identity.name.label')}
+          description={t('detail.overview.identity.name.description')}
         >
           <div className='flex max-w-sm gap-2'>
             <Input
               value={firstname}
               onChange={(e) => onFirstnameChange(e.target.value)}
-              placeholder='First name'
-              aria-label='First name'
+              placeholder={t('detail.overview.identity.name.firstname_placeholder')}
+              aria-label={t('detail.overview.identity.name.firstname_placeholder')}
             />
             <Input
               value={lastname}
               onChange={(e) => onLastnameChange(e.target.value)}
-              placeholder='Last name'
-              aria-label='Last name'
+              placeholder={t('detail.overview.identity.name.lastname_placeholder')}
+              aria-label={t('detail.overview.identity.name.lastname_placeholder')}
             />
           </div>
         </FieldRow>
 
         <FieldRow
-          label='Email'
-          description='Used for verification and password recovery.'
+          label={t('detail.overview.identity.email.label')}
+          description={t('detail.overview.identity.email.description')}
           htmlFor='user-email'
         >
           <Input
@@ -128,44 +115,46 @@ export default function UserOverviewTab({
         </FieldRow>
 
         <FieldRow
-          label='User enabled'
-          description='A disabled account can no longer obtain a token.'
+          label={t('detail.overview.identity.enabled.label')}
+          description={t('detail.overview.identity.enabled.description')}
         >
           <SwitchField checked={enabled} onCheckedChange={onEnabledChange} />
         </FieldRow>
 
         <FieldRow
-          label='Email verified'
-          description='Marks the address as verified without going through the verification mail.'
+          label={t('detail.overview.identity.email_verified.label')}
+          description={t('detail.overview.identity.email_verified.description')}
         >
           <SwitchField
             checked={emailVerified}
             onCheckedChange={onEmailVerifiedChange}
-            onLabel='Verified'
-            offLabel='Not verified'
+            onLabel={t('detail.overview.identity.email_verified.switch_on')}
+            offLabel={t('detail.overview.identity.email_verified.switch_off')}
           />
         </FieldRow>
       </Section>
 
       <Section
-        title='Required actions'
+        title={t('detail.overview.required_actions.title')}
         description={
           requiredActions.length > 0
-            ? `${requiredActions.length} action${requiredActions.length > 1 ? 's' : ''} to complete at the next sign-in.`
-            : 'No action enforced: the user signs in directly.'
+            ? t('detail.overview.required_actions.description', {
+                count: requiredActions.length,
+              })
+            : t('detail.overview.required_actions.empty_description')
         }
         contained={false}
       >
         <div className='grid gap-2 sm:grid-cols-2'>
-          {requiredActionCatalogue.map((action) => {
-            const on = requiredActions.includes(action.value)
+          {REQUIRED_ACTIONS.map((action) => {
+            const on = requiredActions.includes(action)
             return (
               <button
-                key={action.value}
+                key={action}
                 type='button'
                 role='switch'
                 aria-checked={on}
-                onClick={() => toggleAction(action.value)}
+                onClick={() => toggleAction(action)}
                 className={cn(
                   'flex cursor-pointer flex-col gap-0.5 rounded-md border p-3 text-left transition-colors',
                   'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-fk-primary/30',
@@ -189,11 +178,11 @@ export default function UserOverviewTab({
                       on ? 'text-fk-primary-text' : 'text-neutral-900 dark:text-neutral-100'
                     )}
                   >
-                    {action.label}
+                    {t(`detail.overview.required_actions.options.${action}.label`)}
                   </span>
                   <span className='flex-1' />
                   <span className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
-                    {action.value}
+                    {action}
                   </span>
                 </span>
                 <span
@@ -202,7 +191,7 @@ export default function UserOverviewTab({
                     on ? 'text-fk-primary-text/80' : 'text-neutral-500 dark:text-neutral-400'
                   )}
                 >
-                  {action.hint}
+                  {t(`detail.overview.required_actions.options.${action}.hint`)}
                 </span>
               </button>
             )
@@ -212,11 +201,13 @@ export default function UserOverviewTab({
 
       <DangerZone
         resourceName={user.username}
-        label='Delete this user'
-        description='Once deleted, all associated sessions, credentials, and role assignments will be permanently removed.'
-        buttonLabel='Delete user'
-        confirmTitle='Delete user'
-        confirmDescription={`This will permanently delete the user "${user.username}" and all associated data.`}
+        label={t('detail.overview.danger.label')}
+        description={t('detail.overview.danger.description')}
+        buttonLabel={t('detail.overview.danger.button')}
+        confirmTitle={t('detail.overview.danger.confirm_title')}
+        confirmDescription={t('detail.overview.danger.confirm_description', {
+          username: user.username,
+        })}
         onConfirm={onDelete}
       />
     </>
