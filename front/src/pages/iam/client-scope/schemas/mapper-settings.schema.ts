@@ -1,7 +1,10 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
 
 export const mapperSettingsSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z
+    .string()
+    .min(1, { error: () => translate('client-scope:validation.mapper_name_required') }),
   config_json: z
     .string()
     .optional()
@@ -15,7 +18,7 @@ export const mapperSettingsSchema = z.object({
           return false
         }
       },
-      { message: 'Config must be valid JSON' }
+      { error: () => translate('client-scope:validation.mapper_config_invalid_json') }
     ),
 })
 

@@ -1,7 +1,8 @@
 import { ArrowLeft, KeyRound } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
-import { DetailHeader, IconTile, PageShell, PageTabs, Pill, type PillTone, type TabItem } from '@/components/kit'
+import { DetailHeader, IconTile, PageShell, PageTabs, Pill, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
@@ -11,20 +12,8 @@ import type { ScopeTypeChoice } from './page-create-client-scope'
 
 import ClientScope = Schemas.ClientScope
 import ProtocolMapper = Schemas.ProtocolMapper
-import ScopeType = Schemas.ScopeType
 import { formatDateTime } from '@/utils/format-date'
-
-const typeLabel: Record<ScopeType, string> = {
-  DEFAULT: 'default',
-  OPTIONAL: 'optional',
-  NONE: 'none',
-}
-
-const typeTone: Record<ScopeType, PillTone> = {
-  DEFAULT: 'success',
-  OPTIONAL: 'info',
-  NONE: 'neutral',
-}
+import { SCOPE_TYPE_TONE, scopeTypeLabelKey } from '../scope-type'
 
 export interface PageClientScopeDetailProps {
   scope?: ClientScope
@@ -75,6 +64,8 @@ export default function PageClientScopeDetail({
   onSave,
   onDelete,
 }: PageClientScopeDetailProps) {
+  const { t } = useTranslation('client-scope')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -95,12 +86,14 @@ export default function PageClientScopeDetail({
       <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
-          Client Scopes
+          {t('detail.back')}
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Client scope not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -113,7 +106,7 @@ export default function PageClientScopeDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Client Scopes'
+        backLabel={t('detail.back')}
         icon={
           <IconTile tone='info' className='size-15'>
             <KeyRound className='size-6' strokeWidth={1.75} />
@@ -122,27 +115,33 @@ export default function PageClientScopeDetail({
         title={scope.name}
         pills={
           <>
-            <Pill tone={typeTone[scope.default_scope_type]} mono>
-              {typeLabel[scope.default_scope_type]}
+            <Pill tone={SCOPE_TYPE_TONE[scope.default_scope_type]} mono>
+              {t(scopeTypeLabelKey(scope.default_scope_type))}
             </Pill>
             <Pill mono>{scope.protocol}</Pill>
             <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
-              {mappers.length} mapper{mappers.length !== 1 ? 's' : ''}
+              {t('scope.mapper_count', { count: mappers.length })}
             </span>
             <p className='mt-1 w-full text-xs text-neutral-500 dark:text-neutral-400'>
               {scope.description || (
-                <span className='font-mono-ui text-neutral-400 dark:text-neutral-500'>scope_id: {scope.id}</span>
+                <span className='font-mono-ui text-neutral-400 dark:text-neutral-500'>
+                  {t('scope.identifier', { id: scope.id })}
+                </span>
               )}
             </p>
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Created at</dt>
-            <dd className='tnum'>Created {formatDateTime(scope.created_at)}</dd>
-            <dt className='sr-only'>Updated at</dt>
-            <dd className='tnum'>Updated {formatDateTime(scope.updated_at)}</dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('detail.meta.created_label')}</dt>
+            <dd className='tnum'>
+              {t('detail.meta.created', { date: formatDateTime(scope.created_at) })}
+            </dd>
+            <dt className='sr-only'>{t('detail.meta.updated_label')}</dt>
+            <dd className='tnum'>
+              {t('detail.meta.updated', { date: formatDateTime(scope.updated_at) })}
+            </dd>
+            <dt className='sr-only'>{t('detail.meta.identifier_label')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{scope.id}</dd>
           </dl>
         }
@@ -179,11 +178,16 @@ export default function PageClientScopeDetail({
 
       <SaveBar
         show={dirtyCount > 0 && !nameError}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the client scope before applying the changes.'
+        title={t('detail.save_bar.title', { count: dirtyCount })}
+        description={t('detail.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: isPending ? 'Saving…' : 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save_bar.cancel')}
+        actions={[
+          {
+            label: isPending ? t('detail.save_bar.submitting') : t('detail.save_bar.submit'),
+            onClick: onSave,
+          },
+        ]}
       />
     </PageShell>
   )

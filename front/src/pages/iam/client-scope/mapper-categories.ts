@@ -1,23 +1,25 @@
 import type { PillTone } from '@/components/kit'
 
 export interface MapperCategory {
-  label: string
+  labelKey: string
   tone: PillTone
 }
 
 export function mapperCategory(mapperType: string): MapperCategory {
   const type = mapperType.toLowerCase()
 
-  if (type.includes('role')) return { label: 'role', tone: 'violet' }
-  if (type.includes('audience')) return { label: 'audience', tone: 'success' }
-  if (type.includes('hardcoded')) return { label: 'hardcoded', tone: 'amber' }
-  if (type.includes('attribute')) return { label: 'attribute', tone: 'info' }
-  if (type.includes('organization')) return { label: 'organization', tone: 'neutral' }
+  if (type.includes('role')) return { labelKey: 'mapper_category.role', tone: 'violet' }
+  if (type.includes('audience')) return { labelKey: 'mapper_category.audience', tone: 'success' }
+  if (type.includes('hardcoded')) return { labelKey: 'mapper_category.hardcoded', tone: 'amber' }
+  if (type.includes('attribute')) return { labelKey: 'mapper_category.attribute', tone: 'info' }
+  if (type.includes('organization')) {
+    return { labelKey: 'mapper_category.organization', tone: 'neutral' }
+  }
   if (type.includes('property') || type.includes('full-name') || type.includes('usermodel')) {
-    return { label: 'identity', tone: 'info' }
+    return { labelKey: 'mapper_category.identity', tone: 'info' }
   }
 
-  return { label: 'custom', tone: 'neutral' }
+  return { labelKey: 'mapper_category.custom', tone: 'neutral' }
 }
 
 export const isRoleMapper = (mapperType: string) => mapperType.toLowerCase().includes('role')

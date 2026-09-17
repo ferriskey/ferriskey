@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
   Command,
@@ -38,6 +39,7 @@ export default function MapperEntityField({
   emptyLabel,
   onChange,
 }: MapperEntityFieldProps) {
+  const { t } = useTranslation('client-scope')
   const [open, setOpen] = useState(false)
   const selected = options.find((option) => option.value === value)
 
@@ -56,7 +58,7 @@ export default function MapperEntityField({
             {value ? (
               <span className='flex min-w-0 items-center gap-2'>
                 <span className='min-w-0 truncate font-mono-ui text-xs'>{value}</span>
-                {!selected && <Pill tone='amber'>unknown</Pill>}
+                {!selected && <Pill tone='amber'>{t('mapper_entity.unknown')}</Pill>}
               </span>
             ) : (
               <span className='text-neutral-500 dark:text-neutral-400'>{placeholder}</span>
@@ -105,7 +107,7 @@ export default function MapperEntityField({
           type='button'
           variant='ghost'
           size='icon'
-          aria-label='Clear'
+          aria-label={t('mapper_entity.clear')}
           className='size-8 shrink-0 text-neutral-400 dark:text-neutral-500'
           onClick={() => onChange('')}
         >

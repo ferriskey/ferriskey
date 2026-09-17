@@ -3,59 +3,59 @@
 export type ConfigFieldType = 'text' | 'select' | 'switch'
 
 export type SelectOption = {
-  label: string
+  labelKey: string
   value: string
 }
 
 export type ConfigFieldDef = {
   /** Key used in the mapper's config object (may contain dots) */
   key: string
-  label: string
+  labelKey: string
   type: ConfigFieldType
   placeholder?: string
   options?: SelectOption[]
   defaultValue?: string
-  description?: string
+  descriptionKey?: string
 }
 
 // ─── Shared field helpers ─────────────────────────────────────────────────────
 
 const CLAIM_JSON_TYPE_FIELD: ConfigFieldDef = {
   key: 'claim.value.type',
-  label: 'Claim JSON type',
+  labelKey: 'mapper_field.claim_value_type.label',
   type: 'select',
   defaultValue: 'String',
   options: [
-    { label: 'String', value: 'String' },
-    { label: 'JSON', value: 'JSON' },
-    { label: 'Long', value: 'long' },
-    { label: 'Integer', value: 'int' },
-    { label: 'Boolean', value: 'boolean' },
+    { labelKey: 'mapper_field.claim_value_type.options.string', value: 'String' },
+    { labelKey: 'mapper_field.claim_value_type.options.json', value: 'JSON' },
+    { labelKey: 'mapper_field.claim_value_type.options.long', value: 'long' },
+    { labelKey: 'mapper_field.claim_value_type.options.int', value: 'int' },
+    { labelKey: 'mapper_field.claim_value_type.options.boolean', value: 'boolean' },
   ],
 }
 
 const TOKEN_INCLUSION_FIELDS: ConfigFieldDef[] = [
   {
     key: 'id.token.claim',
-    label: 'Add to ID token',
+    labelKey: 'mapper_field.id_token_claim.label',
     type: 'switch',
     defaultValue: 'true',
   },
   {
     key: 'access.token.claim',
-    label: 'Add to access token',
+    labelKey: 'mapper_field.access_token_claim.label',
     type: 'switch',
     defaultValue: 'true',
   },
   {
     key: 'userinfo.token.claim',
-    label: 'Add to userinfo',
+    labelKey: 'mapper_field.userinfo_token_claim.label',
     type: 'switch',
     defaultValue: 'true',
   },
   {
     key: 'introspection.token.claim',
-    label: 'Add to token introspection',
+    labelKey: 'mapper_field.introspection_token_claim.label',
     type: 'switch',
     defaultValue: 'false',
   },
@@ -65,8 +65,8 @@ const TOKEN_INCLUSION_FIELDS: ConfigFieldDef[] = [
 
 export type MapperTemplate = {
   id: string
-  name: string
-  description: string
+  nameKey: string
+  descriptionKey: string
   icon: string
   mapper_type: string
   defaultName: string
@@ -79,22 +79,22 @@ export type MapperTemplate = {
 export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   {
     id: 'qs-email',
-    name: 'Email',
-    description: 'Maps the user email address to the email token claim',
+    nameKey: 'mapper_template.qs-email.name',
+    descriptionKey: 'mapper_template.qs-email.description',
     icon: '📧',
     mapper_type: 'oidc-usermodel-property-mapper',
     defaultName: 'email',
     fields: [
       {
         key: 'user.attribute',
-        label: 'User property',
+        labelKey: 'mapper_field.user_property.label',
         type: 'text',
         placeholder: 'email',
         defaultValue: 'email',
       },
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'email',
         defaultValue: 'email',
@@ -105,22 +105,22 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-username',
-    name: 'Username',
-    description: 'Maps username to the preferred_username claim',
+    nameKey: 'mapper_template.qs-username.name',
+    descriptionKey: 'mapper_template.qs-username.description',
     icon: '👤',
     mapper_type: 'oidc-usermodel-property-mapper',
     defaultName: 'username',
     fields: [
       {
         key: 'user.attribute',
-        label: 'User property',
+        labelKey: 'mapper_field.user_property.label',
         type: 'text',
         placeholder: 'username',
         defaultValue: 'username',
       },
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'preferred_username',
         defaultValue: 'preferred_username',
@@ -131,8 +131,8 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-full-name',
-    name: 'Full Name',
-    description: 'Maps the user full name to the name claim',
+    nameKey: 'mapper_template.qs-full-name.name',
+    descriptionKey: 'mapper_template.qs-full-name.description',
     icon: '🪪',
     mapper_type: 'oidc-full-name-mapper',
     defaultName: 'full name',
@@ -140,15 +140,15 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-realm-roles',
-    name: 'Realm Roles',
-    description: 'Adds all realm roles as a multi-valued token claim',
+    nameKey: 'mapper_template.qs-realm-roles.name',
+    descriptionKey: 'mapper_template.qs-realm-roles.description',
     icon: '🔐',
     mapper_type: 'oidc-usermodel-realm-role-mapper',
     defaultName: 'realm roles',
     fields: [
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'roles',
         defaultValue: 'roles',
@@ -159,28 +159,28 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-audience',
-    name: 'Audience',
-    description: 'Adds a custom audience value to the token',
+    nameKey: 'mapper_template.qs-audience.name',
+    descriptionKey: 'mapper_template.qs-audience.description',
     icon: '🔑',
     mapper_type: 'oidc-audience-mapper',
     defaultName: 'audience',
     fields: [
       {
         key: 'included.custom.audience',
-        label: 'Custom audience',
+        labelKey: 'mapper_field.custom_audience.label',
         type: 'text',
         placeholder: 'https://api.example.com',
         defaultValue: '',
       },
       {
         key: 'id.token.claim',
-        label: 'Add to ID token',
+        labelKey: 'mapper_field.id_token_claim.label',
         type: 'switch',
         defaultValue: 'false',
       },
       {
         key: 'access.token.claim',
-        label: 'Add to access token',
+        labelKey: 'mapper_field.access_token_claim.label',
         type: 'switch',
         defaultValue: 'true',
       },
@@ -188,28 +188,28 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-org-membership',
-    name: 'Organization Membership',
-    description: 'Adds all organizations the user belongs to as a JSON array (supports domain & attributes)',
+    nameKey: 'mapper_template.qs-org-membership.name',
+    descriptionKey: 'mapper_template.qs-org-membership.description',
     icon: '🏢',
     mapper_type: 'oidc-organization-membership-mapper',
     defaultName: 'organizations',
     fields: [
       {
         key: 'claim.name',
-        label: 'Claim name',
+        labelKey: 'mapper_field.claim_name.label',
         type: 'text',
         placeholder: 'organizations',
         defaultValue: 'organizations',
       },
       {
         key: 'include.domain',
-        label: 'Include domain',
+        labelKey: 'mapper_field.include_domain.label',
         type: 'switch',
         defaultValue: 'false',
       },
       {
         key: 'include.attributes',
-        label: 'Include attributes',
+        labelKey: 'mapper_field.include_attributes.label',
         type: 'switch',
         defaultValue: 'false',
       },
@@ -218,15 +218,15 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-org-role',
-    name: 'Organization Roles',
-    description: 'Adds the roles a user holds within each organization (realm & client roles) under organizations.<alias>',
+    nameKey: 'mapper_template.qs-org-role.name',
+    descriptionKey: 'mapper_template.qs-org-role.description',
     icon: '🛡️',
     mapper_type: 'oidc-organization-role-mapper',
     defaultName: 'organization_roles',
     fields: [
       {
         key: 'claim.name',
-        label: 'Claim name',
+        labelKey: 'mapper_field.claim_name.label',
         type: 'text',
         placeholder: 'organizations',
         defaultValue: 'organizations',
@@ -236,33 +236,33 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
   },
   {
     id: 'qs-org-detail',
-    name: 'Organization Detail',
-    description: 'Adds detailed information about a single organization to the token',
+    nameKey: 'mapper_template.qs-org-detail.name',
+    descriptionKey: 'mapper_template.qs-org-detail.description',
     icon: '🏛️',
     mapper_type: 'oidc-organization-detail-mapper',
     defaultName: 'organization',
     fields: [
       {
         key: 'claim.name',
-        label: 'Claim name',
+        labelKey: 'mapper_field.claim_name.label',
         type: 'text',
         placeholder: 'organization',
         defaultValue: 'organization',
       },
       {
         key: 'organization.alias',
-        label: 'Organization alias filter',
+        labelKey: 'mapper_field.organization_alias.label',
         type: 'text',
         placeholder: 'acme',
         defaultValue: '',
-        description: 'Leave empty to use the first organization the user belongs to.',
+        descriptionKey: 'mapper_field.organization_alias.description_short',
       },
       {
         key: 'include.attributes',
-        label: 'Include attributes',
+        labelKey: 'mapper_field.include_attributes.label',
         type: 'switch',
         defaultValue: 'false',
-        description: 'When enabled, organization custom attributes are added to the claim.',
+        descriptionKey: 'mapper_field.include_attributes.description_claim',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
@@ -274,92 +274,91 @@ export const QUICK_START_TEMPLATES: MapperTemplate[] = [
 export const MAPPER_CATALOG: MapperTemplate[] = [
   {
     id: 'cat-role-name',
-    name: 'Role Name Mapper',
-    description: 'Rename a role before it is injected into the token',
+    nameKey: 'mapper_template.cat-role-name.name',
+    descriptionKey: 'mapper_template.cat-role-name.description',
     icon: '🏷️',
     mapper_type: 'oidc-role-name-mapper',
     defaultName: '',
     fields: [
       {
         key: 'role',
-        label: 'Role',
+        labelKey: 'mapper_field.role.label',
         type: 'text',
         placeholder: 'my-role  or  client-id.role-name',
         defaultValue: '',
-        description:
-          'The role to rename. Use "roleName" for realm roles, "clientId.roleName" for client roles.',
+        descriptionKey: 'mapper_field.role.description_rename',
       },
       {
         key: 'new.role.name',
-        label: 'New role name',
+        labelKey: 'mapper_field.new_role_name.label',
         type: 'text',
         placeholder: 'custom-name',
         defaultValue: '',
-        description: 'The value this role will have inside the token.',
+        descriptionKey: 'mapper_field.new_role_name.description',
       },
     ],
   },
   {
     id: 'cat-user-attribute',
-    name: 'User Attribute',
-    description: 'Map any user attribute to a token claim',
+    nameKey: 'mapper_template.cat-user-attribute.name',
+    descriptionKey: 'mapper_template.cat-user-attribute.description',
     icon: '🗂️',
     mapper_type: 'oidc-usermodel-attribute-mapper',
     defaultName: '',
     fields: [
       {
         key: 'user.attribute',
-        label: 'User attribute',
+        labelKey: 'mapper_field.user_attribute.label',
         type: 'text',
         placeholder: 'my-attribute',
         defaultValue: '',
-        description: 'The name of the user attribute to map.',
+        descriptionKey: 'mapper_field.user_attribute.description',
       },
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'my-claim',
         defaultValue: '',
-        description: 'Name of the claim as it will appear in the token. Use dot notation (e.g. custom.team) for nested claims.',
+        descriptionKey: 'mapper_field.token_claim_name.description_nested',
       },
       CLAIM_JSON_TYPE_FIELD,
       {
         key: 'multivalued',
-        label: 'Multivalued',
+        labelKey: 'mapper_field.multivalued.label',
         type: 'switch',
         defaultValue: 'false',
-        description: 'Indicates if the attribute supports multiple values.',
+        descriptionKey: 'mapper_field.multivalued.description_attribute',
       },
       {
         key: 'aggregate.attrs',
-        label: 'Aggregate attribute values',
+        labelKey: 'mapper_field.aggregate_attrs.label',
         type: 'switch',
         defaultValue: 'false',
-        description: 'Merge values from the user and all their group memberships.',
+        descriptionKey: 'mapper_field.aggregate_attrs.description',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-user-property',
-    name: 'User Property',
-    description: 'Map a built-in user property (email, username…) to a token claim',
+    nameKey: 'mapper_template.cat-user-property.name',
+    descriptionKey: 'mapper_template.cat-user-property.description',
     icon: '👤',
     mapper_type: 'oidc-usermodel-property-mapper',
     defaultName: '',
     fields: [
       {
         key: 'user.attribute',
-        label: 'Property',
+        labelKey: 'mapper_field.user_property_builtin.label',
         type: 'text',
         placeholder: 'email  or  username  or  firstName',
         defaultValue: '',
-        description: 'Built-in property name on the user object.',
+        descriptionKey: 'mapper_field.user_property_builtin.description',
       },
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'my-claim',
         defaultValue: '',
@@ -370,23 +369,23 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
   },
   {
     id: 'cat-user-client-role',
-    name: 'User Client Role',
-    description: 'Map client-level roles for a specific client to a token claim',
+    nameKey: 'mapper_template.cat-user-client-role.name',
+    descriptionKey: 'mapper_template.cat-user-client-role.description',
     icon: '🎭',
     mapper_type: 'oidc-usermodel-client-role-mapper',
     defaultName: '',
     fields: [
       {
         key: 'client.id',
-        label: 'Client ID',
+        labelKey: 'mapper_field.client_id.label',
         type: 'text',
         placeholder: 'my-client',
         defaultValue: '',
-        description: 'Leave empty to include roles from all clients.',
+        descriptionKey: 'mapper_field.client_id.description',
       },
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'resource_access.${client_id}.roles',
         defaultValue: '',
@@ -394,25 +393,25 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
       CLAIM_JSON_TYPE_FIELD,
       {
         key: 'multivalued',
-        label: 'Multivalued',
+        labelKey: 'mapper_field.multivalued.label',
         type: 'switch',
         defaultValue: 'true',
-        description: 'Roles are always multi-valued.',
+        descriptionKey: 'mapper_field.multivalued.description_roles',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-realm-role',
-    name: 'Realm Role',
-    description: 'Map realm-level roles to a token claim with full control',
+    nameKey: 'mapper_template.cat-realm-role.name',
+    descriptionKey: 'mapper_template.cat-realm-role.description',
     icon: '🔐',
     mapper_type: 'oidc-usermodel-realm-role-mapper',
     defaultName: '',
     fields: [
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'roles',
         defaultValue: '',
@@ -420,92 +419,90 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
       CLAIM_JSON_TYPE_FIELD,
       {
         key: 'multivalued',
-        label: 'Multivalued',
+        labelKey: 'mapper_field.multivalued.label',
         type: 'switch',
         defaultValue: 'true',
-        description: 'Roles are always multi-valued.',
+        descriptionKey: 'mapper_field.multivalued.description_roles',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-group-membership',
-    name: 'Group Membership',
-    description: 'Map the user\'s group memberships to a token claim',
+    nameKey: 'mapper_template.cat-group-membership.name',
+    descriptionKey: 'mapper_template.cat-group-membership.description',
     icon: '👥',
     mapper_type: 'oidc-group-membership-mapper',
     defaultName: '',
     fields: [
       {
         key: 'token.claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'groups',
         defaultValue: '',
       },
       {
         key: 'membership',
-        label: 'Membership',
+        labelKey: 'mapper_field.membership.label',
         type: 'select',
         defaultValue: 'effective',
         options: [
-          { label: 'Effective (direct + parent groups)', value: 'effective' },
-          { label: 'Direct only', value: 'direct' },
+          { labelKey: 'mapper_field.membership.options.effective', value: 'effective' },
+          { labelKey: 'mapper_field.membership.options.direct', value: 'direct' },
         ],
-        description:
-          'Effective adds every parent group (matches inherited roles). Direct emits only the groups the user directly belongs to (Keycloak-compatible, smaller tokens).',
+        descriptionKey: 'mapper_field.membership.description',
       },
       {
         key: 'full.path',
-        label: 'Full group path',
+        labelKey: 'mapper_field.full_path.label',
         type: 'switch',
         defaultValue: 'true',
-        description: 'Include the full path (e.g. /parent/child) instead of just the group name.',
+        descriptionKey: 'mapper_field.full_path.description',
       },
       {
         key: 'prefix.org',
-        label: 'Prefix with organization',
+        labelKey: 'mapper_field.prefix_org.label',
         type: 'switch',
         defaultValue: 'false',
-        description:
-          'Prepend the organization alias to the path (e.g. /acme/parent/child) to disambiguate groups from different organizations. Only applies to full paths.',
+        descriptionKey: 'mapper_field.prefix_org.description',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-audience',
-    name: 'Audience',
-    description: 'Add a client or custom audience value to the token',
+    nameKey: 'mapper_template.cat-audience.name',
+    descriptionKey: 'mapper_template.cat-audience.description',
     icon: '🔑',
     mapper_type: 'oidc-audience-mapper',
     defaultName: '',
     fields: [
       {
         key: 'included.client.audience',
-        label: 'Client audience',
+        labelKey: 'mapper_field.client_audience.label',
         type: 'text',
         placeholder: 'my-client',
         defaultValue: '',
-        description: 'Client whose audience should be added. Leave empty if using a custom value.',
+        descriptionKey: 'mapper_field.client_audience.description',
       },
       {
         key: 'included.custom.audience',
-        label: 'Custom audience',
+        labelKey: 'mapper_field.custom_audience.label',
         type: 'text',
         placeholder: 'https://api.example.com',
         defaultValue: '',
-        description: 'A custom audience string to inject.',
+        descriptionKey: 'mapper_field.custom_audience.description',
       },
       {
         key: 'id.token.claim',
-        label: 'Add to ID token',
+        labelKey: 'mapper_field.id_token_claim.label',
         type: 'switch',
         defaultValue: 'false',
       },
       {
         key: 'access.token.claim',
-        label: 'Add to access token',
+        labelKey: 'mapper_field.access_token_claim.label',
         type: 'switch',
         defaultValue: 'true',
       },
@@ -513,22 +510,22 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
   },
   {
     id: 'cat-hardcoded-claim',
-    name: 'Hardcoded Claim',
-    description: 'Inject a fixed static value into the token as a named claim',
+    nameKey: 'mapper_template.cat-hardcoded-claim.name',
+    descriptionKey: 'mapper_template.cat-hardcoded-claim.description',
     icon: '📌',
     mapper_type: 'oidc-hardcoded-claim-mapper',
     defaultName: '',
     fields: [
       {
         key: 'claim.name',
-        label: 'Token claim name',
+        labelKey: 'mapper_field.token_claim_name.label',
         type: 'text',
         placeholder: 'my-claim',
         defaultValue: '',
       },
       {
         key: 'claim.value',
-        label: 'Claim value',
+        labelKey: 'mapper_field.claim_value.label',
         type: 'text',
         placeholder: 'my-value',
         defaultValue: '',
@@ -539,68 +536,68 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
   },
   {
     id: 'cat-hardcoded-role',
-    name: 'Hardcoded Role',
-    description: 'Always assign a specific role to the token, regardless of the user',
+    nameKey: 'mapper_template.cat-hardcoded-role.name',
+    descriptionKey: 'mapper_template.cat-hardcoded-role.description',
     icon: '🔒',
     mapper_type: 'oidc-hardcoded-role-mapper',
     defaultName: '',
     fields: [
       {
         key: 'role',
-        label: 'Role',
+        labelKey: 'mapper_field.role.label',
         type: 'text',
         placeholder: 'my-role',
         defaultValue: '',
-        description: 'The role to always inject. Use "roleName" or "clientId.roleName".',
+        descriptionKey: 'mapper_field.role.description_hardcoded',
       },
     ],
   },
   {
     id: 'cat-address',
-    name: 'Address',
-    description: 'Map the user\'s address attributes to the address claim',
+    nameKey: 'mapper_template.cat-address.name',
+    descriptionKey: 'mapper_template.cat-address.description',
     icon: '🏠',
     mapper_type: 'oidc-address-mapper',
     defaultName: '',
     fields: [
       {
         key: 'user.attribute.formatted',
-        label: 'Formatted address attribute',
+        labelKey: 'mapper_field.address_formatted.label',
         type: 'text',
         placeholder: 'formatted',
         defaultValue: '',
       },
       {
         key: 'user.attribute.street',
-        label: 'Street attribute',
+        labelKey: 'mapper_field.address_street.label',
         type: 'text',
         placeholder: 'street',
         defaultValue: '',
       },
       {
         key: 'user.attribute.locality',
-        label: 'Locality (city) attribute',
+        labelKey: 'mapper_field.address_locality.label',
         type: 'text',
         placeholder: 'locality',
         defaultValue: '',
       },
       {
         key: 'user.attribute.region',
-        label: 'Region attribute',
+        labelKey: 'mapper_field.address_region.label',
         type: 'text',
         placeholder: 'region',
         defaultValue: '',
       },
       {
         key: 'user.attribute.postal_code',
-        label: 'Postal code attribute',
+        labelKey: 'mapper_field.address_postal_code.label',
         type: 'text',
         placeholder: 'postal_code',
         defaultValue: '',
       },
       {
         key: 'user.attribute.country',
-        label: 'Country attribute',
+        labelKey: 'mapper_field.address_country.label',
         type: 'text',
         placeholder: 'country',
         defaultValue: '',
@@ -610,97 +607,94 @@ export const MAPPER_CATALOG: MapperTemplate[] = [
   },
   {
     id: 'cat-org-membership',
-    name: 'Organization Membership',
-    description: 'Inject all organizations the user belongs to as a JSON array — works for multi-org users',
+    nameKey: 'mapper_template.cat-org-membership.name',
+    descriptionKey: 'mapper_template.cat-org-membership.description',
     icon: '🏢',
     mapper_type: 'oidc-organization-membership-mapper',
     defaultName: '',
     fields: [
       {
         key: 'claim.name',
-        label: 'Claim name',
+        labelKey: 'mapper_field.claim_name.label',
         type: 'text',
         placeholder: 'organizations',
         defaultValue: 'organizations',
-        description: 'Name of the token claim that will hold the organization list.',
+        descriptionKey: 'mapper_field.claim_name.description_organization_list',
       },
       {
         key: 'include.domain',
-        label: 'Include domain',
+        labelKey: 'mapper_field.include_domain.label',
         type: 'switch',
         defaultValue: 'false',
-        description: 'Add the domain field to each organization entry (null when not set).',
+        descriptionKey: 'mapper_field.include_domain.description',
       },
       {
         key: 'include.attributes',
-        label: 'Include attributes',
+        labelKey: 'mapper_field.include_attributes.label',
         type: 'switch',
         defaultValue: 'false',
-        description: 'Add organization custom attributes to each entry.',
+        descriptionKey: 'mapper_field.include_attributes.description_entry',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-org-role',
-    name: 'Organization Roles',
-    description:
-      'Inject the roles a user holds within each organization — realm roles under organizations.<alias>.roles and client roles under organizations.<alias>.clients.<client_id>.roles',
+    nameKey: 'mapper_template.cat-org-role.name',
+    descriptionKey: 'mapper_template.cat-org-role.description',
     icon: '🛡️',
     mapper_type: 'oidc-organization-role-mapper',
     defaultName: '',
     fields: [
       {
         key: 'claim.name',
-        label: 'Claim name',
+        labelKey: 'mapper_field.claim_name.label',
         type: 'text',
         placeholder: 'organizations',
         defaultValue: 'organizations',
-        description:
-          'Root claim holding the per-organization objects (keyed by alias). Deep-merges with the Organization Membership mapper when both are enabled.',
+        descriptionKey: 'mapper_field.claim_name.description_organization_root',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-org-detail',
-    name: 'Organization Detail',
-    description: 'Inject detailed information about a single organization into the token',
+    nameKey: 'mapper_template.cat-org-detail.name',
+    descriptionKey: 'mapper_template.cat-org-detail.description',
     icon: '🏛️',
     mapper_type: 'oidc-organization-detail-mapper',
     defaultName: '',
     fields: [
       {
         key: 'claim.name',
-        label: 'Claim name',
+        labelKey: 'mapper_field.claim_name.label',
         type: 'text',
         placeholder: 'organization',
         defaultValue: 'organization',
-        description: 'Name of the token claim that will hold the organization object.',
+        descriptionKey: 'mapper_field.claim_name.description_organization_object',
       },
       {
         key: 'organization.alias',
-        label: 'Organization alias filter',
+        labelKey: 'mapper_field.organization_alias.label',
         type: 'text',
         placeholder: 'acme',
         defaultValue: '',
-        description:
-          'Alias of the organization to emit. Leave empty to use the first organization the user belongs to.',
+        descriptionKey: 'mapper_field.organization_alias.description_long',
       },
       {
         key: 'include.attributes',
-        label: 'Include attributes',
+        labelKey: 'mapper_field.include_attributes.label',
         type: 'switch',
         defaultValue: 'false',
-        description: 'When enabled, organization custom attributes are added to the claim.',
+        descriptionKey: 'mapper_field.include_attributes.description_claim',
       },
       ...TOKEN_INCLUSION_FIELDS,
     ],
   },
   {
     id: 'cat-custom',
-    name: 'Custom mapper',
-    description: 'Enter a mapper type and raw JSON configuration manually',
+    nameKey: 'mapper_template.cat-custom.name',
+    descriptionKey: 'mapper_template.cat-custom.description',
     icon: '⚙️',
     mapper_type: '',
     defaultName: '',
@@ -715,3 +709,5 @@ export const ALL_MAPPER_TEMPLATES: MapperTemplate[] = [...QUICK_START_TEMPLATES,
 
 // Keep backward-compatible alias used by existing imports
 export const PROTOCOL_MAPPER_TEMPLATES = ALL_MAPPER_TEMPLATES
+
+export const FALLBACK_MAPPER_ICON = '⚙️'

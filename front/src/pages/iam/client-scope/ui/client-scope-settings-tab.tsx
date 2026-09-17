@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -14,6 +15,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import ScopeTypeHint from './scope-type-hint'
 import type { ScopeTypeChoice } from './page-create-client-scope'
+import { SCOPE_TYPE_CHOICES } from '../scope-type'
 
 import ClientScope = Schemas.ClientScope
 
@@ -40,17 +42,18 @@ export default function ClientScopeSettingsTab({
   onScopeTypeChange,
   onDelete,
 }: ClientScopeSettingsTabProps) {
+  const { t } = useTranslation('client-scope')
   const attributes = scope.attributes ?? []
 
   return (
     <>
       <Section
-        title='General Information'
-        description='Identity of the scope, and how clients get it.'
+        title={t('detail.settings.general.title')}
+        description={t('detail.settings.general.description')}
       >
         <FieldRow
-          label='Name'
-          description='Requested as-is by a client in the scope parameter of an authorization request.'
+          label={t('scope_form.name.label')}
+          description={t('scope_form.name.description')}
           htmlFor='scope-name'
         >
           <Input
@@ -64,8 +67,8 @@ export default function ClientScopeSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Description'
-          description='Read by administrators only — it never reaches an issued token.'
+          label={t('scope_form.description.label')}
+          description={t('scope_form.description.description')}
           htmlFor='scope-description'
         >
           <Textarea
@@ -78,8 +81,8 @@ export default function ClientScopeSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Protocol'
-          description='Fixed at creation: only OpenID Connect is supported today, and it decides which protocol mappers this scope can carry.'
+          label={t('scope_form.protocol.label')}
+          description={t('scope_form.protocol.description')}
           htmlFor='scope-protocol'
         >
           <Input
@@ -91,34 +94,34 @@ export default function ClientScopeSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Type'
-          description='Decides how this scope is attached to the clients of the realm.'
+          label={t('scope_form.type.label')}
+          description={t('scope_form.type.description')}
           htmlFor='scope-type'
         >
           <div className='max-w-sm'>
             <Select value={scopeType} onValueChange={(v) => onScopeTypeChange(v as ScopeTypeChoice)}>
               <SelectTrigger id='scope-type' className='w-full'>
-                <SelectValue placeholder='Select type' />
+                <SelectValue placeholder={t('scope_form.type.placeholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='optional'>Optional</SelectItem>
-                <SelectItem value='default'>Default</SelectItem>
+                {SCOPE_TYPE_CHOICES.map((choice) => (
+                  <SelectItem key={choice.value} value={choice.value}>
+                    {t(choice.labelKey)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <ScopeTypeHint scopeType={scopeType} />
             {scope.default_scope_type === 'NONE' && (
-              <p className='mt-1.5 text-xs text-fk-amber'>
-                This scope is stored as none. The API only accepts optional or default, so
-                saving turns it into the value selected above.
-              </p>
+              <p className='mt-1.5 text-xs text-fk-amber'>{t('detail.settings.none_warning')}</p>
             )}
           </div>
         </FieldRow>
       </Section>
 
       <Section
-        title='Attributes'
-        description='Attributes of this client scope, as the API returns them.'
+        title={t('detail.settings.attributes.title')}
+        description={t('detail.settings.attributes.description')}
         contained={attributes.length > 0}
       >
         {attributes.length > 0 ? (
@@ -141,18 +144,18 @@ export default function ClientScopeSettingsTab({
               'rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'
             )}
           >
-            No attribute configured.
+            {t('detail.settings.attributes.empty')}
           </p>
         )}
       </Section>
 
       <DangerZone
         resourceName={scope.name}
-        label='Delete this client scope'
-        description='Once deleted, all associated protocol mappers and client mappings will be permanently removed.'
-        buttonLabel='Delete scope'
-        confirmTitle='Delete client scope'
-        confirmDescription={`This will permanently delete the scope "${scope.name}" and all its associated protocol mappers and client mappings.`}
+        label={t('detail.settings.danger.label')}
+        description={t('detail.settings.danger.description')}
+        buttonLabel={t('detail.settings.danger.button')}
+        confirmTitle={t('detail.settings.danger.confirm_title')}
+        confirmDescription={t('detail.settings.danger.confirm_description', { name: scope.name })}
         onConfirm={onDelete}
       />
     </>

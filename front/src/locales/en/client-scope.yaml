@@ -1,0 +1,405 @@
+scope_type:
+  DEFAULT: default
+  OPTIONAL: optional
+  NONE: none
+
+scope:
+  # Identifier shown when a scope carries no description. "scope_id" is the API field name, keep it verbatim.
+  identifier: 'scope_id: {{id}}'
+  mapper_count_one: '{{count}} mapper'
+  mapper_count_other: '{{count}} mappers'
+
+scope_form:
+  name:
+    label: Name
+    description: Requested as-is by a client in the scope parameter of an authorization request.
+  description:
+    label: Description
+    description: Read by administrators only — it never reaches an issued token.
+  protocol:
+    label: Protocol
+    description: 'Fixed at creation: only OpenID Connect is supported today, and it decides which protocol mappers this scope can carry.'
+  type:
+    label: Type
+    description: Decides how this scope is attached to the clients of the realm.
+    placeholder: Select type
+    options:
+      optional: Optional
+      default: Default
+    hint:
+      default: Attached to every new client and issued without the client asking for it.
+      optional: Offered to clients, but issued only when they request it by name.
+
+list:
+  title: Client Scopes
+  description: Reusable sets of claims that clients of this realm request by name.
+  create: New client scope
+  search_placeholder: Filter by name…
+  row_delete: Delete {{name}}
+  count_one: '{{count}} scope'
+  count_other: '{{count}} scopes'
+  columns:
+    name: Scope
+    description: Description
+    type: Assignment
+    protocol: Protocol
+    mappers: Mappers
+  metrics:
+    total:
+      label: Total
+      hint: scopes
+    default:
+      label: Default scopes
+      hint: '{{percent}}% of total'
+      empty_hint: no default scope
+    optional:
+      label: Optional scopes
+      hint: granted on request
+    mappers:
+      label: With mappers
+      hint: write at least one claim
+  alerts:
+    without_mappers:
+      title_one: '{{count}} scope writes no claim'
+      title_other: '{{count}} scopes write no claim'
+      detail: '{{names}} — carries no protocol mapper.'
+      action: Review
+  filters:
+    default: Default
+    optional: Optional
+    without_mappers: Without mappers
+  card:
+    # Always plural by design: the card footer shows a raw total, never a singular row.
+    footer_mappers: '{{count}} mappers'
+    flags:
+      default: Granted to every client by default
+      has_mappers: Writes at least one claim
+  empty:
+    label: No client scope
+    hint: A client scope groups the claims a client can ask for in its tokens.
+  delete:
+    title: Delete client scope
+    description: This will permanently delete "{{name}}" and all its associated protocol mappers and client mappings.
+
+create:
+  back: Client Scopes
+  title: New client scope
+  subtitle: A client scope groups the claims a client can ask for in its tokens.
+  section:
+    title: Client Scope Details
+    description: Identity of the scope, and how clients get it.
+  save_bar:
+    title: Create client scope
+    description: The scope is created empty — its protocol mappers are added afterwards.
+    submit: Create
+    submitting: Creating…
+
+detail:
+  back: Client Scopes
+  not_found:
+    title: Client scope not found
+    description: It may have been deleted, or it belongs to another realm.
+  meta:
+    created_label: Created at
+    created: Created {{date}}
+    updated_label: Updated at
+    updated: Updated {{date}}
+    identifier_label: Identifier
+  tabs:
+    details: Settings
+    mappers: Protocol Mappers
+  save_bar:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review the client scope before applying the changes.
+    cancel: Discard
+    submit: Save changes
+    submitting: Saving…
+  settings:
+    general:
+      title: General Information
+      description: Identity of the scope, and how clients get it.
+    none_warning: This scope is stored as none. The API only accepts optional or default, so saving turns it into the value selected above.
+    attributes:
+      title: Attributes
+      description: Attributes of this client scope, as the API returns them.
+      empty: No attribute configured.
+    danger:
+      label: Delete this client scope
+      description: Once deleted, all associated protocol mappers and client mappings will be permanently removed.
+      button: Delete scope
+      confirm_title: Delete client scope
+      confirm_description: This will permanently delete the scope "{{name}}" and all its associated protocol mappers and client mappings.
+  mappers:
+    title: Protocol Mappers
+    description: What this scope writes into the tokens when a client requests it.
+    add: Add mapper
+    configure: Configure
+    delete_mapper: Delete {{name}}
+    empty: 'No protocol mapper configured: this scope writes no claim, it only opens a right.'
+    metrics:
+      share: '{{percent}}% of total'
+      total:
+        label: Total mappers
+        hint: configured on this scope
+      role:
+        label: Role mappers
+        empty_hint: no role mapper
+      identity:
+        label: Identity mappers
+        empty_hint: no identity mapper
+    delete:
+      title: Delete protocol mapper
+      description: Are you sure you want to delete "{{name}}"? This action cannot be undone.
+
+mapper_picker:
+  title: Add a protocol mapper
+  description: The template fills in the mapper type and the fields it expects. Custom mapper leaves everything to type.
+  quick_start:
+    label: Quick start
+    hint: Pre-configured mappers for the usual claims — name it and go.
+  catalog:
+    label: By configuration
+    hint: Pick any mapper type and set every field yourself.
+
+mapper_form:
+  name:
+    label: Name
+    description: Administrative name of the mapper — it is not the claim it writes.
+  type:
+    label: Mapper type
+    description:
+      create: Identifier of the mapper implementation the server runs at token time.
+      settings: 'Set at creation: changing the implementation would invalidate the configuration below.'
+  config:
+    label: Config
+    description: Raw JSON object, exactly as the mapper expects it.
+
+mapper_create:
+  back: Protocol Mappers
+  identity:
+    title: Identity
+    description: How this mapper is named on the scope.
+  settings:
+    title: Settings
+    description: Configuration handed to the mapper when a token is issued.
+  save_bar:
+    title: Create protocol mapper
+    description: The mapper is added to this client scope right away.
+    submit: Create mapper
+    submitting: Creating…
+
+mapper_settings:
+  back: Protocol Mappers
+  not_found:
+    title: Protocol mapper not found
+    description: It may have been deleted, or it belongs to another client scope.
+  meta:
+    created_label: Created at
+    created: Created {{date}}
+    identifier_label: Identifier
+  general:
+    title: General
+    description: How this mapper is named on the scope.
+  settings:
+    title: Settings
+    description: Configuration handed to the mapper when a token is issued.
+  raw:
+    title: Configuration (JSON)
+    description: No template matches this mapper type, so its configuration is edited raw.
+  save_bar:
+    title: Unsaved changes
+    description: Review the mapper before applying the changes.
+    cancel: Discard
+    submit: Save changes
+    submitting: Saving…
+
+mapper_entity:
+  # Badge on a picker whose stored value no longer matches any client or role.
+  unknown: unknown
+  clear: Clear
+  client:
+    placeholder: Select a client…
+    search_placeholder: Search a client…
+    empty: No client found.
+  role:
+    placeholder: Select a role…
+    search_placeholder: Search a role…
+    empty: No role found.
+    realm_role: realm role
+
+mapper_category:
+  role: role
+  audience: audience
+  hardcoded: hardcoded
+  attribute: attribute
+  organization: organization
+  identity: identity
+  custom: custom
+
+mapper_template:
+  qs-email:
+    name: Email
+    description: Maps the user email address to the email token claim
+  qs-username:
+    name: Username
+    description: Maps username to the preferred_username claim
+  qs-full-name:
+    name: Full Name
+    description: Maps the user full name to the name claim
+  qs-realm-roles:
+    name: Realm Roles
+    description: Adds all realm roles as a multi-valued token claim
+  qs-audience:
+    name: Audience
+    description: Adds a custom audience value to the token
+  qs-org-membership:
+    name: Organization Membership
+    description: 'Adds all organizations the user belongs to as a JSON array (supports domain & attributes)'
+  qs-org-role:
+    name: Organization Roles
+    description: 'Adds the roles a user holds within each organization (realm & client roles) under organizations.<alias>'
+  qs-org-detail:
+    name: Organization Detail
+    description: Adds detailed information about a single organization to the token
+  cat-role-name:
+    name: Role Name Mapper
+    description: Rename a role before it is injected into the token
+  cat-user-attribute:
+    name: User Attribute
+    description: Map any user attribute to a token claim
+  cat-user-property:
+    name: User Property
+    description: Map a built-in user property (email, username…) to a token claim
+  cat-user-client-role:
+    name: User Client Role
+    description: Map client-level roles for a specific client to a token claim
+  cat-realm-role:
+    name: Realm Role
+    description: Map realm-level roles to a token claim with full control
+  cat-group-membership:
+    name: Group Membership
+    description: Map the user's group memberships to a token claim
+  cat-audience:
+    name: Audience
+    description: Add a client or custom audience value to the token
+  cat-hardcoded-claim:
+    name: Hardcoded Claim
+    description: Inject a fixed static value into the token as a named claim
+  cat-hardcoded-role:
+    name: Hardcoded Role
+    description: Always assign a specific role to the token, regardless of the user
+  cat-address:
+    name: Address
+    description: Map the user's address attributes to the address claim
+  cat-org-membership:
+    name: Organization Membership
+    description: Inject all organizations the user belongs to as a JSON array — works for multi-org users
+  cat-org-role:
+    name: Organization Roles
+    description: 'Inject the roles a user holds within each organization — realm roles under organizations.<alias>.roles and client roles under organizations.<alias>.clients.<client_id>.roles'
+  cat-org-detail:
+    name: Organization Detail
+    description: Inject detailed information about a single organization into the token
+  cat-custom:
+    name: Custom mapper
+    description: Enter a mapper type and raw JSON configuration manually
+
+mapper_field:
+  claim_value_type:
+    label: Claim JSON type
+    options:
+      string: String
+      json: JSON
+      long: Long
+      int: Integer
+      boolean: Boolean
+  id_token_claim:
+    label: Add to ID token
+  access_token_claim:
+    label: Add to access token
+  userinfo_token_claim:
+    label: Add to userinfo
+  introspection_token_claim:
+    label: Add to token introspection
+  user_property:
+    label: User property
+  user_property_builtin:
+    label: Property
+    description: Built-in property name on the user object.
+  user_attribute:
+    label: User attribute
+    description: The name of the user attribute to map.
+  token_claim_name:
+    label: Token claim name
+    description_nested: Name of the claim as it will appear in the token. Use dot notation (e.g. custom.team) for nested claims.
+  claim_name:
+    label: Claim name
+    description_organization_list: Name of the token claim that will hold the organization list.
+    description_organization_root: Root claim holding the per-organization objects (keyed by alias). Deep-merges with the Organization Membership mapper when both are enabled.
+    description_organization_object: Name of the token claim that will hold the organization object.
+  claim_value:
+    label: Claim value
+  multivalued:
+    label: Multivalued
+    description_attribute: Indicates if the attribute supports multiple values.
+    description_roles: Roles are always multi-valued.
+  aggregate_attrs:
+    label: Aggregate attribute values
+    description: Merge values from the user and all their group memberships.
+  role:
+    label: Role
+    description_rename: The role to rename. Use "roleName" for realm roles, "clientId.roleName" for client roles.
+    description_hardcoded: The role to always inject. Use "roleName" or "clientId.roleName".
+  new_role_name:
+    label: New role name
+    description: The value this role will have inside the token.
+  client_id:
+    label: Client ID
+    description: Leave empty to include roles from all clients.
+  membership:
+    label: Membership
+    description: Effective adds every parent group (matches inherited roles). Direct emits only the groups the user directly belongs to (Keycloak-compatible, smaller tokens).
+    options:
+      effective: Effective (direct + parent groups)
+      direct: Direct only
+  full_path:
+    label: Full group path
+    description: Include the full path (e.g. /parent/child) instead of just the group name.
+  prefix_org:
+    label: Prefix with organization
+    description: Prepend the organization alias to the path (e.g. /acme/parent/child) to disambiguate groups from different organizations. Only applies to full paths.
+  client_audience:
+    label: Client audience
+    description: Client whose audience should be added. Leave empty if using a custom value.
+  custom_audience:
+    label: Custom audience
+    description: A custom audience string to inject.
+  include_domain:
+    label: Include domain
+    description: Add the domain field to each organization entry (null when not set).
+  include_attributes:
+    label: Include attributes
+    description_claim: When enabled, organization custom attributes are added to the claim.
+    description_entry: Add organization custom attributes to each entry.
+  organization_alias:
+    label: Organization alias filter
+    description_short: Leave empty to use the first organization the user belongs to.
+    description_long: Alias of the organization to emit. Leave empty to use the first organization the user belongs to.
+  address_formatted:
+    label: Formatted address attribute
+  address_street:
+    label: Street attribute
+  address_locality:
+    label: Locality (city) attribute
+  address_region:
+    label: Region attribute
+  address_postal_code:
+    label: Postal code attribute
+  address_country:
+    label: Country attribute
+
+validation:
+  scope_name_required: The client scope name is required
+  mapper_name_required: Name is required
+  mapper_config_invalid_json: Config must be valid JSON
