@@ -1,0 +1,484 @@
+shared:
+  authentication:
+    public: public
+    confidential: confidential
+  state:
+    enabled: enabled
+    disabled: disabled
+  status:
+    enabled: Enabled
+    disabled: Disabled
+  in_maintenance: in maintenance
+  no_description: No description
+  discard: Discard
+  save: Save changes
+  unsaved_one: '{{count}} unsaved change'
+  unsaved_other: '{{count}} unsaved changes'
+
+choices:
+  protocol:
+    openid_connect:
+      label: OpenID Connect
+      description: Token-based sign-in, for web applications, SPAs, mobile apps and APIs.
+    saml:
+      label: SAML 2.0
+      description: Assertion-based sign-in, for applications that only speak SAML.
+  state:
+    enabled:
+      label: Enabled
+      description: The client can request an authentication.
+    disabled:
+      label: Disabled
+      description: Every request is rejected, the configuration is kept.
+  authentication:
+    confidential:
+      label: Confidential
+      description: The client proves its identity with a secret held server-side.
+    public:
+      label: Public
+      description: 'No secret: for SPAs, mobile applications and CLIs.'
+    immutable: 'Set at creation: a client cannot move between confidential and public afterwards.'
+  maintenance_state:
+    open:
+      label: Open
+      description: The client authenticates normally.
+    maintenance:
+      label: In maintenance
+      description: Only the whitelist gets through.
+  session_strategy:
+    expire:
+      label: Expire naturally
+      description: Open sessions live until they run out.
+    terminate:
+      label: Terminate immediately
+      description: Every session is cut on the spot.
+
+list:
+  title: Clients
+  description: Applications and services allowed to request an authentication.
+  create: New client
+  columns:
+    name: Client
+    # Column header for the raw OAuth field name, shown as-is in the table.
+    client_id: client_id
+    kind: Type
+    protocol: Protocol
+    redirects: Redirect URIs
+    status: Status
+  card:
+    flags:
+      direct_access_grants: Direct access grants
+      device_code_grant: Device authorization grant
+      service_account: Service account
+      require_pkce: PKCE required
+    redirects_one: '{{count}} redirect URI'
+    redirects_other: '{{count}} redirect URIs'
+  metrics:
+    total:
+      label: Total
+      hint: registered clients
+    active:
+      label: Active
+      hint: can authenticate
+    public:
+      label: Public
+      hint: no secret
+    confidential:
+      label: Confidential
+      hint: hold a secret
+  alerts:
+    no_redirect:
+      title_one: '{{count}} client has no redirect URI'
+      title_other: '{{count}} clients have no redirect URI'
+      detail: '{{clients}} — the authorization code flow will fail.'
+      action: Configure
+    maintenance:
+      title_one: '{{count}} client is in maintenance'
+      title_other: '{{count}} clients are in maintenance'
+      detail: '{{clients}} — only whitelisted accounts can sign in.'
+      action: Inspect
+  filters:
+    public: Public
+    confidential: Confidential
+    disabled: Disabled
+  search_placeholder: Filter by name or client_id…
+  # Example of the search query language, shown under the search field. The field
+  # names (name, type, enabled) are literal syntax and must not be translated.
+  query_syntax: 'name:*portal  type:confidential  enabled:true'
+  aggregates:
+    count_one: '{{count}} client'
+    count_other: '{{count}} clients'
+    enabled: '{{total}} enabled'
+  empty:
+    label: No client
+    hint: Register an application to let it authenticate the accounts of this realm.
+  picker:
+    title: Client protocol
+    description: It decides how the application signs its users in, and cannot be changed after creation.
+
+create:
+  back: Clients
+  title: New client
+  change_protocol: change protocol
+  details:
+    title: Client details
+    description: How this client is identified in the realm.
+    client_id:
+      label: Client ID
+      description: Unique identifier for this client. Applications send it on every request.
+      placeholder: my-application
+    name:
+      label: Name
+      description: Display name shown in the UI.
+    enabled:
+      label: Client enabled
+      description: Disabled clients cannot authenticate users.
+    state_picker: Client state
+    authentication:
+      label: Client authentication
+      description: 'Set at creation and final: a client cannot move between confidential and public afterwards.'
+  capability:
+    title: Capability config
+    description: OAuth flows this client is allowed to take.
+    direct_access_grants:
+      label: Direct access grants
+      description: Allows exchanging user credentials directly for tokens. Use only for trusted clients.
+    device_code_grant:
+      label: OAuth 2.0 device authorization grant
+      description: Lets browserless clients (CLI, IoT, TVs) initiate a device flow against this client. Disable unless this client really needs it.
+  saml:
+    title: SAML
+    description: The two values the application shows on its SAML settings page, plus the identifier format.
+    entity_id:
+      label: Entity ID
+      description: The unique identifier the application publishes for itself, for example https://chat.acme.com/saml/sp/1.
+      placeholder: https://chat.acme.com/saml/sp/1
+    acs_url:
+      label: Assertion Consumer Service URL
+      description: Where the signed assertion is posted after the user signs in.
+      placeholder: https://chat.acme.com/saml/acs
+    name_id_format:
+      label: Name ID format
+      description: How the user is identified inside the assertion.
+      placeholder: Select a name ID format
+  save:
+    title: Create client
+    description_oidc: The client is created with the settings above.
+    description_saml: The client is created, then registered as a SAML service provider.
+    submit: Create client
+  toast:
+    created: The client has been successfully created
+
+detail:
+  back: Clients
+  not_found:
+    title: Client not found
+    hint: It may have been deleted, or it belongs to another realm.
+  meta:
+    created_label: Created at
+    created: Created {{date}}
+    identifier: Identifier
+  tabs:
+    settings: Settings
+    credentials: Credentials
+    roles: Roles
+    scopes: Client Scopes
+    saml: SAML
+    maintenance: Maintenance
+
+settings:
+  general:
+    title: General
+    description: How this client is identified in the realm.
+    name:
+      label: Client name
+      description: Display name shown in the UI.
+    client_id:
+      label: Client ID
+      description: Unique identifier for this client. Applications send it on every request.
+    enabled:
+      label: Client enabled
+      description: Disabled clients cannot authenticate users.
+    state_picker: Client state
+  capability:
+    title: Capability config
+    description: Which authentication flows this client is allowed to take.
+    authentication:
+      label: Client authentication
+      description: 'Set at creation and final: a client cannot move between confidential and public afterwards.'
+    direct_access_grants:
+      label: Direct access grants
+      description: Allows exchanging user credentials directly for tokens. Use only for trusted clients.
+    device_code_grant:
+      label: OAuth 2.0 device authorization grant
+      description: Lets browserless clients (CLI, IoT, TVs) initiate a device flow against this client. Disable unless this client really needs it.
+    pkce:
+      label: Require PKCE
+      description: Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on.
+      description_public: 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on. Strongly recommended: this client cannot keep a secret safe.'
+      required: Required
+      optional: Optional
+  access:
+    title: Access
+    description: Addresses this client may be redirected to, and origins it may call from.
+    redirect_uris:
+      label: Redirect URIs
+      description: Allowed redirect URIs after authentication. Every entry is saved as you add it.
+      placeholder: https://app.example.com/callback
+      empty: No URI — the authorization code flow will fail.
+      required: Redirect URI is required
+    web_origins:
+      label: Web origins
+      description: Origins this application may call FerrisKey from in a browser. Enter + to derive them from the redirect URIs above — literal ones only, regex patterns are skipped. Removing one takes a few minutes to clear browser preflight caches, and up to 30 seconds on the other API replicas.
+      placeholder: https://app.example.com
+      empty: No origin — browser calls from another host will be refused.
+      # {{sentinel}} is the literal character an administrator types to derive the
+      # origins from the redirect URIs. Keep it as a placeholder, never translate it.
+      invalid: "Enter an origin such as https://app.example.com — no path, no wildcard — or {{sentinel}} to derive them from this client's redirect URIs"
+  logout:
+    title: Logout
+    description: Where the user lands once the session is closed.
+    post_logout_redirect_uris:
+      label: Post-logout redirect URIs
+      description: Allowed redirect URIs after logout. Without an entry, logout ends on the FerrisKey page.
+      placeholder: https://app.example.com
+      empty: No exit URI declared.
+      required: Post-logout redirect URI is required
+  lifetimes:
+    title: Token lifetimes
+    description: Leave empty to inherit the realm default value.
+    access_token:
+      label: Access token lifetime
+      description: How long access tokens remain valid.
+    refresh_token:
+      label: Refresh token lifetime
+      description: How long refresh tokens remain valid.
+    id_token:
+      label: ID token lifetime
+      description: How long ID tokens remain valid.
+    temporary_token:
+      label: Temporary token lifetime
+      description: How long temporary tokens (password reset, for instance) remain valid.
+  danger:
+    label: Delete this client
+    description: Once deleted, all associated tokens, roles, and configurations will be permanently removed.
+    button: Delete client
+    confirm_title: Delete client
+    confirm_description: This will permanently delete the client "{{name}}" and all its associated data.
+  save:
+    description: Review the client before applying the changes.
+  toast:
+    redirect_uri_added: Redirect URI added successfully
+    redirect_uri_deleted: Redirect URI deleted successfully
+    web_origin_added: Web origin added successfully
+    web_origin_deleted: Web origin deleted successfully
+    post_logout_uri_added: Post-logout redirect URI added successfully
+    post_logout_uri_deleted: Post-logout redirect URI deleted successfully
+    post_logout_uri_create_failed: Failed to create post-logout redirect URI
+    post_logout_uri_delete_failed: Failed to delete post-logout redirect URI
+
+credentials:
+  title: Client credentials
+  description: What this client presents to prove who it is.
+  copy: Copy
+  client_id:
+    label: Client ID
+    description: The unique identifier used to authenticate this client.
+  secret:
+    label: Client secret
+    description: The secret used for confidential client authentication. Revealing it is recorded as a security event.
+    reveal: Reveal
+    hide: Hide
+    reveal_label: Reveal client secret
+    hide_label: Hide client secret
+    forbidden: You need the manage-clients permission to reveal this secret. Ask a realm administrator for access.
+    failed: The secret could not be revealed. Please try again.
+    rotation_hint: Rotating the secret is not exposed by the administration API yet.
+
+roles:
+  title: Client roles
+  title_with_count: Client roles ({{total}})
+  description: Roles defined on this client, exposed in tokens under resource_access.
+  error: Error while loading roles.
+  search_placeholder: Filter roles…
+  permissions_one: '{{count}} permission'
+  permissions_other: '{{count}} permissions'
+  delete:
+    label: Delete {{name}}
+    title: Delete role?
+    description: Are you sure you want to delete "{{name}}"? This action cannot be undone.
+  empty:
+    no_match: No role matches “{{query}}”.
+    none: No role of its own — holders of this client only get realm roles.
+
+scopes:
+  views:
+    assigned: Assigned scopes
+    evaluate: Evaluate
+  assigned:
+    title: Assigned scopes ({{total}})
+    description: Sets of claims this client is allowed to request.
+    add: Add scope
+    remove: Remove {{name}}
+    type:
+      default: default
+      optional: optional
+      none: none
+    empty:
+      label: No scope assigned
+      hint: The tokens issued for this client will carry no profile claim.
+  effective:
+    title: Effective scopes
+    description: Included in every token issued for this client, without the client having to ask.
+    no_mapper: 'No mapper: this scope produces no claim, it only opens a right.'
+    empty:
+      label: No default scope
+      hint: Every claim will have to be requested explicitly by the client.
+  add:
+    title: Add a client scope
+    description: A default scope goes into every token; an optional one only arrives when the client asks for it.
+    search_placeholder: Search scopes…
+    type:
+      default: Default
+      optional: Optional
+    loading: Loading available scopes…
+    no_match: No scope matches “{{query}}”.
+    exhausted: Every scope of the realm is already assigned.
+    cancel: Cancel
+    submit: Assign scope
+    submitting: Assigning…
+  evaluate:
+    title: Evaluate tokens
+    description: Simulates the tokens issued for a given account, with the optional scopes the client would request.
+    account: Account
+    account_placeholder: Select an account to evaluate
+    account_option: '{{username}} ({{email}})'
+    optional: Optional scopes requested
+    scope_string: Scope string
+    # Shown in place of the scope string when no scope is requested at all.
+    scope_string_empty: —
+    run: Evaluate
+    running: Evaluating…
+    mappers:
+      title: Effective protocol mappers ({{total}})
+      description: What the retained scope set produces.
+      empty: No protocol mappers apply for this scope set.
+    roles:
+      title: Effective roles
+      description: Roles held by this account, as they will be written in the token.
+      realm: Realm roles
+      none: none
+    claims:
+      title: Generated claims
+      description: The three sets produced by this evaluation.
+      access_token: Access token
+      id_token: ID token
+      userinfo: Userinfo
+
+saml:
+  not_configured:
+    title: This client does not use SAML yet
+    hint: Fill in the two values the application shows on its SAML settings page, then save. FerrisKey will start answering SAML sign-in requests for it.
+  enable: Enable SAML
+  service_provider:
+    title: Service provider
+    description: Identifies the application and tells FerrisKey where to send the assertion.
+    entity_id:
+      label: Entity ID
+      description: The unique identifier the application publishes for itself, for example https://chat.acme.com/saml/sp/1.
+    acs_url:
+      label: Assertion Consumer Service URL
+      description: Where the signed assertion is posted after the user signs in.
+    name_id_format:
+      label: Name ID format
+      description: How the user is identified inside the assertion.
+      placeholder: Select a name ID format
+  signatures:
+    title: Signatures
+    description: What FerrisKey signs, and what it demands signed.
+    sign_assertions:
+      label: Sign assertions
+      description: Sign the assertion itself. Almost every application expects this.
+    sign_documents:
+      label: Sign documents
+      description: Sign the whole SAML response in addition to the assertion.
+    want_authn_requests_signed:
+      label: Require signed authentication requests
+      description: Reject sign-in requests from this application unless they carry a valid signature.
+  mappers:
+    title: Attribute mappings
+    description: User details sent alongside the assertion. Match the attribute names the application asks for.
+    empty: No attributes are sent yet. Most applications need at least an email address.
+    add_common_profile: Add email, first_name and last_name
+    # One row of the attribute mapping list. <attr> holds the SAML attribute name,
+    # <detail> the user detail it is taken from. Reorder the tags freely.
+    row: <attr>{{name}}</attr><from>from</from><detail>{{source}}</detail>
+    remove: Remove the {{name}} attribute mapping
+    submit: Add attribute
+    delete:
+      title: Stop sending {{name}}?
+      description: The application will no longer receive this attribute on the next sign-in. Anything relying on it may break.
+    name:
+      label: Attribute name
+    source:
+      label: User detail to send
+      placeholder: Select a user detail
+      custom: Custom user attribute
+    custom_key:
+      label: Attribute key
+    name_format:
+      label: Name format
+      placeholder: Select a name format
+  save:
+    description: Save the SAML service provider settings for this client.
+
+maintenance:
+  banner:
+    title: This client is in maintenance
+    detail_one: '{{count}} whitelist entry can still authenticate. Every other request is refused.'
+    detail_other: '{{count}} whitelist entries can still authenticate. Every other request is refused.'
+  mode:
+    title: Maintenance mode
+    description: Temporarily restricts access without touching the client configuration.
+    enabled:
+      label: Maintenance enabled
+      description: Once active, only the whitelisted users and roles can authenticate. Applied as soon as you switch it.
+    state_picker: Maintenance state
+    reason:
+      label: Reason
+      description: Message displayed to blocked users on the login page.
+      placeholder: Migration under way, back at 2pm.
+    strategy:
+      label: Session strategy
+      description: What happens to sessions already open when maintenance is switched on.
+  inherited:
+    badge: inherited from the realm
+    managed: managed at the realm
+  users:
+    title: Allowed users
+    description: Accounts named individually as allowed during maintenance. Realm-level entries are inherited automatically.
+    add: Add a user
+    search_placeholder: Search users…
+    empty: No user allowed on this client.
+    exhausted: Every user of the realm is already allowed.
+  roles:
+    title: Allowed roles
+    description: Every holder of these roles is allowed during maintenance. Realm-level entries are inherited automatically.
+    add: Add a role
+    search_placeholder: Search roles…
+    empty: No role allowed on this client.
+    exhausted: Every role of the realm is already allowed.
+  save:
+    title: Unsaved maintenance settings
+    description: Save the maintenance reason and session strategy changes.
+
+validation:
+  client_id_required: The client ID is required
+  name_required: The name is required
+  sp_entity_id_required: Entity ID is required
+  acs_url_required: Assertion Consumer Service URL is required
+  name_id_format_required: Name ID format is required
+  mapper_name_required: Attribute name is required
+  mapper_source_required: Pick which user detail to send
+  mapper_name_format_required: Name format is required
+  mapper_custom_key_required: Attribute key is required

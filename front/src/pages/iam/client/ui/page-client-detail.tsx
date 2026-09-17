@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { DetailHeader, PageShell, PageTabs, Pill, Squircle, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
+import { clientAuthenticationOf, clientStateOf } from '../client-choices'
 
 import Client = Schemas.Client
 import { formatDate } from '@/utils/format-date'
@@ -26,10 +28,12 @@ export default function PageClientDetail({
   onBack,
   children,
 }: PageClientDetailProps) {
+  const { t } = useTranslation('client')
+
   const backButton = (
     <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
-      Clients
+      {t('detail.back')}
     </Button>
   )
 
@@ -53,9 +57,11 @@ export default function PageClientDetail({
       <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Client not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.hint')}
           </p>
         </div>
       </PageShell>
@@ -66,7 +72,7 @@ export default function PageClientDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Clients'
+        backLabel={t('detail.back')}
         icon={<Squircle name={client.name || client.client_id} size='xl' />}
         title={client.name}
         caption={
@@ -75,22 +81,22 @@ export default function PageClientDetail({
         pills={
           <>
             <Pill tone={client.public_client ? 'info' : 'violet'} mono>
-              {client.public_client ? 'public' : 'confidential'}
+              {t(`shared.authentication.${clientAuthenticationOf(client.public_client)}`)}
             </Pill>
             <Pill tone='primary' mono>
               {client.protocol}
             </Pill>
             <Pill tone={client.enabled ? 'success' : 'neutral'} mono>
-              {client.enabled ? 'enabled' : 'disabled'}
+              {t(`shared.state.${clientStateOf(client.enabled)}`)}
             </Pill>
-            {client.maintenance_enabled && <Pill tone='amber'>in maintenance</Pill>}
+            {client.maintenance_enabled && <Pill tone='amber'>{t('shared.in_maintenance')}</Pill>}
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Created at</dt>
-            <dd className='tnum'>Created {formatDate(client.created_at)}</dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('detail.meta.created_label')}</dt>
+            <dd className='tnum'>{t('detail.meta.created', { date: formatDate(client.created_at) })}</dd>
+            <dt className='sr-only'>{t('detail.meta.identifier')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{client.id}</dd>
           </dl>
         }

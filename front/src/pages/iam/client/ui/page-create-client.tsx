@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,6 +16,8 @@ import { NAME_ID_FORMAT_OPTIONS } from '@/lib/saml'
 import { tokens } from '@/styles/style-tokens'
 import {
   authenticationChoices,
+  clientStateOf,
+  isEnabledState,
   stateChoices,
   type ClientAuthentication,
   type ClientProtocol,
@@ -83,6 +86,7 @@ export default function PageCreateClient({
   onBack,
   onSubmit,
 }: PageCreateClientProps) {
+  const { t } = useTranslation('client')
   const nameIdDescription = NAME_ID_FORMAT_OPTIONS.find((o) => o.value === nameIdFormat)?.description
 
   return (
@@ -90,12 +94,12 @@ export default function PageCreateClient({
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' asChild>
         <Link to={listUrl}>
           <ArrowLeft className='size-3.5' />
-          Clients
+          {t('create.back')}
         </Link>
       </Button>
 
       <div className='flex flex-wrap items-center gap-2 pb-3'>
-        <h1 className={tokens.header.title}>New client</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <Pill tone='primary' mono>
           {protocol}
         </Pill>
@@ -103,22 +107,22 @@ export default function PageCreateClient({
           to={pickerUrl}
           className='text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline'
         >
-          change protocol
+          {t('create.change_protocol')}
         </Link>
       </div>
 
       <div className={tokens.page.blockGap}>
-        <Section title='Client details' description='How this client is identified in the realm.'>
+        <Section title={t('create.details.title')} description={t('create.details.description')}>
           <FieldRow
-            label='Client ID'
-            description='Unique identifier for this client. Applications send it on every request.'
+            label={t('create.details.client_id.label')}
+            description={t('create.details.client_id.description')}
             htmlFor='new-client-id'
           >
             <Input
               id='new-client-id'
               value={clientId}
               onChange={(e) => onClientIdChange(e.target.value)}
-              placeholder='my-application'
+              placeholder={t('create.details.client_id.placeholder')}
               className='max-w-sm'
               aria-invalid={Boolean(errors.clientId)}
             />
@@ -126,8 +130,8 @@ export default function PageCreateClient({
           </FieldRow>
 
           <FieldRow
-            label='Name'
-            description='Display name shown in the UI.'
+            label={t('create.details.name.label')}
+            description={t('create.details.name.description')}
             htmlFor='new-client-name'
           >
             <Input
@@ -141,64 +145,61 @@ export default function PageCreateClient({
           </FieldRow>
 
           <FieldRow
-            label='Client enabled'
-            description='Disabled clients cannot authenticate users.'
+            label={t('create.details.enabled.label')}
+            description={t('create.details.enabled.description')}
           >
             <ChoiceCards
-              label='Client state'
-              value={enabled ? 'enabled' : 'disabled'}
-              onChange={(v: ClientState) => onEnabledChange(v === 'enabled')}
-              options={stateChoices}
+              label={t('create.details.state_picker')}
+              value={clientStateOf(enabled)}
+              onChange={(v: ClientState) => onEnabledChange(isEnabledState(v))}
+              options={stateChoices(t)}
             />
           </FieldRow>
 
           <FieldRow
-            label='Client authentication'
-            description='Set at creation and final: a client cannot move between confidential and public afterwards.'
+            label={t('create.details.authentication.label')}
+            description={t('create.details.authentication.description')}
           >
             <ChoiceCards
-              label='Client authentication'
+              label={t('create.details.authentication.label')}
               value={authentication}
               onChange={onAuthenticationChange}
-              options={authenticationChoices}
+              options={authenticationChoices(t)}
             />
           </FieldRow>
         </Section>
 
         {protocol === 'openid-connect' ? (
           <Section
-            title='Capability config'
-            description='OAuth flows this client is allowed to take.'
+            title={t('create.capability.title')}
+            description={t('create.capability.description')}
           >
             <FieldRow
-              label='Direct access grants'
-              description='Allows exchanging user credentials directly for tokens. Use only for trusted clients.'
+              label={t('create.capability.direct_access_grants.label')}
+              description={t('create.capability.direct_access_grants.description')}
             >
               <SwitchField checked={directAccessGrants} onCheckedChange={onDirectAccessGrantsChange} />
             </FieldRow>
 
             <FieldRow
-              label='OAuth 2.0 device authorization grant'
-              description='Lets browserless clients (CLI, IoT, TVs) initiate a device flow against this client. Disable unless this client really needs it.'
+              label={t('create.capability.device_code_grant.label')}
+              description={t('create.capability.device_code_grant.description')}
             >
               <SwitchField checked={deviceCodeGrant} onCheckedChange={onDeviceCodeGrantChange} />
             </FieldRow>
           </Section>
         ) : (
-          <Section
-            title='SAML'
-            description='The two values the application shows on its SAML settings page, plus the identifier format.'
-          >
+          <Section title={t('create.saml.title')} description={t('create.saml.description')}>
             <FieldRow
-              label='Entity ID'
-              description='The unique identifier the application publishes for itself, for example https://chat.acme.com/saml/sp/1.'
+              label={t('create.saml.entity_id.label')}
+              description={t('create.saml.entity_id.description')}
               htmlFor='new-client-sp-entity-id'
             >
               <Input
                 id='new-client-sp-entity-id'
                 value={spEntityId}
                 onChange={(e) => onSpEntityIdChange(e.target.value)}
-                placeholder='https://chat.acme.com/saml/sp/1'
+                placeholder={t('create.saml.entity_id.placeholder')}
                 className='max-w-lg'
                 aria-invalid={Boolean(errors.spEntityId)}
               />
@@ -208,15 +209,15 @@ export default function PageCreateClient({
             </FieldRow>
 
             <FieldRow
-              label='Assertion Consumer Service URL'
-              description='Where the signed assertion is posted after the user signs in.'
+              label={t('create.saml.acs_url.label')}
+              description={t('create.saml.acs_url.description')}
               htmlFor='new-client-acs-url'
             >
               <Input
                 id='new-client-acs-url'
                 value={acsUrl}
                 onChange={(e) => onAcsUrlChange(e.target.value)}
-                placeholder='https://chat.acme.com/saml/acs'
+                placeholder={t('create.saml.acs_url.placeholder')}
                 className='max-w-lg'
                 aria-invalid={Boolean(errors.acsUrl)}
               />
@@ -224,13 +225,13 @@ export default function PageCreateClient({
             </FieldRow>
 
             <FieldRow
-              label='Name ID format'
-              description='How the user is identified inside the assertion.'
+              label={t('create.saml.name_id_format.label')}
+              description={t('create.saml.name_id_format.description')}
             >
               <div className='max-w-lg'>
                 <Select value={nameIdFormat} onValueChange={onNameIdFormatChange}>
                   <SelectTrigger className='w-full'>
-                    <SelectValue placeholder='Select a name ID format' />
+                    <SelectValue placeholder={t('create.saml.name_id_format.placeholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {NAME_ID_FORMAT_OPTIONS.map((option) => (
@@ -251,14 +252,14 @@ export default function PageCreateClient({
 
       <SaveBar
         show={canSubmit}
-        title='Create client'
+        title={t('create.save.title')}
         description={
           protocol === 'saml'
-            ? 'The client is created, then registered as a SAML service provider.'
-            : 'The client is created with the settings above.'
+            ? t('create.save.description_saml')
+            : t('create.save.description_oidc')
         }
         onCancel={onBack}
-        actions={[{ label: 'Create client', onClick: onSubmit }]}
+        actions={[{ label: t('create.save.submit'), onClick: onSubmit }]}
       />
     </PageShell>
   )

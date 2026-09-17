@@ -1,4 +1,5 @@
 import { Clock, FileKey, Globe, KeyRound, Power, PowerOff, ShieldCheck, Wrench } from 'lucide-react'
+import type { TFunction } from 'i18next'
 import type { Choice } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import type { ClientProtocol } from '@/lib/client-protocol'
@@ -10,89 +11,109 @@ export type ClientAuthentication = 'confidential' | 'public'
 export type ClientState = 'enabled' | 'disabled'
 export type MaintenanceState = 'open' | 'maintenance'
 
+export type ClientTranslate = TFunction<'client'>
+
+export const DEFAULT_PROTOCOL: ClientProtocol = 'openid-connect'
+
+export const ASSIGNABLE_SCOPE_TYPES = ['default', 'optional'] as const
+
 export const isClientProtocol = (value: string | null): value is ClientProtocol =>
   value === 'openid-connect' || value === 'saml'
 
-export const protocolChoices: Choice<ClientProtocol>[] = [
+export const clientStateOf = (enabled: boolean): ClientState =>
+  enabled ? 'enabled' : 'disabled'
+
+export const isEnabledState = (state: ClientState) => state === 'enabled'
+
+export const clientAuthenticationOf = (publicClient: boolean): ClientAuthentication =>
+  publicClient ? 'public' : 'confidential'
+
+export const maintenanceStateOf = (enabled: boolean): MaintenanceState =>
+  enabled ? 'maintenance' : 'open'
+
+export const isMaintenanceState = (state: MaintenanceState) => state === 'maintenance'
+
+export const protocolChoices = (t: ClientTranslate): Choice<ClientProtocol>[] => [
   {
     value: 'openid-connect',
-    label: 'OpenID Connect',
-    description: 'Token-based sign-in, for web applications, SPAs, mobile apps and APIs.',
+    label: t('choices.protocol.openid_connect.label'),
+    description: t('choices.protocol.openid_connect.description'),
     icon: KeyRound,
   },
   {
     value: 'saml',
-    label: 'SAML 2.0',
-    description: 'Assertion-based sign-in, for applications that only speak SAML.',
+    label: t('choices.protocol.saml.label'),
+    description: t('choices.protocol.saml.description'),
     icon: FileKey,
   },
 ]
 
-export const stateChoices: Choice<ClientState>[] = [
+export const stateChoices = (t: ClientTranslate): Choice<ClientState>[] => [
   {
     value: 'enabled',
-    label: 'Enabled',
-    description: 'The client can request an authentication.',
+    label: t('choices.state.enabled.label'),
+    description: t('choices.state.enabled.description'),
     icon: Power,
   },
   {
     value: 'disabled',
-    label: 'Disabled',
-    description: 'Every request is rejected, the configuration is kept.',
+    label: t('choices.state.disabled.label'),
+    description: t('choices.state.disabled.description'),
     icon: PowerOff,
   },
 ]
 
-export const authenticationChoices: Choice<ClientAuthentication>[] = [
+export const authenticationChoices = (t: ClientTranslate): Choice<ClientAuthentication>[] => [
   {
     value: 'confidential',
-    label: 'Confidential',
-    description: 'The client proves its identity with a secret held server-side.',
+    label: t('choices.authentication.confidential.label'),
+    description: t('choices.authentication.confidential.description'),
     icon: KeyRound,
   },
   {
     value: 'public',
-    label: 'Public',
-    description: 'No secret: for SPAs, mobile applications and CLIs.',
+    label: t('choices.authentication.public.label'),
+    description: t('choices.authentication.public.description'),
     icon: Globe,
   },
 ]
 
-const IMMUTABLE_AUTHENTICATION =
-  'Set at creation: a client cannot move between confidential and public afterwards.'
-
-export const lockedAuthenticationChoices: Choice<ClientAuthentication>[] =
-  authenticationChoices.map((choice) => ({
+export const lockedAuthenticationChoices = (
+  t: ClientTranslate
+): Choice<ClientAuthentication>[] =>
+  authenticationChoices(t).map((choice) => ({
     ...choice,
-    disabledReason: IMMUTABLE_AUTHENTICATION,
+    disabledReason: t('choices.authentication.immutable'),
   }))
 
-export const maintenanceStateChoices: Choice<MaintenanceState>[] = [
+export const maintenanceStateChoices = (t: ClientTranslate): Choice<MaintenanceState>[] => [
   {
     value: 'open',
-    label: 'Open',
-    description: 'The client authenticates normally.',
+    label: t('choices.maintenance_state.open.label'),
+    description: t('choices.maintenance_state.open.description'),
     icon: ShieldCheck,
   },
   {
     value: 'maintenance',
-    label: 'In maintenance',
-    description: 'Only the whitelist gets through.',
+    label: t('choices.maintenance_state.maintenance.label'),
+    description: t('choices.maintenance_state.maintenance.description'),
     icon: Wrench,
   },
 ]
 
-export const sessionStrategyChoices: Choice<MaintenanceSessionStrategy>[] = [
+export const sessionStrategyChoices = (
+  t: ClientTranslate
+): Choice<MaintenanceSessionStrategy>[] => [
   {
     value: 'expire',
-    label: 'Expire naturally',
-    description: 'Open sessions live until they run out.',
+    label: t('choices.session_strategy.expire.label'),
+    description: t('choices.session_strategy.expire.description'),
     icon: Clock,
   },
   {
     value: 'terminate',
-    label: 'Terminate immediately',
-    description: 'Every session is cut on the spot.',
+    label: t('choices.session_strategy.terminate.label'),
+    description: t('choices.session_strategy.terminate.description'),
     icon: PowerOff,
   },
 ]
