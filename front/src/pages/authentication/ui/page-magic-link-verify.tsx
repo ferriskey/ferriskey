@@ -4,7 +4,6 @@ import LoaderSpinner from '@/components/ui/loader-spinner'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
-import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 export interface PageMagicLinkVerifyProps {
   status: 'loading' | 'error'
@@ -16,7 +15,6 @@ export default function PageMagicLinkVerify({ status, errorMessage }: PageMagicL
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md'>
         <Card className='overflow-hidden border p-0 shadow-sm'>
           <CardContent className='p-8 md:p-10'>

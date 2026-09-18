@@ -17,7 +17,6 @@ import {
 } from '../schemas/device-verify.schema'
 import './page-login.css'
 import { AUTH_NAMESPACE, BRAND_NAME, DEVICE_ACTION, type DeviceAction } from '../constants'
-import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 // Pattern accepted by InputOTP, restricting input to the RFC 8628 charset.
 // The 8 slots are split visually by a `<InputOTPSeparator />` between
@@ -230,7 +229,6 @@ export default function PageDeviceVerify({
 export function DeviceVerifyShell({ children }: { children: React.ReactNode }) {
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>

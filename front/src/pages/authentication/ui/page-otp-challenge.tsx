@@ -10,7 +10,6 @@ import { FormControl, FormField, FormItem } from '@/components/ui/form'
 import { BasicSpinner } from '@/components/ui/spinner'
 import './page-login.css'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
-import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 export interface PageOtpChallengeProps {
   handleCancelClick: () => void
@@ -30,7 +29,6 @@ export default function PageOtpChallenge({
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>

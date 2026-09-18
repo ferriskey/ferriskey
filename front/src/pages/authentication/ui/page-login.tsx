@@ -16,7 +16,6 @@ import LoaderSpinner from '@/components/ui/loader-spinner'
 import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, KeyRound, Mail, ShieldAlert, Wrench } from 'lucide-react'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
-import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 export type MagicLinkStep = 'idle' | 'form' | 'sent'
 
@@ -74,7 +73,6 @@ export default function PageLogin({
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-[380px]'>
         <div className={cn('flex flex-col gap-6')}>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
@@ -352,7 +350,6 @@ export function LoginErrorPage({ errorMessage }: { errorMessage: string }) {
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
-      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-[380px]'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
