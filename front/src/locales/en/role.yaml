@@ -1,0 +1,236 @@
+role_scope:
+  realm: realm
+  client: client
+
+role:
+  # Identifier shown when a role carries no description. "role_id" is the API field name, keep it verbatim.
+  identifier: 'role_id: {{id}}'
+  permission_count_one: '{{count}} permission'
+  permission_count_other: '{{count}} permissions'
+
+validation:
+  name_required: Role name is required
+  client_id_required: Client ID is required for client roles
+
+form:
+  name:
+    label: Role name
+    description: Referenced as-is in the tokens issued for this realm.
+  description:
+    label: Description
+    description: Helps administrators understand how far this role reaches.
+  scope:
+    label: Scope
+    picker_label: Role scope
+    create_description: 'Set at creation and final: a role cannot move between scopes afterwards.'
+    options:
+      realm:
+        label: Realm role
+        description: Grantable to any account of the realm.
+      client:
+        label: Client role
+        description: Only meaningful for the client it is attached to.
+    hint:
+      realm: Shared across the realm. Moving a role between scopes is not supported.
+      client: Attached to a client at creation. Moving a role between scopes is not supported.
+  client:
+    label: Client
+    description: The client this role is attached to.
+    placeholder: Select a client…
+    search_placeholder: Search a client…
+    empty: No client found.
+
+list:
+  title: Roles
+  description: Permissions and policies applicable to the accounts of this realm.
+  create: New role
+  search_placeholder: Filter by name…
+  count_one: '{{count}} role'
+  count_other: '{{count}} roles'
+  columns:
+    name: Role
+    description: Description
+    scope: Scope
+    permissions: Permissions
+  metrics:
+    total:
+      label: Total
+      hint: roles
+    realm:
+      label: Realm roles
+      hint: '{{percent}}% of total'
+      empty_hint: no realm role
+    client:
+      label: Client roles
+      hint: scoped to a client
+    granting:
+      label: With permissions
+      hint: grant at least one
+  alerts:
+    without_permissions:
+      title_one: '{{count}} role grants nothing'
+      title_other: '{{count}} roles grant nothing'
+      detail: '{{names}} — carries no permission.'
+      action: Review
+  filters:
+    realm: Realm
+    client: Client
+    without_permissions: Without permissions
+  card:
+    flags:
+      grants: Grants at least one permission
+      client_scoped: Scoped to a client
+  empty:
+    label: No role
+    hint: Roles group the permissions you grant to accounts and clients.
+
+create:
+  back: Roles
+  title: New role
+  subtitle: A role bundles the permissions you grant to accounts and clients.
+  section:
+    title: Definition
+  save_bar:
+    title: Create role
+    description: The role is created with the permissions selected above.
+    submit: Create role
+
+detail:
+  back: Roles
+  not_found:
+    title: Role not found
+    description: It may have been deleted, or it belongs to another realm.
+  meta:
+    created_label: Created at
+    created: Created {{date}}
+    identifier_label: Identifier
+  tabs:
+    settings: Settings
+    permissions: Permissions
+    users: Users
+  save_bar:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review the role before applying the changes.
+    cancel: Discard
+    submit: Save changes
+  settings:
+    title: Definition
+    danger:
+      label: Delete this role
+      description: Once deleted, all user assignments for this role will be permanently removed. Tokens already issued stay valid until they expire.
+      button: Delete role
+      confirm_title: Delete role
+      confirm_description: This will permanently delete the role "{{name}}" and remove all user assignments.
+  users:
+    title: Accounts holding this role
+    description: Listing the holders of a role is not exposed by the API yet.
+
+permissions:
+  title: Permissions
+  description: What this role authorises on the administration API.
+  search_placeholder: Filter permissions…
+  granted: '{{granted}}/{{total}} granted'
+  clear_all: Clear all
+  no_match: No permission matches “{{query}}”.
+  # Always plural by design: the group header shows a raw ratio, never a singular row.
+  group_enabled: '{{enabled}} of {{total}} permissions enabled'
+  select_all: all
+  select_none: none
+  state:
+    enabled: Enabled
+    disabled: Disabled
+  groups:
+    user_management: User Management
+    client_management: Client Management
+    role_authorization: Role & Authorization
+    realm_management: Realm Management
+    identity_providers: Identity Providers
+    events_audit: Events & Audit
+    groups: Groups
+    client_scopes: Client Scopes
+    webhooks: Webhooks
+    email_templates: Email Templates
+  # Keyed by the permission name the API grants. Translate the label and the description, never the key.
+  entries:
+    manage_users:
+      label: Manage Users
+      description: Create, edit and delete accounts, and reset their credentials.
+    view_users:
+      label: View Users
+      description: Read accounts and their attributes.
+    query_users:
+      label: Query Users
+      description: List and search across accounts.
+    create_client:
+      label: Create Client
+      description: Register a new client in the realm.
+    manage_clients:
+      label: Manage Clients
+      description: Edit and delete existing clients.
+    view_clients:
+      label: View Clients
+      description: Read client configuration.
+    query_clients:
+      label: Query Clients
+      description: List and search across clients.
+    manage_roles:
+      label: Manage Roles
+      description: Create, edit and delete roles and their permissions.
+    view_roles:
+      label: View Roles
+      description: Read roles and what they grant.
+    manage_authorization:
+      label: Manage Authorization
+      description: Edit the authorization policies of the realm.
+    view_authorization:
+      label: View Authorization
+      description: Read the authorization policies of the realm.
+    manage_realm:
+      label: Manage Realm
+      description: Edit realm settings, tokens and login policy.
+    view_realm:
+      label: View Realm
+      description: Read realm settings.
+    query_realms:
+      label: Query Realms
+      description: List the realms the account can reach.
+    manage_identity_providers:
+      label: Manage Identity Providers
+      description: Declare, edit and remove federated providers.
+    view_identity_providers:
+      label: View Identity Providers
+      description: Read the configuration of federated providers.
+    manage_events:
+      label: Manage Events
+      description: Configure event capture and retention.
+    view_events:
+      label: View Events
+      description: Read the security event trail.
+    query_groups:
+      label: Query Groups
+      description: List and search across groups.
+    manage_client_scopes:
+      label: Manage Client Scopes
+      description: Create, edit and delete scopes and their protocol mappers.
+    view_client_scopes:
+      label: View Client Scopes
+      description: Read scopes and the claims they add to a token.
+    query_client_scopes:
+      label: Query Client Scopes
+      description: List and search across scopes.
+    manage_webhooks:
+      label: Manage Webhooks
+      description: Declare endpoints and choose the events they receive.
+    view_webhooks:
+      label: View Webhooks
+      description: Read endpoint configuration, secrets excluded.
+    query_webhooks:
+      label: Query Webhooks
+      description: List and search across endpoints.
+    manage_email_templates:
+      label: Manage Email Templates
+      description: Edit the emails the realm sends and choose which one is used.
+    view_email_templates:
+      label: View Email Templates
+      description: Read the emails the realm sends.

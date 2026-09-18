@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { Link } from 'react-router'
 import { AlertTriangle, ArrowRight, Check, CheckCircle2 } from 'lucide-react'
+import { Trans, useTranslation } from 'react-i18next'
 import { MetricsBand, PageShell, Section, type Metric } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -56,6 +57,8 @@ const alertTones = {
   error: 'border-fk-danger-border bg-fk-danger-soft/40 text-fk-danger',
 } as const
 
+const ACTION_ARROW = '→'
+
 export default function PageOverview({
   realmTitle,
   greeting,
@@ -71,6 +74,8 @@ export default function PageOverview({
   eventsHref,
   quickLinks,
 }: PageOverviewProps) {
+  const { t } = useTranslation('overview')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -95,7 +100,9 @@ export default function PageOverview({
     <PageShell>
       <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', tokens.header.spacing)}>
         <h1 className={tokens.header.title}>
-          {greeting ? `Welcome back, ${greeting} 👋` : `${realmTitle} realm`}
+          {greeting
+            ? t('header.greeting', { name: greeting })
+            : t('header.realm', { realm: realmTitle })}
         </h1>
       </div>
 
@@ -125,7 +132,7 @@ export default function PageOverview({
                     onClick={alert.onAction}
                     className='ml-auto shrink-0 cursor-pointer text-xs font-medium underline-offset-2 hover:underline'
                   >
-                    {alert.action} →
+                    {alert.action} {ACTION_ARROW}
                   </button>
                 )}
               </li>
@@ -137,19 +144,27 @@ export default function PageOverview({
 
         <div className='grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
           <Section
-            title='Authentication activity'
-            description={`Logins and failures recorded over the last ${activityWindowDays} days.`}
+            title={t('activity.title')}
+            description={t('activity.description', { days: activityWindowDays })}
             contained={false}
             action={
               hasActivity ? (
                 <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
                   <span className='inline-flex items-center gap-1'>
                     <span className='size-1.5 rounded-full bg-fk-success' />
-                    <span className='tnum'>{totalLogins}</span> logins
+                    <Trans
+                      i18nKey='overview:activity.logins'
+                      values={{ total: totalLogins }}
+                      components={{ num: <span className='tnum' /> }}
+                    />
                   </span>
                   <span className='inline-flex items-center gap-1'>
                     <span className='size-1.5 rounded-full bg-fk-danger' />
-                    <span className='tnum'>{totalFailures}</span> failures
+                    <Trans
+                      i18nKey='overview:activity.failures'
+                      values={{ total: totalFailures }}
+                      components={{ num: <span className='tnum' /> }}
+                    />
                   </span>
                 </div>
               ) : undefined
@@ -167,11 +182,14 @@ export default function PageOverview({
           </Section>
 
           <Section
-            title='Capabilities'
-            description='Authentication features this realm exposes to its accounts.'
+            title={t('capabilities.title')}
+            description={t('capabilities.description')}
             action={
               <span className='tnum text-[11px] text-neutral-400 dark:text-neutral-500'>
-                {enabledCapabilities}/{capabilities.length}
+                {t('capabilities.ratio', {
+                  enabled: enabledCapabilities,
+                  total: capabilities.length,
+                })}
               </span>
             }
           >
@@ -203,7 +221,9 @@ export default function PageOverview({
                   </span>
                 </span>
                 <span className='shrink-0 text-[11px] uppercase tracking-wide text-neutral-400 dark:text-neutral-500'>
-                  {capability.enabled ? 'on' : 'off'}
+                  {capability.enabled
+                    ? t('capabilities.state.enabled')
+                    : t('capabilities.state.disabled')}
                 </span>
               </div>
             ))}
@@ -212,12 +232,12 @@ export default function PageOverview({
 
         <div className='grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
           <Section
-            title='Recent authentication flows'
-            description='The last traces Compass recorded for this realm.'
+            title={t('events.title')}
+            description={t('events.description')}
             contained={false}
             action={
               <Link to={eventsHref} className='text-[11px] text-fk-primary-text hover:underline'>
-                Compass →
+                {t('events.link')} {ACTION_ARROW}
               </Link>
             }
           >
@@ -225,8 +245,8 @@ export default function PageOverview({
           </Section>
 
           <Section
-            title='Get started'
-            description='Jump into a workspace of this realm.'
+            title={t('quick_links.title')}
+            description={t('quick_links.description')}
             contained={false}
           >
             <div className='grid gap-2 sm:grid-cols-2 xl:grid-cols-1'>

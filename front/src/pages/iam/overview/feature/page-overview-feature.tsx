@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { Compass, LayoutGrid, Shield, Users } from 'lucide-react'
 import { useGetClients } from '@/api/client.api'
 import { useGetUsers } from '@/api/user.api'
@@ -54,6 +55,7 @@ function createdInWindow(createdAt: string[]) {
 export default function PageOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('overview')
   const realm = realm_name ?? 'master'
   const currentUser = userStore((s) => s.user)
 
@@ -95,34 +97,43 @@ export default function PageOverviewFeature() {
   const metrics: Metric[] = [
     {
       key: 'users',
-      label: 'Users',
+      label: t('metrics.users.label'),
       value: users.length,
-      hint: users.length > 0 ? `${pct(verifiedUsers, users.length)}% email verified` : 'no user yet',
+      hint:
+        users.length > 0
+          ? t('metrics.users.hint', { percent: pct(verifiedUsers, users.length) })
+          : t('metrics.users.empty_hint'),
       delta: newUsers > 0 ? newUsers : undefined,
       series: cumulativeSeries(users.map((u) => u.created_at)),
       tone: 'success',
     },
     {
       key: 'clients',
-      label: 'Clients',
+      label: t('metrics.clients.label'),
       value: clients.length,
-      hint: clients.length > 0 ? `${activeClients} active` : 'no client yet',
+      hint:
+        clients.length > 0
+          ? t('metrics.clients.hint', { active: activeClients })
+          : t('metrics.clients.empty_hint'),
       series: cumulativeSeries(clients.map((c) => c.created_at)),
       tone: 'info',
     },
     {
       key: 'roles',
-      label: 'Roles',
+      label: t('metrics.roles.label'),
       value: roles.length,
-      hint: 'permissions & policies',
+      hint: t('metrics.roles.hint'),
       series: cumulativeSeries(roles.map((r) => r.created_at)),
       tone: 'violet',
     },
     {
       key: 'flows',
-      label: 'Auth flows',
+      label: t('metrics.flows.label'),
       value: totalFlows,
-      hint: totalFlows > 0 ? `${pct(successFlows, totalFlows)}% success` : 'no trace yet',
+      hint:
+        totalFlows > 0
+          ? t('metrics.flows.hint', { percent: pct(successFlows, totalFlows) })
+          : t('metrics.flows.empty_hint'),
       series: measured(activity.map((day) => day.total_flows)),
       tone: 'amber',
     },
@@ -134,9 +145,9 @@ export default function PageOverviewFeature() {
     alerts.push({
       key: 'failed-flows',
       tone: 'error',
-      title: `${failedFlows} authentication flow${failedFlows > 1 ? 's' : ''} failed`,
-      detail: `${failedFlows} of ${totalFlows} traced flows never issued a token.`,
-      action: 'Inspect',
+      title: t('alerts.failed_flows.title', { count: failedFlows }),
+      detail: t('alerts.failed_flows.detail', { failed: failedFlows, total: totalFlows }),
+      action: t('alerts.failed_flows.action'),
       onAction: () => navigate(COMPASS_URL(realm)),
     })
   }
@@ -145,9 +156,12 @@ export default function PageOverviewFeature() {
     alerts.push({
       key: 'disabled-clients',
       tone: 'warn',
-      title: `${disabledClients.length} client${disabledClients.length > 1 ? 's are' : ' is'} disabled`,
-      detail: `${disabledClients.map((c) => c.client_id).join(', ')} — no account can authenticate through ${disabledClients.length > 1 ? 'them' : 'it'}.`,
-      action: 'Review',
+      title: t('alerts.disabled_clients.title', { count: disabledClients.length }),
+      detail: t('alerts.disabled_clients.detail', {
+        count: disabledClients.length,
+        names: disabledClients.map((c) => c.client_id).join(', '),
+      }),
+      action: t('alerts.disabled_clients.action'),
       onAction: () => navigate(CLIENTS_URL(realm)),
     })
   }
@@ -156,9 +170,9 @@ export default function PageOverviewFeature() {
     alerts.push({
       key: 'unverified-users',
       tone: 'warn',
-      title: `${unverifiedUsers.length} account${unverifiedUsers.length > 1 ? 's carry' : ' carries'} an unverified email`,
-      detail: 'Email verification is required on this realm, so those accounts stay incomplete.',
-      action: 'Review',
+      title: t('alerts.unverified_users.title', { count: unverifiedUsers.length }),
+      detail: t('alerts.unverified_users.detail'),
+      action: t('alerts.unverified_users.action'),
       onAction: () => navigate(USERS_URL(realm)),
     })
   }
@@ -167,9 +181,9 @@ export default function PageOverviewFeature() {
     alerts.push({
       key: 'compass-off',
       tone: 'warn',
-      title: 'Compass tracing is off',
-      detail: 'Authentication flows are not recorded, so this page has no activity to show.',
-      action: 'Enable',
+      title: t('alerts.compass_off.title'),
+      detail: t('alerts.compass_off.detail'),
+      action: t('alerts.compass_off.action'),
       onAction: () => navigate(REALM_SETTINGS_URL(realm)),
     })
   }
@@ -177,38 +191,38 @@ export default function PageOverviewFeature() {
   const capabilities: OverviewCapability[] = [
     {
       key: 'passkey',
-      label: 'Passkey',
-      description: 'WebAuthn passwordless',
+      label: t('capabilities.passkey.label'),
+      description: t('capabilities.passkey.description'),
       enabled: Boolean(settings?.passkey_enabled),
     },
     {
       key: 'magic_link',
-      label: 'Magic links',
-      description: 'Email-based sign-in',
+      label: t('capabilities.magic_link.label'),
+      description: t('capabilities.magic_link.description'),
       enabled: Boolean(settings?.magic_link_enabled),
     },
     {
       key: 'registration',
-      label: 'Self registration',
-      description: 'Public sign-up',
+      label: t('capabilities.registration.label'),
+      description: t('capabilities.registration.description'),
       enabled: Boolean(settings?.user_registration_enabled),
     },
     {
       key: 'forgot_password',
-      label: 'Password reset',
-      description: 'Forgot password flow',
+      label: t('capabilities.forgot_password.label'),
+      description: t('capabilities.forgot_password.description'),
       enabled: Boolean(settings?.forgot_password_enabled),
     },
     {
       key: 'remember_me',
-      label: 'Remember me',
-      description: 'Persistent sessions',
+      label: t('capabilities.remember_me.label'),
+      description: t('capabilities.remember_me.description'),
       enabled: Boolean(settings?.remember_me_enabled),
     },
     {
       key: 'compass',
-      label: 'Compass tracing',
-      description: 'Auth flow analytics',
+      label: t('capabilities.compass.label'),
+      description: t('capabilities.compass.description'),
       enabled: Boolean(settings?.compass_enabled),
     },
   ]
@@ -230,29 +244,29 @@ export default function PageOverviewFeature() {
   const quickLinks: OverviewQuickLink[] = [
     {
       key: 'users',
-      label: 'Users',
-      description: 'Invite, edit and audit accounts',
+      label: t('quick_links.users.label'),
+      description: t('quick_links.users.description'),
       href: USERS_URL(realm),
       icon: Users,
     },
     {
       key: 'clients',
-      label: 'Clients',
-      description: 'Configure OAuth applications',
+      label: t('quick_links.clients.label'),
+      description: t('quick_links.clients.description'),
       href: CLIENTS_URL(realm),
       icon: LayoutGrid,
     },
     {
       key: 'roles',
-      label: 'Roles',
-      description: 'Define permissions',
+      label: t('quick_links.roles.label'),
+      description: t('quick_links.roles.description'),
       href: ROLES_URL(realm),
       icon: Shield,
     },
     {
       key: 'compass',
-      label: 'Compass',
-      description: 'Trace authentication flows',
+      label: t('quick_links.compass.label'),
+      description: t('quick_links.compass.description'),
       href: COMPASS_URL(realm),
       icon: Compass,
     },
@@ -275,15 +289,11 @@ export default function PageOverviewFeature() {
       activity={activity}
       activityWindowDays={WINDOW_DAYS}
       activityEmptyLabel={
-        settings?.compass_enabled
-          ? 'No authentication flow recorded over this window.'
-          : 'Compass tracing is off — no activity is recorded for this realm.'
+        settings?.compass_enabled ? t('activity.empty') : t('activity.empty_compass_off')
       }
       events={events}
       eventsEmptyLabel={
-        settings?.compass_enabled
-          ? 'No flow traced yet.'
-          : 'Compass tracing is off — no flow is traced for this realm.'
+        settings?.compass_enabled ? t('events.empty') : t('events.empty_compass_off')
       }
       eventsHref={COMPASS_URL(realm)}
       quickLinks={quickLinks}

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Pill, type PillTone } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -25,18 +26,26 @@ const statusTone: Record<OverviewEvent['status'], PillTone> = {
   expired: 'amber',
 }
 
-const formatDuration = (ms?: number | null) => {
-  if (ms === undefined || ms === null) return null
-  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
-}
+const eventStatusLabelKey = (status: OverviewEvent['status']) => `event_status.${status}`
+
+const SECOND_IN_MS = 1000
 
 export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLogProps) {
+  const { t } = useTranslation('overview')
+
   if (events.length === 0) {
     return (
       <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-10')}>
         <p className='text-sm text-neutral-500 dark:text-neutral-400'>{emptyLabel}</p>
       </div>
     )
+  }
+
+  const formatDuration = (ms?: number | null) => {
+    if (ms === undefined || ms === null) return null
+    return ms < SECOND_IN_MS
+      ? t('events.duration.milliseconds', { value: ms })
+      : t('events.duration.seconds', { value: (ms / SECOND_IN_MS).toFixed(1) })
   }
 
   return (
@@ -49,15 +58,23 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
               tokens.table.headerText
             )}
           >
-            <th className={cn(tokens.table.headerPadding, 'font-medium')}>Status</th>
-            <th className={cn(tokens.table.headerPadding, 'font-medium')}>Grant</th>
-            <th className={cn(tokens.table.headerPadding, 'font-medium')}>Client</th>
-            <th className={cn(tokens.table.headerPadding, 'font-medium')}>Account</th>
-            <th className={cn(tokens.table.headerPadding, 'text-right font-medium')}>
-              Duration
+            <th className={cn(tokens.table.headerPadding, 'font-medium')}>
+              {t('events.columns.status')}
+            </th>
+            <th className={cn(tokens.table.headerPadding, 'font-medium')}>
+              {t('events.columns.grant')}
+            </th>
+            <th className={cn(tokens.table.headerPadding, 'font-medium')}>
+              {t('events.columns.client')}
+            </th>
+            <th className={cn(tokens.table.headerPadding, 'font-medium')}>
+              {t('events.columns.account')}
             </th>
             <th className={cn(tokens.table.headerPadding, 'text-right font-medium')}>
-              Started
+              {t('events.columns.duration')}
+            </th>
+            <th className={cn(tokens.table.headerPadding, 'text-right font-medium')}>
+              {t('events.columns.started')}
             </th>
           </tr>
         </thead>
@@ -74,7 +91,7 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
               >
                 <td className={tokens.table.cellPadding}>
                   <Pill tone={statusTone[event.status]} mono>
-                    {event.status}
+                    {t(eventStatusLabelKey(event.status))}
                   </Pill>
                 </td>
                 <td className={cn(tokens.table.cellPadding, 'font-mono-ui text-[11px] text-neutral-600 dark:text-neutral-400')}>
@@ -86,18 +103,26 @@ export default function OverviewEventLog({ events, emptyLabel }: OverviewEventLo
                       {event.client}
                     </span>
                   ) : (
-                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>no client</span>
+                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+                      {t('events.no_client')}
+                    </span>
                   )}
                 </td>
                 <td className={tokens.table.cellPadding}>
                   {event.user ? (
                     <span className='text-neutral-900 dark:text-neutral-100'>{event.user}</span>
                   ) : (
-                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>not identified</span>
+                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+                      {t('events.not_identified')}
+                    </span>
                   )}
                 </td>
                 <td className={cn(tokens.table.cellPadding, 'tnum text-right text-neutral-600 dark:text-neutral-400')}>
-                  {duration ?? <span className='text-neutral-300 dark:text-neutral-600'>not measured</span>}
+                  {duration ?? (
+                    <span className='text-neutral-300 dark:text-neutral-600'>
+                      {t('events.not_measured')}
+                    </span>
+                  )}
                 </td>
                 <td
                   className={cn(
