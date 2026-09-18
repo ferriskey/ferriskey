@@ -2,7 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { ReactNode } from 'react'
 import { BaseQuery } from '.'
+import { preloadNamespaces, translate } from '@/lib/i18n'
 import type { Schemas } from './api.client'
+
+const PORTAL_NAMESPACE = 'portal'
+
+void preloadNamespaces(PORTAL_NAMESPACE).catch(() => undefined)
 
 // ---------- Legacy single-theme-per-realm hooks (kept until cleanup PR) ----------
 
@@ -33,7 +38,7 @@ export const useUpdatePortalTheme = () => {
         queryClient.invalidateQueries({ queryKey: loginSettingsKeys }),
       ])
 
-      toast.success('Portal theme saved')
+      toast.success(translate('portal:themes.toast.saved'))
     },
   })
 }
@@ -75,7 +80,7 @@ export const useCreatePortalTheme = () => {
           queryKey: activeThemeQueryKey(variables.path.realm_name),
         }),
       ])
-      toast.success('Portal theme created')
+      toast.success(translate('portal:themes.toast.created'))
     },
   })
 }
@@ -104,12 +109,12 @@ export const useImportPortalTheme = () => {
         path: { realm_name: variables.path.realm_name },
       }).queryKey
       await queryClient.invalidateQueries({ queryKey: listKey })
-      toast.success('Portal theme imported')
+      toast.success(translate('portal:themes.toast.imported'))
     },
     // The server refuses a file that belongs to another builder or that uses a
     // format version it cannot read; its message says which, so surface it.
     onError: (error) => {
-      toast.error('Failed to import', { description: error.message })
+      toast.error(translate('portal:themes.toast.import_failed'), { description: error.message })
     },
   })
 }
@@ -127,39 +132,12 @@ export const useUpdatePortalThemePage = () => {
   })
 }
 
-// Human-readable label per portal block type, used when explaining which
-// required blocks are missing from a page tree the admin tried to save.
-const BLOCK_TYPE_LABELS: Record<string, string> = {
-  email_input: 'Email field',
-  password_input: 'Password field',
-  totp_input: 'OTP code field',
-  submit_button: 'Submit button',
-  user_code_input: 'Device code field',
-  device_approve_button: 'Approve button',
-  device_deny_button: 'Deny button',
-}
-
 function labelForBlockType(type: string): string {
-  return BLOCK_TYPE_LABELS[type] ?? type.replace(/_/g, ' ')
+  return type.replace(/_/g, ' ')
 }
 
-const PAGE_TYPE_LABELS: Partial<Record<Schemas.PortalPageType, string>> = {
-  login: 'login',
-  register: 'register',
-  totp: 'OTP challenge',
-  forgot_password: 'forgot password',
-  reset_password: 'reset password',
-  magic_link_verify: 'magic link verify',
-  magic_link_request: 'magic link request',
-  verify_email: 'verify email',
-  email_verified: 'email verified',
-  totp_setup: 'TOTP setup',
-  device_verify: 'device verification',
-  device_verified: 'device verified',
-}
-
-export function labelForPageType(pageType: Schemas.PortalPageType): string {
-  return PAGE_TYPE_LABELS[pageType] ?? pageType
+function labelForPageType(pageType: Schemas.PortalPageType): string {
+  return translate(`${PORTAL_NAMESPACE}:page_type.${pageType}.label`)
 }
 
 // Custom fetcher (see src/api/index.ts) throws an Error with the parsed body
@@ -235,14 +213,17 @@ export function describePortalPageError(error: unknown): string | null {
   }
   const parts = issues.map((issue) => {
     if (issue.missing.length > 0) {
-      const labels = issue.missing.map(labelForBlockType)
-      const prefix = issue.pageType
-        ? `${labelForPageType(issue.pageType)} page — `
-        : ''
-      const noun = labels.length > 1 ? 'blocks' : 'block'
-      return `${prefix}missing required ${noun}: ${labels.join(', ')}`
+      const blocks = issue.missing.map(labelForBlockType).join(', ')
+      const count = issue.missing.length
+      return issue.pageType
+        ? translate('portal:page_builder.error.missing_on_page', {
+            count,
+            blocks,
+            page: labelForPageType(issue.pageType),
+          })
+        : translate('portal:page_builder.error.missing', { count, blocks })
     }
-    return issue.raw ?? 'Unknown error'
+    return issue.raw ?? translate('portal:page_builder.toast.unknown_error')
   })
   return parts.length > 0 ? parts.join('\n') : null
 }
@@ -255,23 +236,23 @@ export function describePortalPageError(error: unknown): string | null {
 function renderPortalIssuesDescription(error: unknown): ReactNode {
   const issues = extractPortalPageIssues(error)
   if (issues.length === 0) {
-    return describePortalPageError(error) ?? 'Unknown error'
+    return describePortalPageError(error) ?? translate('portal:page_builder.toast.unknown_error')
   }
   return (
     <div className='flex flex-col gap-1'>
-      <span>The following pages are missing required components:</span>
+      <span>{translate('portal:page_builder.error.pages_missing_blocks')}</span>
       <ul className='ml-4 list-disc space-y-0.5'>
         {issues.map((issue, idx) => {
           const pageLabel = issue.pageType
             ? labelForPageType(issue.pageType)
-            : 'Unknown page'
+            : translate('portal:page_builder.error.unknown_page')
           const blocks =
             issue.missing.length > 0
               ? issue.missing.map(labelForBlockType).join(', ')
-              : (issue.raw ?? 'Unknown error')
+              : (issue.raw ?? translate('portal:page_builder.toast.unknown_error'))
           return (
             <li key={`${pageLabel}-${idx}`}>
-              <span className='font-medium capitalize'>{pageLabel}</span>: {blocks}
+              <span className='font-medium'>{pageLabel}</span>: {blocks}
             </li>
           )
         })}
@@ -289,10 +270,10 @@ export const useActivatePortalTheme = () => {
     ).mutationOptions,
     onSuccess: async (_, variables) => {
       await invalidateThemeQueries(queryClient, variables.path.realm_name, variables.path.theme_id)
-      toast.success('Portal theme activated')
+      toast.success(translate('portal:themes.toast.activated'))
     },
     onError: (error) => {
-      toast.error('Cannot activate portal theme', {
+      toast.error(translate('portal:themes.toast.activation_failed'), {
         description: renderPortalIssuesDescription(error),
       })
     },
@@ -316,7 +297,7 @@ export const useDeletePortalTheme = () => {
           queryKey: activeThemeQueryKey(variables.path.realm_name),
         }),
       ])
-      toast.success('Portal theme deleted')
+      toast.success(translate('portal:themes.toast.deleted'))
     },
   })
 }

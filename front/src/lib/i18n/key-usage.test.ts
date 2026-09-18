@@ -129,5 +129,5 @@ test('every literal translation key used in the code exists in the english catal
     }
   }
 
-  assert.deepEqual(missing, [], `keys used in code but absent from the english catalogue`)
+  assert.deepEqual(missing, [], 'keys used in code but absent from the english catalogue')
 })

@@ -275,6 +275,8 @@ detail:
       missing_context: User or realm not found
       assigned_one: Role assigned successfully
       assigned_other: Roles assigned successfully
+      assign_failed_one: '{{count}} role could not be assigned and stays selected'
+      assign_failed_other: '{{count}} roles could not be assigned and stay selected'
       unassigned_title: Role unassigned successfully
       unassigned_description: The role has been successfully removed from the user.
 
@@ -306,6 +308,8 @@ detail:
       missing_context: User or realm not found
       assigned_one: Organization assigned successfully
       assigned_other: Organizations assigned successfully
+      assign_failed_one: '{{count}} organization could not be added and stays selected'
+      assign_failed_other: '{{count}} organizations could not be added and stay selected'
 
   attributes:
     list:

@@ -125,6 +125,13 @@ themes:
     # page and several, where "open them" would read wrong at {{count}} = 1.
     seed_failed_other: '{{count}} 个页面未能预填充——启用此主题前请先将其打开。'
     export_failed: 无法导出此主题
+    saved: 门户主题已保存
+    created: 门户主题已创建
+    imported: 门户主题已导入
+    import_failed: 导入失败
+    activated: 门户主题已启用
+    activation_failed: 无法启用门户主题
+    deleted: 门户主题已删除
 
 layouts:
   create: 新建布局
@@ -247,6 +254,12 @@ page_builder:
     saved: 页面已保存
     save_failed: 此页面保存失败
     unknown_error: 未知错误
+  # Chinese has a single plural form, so one wording covers a single missing block and several.
+  error:
+    missing_on_page_other: '{{page}}页面缺少必需块：{{blocks}}'
+    missing_other: '缺少必需块：{{blocks}}'
+    pages_missing_blocks: 以下页面缺少必需块：
+    unknown_page: 未知页面
 
 layout_builder:
   name_placeholder: 布局名称

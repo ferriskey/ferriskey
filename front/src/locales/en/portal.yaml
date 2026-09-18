@@ -124,6 +124,13 @@ themes:
     seed_failed_other: >-
       {{count}} pages could not be pre-filled — open them before activating this theme.
     export_failed: Could not export this theme
+    saved: Portal theme saved
+    created: Portal theme created
+    imported: Portal theme imported
+    import_failed: Failed to import
+    activated: Portal theme activated
+    activation_failed: Cannot activate portal theme
+    deleted: Portal theme deleted
 
 layouts:
   create: New layout
@@ -255,6 +262,16 @@ page_builder:
     saved: Page saved
     save_failed: Failed to save this page
     unknown_error: Unknown error
+  # Details of a refused save or activation, built from the structured payload the API returns.
+  # {{blocks}} is a comma-separated list of block type identifiers with their underscores
+  # replaced by spaces, as everywhere else in this namespace.
+  error:
+    missing_on_page_one: '{{page}} page — missing required block: {{blocks}}'
+    missing_on_page_other: '{{page}} page — missing required blocks: {{blocks}}'
+    missing_one: 'Missing required block: {{blocks}}'
+    missing_other: 'Missing required blocks: {{blocks}}'
+    pages_missing_blocks: 'The following pages are missing required blocks:'
+    unknown_page: Unknown page
 
 layout_builder:
   name_placeholder: Layout name
