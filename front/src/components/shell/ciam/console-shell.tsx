@@ -1,4 +1,5 @@
 import { useEffect, useState, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronRight } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -9,6 +10,8 @@ import { RouterParams } from '@/routes/router'
 import { cn } from '@/lib/utils'
 import { TopBar } from '../top-bar'
 import {
+  consoleItemKey,
+  consoleSectionKey,
   consoleSections,
   findActiveSection,
   isSubItemActive,
@@ -27,6 +30,8 @@ function SubItems({
   realmName: string
   pathname: string
 }) {
+  const { t } = useTranslation()
+
   return (
     <ul className='flex flex-col gap-0.5'>
       {section.subItems.map((item) => {
@@ -44,14 +49,16 @@ function SubItems({
             >
               <item.icon className='mt-0.5 size-3.5 shrink-0' strokeWidth={1.75} />
               <span className='min-w-0'>
-                <span className='block truncate text-[13px] font-medium'>{item.label}</span>
+                <span className='block truncate text-[13px] font-medium'>
+                  {t(consoleItemKey(item.key, 'label'))}
+                </span>
                 <span
                   className={cn(
                     'block truncate text-[11px]',
                     active ? 'text-fk-primary-text/80' : 'text-neutral-500 dark:text-neutral-400',
                   )}
                 >
-                  {item.description}
+                  {t(consoleItemKey(item.key, 'description'))}
                 </span>
               </span>
             </NavLink>
@@ -63,6 +70,7 @@ function SubItems({
 }
 
 export function ConsoleShell() {
+  const { t } = useTranslation()
   const { realm_name = 'master' } = useParams<RouterParams>()
   const { pathname } = useLocation()
   const { setUserRealms } = useRealmStore()
@@ -100,7 +108,7 @@ export function ConsoleShell() {
             <>
               <ChevronRight className='hidden size-3.5 shrink-0 text-neutral-300 md:block dark:text-neutral-600' />
               <span className='hidden truncate text-[13px] text-neutral-500 md:inline dark:text-neutral-400'>
-                {section.label.toLowerCase()}
+                {t(consoleSectionKey(section.key)).toLowerCase()}
               </span>
             </>
           )}
@@ -121,7 +129,7 @@ export function ConsoleShell() {
                 )}
               >
                 <s.icon className='size-3.5' strokeWidth={1.75} />
-                {s.label}
+                {t(consoleSectionKey(s.key))}
                 {active && (
                   <span className='absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-fk-brand' />
                 )}
@@ -143,7 +151,9 @@ export function ConsoleShell() {
         </div>
 
         <Sheet open={navOpen && tier !== 'desktop'} onOpenChange={setNavOpen}>
-          <SheetContent label={section ? section.label : 'Navigation'}>
+          <SheetContent
+            label={section ? t(consoleSectionKey(section.key)) : t('shell.navigation')}
+          >
             <div className='p-2' onClick={closeOnNavigate}>
               {section && section.subItems.length > 0 && (
                 <SubItems section={section} realmName={realm_name} pathname={pathname} />

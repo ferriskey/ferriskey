@@ -1,12 +1,13 @@
 import { Laptop, Moon, Sun } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
 
 const options = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Laptop },
+  { value: 'light', icon: Sun },
+  { value: 'dark', icon: Moon },
+  { value: 'system', icon: Laptop },
 ] as const
 
 function switchWithoutAnimating(apply: () => void) {
@@ -19,16 +20,18 @@ function switchWithoutAnimating(apply: () => void) {
 }
 
 export function ThemeSwitcher() {
+  const { t } = useTranslation()
   const { theme, setTheme } = useTheme()
 
   return (
     <div
       role='radiogroup'
-      aria-label='Theme'
+      aria-label={t('shell.theme.label')}
       className='flex items-center gap-0.5 rounded-md border border-fk-line p-0.5'
     >
       {options.map((option) => {
         const active = theme === option.value
+        const label = t(`shell.theme.${option.value}`)
         return (
           <Tooltip key={option.value}>
             <TooltipTrigger asChild>
@@ -36,7 +39,7 @@ export function ThemeSwitcher() {
                 type='button'
                 role='radio'
                 aria-checked={active}
-                aria-label={option.label}
+                aria-label={label}
                 onClick={() => switchWithoutAnimating(() => setTheme(option.value))}
                 className={cn(
                   'grid size-6 cursor-pointer place-items-center rounded transition-colors',
@@ -48,7 +51,7 @@ export function ThemeSwitcher() {
                 <option.icon className='size-3.5' strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
-            <TooltipContent side='bottom'>{option.label}</TooltipContent>
+            <TooltipContent side='bottom'>{label}</TooltipContent>
           </Tooltip>
         )
       })}

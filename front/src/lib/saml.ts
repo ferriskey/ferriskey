@@ -1,4 +1,5 @@
 import type { Schemas } from '@/api/api.client'
+import { translate } from '@/lib/i18n'
 
 export interface SamlOption<TValue extends string> {
   value: TValue
@@ -6,53 +7,46 @@ export interface SamlOption<TValue extends string> {
   description: string
 }
 
-const NAME_ID_FORMATS: Record<Schemas.NameIdFormat, Omit<SamlOption<string>, 'value'>> = {
-  'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress': {
-    label: 'Email address',
-    description: 'The user is identified by their email address. What most applications expect.',
-  },
-  'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent': {
-    label: 'Persistent',
-    description: 'A stable opaque identifier that stays the same across sessions.',
-  },
-  'urn:oasis:names:tc:SAML:2.0:nameid-format:transient': {
-    label: 'Transient',
-    description: 'A throwaway identifier, regenerated at every sign-in.',
-  },
-  'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified': {
-    label: 'Unspecified',
-    description: 'Let the application decide how to read the identifier.',
-  },
+const NAME_ID_FORMAT_KEYS: Record<Schemas.NameIdFormat, string> = {
+  'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress': 'email',
+  'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent': 'persistent',
+  'urn:oasis:names:tc:SAML:2.0:nameid-format:transient': 'transient',
+  'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified': 'unspecified',
 }
 
-const ATTRIBUTE_NAME_FORMATS: Record<
-  Schemas.SamlAttributeNameFormat,
-  Omit<SamlOption<string>, 'value'>
-> = {
-  'urn:oasis:names:tc:SAML:2.0:attrname-format:basic': {
-    label: 'Basic',
-    description: 'Plain attribute names such as email. The usual choice.',
-  },
-  'urn:oasis:names:tc:SAML:2.0:attrname-format:uri': {
-    label: 'URI',
-    description: 'Attribute names written as full URIs.',
-  },
-  'urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified': {
-    label: 'Unspecified',
-    description: 'Send no format hint to the application.',
-  },
+const ATTRIBUTE_NAME_FORMAT_KEYS: Record<Schemas.SamlAttributeNameFormat, string> = {
+  'urn:oasis:names:tc:SAML:2.0:attrname-format:basic': 'basic',
+  'urn:oasis:names:tc:SAML:2.0:attrname-format:uri': 'uri',
+  'urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified': 'unspecified',
 }
+
+const samlText = (path: string, options?: Record<string, unknown>) =>
+  translate(`common:saml.${path}`, options)
 
 function toOptions<TValue extends string>(
-  formats: Record<TValue, Omit<SamlOption<string>, 'value'>>,
+  group: string,
+  keys: Record<TValue, string>
 ): SamlOption<TValue>[] {
-  return (Object.keys(formats) as TValue[]).map((value) => ({ value, ...formats[value] }))
+  return (Object.keys(keys) as TValue[]).map((value) => ({
+    value,
+    get label() {
+      return samlText(`${group}.${keys[value]}.label`)
+    },
+    get description() {
+      return samlText(`${group}.${keys[value]}.description`)
+    },
+  }))
 }
 
-export const NAME_ID_FORMAT_OPTIONS = toOptions<Schemas.NameIdFormat>(NAME_ID_FORMATS)
+export const NAME_ID_FORMAT_OPTIONS = toOptions<Schemas.NameIdFormat>(
+  'name_id_format',
+  NAME_ID_FORMAT_KEYS
+)
 
-export const ATTRIBUTE_NAME_FORMAT_OPTIONS =
-  toOptions<Schemas.SamlAttributeNameFormat>(ATTRIBUTE_NAME_FORMATS)
+export const ATTRIBUTE_NAME_FORMAT_OPTIONS = toOptions<Schemas.SamlAttributeNameFormat>(
+  'attribute_name_format',
+  ATTRIBUTE_NAME_FORMAT_KEYS
+)
 
 export const DEFAULT_NAME_ID_FORMAT: Schemas.NameIdFormat =
   'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'
@@ -64,19 +58,24 @@ const CUSTOM_ATTRIBUTE_PREFIX = 'attribute:'
 
 export const CUSTOM_ATTRIBUTE_SOURCE = 'custom'
 
-const BUILT_IN_SOURCES = {
-  'user:email': 'Email',
-  'user:username': 'Username',
-  'user:first_name': 'First name',
-  'user:last_name': 'Last name',
-  'user:id': 'User ID',
+const BUILT_IN_SOURCE_KEYS = {
+  'user:email': 'email',
+  'user:username': 'username',
+  'user:first_name': 'first_name',
+  'user:last_name': 'last_name',
+  'user:id': 'id',
 } as const
 
-export type BuiltInAttributeSource = keyof typeof BUILT_IN_SOURCES
+export type BuiltInAttributeSource = keyof typeof BUILT_IN_SOURCE_KEYS
 
 export const BUILT_IN_SOURCE_OPTIONS = (
-  Object.keys(BUILT_IN_SOURCES) as BuiltInAttributeSource[]
-).map((value) => ({ value, label: BUILT_IN_SOURCES[value] }))
+  Object.keys(BUILT_IN_SOURCE_KEYS) as BuiltInAttributeSource[]
+).map((value) => ({
+  value,
+  get label() {
+    return samlText(`attribute_source.${BUILT_IN_SOURCE_KEYS[value]}`)
+  },
+}))
 
 export function isCustomAttributeSource(source: string): boolean {
   return source.startsWith(CUSTOM_ATTRIBUTE_PREFIX)
@@ -92,17 +91,21 @@ export function toCustomAttributeSource(key: string): string {
 
 export function describeAttributeSource(source: string): string {
   if (isCustomAttributeSource(source)) {
-    return `Custom attribute ${customAttributeKey(source)}`
+    return samlText('attribute_source.custom', { key: customAttributeKey(source) })
   }
-  return BUILT_IN_SOURCES[source as BuiltInAttributeSource] ?? source
+
+  const key = BUILT_IN_SOURCE_KEYS[source as BuiltInAttributeSource]
+  return key ? samlText(`attribute_source.${key}`) : source
 }
 
 export function describeNameIdFormat(format: string): string {
-  return NAME_ID_FORMATS[format as Schemas.NameIdFormat]?.label ?? format
+  const key = NAME_ID_FORMAT_KEYS[format as Schemas.NameIdFormat]
+  return key ? samlText(`name_id_format.${key}.label`) : format
 }
 
 export function describeAttributeNameFormat(format: string): string {
-  return ATTRIBUTE_NAME_FORMATS[format as Schemas.SamlAttributeNameFormat]?.label ?? format
+  const key = ATTRIBUTE_NAME_FORMAT_KEYS[format as Schemas.SamlAttributeNameFormat]
+  return key ? samlText(`attribute_name_format.${key}.label`) : format
 }
 
 export interface AttributeMapperDraft {

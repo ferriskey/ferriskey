@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from './button'
 
@@ -26,9 +27,10 @@ export default function SaveBar({
   description,
   actions,
   onCancel,
-  cancelLabel = 'Discard',
+  cancelLabel,
   className,
 }: SaveBarProps) {
+  const { t } = useTranslation()
   const prefersReducedMotion = useReducedMotion()
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -83,7 +85,7 @@ export default function SaveBar({
               <div className='flex shrink-0 items-center gap-2'>
                 {onCancel && (
                   <Button variant='ghost' size='sm' onClick={onCancel}>
-                    {cancelLabel}
+                    {cancelLabel ?? t('action.discard')}
                   </Button>
                 )}
                 {actions.map((action) => (

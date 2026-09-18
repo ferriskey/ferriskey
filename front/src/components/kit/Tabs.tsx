@@ -2,6 +2,12 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
+const TAB_BASE_CLASS =
+  'mb-0 flex cursor-pointer items-center border-b-2 pb-2 text-[13px] transition-colors'
+const TAB_ACTIVE_CLASS = 'border-fk-brand font-medium text-neutral-900 dark:text-neutral-100'
+const TAB_IDLE_CLASS =
+  'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
+
 export interface TabItem {
   key: string
   label: string
@@ -49,12 +55,7 @@ export function PageTabs({
             </>
           )
 
-          const shape = cn(
-            'mb-0 flex cursor-pointer items-center border-b-2 pb-2 text-[13px] transition-colors',
-            active
-              ? 'border-fk-brand font-medium text-neutral-900 dark:text-neutral-100'
-              : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'
-          )
+          const shape = cn(TAB_BASE_CLASS, active ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS)
 
           return tab.href ? (
             <Link

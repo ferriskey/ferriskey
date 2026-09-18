@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, CheckCircle2, LayoutGrid, List, Search } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import type { ChartTone } from './charts'
@@ -57,6 +58,13 @@ export interface ListingPageProps<T> {
   loading?: boolean
 }
 
+const ALL_FILTER_KEY = 'all'
+
+const VIEW_MODES = [
+  ['list', List],
+  ['cards', LayoutGrid],
+] as const
+
 const toneStyles = {
   ok: 'border-fk-success-border bg-fk-success-soft/50 text-fk-success',
   warn: 'border-fk-amber-border bg-fk-amber-soft/50 text-fk-amber',
@@ -72,7 +80,7 @@ export function ListingPage<T>({
   filters,
   server,
   searchScopeHint,
-  searchPlaceholder = 'Search…',
+  searchPlaceholder,
   querySyntax,
   searchIn,
   rows,
@@ -87,9 +95,10 @@ export function ListingPage<T>({
   defaultView = 'list',
   loading = false,
 }: ListingPageProps<T>) {
+  const { t } = useTranslation()
   const [view, setView] = useState<ViewMode>(defaultView)
   const [localQuery, setLocalQuery] = useState('')
-  const [localFilter, setLocalFilter] = useState<string>('all')
+  const [localFilter, setLocalFilter] = useState<string>(ALL_FILTER_KEY)
 
   const tier = useLayoutTier()
   const effectiveView = tier === 'phone' ? 'cards' : view
@@ -112,7 +121,7 @@ export function ListingPage<T>({
     return out
   }, [rows, filters, localFilter, localQuery, searchIn, server, serverSearch])
 
-  const narrowed = Boolean(query.trim()) || filter !== 'all'
+  const narrowed = Boolean(query.trim()) || filter !== ALL_FILTER_KEY
   const filteredOut =
     narrowed && filtered.length === 0 && (server ? true : rows.length > 0)
 
@@ -126,9 +135,6 @@ export function ListingPage<T>({
       >
         <div className='min-w-0'>
           <h1 className={tokens.header.title}>{title}</h1>
-          {/* Le style FerrisKey garde la description : il emprunte la densité
-              du compact, pas son dépouillement — sur un listing, la ligne qui
-              dit ce que la ressource est vaut la hauteur qu'elle coûte. */}
           {description && (
             <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>{description}</p>
           )}
@@ -137,8 +143,6 @@ export function ListingPage<T>({
       </div>
 
       <div className={tokens.page.sectionGap}>
-        {/* FK-14 : ligne unique — le détail passe en suffixe grisé, l'action en
-            lien. On garde l'information sans la hauteur d'un encart plein. */}
         {alerts && alerts.length > 0 && (
           <ul className='space-y-1'>
             {alerts.map((a) => (
@@ -188,7 +192,7 @@ export function ListingPage<T>({
               placeholder={
                 tokens.toolbar.showQuerySyntax && querySyntax
                   ? querySyntax
-                  : searchPlaceholder
+                  : (searchPlaceholder ?? t('data_view.search_placeholder'))
               }
               className={cn(
                 'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
@@ -201,7 +205,7 @@ export function ListingPage<T>({
 
           {filters && filters.length > 0 && (
             <div className='flex gap-1'>
-              {[{ key: 'all', label: 'All' }, ...filters].map((f) => (
+              {[{ key: ALL_FILTER_KEY, label: t('data_view.filter_all') }, ...filters].map((f) => (
                 <button
                   key={f.key}
                   type='button'
@@ -221,17 +225,12 @@ export function ListingPage<T>({
 
           {tokens.toolbar.showViewToggle && tier !== 'phone' && (
             <div className='flex rounded-md border border-fk-line p-0.5'>
-              {(
-                [
-                  ['list', List, 'List view'],
-                  ['cards', LayoutGrid, 'Card view'],
-                ] as const
-              ).map(([mode, Icon, label]) => (
+              {VIEW_MODES.map(([mode, Icon]) => (
                 <button
                   key={mode}
                   type='button'
                   onClick={() => setView(mode)}
-                  aria-label={label}
+                  aria-label={t(`data_view.view_mode.${mode}`)}
                   aria-pressed={view === mode}
                   className={cn(
                     'grid size-6 cursor-pointer place-items-center rounded transition-colors',
@@ -260,12 +259,12 @@ export function ListingPage<T>({
           view={effectiveView}
           loading={loading}
           aggregates={aggregates}
-          emptyLabel={filteredOut ? 'No match' : emptyLabel}
+          emptyLabel={filteredOut ? t('data_view.no_match') : emptyLabel}
           emptyHint={
             filteredOut
               ? server
-                ? 'No entry matches the current search and filter.'
-                : `${rows.length} ${rows.length > 1 ? 'entries exist' : 'entry exists'} but ${rows.length > 1 ? 'are' : 'is'} hidden by the current filter.`
+                ? t('data_view.no_match_server_hint')
+                : t('data_view.hidden_by_filter', { count: rows.length })
               : emptyHint
           }
           emptyAction={
@@ -275,10 +274,10 @@ export function ListingPage<T>({
                   variant='outline'
                   onClick={() => {
                     setQuery('')
-                    setFilter('all')
+                    setFilter(ALL_FILTER_KEY)
                   }}
                 >
-                  Clear filter
+                  {t('data_view.clear_filter')}
                 </Button>
                 {emptyAction}
               </div>
@@ -291,8 +290,8 @@ export function ListingPage<T>({
         {!loading && rows.length > 0 && (
           <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
             {filtered.length === rows.length
-              ? `${rows.length} ${rows.length > 1 ? 'entries' : 'entry'}`
-              : `${filtered.length} of ${rows.length}`}
+              ? t('data_view.entry_count', { count: rows.length })
+              : t('data_view.shown_of_total', { shown: filtered.length, total: rows.length })}
           </p>
         )}
       </div>

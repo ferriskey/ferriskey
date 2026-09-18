@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { PostEndpoints, Schemas } from './api.client'
 import { apiErrorReason, errorMessageFromBody, type ApiRequestError } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
 
 export const SESSION_EXPIRED_REASON = 'session_expired'
 
@@ -121,9 +122,9 @@ export const useAuthenticateMutation = () => {
         error.data = errorBody
 
         if (apiErrorReason(error) === SESSION_EXPIRED_REASON) {
-          toast.error('Your login session expired. Please restart the sign-in.', {
+          toast.error(translate('common:session.login_expired'), {
             action: {
-              label: 'Reload',
+              label: translate('common:action.reload'),
               onClick: () => {
                 window.location.reload()
               },

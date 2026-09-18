@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 import {
   AlertDialog,
@@ -12,6 +13,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from './button'
 import { cn } from '@/lib/utils'
 import { toConfirmToken } from './confirm-token'
+
+const PLACEHOLDER_LINE = '.'
 
 export interface ConfirmDestructiveDialogProps {
   open: boolean
@@ -32,10 +35,11 @@ export function ConfirmDestructiveDialog({
   title,
   description,
   consequences,
-  confirmLabel = 'Delete',
+  confirmLabel,
   pending = false,
   onConfirm,
 }: ConfirmDestructiveDialogProps) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState('')
 
   const token = toConfirmToken(resourceName)
@@ -80,7 +84,11 @@ export function ConfirmDestructiveDialog({
 
         <div className='space-y-1.5'>
           <label htmlFor='confirm-token' className='block text-sm text-neutral-700 dark:text-neutral-300'>
-            Type <span className='font-mono-ui text-fk-danger'>{token}</span> to confirm.
+            <Trans
+              i18nKey='confirm_dialog.type_to_confirm'
+              values={{ token }}
+              components={{ token: <span className='font-mono-ui text-fk-danger' /> }}
+            />
           </label>
           <Input
             id='confirm-token'
@@ -104,13 +112,13 @@ export function ConfirmDestructiveDialog({
               mismatch ? 'text-fk-danger' : 'text-transparent select-none'
             )}
           >
-            {mismatch ? 'This does not match the name above.' : '.'}
+            {mismatch ? t('confirm_dialog.mismatch') : PLACEHOLDER_LINE}
           </p>
         </div>
 
         <AlertDialogFooter>
           <Button variant='ghost' size='sm' onClick={() => close(false)}>
-            Cancel
+            {t('action.cancel')}
           </Button>
           <Button
             size='sm'
@@ -118,7 +126,7 @@ export function ConfirmDestructiveDialog({
             onClick={confirm}
             className='bg-fk-danger text-white hover:bg-fk-danger/90'
           >
-            {confirmLabel}
+            {confirmLabel ?? t('action.delete')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

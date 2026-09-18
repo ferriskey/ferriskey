@@ -33,10 +33,7 @@ export default function UpdatePasswordFeature() {
 
   const { data: passwordPolicy } = usePublicPasswordPolicy(realm_name)
   const schema = useMemo(() => buildUpdatePasswordSchema(passwordPolicy), [passwordPolicy])
-  const requirements = useMemo(
-    () => passwordPolicyRequirements(passwordPolicy),
-    [passwordPolicy]
-  )
+  const requirements = passwordPolicyRequirements(passwordPolicy)
 
   const form = useForm<UpdatePasswordSchema>({
     resolver: zodResolver(schema),

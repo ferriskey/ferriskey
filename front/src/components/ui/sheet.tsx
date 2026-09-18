@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,8 @@ function SheetContent({
   label,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { label: ReactNode }) {
+  const { t } = useTranslation()
+
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
@@ -42,7 +45,7 @@ function SheetContent({
         <div className='flex h-11 shrink-0 items-center justify-between border-b border-fk-line px-3'>
           <SheetTitle>{label}</SheetTitle>
           <DialogPrimitive.Close
-            aria-label='Close navigation'
+            aria-label={t('shell.close_navigation')}
             className='grid size-7 cursor-pointer place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-500 dark:hover:bg-fk-raised dark:hover:text-neutral-100'
           >
             <X className='size-4' />

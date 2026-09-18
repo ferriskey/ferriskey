@@ -1,4 +1,5 @@
 import type { Schemas } from '@/api/api.client'
+import { translate } from '@/lib/i18n'
 
 export type ClientProtocol = Schemas.AuthProtocol
 
@@ -8,18 +9,22 @@ interface ClientProtocolOption {
   description: string
 }
 
-export const CLIENT_PROTOCOL_OPTIONS: ClientProtocolOption[] = [
-  {
-    value: 'openid-connect',
-    label: 'OpenID Connect',
-    description: 'Token-based sign-in for web apps, SPAs, mobile apps and APIs.',
+const PROTOCOL_KEYS: Record<ClientProtocol, string> = {
+  'openid-connect': 'oidc',
+  saml: 'saml',
+}
+
+export const CLIENT_PROTOCOL_OPTIONS: ClientProtocolOption[] = (
+  Object.keys(PROTOCOL_KEYS) as ClientProtocol[]
+).map((value) => ({
+  value,
+  get label() {
+    return translate(`common:client_protocol.${PROTOCOL_KEYS[value]}.label`)
   },
-  {
-    value: 'saml',
-    label: 'SAML 2.0',
-    description: 'Assertion-based sign-in for applications that only speak SAML.',
+  get description() {
+    return translate(`common:client_protocol.${PROTOCOL_KEYS[value]}.description`)
   },
-]
+}))
 
 export const DEFAULT_CLIENT_PROTOCOL: ClientProtocol = 'openid-connect'
 

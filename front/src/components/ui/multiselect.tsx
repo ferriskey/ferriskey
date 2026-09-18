@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useEffect } from 'react'
 import { Command as CommandPrimitive, useCommandState } from 'cmdk'
 import { XIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
@@ -183,6 +184,7 @@ const MultipleSelector = ({
   inputProps,
   hideClearAllButton = false,
 }: MultipleSelectorProps) => {
+  const { t } = useTranslation()
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [open, setOpen] = React.useState(false)
   const [onScrollbar, setOnScrollbar] = React.useState(false)
@@ -455,7 +457,7 @@ const MultipleSelector = ({
                     e.stopPropagation()
                   }}
                   onClick={() => handleUnselect(option)}
-                  aria-label='Remove'
+                  aria-label={t('action.remove')}
                 >
                   <XIcon size={14} aria-hidden='true' />
                 </button>
@@ -510,7 +512,7 @@ const MultipleSelector = ({
                 selected.filter((s) => s.fixed).length === selected.length) &&
               'hidden'
             )}
-            aria-label='Clear all'
+            aria-label={t('action.clear_all')}
           >
             <XIcon size={16} aria-hidden='true' />
           </button>

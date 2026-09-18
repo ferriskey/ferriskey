@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, ChevronsUpDown, Plus, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -12,6 +13,7 @@ export function RealmPicker({
   realm: string
   hrefFor: (realmName: string) => string
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { userRealms } = useRealmStore()
   const [open, setOpen] = useState(false)
@@ -43,7 +45,7 @@ export function RealmPicker({
               type='search'
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Search a realm…'
+              placeholder={t('shell.realm_picker.search_placeholder')}
               className='h-8 w-full bg-transparent text-[13px] outline-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500'
             />
           </label>
@@ -72,7 +74,7 @@ export function RealmPicker({
             </ul>
           ) : (
             <p className='px-3 py-4 text-center text-[13px] text-neutral-500 dark:text-neutral-400'>
-              No realm for “{query}”
+              {t('shell.realm_picker.no_match', { query })}
             </p>
           )}
           <div className='border-t border-fk-line p-1'>
@@ -87,7 +89,7 @@ export function RealmPicker({
               <span className='grid size-5 shrink-0 place-items-center rounded border border-fk-line'>
                 <Plus className='size-3' />
               </span>
-              Create realm
+              {t('shell.realm_picker.create')}
             </button>
           </div>
         </PopoverContent>

@@ -6,6 +6,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 import { useGetOwnLocale, useGetRealmLocaleSettings, useUpdateOwnLocale } from '@/api/locale.api'
 import {
   FALLBACK_LOCALE,
+  SUPPORTED_LOCALES,
   applyLocalePreferences,
   setLocale as applyLocale,
   type SupportedLocale,
@@ -61,9 +62,10 @@ export function useLocaleSync(): void {
         userLocale: isAuthenticated ? accountLocale : null,
         realmDefaultLocale,
       })
-      const allowed = realmLocales.includes(resolved)
-        ? resolved
-        : (realmDefaultLocale ?? FALLBACK_LOCALE)
+      const allowed =
+        isAuthenticated || realmLocales.includes(resolved)
+          ? resolved
+          : (realmDefaultLocale ?? FALLBACK_LOCALE)
 
       if (allowed !== resolved) {
         await applyLocale(allowed)
@@ -95,16 +97,18 @@ export function useLocale(): UseLocaleResult {
 
   const defaultLocale = realmDefaultLocale ?? FALLBACK_LOCALE
 
+  const offeredLocales = isAuthenticated ? SUPPORTED_LOCALES : realmLocales
+
   const changeLocale = useCallback(
     async (next: SupportedLocale) => {
-      const target = realmLocales.includes(next) ? next : defaultLocale
+      const target = offeredLocales.includes(next) ? next : defaultLocale
       pendingChoice = target
 
       try {
         await applyLocale(target)
         commitLocale(target)
 
-        if (isAuthenticated && realm) {
+        if (isAuthenticated && realm && realmLocales.includes(target)) {
           await saveAccountLocale({ realm, locale: target }).catch((error: unknown) => {
             toast.error(apiErrorMessage(error))
           })
@@ -113,17 +117,25 @@ export function useLocale(): UseLocaleResult {
         pendingChoice = null
       }
     },
-    [commitLocale, defaultLocale, isAuthenticated, realm, realmLocales, saveAccountLocale]
+    [
+      commitLocale,
+      defaultLocale,
+      isAuthenticated,
+      offeredLocales,
+      realm,
+      realmLocales,
+      saveAccountLocale,
+    ]
   )
 
   return useMemo(
     () => ({
       locale,
-      locales: realmLocales,
+      locales: offeredLocales,
       defaultLocale,
       isSaving: isPending,
       setLocale: changeLocale,
     }),
-    [changeLocale, defaultLocale, isPending, locale, realmLocales]
+    [changeLocale, defaultLocale, isPending, locale, offeredLocales]
   )
 }

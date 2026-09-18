@@ -18,46 +18,49 @@ import {
 } from 'lucide-react'
 
 export interface NavItem {
-  label: string
   to: string
   icon: LucideIcon
   disabled?: boolean
 }
 
 export interface NavSection {
-  title: string
+  key: string
   items: NavItem[]
 }
 
 export const navSections: NavSection[] = [
   {
-    title: 'Core',
+    key: 'core',
     items: [
-      { label: 'Overview', to: 'overview', icon: Gauge },
-      { label: 'Clients', to: 'clients', icon: LayoutGrid },
-      { label: 'Users', to: 'users', icon: Users },
-      { label: 'Roles', to: 'roles', icon: Shield },
-      { label: 'Client Scopes', to: 'client-scopes', icon: KeyRound },
-      { label: 'Organizations', to: 'organizations', icon: Building2 },
+      { to: 'overview', icon: Gauge },
+      { to: 'clients', icon: LayoutGrid },
+      { to: 'users', icon: Users },
+      { to: 'roles', icon: Shield },
+      { to: 'client-scopes', icon: KeyRound },
+      { to: 'organizations', icon: Building2 },
     ],
   },
   {
-    title: 'Configuration',
+    key: 'configuration',
     items: [
-      { label: 'Realm Settings', to: 'realm-settings', icon: Settings },
-      { label: 'Portal', to: 'portal', icon: Palette },
-      { label: 'Emails', to: 'email-templates', icon: Mail },
-      { label: 'Webhooks', to: 'webhooks', icon: Webhook },
-      { label: 'Identity Providers', to: 'identity-providers', icon: Link2 },
-      { label: 'User Federation', to: 'user-federation', icon: Database },
-      { label: 'Authentication', to: 'authentication', icon: Fingerprint, disabled: true },
+      { to: 'realm-settings', icon: Settings },
+      { to: 'portal', icon: Palette },
+      { to: 'email-templates', icon: Mail },
+      { to: 'webhooks', icon: Webhook },
+      { to: 'identity-providers', icon: Link2 },
+      { to: 'user-federation', icon: Database },
+      { to: 'authentication', icon: Fingerprint, disabled: true },
     ],
   },
   {
-    title: 'Security',
+    key: 'security',
     items: [
-      { label: 'Sea Watch', to: 'seawatch', icon: Eye },
-      { label: 'Compass', to: 'compass', icon: Compass },
+      { to: 'seawatch', icon: Eye },
+      { to: 'compass', icon: Compass },
     ],
   },
 ]
+
+export const navSegmentKey = (segment: string) => `nav.segment.${segment}`
+
+export const navSectionKey = (key: string) => `nav.section.${key}`

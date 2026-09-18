@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ export function ConfirmDeleteAlert({
   onCancel,
   confirmText,
 }: ConfirmDeleteAlertProps) {
+  const { t } = useTranslation()
   const [inputValue, setInputValue] = useState('')
 
   const isConfirmDisabled = confirmText ? inputValue !== confirmText : false
@@ -53,7 +55,11 @@ export function ConfirmDeleteAlert({
         {confirmText && (
           <div className='flex flex-col gap-2'>
             <p className='text-sm text-muted-foreground'>
-              Type <span className='font-semibold'>{confirmText}</span> to confirm.
+              <Trans
+                i18nKey='confirm_dialog.type_to_confirm'
+                values={{ token: confirmText }}
+                components={{ token: <span className='font-semibold' /> }}
+              />
             </p>
             <Input
               value={inputValue}
@@ -64,14 +70,14 @@ export function ConfirmDeleteAlert({
         )}
         <AlertDialogFooter>
           <AlertDialogCancel className='outline-none cursor-pointer'>
-            Cancel
+            {t('action.cancel')}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isConfirmDisabled}
             className='bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-1 rounded-md text-white ml-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
           >
-            Confirm
+            {t('action.confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

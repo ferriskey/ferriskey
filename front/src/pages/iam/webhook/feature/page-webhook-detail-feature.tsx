@@ -195,7 +195,7 @@ export default function PageWebhookDetailFeature() {
             return
           }
 
-          toast.error(apiErrorMessage(error, 'Failed to update webhook'))
+          toast.error(apiErrorMessage(error, t('detail.toast.update_failed')))
         },
       }
     )

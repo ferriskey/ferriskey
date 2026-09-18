@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   BadgeCheck,
@@ -21,7 +22,11 @@ import { ACCOUNT_URL } from '@/routes/router'
 import { usePanel, useSwitchPanel } from './ciam/use-console-switch'
 import { getInitials } from './initials'
 
+const ADMIN_PANEL = 'admin'
+const CONSOLE_PANEL = 'console'
+
 export function AccountMenu() {
+  const { t } = useTranslation()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { realm_name = 'master' } = useParams<RouterParams>()
@@ -35,7 +40,7 @@ export function AccountMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type='button'
-          aria-label='Account'
+          aria-label={t('shell.account.trigger')}
           className='grid size-8 cursor-pointer place-items-center rounded-md bg-fk-brand text-xs font-semibold text-white'
         >
           {getInitials(user.preferred_username)}
@@ -62,30 +67,30 @@ export function AccountMenu() {
           onClick={() => navigate(ACCOUNT_URL(realm_name))}
         >
           <BadgeCheck className='size-4' />
-          Account
+          {t('shell.account.account')}
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
           <DropdownMenuLabel className='px-1.5 py-1 text-[11px] font-medium text-neutral-400 dark:text-neutral-500'>
-            Panel mode
+            {t('shell.account.panel_mode')}
           </DropdownMenuLabel>
           <DropdownMenuItem
             className='gap-2 px-1.5 py-1 text-[13px]'
-            onClick={() => switchPanel('admin')}
+            onClick={() => switchPanel(ADMIN_PANEL)}
           >
             <Settings2 className='size-4' />
-            Admin
-            {panel === 'admin' && <Check className='ml-auto size-4' />}
+            {t('shell.account.panel_admin')}
+            {panel === ADMIN_PANEL && <Check className='ml-auto size-4' />}
           </DropdownMenuItem>
           <DropdownMenuItem
             className='gap-2 px-1.5 py-1 text-[13px]'
-            onClick={() => switchPanel('console')}
+            onClick={() => switchPanel(CONSOLE_PANEL)}
           >
             <LayoutGrid className='size-4' />
-            Console
-            {panel === 'console' && <Check className='ml-auto size-4' />}
+            {t('shell.account.panel_console')}
+            {panel === CONSOLE_PANEL && <Check className='ml-auto size-4' />}
           </DropdownMenuItem>
         </DropdownMenuGroup>
 
@@ -93,7 +98,7 @@ export function AccountMenu() {
 
         <DropdownMenuItem className='gap-2 px-1.5 py-1 text-[13px]' onClick={logout}>
           <LogOut className='size-4' />
-          Log out
+          {t('shell.account.logout')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

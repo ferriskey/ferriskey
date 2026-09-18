@@ -1,4 +1,5 @@
 import { useEffect, useState, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Outlet, useParams } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useGetUserRealmsQuery } from '@/api/realm.api'
@@ -15,6 +16,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { NavTree } from '../nav-tree'
 
 export function AppShell() {
+  const { t } = useTranslation()
   const crumbs = useCrumbs()
   const { collapsed, toggle } = useSidebarCollapsed()
   const { realm_name } = useParams<RouterParams>()
@@ -24,7 +26,8 @@ export function AppShell() {
   })
   const tier = useLayoutTier()
   const [navOpen, setNavOpen] = useState(false)
-  const base = REALM_URL(realm_name ?? 'master')
+  const realm = realm_name ?? 'master'
+  const base = REALM_URL(realm)
 
   useEffect(() => {
     if (userRealmsResponse) setUserRealms(userRealmsResponse.data)
@@ -45,8 +48,8 @@ export function AppShell() {
     <TooltipProvider delayDuration={200}>
       <div className='flex h-screen flex-col bg-white dark:bg-fk-surface text-fk-ink'>
         <TopBar
-          realm={realm_name ?? 'master'}
-          homeHref={`${REALM_URL(realm_name ?? 'master')}/overview`}
+          realm={realm}
+          homeHref={`${base}/overview`}
           realmHrefFor={(name) => `${REALM_URL(name)}/overview`}
           onOpenNav={tier === 'desktop' ? undefined : () => setNavOpen(true)}
         >
@@ -59,7 +62,7 @@ export function AppShell() {
           </main>
         </div>
         <Sheet open={navOpen && tier !== 'desktop'} onOpenChange={setNavOpen}>
-          <SheetContent label='Navigation'>
+          <SheetContent label={t('shell.navigation')}>
             <div onClick={closeOnNavigate}>
               <NavTree base={base} collapsed={false} />
             </div>

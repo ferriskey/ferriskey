@@ -1,10 +1,13 @@
 import * as React from 'react'
 import * as RechartsPrimitive from 'recharts'
 
+import { useTranslation } from 'react-i18next'
+
 import { cn } from '@/lib/utils'
 
-// Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: '', dark: '.dark' } as const
+
+const FALLBACK_SERIES_KEY = 'value'
 
 export type ChartConfig = {
   [k in string]: {
@@ -148,6 +151,7 @@ function ChartTooltipContent({
   nameKey,
   labelKey,
 }: ChartTooltipContentProps) {
+  const { t } = useTranslation()
   const { config } = useChart()
 
   const tooltipLabel = React.useMemo(() => {
@@ -156,7 +160,7 @@ function ChartTooltipContent({
     }
 
     const [item] = payload
-    const key = `${labelKey || item?.dataKey || item?.name || 'value'}`
+    const key = `${labelKey || item?.dataKey || item?.name || FALLBACK_SERIES_KEY}`
     const itemConfig = getPayloadConfigFromPayload(config, item, key)
     const value =
       !labelKey && typeof label === 'string'
@@ -204,7 +208,7 @@ function ChartTooltipContent({
         {payload
           .filter((item: ChartPayloadItem) => item.type !== 'none')
           .map((item: ChartPayloadItem, index: number) => {
-            const key = `${nameKey || item.name || item.dataKey || 'value'}`
+            const key = `${nameKey || item.name || item.dataKey || FALLBACK_SERIES_KEY}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color || item.payload?.fill || item.color
 
@@ -258,7 +262,7 @@ function ChartTooltipContent({
                       </div>
                       {item.value && (
                         <span className='text-foreground font-mono font-medium tabular-nums'>
-                          {item.value.toLocaleString()}
+                          {t('number.value', { value: item.value })}
                         </span>
                       )}
                     </div>
@@ -306,7 +310,7 @@ function ChartLegendContent({
       {payload
         .filter((item: ChartPayloadItem) => item.type !== 'none')
         .map((item: ChartPayloadItem) => {
-          const key = `${nameKey || item.dataKey || 'value'}`
+          const key = `${nameKey || item.dataKey || FALLBACK_SERIES_KEY}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
           return (

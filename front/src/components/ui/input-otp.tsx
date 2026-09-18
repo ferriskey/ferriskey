@@ -4,6 +4,8 @@ import { MinusIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+const OTP_CONTAINER_CLASS = 'flex items-center gap-2 has-disabled:opacity-50'
+
 function InputOTP({
   className,
   containerClassName,
@@ -14,10 +16,7 @@ function InputOTP({
   return (
     <OTPInput
       data-slot='input-otp'
-      containerClassName={cn(
-        'flex items-center gap-2 has-disabled:opacity-50',
-        containerClassName
-      )}
+      containerClassName={cn(OTP_CONTAINER_CLASS, containerClassName)}
       className={cn('disabled:cursor-not-allowed', className)}
       {...props}
     />

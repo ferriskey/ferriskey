@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { Button } from './button'
 
@@ -22,6 +23,7 @@ export interface FloatingActionBarProps {
 }
 
 export default function FloatingActionBar(props: FloatingActionBarProps) {
+  const { t } = useTranslation()
   const {
     show,
     icon,
@@ -29,7 +31,7 @@ export default function FloatingActionBar(props: FloatingActionBarProps) {
     description,
     actions,
     onCancel,
-    cancelLabel = 'Cancel',
+    cancelLabel,
     className = ''
   } = props
   const prefersReducedMotion = useReducedMotion()
@@ -101,7 +103,7 @@ export default function FloatingActionBar(props: FloatingActionBarProps) {
                     onClick={onCancel}
                     className='min-h-10 flex-1 transition-[color,background-color,box-shadow,transform] active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 sm:flex-none'
                   >
-                    {cancelLabel}
+                    {cancelLabel ?? t('action.cancel')}
                   </Button>
                 )}
 

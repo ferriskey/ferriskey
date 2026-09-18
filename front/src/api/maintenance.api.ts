@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import { translate } from '@/lib/i18n'
 
 export function useGetClientWhitelist({
   realm = 'master',
@@ -46,7 +47,7 @@ export function useAddClientWhitelistEntry() {
         { path: { realm_name: variables.path.realm_name, client_id: variables.path.client_id } }
       ).queryKey
 
-      toast.success('Whitelist entry added')
+      toast.success(translate('common:toast.maintenance.client_entry_added'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -65,7 +66,7 @@ export function useRemoveClientWhitelistEntry() {
         { path: { realm_name: variables.path.realm_name, client_id: variables.path.client_id } }
       ).queryKey
 
-      toast.success('Whitelist entry removed')
+      toast.success(translate('common:toast.maintenance.client_entry_removed'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -94,7 +95,7 @@ export function useAddRealmWhitelistEntry() {
         { path: { realm_name: variables.path.realm_name } }
       ).queryKey
 
-      toast.success('Realm whitelist entry added')
+      toast.success(translate('common:toast.maintenance.realm_entry_added'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -113,7 +114,7 @@ export function useRemoveRealmWhitelistEntry() {
         { path: { realm_name: variables.path.realm_name } }
       ).queryKey
 
-      toast.success('Realm whitelist entry removed')
+      toast.success(translate('common:toast.maintenance.realm_entry_removed'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })

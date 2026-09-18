@@ -1,5 +1,7 @@
 language:
   switcher_label: Language
+  search_placeholder: Search a language…
+  no_match: 'No language matches “{{query}}”.'
   names:
     en: English
     zh-CN: 简体中文
@@ -15,3 +17,467 @@ relative_time:
   # Abbreviated "days".
   days_one: '{{count}} d ago'
   days_other: '{{count}} d ago'
+
+# Generic verbs. They are the default labels of the shared components, so the same string
+# appears on dozens of screens — keep them short, imperative and interchangeable.
+action:
+  add: Add
+  cancel: Cancel
+  clear_all: Clear all
+  close: Close
+  confirm: Confirm
+  continue: Continue
+  delete: Delete
+  discard: Discard
+  reload: Reload
+  remove: Remove
+  sign_in: Sign in
+
+state:
+  enabled: Enabled
+  disabled: Disabled
+
+# A raw counter rendered on its own. The "number" formatter applies the digit grouping of the
+# active locale — do not replace it with a bare {{value}}.
+number:
+  value: '{{value, number}}'
+
+work_in_progress: This feature is under development. Please check back later.
+
+# Application shell: top bar, sidebar, account menu and realm switcher.
+shell:
+  navigation: Navigation
+  open_navigation: Open navigation
+  close_navigation: Close navigation
+  sidebar:
+    # {{version}} is the release string, never a number. Keep the "v" prefix if the language uses one.
+    version: 'v{{version}}'
+    expand_hint: Expand navigation
+    collapse_hint: Collapse navigation
+    # "⌘B" is the keyboard shortcut; leave the symbol untouched.
+    expand_shortcut: Expand · ⌘B
+    collapse_shortcut: Collapse · ⌘B
+  theme:
+    label: Theme
+    light: Light
+    dark: Dark
+    system: System
+  account:
+    trigger: Account
+    account: Account
+    panel_mode: Panel mode
+    panel_admin: Admin
+    panel_console: Console
+    logout: Log out
+  realm_picker:
+    search_placeholder: Search a realm…
+    no_match: No realm for “{{query}}”
+    create: Create realm
+
+# Administration console navigation. The same labels title the sidebar entries and the
+# breadcrumbs, and the breadcrumb renders them lowercased — write them in sentence case.
+nav:
+  not_implemented: '{{label}} — not implemented yet'
+  section:
+    core: Core
+    configuration: Configuration
+    security: Security
+  segment:
+    overview: Overview
+    clients: Clients
+    users: Users
+    roles: Roles
+    client-scopes: Client Scopes
+    organizations: Organizations
+    identity-providers: Identity Providers
+    user-federation: User Federation
+    realm-settings: Realm Settings
+    email-templates: Emails
+    webhooks: Webhooks
+    portal: Portal
+    authentication: Authentication
+    # "Sea Watch" is the name of the FerrisKey audit module, "Compass" the name of the
+    # authentication-tracing module. Translate them only if the product names are localised.
+    seawatch: Sea Watch
+    compass: Compass
+    settings: Settings
+    permissions: Permissions
+    credentials: Credentials
+    mappers: Protocol Mappers
+    scopes: Scopes
+    role-mapping: Role mapping
+    attributes: Attributes
+    sessions: Sessions
+    account: Account
+    theme: Theme
+    sync: Sync
+    themes: Themes
+    layouts: Layouts
+    pages: Pages
+    events: Events
+    deliveries: Deliveries
+    tokens: Tokens
+    login: Login
+    general: General
+    password-policy: Password Policy
+    # Last segment of a creation URL — the crumb of a resource that does not exist yet.
+    create: New
+
+# Customer console navigation. Each entry has a label and the one-line description shown
+# underneath it in the section sidebar.
+console_nav:
+  section:
+    activity: Activity
+    users: User management
+    applications: Applications
+    auth: Authentication
+    branding: Branding
+  item:
+    live:
+      label: Live
+      description: Sign-ups and logins as they happen
+    logs:
+      label: Logs & events
+      description: Searchable event feed
+    sessions:
+      label: Sessions
+      description: Active devices
+    messages:
+      label: Message delivery
+      description: Emails and webhooks
+    identities:
+      label: Identities
+      description: Customer accounts
+    organizations:
+      label: Organizations
+      description: B2B grouping
+    roles:
+      label: Roles
+      description: Permissions and policies
+    all:
+      label: All applications
+      description: Mobile, SPA, web, M2M
+    sign-in-methods:
+      label: Sign-in methods
+      description: Passkey, magic link, MFA
+    identity-providers:
+      label: Identity providers
+      description: Social and SSO
+    password-policy:
+      label: Password policy
+      description: Strength requirements
+    email-templates:
+      label: Email templates
+      description: Transactional emails
+    themes:
+      label: Themes
+      description: Portal appearance
+    layouts:
+      label: Layouts
+      description: Portal page structures
+
+# Listings and tables, shared by every resource screen.
+data_view:
+  search_placeholder: Search…
+  filter_all: All
+  view_mode:
+    list: List view
+    cards: Card view
+  select_all: Select all
+  # {{label}} is the row's own name — never translated, it comes from the data.
+  select_row: 'Select {{label}}'
+  select_row_generic: Select row
+  open_menu: Open menu
+  actions: Actions
+  no_results: No results
+  no_result_found: No result found
+  no_data: No data available.
+  no_match: No match
+  no_match_server_hint: No entry matches the current search and filter.
+  hidden_by_filter_one: '{{count}} entry exists but is hidden by the current filter.'
+  hidden_by_filter_other: '{{count}} entries exist but are hidden by the current filter.'
+  clear_filter: Clear filter
+  entry_count_one: '{{count}} entry'
+  entry_count_other: '{{count}} entries'
+  # Neither number inflects the sentence — they are a slice and a total, not a count.
+  shown_of_total: '{{shown}} of {{total}}'
+  pagination:
+    # <num> wraps each figure in its own emphasis span. Keep the three tags, move them freely.
+    range: Showing <num>{{from}}</num> to <num>{{to}}</num> of <num>{{total}}</num> results
+    page: Page <num>{{current}}</num> of <num>{{total}}</num>
+    previous: Previous page
+    next: Next page
+  bulk:
+    selected_one: '{{count}} item selected'
+    selected_other: '{{count}} items selected'
+    ready_hint: Ready to delete?
+    confirm_hint: Click confirm to delete permanently
+
+entity_picker:
+  search_placeholder: Search…
+  no_match: No match.
+  empty: None configured.
+  exhausted: Everything is already added.
+  # {{label}} is the entry's own name — it comes from the data and stays untranslated.
+  remove: 'Remove {{label}}'
+
+form:
+  min_selected: At least one entry is required.
+  # {{value}} is the chip's raw text, usually a URL or an identifier.
+  chip_remove: 'Remove {{value}}'
+
+# Destructive confirmations. The administrator retypes the resource name before the button unlocks.
+confirm_dialog:
+  # <token> wraps the name to retype. Keep the tag around the placeholder.
+  type_to_confirm: Type <token>{{token}}</token> to confirm.
+  mismatch: This does not match the name above.
+
+realm_dialog:
+  title: Create a realm
+  description: >-
+    A realm owns its own users, credentials, roles and clients. Realms are isolated from one
+    another.
+  name:
+    label: Name
+    description: Used in URLs and tokens. It cannot be changed later.
+  display_name:
+    label: Display name
+    description: Shown to users on the login pages. Follows the name until you edit it.
+  submit: Create realm
+  submit_pending: Creating…
+  validation:
+    name_required: A realm name is required
+    name_charset: Only letters, digits, hyphens and underscores are allowed
+    display_name_length: Display name must be at most 255 characters
+  toast:
+    created: 'Realm {{name}} created'
+    create_failed: Failed to create realm
+
+duration:
+  unit:
+    seconds: Seconds
+    minutes: Minutes
+    hours: Hours
+    days: Days
+
+chart:
+  series:
+    logins: Logins
+    failures: Failures
+
+# Query builder. The operator names read as the middle of a sentence — "status is not any of" —
+# so keep them lowercase and verbal.
+filters:
+  add: Add filter
+  search_fields: Search fields...
+  no_fields: No fields found.
+  no_results: No results found.
+  select: Select...
+  # Suffix after a count of chosen values, as in "3 selected".
+  selected: selected
+  tag_hint: Type and press Enter to add tag
+  boolean:
+    'true': 'True'
+    'false': 'False'
+  range:
+    min: Min
+    max: Max
+    to: to
+  group:
+    selected: Selected
+    fields: Fields
+  operator:
+    is: is
+    is_not: is not
+    is_any_of: is any of
+    is_not_any_of: is not any of
+    includes_all: includes all
+    excludes_all: excludes all
+    before: before
+    after: after
+    between: between
+    not_between: not between
+    contains: contains
+    not_contains: does not contain
+    starts_with: starts with
+    ends_with: ends with
+    is_exactly: is exactly
+    equals: equals
+    not_equals: not equals
+    greater_than: greater than
+    less_than: less than
+    overlaps: overlaps
+    includes: includes
+    excludes: excludes
+    includes_all_of: includes all of
+    includes_any_of: includes any of
+    empty: is empty
+    not_empty: is not empty
+  placeholder:
+    # {{field}} is the field's own label, as the administrator named it.
+    enter_field: 'Enter {{field}}...'
+    search_field: 'Search {{field}}...'
+    enter_key: Enter key...
+    enter_value: Enter value...
+  validation:
+    email: Invalid email format
+    url: Invalid URL format
+    tel: Invalid phone format
+    generic: Invalid input format
+
+# Password policy. The keys are the rule codes the API sends back, so a server-side rejection
+# and the client-side checklist say the same thing. "label" is the checklist line, "message"
+# the validation error under the field.
+password:
+  rule:
+    too_short:
+      label_one: 'At least {{count}} character'
+      label_other: 'At least {{count}} characters'
+      message_one: 'Password must be at least {{count}} character long'
+      message_other: 'Password must be at least {{count}} characters long'
+    missing_uppercase:
+      label: One uppercase letter
+      message: Password must contain at least one uppercase letter
+    missing_lowercase:
+      label: One lowercase letter
+      message: Password must contain at least one lowercase letter
+    missing_number:
+      label: One number
+      message: Password must contain at least one number
+    missing_special:
+      label: One special character
+      message: Password must contain at least one special character
+    too_long:
+      # {{total}} is a fixed ceiling, never one — it does not inflect the sentence.
+      message: 'Password must be at most {{total}} characters long'
+
+client_protocol:
+  oidc:
+    label: OpenID Connect
+    description: Token-based sign-in for web apps, SPAs, mobile apps and APIs.
+  saml:
+    label: SAML 2.0
+    description: Assertion-based sign-in for applications that only speak SAML.
+
+# SAML wording. The option values themselves are protocol URNs and never appear here.
+saml:
+  name_id_format:
+    email:
+      label: Email address
+      description: The user is identified by their email address. What most applications expect.
+    persistent:
+      label: Persistent
+      description: A stable opaque identifier that stays the same across sessions.
+    transient:
+      label: Transient
+      description: A throwaway identifier, regenerated at every sign-in.
+    unspecified:
+      label: Unspecified
+      description: Let the application decide how to read the identifier.
+  attribute_name_format:
+    basic:
+      label: Basic
+      description: Plain attribute names such as email. The usual choice.
+    uri:
+      label: URI
+      description: Attribute names written as full URIs.
+    unspecified:
+      label: Unspecified
+      description: Send no format hint to the application.
+  attribute_source:
+    email: Email
+    username: Username
+    first_name: First name
+    last_name: Last name
+    id: User ID
+    # {{key}} is the attribute name the administrator typed. It is never translated.
+    custom: 'Custom attribute {{key}}'
+
+session:
+  expired: Your session expired. Please sign in again.
+  login_expired: Your login session expired. Please restart the sign-in.
+
+# Confirmations raised by the mutation layer. They fire after the API answered, so they state
+# what happened, not what was asked.
+toast:
+  unexpected_error: Something went wrong. Please try again.
+  import_failed: Failed to import
+  import_invalid_json: This file is not valid JSON.
+  attribute:
+    deleted: Attribute deleted
+  client:
+    updated: 'Client {{name}} was updated successfully'
+    scope_assigned:
+      default: Scope assigned as default successfully
+      optional: Scope assigned as optional successfully
+    scope_assign_failed: Failed to assign scope
+    scope_unassigned:
+      default: Default scope unassigned successfully
+      optional: Optional scope unassigned successfully
+    scope_unassign_failed: Failed to unassign scope
+  client_scope:
+    created: Client scope created successfully
+    create_failed: Failed to create client scope
+    updated: Client scope updated successfully
+    update_failed: Failed to update client scope
+    deleted: Client scope deleted successfully
+    delete_failed: Failed to delete client scope
+  protocol_mapper:
+    created: Protocol mapper created successfully
+    create_failed: Failed to create protocol mapper
+    updated: Protocol mapper updated successfully
+    update_failed: Failed to update protocol mapper
+    deleted: Protocol mapper deleted successfully
+    delete_failed: Failed to delete protocol mapper
+  role:
+    created: Role created successfully
+    create_failed: Failed to create role
+    updated: Role updated successfully
+    updated_detail: 'Role {{name}} has been updated successfully.'
+    update_failed: Failed to update role
+    permissions_updated: Role permissions updated successfully
+    permissions_updated_detail: 'Role {{name}} permissions has been updated successfully.'
+    deleted: Role deleted successfully
+    deleted_detail: Role has been deleted from client successfully.
+    delete_failed: Failed to delete role
+  organization:
+    created: 'Organization "{{name}}" created successfully'
+    updated: 'Organization "{{name}}" updated successfully'
+    deleted: Organization deleted
+    member_removed: Member removed from organization
+    user_added: User added to organization
+    user_removed: User removed from organization
+  email_template:
+    created: Email template created successfully
+    saved: Email template saved successfully
+    imported: Email template imported successfully
+    deleted: Email template deleted successfully
+  portal_layout:
+    created: Portal layout created successfully
+    saved: Portal layout saved successfully
+    deleted: Portal layout deleted successfully
+    default_updated: Default portal layout updated
+    imported: Portal layout imported successfully
+  maintenance:
+    client_entry_added: Whitelist entry added
+    client_entry_removed: Whitelist entry removed
+    realm_entry_added: Realm whitelist entry added
+    realm_entry_removed: Realm whitelist entry removed
+  password_reset:
+    link_sent: If an account exists with this email, a reset link has been sent
+    link_failed: Failed to send reset link
+    reset_failed: Failed to reset password
+  smtp:
+    saved: SMTP configuration saved successfully
+    save_failed: Failed to save SMTP configuration
+    deleted: SMTP configuration deleted
+    delete_failed: Failed to delete SMTP configuration
+  saml:
+    sp_configured: Service provider configured
+    sp_updated: Service provider updated
+    sp_save_failed: Could not save the service provider
+    # {{name}} is the attribute name the administrator typed.
+    attribute_mapped: 'Attribute {{name}} mapped'
+    attribute_map_failed: Could not map the attribute
+    attribute_removed: Attribute mapping removed
+    attribute_remove_failed: Could not remove the attribute mapping

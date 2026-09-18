@@ -39,7 +39,7 @@ export default function WebhookSigningSecret({ realm, webhookId }: WebhookSignin
       {
         onSuccess: (data) => setSecret(data.secret),
         onError: (error: unknown) => {
-          toast.error(apiErrorMessage(error, 'Could not generate a new secret'))
+          toast.error(apiErrorMessage(error, t('secret.toast.regenerate_failed')))
           close()
         },
       }

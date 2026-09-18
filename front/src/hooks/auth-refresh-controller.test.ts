@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createRefreshController } from './auth-refresh-controller'
+import { createRefreshController } from './auth-refresh-controller.ts'
 
 test('refresh controller coalesces concurrent requests', async () => {
   const controller = createRefreshController()

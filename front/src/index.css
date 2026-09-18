@@ -207,6 +207,10 @@ input[type="number"] {
     ui-sans-serif, system-ui, sans-serif;
 }
 
+html {
+  font-size: 16px;
+}
+
 [data-style='ferriskey'] body {
   font-family:
     'Geist Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',

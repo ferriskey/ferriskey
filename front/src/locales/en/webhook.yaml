@@ -85,6 +85,7 @@ create:
     action: Create
   toast:
     created: Webhook created successfully
+    create_failed: Failed to create webhook
 
 detail:
   back: Webhooks
@@ -114,6 +115,7 @@ detail:
     action: Save changes
   toast:
     updated: Webhook updated successfully
+    update_failed: Failed to update webhook
     deleted: Webhook deleted successfully
 
 settings:
@@ -178,6 +180,7 @@ secret:
     done: Done
   toast:
     copy_failed: Could not copy. Select the secret and copy it manually.
+    regenerate_failed: Could not generate a new secret
 
 events:
   search_placeholder: Filter events…
@@ -192,6 +195,7 @@ delivery:
   title: Deliveries
   description: Every attempt FerrisKey made to call this endpoint, newest first.
   error: Delivery history is unavailable. Try again in a moment.
+  retry_failed: Could not queue this delivery
   status:
     pending: Queued
     delivering: Sending

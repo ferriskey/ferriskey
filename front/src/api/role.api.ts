@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Schemas } from './api.client'
 import { apiErrorMessage } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
 
 const invalidateRole = async (
   queryClient: QueryClient,
@@ -102,10 +103,10 @@ export const useCreateRole = () => {
         await queryClient.invalidateQueries({ queryKey: clientRolesQuery.queryKey })
       }
 
-      toast.success('Role created successfully')
+      toast.success(translate('common:toast.role.created'))
     },
     onError(error) {
-      toast.error('Failed to create role', {
+      toast.error(translate('common:toast.role.create_failed'), {
         description: apiErrorMessage(error),
       })
     },
@@ -119,12 +120,12 @@ export const useUpdateRole = () => {
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/roles/{role_id}').mutationOptions,
     async onSuccess(res, variables) {
       await invalidateRole(queryClient, variables.path.realm_name, variables.path.role_id)
-      toast.success('Role updated successfully', {
-        description: `Role ${res.data.name} has been updated successfully.`,
+      toast.success(translate('common:toast.role.updated'), {
+        description: translate('common:toast.role.updated_detail', { name: res.data.name }),
       })
     },
     onError(error) {
-      toast.error('Failed to update role', {
+      toast.error(translate('common:toast.role.update_failed'), {
         description: apiErrorMessage(error),
       })
     },
@@ -139,12 +140,14 @@ export const useUpdateRolePermissions = () => {
       .mutationOptions,
     async onSuccess(res, variables) {
       await invalidateRole(queryClient, variables.path.realm_name, variables.path.role_id)
-      toast.success('Role permissions updated successfully', {
-        description: `Role ${res.data.name} permissions has been updated successfully.`,
+      toast.success(translate('common:toast.role.permissions_updated'), {
+        description: translate('common:toast.role.permissions_updated_detail', {
+          name: res.data.name,
+        }),
       })
     },
     onError(error) {
-      toast.error('Failed to update role', {
+      toast.error(translate('common:toast.role.update_failed'), {
         description: apiErrorMessage(error),
       })
     },
@@ -168,12 +171,12 @@ export const useDeleteRole = () => {
       await queryClient.invalidateQueries({
         queryKey: [...queryKey],
       })
-      toast.success('Role deleted successfully', {
-        description: 'Role has been deleted from client successfully.',
+      toast.success(translate('common:toast.role.deleted'), {
+        description: translate('common:toast.role.deleted_detail'),
       })
     },
     onError(error) {
-      toast.error('Failed to delete role', {
+      toast.error(translate('common:toast.role.delete_failed'), {
         description: apiErrorMessage(error),
       })
     },

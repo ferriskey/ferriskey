@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/input-group'
 import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type TimeUnit = 'seconds' | 'minutes' | 'hours' | 'days'
 
@@ -23,12 +24,7 @@ const MULTIPLIERS: Record<TimeUnit, number> = {
   days: 86400,
 }
 
-const UNIT_LABELS: Record<TimeUnit, string> = {
-  seconds: 'Seconds',
-  minutes: 'Minutes',
-  hours: 'Hours',
-  days: 'Days',
-}
+const unitLabelKey = (unit: TimeUnit) => `duration.unit.${unit}`
 
 function detectBestUnit(seconds: number): TimeUnit {
   if (seconds === 0) return 'seconds'
@@ -53,24 +49,20 @@ export function DurationInput({
   error,
   nullable = false,
 }: DurationInputProps) {
-  // Unit is set once at mount, then only changed via dropdown or external reset
+  const { t } = useTranslation()
   const [unit, setUnit] = useState<TimeUnit>(() =>
     value != null ? detectBestUnit(value) : 'seconds'
   )
 
-  // Local display string for the input — avoids recalculating from value each render
   const [displayStr, setDisplayStr] = useState(() =>
     value != null ? String(value / MULTIPLIERS[detectBestUnit(value)]) : ''
   )
 
-  // Track previous prop value and last emitted value to distinguish
-  // internal changes (our onChange) from external ones (form reset)
   const [prevValue, setPrevValue] = useState(value)
   const [lastEmitted, setLastEmitted] = useState(value)
 
   if (prevValue !== value) {
     setPrevValue(value)
-    // External change: value differs from what we last emitted
     if (value !== lastEmitted) {
       const newUnit = detectBestUnit(value ?? 0)
       setUnit(newUnit)
@@ -121,14 +113,14 @@ export function DurationInput({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <InputGroupButton variant='ghost' className='pr-1.5! text-xs'>
-                {UNIT_LABELS[unit]} <ChevronDownIcon className='size-3' />
+                {t(unitLabelKey(unit))} <ChevronDownIcon className='size-3' />
               </InputGroupButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuGroup>
                 {(Object.keys(MULTIPLIERS) as TimeUnit[]).map((u) => (
                   <DropdownMenuItem key={u} onSelect={() => handleUnitChange(u)}>
-                    {UNIT_LABELS[u]}
+                    {t(unitLabelKey(u))}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>

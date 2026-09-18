@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -15,6 +16,7 @@ export function Sidebar({
   collapsed: boolean
   onToggle: () => void
 }) {
+  const { t } = useTranslation()
   const { realm_name } = useParams<RouterParams>()
   const base = REALM_URL(realm_name ?? 'master')
 
@@ -36,7 +38,7 @@ export function Sidebar({
         <div className={cn('flex items-center', collapsed ? 'justify-center' : 'pl-1')}>
           {!collapsed && (
             <span className='font-mono-ui text-[11px] tnum text-neutral-400 dark:text-neutral-500'>
-              v{__APP_VERSION__}
+              {t('shell.sidebar.version', { version: __APP_VERSION__ })}
             </span>
           )}
           <Tooltip>
@@ -44,7 +46,9 @@ export function Sidebar({
               <button
                 type='button'
                 onClick={onToggle}
-                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+                aria-label={
+                  collapsed ? t('shell.sidebar.expand_hint') : t('shell.sidebar.collapse_hint')
+                }
                 aria-expanded={!collapsed}
                 className={cn(
                   'grid size-7 shrink-0 cursor-pointer place-items-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-500 dark:hover:bg-fk-raised dark:hover:text-neutral-100',
@@ -59,7 +63,9 @@ export function Sidebar({
               </button>
             </TooltipTrigger>
             <TooltipContent side='right'>
-              {collapsed ? 'Expand' : 'Collapse'} · ⌘B
+              {collapsed
+                ? t('shell.sidebar.expand_shortcut')
+                : t('shell.sidebar.collapse_shortcut')}
             </TooltipContent>
           </Tooltip>
         </div>

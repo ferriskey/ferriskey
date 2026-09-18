@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import { translate } from '@/lib/i18n'
 
 export const useGetOrganizations = ({ realm }: BaseQuery) => {
   return useQuery(
@@ -30,7 +31,7 @@ export const useCreateOrganization = () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/organizations', {
         path: { realm_name: variables.path.realm_name },
       }).queryKey
-      toast.success(`Organization "${payload.name}" created successfully`)
+      toast.success(translate('common:toast.organization.created', { name: payload.name }))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -51,7 +52,7 @@ export const useUpdateOrganization = () => {
           },
         }
       ).queryKey
-      toast.success(`Organization "${payload.name}" updated successfully`)
+      toast.success(translate('common:toast.organization.updated', { name: payload.name }))
       queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -68,7 +69,7 @@ export const useDeleteOrganization = () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/organizations', {
         path: { realm_name: variables.path.realm_name },
       }).queryKey
-      toast.success('Organization deleted')
+      toast.success(translate('common:toast.organization.deleted'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -129,7 +130,7 @@ export const useDeleteOrganizationAttribute = () => {
           },
         }
       ).queryKey
-      toast.success('Attribute deleted')
+      toast.success(translate('common:toast.attribute.deleted'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -164,7 +165,7 @@ export const useRemoveOrganizationMember = () => {
           },
         }
       ).queryKey
-      toast.success('Member removed from organization')
+      toast.success(translate('common:toast.organization.member_removed'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })
@@ -205,7 +206,7 @@ export const useAddUserToOrganization = () => {
           },
         }
       ).queryKey
-      toast.success('User added to organization')
+      toast.success(translate('common:toast.organization.user_added'))
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: userOrgsKeys }),
         queryClient.invalidateQueries({ queryKey: orgMembersKeys }),
@@ -228,7 +229,7 @@ export const useRemoveUserFromOrganization = () => {
           user_id: variables.path.user_id,
         },
       }).queryKey
-      toast.success('User removed from organization')
+      toast.success(translate('common:toast.organization.user_removed'))
       await queryClient.invalidateQueries({ queryKey: keys })
     },
   })

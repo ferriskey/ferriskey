@@ -82,7 +82,7 @@ export default function PageCreateWebhookFeature() {
             return
           }
 
-          toast.error(apiErrorMessage(error, 'Failed to create webhook'))
+          toast.error(apiErrorMessage(error, t('create.toast.create_failed')))
         },
       }
     )

@@ -7,7 +7,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useTranslation } from 'react-i18next'
 import { Schemas } from '@/api/api.client'
+import { formatDayMonth } from '@/utils/format-date'
 
 import DailyActivityStats = Schemas.DailyActivityStats
 
@@ -70,13 +72,16 @@ export interface ActivityChartProps {
   height?: number
 }
 
-const formatDay = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })
-}
+const formatDay = (value: string) => formatDayMonth(value)
+
+const TARGET_AXIS_TICKS = 12
+
+const axisTickInterval = (points: number) =>
+  points > TARGET_AXIS_TICKS ? Math.ceil(points / TARGET_AXIS_TICKS) - 1 : 0
 
 export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
+  const { t } = useTranslation()
+
   return (
     <ResponsiveContainer width='100%' height={height}>
       <AreaChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
@@ -96,7 +101,8 @@ export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
           tickFormatter={formatDay}
           tickLine={false}
           axisLine={false}
-          minTickGap={28}
+          interval={axisTickInterval(data.length)}
+          minTickGap={0}
           tickMargin={8}
           tick={{ fontSize: 11, fill: 'var(--color-fk-muted)' }}
         />
@@ -121,7 +127,7 @@ export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
         <Area
           type='monotone'
           dataKey='logins'
-          name='Logins'
+          name={t('chart.series.logins')}
           stroke='#009764'
           strokeWidth={2}
           fill='url(#fk-activity-logins)'
@@ -131,7 +137,7 @@ export function ActivityChart({ data, height = 168 }: ActivityChartProps) {
         <Area
           type='monotone'
           dataKey='login_failures'
-          name='Failures'
+          name={t('chart.series.failures')}
           stroke='#dc2626'
           strokeWidth={2}
           fill='url(#fk-activity-failures)'

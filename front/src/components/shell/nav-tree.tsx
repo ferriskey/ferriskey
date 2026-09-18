@@ -1,14 +1,17 @@
+import { useTranslation } from 'react-i18next'
 import { NavLink, useLocation } from 'react-router-dom'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { navSections, type NavItem } from './iam/nav'
+import { navSections, navSectionKey, navSegmentKey, type NavItem } from './iam/nav'
 
 function ItemBody({
   item,
+  label,
   active,
   collapsed,
 }: {
   item: NavItem
+  label: string
   active: boolean
   collapsed: boolean
 }) {
@@ -18,7 +21,7 @@ function ItemBody({
         <span className='absolute -left-2 top-1 h-[calc(100%-0.5rem)] w-[2.5px] rounded-full bg-fk-brand' />
       )}
       <item.icon className='size-3.5 shrink-0' strokeWidth={1.75} />
-      {!collapsed && <span className='min-w-0 flex-1 truncate'>{item.label}</span>}
+      {!collapsed && <span className='min-w-0 flex-1 truncate'>{label}</span>}
     </>
   )
 }
@@ -32,9 +35,11 @@ function SidebarLink({
   base: string
   collapsed: boolean
 }) {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
   const to = `${base}/${item.to}`
   const active = pathname.startsWith(to)
+  const label = t(navSegmentKey(item.to))
 
   const shape = cn(
     'group relative flex items-center gap-2 rounded-md text-[13px] transition-colors',
@@ -46,10 +51,10 @@ function SidebarLink({
       <Tooltip>
         <TooltipTrigger asChild>
           <span className={cn(shape, 'cursor-not-allowed text-neutral-300 dark:text-neutral-600')} aria-disabled>
-            <ItemBody item={item} active={false} collapsed={collapsed} />
+            <ItemBody item={item} label={label} active={false} collapsed={collapsed} />
           </span>
         </TooltipTrigger>
-        <TooltipContent side='right'>{item.label} — not implemented yet</TooltipContent>
+        <TooltipContent side='right'>{t('nav.not_implemented', { label })}</TooltipContent>
       </Tooltip>
     )
   }
@@ -64,7 +69,7 @@ function SidebarLink({
           : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-fk-raised'
       )}
     >
-      <ItemBody item={item} active={active} collapsed={collapsed} />
+      <ItemBody item={item} label={label} active={active} collapsed={collapsed} />
     </NavLink>
   )
 
@@ -73,12 +78,14 @@ function SidebarLink({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side='right'>{item.label}</TooltipContent>
+      <TooltipContent side='right'>{label}</TooltipContent>
     </Tooltip>
   )
 }
 
 export function NavTree({ base, collapsed }: { base: string; collapsed: boolean }) {
+  const { t } = useTranslation()
+
   return (
     <nav
       className={cn(
@@ -87,10 +94,10 @@ export function NavTree({ base, collapsed }: { base: string; collapsed: boolean 
       )}
     >
       {navSections.map((section, i) => (
-        <div key={section.title} className={cn('space-y-0.5', i > 0 && 'mt-5')}>
+        <div key={section.key} className={cn('space-y-0.5', i > 0 && 'mt-5')}>
           {!collapsed && (
             <p className='px-2 pb-1 text-[11px] font-medium text-neutral-400 dark:text-neutral-500'>
-              {section.title}
+              {t(navSectionKey(section.key))}
             </p>
           )}
           {section.items.map((item) => (
