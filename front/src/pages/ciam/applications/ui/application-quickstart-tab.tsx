@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, Copy } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { FieldRow, Section } from '@/components/kit'
@@ -63,27 +64,35 @@ export default function ApplicationQuickstartTab({
   snippetDescription,
   snippet,
 }: ApplicationQuickstartTabProps) {
+  const { t } = useTranslation('console')
+
   return (
     <>
       <Section
-        title='Identity'
-        description='What your application sends on every request.'
+        title={t('applications.quickstart.identity.title')}
+        description={t('applications.quickstart.identity.description')}
       >
         <FieldRow
-          label='Client ID'
-          description='Public: it travels in the browser on every sign-in. It is not a credential.'
+          label={t('applications.quickstart.identity.client_id_label')}
+          description={t('applications.quickstart.identity.client_id_description')}
         >
-          <CopyValue value={clientId} label='Copy the client ID' />
+          <CopyValue
+            value={clientId}
+            label={t('applications.quickstart.identity.copy_client_id')}
+          />
         </FieldRow>
       </Section>
 
       <Section
-        title='Endpoints'
-        description='Point your OIDC or OAuth library at these URLs. Most libraries only need the discovery document.'
+        title={t('applications.quickstart.endpoints.title')}
+        description={t('applications.quickstart.endpoints.description')}
       >
         {endpoints.map((endpoint) => (
           <FieldRow key={endpoint.key} label={endpoint.label} description={endpoint.description}>
-            <CopyValue value={endpoint.value} label={`Copy the ${endpoint.label} URL`} />
+            <CopyValue
+              value={endpoint.value}
+              label={t('applications.quickstart.endpoints.copy', { label: endpoint.label })}
+            />
           </FieldRow>
         ))}
       </Section>
@@ -94,7 +103,7 @@ export default function ApplicationQuickstartTab({
             {snippet}
           </pre>
           <div className='absolute right-2 top-6'>
-            <CopyButton value={snippet} label='Copy the snippet' />
+            <CopyButton value={snippet} label={t('applications.quickstart.snippet.copy')} />
           </div>
         </div>
       </Section>

@@ -1,0 +1,695 @@
+# Console (CIAM) panel.
+# This panel speaks to a product audience: it says "application" where the IAM panel says
+# "client", and "identity" where the IAM panel says "user". Keep that vocabulary.
+
+# Plain number, formatted for the active locale.
+number: '{{value, number}}'
+
+activity:
+  # Time window every activity screen reports on. Interpolated as {{window}} in the sentences
+  # below; translators may move it anywhere inside them.
+  window_one: last {{count}} day
+  window_other: last {{count}} days
+  over_window: over the {{window}}
+  nothing_recorded: nothing recorded
+  no_failure: no failure recorded
+  filter:
+    all: All
+  capped:
+    title: Capped at {{limit, number}} events
+    detail_above: 'The realm recorded more over the {{window}}; the figures above cover the {{limit, number}} most recent only.'
+    detail_below: 'The realm recorded more over the {{window}}; the figures below cover the {{limit, number}} most recent only.'
+  event:
+    columns:
+      event: Event
+      outcome: Outcome
+      actor: Account
+      target: Target
+      origin: Origin
+      when: When
+    unattributed: unattributed
+    unknown_type: unknown type
+    no_target: none
+    not_recorded: not recorded
+    no_detail: no additional detail
+    flags:
+      actor: Account identified
+      origin: Origin recorded
+      device: Device recorded
+  journal:
+    view:
+      list: List view
+      cards: Card view
+    filtered:
+      label: No match
+      hint: No entry matches the current search and filter.
+      action: Clear filter
+    count_one: '{{count, number}} entry'
+    count_other: '{{count, number}} entries'
+    partial: '{{shown, number}} of {{total, number}}'
+  live:
+    title: Live
+    description: 'Sign-ups and logins recorded in this realm over the {{window}}, counted from the authentication flows Compass traces.'
+    range_one: '{{count}} day'
+    range_other: '{{count}} days'
+    metrics:
+      signups: Sign-ups
+      logins: Logins
+      failures: Failed logins
+      accounts: Peak daily accounts
+      busiest: busiest day of the {{window}}
+    notices:
+      compass_off:
+        title: Compass tracing is off for this realm
+        detail: Sign-ups and logins are counted from traced authentication flows. With tracing off nothing is recorded, so this page has nothing to measure.
+      error:
+        title: Activity unavailable
+        detail: We could not fetch the activity of this realm. Please try again later.
+    logins:
+      title: Logins
+      description: Successful and failed sign-ins per day over the {{window}}.
+      legend_logins: '<num>{{total, number}}</num> logins'
+      legend_failures: '<num>{{total, number}}</num> failures'
+    signups:
+      title: Sign-ups
+      description: New accounts created per day over the {{window}}.
+      legend: '<num>{{total, number}}</num> sign-ups'
+    flows:
+      title: Latest authentication attempts
+      description: The most recent traced flows, as of the moment this page was loaded. Nothing here refreshes on its own.
+      loading: Loading…
+      empty: No authentication flow has been traced yet. Each sign-in attempt adds a line here.
+      unidentified: no account identified
+  logs:
+    title: Logs & events
+    description: 'Every authentication, credential and administrative event recorded in this realm over the {{window}}, most recent first.'
+    filters:
+      failures: Failures
+      authentication: Authentication
+      credentials: Credentials
+      administration: Administration
+    metrics:
+      events: Events
+      capped: capped, {{window}}
+      latest: last {{timestamp}}
+      failures: Failures
+      rate: Success rate
+      successful: '{{total, number}} successful'
+      actors: Distinct accounts
+    notices:
+      error:
+        title: Event feed unavailable
+        detail: We could not fetch the latest events. Please try again later.
+      failures:
+        title_one: '{{count, number}} failed event over the {{window}}'
+        title_other: '{{count, number}} failed events over the {{window}}'
+        top_failure: '{{label}} accounts for {{count, number}}'
+        top_error_code: mostly {{code}}
+    feed:
+      title: Event feed
+      description: Event families are applied by the server; the search box narrows what was loaded above.
+      search_placeholder: Search by event, account, IP…
+      empty_label: No event
+      empty_hint: 'This feed fills as customers sign in, reset credentials and as administrators change the realm. Nothing was recorded over the {{window}}.'
+    aggregates:
+      events_one: '{{count, number}} event'
+      events_other: '{{count, number}} events'
+      failed: '{{total, number}} failed'
+      accounts_one: '{{count, number}} account'
+      accounts_other: '{{count, number}} accounts'
+  sessions:
+    title: Sessions
+    description: Sessions opened and revoked in this realm over the {{window}}.
+    description_with_latest: 'Sessions opened and revoked in this realm over the {{window}}, most recently on {{timestamp}}.'
+    filters:
+      opened: Opened
+      revoked: Revoked
+    metrics:
+      opened: Sessions opened
+      revoked: Sessions revoked
+      none_revoked: none revoked
+      accounts: Distinct accounts
+      origins: Distinct origins
+      no_origin: no IP address recorded
+      origins_hint: IP addresses seen
+    notices:
+      no_device_list:
+        title: No realm-wide list of active devices exists
+        detail: The API lists and revokes sessions one account at a time, so the devices currently signed in are shown on each account. What is recorded for the whole realm is the journal below.
+      error:
+        title: Session journal unavailable
+        detail: We could not fetch the session events of this realm. Please try again later.
+    journal:
+      title: Session journal
+      description: 'One line per session opened or revoked, with the device and the origin recorded at the time.'
+      search_placeholder: 'Search by account, IP, device…'
+      empty_label: No session event
+      empty_hint: 'This journal fills as customers sign in and as sessions are revoked. Nothing was recorded over the {{window}}.'
+    aggregates:
+      opened: '{{total, number}} opened'
+      revoked: '{{total, number}} revoked'
+      accounts_one: '{{count, number}} account'
+      accounts_other: '{{count, number}} accounts'
+  messages:
+    title: Message delivery
+    description: 'Transactional emails this realm attempted to send over the {{window}}, and the webhook endpoints it notifies.'
+    filters:
+      delivered: Delivered
+      failed: Failed
+    email_types:
+      magic_link: Magic link
+      verify_email: Email verification
+      reset_password: Password reset
+    metrics:
+      delivered: Emails delivered
+      failed: Deliveries failed
+      rate: Delivery rate
+      attempted: '{{total, number}} attempted'
+      recipients: Distinct recipients
+    notices:
+      no_smtp:
+        title: No SMTP configuration could be read for this realm
+        detail: Without a mail server, no transactional email can leave the realm — which is what an empty journal below would mean.
+      error:
+        title: Delivery journal unavailable
+        detail: We could not fetch the delivery events of this realm. Please try again later.
+      failed:
+        title_one: '{{count, number}} email could not be delivered'
+        title_other: '{{count, number}} emails could not be delivered'
+        detail: Each failed row carries the reason the mail server returned.
+    columns:
+      recipient: Recipient
+      message: Message
+    recipient_account: account
+    default_message: Transactional email
+    no_template: no template recorded
+    journal:
+      title: Email deliveries
+      description: 'One line per email the realm handed to its mail server, delivered or not.'
+      search_placeholder: 'Search by message, account…'
+      empty_label: No email delivery
+      empty_hint: 'This journal fills as the realm sends magic links, verification emails and password resets. Nothing was attempted over the {{window}}.'
+    aggregates:
+      attempts_one: '{{count, number}} attempt'
+      attempts_other: '{{count, number}} attempts'
+      failed: '{{total, number}} failed'
+      recipients_one: '{{count, number}} recipient'
+      recipients_other: '{{count, number}} recipients'
+    webhooks:
+      title: Webhook endpoints
+      description: 'The endpoints this realm notifies, and the last time each one fired. Individual deliveries are not journalled, so no per-delivery status exists to show.'
+      count_one: '{{count, number}} endpoint'
+      count_other: '{{count, number}} endpoints'
+      empty: No webhook endpoint is registered for this realm.
+      triggers_one: '{{count, number}} trigger'
+      triggers_other: '{{count, number}} triggers'
+      never_fired: never fired
+
+applications:
+  # "flow" values are OAuth 2.0 / OpenID Connect grant names. Keep them verbatim.
+  types:
+    native:
+      label: Mobile or desktop
+      short: Native
+      description: 'Installed on the user’s device, so its code can be read by anyone holding it.'
+      flow: Authorization Code + PKCE
+    spa:
+      label: Single-page app
+      short: SPA
+      description: 'Runs entirely in the browser, so it gets no secret and relies on PKCE.'
+      flow: Authorization Code + PKCE
+    web:
+      label: Server-rendered web app
+      short: Web
+      description: Keeps a secret on your server and exchanges the code there.
+      flow: Authorization Code
+    m2m:
+      label: Machine to machine
+      short: M2M
+      description: 'A backend or daemon signing in as itself, with no user in front of it.'
+      flow: Client Credentials
+    device:
+      label: Device or CLI
+      short: Device
+      description: 'No browser on the device: the user approves the request on another screen.'
+      flow: Device Authorization Grant (RFC 8628)
+    choice_description: '{{description}} Signs in with {{flow}}.'
+  fields:
+    callbacks:
+      label: Allowed callback URLs
+      hint:
+        native: Where the sign-in sends the user back. Use a custom scheme such as com.acme.app://callback on mobile, or http://localhost for desktop development. A callback that is not listed is refused.
+        spa: 'Where users land after sign-in. A callback that is not listed is refused, so add every environment you deploy to.'
+        web: The server-side endpoint that exchanges the authorization code for tokens. A callback that is not listed is refused.
+      placeholder:
+        native: com.acme.app://callback
+        spa: https://app.acme.com/callback
+        web: https://app.acme.com/auth/callback
+    origins:
+      label: Allowed web origins
+      hint: 'Origins allowed to call FerrisKey from the browser. Scheme, host and port only — no path. Enter + to derive them from the callback URLs above. Without a matching origin the browser blocks the call.'
+      placeholder: https://app.acme.com
+    empty:
+      callbacks_required: No callback URL — sign-in cannot complete.
+      callbacks_optional: No callback URL registered.
+      origins: No origin — browser calls from another host will be refused.
+  list:
+    title: Applications
+    description: 'Anything that talks to FerrisKey: mobile apps, single-page apps, web servers, daemons.'
+    create: Create application
+    all: All applications
+    filters:
+      all: All
+      enabled: Enabled
+      disabled: Disabled
+    sorts:
+      recent: Most recent
+      oldest: Oldest first
+      name: Name
+    search_placeholder: Search by name or client ID…
+    alerts:
+      missing_callback:
+        body_one: '<em>{{count, number}} application has no callback URL</em> — {{names}}: FerrisKey has nowhere to send the user back, so sign-in stops with an error.'
+        body_other: '<em>{{count, number}} applications have no callback URL</em> — {{names}}: FerrisKey has nowhere to send the user back, so sign-in stops with an error.'
+    empty:
+      label: No application yet
+      hint: 'Pick a type, give it a name, and we generate everything you need to integrate.'
+      filtered_label: No application matches
+      filtered_hint: No application of this type carries that name or client ID.
+    card:
+      disabled: disabled
+    picker:
+      title: Application type
+      description: It decides which sign-in flow the application uses and whether it gets a secret. Changing it later means recreating the application.
+  create:
+    back: Applications
+    title: New application
+    change_type: change type
+    type:
+      title: What this type gives you
+      description: Chosen at creation. It decides the sign-in flow and whether the application gets a secret.
+      flow_label: Sign-in flow
+      secret_label: Client secret
+      secret_held: 'A secret is generated when the application is created. Keep it on your server: anyone holding it can sign in as this application.'
+      secret_none: 'No secret is generated. This application ships to the user, so a secret could be read out of it — the sign-in is protected by PKCE instead.'
+      secret_generated: Generated
+      secret_absent: None
+    identity:
+      title: Identity
+      description: How this application is named and identified.
+      name_label: Application name
+      name_description: Shown to your users on the sign-in page.
+      name_placeholder: Acme Mobile
+      client_id_label: Client ID
+      client_id_description: 'Sent on every OAuth request. Derived from the name; change it before creating, it is what your code will hardcode.'
+      client_id_placeholder: acme-mobile
+    urls:
+      title: Where users come back
+      description: Addresses FerrisKey is allowed to send the user to once they have signed in.
+    m2m:
+      title: No callback URL needed
+      description: Machine-to-machine applications never send a user through a browser.
+      how_label: How it gets a token
+      how_description: It posts its client ID and secret to the token endpoint with the client_credentials grant. The secret is on the Credentials tab once the application exists.
+    device:
+      title: No callback URL needed
+      description: 'The device flow never redirects: the user opens a verification page on another screen.'
+      how_label: How it gets a token
+      how_description: 'The device asks for a user code, shows it, and polls the token endpoint until the user has approved it.'
+    save_bar:
+      title: Create application
+      description: 'The application is created, then its callback URLs and origins are registered.'
+      cancel: Cancel
+      submit: Create application
+    validation:
+      client_id_format: 'Only lowercase letters, numbers, hyphens and underscores.'
+      callback_format: Enter a full URL such as https://app.acme.com/callback.
+      callback_required: At least one callback URL is required for this application type.
+      origin_format: 'Enter an origin such as https://app.acme.com — no path, no wildcard — or {{sentinel}} to derive them from the callback URLs.'
+    toast:
+      created: Application created
+      callback_failed: 'Could not register callback URL: {{value}}'
+      origin_failed: 'Could not register web origin: {{value}}'
+      create_failed: Failed to create application
+  detail:
+    back: Applications
+    not_found:
+      title: Application not found
+      description: 'It may have been deleted, or it belongs to another realm.'
+    state:
+      enabled: enabled
+      disabled: disabled
+      maintenance: in maintenance
+    meta:
+      flow_label: Sign-in flow
+      created_label: Created at
+      created: Created {{date}}
+    tabs:
+      quickstart: Quickstart
+      settings: Settings
+      credentials: Credentials
+      api_access: API access
+      saml: SAML
+      maintenance: Maintenance
+  quickstart:
+    identity:
+      title: Identity
+      description: What your application sends on every request.
+      client_id_label: Client ID
+      client_id_description: 'Public: it travels in the browser on every sign-in. It is not a credential.'
+      copy_client_id: Copy the client ID
+    endpoints:
+      title: Endpoints
+      description: Point your OIDC or OAuth library at these URLs. Most libraries only need the discovery document.
+      copy: Copy the {{label}} URL
+      issuer:
+        label: Issuer
+        description: The value your library checks in the iss claim of every token.
+      discovery:
+        label: Discovery document
+        description: Give this one URL to your library and it finds the others by itself.
+      authorization:
+        label: Authorization
+        description: Where you send the user to sign in.
+      device_authorization:
+        label: Device authorization
+        description: Where a browserless device asks for the code it shows to the user.
+      token:
+        label: Token
+        description: 'Where the authorization code, or the credentials, are exchanged for tokens.'
+      userinfo:
+        label: User info
+        description: Returns the profile claims for the signed-in user.
+      jwks:
+        label: JWKS
+        description: The public keys your backend uses to verify a token signature.
+      logout:
+        label: Logout
+        description: 'Ends the FerrisKey session, not only your application session.'
+    snippet:
+      copy: Copy the snippet
+      m2m:
+        title: Get a token with the client credentials
+        description: 'No user is involved: the application authenticates as itself and receives an access token.'
+      device:
+        title: Get a token with the device flow
+        description: 'The device shows a code, the user approves it on another screen, then the device gets its tokens.'
+      authorization_code:
+        title: Sign a user in with the authorization code flow
+        description: 'Redirect the user to sign in, then exchange the returned code for tokens on your side.'
+  credentials:
+    title: Client credentials
+    description: What this application presents to prove who it is.
+    client_id_label: Client ID
+    client_id_description: 'Public: it travels in the browser on every sign-in. It is not a credential.'
+    secret_label: Client secret
+    secret_description: 'This application has no secret. It runs where your users can read its code, so a secret would leak — the sign-in is protected by {{flow}} instead.'
+    secret_note: Nothing to copy here. Never paste a secret from another application into this one.
+  settings:
+    general:
+      title: General
+      description: How this application appears and whether it works.
+      name_label: Application name
+      name_description: Shown to your users on the sign-in page.
+      client_id_label: Client ID
+      client_id_description: 'Sent on every OAuth request and hardcoded in your application. Changing it would break every running integration, so it is fixed here.'
+      type_label: Application type
+      type_description: 'Chosen at creation. It decides the sign-in flow and whether a secret exists, so it cannot be switched afterwards — create a new application instead.'
+      availability_label: Availability
+      availability_description: 'Disabling stops every sign-in immediately, including for users already using the application.'
+      state_picker_label: Application state
+    state:
+      enabled:
+        label: Enabled
+        description: Your users can sign in through this application.
+      disabled:
+        label: Disabled
+        description: Every sign-in is refused. The configuration is kept.
+    urls:
+      title: Where users come back
+      description: Addresses FerrisKey is allowed to send the user to. Every entry is saved as you add it.
+      origins_label: Allowed web origins
+      origins_description: 'Origins allowed to call FerrisKey from a browser. Scheme, host and port only — no path. Enter + to derive them from the callback URLs above; regex patterns are skipped. Removing one takes a few minutes to clear browser preflight caches, and up to 30 seconds on the other API replicas.'
+      origins_placeholder: https://app.acme.com
+    methods:
+      title: Sign-in methods
+      description: Ways this application is allowed to obtain a token.
+      password_label: Password exchange
+      password_description: 'Lets the application collect a username and password itself and swap them for tokens. It bypasses the FerrisKey sign-in page, so MFA and social sign-in never run. Leave off unless a legacy integration needs it.'
+      device_label: Device authorization
+      device_description: 'Lets a browserless client (CLI, IoT, TV) show a code the user approves on another screen.'
+      pkce_label: Require PKCE
+      pkce_description_confidential: Refuses a sign-in that carries no S256 code challenge (RFC 7636). The plain method is refused too.
+      pkce_description_public: 'Refuses a sign-in that carries no S256 code challenge (RFC 7636). Strongly recommended: this application ships to your users, so it cannot keep a secret.'
+      pkce_on: Required
+      pkce_off: Optional
+    lifetimes:
+      title: Session length
+      description: Leave a field empty to follow the realm default.
+      access_token:
+        label: Access token
+        description: How long a token is accepted by your API before it must be refreshed.
+      refresh_token:
+        label: Refresh token
+        description: How long a signed-in user stays signed in without typing their password again.
+      id_token:
+        label: ID token
+        description: How long the identity token describing the user stays valid.
+      temporary_token:
+        label: Temporary token
+        description: 'How long a one-off link, such as a password reset, keeps working.'
+    danger:
+      label: Delete this application
+      description: Every token it issued stops being accepted and the integration breaks immediately. This cannot be undone.
+      button: Delete application
+      confirm_title: Delete application
+      confirm_description: This permanently deletes "{{name}}" and all of its configuration.
+    save_bar:
+      title_one: '{{count, number}} unsaved change'
+      title_other: '{{count, number}} unsaved changes'
+      description: Review the application before applying the changes.
+      cancel: Discard
+      submit: Save changes
+    validation:
+      callback_format: Enter a full URL such as https://app.acme.com/callback.
+      origin_format: 'Enter an origin such as https://app.acme.com — no path, no wildcard — or {{sentinel}} to derive them from the callback URLs.'
+    toast:
+      deleted: Application deleted
+      callback_added: Callback URL added
+      callback_add_failed: Failed to add the callback URL
+      callback_removed: Callback URL removed
+      callback_remove_failed: Failed to remove the callback URL
+      origin_added: Web origin added
+      origin_add_failed: Failed to add the web origin
+      origin_removed: Web origin removed
+      origin_remove_failed: Failed to remove the web origin
+
+authentication:
+  sign_in:
+    title: Sign-in methods
+    description: What the people of this realm can use to prove who they are.
+    loading_failed:
+      title: Sign-in methods unavailable
+      description: This realm carries no settings the console can read.
+    smtp_warning: 'Magic link, email verification and password recovery all send a message, and this realm has no SMTP configuration recorded. Every one of them fails silently for the person signing in until a server is configured under Branding, in the SMTP tab of Email templates.'
+    identifiers:
+      title: Identifiers
+      description: What the person types on the sign-in page to name their account.
+      label: Accepted identifiers
+      description_row: Both may be accepted at once. The order decides which one is tried first when a value matches two accounts.
+      min_selected: Select at least one identifier
+      username:
+        label: Username
+        description: The name the person chose when the account was opened.
+      email:
+        label: Email
+        description: The email address recorded on the account.
+    passwordless:
+      title: Passwordless methods
+      description: Offered next to the password field. A password always remains accepted.
+      passkey_label: Passkey
+      passkey_description: The sign-in page offers a passkey button. The person unlocks their device with a fingerprint, a face or a security key and never types a password.
+      magic_link_label: Magic link
+      magic_link_description: The person types their email address and receives a one-time sign-in link. Opening the link signs them in without a password.
+      magic_link_ttl_label: Magic link validity
+      magic_link_ttl_description: How long the link stays usable after the message is sent. Past it the person has to ask for another one.
+      minutes: minutes
+    mfa:
+      title: Multi-factor authentication
+      description: A second factor asked once the first one succeeded.
+      label: Require a second factor
+      description_row: Everyone of this realm is asked for a one-time code after their password. Accounts with no second factor enrolled are sent through the enrolment screen before they can continue.
+    access:
+      title: Account access
+      description: The links and checkboxes the sign-in page offers around the form.
+      registration_label: Self-service sign-up
+      registration_description: 'A "Create an account" link appears on the sign-in page and anyone can open an account without an operator.'
+      email_verification_label: Email verification
+      email_verification_description: A new account has to confirm its email address from a message before its first sign-in completes.
+      forgot_password_label: Password recovery
+      forgot_password_description: 'A "Forgot password" link appears on the sign-in page and sends a reset message to the address on the account.'
+      remember_me_label: Stay signed in
+      remember_me_description: 'A "Remember me" checkbox appears on the sign-in page and keeps the session across browser restarts.'
+    protection:
+      title: Sign-in protection
+      description: What happens after repeated failures on the same account.
+      threshold_label: Failed attempts before lockout
+      threshold_description: How many consecutive wrong passwords lock the account. 0 never locks it.
+      attempts: attempts
+      duration_label: Lockout duration
+      duration_description: How long a locked account refuses every password before it accepts one again.
+      seconds: seconds
+    summary:
+      passkey_on: Passkey offered
+      passkey_off: Passkey hidden
+      magic_link_on: Magic link offered
+      magic_link_off: Magic link hidden
+      mfa_on: Second factor required
+      mfa_off: Second factor optional
+      lockout_on_one: Locks after {{count, number}} failed attempt
+      lockout_on_other: Locks after {{count, number}} failed attempts
+      lockout_off: Never locks an account
+    save_bar:
+      title_one: '{{count, number}} unsaved change'
+      title_other: '{{count, number}} unsaved changes'
+      description: These changes take effect on the next sign-in of this realm.
+      cancel: Discard
+      saving: Saving...
+      submit: Save changes
+    validation:
+      aliases_required: Select at least one identifier
+      magic_link_ttl: A magic link must stay valid for at least one minute
+      not_negative: Cannot be negative
+      lockout_without_duration: A lockout with no duration never releases the account
+    toast:
+      updated: Sign-in methods updated.
+      update_failed: Failed to update the sign-in methods
+  password_policy:
+    title: Password policy
+    description: 'The rules a password of this realm has to satisfy, at sign-up and at every reset.'
+    loading_failed:
+      title: Failed to load the password policy
+      description: This realm has no password policy the console can read.
+    preview:
+      title: What the person sees
+      description: The sign-up and reset pages receive five of these rules and list them next to the field. The rest are checked on submit only.
+      listed: Listed on the page
+      none: Nothing — the page asks for a password with no stated requirement.
+      silent: 'Enforced but never listed: {{rules}}. The person only learns about them from the rejection message after they submitted a password.'
+      expiry_one: Every password expires after {{count, number}} day; the person is sent to the reset screen at their first sign-in past that date.
+      expiry_other: Every password expires after {{count, number}} days; the person is sent to the reset screen at their first sign-in past that date.
+    rules:
+      min_length_one: At least {{count, number}} character
+      min_length_other: At least {{count, number}} characters
+      require_uppercase: One uppercase letter
+      require_lowercase: One lowercase letter
+      require_number: One digit
+      require_special: One special character
+      min_entropy_one: '{{count, number}} bit of entropy'
+      min_entropy_other: '{{count, number}} bits of entropy'
+      forbid_common: 'No common password, username or email address'
+      check_breached: No password reported as breached
+    save_bar:
+      title_one: '{{count, number}} unsaved change'
+      title_other: '{{count, number}} unsaved changes'
+      description: 'Existing passwords are not re-checked; the new rules apply at the next sign-up or reset.'
+      cancel: Discard
+      saving: Saving...
+      submit: Save changes
+    toast:
+      updated: Password policy updated.
+      update_failed: Failed to update the password policy
+
+identities:
+  list:
+    title: Identities
+    description: 'Customer accounts of this realm. Search them, review their sign-in state and what they still have to do.'
+    create: New identity
+    search_placeholder: 'Filter by name, email or username…'
+    columns:
+      identity: Identity
+      email: Email
+      status: Status
+      created: Signed up
+      roles: Roles
+    no_email: no email
+    status:
+      disabled: Disabled
+      active: Active
+      pending_one: '{{count, number}} action'
+      pending_other: '{{count, number}} actions'
+    card:
+      active: active
+      disabled: disabled
+      email_verified: email verified
+      email_unverified: email unverified
+      pending_one: '{{count, number}} pending action'
+      pending_other: '{{count, number}} pending actions'
+      signed_up: Signed up {{when}}
+      flags:
+        can_sign_in: Can sign in
+        email_verified: Email verified
+        nothing_required: Nothing required at next sign-in
+    metrics:
+      total:
+        label: Total
+        hint_one: identity
+        hint_other: identities
+      verified:
+        label: Email verified
+        hint: '{{percent}}% of total'
+        empty_hint: none verified
+      pending:
+        label: Pending actions
+        hint: blocked at next sign-in
+      disabled:
+        label: Disabled
+        hint: cannot sign in
+    alerts:
+      pending:
+        title_one: '{{count, number}} identity has an action pending at next sign-in'
+        title_other: '{{count, number}} identities have an action pending at next sign-in'
+        detail: '{{names}} — they cannot complete a sign-in until it is done.'
+        action: Review
+    filters:
+      active: Active
+      unverified: Unverified email
+      pending: Pending actions
+      disabled: Disabled
+    empty:
+      label: No identity
+      hint: An identity is a customer account of this realm. Service accounts belong to applications and are listed there.
+    aggregates:
+      identities_one: '{{count, number}} identity'
+      identities_other: '{{count, number}} identities'
+      active: '{{total, number}} active'
+  detail:
+    tabs:
+      overview: Overview
+      credentials: Credentials
+      role_mapping: Role mapping
+      organizations: Organizations
+      attributes: Attributes
+  toast:
+    created: The identity has been successfully created
+    updated: Identity updated
+    delete_failed: The identity could not be deleted
+
+organizations:
+  detail:
+    tabs:
+      settings: Settings
+      attributes: Attributes
+      members: Members
+  remove_member:
+    title: Remove member?
+    description: 'Remove "{{name}}" from this organization? Their organization-scoped roles will be revoked. This does not delete the identity.'
+  toast:
+    create_failed: Failed to create organization
+
+roles:
+  detail:
+    tabs:
+      settings: Settings
+      permissions: Permissions
+      users: Identities

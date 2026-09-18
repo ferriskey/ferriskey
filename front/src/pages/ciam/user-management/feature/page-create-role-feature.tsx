@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { useCreateRole } from '@/api/role.api'
 import { useGetClients } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
@@ -7,7 +8,11 @@ import { createRoleSchema } from '@/pages/iam/role/schemas/create-role.schema'
 import PageCreateRole, { type RoleScope } from '@/pages/iam/role/ui/page-create-role'
 import { CONSOLE_ROLES_URL } from '../urls'
 
+const ROLE_NAMESPACE = 'role'
+
 export default function PageCreateRoleFeature() {
+  useTranslation(ROLE_NAMESPACE)
+
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'

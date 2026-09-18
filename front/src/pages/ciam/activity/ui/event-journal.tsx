@@ -1,4 +1,5 @@
 import { Lock, Unlock } from 'lucide-react'
+import type { TFunction } from 'i18next'
 import type { CardSpec, Column } from '@/components/kit'
 import { IconTile, Pill } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
@@ -13,6 +14,8 @@ import {
 } from '@/pages/iam/seawatch/event-catalogue'
 
 import SecurityEvent = Schemas.SecurityEvent
+
+export type ConsoleTranslate = TFunction<'console'>
 
 const muted = 'text-xs text-neutral-400 dark:text-neutral-500'
 const mono = 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'
@@ -30,11 +33,12 @@ export const detailString = (event: SecurityEvent, key: string) => {
 }
 
 export const eventColumns = (
-  directory: RealmDirectory
+  directory: RealmDirectory,
+  t: ConsoleTranslate
 ): Record<string, Column<SecurityEvent>> => ({
   event: {
     key: 'event_type',
-    header: 'Event',
+    header: t('activity.event.columns.event'),
     render: (e) => (
       <div className='min-w-0'>
         <span>{eventLabel(e)}</span>
@@ -45,7 +49,7 @@ export const eventColumns = (
   },
   outcome: {
     key: 'status',
-    header: 'Outcome',
+    header: t('activity.event.columns.outcome'),
     render: (e) => {
       const reason = eventReason(e)
       return (
@@ -67,17 +71,19 @@ export const eventColumns = (
   },
   actor: {
     key: 'actor',
-    header: 'Account',
+    header: t('activity.event.columns.actor'),
     render: (e) => {
       const identifier = actorLabel(e)
-      if (!identifier) return <span className={muted}>unattributed</span>
+      if (!identifier) return <span className={muted}>{t('activity.event.unattributed')}</span>
       const name = directory.label(e.actor_id, e.actor_type)
       return (
         <div className='min-w-0'>
           <span className={name ? 'text-neutral-700 dark:text-neutral-300' : mono}>
             {name ?? identifier}
           </span>
-          <p className={sub}>{name ? identifier : (e.actor_type ?? 'unknown type')}</p>
+          <p className={sub}>
+            {name ? identifier : (e.actor_type ?? t('activity.event.unknown_type'))}
+          </p>
         </div>
       )
     },
@@ -85,10 +91,10 @@ export const eventColumns = (
   },
   target: {
     key: 'target',
-    header: 'Target',
+    header: t('activity.event.columns.target'),
     render: (e) => {
       const identifier = e.target_id ?? e.resource
-      if (!identifier) return <span className={muted}>none</span>
+      if (!identifier) return <span className={muted}>{t('activity.event.no_target')}</span>
       const name = directory.label(e.target_id, e.target_type) ?? e.resource
       const resolved = Boolean(name) && name !== identifier
       return (
@@ -96,7 +102,9 @@ export const eventColumns = (
           <span className={resolved ? 'text-neutral-700 dark:text-neutral-300' : mono}>
             {name ?? identifier}
           </span>
-          <p className={sub}>{resolved ? identifier : (e.target_type ?? 'unknown type')}</p>
+          <p className={sub}>
+            {resolved ? identifier : (e.target_type ?? t('activity.event.unknown_type'))}
+          </p>
         </div>
       )
     },
@@ -104,13 +112,13 @@ export const eventColumns = (
   },
   origin: {
     key: 'ip_address',
-    header: 'Origin',
+    header: t('activity.event.columns.origin'),
     render: (e) => (
       <div className='min-w-0'>
         {e.ip_address ? (
           <span className={mono}>{e.ip_address}</span>
         ) : (
-          <span className={muted}>not recorded</span>
+          <span className={muted}>{t('activity.event.not_recorded')}</span>
         )}
         {e.user_agent && <p className={sub}>{e.user_agent}</p>}
       </div>
@@ -119,7 +127,7 @@ export const eventColumns = (
   },
   when: {
     key: 'timestamp',
-    header: 'When',
+    header: t('activity.event.columns.when'),
     align: 'right',
     render: (e) => (
       <div className='min-w-0 whitespace-nowrap'>
@@ -133,7 +141,10 @@ export const eventColumns = (
   },
 })
 
-export const eventCard = (directory: RealmDirectory): CardSpec<SecurityEvent> => ({
+export const eventCard = (
+  directory: RealmDirectory,
+  t: ConsoleTranslate
+): CardSpec<SecurityEvent> => ({
   avatar: (e) => (
     <IconTile tone={e.status === 'failure' ? 'danger' : 'success'}>
       {e.status === 'failure' ? (
@@ -158,14 +169,14 @@ export const eventCard = (directory: RealmDirectory): CardSpec<SecurityEvent> =>
     </>
   ),
   flags: (e) => [
-    { label: 'Account identified', on: Boolean(e.actor_id) },
-    { label: 'Origin recorded', on: Boolean(e.ip_address) },
-    { label: 'Device recorded', on: Boolean(e.user_agent) },
+    { label: t('activity.event.flags.actor'), on: Boolean(e.actor_id) },
+    { label: t('activity.event.flags.origin'), on: Boolean(e.ip_address) },
+    { label: t('activity.event.flags.device'), on: Boolean(e.user_agent) },
   ],
   footer: (e) => (
     <>
       <span className='truncate'>
-        {eventDetailSummary(e) ?? e.user_agent ?? 'no additional detail'}
+        {eventDetailSummary(e) ?? e.user_agent ?? t('activity.event.no_detail')}
       </span>
       <span className='tnum shrink-0 pl-3 text-right'>{formatTimestamp(e.timestamp)}</span>
     </>

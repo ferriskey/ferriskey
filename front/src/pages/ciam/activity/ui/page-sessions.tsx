@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { MetricsBand } from '@/components/kit'
 import type { Metric } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
@@ -11,6 +12,8 @@ import { JournalSection } from './journal-section'
 
 import SecurityEvent = Schemas.SecurityEvent
 
+const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
+
 export interface PageSessionsProps {
   events: SecurityEvent[]
   isLoading: boolean
@@ -21,12 +24,6 @@ export interface PageSessionsProps {
   directory: RealmDirectory
 }
 
-const filters = [
-  { key: 'all', label: 'All' },
-  { key: 'opened', label: 'Opened' },
-  { key: 'revoked', label: 'Revoked' },
-]
-
 export default function PageSessions({
   events,
   isLoading,
@@ -36,10 +33,21 @@ export default function PageSessions({
   windowLimit,
   directory,
 }: PageSessionsProps) {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
 
-  const windowLabel = `last ${windowDays} days`
+  const windowLabel = t('activity.window', { count: windowDays })
+  const overWindow = t('activity.over_window', { window: windowLabel })
+
+  const filters = useMemo(
+    () => [
+      { key: 'all', label: t('activity.filter.all') },
+      { key: 'opened', label: t('activity.sessions.filters.opened') },
+      { key: 'revoked', label: t('activity.sessions.filters.revoked') },
+    ],
+    [t]
+  )
 
   const opened = events.filter((e) => e.event_type === 'session_created')
   const revoked = events.filter((e) => e.event_type === 'session_revoked')
@@ -53,9 +61,9 @@ export default function PageSessions({
   const metrics: Metric[] = [
     {
       key: 'opened',
-      label: 'Sessions opened',
-      value: opened.length.toLocaleString(),
-      hint: `over the ${windowLabel}`,
+      label: t('activity.sessions.metrics.opened'),
+      value: t('number', { value: opened.length }),
+      hint: overWindow,
       series: measured(
         buckets.map((b) => b.filter((e) => e.event_type === 'session_created').length)
       ),
@@ -63,9 +71,9 @@ export default function PageSessions({
     },
     {
       key: 'revoked',
-      label: 'Sessions revoked',
-      value: revoked.length.toLocaleString(),
-      hint: revoked.length === 0 ? 'none revoked' : `over the ${windowLabel}`,
+      label: t('activity.sessions.metrics.revoked'),
+      value: t('number', { value: revoked.length }),
+      hint: revoked.length === 0 ? t('activity.sessions.metrics.none_revoked') : overWindow,
       series: measured(
         buckets.map((b) => b.filter((e) => e.event_type === 'session_revoked').length)
       ),
@@ -73,9 +81,9 @@ export default function PageSessions({
     },
     {
       key: 'accounts',
-      label: 'Distinct accounts',
-      value: accounts.toLocaleString(),
-      hint: `over the ${windowLabel}`,
+      label: t('activity.sessions.metrics.accounts'),
+      value: t('number', { value: accounts }),
+      hint: overWindow,
       series: measured(
         buckets.map((b) => new Set(b.map((e) => e.actor_id ?? 'unknown')).size)
       ),
@@ -83,9 +91,12 @@ export default function PageSessions({
     },
     {
       key: 'origins',
-      label: 'Distinct origins',
-      value: origins.toLocaleString(),
-      hint: origins === 0 ? 'no IP address recorded' : 'IP addresses seen',
+      label: t('activity.sessions.metrics.origins'),
+      value: t('number', { value: origins }),
+      hint:
+        origins === 0
+          ? t('activity.sessions.metrics.no_origin')
+          : t('activity.sessions.metrics.origins_hint'),
       series: measured(
         buckets.map((b) => new Set(b.map((e) => e.ip_address).filter(Boolean)).size)
       ),
@@ -96,16 +107,15 @@ export default function PageSessions({
   const notices: Notice[] = [
     {
       tone: 'note',
-      title: 'No realm-wide list of active devices exists',
-      detail:
-        'The API lists and revokes sessions one account at a time, so the devices currently signed in are shown on each account. What is recorded for the whole realm is the journal below.',
+      title: t('activity.sessions.notices.no_device_list.title'),
+      detail: t('activity.sessions.notices.no_device_list.detail'),
     },
     ...(isError
       ? [
           {
             tone: 'error' as const,
-            title: 'Session journal unavailable',
-            detail: 'We could not fetch the session events of this realm. Please try again later.',
+            title: t('activity.sessions.notices.error.title'),
+            detail: t('activity.sessions.notices.error.detail'),
           },
         ]
       : []),
@@ -113,14 +123,17 @@ export default function PageSessions({
       ? [
           {
             tone: 'warn' as const,
-            title: `Capped at ${windowLimit} events`,
-            detail: `The realm recorded more over the ${windowLabel}; the figures above cover the ${windowLimit} most recent only.`,
+            title: t('activity.capped.title', { limit: windowLimit }),
+            detail: t('activity.capped.detail_above', {
+              window: windowLabel,
+              limit: windowLimit,
+            }),
           },
         ]
       : []),
   ]
 
-  const columns = eventColumns(directory)
+  const columns = eventColumns(directory, t)
 
   const filtered = useMemo(() => {
     const byFilter =
@@ -138,18 +151,23 @@ export default function PageSessions({
 
   return (
     <ActivityPage
-      title='Sessions'
-      description={`Sessions opened and revoked in this realm over the ${windowLabel}${
-        lastOpened ? `, most recently on ${formatTimestamp(lastOpened.timestamp)}` : ''
-      }.`}
+      title={t('activity.sessions.title')}
+      description={
+        lastOpened
+          ? t('activity.sessions.description_with_latest', {
+              window: windowLabel,
+              timestamp: formatTimestamp(lastOpened.timestamp),
+            })
+          : t('activity.sessions.description', { window: windowLabel })
+      }
     >
       <NoticeList notices={notices} />
 
       <MetricsBand metrics={metrics} />
 
       <JournalSection
-        title='Session journal'
-        description='One line per session opened or revoked, with the device and the origin recorded at the time.'
+        title={t('activity.sessions.journal.title')}
+        description={t('activity.sessions.journal.description')}
         rows={filtered}
         total={events.length}
         columns={[
@@ -159,7 +177,7 @@ export default function PageSessions({
           columns.origin,
           columns.when,
         ]}
-        card={eventCard(directory)}
+        card={eventCard(directory, t)}
         getKey={(e) => e.id}
         loading={isLoading}
         filters={filters}
@@ -167,14 +185,14 @@ export default function PageSessions({
         onFilter={setFilter}
         query={query}
         onQuery={setQuery}
-        searchPlaceholder='Search by account, IP, device…'
+        searchPlaceholder={t('activity.sessions.journal.search_placeholder')}
         aggregates={{
-          event_type: `${opened.length} opened`,
-          status: `${revoked.length} revoked`,
-          actor: `${accounts} account${accounts !== 1 ? 's' : ''}`,
+          event_type: t('activity.sessions.aggregates.opened', { total: opened.length }),
+          status: t('activity.sessions.aggregates.revoked', { total: revoked.length }),
+          actor: t('activity.sessions.aggregates.accounts', { count: accounts }),
         }}
-        emptyLabel='No session event'
-        emptyHint={`This journal fills as customers sign in and as sessions are revoked. Nothing was recorded over the ${windowLabel}.`}
+        emptyLabel={t('activity.sessions.journal.empty_label')}
+        emptyHint={t('activity.sessions.journal.empty_hint', { window: windowLabel })}
       />
     </ActivityPage>
   )

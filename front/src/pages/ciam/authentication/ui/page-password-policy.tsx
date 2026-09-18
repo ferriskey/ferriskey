@@ -1,4 +1,6 @@
 import { Info } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import SaveBar from '@/components/kit/save-bar'
 import { PageShell, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -20,55 +22,63 @@ export interface PagePasswordPolicyProps {
   onSave: () => void
 }
 
-const ANNOUNCED: {
+type ConsoleTranslate = TFunction<'console'>
+
+interface PolicyRule {
   key: keyof PolicyDraft
-  label: (draft: PolicyDraft) => string
+  label: (draft: PolicyDraft, t: ConsoleTranslate) => string
   active: (draft: PolicyDraft) => boolean
-}[] = [
+}
+
+const ANNOUNCED: PolicyRule[] = [
   {
     key: 'min_length',
-    label: (d) => `At least ${d.min_length ?? 0} characters`,
+    label: (d, t) =>
+      t('authentication.password_policy.rules.min_length', { count: d.min_length ?? 0 }),
     active: (d) => Boolean(d.min_length && d.min_length > 0),
   },
   {
     key: 'require_uppercase',
-    label: () => 'One uppercase letter',
+    label: (_, t) => t('authentication.password_policy.rules.require_uppercase'),
     active: (d) => d.require_uppercase,
   },
   {
     key: 'require_lowercase',
-    label: () => 'One lowercase letter',
+    label: (_, t) => t('authentication.password_policy.rules.require_lowercase'),
     active: (d) => d.require_lowercase,
   },
-  { key: 'require_number', label: () => 'One digit', active: (d) => d.require_number },
+  {
+    key: 'require_number',
+    label: (_, t) => t('authentication.password_policy.rules.require_number'),
+    active: (d) => d.require_number,
+  },
   {
     key: 'require_special',
-    label: () => 'One special character',
+    label: (_, t) => t('authentication.password_policy.rules.require_special'),
     active: (d) => d.require_special,
   },
 ]
 
-const SILENT: {
-  key: keyof PolicyDraft
-  label: (draft: PolicyDraft) => string
-  active: (draft: PolicyDraft) => boolean
-}[] = [
+const SILENT: PolicyRule[] = [
   {
     key: 'min_entropy_bits',
-    label: (d) => `${d.min_entropy_bits} bits of entropy`,
+    label: (d, t) =>
+      t('authentication.password_policy.rules.min_entropy', { count: d.min_entropy_bits ?? 0 }),
     active: (d) => Boolean(d.min_entropy_bits && d.min_entropy_bits > 0),
   },
   {
     key: 'forbid_common',
-    label: () => 'No common password, username or email address',
+    label: (_, t) => t('authentication.password_policy.rules.forbid_common'),
     active: (d) => d.forbid_common,
   },
   {
     key: 'check_breached',
-    label: () => 'No password reported as breached',
+    label: (_, t) => t('authentication.password_policy.rules.check_breached'),
     active: (d) => d.check_breached,
   },
 ]
+
+const RULE_SEPARATOR = ', '
 
 export default function PagePasswordPolicy({
   value,
@@ -82,6 +92,8 @@ export default function PagePasswordPolicy({
   onDiscard,
   onSave,
 }: PagePasswordPolicyProps) {
+  const { t } = useTranslation('console')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -97,10 +109,10 @@ export default function PagePasswordPolicy({
       <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
           <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
-            Failed to load the password policy
+            {t('authentication.password_policy.loading_failed.title')}
           </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            This realm has no password policy the console can read.
+            {t('authentication.password_policy.loading_failed.description')}
           </p>
         </div>
       </PageShell>
@@ -108,17 +120,17 @@ export default function PagePasswordPolicy({
   }
 
   const announced = ANNOUNCED.filter((rule) => rule.active(value)).map((rule) =>
-    rule.label(value)
+    rule.label(value, t)
   )
-  const silent = SILENT.filter((rule) => rule.active(value)).map((rule) => rule.label(value))
+  const silent = SILENT.filter((rule) => rule.active(value)).map((rule) => rule.label(value, t))
 
   return (
     <PageShell>
       <div className={cn('flex flex-wrap items-start justify-between gap-3', tokens.header.spacing)}>
         <div className='min-w-0'>
-          <h1 className={tokens.header.title}>Password policy</h1>
+          <h1 className={tokens.header.title}>{t('authentication.password_policy.title')}</h1>
           <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-            The rules a password of this realm has to satisfy, at sign-up and at every reset.
+            {t('authentication.password_policy.description')}
           </p>
         </div>
       </div>
@@ -127,12 +139,12 @@ export default function PagePasswordPolicy({
         <RealmPasswordPolicyTab value={value} errors={errors} onChange={onChange} />
 
         <Section
-          title='What the person sees'
-          description='The sign-up and reset pages receive five of these rules and list them next to the field. The rest are checked on submit only.'
+          title={t('authentication.password_policy.preview.title')}
+          description={t('authentication.password_policy.preview.description')}
         >
           <div className='py-4'>
             <p className='text-xs font-medium text-neutral-500 dark:text-neutral-400'>
-              Listed on the page
+              {t('authentication.password_policy.preview.listed')}
             </p>
             {announced.length > 0 ? (
               <ul className='mt-1.5 space-y-1 text-[13px] text-neutral-700 dark:text-neutral-300'>
@@ -142,7 +154,7 @@ export default function PagePasswordPolicy({
               </ul>
             ) : (
               <p className='mt-1.5 text-[13px] text-neutral-500 dark:text-neutral-400'>
-                Nothing — the page asks for a password with no stated requirement.
+                {t('authentication.password_policy.preview.none')}
               </p>
             )}
 
@@ -150,16 +162,18 @@ export default function PagePasswordPolicy({
               <div className='mt-4 flex items-start gap-2.5 rounded-sm border border-fk-line bg-neutral-50/60 px-3 py-2.5 dark:bg-fk-raised/40'>
                 <Info className='mt-0.5 size-3.5 shrink-0 text-neutral-400' strokeWidth={2} />
                 <p className='text-xs text-neutral-600 dark:text-neutral-400'>
-                  Enforced but never listed: {silent.join(', ')}. The person only learns about
-                  them from the rejection message after they submitted a password.
+                  {t('authentication.password_policy.preview.silent', {
+                    rules: silent.join(RULE_SEPARATOR),
+                  })}
                 </p>
               </div>
             )}
 
             {value.max_age_days !== null && value.max_age_days > 0 && (
               <p className='mt-3 text-xs text-neutral-600 dark:text-neutral-400'>
-                Every password expires after {value.max_age_days} days; the person is sent to the
-                reset screen at their first sign-in past that date.
+                {t('authentication.password_policy.preview.expiry', {
+                  count: value.max_age_days,
+                })}
               </p>
             )}
           </div>
@@ -168,13 +182,15 @@ export default function PagePasswordPolicy({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Existing passwords are not re-checked; the new rules apply at the next sign-up or reset.'
+        title={t('authentication.password_policy.save_bar.title', { count: dirtyCount })}
+        description={t('authentication.password_policy.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
+        cancelLabel={t('authentication.password_policy.save_bar.cancel')}
         actions={[
           {
-            label: isSaving ? 'Saving...' : 'Save changes',
+            label: isSaving
+              ? t('authentication.password_policy.save_bar.saving')
+              : t('authentication.password_policy.save_bar.submit'),
             onClick: onSave,
             variant: canSave && !isSaving ? 'default' : 'secondary',
           },

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import {
   useAddUserToOrganization,
   useDeleteOrganization,
@@ -26,6 +27,8 @@ import { CONSOLE_ORGANIZATION_URL, CONSOLE_ORGANIZATIONS_URL } from '../urls'
 
 import User = Schemas.User
 
+const CONSOLE_NAMESPACES = ['console', 'organization'] as const
+
 interface Draft extends OrganizationDraft {
   key: string
 }
@@ -40,16 +43,22 @@ const EMPTY_DRAFT: Draft = {
   description: '',
 }
 
-const ORGANIZATION_TABS = [
-  { key: 'settings', label: 'Settings' },
-  { key: 'attributes', label: 'Attributes' },
-  { key: 'members', label: 'Members' },
-] as const
+const ORGANIZATION_TABS = ['settings', 'attributes', 'members'] as const
 
 export default function PageOrganizationDetailFeature() {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const { realm_name, organizationId } = useParams<RouterParams & { organizationId: string }>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
+
+  const tabList = useMemo(
+    () =>
+      ORGANIZATION_TABS.map((key) => ({
+        key,
+        label: t(`organizations.detail.tabs.${key}`),
+      })),
+    [t]
+  )
 
   const { data: organization, isLoading } = useGetOrganization({ realm, organizationId })
   const { mutate: updateOrganization } = useUpdateOrganization()
@@ -73,7 +82,7 @@ export default function PageOrganizationDetailFeature() {
 
   const { value: tab, tabs } = useRouteTabs(
     CONSOLE_ORGANIZATION_URL(realm, organizationId),
-    ORGANIZATION_TABS
+    tabList
   )
 
   const [rolesUser, setRolesUser] = useState<User | null>(null)
@@ -167,8 +176,10 @@ export default function PageOrganizationDetailFeature() {
   const handleRemoveMember = (user: User) => {
     if (!organizationId) return
     ask({
-      title: 'Remove member?',
-      description: `Remove "${memberDisplayName(user)}" from this organization? Their organization-scoped roles will be revoked. This does not delete the identity.`,
+      title: t('organizations.remove_member.title'),
+      description: t('organizations.remove_member.description', {
+        name: memberDisplayName(user),
+      }),
       onConfirm: () => {
         removeMember({
           path: { realm_name: realm, organization_id: organizationId, user_id: user.id },

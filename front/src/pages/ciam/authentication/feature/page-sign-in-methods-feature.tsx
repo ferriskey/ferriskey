@@ -1,4 +1,5 @@
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { useGetSmtpConfig } from '@/api/smtp.api'
@@ -28,6 +29,7 @@ const DEFAULT_DRAFT: SignInDraft = {
 }
 
 export default function PageSignInMethodsFeature() {
+  const { t } = useTranslation('console')
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
 
@@ -61,19 +63,19 @@ export default function PageSignInMethodsFeature() {
 
   const errors: SignInErrors = {}
   if (value.loginAliases.length === 0) {
-    errors.loginAliases = 'Select at least one identifier'
+    errors.loginAliases = t('authentication.sign_in.validation.aliases_required')
   }
   if (value.magicLink && (!Number.isFinite(value.magicLinkTtl) || value.magicLinkTtl < 1)) {
-    errors.magicLinkTtl = 'A magic link must stay valid for at least one minute'
+    errors.magicLinkTtl = t('authentication.sign_in.validation.magic_link_ttl')
   }
   if (!Number.isFinite(value.lockoutThreshold) || value.lockoutThreshold < 0) {
-    errors.lockoutThreshold = 'Cannot be negative'
+    errors.lockoutThreshold = t('authentication.sign_in.validation.not_negative')
   }
   if (!Number.isFinite(value.lockoutDuration) || value.lockoutDuration < 0) {
-    errors.lockoutDuration = 'Cannot be negative'
+    errors.lockoutDuration = t('authentication.sign_in.validation.not_negative')
   }
   if (value.lockoutThreshold > 0 && value.lockoutDuration === 0) {
-    errors.lockoutDuration = 'A lockout with no duration never releases the account'
+    errors.lockoutDuration = t('authentication.sign_in.validation.lockout_without_duration')
   }
 
   const changed = (Object.keys(pristine) as (keyof SignInDraft)[]).filter((key) =>
@@ -105,9 +107,9 @@ export default function PageSignInMethodsFeature() {
         },
       },
       {
-        onSuccess: () => toast.success('Sign-in methods updated.'),
+        onSuccess: () => toast.success(t('authentication.sign_in.toast.updated')),
         onError: (error: Error) =>
-          toast.error(apiErrorMessage(error, 'Failed to update the sign-in methods')),
+          toast.error(apiErrorMessage(error, t('authentication.sign_in.toast.update_failed'))),
       }
     )
   }

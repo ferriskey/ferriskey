@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useCreateUser } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
@@ -8,7 +9,10 @@ import PageCreateUser from '@/pages/iam/user/ui/page-create-user'
 import { CONSOLE_IDENTITIES_URL } from '../urls'
 import { apiErrorMessage } from '@/lib/api-error'
 
+const CONSOLE_NAMESPACES = ['console', 'user'] as const
+
 export default function PageCreateIdentityFeature() {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -51,7 +55,7 @@ export default function PageCreateIdentityFeature() {
       },
       {
         onSuccess: () => {
-          toast.success('The identity has been successfully created')
+          toast.success(t('identities.toast.created'))
           navigate(CONSOLE_IDENTITIES_URL(realm))
         },
         onError: (error) => toast.error(apiErrorMessage(error)),

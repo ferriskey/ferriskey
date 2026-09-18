@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { useDeleteClient, useGetClient, useUpdateClient } from '@/api/client.api'
@@ -15,9 +16,9 @@ import ApplicationSettingsTab, {
 import Client = Schemas.Client
 import { apiErrorMessage } from '@/lib/api-error'
 
+const CONSOLE_NAMESPACES = ['console', 'client'] as const
+
 const CALLBACK_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.+/
-const CALLBACK_ERROR = 'Enter a full URL such as https://app.acme.com/callback.'
-const ORIGIN_ERROR = `Enter an origin such as https://app.acme.com — no path, no wildcard — or ${DERIVED_ORIGIN_SENTINEL} to derive them from the callback URLs`
 
 interface Draft extends ApplicationSettingsDraft {
   key: string
@@ -45,6 +46,7 @@ export default function ApplicationSettingsTabFeature({
   application,
   realm,
 }: ApplicationSettingsTabFeatureProps) {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const navigate = useNavigate()
 
   const { refetch } = useGetClient({ realm, clientId: application.id })
@@ -107,7 +109,7 @@ export default function ApplicationSettingsTabFeature({
       .catch(() => false)
 
     if (deleted) {
-      toast.success('Application deleted')
+      toast.success(t('applications.settings.toast.deleted'))
       navigate(CONSOLE_APPLICATIONS_URL(realm))
     }
   }
@@ -120,7 +122,7 @@ export default function ApplicationSettingsTabFeature({
 
     if (added !== undefined) {
       if (!CALLBACK_PATTERN.test(added.trim())) {
-        setCallbackError(CALLBACK_ERROR)
+        setCallbackError(t('applications.settings.validation.callback_format'))
         return
       }
       setCallbackError(undefined)
@@ -131,9 +133,11 @@ export default function ApplicationSettingsTabFeature({
           payload: { value: added.trim() },
         })
         await refetch()
-        toast.success('Callback URL added')
+        toast.success(t('applications.settings.toast.callback_added'))
       } catch (error) {
-        toast.error(apiErrorMessage(error, 'Failed to add the callback URL'))
+        toast.error(
+          apiErrorMessage(error, t('applications.settings.toast.callback_add_failed'))
+        )
       }
       return
     }
@@ -146,9 +150,11 @@ export default function ApplicationSettingsTabFeature({
           redirectUriId: removed.id,
         })
         await refetch()
-        toast.success('Callback URL removed')
+        toast.success(t('applications.settings.toast.callback_removed'))
       } catch (error) {
-        toast.error(apiErrorMessage(error, 'Failed to remove the callback URL'))
+        toast.error(
+          apiErrorMessage(error, t('applications.settings.toast.callback_remove_failed'))
+        )
       }
     }
   }
@@ -159,7 +165,11 @@ export default function ApplicationSettingsTabFeature({
 
     if (added !== undefined) {
       if (!isWebOriginValue(added)) {
-        setOriginError(ORIGIN_ERROR)
+        setOriginError(
+          t('applications.settings.validation.origin_format', {
+            sentinel: DERIVED_ORIGIN_SENTINEL,
+          })
+        )
         return
       }
       setOriginError(undefined)
@@ -169,9 +179,9 @@ export default function ApplicationSettingsTabFeature({
           clientId: application.id,
           payload: { value: added.trim() },
         })
-        toast.success('Web origin added')
+        toast.success(t('applications.settings.toast.origin_added'))
       } catch (error) {
-        toast.error(apiErrorMessage(error, 'Failed to add the web origin'))
+        toast.error(apiErrorMessage(error, t('applications.settings.toast.origin_add_failed')))
       }
       return
     }
@@ -183,9 +193,11 @@ export default function ApplicationSettingsTabFeature({
           clientId: application.id,
           webOriginId: removed.id,
         })
-        toast.success('Web origin removed')
+        toast.success(t('applications.settings.toast.origin_removed'))
       } catch (error) {
-        toast.error(apiErrorMessage(error, 'Failed to remove the web origin'))
+        toast.error(
+          apiErrorMessage(error, t('applications.settings.toast.origin_remove_failed'))
+        )
       }
     }
   }

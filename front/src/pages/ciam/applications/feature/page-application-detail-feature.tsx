@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { useGetClient } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
@@ -15,6 +16,7 @@ import ApplicationQuickstartTabFeature from './application-quickstart-tab-featur
 import ApplicationSettingsTabFeature from './application-settings-tab-feature'
 
 export default function PageApplicationDetailFeature() {
+  const { t } = useTranslation('console')
   const { realm_name, client_id } = useParams<RouterParams>()
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
@@ -23,18 +25,18 @@ export default function PageApplicationDetailFeature() {
   const application = clientResponse?.data
 
   const type = application ? inferApplicationType(application) : null
-  const isInteractive = type ? applicationTypeMeta(type).usesAuthorizationCode : false
+  const isInteractive = type ? applicationTypeMeta(type, t).usesAuthorizationCode : false
 
   const tabList = useMemo<TabItem[]>(
     () => [
-      { key: 'quickstart', label: 'Quickstart' },
-      { key: 'settings', label: 'Settings' },
-      { key: 'credentials', label: 'Credentials' },
-      { key: 'api-access', label: 'API access' },
-      ...(isInteractive ? [{ key: 'saml', label: 'SAML' }] : []),
-      { key: 'maintenance', label: 'Maintenance' },
+      { key: 'quickstart', label: t('applications.detail.tabs.quickstart') },
+      { key: 'settings', label: t('applications.detail.tabs.settings') },
+      { key: 'credentials', label: t('applications.detail.tabs.credentials') },
+      { key: 'api-access', label: t('applications.detail.tabs.api_access') },
+      ...(isInteractive ? [{ key: 'saml', label: t('applications.detail.tabs.saml') }] : []),
+      { key: 'maintenance', label: t('applications.detail.tabs.maintenance') },
     ],
-    [isInteractive]
+    [isInteractive, t]
   )
 
   const { value: tab, tabs } = useRouteTabs(CONSOLE_APPLICATION_URL(realm, client_id), tabList)

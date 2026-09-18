@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useCreateClient } from '@/api/client.api'
@@ -6,13 +7,13 @@ import { useCreateRedirectUri } from '@/api/redirect_uris.api'
 import { useCreateWebOrigin } from '@/api/web_origins.api'
 import { RouterParams } from '@/routes/router'
 import { createClientSchema } from '@/pages/iam/client/schemas/create-client.schema'
-import { isWebOriginValue } from '@/lib/web-origin'
+import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import {
   CONSOLE_APPLICATIONS_URL,
   CONSOLE_APPLICATION_PICKER_URL,
 } from '../application-routes'
 import {
-  APPLICATION_FIELDS,
+  applicationFieldsShape,
   createPayloadFor,
   isApplicationType,
 } from '../application-types'
@@ -21,13 +22,12 @@ import PageCreateApplication, {
 } from '../ui/page-create-application'
 import { apiErrorMessage } from '@/lib/api-error'
 
+const CONSOLE_NAMESPACES = ['console', 'client'] as const
+
+const DEFAULT_APPLICATION_TYPE = 'spa'
+
 const CLIENT_ID_PATTERN = /^[a-z0-9-_]+$/
-const CLIENT_ID_ERROR = 'Only lowercase letters, numbers, hyphens and underscores.'
 const CALLBACK_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.+/
-const CALLBACK_ERROR = 'Enter a full URL such as https://app.acme.com/callback.'
-const CALLBACK_REQUIRED = 'At least one callback URL is required for this application type.'
-const ORIGIN_ERROR =
-  'Enter an origin such as https://app.acme.com — no path, no wildcard — or + to derive them from the callback URLs.'
 
 const slugify = (value: string) =>
   value
@@ -38,6 +38,7 @@ const slugify = (value: string) =>
     .replace(/^-+|-+$/g, '')
 
 export default function PageCreateApplicationFeature() {
+  const { t } = useTranslation(CONSOLE_NAMESPACES)
   const { realm_name } = useParams<RouterParams>()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -60,13 +61,19 @@ export default function PageCreateApplicationFeature() {
   const raw = params.get('type')
 
   const clientId = clientIdOverride ?? slugify(name)
-  const fields = isApplicationType(raw) ? APPLICATION_FIELDS[raw] : APPLICATION_FIELDS.spa
+  const fields = applicationFieldsShape(
+    isApplicationType(raw) ? raw : DEFAULT_APPLICATION_TYPE
+  )
 
   const identity = createClientSchema.safeParse({ clientId, name })
   const clientIdFormatError =
-    clientId.length > 0 && !CLIENT_ID_PATTERN.test(clientId) ? CLIENT_ID_ERROR : undefined
+    clientId.length > 0 && !CLIENT_ID_PATTERN.test(clientId)
+      ? t('applications.create.validation.client_id_format')
+      : undefined
   const callbackRequirementError =
-    fields.callbackRequired && callbacks.length === 0 ? CALLBACK_REQUIRED : undefined
+    fields.callbackRequired && callbacks.length === 0
+      ? t('applications.create.validation.callback_required')
+      : undefined
 
   const errors: CreateApplicationErrors = {
     name: identity.success
@@ -91,7 +98,7 @@ export default function PageCreateApplicationFeature() {
     const added = next.find((value) => !callbacks.includes(value))
 
     if (added !== undefined && !CALLBACK_PATTERN.test(added.trim())) {
-      setCallbackError(CALLBACK_ERROR)
+      setCallbackError(t('applications.create.validation.callback_format'))
       return
     }
 
@@ -103,7 +110,11 @@ export default function PageCreateApplicationFeature() {
     const added = next.find((value) => !origins.includes(value))
 
     if (added !== undefined && !isWebOriginValue(added)) {
-      setOriginError(ORIGIN_ERROR)
+      setOriginError(
+        t('applications.create.validation.origin_format', {
+          sentinel: DERIVED_ORIGIN_SENTINEL,
+        })
+      )
       return
     }
 
@@ -129,7 +140,7 @@ export default function PageCreateApplicationFeature() {
             payload: { value },
           })
         } catch {
-          toast.error(`Could not register callback URL: ${value}`)
+          toast.error(t('applications.create.toast.callback_failed', { value }))
         }
       }
 
@@ -141,14 +152,14 @@ export default function PageCreateApplicationFeature() {
             payload: { value },
           })
         } catch {
-          toast.error(`Could not register web origin: ${value}`)
+          toast.error(t('applications.create.toast.origin_failed', { value }))
         }
       }
 
-      toast.success('Application created')
+      toast.success(t('applications.create.toast.created'))
       navigate(listUrl)
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Failed to create application'))
+      toast.error(apiErrorMessage(error, t('applications.create.toast.create_failed')))
     } finally {
       setSubmitting(false)
     }
