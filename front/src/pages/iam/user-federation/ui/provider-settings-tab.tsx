@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { FieldRow, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
@@ -5,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import {
+  USER_FEDERATION_NAMESPACE,
   flattenConfig,
   humanizeConfigKey,
   isLdapLike,
@@ -55,6 +57,7 @@ export default function ProviderSettingsTab({
   onBindPasswordChange,
   onDelete,
 }: ProviderSettingsTabProps) {
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
   const editable = isLdapLike(provider.provider_type)
   const entries = flattenConfig(provider.config)
 
@@ -70,8 +73,8 @@ export default function ProviderSettingsTab({
         onPriorityChange={onPriorityChange}
       >
         <FieldRow
-          label='Type'
-          description='Settled at creation: it commands the shape of the configuration below, which changing the type would empty.'
+          label={t('detail.settings.type.label')}
+          description={t('detail.settings.type.description')}
           htmlFor='provider-type'
         >
           <Input
@@ -95,8 +98,8 @@ export default function ProviderSettingsTab({
         />
       ) : (
         <Section
-          title='Configuration'
-          description='Returned as the API stores it. This type has no form in the console, and secrets never come out in the clear.'
+          title={t('detail.settings.config.title')}
+          description={t('detail.settings.config.description')}
         >
           {entries.length > 0 ? (
             <dl className={tokens.surface.divider}>
@@ -124,18 +127,22 @@ export default function ProviderSettingsTab({
               ))}
             </dl>
           ) : (
-            <p className='py-3 text-xs text-neutral-400 dark:text-neutral-500'>No configuration recorded.</p>
+            <p className='py-3 text-xs text-neutral-400 dark:text-neutral-500'>
+              {t('detail.settings.config.empty')}
+            </p>
           )}
         </Section>
       )}
 
       <DangerZone
         resourceName={provider.name}
-        label='Delete this provider'
-        description='The accounts already imported lose their link to the directory. This cannot be undone.'
-        buttonLabel='Delete provider'
-        confirmTitle='Delete provider'
-        confirmDescription={`This will permanently delete the provider "${provider.name}" and every link it holds to the directory.`}
+        label={t('detail.settings.danger.label')}
+        description={t('detail.settings.danger.description')}
+        buttonLabel={t('detail.settings.danger.button')}
+        confirmTitle={t('detail.settings.danger.confirm_title')}
+        confirmDescription={t('detail.settings.danger.confirm_description', {
+          name: provider.name,
+        })}
         onConfirm={onDelete}
       />
     </>

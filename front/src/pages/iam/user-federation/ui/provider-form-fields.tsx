@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff, Link2, Power, PowerOff, RefreshCcw, ShieldCheck } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
@@ -17,7 +18,11 @@ import {
 import { DurationInput } from '@/components/ui/duration-input'
 import { ChoiceCards, FieldRow, Section, SwitchField, type Choice } from '@/components/kit'
 import {
+  MASKED_SECRET,
+  PRIORITY_HINT_KEY,
+  PRIORITY_LABEL_KEY,
   PRIORITY_ORDER,
+  USER_FEDERATION_NAMESPACE,
   type LdapSettings,
   type ProviderPriority,
   type SyncMode,
@@ -32,48 +37,25 @@ export interface ProviderErrors {
   bindPassword?: string
 }
 
-const enabledChoices: Choice<'enabled' | 'disabled'>[] = [
-  {
-    value: 'enabled',
-    label: 'Enabled',
-    description: 'The provider takes part in authentication.',
-    icon: Power,
-  },
-  {
-    value: 'disabled',
-    label: 'Disabled',
-    description: 'Ignored, but the accounts already imported stay linked.',
-    icon: PowerOff,
-  },
-]
+const CONNECTION_URL_PLACEHOLDER = 'ldaps://ldap.example.com:636'
+const BASE_DN_PLACEHOLDER = 'dc=example,dc=com'
+const BIND_DN_PLACEHOLDER = 'cn=ferriskey,ou=services,dc=example,dc=com'
 
-const syncModeChoices: Choice<SyncMode>[] = [
-  {
-    value: 'Import',
-    label: 'Import',
-    description: 'Creates the missing accounts and updates the existing ones.',
-    icon: RefreshCcw,
-  },
-  {
-    value: 'Force',
-    label: 'Force',
-    description: 'Also disables the local accounts the directory no longer returns.',
-    icon: ShieldCheck,
-  },
-  {
-    value: 'LinkOnly',
-    label: 'Link only',
-    description: 'Links accounts already present, never creates one.',
-    icon: Link2,
-  },
-]
+type EnabledState = 'enabled' | 'disabled'
 
-const priorityHints: Record<ProviderPriority, string> = {
-  Primary: 'Queried first.',
-  Secondary: 'Queried when the primary does not answer.',
-  Development: 'Working environment.',
-  Legacy: 'Kept for the duration of a migration.',
-}
+const ENABLED_STATE: EnabledState = 'enabled'
+const DISABLED_STATE: EnabledState = 'disabled'
+
+const ENABLED_CHOICES = [
+  { value: ENABLED_STATE, labelKey: 'form.enabled.choices.enabled', icon: Power },
+  { value: DISABLED_STATE, labelKey: 'form.enabled.choices.disabled', icon: PowerOff },
+] as const
+
+const SYNC_MODE_CHOICES = [
+  { value: 'Import', labelKey: 'form.sync.mode.choices.import', icon: RefreshCcw },
+  { value: 'Force', labelKey: 'form.sync.mode.choices.force', icon: ShieldCheck },
+  { value: 'LinkOnly', labelKey: 'form.sync.mode.choices.link_only', icon: Link2 },
+] as const
 
 export function BasicSettingsFields({
   name,
@@ -94,14 +76,23 @@ export function BasicSettingsFields({
   onPriorityChange: (v: ProviderPriority) => void
   children?: React.ReactNode
 }) {
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
+
+  const enabledChoices: Choice<EnabledState>[] = ENABLED_CHOICES.map((choice) => ({
+    value: choice.value,
+    label: t(`${choice.labelKey}.label`),
+    description: t(`${choice.labelKey}.description`),
+    icon: choice.icon,
+  }))
+
   return (
     <Section
-      title='Basic Settings'
-      description='Who the provider is, and its place in the query order.'
+      title={t('form.basic.title')}
+      description={t('form.basic.description')}
     >
       <FieldRow
-        label='Provider name'
-        description='Names the provider in this console; it must be unique in the realm.'
+        label={t('form.name.label')}
+        description={t('form.name.description')}
         htmlFor='provider-name'
       >
         <Input
@@ -117,8 +108,8 @@ export function BasicSettingsFields({
       {children}
 
       <FieldRow
-        label='Priority'
-        description='Order in which the providers are queried when an account is looked up.'
+        label={t('form.priority.label')}
+        description={t('form.priority.description')}
       >
         <div className='max-w-sm'>
           <Select
@@ -131,23 +122,25 @@ export function BasicSettingsFields({
             <SelectContent>
               {PRIORITY_ORDER.map((p) => (
                 <SelectItem key={p} value={p}>
-                  {p}
+                  {t(PRIORITY_LABEL_KEY[p])}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>{priorityHints[priority]}</p>
+          <p className='mt-1.5 text-xs text-neutral-500 dark:text-neutral-400'>
+            {t(PRIORITY_HINT_KEY[priority])}
+          </p>
         </div>
       </FieldRow>
 
       <FieldRow
-        label='Enabled'
-        description='A disabled provider is no longer queried and no longer synchronises.'
+        label={t('form.enabled.label')}
+        description={t('form.enabled.description')}
       >
         <ChoiceCards
-          label='Provider state'
-          value={enabled ? 'enabled' : 'disabled'}
-          onChange={(v) => onEnabledChange(v === 'enabled')}
+          label={t('form.enabled.picker_label')}
+          value={enabled ? ENABLED_STATE : DISABLED_STATE}
+          onChange={(v) => onEnabledChange(v === ENABLED_STATE)}
           options={enabledChoices}
         />
       </FieldRow>
@@ -172,24 +165,25 @@ export function LdapConnectionFields({
   onChange: (patch: Partial<LdapSettings>) => void
   onBindPasswordChange: (v: string) => void
 }) {
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
   const [reveal, setReveal] = useState(false)
 
   return (
     <>
       <Section
-        title='Connection Settings'
-        description='How the directory is reached, and the service account used to read it.'
+        title={t('form.connection.title')}
+        description={t('form.connection.description')}
       >
         <FieldRow
-          label='Connection URL'
-          description='Without a scheme, ldaps:// is assumed when TLS is on, ldap:// otherwise.'
+          label={t('form.connection_url.label')}
+          description={t('form.connection_url.description')}
           htmlFor='provider-connection-url'
         >
           <Input
             id='provider-connection-url'
             value={settings.connectionUrl}
             onChange={(e) => onChange({ connectionUrl: e.target.value })}
-            placeholder='ldaps://ldap.example.com:636'
+            placeholder={CONNECTION_URL_PLACEHOLDER}
             className='max-w-lg'
             aria-invalid={Boolean(errors.connectionUrl)}
           />
@@ -199,15 +193,15 @@ export function LdapConnectionFields({
         </FieldRow>
 
         <FieldRow
-          label='Base DN'
-          description='Root under which the accounts are searched.'
+          label={t('form.base_dn.label')}
+          description={t('form.base_dn.description')}
           htmlFor='provider-base-dn'
         >
           <Input
             id='provider-base-dn'
             value={settings.baseDn}
             onChange={(e) => onChange({ baseDn: e.target.value })}
-            placeholder='dc=example,dc=com'
+            placeholder={BASE_DN_PLACEHOLDER}
             className='max-w-lg'
             aria-invalid={Boolean(errors.baseDn)}
           />
@@ -215,31 +209,31 @@ export function LdapConnectionFields({
         </FieldRow>
 
         <FieldRow
-          label='Bind DN'
-          description='Optional: left empty, the directory is read anonymously.'
+          label={t('form.bind_dn.label')}
+          description={t('form.bind_dn.description')}
           htmlFor='provider-bind-dn'
         >
           <Input
             id='provider-bind-dn'
             value={settings.bindDn}
             onChange={(e) => onChange({ bindDn: e.target.value })}
-            placeholder='cn=ferriskey,ou=services,dc=example,dc=com'
+            placeholder={BIND_DN_PLACEHOLDER}
             className='max-w-lg'
           />
         </FieldRow>
 
         <FieldRow
-          label='Bind credential'
+          label={t('form.bind_password.label')}
           description={
             secretStored
-              ? 'Stored encrypted and never returned. Type a new one to replace it.'
-              : 'Stored encrypted and never returned once saved.'
+              ? t('form.bind_password.description.stored')
+              : t('form.bind_password.description.empty')
           }
           htmlFor='provider-bind-password'
         >
           {secretStored && (
             <p className='mb-2 font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'>
-              ******** · saved, not readable
+              {t('form.bind_password.stored_hint', { mask: MASKED_SECRET })}
             </p>
           )}
           <InputGroup className='max-w-sm'>
@@ -255,7 +249,9 @@ export function LdapConnectionFields({
               <InputGroupButton
                 size='icon-xs'
                 type='button'
-                aria-label={reveal ? 'Hide the credential' : 'Show the credential'}
+                aria-label={
+                  reveal ? t('form.bind_password.hide') : t('form.bind_password.reveal')
+                }
                 onClick={() => setReveal((v) => !v)}
               >
                 {reveal ? <EyeOff /> : <Eye />}
@@ -263,14 +259,11 @@ export function LdapConnectionFields({
             </InputGroupAddon>
           </InputGroup>
           {secretRequired && !bindPassword && (
-            <p className='mt-1.5 text-xs text-fk-danger'>
-              Changing the connection rewrites the whole configuration, and the saved
-              credential cannot be read back — type it again to save.
-            </p>
+            <p className='mt-1.5 text-xs text-fk-danger'>{t('form.bind_password.required')}</p>
           )}
         </FieldRow>
 
-        <FieldRow label='Use TLS' description='Encrypts the connection to the directory.'>
+        <FieldRow label={t('form.use_tls.label')} description={t('form.use_tls.description')}>
           <SwitchField
             checked={settings.useTls}
             onCheckedChange={(v) => onChange({ useTls: v })}
@@ -279,12 +272,12 @@ export function LdapConnectionFields({
       </Section>
 
       <Section
-        title='User Search Settings'
-        description='How an account is found in the directory.'
+        title={t('form.search.title')}
+        description={t('form.search.description')}
       >
         <FieldRow
-          label='User search filter'
-          description='LDAP filter applied to the lookup.'
+          label={t('form.search_filter.label')}
+          description={t('form.search_filter.description')}
           htmlFor='provider-search-filter'
         >
           <Input
@@ -320,24 +313,33 @@ export function SynchronisationFields({
   onSyncModeChange: (v: SyncMode) => void
   onSyncIntervalChange: (seconds: number) => void
 }) {
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
+
+  const syncModeChoices: Choice<SyncMode>[] = SYNC_MODE_CHOICES.map((choice) => ({
+    value: choice.value,
+    label: t(`${choice.labelKey}.label`),
+    description: t(`${choice.labelKey}.description`),
+    icon: choice.icon,
+  }))
+
   return (
     <Section
-      title='Synchronization Settings'
-      description='When the directory is walked again, and what it does to the accounts.'
+      title={t('form.sync.title')}
+      description={t('form.sync.description')}
     >
       <FieldRow
-        label='Scheduled synchronisation'
-        description='Turned off, the provider only synchronises when asked from this page.'
+        label={t('form.sync.scheduled.label')}
+        description={t('form.sync.scheduled.description')}
       >
         <SwitchField checked={syncEnabled} onCheckedChange={onSyncEnabledChange} />
       </FieldRow>
 
       <FieldRow
-        label='Sync mode'
-        description='What a scheduled run does with the accounts it meets. A run started by hand always imports.'
+        label={t('form.sync.mode.label')}
+        description={t('form.sync.mode.description')}
       >
         <ChoiceCards
-          label='Synchronisation mode'
+          label={t('form.sync.mode.picker_label')}
           value={syncMode}
           onChange={onSyncModeChange}
           options={syncModeChoices}
@@ -346,12 +348,12 @@ export function SynchronisationFields({
       </FieldRow>
 
       <FieldRow
-        label='Sync interval'
-        description='Time between two runs. The server keeps whole minutes, 60 seconds at the least.'
+        label={t('form.sync.interval.label')}
+        description={t('form.sync.interval.description')}
       >
         <div className='max-w-xs'>
           <DurationInput
-            label='Interval'
+            label={t('form.sync.interval.input_label')}
             value={syncIntervalSeconds}
             onChange={(seconds) => onSyncIntervalChange(seconds ?? 0)}
             error={errors.syncInterval}

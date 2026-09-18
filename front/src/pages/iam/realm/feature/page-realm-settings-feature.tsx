@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import {
   useDeleteRealm,
   useGetLoginSettings,
@@ -30,18 +31,26 @@ import PageRealmSettings from '../ui/page-realm-settings'
 import type { LoginDraft } from '../ui/realm-login-tab'
 import type { TokensDraft } from '../ui/realm-tokens-tab'
 import type { PolicyDraft } from '../ui/realm-password-policy-tab'
+import { REALM_NAMESPACE } from '../realm-namespace'
 import { useDraft } from './use-draft'
 
 import LoginAlias = Schemas.LoginAlias
 import { apiErrorMessage } from '@/lib/api-error'
 
 const REALM_TABS = [
-  { key: 'general', label: 'General' },
-  { key: 'login', label: 'Login' },
-  { key: 'tokens', label: 'Tokens' },
-  { key: 'password-policy', label: 'Password Policy' },
-  { key: 'maintenance', label: 'Maintenance' },
+  { key: 'general', labelKey: 'settings.tabs.general' },
+  { key: 'login', labelKey: 'settings.tabs.login' },
+  { key: 'tokens', labelKey: 'settings.tabs.tokens' },
+  { key: 'password-policy', labelKey: 'settings.tabs.password_policy' },
+  { key: 'maintenance', labelKey: 'settings.tabs.maintenance' },
 ] as const
+
+const MASTER_REALM_OVERVIEW_URL = '/realms/master/overview'
+
+type WhitelistKind = 'user' | 'role'
+
+const USER_WHITELIST: WhitelistKind = 'user'
+const ROLE_WHITELIST: WhitelistKind = 'role'
 
 const DEFAULT_LOGIN: LoginDraft = {
   userRegistration: false,
@@ -76,6 +85,7 @@ const DEFAULT_POLICY: PolicyDraft = {
 export default function PageRealmSettingsFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation(REALM_NAMESPACE)
   const realm = realm_name ?? 'master'
 
   const { data: realmData, isLoading: realmLoading } = useGetRealm({ realm })
@@ -97,7 +107,12 @@ export default function PageRealmSettingsFeature() {
   const { mutate: addWhitelistEntry } = useAddRealmWhitelistEntry()
   const { mutate: removeWhitelistEntry } = useRemoveRealmWhitelistEntry()
 
-  const { value: tab, tabs } = useRouteTabs(REALM_SETTINGS_URL(realm), REALM_TABS)
+  const translatedTabs = useMemo(
+    () => REALM_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
+    [t]
+  )
+
+  const { value: tab, tabs } = useRouteTabs(REALM_SETTINGS_URL(realm), translatedTabs)
 
   const settings = realmData?.settings
 
@@ -169,8 +184,9 @@ export default function PageRealmSettingsFeature() {
     .filter((entry) => entry.role_id)
     .map((entry) => entry.role_id as string)
 
-  const entryIdFor = (kind: 'user' | 'role', id: string) =>
-    whitelist.find((entry) => (kind === 'user' ? entry.user_id : entry.role_id) === id)?.id
+  const entryIdFor = (kind: WhitelistKind, id: string) =>
+    whitelist.find((entry) => (kind === USER_WHITELIST ? entry.user_id : entry.role_id) === id)
+      ?.id
 
   const generalParsed = updateRealmValidator.safeParse({
     name: realmData?.name ?? '',
@@ -183,7 +199,7 @@ export default function PageRealmSettingsFeature() {
 
   const loginAliasesError =
     login.value.loginAliases.length === 0
-      ? 'Select at least one login identifier'
+      ? t('login.identifiers.min_selected')
       : undefined
 
   const policyParsed = updatePasswordPolicyValidator.safeParse(policy.value)
@@ -239,7 +255,7 @@ export default function PageRealmSettingsFeature() {
           path: { name: realm_name },
           body: { name: realmData.name, display_name: displayName ? displayName : null },
         },
-        { onSuccess: () => toast.success('Realm updated successfully.') }
+        { onSuccess: () => toast.success(t('settings.toast.updated')) }
       )
     }
 
@@ -275,9 +291,9 @@ export default function PageRealmSettingsFeature() {
       updatePolicy(
         { path: { realm_name }, body: policy.value },
         {
-          onSuccess: () => toast.success('Password policy updated successfully'),
+          onSuccess: () => toast.success(t('settings.toast.policy_updated')),
           onError: (error: Error) =>
-            toast.error(apiErrorMessage(error, 'Failed to update password policy')),
+            toast.error(apiErrorMessage(error, t('settings.toast.policy_failed'))),
         }
       )
     }
@@ -290,22 +306,18 @@ export default function PageRealmSettingsFeature() {
       { path: { name: realm_name } },
       {
         onSuccess: () => {
-          toast.success(`Realm "${realm_name}" has been deleted.`)
-          navigate('/realms/master/overview')
+          toast.success(t('settings.toast.deleted', { name: realm_name }))
+          navigate(MASTER_REALM_OVERVIEW_URL)
         },
       }
     )
   }
 
-  const syncWhitelist = (
-    kind: 'user' | 'role',
-    current: string[],
-    next: string[]
-  ) => {
+  const syncWhitelist = (kind: WhitelistKind, current: string[], next: string[]) => {
     for (const id of next) {
       if (current.includes(id)) continue
       addWhitelistEntry({
-        body: kind === 'user' ? { user_id: id } : { role_id: id },
+        body: kind === USER_WHITELIST ? { user_id: id } : { role_id: id },
         path: { realm_name: realm },
       })
     }
@@ -352,8 +364,12 @@ export default function PageRealmSettingsFeature() {
       onLoginChange={login.patch}
       onTokensChange={tokensDraft.patch}
       onPolicyChange={policy.patch}
-      onWhitelistedUsersChange={(next) => syncWhitelist('user', whitelistedUserIds, next)}
-      onWhitelistedRolesChange={(next) => syncWhitelist('role', whitelistedRoleIds, next)}
+      onWhitelistedUsersChange={(next) =>
+        syncWhitelist(USER_WHITELIST, whitelistedUserIds, next)
+      }
+      onWhitelistedRolesChange={(next) =>
+        syncWhitelist(ROLE_WHITELIST, whitelistedRoleIds, next)
+      }
       onDeleteRealm={handleDeleteRealm}
       onDiscard={discard}
       onSave={save}

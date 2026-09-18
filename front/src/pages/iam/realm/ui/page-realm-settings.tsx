@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import SaveBar from '@/components/kit/save-bar'
 import { PageShell, PageTabs, type TabItem } from '@/components/kit'
 import type { PickableEntity } from '@/components/kit'
@@ -9,6 +10,7 @@ import RealmLoginTab, { type LoginDraft } from './realm-login-tab'
 import RealmTokensTab, { type TokensDraft } from './realm-tokens-tab'
 import RealmPasswordPolicyTab, { type PolicyDraft } from './realm-password-policy-tab'
 import RealmMaintenanceTab from './realm-maintenance-tab'
+import { REALM_NAMESPACE } from '../realm-namespace'
 
 import Realm = Schemas.Realm
 
@@ -77,6 +79,8 @@ export default function PageRealmSettings({
   onDiscard,
   onSave,
 }: PageRealmSettingsProps) {
+  const { t } = useTranslation(REALM_NAMESPACE)
+
   if (isLoading) {
     return (
       <PageShell>
@@ -91,9 +95,11 @@ export default function PageRealmSettings({
     return (
       <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Realm not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('settings.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or your account no longer has access to it.
+            {t('settings.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -109,9 +115,9 @@ export default function PageRealmSettings({
         )}
       >
         <div className='min-w-0'>
-          <h1 className={tokens.header.title}>Realm Settings</h1>
+          <h1 className={tokens.header.title}>{t('settings.title')}</h1>
           <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-            Global configuration of the realm {realm.name}.
+            {t('settings.description', { name: realm.name })}
           </p>
         </div>
         <span className='shrink-0 font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
@@ -153,10 +159,10 @@ export default function PageRealmSettings({
                 className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-12')}
               >
                 <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
-                  Failed to load password policy
+                  {t('policy.error.title')}
                 </p>
                 <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-                  The realm has no password policy the console can read.
+                  {t('policy.error.description')}
                 </p>
               </div>
             ) : (
@@ -182,12 +188,16 @@ export default function PageRealmSettings({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the realm configuration before applying the changes.'
+        title={t('settings.save.title', { count: dirtyCount })}
+        description={t('settings.save.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
+        cancelLabel={t('settings.save.cancel')}
         actions={[
-          { label: 'Save changes', onClick: onSave, variant: canSave ? 'default' : 'secondary' },
+          {
+            label: t('settings.save.action'),
+            onClick: onSave,
+            variant: canSave ? 'default' : 'secondary',
+          },
         ]}
       />
     </PageShell>

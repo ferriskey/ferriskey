@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
+import { REALM_NAMESPACE } from '../realm-namespace'
 
 export interface PolicyDraft {
   min_length: number | null
@@ -21,37 +23,31 @@ export interface RealmPasswordPolicyTabProps {
 
 const REQUIREMENTS: {
   key: string
-  label: string
-  description: string
+  labelKey: string
   read: (draft: PolicyDraft) => boolean
   patch: (v: boolean) => Partial<PolicyDraft>
 }[] = [
   {
     key: 'uppercase',
-    label: 'Require Uppercase',
-    description: 'Force users to include at least one uppercase letter.',
+    labelKey: 'policy.requirements.uppercase',
     read: (d) => d.require_uppercase,
     patch: (v) => ({ require_uppercase: v }),
   },
   {
     key: 'lowercase',
-    label: 'Require Lowercase',
-    description: 'Force users to include at least one lowercase letter.',
+    labelKey: 'policy.requirements.lowercase',
     read: (d) => d.require_lowercase,
     patch: (v) => ({ require_lowercase: v }),
   },
   {
     key: 'number',
-    label: 'Require Number',
-    description: 'Force users to include at least one numeric digit.',
+    labelKey: 'policy.requirements.number',
     read: (d) => d.require_number,
     patch: (v) => ({ require_number: v }),
   },
   {
     key: 'special',
-    label: 'Require Special Character',
-    description:
-      'Force users to include at least one special character (!@#$%…).',
+    labelKey: 'policy.requirements.special',
     read: (d) => d.require_special,
     patch: (v) => ({ require_special: v }),
   },
@@ -93,20 +89,19 @@ export default function RealmPasswordPolicyTab({
   errors,
   onChange,
 }: RealmPasswordPolicyTabProps) {
+  const { t } = useTranslation(REALM_NAMESPACE)
+
   return (
-    <Section
-      title='Password Policy'
-      description='Rules applied to the passwords of the accounts of this realm.'
-    >
+    <Section title={t('policy.title')} description={t('policy.description')}>
       <FieldRow
-        label='Minimum Length'
-        description='The minimum number of characters required.'
+        label={t('policy.min_length.label')}
+        description={t('policy.min_length.description')}
         htmlFor='policy-min-length'
       >
         <NumberField
           id='policy-min-length'
           value={value.min_length}
-          unit='characters'
+          unit={t('policy.min_length.unit', { count: value.min_length ?? 0 })}
           error={errors.min_length}
           onChange={(v) => onChange({ min_length: v })}
         />
@@ -115,8 +110,8 @@ export default function RealmPasswordPolicyTab({
       {REQUIREMENTS.map((requirement) => (
         <FieldRow
           key={requirement.key}
-          label={requirement.label}
-          description={requirement.description}
+          label={t(`${requirement.labelKey}.label`)}
+          description={t(`${requirement.labelKey}.description`)}
         >
           <SwitchField
             checked={requirement.read(value)}
@@ -126,36 +121,36 @@ export default function RealmPasswordPolicyTab({
       ))}
 
       <FieldRow
-        label='Password Expiry'
-        description='Force a password change after this many days. 0 to disable.'
+        label={t('policy.max_age.label')}
+        description={t('policy.max_age.description')}
         htmlFor='policy-max-age'
       >
         <NumberField
           id='policy-max-age'
           value={value.max_age_days}
-          unit='days'
+          unit={t('policy.max_age.unit', { count: value.max_age_days ?? 0 })}
           error={errors.max_age_days}
           onChange={(v) => onChange({ max_age_days: v })}
         />
       </FieldRow>
 
       <FieldRow
-        label='Minimum Entropy'
-        description='Reject passwords weaker than this Shannon entropy. 0 to disable — CNIL deliberation 2022-100 suggests 80.'
+        label={t('policy.entropy.label')}
+        description={t('policy.entropy.description')}
         htmlFor='policy-entropy'
       >
         <NumberField
           id='policy-entropy'
           value={value.min_entropy_bits}
-          unit='bits'
+          unit={t('policy.entropy.unit', { count: value.min_entropy_bits ?? 0 })}
           error={errors.min_entropy_bits}
           onChange={(v) => onChange({ min_entropy_bits: v })}
         />
       </FieldRow>
 
       <FieldRow
-        label='Forbid Common Passwords'
-        description='Reject passwords from the common-password list, and those reusing the username or the email address.'
+        label={t('policy.forbid_common.label')}
+        description={t('policy.forbid_common.description')}
       >
         <SwitchField
           checked={value.forbid_common}
@@ -164,8 +159,8 @@ export default function RealmPasswordPolicyTab({
       </FieldRow>
 
       <FieldRow
-        label='Check Breached Passwords'
-        description='Reject passwords reported as breached. Without an external provider configured, this setting has no effect.'
+        label={t('policy.check_breached.label')}
+        description={t('policy.check_breached.description')}
       >
         <SwitchField
           checked={value.check_breached}

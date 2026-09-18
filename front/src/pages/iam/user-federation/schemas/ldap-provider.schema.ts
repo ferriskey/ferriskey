@@ -1,12 +1,19 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
 
 export const createLdapProviderSchema = z.object({
-  name: z.string().min(1, 'Provider name is required'),
+  name: z
+    .string()
+    .min(1, { error: () => translate('user-federation:validation.name_required') }),
   type: z.literal('LDAP'),
   enabled: z.boolean(),
   priority: z.enum(['Primary', 'Secondary', 'Development', 'Legacy']),
-  connectionUrl: z.string().min(1, 'Connection URL is required'),
-  baseDn: z.string().min(1, 'Base DN is required'),
+  connectionUrl: z
+    .string()
+    .min(1, { error: () => translate('user-federation:validation.connection_url_required') }),
+  baseDn: z
+    .string()
+    .min(1, { error: () => translate('user-federation:validation.base_dn_required') }),
   bindDn: z.string().optional(),
   bindPassword: z.string().optional(),
   userSearchFilter: z.string(),

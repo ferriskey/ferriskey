@@ -1,9 +1,32 @@
+import { preloadNamespaces, translate } from '@/lib/i18n'
 import { formatDateTime } from '@/utils/format-date'
 
 export type ProviderPriority = 'Primary' | 'Secondary' | 'Development' | 'Legacy'
 export type SyncMode = 'Import' | 'Force' | 'LinkOnly'
 
+export const USER_FEDERATION_NAMESPACE = 'user-federation'
+
+void preloadNamespaces(USER_FEDERATION_NAMESPACE).catch(() => undefined)
+
 export const MASKED_SECRET = '********'
+
+export const NO_VALUE = '—'
+
+export const LDAP_PROVIDER_TYPE = 'Ldap'
+
+export const PRIORITY_LABEL_KEY: Record<ProviderPriority, string> = {
+  Primary: 'priority.primary.label',
+  Secondary: 'priority.secondary.label',
+  Development: 'priority.development.label',
+  Legacy: 'priority.legacy.label',
+}
+
+export const PRIORITY_HINT_KEY: Record<ProviderPriority, string> = {
+  Primary: 'priority.primary.hint',
+  Secondary: 'priority.secondary.hint',
+  Development: 'priority.development.hint',
+  Legacy: 'priority.legacy.hint',
+}
 
 export const PRIORITY_SCORE: Record<ProviderPriority, number> = {
   Primary: 0,
@@ -137,8 +160,12 @@ export const buildLdapConfig = (
 export const encodeSecret = (value: string) => btoa(value)
 
 export const formatDuration = (ms: number | null) => {
-  if (ms === null) return '—'
-  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
+  if (ms === null) return NO_VALUE
+  return ms < 1000
+    ? translate(`${USER_FEDERATION_NAMESPACE}:duration.milliseconds`, { value: ms })
+    : translate(`${USER_FEDERATION_NAMESPACE}:duration.seconds`, {
+        value: (ms / 1000).toFixed(1),
+      })
 }
 
 export const formatSyncedAt = (iso?: string | null) =>
@@ -159,7 +186,7 @@ export const flattenConfig = (config: unknown, prefix = ''): [string, string][] 
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       return flattenConfig(value, path)
     }
-    return [[path, value === null || value === undefined ? '—' : String(value)]] as [
+    return [[path, value === null || value === undefined ? NO_VALUE : String(value)]] as [
       string,
       string,
     ][]

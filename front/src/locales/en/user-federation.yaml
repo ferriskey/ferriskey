@@ -1,0 +1,280 @@
+# Query order of a federation provider. The console derives the key from the numeric score the API
+# stores, so translate the label and the hint, never the key.
+priority:
+  primary:
+    label: Primary
+    hint: Queried first.
+  secondary:
+    label: Secondary
+    hint: Queried when the primary does not answer.
+  development:
+    label: Development
+    hint: Working environment.
+  legacy:
+    label: Legacy
+    hint: Kept for the duration of a migration.
+
+# Latency of a connection test and length of a synchronisation run, both abbreviated because they
+# sit in a narrow slot beside a status pill.
+duration:
+  milliseconds: '{{value}} ms'
+  seconds: '{{value}} s'
+
+# Kinds offered by the "add a provider" dialog.
+kind:
+  ldap:
+    label: LDAP
+    description: A directory queried to authenticate accounts and import them.
+  kerberos:
+    label: Kerberos
+    description: Ticket-based network authentication.
+    disabled_reason: The server stores a Kerberos provider but neither synchronises nor tests it.
+
+list:
+  title: User Federation
+  description: External directories whose accounts are imported into this realm.
+  create: Add provider
+  search_placeholder: Filter by name or endpoint…
+  count_one: '{{count}} provider'
+  count_other: '{{count}} providers'
+  no_endpoint: no endpoint
+  never_synced: never synced
+  columns:
+    name: Provider
+    endpoint: Endpoint
+    type: Type
+    sync_mode: Sync mode
+    schedule: Schedule
+    last_sync: Last sync
+    status: Status
+  schedule:
+    # Abbreviated "minutes" — rendered inside a narrow table cell, keep it short.
+    interval_one: every {{count}} min
+    interval_other: every {{count}} min
+    on_demand: on demand only
+  status:
+    enabled: Enabled
+    disabled: Disabled
+  metrics:
+    total:
+      label: Providers
+      hint: configured
+    enabled:
+      label: Enabled
+      # Raw count of the providers that are not queried; "disabled" follows it uninflected.
+      hint: '{{total}} disabled'
+      empty_hint: all queried
+    scheduled:
+      label: Scheduled sync
+      hint: run without being asked
+    stale:
+      label: Never synced
+      hint: no account imported
+      empty_hint: all have run once
+  alerts:
+    stale:
+      title_one: '{{count}} provider has never synchronised'
+      title_other: '{{count}} providers have never synchronised'
+      # "names" is the list of providers that never ran, already joined.
+      detail: '{{names}} — no account imported so far.'
+  filters:
+    enabled: Enabled
+    ldap: LDAP
+    scheduled: Scheduled
+    stale: Never synced
+  aggregates:
+    # Footer total, never inflected — it always reads as a raw count of enabled providers.
+    status: '{{total}} enabled'
+  card:
+    status:
+      enabled: enabled
+      disabled: disabled
+    flags:
+      queried: Queried for authentication
+      scheduled: Scheduled synchronisation
+      synced: Already synchronised
+  empty:
+    label: No federation provider
+    hint: Connect a directory to authenticate its accounts and import them into this realm.
+  picker:
+    title: Provider type
+    description: 'It settles the configuration to fill in: an LDAP directory and a Kerberos domain share no setting.'
+
+# Fields shared by the creation screen and the settings tab of an existing provider.
+form:
+  basic:
+    title: Basic Settings
+    description: Who the provider is, and its place in the query order.
+  name:
+    label: Provider name
+    description: Names the provider in this console; it must be unique in the realm.
+  priority:
+    label: Priority
+    description: Order in which the providers are queried when an account is looked up.
+  enabled:
+    label: Enabled
+    description: A disabled provider is no longer queried and no longer synchronises.
+    # Screen-reader label of the two-card state picker.
+    picker_label: Provider state
+    choices:
+      enabled:
+        label: Enabled
+        description: The provider takes part in authentication.
+      disabled:
+        label: Disabled
+        description: Ignored, but the accounts already imported stay linked.
+  connection:
+    title: Connection Settings
+    description: How the directory is reached, and the service account used to read it.
+  connection_url:
+    label: Connection URL
+    description: 'Without a scheme, ldaps:// is assumed when TLS is on, ldap:// otherwise.'
+  base_dn:
+    label: Base DN
+    description: Root under which the accounts are searched.
+  bind_dn:
+    label: Bind DN
+    description: 'Optional: left empty, the directory is read anonymously.'
+  bind_password:
+    label: Bind credential
+    description:
+      stored: Stored encrypted and never returned. Type a new one to replace it.
+      empty: Stored encrypted and never returned once saved.
+    # "mask" is the row of asterisks the API returns in place of the stored credential.
+    stored_hint: '{{mask}} · saved, not readable'
+    reveal: Show the credential
+    hide: Hide the credential
+    required: Changing the connection rewrites the whole configuration, and the saved credential cannot be read back — type it again to save.
+  use_tls:
+    label: Use TLS
+    description: Encrypts the connection to the directory.
+  search:
+    title: User Search Settings
+    description: How an account is found in the directory.
+  search_filter:
+    label: User search filter
+    description: LDAP filter applied to the lookup.
+  sync:
+    title: Synchronization Settings
+    description: When the directory is walked again, and what it does to the accounts.
+    scheduled:
+      label: Scheduled synchronisation
+      description: Turned off, the provider only synchronises when asked from this page.
+    mode:
+      label: Sync mode
+      description: What a scheduled run does with the accounts it meets. A run started by hand always imports.
+      # Screen-reader label of the three-card mode picker.
+      picker_label: Synchronisation mode
+      choices:
+        import:
+          label: Import
+          description: Creates the missing accounts and updates the existing ones.
+        force:
+          label: Force
+          description: Also disables the local accounts the directory no longer returns.
+        link_only:
+          label: Link only
+          description: Links accounts already present, never creates one.
+    interval:
+      label: Sync interval
+      description: Time between two runs. The server keeps whole minutes, 60 seconds at the least.
+      # Placeholder of the duration input, shown while no value is typed.
+      input_label: Interval
+
+create:
+  back: User Federation
+  title: New provider
+  # Inline link that sends the administrator back to the provider-type dialog.
+  change_type: change type
+  save:
+    title: Create provider
+    description: Once created, the provider can be tested and synchronised from its page.
+    action: Create provider
+  toast:
+    created: Provider created
+    failed: The provider could not be created
+
+detail:
+  back: User Federation
+  not_found:
+    title: Provider not found
+    description: It may have been deleted, or it belongs to another realm.
+  status:
+    enabled: enabled
+    disabled: disabled
+  actions:
+    test: Test connection
+    testing: Testing…
+    test_unavailable: The server only tests LDAP and Active Directory providers.
+    sync: Synchronise
+    syncing: Synchronising…
+    sync_unavailable: The server only synchronises LDAP and Active Directory providers.
+    sync_disabled: A disabled provider is not queried.
+  test:
+    reachable: reachable
+    unreachable: unreachable
+  disabled_notice: 'This provider is disabled: it is no longer queried and its synchronisation does not run. The accounts already imported stay linked.'
+  tabs:
+    settings: Settings
+    sync: Synchronisation
+  save:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review the provider before applying the changes.
+    blocked: One field still blocks the save — see the message under it.
+    cancel: Discard
+    action: Save changes
+  settings:
+    type:
+      label: Type
+      description: 'Settled at creation: it commands the shape of the configuration below, which changing the type would empty.'
+    config:
+      title: Configuration
+      description: Returned as the API stores it. This type has no form in the console, and secrets never come out in the clear.
+      empty: No configuration recorded.
+    danger:
+      label: Delete this provider
+      description: The accounts already imported lose their link to the directory. This cannot be undone.
+      button: Delete provider
+      confirm_title: Delete provider
+      confirm_description: 'This will permanently delete the provider "{{name}}" and every link it holds to the directory.'
+  sync:
+    last:
+      title: Last synchronisation
+      started: Started on {{date}}.
+      never_started: Never started.
+      unknown_outcome: unknown outcome
+      finished: finished {{date}}
+      hint: Run this provider from the header to see what a pass creates, updates and fails on.
+      empty: This provider has never synchronised — no account has been imported so far.
+    stats:
+      processed: Processed
+      created: Created
+      updated: Updated
+      disabled: Disabled
+      failed: Failed
+  toast:
+    updated: Provider updated
+    update_failed: Failed to update the provider
+    test_success: Connection test successful
+    test_failed: Connection test failed
+    test_error: Failed to test the connection
+    sync_completed: Synchronisation completed
+    sync_failed: Failed to synchronise the accounts
+    sync_processed_one: Processed {{count}} account
+    sync_processed_other: Processed {{count}} accounts
+    # Segments joined with a comma to summarise what a run did. Each figure stands beside a past
+    # participle that never inflects.
+    stats:
+      created: '{{total}} created'
+      updated: '{{total}} updated'
+      disabled: '{{total}} disabled'
+      failed: '{{total}} failed'
+    deleted: Provider deleted
+    delete_failed: Failed to delete the provider
+
+validation:
+  name_required: Provider name is required
+  connection_url_required: Connection URL is required
+  base_dn_required: Base DN is required
+  connection_url_invalid: This URL cannot be read as an LDAP endpoint.

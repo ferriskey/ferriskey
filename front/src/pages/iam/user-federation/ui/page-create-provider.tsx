@@ -1,9 +1,12 @@
 import { ArrowLeft } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
 import { PageShell, Pill } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import {
+  LDAP_PROVIDER_TYPE,
+  USER_FEDERATION_NAMESPACE,
   type LdapSettings,
   type ProviderPriority,
   type SyncMode,
@@ -62,24 +65,26 @@ export default function PageCreateProvider({
   onChangeKind,
   onSubmit,
 }: PageCreateProviderProps) {
+  const { t } = useTranslation(USER_FEDERATION_NAMESPACE)
+
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        User Federation
+        {t('create.back')}
       </Button>
 
       <div className='flex flex-wrap items-center gap-2 pb-3'>
-        <h1 className={tokens.header.title}>New provider</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <Pill tone='violet' mono>
-          Ldap
+          {LDAP_PROVIDER_TYPE}
         </Pill>
         <button
           type='button'
           onClick={onChangeKind}
           className='cursor-pointer text-xs text-neutral-500 dark:text-neutral-400 underline-offset-2 hover:text-fk-primary-text hover:underline'
         >
-          change type
+          {t('create.change_type')}
         </button>
       </div>
 
@@ -117,10 +122,10 @@ export default function PageCreateProvider({
 
       <SaveBar
         show={canSubmit}
-        title='Create provider'
-        description='Once created, the provider can be tested and synchronised from its page.'
+        title={t('create.save.title')}
+        description={t('create.save.description')}
         onCancel={onBack}
-        actions={[{ label: 'Create provider', onClick: onSubmit }]}
+        actions={[{ label: t('create.save.action'), onClick: onSubmit }]}
       />
     </PageShell>
   )
