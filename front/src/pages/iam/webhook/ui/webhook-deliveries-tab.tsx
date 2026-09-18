@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
-import { Button, Column, DataView, Pill, Section, Segmented } from '@/components/kit'
+import { useTranslation } from 'react-i18next'
+import { Button, Column, DataView, Pill, Section, Segmented, type ViewMode } from '@/components/kit'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ import {
 import DeliverySummary = Schemas.DeliverySummary
 
 const PAGE_SIZE = 25
+const ALL_STATUS = 'all'
+const DELIVERY_VIEW: ViewMode = 'list'
 
 export interface WebhookDeliveriesTabProps {
   realm: string
@@ -39,14 +42,15 @@ function outcomeOf(delivery: DeliverySummary): string {
 }
 
 export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDeliveriesTabProps) {
-  const [status, setStatus] = useState('all')
+  const { t } = useTranslation('webhook')
+  const [status, setStatus] = useState(ALL_STATUS)
   const [offset, setOffset] = useState(0)
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
 
   const { data, isLoading, isError } = useGetWebhookDeliveries({
     realm,
     webhookId,
-    status: status === 'all' ? undefined : status,
+    status: status === ALL_STATUS ? undefined : status,
     limit: PAGE_SIZE,
     offset,
   })
@@ -64,6 +68,16 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   const from = total === 0 ? 0 : offset + 1
   const to = offset + deliveries.length
 
+  const statusOf = (value: string) => {
+    const descriptor = describeDeliveryStatus(value)
+    return { tone: descriptor.tone, label: descriptor.labelKey ? t(descriptor.labelKey) : value }
+  }
+
+  const filters = DELIVERY_STATUS_FILTERS.map((filter) => ({
+    key: filter.key,
+    label: t(filter.labelKey),
+  }))
+
   const onFilterChange = (next: string) => {
     setStatus(next)
     setOffset(0)
@@ -75,10 +89,10 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
         path: { realm_name: realm, webhook_id: webhookId, delivery_id: delivery.id },
       },
       {
-        onSuccess: () => toast.success('Delivery queued for another attempt'),
+        onSuccess: () => toast.success(t('delivery.toast.retry_queued')),
         onError: (error: unknown) => {
           if ((error as { status?: number })?.status === 409) {
-            toast.error('This delivery is still in flight. Wait for it to finish.')
+            toast.error(t('delivery.toast.in_flight'))
             return
           }
           toast.error(apiErrorMessage(error, 'Could not queue this delivery'))
@@ -90,9 +104,9 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   const columns: Column<DeliverySummary>[] = [
     {
       key: 'status',
-      header: 'Status',
+      header: t('delivery.columns.status'),
       render: (delivery) => {
-        const descriptor = describeDeliveryStatus(delivery.status)
+        const descriptor = statusOf(delivery.status)
         return (
           <Pill tone={descriptor.tone} mono>
             {descriptor.label}
@@ -103,7 +117,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     },
     {
       key: 'event',
-      header: 'Event',
+      header: t('delivery.columns.event'),
       render: (delivery) => (
         <span className='font-mono-ui text-[12px] text-neutral-700 dark:text-neutral-300'>
           {delivery.event}
@@ -113,13 +127,13 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     },
     {
       key: 'attempts',
-      header: 'Attempts',
+      header: t('delivery.columns.attempts'),
       render: (delivery) => <span className='tnum'>{delivery.attempt_count}</span>,
       sortValue: (delivery) => delivery.attempt_count,
     },
     {
       key: 'outcome',
-      header: 'Outcome',
+      header: t('delivery.columns.outcome'),
       render: (delivery) => (
         <span className='font-mono-ui text-[12px] text-neutral-500 dark:text-neutral-400'>
           {outcomeOf(delivery)}
@@ -129,7 +143,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     },
     {
       key: 'created_at',
-      header: 'When',
+      header: t('delivery.columns.created_at'),
       align: 'right',
       render: (delivery) => (
         <div className='min-w-0 whitespace-nowrap'>
@@ -150,7 +164,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
       render: (delivery) => (
         <div className='flex justify-end gap-2'>
           <Button variant='outline' size='sm' onClick={() => setOpenDeliveryId(delivery.id)}>
-            Inspect
+            {t('delivery.inspect')}
           </Button>
           {isReplayable(delivery.status) && (
             <Button
@@ -160,7 +174,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
               onClick={() => onRetry(delivery)}
             >
               <RotateCcw className='mr-1 size-3.5' />
-              Send again
+              {t('delivery.retry')}
             </Button>
           )}
         </div>
@@ -173,20 +187,14 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   return (
     <>
       <Section
-        title='Deliveries'
-        description='Every attempt FerrisKey made to call this endpoint, newest first.'
+        title={t('delivery.title')}
+        description={t('delivery.description')}
         contained={false}
-        action={
-          <Segmented
-            items={DELIVERY_STATUS_FILTERS}
-            value={status}
-            onChange={onFilterChange}
-          />
-        }
+        action={<Segmented items={filters} value={status} onChange={onFilterChange} />}
       >
         {isError ? (
           <div className='rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5 text-sm text-fk-danger'>
-            Delivery history is unavailable. Try again in a moment.
+            {t('delivery.error')}
           </div>
         ) : (
           <DataView
@@ -196,7 +204,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
               title: (delivery) => delivery.event,
               subtitle: (delivery) => formatTimestamp(delivery.created_at),
               badges: (delivery) => {
-                const descriptor = describeDeliveryStatus(delivery.status)
+                const descriptor = statusOf(delivery.status)
                 return (
                   <Pill tone={descriptor.tone} mono>
                     {descriptor.label}
@@ -206,21 +214,23 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
               footer: (delivery) => outcomeOf(delivery),
             }}
             getKey={(delivery) => delivery.id}
-            view='list'
+            view={DELIVERY_VIEW}
             loading={isLoading}
             aggregates={
-              failed > 0 ? { status: `${failed} failed on this page` } : undefined
+              failed > 0
+                ? { status: t('delivery.failed_on_page', { total: failed }) }
+                : undefined
             }
-            emptyLabel={status === 'all' ? 'No deliveries yet' : 'No delivery matches this filter'}
+            emptyLabel={
+              status === ALL_STATUS ? t('delivery.empty.all.label') : t('delivery.empty.filtered.label')
+            }
             emptyHint={
-              status === 'all'
-                ? 'Deliveries appear here as soon as this webhook fires.'
-                : 'Change the filter to see the other deliveries.'
+              status === ALL_STATUS ? t('delivery.empty.all.hint') : t('delivery.empty.filtered.hint')
             }
             emptyAction={
-              status === 'all' ? undefined : (
-                <Button variant='outline' onClick={() => onFilterChange('all')}>
-                  Show all
+              status === ALL_STATUS ? undefined : (
+                <Button variant='outline' onClick={() => onFilterChange(ALL_STATUS)}>
+                  {t('delivery.show_all')}
                 </Button>
               )
             }
@@ -230,7 +240,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
         {total > PAGE_SIZE && (
           <div className='mt-3 flex items-center justify-between px-1'>
             <span className='text-sm text-muted-foreground'>
-              {from}-{to} of {total}
+              {t('delivery.range', { from, to, total })}
             </span>
             <div className='flex gap-2'>
               <Button
@@ -239,7 +249,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
                 disabled={offset === 0}
                 onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
-                Previous
+                {t('delivery.previous')}
               </Button>
               <Button
                 variant='outline'
@@ -247,7 +257,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
                 disabled={to >= total}
                 onClick={() => setOffset(offset + PAGE_SIZE)}
               >
-                Next
+                {t('delivery.next')}
               </Button>
             </div>
           </div>
@@ -260,21 +270,23 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
       >
         <DialogContent className='max-w-2xl'>
           <DialogHeader>
-            <DialogTitle>{detail?.data.event ?? 'Delivery'}</DialogTitle>
+            <DialogTitle>{detail?.data.event ?? t('delivery.dialog.title')}</DialogTitle>
             <DialogDescription>
-              {detail ? formatTimestamp(detail.data.created_at) : 'Loading the delivery…'}
+              {detail
+                ? formatTimestamp(detail.data.created_at)
+                : t('delivery.dialog.loading')}
             </DialogDescription>
           </DialogHeader>
 
           {detail && (
             <div className='space-y-4'>
               <div className='flex flex-wrap items-center gap-2'>
-                <Pill tone={describeDeliveryStatus(detail.data.status).tone} mono>
-                  {describeDeliveryStatus(detail.data.status).label}
+                <Pill tone={statusOf(detail.data.status).tone} mono>
+                  {statusOf(detail.data.status).label}
                 </Pill>
                 <span className='font-mono-ui text-[12px] text-neutral-500 dark:text-neutral-400'>
-                  {detail.data.attempt_count} attempt
-                  {detail.data.attempt_count === 1 ? '' : 's'} · {outcomeOf(detail.data)}
+                  {t('delivery.dialog.attempts', { count: detail.data.attempt_count })} ·{' '}
+                  {outcomeOf(detail.data)}
                 </span>
               </div>
 
@@ -285,7 +297,9 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
               )}
 
               <div>
-                <p className='mb-1.5 text-xs text-neutral-500 dark:text-neutral-400'>Payload sent</p>
+                <p className='mb-1.5 text-xs text-neutral-500 dark:text-neutral-400'>
+                  {t('delivery.dialog.payload')}
+                </p>
                 <pre className='max-h-80 overflow-auto rounded-md bg-neutral-50 p-3 font-mono-ui text-[12px] leading-relaxed dark:bg-fk-raised'>
                   {JSON.stringify(detail.data.payload, null, 2)}
                 </pre>

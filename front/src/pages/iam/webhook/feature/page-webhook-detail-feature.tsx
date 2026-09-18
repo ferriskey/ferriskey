@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useDeleteWebhook, useGetWebhook, useUpdateWebhook } from '@/api/webhook.api'
 import { RouterParams } from '@/routes/router'
 import { useRouteTabs } from '@/components/kit'
@@ -62,14 +63,15 @@ const EMPTY_DRAFT: Draft = {
 }
 
 const WEBHOOK_TABS = [
-  { key: 'settings', label: 'Settings' },
-  { key: 'events', label: 'Events' },
-  { key: 'deliveries', label: 'Deliveries' },
+  { key: 'settings', labelKey: 'detail.tabs.settings' },
+  { key: 'events', labelKey: 'detail.tabs.events' },
+  { key: 'deliveries', labelKey: 'detail.tabs.deliveries' },
 ] as const
 
 export default function PageWebhookDetailFeature() {
   const { realm_name, webhook_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('webhook')
   const realm = realm_name ?? 'master'
 
   const { data: webhook, isLoading } = useGetWebhook({
@@ -79,9 +81,14 @@ export default function PageWebhookDetailFeature() {
   const { mutate: updateWebhook } = useUpdateWebhook()
   const { mutate: deleteWebhook } = useDeleteWebhook()
 
+  const translatedTabs = useMemo(
+    () => WEBHOOK_TABS.map((item) => ({ key: item.key, label: t(item.labelKey) })),
+    [t]
+  )
+
   const { value: tab, tabs } = useRouteTabs(
     `${WEBHOOKS_URL(realm)}/${webhook_id ?? ''}`,
-    WEBHOOK_TABS
+    translatedTabs
   )
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
@@ -172,7 +179,7 @@ export default function PageWebhookDetailFeature() {
       },
       {
         onSuccess: () => {
-          toast.success('Webhook updated successfully')
+          toast.success(t('detail.toast.updated'))
           navigate(WEBHOOKS_URL(realm))
         },
         onError: (error: unknown) => {
@@ -201,7 +208,7 @@ export default function PageWebhookDetailFeature() {
       { path: { realm_name, webhook_id } },
       {
         onSuccess: () => {
-          toast.success('Webhook deleted successfully')
+          toast.success(t('detail.toast.deleted'))
           navigate(WEBHOOKS_URL(realm))
         },
       }

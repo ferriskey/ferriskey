@@ -1,5 +1,6 @@
 import type { RetryPolicyDraft } from '../feature/page-webhook-detail-feature'
 import { ArrowLeft, Webhook as WebhookIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, Section, type TabItem } from '@/components/kit'
@@ -69,6 +70,8 @@ export default function PageWebhookDetail({
   onSave,
   onDelete,
 }: PageWebhookDetailProps) {
+  const { t } = useTranslation('webhook')
+
   if (isLoading) {
     return (
       <PageShell>
@@ -89,12 +92,14 @@ export default function PageWebhookDetail({
       <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
-          Webhooks
+          {t('detail.back')}
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Webhook not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.hint')}
           </p>
         </div>
       </PageShell>
@@ -107,7 +112,7 @@ export default function PageWebhookDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Webhooks'
+        backLabel={t('detail.back')}
         icon={
           <IconTile tone={webhook.subscribers.length > 0 ? 'info' : 'amber'} className='size-11'>
             <WebhookIcon className='size-5' strokeWidth={1.75} />
@@ -117,20 +122,23 @@ export default function PageWebhookDetail({
         pills={
           <>
             <Pill tone={webhook.subscribers.length > 0 ? 'info' : 'amber'}>
-              {webhook.subscribers.length}/{WEBHOOK_TRIGGER_COUNT} events
+              {t('events_ratio', {
+                selected: webhook.subscribers.length,
+                total: WEBHOOK_TRIGGER_COUNT,
+              })}
             </Pill>
             <Pill mono>{webhook.endpoint}</Pill>
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Last triggered</dt>
+            <dt className='sr-only'>{t('detail.meta.last_triggered')}</dt>
             <dd className='tnum'>
               {webhook.triggered_at
-                ? `Triggered ${formatDateTime(webhook.triggered_at)}`
-                : 'Never triggered'}
+                ? t('detail.meta.triggered', { date: formatDateTime(webhook.triggered_at) })
+                : t('detail.meta.never')}
             </dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('detail.meta.identifier')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{webhook.id}</dd>
           </dl>
         }
@@ -161,11 +169,14 @@ export default function PageWebhookDetail({
 
           {tab === 'events' && (
             <Section
-              title='Events to subscribe'
+              title={t('detail.events.title')}
               description={
                 subscribers.length > 0
-                  ? `${subscribers.length} trigger${subscribers.length > 1 ? 's' : ''} of ${WEBHOOK_TRIGGER_COUNT} notify this endpoint.`
-                  : 'No trigger: this endpoint will never be called.'
+                  ? t('detail.events.description', {
+                      count: subscribers.length,
+                      total: WEBHOOK_TRIGGER_COUNT,
+                    })
+                  : t('detail.events.description_empty')
               }
               contained={false}
             >
@@ -184,11 +195,11 @@ export default function PageWebhookDetail({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the webhook before applying the changes.'
+        title={t('detail.save.title', { count: dirtyCount })}
+        description={t('detail.save.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save.cancel')}
+        actions={[{ label: t('detail.save.action'), onClick: onSave }]}
       />
     </PageShell>
   )

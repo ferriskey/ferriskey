@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Section } from '@/components/kit'
@@ -9,31 +10,11 @@ import { Schemas } from '@/api/api.client'
 
 import RetryPolicyOverride = Schemas.RetryPolicyOverride
 
-const RETRY_FIELDS: {
-  key: keyof RetryPolicyDraft
-  label: string
-  description: string
-}[] = [
-  {
-    key: 'max_attempts',
-    label: 'Attempts',
-    description: 'How many times to try before giving up. Between 1 and 20.',
-  },
-  {
-    key: 'base_delay_ms',
-    label: 'First wait (ms)',
-    description: 'How long to wait after the first failure. It doubles each time.',
-  },
-  {
-    key: 'max_delay_ms',
-    label: 'Longest wait (ms)',
-    description: 'The wait never grows past this.',
-  },
-  {
-    key: 'max_total_delay_ms',
-    label: 'Give up after (ms)',
-    description: 'Total time a delivery may spend retrying.',
-  },
+const RETRY_FIELDS: (keyof RetryPolicyDraft)[] = [
+  'max_attempts',
+  'base_delay_ms',
+  'max_delay_ms',
+  'max_total_delay_ms',
 ]
 
 export interface WebhookSettingsTabProps {
@@ -73,12 +54,14 @@ export default function WebhookSettingsTab({
   onHeadersChange,
   onDelete,
 }: WebhookSettingsTabProps) {
+  const { t } = useTranslation('webhook')
+
   return (
     <>
-      <Section title='General details' description='Webhook configuration.'>
+      <Section title={t('form.general.title')} description={t('form.general.description')}>
         <FieldRow
-          label='Webhook name'
-          description='A descriptive name for this webhook.'
+          label={t('form.name.label')}
+          description={t('form.name.description')}
           htmlFor='webhook-name'
         >
           <Input
@@ -93,8 +76,8 @@ export default function WebhookSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Endpoint URL'
-          description='The HTTPS URL that will receive events.'
+          label={t('form.endpoint.label')}
+          description={t('form.endpoint.description')}
           htmlFor='webhook-endpoint'
         >
           <Input
@@ -110,8 +93,8 @@ export default function WebhookSettingsTab({
         </FieldRow>
 
         <FieldRow
-          label='Description'
-          description='Optional description for this webhook.'
+          label={t('form.description.label')}
+          description={t('form.description.description')}
           htmlFor='webhook-description'
         >
           <Textarea
@@ -127,55 +110,48 @@ export default function WebhookSettingsTab({
         </FieldRow>
       </Section>
 
-      <Section
-        title='HTTP headers'
-        description='Headers attached to every outgoing call. The API never returns the stored values, so nothing is prefilled here.'
-      >
+      <Section title={t('settings.headers.title')} description={t('settings.headers.description')}>
         <div className='py-4'>
           <WebhookHeadersField headers={headers} onChange={onHeadersChange} />
           <p className='mt-3 text-xs text-neutral-500 dark:text-neutral-400'>
-            Leaving this list empty keeps the headers already stored. Adding one replaces
-            the whole set.
+            {t('settings.headers.note')}
           </p>
         </div>
       </Section>
 
       <Section
-        title='Signature'
-        description='Each delivery is signed so the receiver can prove the call comes from this realm.'
+        title={t('settings.signature.title')}
+        description={t('settings.signature.description')}
       >
         <FieldRow
-          label='Signing secret'
-          description='Stored but never returned. Generating a new one shows it once, so the receiver can be given it.'
+          label={t('settings.signature.secret.label')}
+          description={t('settings.signature.secret.description')}
         >
           <WebhookSigningSecret realm={realm} webhookId={webhookId} />
         </FieldRow>
       </Section>
 
-      <Section
-        title='Retry policy'
-        description='Leave a field empty to inherit the realm setting. The greyed-out value is what applies today.'
-      >
+      <Section title={t('settings.retry.title')} description={t('settings.retry.description')}>
         {RETRY_FIELDS.map((field) => (
           <FieldRow
-            key={field.key}
-            label={field.label}
-            description={field.description}
-            htmlFor={`retry-${field.key}`}
+            key={field}
+            label={t(`settings.retry.${field}.label`)}
+            description={t(`settings.retry.${field}.description`)}
+            htmlFor={`retry-${field}`}
           >
             <Input
-              id={`retry-${field.key}`}
+              id={`retry-${field}`}
               type='number'
               inputMode='numeric'
               min={0}
-              value={retryPolicy[field.key]}
+              value={retryPolicy[field]}
               placeholder={
-                effectiveRetryPolicy?.[field.key] === null ||
-                effectiveRetryPolicy?.[field.key] === undefined
-                  ? 'Inherited'
-                  : String(effectiveRetryPolicy[field.key])
+                effectiveRetryPolicy?.[field] === null ||
+                effectiveRetryPolicy?.[field] === undefined
+                  ? t('settings.retry.inherited')
+                  : String(effectiveRetryPolicy[field])
               }
-              onChange={(e) => onRetryPolicyChange({ [field.key]: e.target.value })}
+              onChange={(e) => onRetryPolicyChange({ [field]: e.target.value })}
               className='max-w-[12rem]'
             />
           </FieldRow>
@@ -184,11 +160,11 @@ export default function WebhookSettingsTab({
 
       <DangerZone
         resourceName={name}
-        label='Delete this webhook'
-        description='Its subscriptions are permanently removed, and no further event is delivered to this endpoint.'
-        buttonLabel='Delete webhook'
-        confirmTitle='Delete Webhook'
-        confirmDescription={`Are you sure you want to delete "${label}"? This action cannot be undone.`}
+        label={t('settings.danger.label')}
+        description={t('settings.danger.description')}
+        buttonLabel={t('settings.danger.button')}
+        confirmTitle={t('settings.danger.confirm_title')}
+        confirmDescription={t('settings.danger.confirm_description', { name: label })}
         onConfirm={onDelete}
       />
     </>

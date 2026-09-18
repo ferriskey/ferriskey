@@ -1,4 +1,5 @@
 import { Plus, Webhook as WebhookIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
@@ -7,6 +8,8 @@ import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
 
 import Webhook = Schemas.Webhook
 import { formatDateTime } from '@/utils/format-date'
+
+const QUERY_SYNTAX = 'endpoint:hooks.*  event:user.created  events:0'
 
 export interface PageWebhooksOverviewProps {
   webhooks: Webhook[]
@@ -25,10 +28,12 @@ export default function PageWebhooksOverview({
   webhookHref,
   onCreate,
 }: PageWebhooksOverviewProps) {
+  const { t } = useTranslation('webhook')
+
   const columns: Column<Webhook>[] = [
     {
       key: 'name',
-      header: 'Webhook',
+      header: t('list.columns.name'),
       render: (w) =>
         w.name ? (
           w.name
@@ -39,7 +44,7 @@ export default function PageWebhooksOverview({
     },
     {
       key: 'endpoint',
-      header: 'Endpoint',
+      header: t('list.columns.endpoint'),
       render: (w) => (
         <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
       ),
@@ -47,7 +52,7 @@ export default function PageWebhooksOverview({
     },
     {
       key: 'subscribers',
-      header: 'Events',
+      header: t('list.columns.subscribers'),
       align: 'right',
       render: (w) =>
         w.subscribers.length > 0 ? (
@@ -59,14 +64,16 @@ export default function PageWebhooksOverview({
     },
     {
       key: 'triggered_at',
-      header: 'Last triggered',
+      header: t('list.columns.triggered_at'),
       render: (w) =>
         w.triggered_at ? (
           <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>
             {formatDateTime(w.triggered_at)}
           </span>
         ) : (
-          <span className='text-xs text-neutral-400 dark:text-neutral-500'>never</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+            {t('list.never_triggered')}
+          </span>
         ),
       sortValue: (w) => w.triggered_at ?? '',
     },
@@ -83,21 +90,21 @@ export default function PageWebhooksOverview({
     badges: (w) => (
       <>
         <Pill tone={w.subscribers.length > 0 ? 'info' : 'amber'}>
-          {w.subscribers.length}/{WEBHOOK_TRIGGER_COUNT} events
+          {t('events_ratio', { selected: w.subscribers.length, total: WEBHOOK_TRIGGER_COUNT })}
         </Pill>
         <Pill tone={w.triggered_at ? 'success' : 'neutral'} mono>
-          {w.triggered_at ? 'triggered' : 'never triggered'}
+          {w.triggered_at ? t('list.card.triggered') : t('list.card.never_triggered')}
         </Pill>
       </>
     ),
     flags: (w) => [
-      { label: 'Subscribes to at least one event', on: w.subscribers.length > 0 },
-      { label: 'Already triggered', on: Boolean(w.triggered_at) },
-      { label: 'Delivers over HTTPS', on: isSecure(w) },
+      { label: t('list.card.flags.subscribed'), on: w.subscribers.length > 0 },
+      { label: t('list.card.flags.triggered'), on: Boolean(w.triggered_at) },
+      { label: t('list.card.flags.secure'), on: isSecure(w) },
     ],
     footer: (w) => (
       <>
-        <span className='tnum'>{w.subscribers.length} events</span>
+        <span className='tnum'>{t('list.card.footer_events', { total: w.subscribers.length })}</span>
         <span className='truncate pl-3 text-right'>
           {w.description || w.endpoint}
         </span>
@@ -112,57 +119,70 @@ export default function PageWebhooksOverview({
 
   const createButton = (
     <Button onClick={onCreate}>
-      <Plus /> New webhook
+      <Plus /> {t('list.create')}
     </Button>
   )
 
   return (
     <ListingPage
-      title='Webhooks'
-      description='Endpoints notified of the events of this realm.'
+      title={t('list.title')}
+      description={t('list.description')}
       loading={isLoading}
       actions={createButton}
       metrics={[
-        { key: 'total', label: 'Total', value: webhooks.length, hint: 'endpoints' },
+        {
+          key: 'total',
+          label: t('list.metrics.total.label'),
+          value: webhooks.length,
+          hint: t('list.metrics.total.hint'),
+        },
         {
           key: 'subscriptions',
-          label: 'Subscriptions',
+          label: t('list.metrics.subscriptions.label'),
           value: subscriptions,
-          hint: `of ${WEBHOOK_TRIGGER_COUNT} triggers`,
+          hint: t('list.metrics.subscriptions.hint', { total: WEBHOOK_TRIGGER_COUNT }),
         },
         {
           key: 'never',
-          label: 'Never triggered',
+          label: t('list.metrics.never.label'),
           value: neverTriggered.length,
-          hint: 'no delivery yet',
+          hint: t('list.metrics.never.hint'),
         },
         {
           key: 'silent',
-          label: 'Without event',
+          label: t('list.metrics.silent.label'),
           value: silent.length,
-          hint: 'will never fire',
+          hint: t('list.metrics.silent.hint'),
         },
       ]}
       alerts={[
         ...silent.map((w) => ({
           tone: 'warn' as const,
-          title: `${label(w)} subscribes to nothing`,
-          detail: 'It carries no trigger, so it will never be called.',
-          action: 'Review',
+          title: t('list.alerts.silent.title', { name: label(w) }),
+          detail: t('list.alerts.silent.detail'),
+          action: t('list.alerts.silent.action'),
         })),
         ...insecure.map((w) => ({
           tone: 'error' as const,
-          title: `${label(w)} delivers over plain HTTP`,
-          detail: `${w.endpoint} — the payload and its signature headers travel unencrypted.`,
-          action: 'Review',
+          title: t('list.alerts.insecure.title', { name: label(w) }),
+          detail: t('list.alerts.insecure.detail', { endpoint: w.endpoint }),
+          action: t('list.alerts.insecure.action'),
         })),
       ]}
       filters={[
-        { key: 'triggered', label: 'Already triggered', predicate: (w) => Boolean(w.triggered_at) },
-        { key: 'silent', label: 'Without event', predicate: (w) => w.subscribers.length === 0 },
+        {
+          key: 'triggered',
+          label: t('list.filters.triggered'),
+          predicate: (w) => Boolean(w.triggered_at),
+        },
+        {
+          key: 'silent',
+          label: t('list.filters.silent'),
+          predicate: (w) => w.subscribers.length === 0,
+        },
       ]}
-      searchPlaceholder='Filter by name or endpoint…'
-      querySyntax='endpoint:hooks.*  event:user.created  events:0'
+      searchPlaceholder={t('list.search_placeholder')}
+      querySyntax={QUERY_SYNTAX}
       searchIn={(w) => `${w.name ?? ''} ${w.endpoint}`}
       rows={webhooks}
       columns={columns}
@@ -170,11 +190,11 @@ export default function PageWebhooksOverview({
       getKey={(w) => w.id}
       getHref={webhookHref}
       aggregates={{
-        name: `${webhooks.length} webhook${webhooks.length !== 1 ? 's' : ''}`,
+        name: t('list.count', { count: webhooks.length }),
         subscribers: subscriptions,
       }}
-      emptyLabel='No webhook'
-      emptyHint='A webhook notifies an external service of the events of this realm.'
+      emptyLabel={t('list.empty.label')}
+      emptyHint={t('list.empty.hint')}
       emptyAction={createButton}
     />
   )
