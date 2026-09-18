@@ -209,6 +209,9 @@ delivery:
   description: FerrisKey 调用此端点的每一次尝试，最新的在前。
   error: 投递历史不可用。请稍后重试。
   retry_failed: 无法将此投递加入队列
+  toast:
+    retry_queued: 已将此投递重新加入队列
+    in_flight: 此投递仍在进行中，请等待其完成。
   status:
     pending: 已排队
     delivering: 发送中
