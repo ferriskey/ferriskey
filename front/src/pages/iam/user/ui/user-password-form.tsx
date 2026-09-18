@@ -1,24 +1,12 @@
 import { Lock, TimerReset } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { ChoiceCards, FieldRow, type Choice } from '@/components/kit'
 
 export type PasswordValidity = 'temporary' | 'permanent'
 
-const validityChoices: Choice<PasswordValidity>[] = [
-  {
-    value: 'temporary',
-    label: 'Temporary',
-    description: 'The user must change it at the next sign-in.',
-    icon: TimerReset,
-  },
-  {
-    value: 'permanent',
-    label: 'Permanent',
-    description: 'It stays valid until the user changes it.',
-    icon: Lock,
-  },
-]
+const PASSWORD_MASK = '••••••••••••'
 
 export interface UserPasswordFormProps {
   hasPassword: boolean
@@ -47,16 +35,32 @@ export default function UserPasswordForm({
   onSubmit,
   onReset,
 }: UserPasswordFormProps) {
+  const { t } = useTranslation('user')
   const touched = password.length > 0 || confirmPassword.length > 0
+
+  const validityChoices: Choice<PasswordValidity>[] = [
+    {
+      value: 'temporary',
+      label: t('detail.credentials.password.validity.temporary.label'),
+      description: t('detail.credentials.password.validity.temporary.description'),
+      icon: TimerReset,
+    },
+    {
+      value: 'permanent',
+      label: t('detail.credentials.password.validity.permanent.label'),
+      description: t('detail.credentials.password.validity.permanent.description'),
+      icon: Lock,
+    },
+  ]
 
   return (
     <>
       <FieldRow
-        label='Validity'
-        description='Decides whether the password entered below must be changed at its first use.'
+        label={t('detail.credentials.password.validity.label')}
+        description={t('detail.credentials.password.validity.description')}
       >
         <ChoiceCards
-          label='Password validity'
+          label={t('detail.credentials.password.validity.group_label')}
           value={validity}
           onChange={onValidityChange}
           options={validityChoices}
@@ -64,8 +68,8 @@ export default function UserPasswordForm({
       </FieldRow>
 
       <FieldRow
-        label='New password'
-        description='The stored password is never displayed: it can only be replaced.'
+        label={t('detail.credentials.password.new.label')}
+        description={t('detail.credentials.password.new.description')}
         htmlFor='user-new-password'
       >
         <div className='max-w-sm space-y-2'>
@@ -75,7 +79,7 @@ export default function UserPasswordForm({
             autoComplete='new-password'
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
-            placeholder='••••••••••••'
+            placeholder={PASSWORD_MASK}
             aria-invalid={Boolean(errors.password)}
           />
           {errors.password && <p className='text-xs text-fk-danger'>{errors.password}</p>}
@@ -83,8 +87,8 @@ export default function UserPasswordForm({
       </FieldRow>
 
       <FieldRow
-        label='Confirm password'
-        description='Both entries must match before the password can be applied.'
+        label={t('detail.credentials.password.confirm.label')}
+        description={t('detail.credentials.password.confirm.description')}
         htmlFor='user-confirm-password'
       >
         <div className='max-w-sm space-y-3'>
@@ -94,7 +98,7 @@ export default function UserPasswordForm({
             autoComplete='new-password'
             value={confirmPassword}
             onChange={(e) => onConfirmPasswordChange(e.target.value)}
-            placeholder='••••••••••••'
+            placeholder={PASSWORD_MASK}
             aria-invalid={Boolean(errors.confirmPassword)}
           />
           {errors.confirmPassword && (
@@ -102,11 +106,13 @@ export default function UserPasswordForm({
           )}
           <div className='flex gap-2'>
             <Button size='sm' disabled={!canSubmit} onClick={onSubmit}>
-              {hasPassword ? 'Replace the password' : 'Set the password'}
+              {hasPassword
+                ? t('detail.credentials.password.submit_replace')
+                : t('detail.credentials.password.submit_set')}
             </Button>
             {touched && (
               <Button variant='ghost' size='sm' onClick={onReset}>
-                Cancel
+                {t('detail.credentials.password.cancel')}
               </Button>
             )}
           </div>

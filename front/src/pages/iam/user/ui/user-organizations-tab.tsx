@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Building2, Search, UserMinus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { EntityPicker, IconTile, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
@@ -37,6 +38,7 @@ export default function UserOrganizationsTab({
   onAssign,
   onRemove,
 }: UserOrganizationsTabProps) {
+  const { t } = useTranslation('user')
   const [query, setQuery] = useState('')
 
   const rows = useMemo(() => {
@@ -52,8 +54,8 @@ export default function UserOrganizationsTab({
   return (
     <>
       <Section
-        title='Organizations'
-        description='Organizations of the realm this account belongs to.'
+        title={t('detail.organizations.list.title')}
+        description={t('detail.organizations.list.description')}
         action={
           memberships.length > 0 ? (
             <label className='relative flex h-7 w-48 items-center'>
@@ -62,7 +64,7 @@ export default function UserOrganizationsTab({
                 type='search'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder='Filter organizations…'
+                placeholder={t('detail.organizations.list.search_placeholder')}
                 className='h-full w-full rounded-md border border-fk-line pl-7 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
               />
             </label>
@@ -72,7 +74,7 @@ export default function UserOrganizationsTab({
       >
         {isError ? (
           <p className='rounded-md border border-dashed border-fk-danger-border bg-fk-danger-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
-            The organizations of this account could not be loaded.
+            {t('detail.organizations.list.error')}
           </p>
         ) : isLoading ? (
           <div className='space-y-2'>
@@ -94,18 +96,24 @@ export default function UserOrganizationsTab({
                       {organization.name}
                     </p>
                     <Pill mono>{organization.alias}</Pill>
-                    {!organization.enabled && <Pill tone='amber'>organization disabled</Pill>}
+                    {!organization.enabled && (
+                      <Pill tone='amber'>{t('detail.organizations.list.disabled')}</Pill>
+                    )}
                   </div>
                   <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                    Member since {formatJoinedAt(joinedAt)} ·{' '}
-                    {organization.domain ?? `org_id: ${organization.id}`}
+                    {t('detail.organizations.list.meta', {
+                      date: formatJoinedAt(joinedAt),
+                      detail:
+                        organization.domain ??
+                        t('detail.organizations.list.identifier', { id: organization.id }),
+                    })}
                   </p>
                 </div>
 
                 <Button
                   variant='ghost'
                   size='icon'
-                  aria-label={`Remove from ${organization.name}`}
+                  aria-label={t('detail.organizations.list.remove', { name: organization.name })}
                   onClick={() => onRemove(organization.id)}
                   className='size-7 shrink-0 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                 >
@@ -117,15 +125,15 @@ export default function UserOrganizationsTab({
         ) : (
           <p className='rounded-md border border-dashed border-fk-line px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400'>
             {query
-              ? `No organization matches “${query}”.`
-              : 'This account belongs to no organization.'}
+              ? t('detail.organizations.list.no_match', { query })
+              : t('detail.organizations.list.empty')}
           </p>
         )}
       </Section>
 
       <Section
-        title='Add to an organization'
-        description='Organizations of the realm this account has not joined yet.'
+        title={t('detail.organizations.assign.title')}
+        description={t('detail.organizations.assign.description')}
         contained={false}
       >
         <div className='space-y-3'>
@@ -137,18 +145,21 @@ export default function UserOrganizationsTab({
             }))}
             value={selectedOrganizationIds}
             onChange={onSelectedOrganizationIdsChange}
-            addLabel='Pick an organization'
-            searchPlaceholder='Search an organization…'
-            emptyHint='No organization selected yet.'
-            exhaustedHint='This account already belongs to every organization of the realm.'
+            addLabel={t('detail.organizations.assign.add')}
+            searchPlaceholder={t('detail.organizations.assign.search_placeholder')}
+            emptyHint={t('detail.organizations.assign.empty_hint')}
+            exhaustedHint={t('detail.organizations.assign.exhausted_hint')}
           />
           <Button
             size='sm'
             disabled={selectedOrganizationIds.length === 0}
             onClick={onAssign}
           >
-            Add to {selectedOrganizationIds.length > 0 ? selectedOrganizationIds.length : ''}{' '}
-            organization{selectedOrganizationIds.length > 1 ? 's' : ''}
+            {selectedOrganizationIds.length === 0
+              ? t('detail.organizations.assign.submit_empty')
+              : t('detail.organizations.assign.submit', {
+                  count: selectedOrganizationIds.length,
+                })}
           </Button>
         </div>
       </Section>

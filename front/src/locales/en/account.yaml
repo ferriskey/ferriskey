@@ -1,0 +1,62 @@
+tabs:
+  overview: Personal info
+  sessions: Sessions
+
+unavailable:
+  title: Profile unavailable
+  description: Your account could not be loaded for this realm. Sign in again, then retry.
+
+header:
+  email_verified: email verified
+  email_unverified: email unverified
+  username_locked: username locked
+  member_since_label: Member since
+  member_since: Member since {{date}}
+  identifier_label: Identifier
+
+profile:
+  title: Personal information
+  description: What other members of this realm see, and where your notifications are sent.
+  username:
+    label: Username
+    description: Unique login identifier for your account.
+    locked_description: Your administrator has disabled username changes for this realm.
+  email:
+    label: Email
+    description: Contact address used for notifications and password recovery.
+  name:
+    label: First and last name
+    description: Optional — shown in the console and in the tokens issued for you.
+    firstname_placeholder: First name
+    lastname_placeholder: Last name
+  save_bar:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: Review your profile before applying the changes.
+    cancel: Discard
+    submit: Save changes
+  toast:
+    updated: Your profile was updated
+
+sessions:
+  # Plain total in a heading, it never inflects.
+  title: Active sessions ({{total}})
+  empty: No active sessions.
+  unknown_device: Unknown device
+  # Stands in for the device name inside a sentence, as in "sign out the session on this device".
+  this_device: this device
+  unknown_ip: Unknown IP
+  never: never
+  current: current
+  meta: '{{ip}} · last seen {{lastSeen}} · signed in {{signedIn}}'
+  revoke: Revoke
+  revoke_label: Revoke the session on {{device}}
+  confirm:
+    title: Revoke session?
+    description: This will immediately sign out the session on {{device}}.
+  toast:
+    revoked: Session revoked
+
+validation:
+  username_required: Username is required
+  email_invalid: Invalid email address

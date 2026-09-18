@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { EntityPicker, MetricsBand, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
@@ -18,10 +19,6 @@ export interface UserRoleMappingTabProps {
   onUnassign: (roleId: string) => void
 }
 
-const roleSubtitle = (role: Role) =>
-  role.description ||
-  (role.client?.client_id ? `client: ${role.client.client_id}` : `role_id: ${role.id}`)
-
 export default function UserRoleMappingTab({
   roles,
   assignableRoles,
@@ -32,7 +29,14 @@ export default function UserRoleMappingTab({
   onAssign,
   onUnassign,
 }: UserRoleMappingTabProps) {
+  const { t } = useTranslation('user')
   const [query, setQuery] = useState('')
+
+  const roleSubtitle = (role: Role) =>
+    role.description ||
+    (role.client?.client_id
+      ? t('detail.role_mapping.role.client_ref', { clientId: role.client.client_id })
+      : t('detail.role_mapping.role.identifier', { id: role.id }))
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -49,34 +53,41 @@ export default function UserRoleMappingTab({
     <>
       <MetricsBand
         metrics={[
-          { key: 'total', label: 'Assigned roles', value: total, hint: 'on this account' },
+          {
+            key: 'total',
+            label: t('detail.role_mapping.metrics.total.label'),
+            value: total,
+            hint: t('detail.role_mapping.metrics.total.hint'),
+          },
           {
             key: 'realm',
-            label: 'Realm roles',
+            label: t('detail.role_mapping.metrics.realm.label'),
             value: realmRoles,
             hint:
               realmRoles > 0 && total > 0
-                ? `${((realmRoles / total) * 100).toFixed(0)}% of total`
-                : 'No realm roles',
+                ? t('detail.role_mapping.metrics.realm.hint', {
+                    percent: ((realmRoles / total) * 100).toFixed(0),
+                  })
+                : t('detail.role_mapping.metrics.realm.empty_hint'),
           },
           {
             key: 'client',
-            label: 'Client roles',
+            label: t('detail.role_mapping.metrics.client.label'),
             value: clientRoles,
-            hint: 'scoped to a client',
+            hint: t('detail.role_mapping.metrics.client.hint'),
           },
           {
             key: 'granting',
-            label: 'With permissions',
+            label: t('detail.role_mapping.metrics.granting.label'),
             value: withPermissions,
-            hint: 'grant at least one',
+            hint: t('detail.role_mapping.metrics.granting.hint'),
           },
         ]}
       />
 
       <Section
-        title='Assigned roles'
-        description='Everything this account is authorised to do comes from this list.'
+        title={t('detail.role_mapping.list.title')}
+        description={t('detail.role_mapping.list.description')}
         action={
           roles.length > 0 ? (
             <label className='relative flex h-7 w-48 items-center'>
@@ -85,7 +96,7 @@ export default function UserRoleMappingTab({
                 type='search'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder='Filter roles…'
+                placeholder={t('detail.role_mapping.list.search_placeholder')}
                 className='h-full w-full rounded-md border border-fk-line pl-7 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
               />
             </label>
@@ -95,7 +106,7 @@ export default function UserRoleMappingTab({
       >
         {isError ? (
           <p className='rounded-md border border-dashed border-fk-danger-border bg-fk-danger-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
-            The roles of this account could not be loaded.
+            {t('detail.role_mapping.list.error')}
           </p>
         ) : isLoading ? (
           <div className='space-y-2'>
@@ -111,11 +122,14 @@ export default function UserRoleMappingTab({
                   <div className='flex flex-wrap items-center gap-2'>
                     <p className='font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>{role.name}</p>
                     <Pill tone={role.client_id ? 'violet' : 'info'} mono>
-                      {role.client_id ? 'client' : 'realm'}
+                      {role.client_id
+                        ? t('detail.role_mapping.role.client')
+                        : t('detail.role_mapping.role.realm')}
                     </Pill>
                     <Pill tone={role.permissions.length > 0 ? 'success' : 'amber'}>
-                      {role.permissions.length} permission
-                      {role.permissions.length !== 1 ? 's' : ''}
+                      {t('detail.role_mapping.role.permission_count', {
+                        count: role.permissions.length,
+                      })}
                     </Pill>
                   </div>
                   <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
@@ -125,7 +139,7 @@ export default function UserRoleMappingTab({
                 <Button
                   variant='ghost'
                   size='icon'
-                  aria-label={`Unassign ${role.name}`}
+                  aria-label={t('detail.role_mapping.list.unassign', { name: role.name })}
                   onClick={() => onUnassign(role.id)}
                   className='size-7 shrink-0 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                 >
@@ -137,15 +151,15 @@ export default function UserRoleMappingTab({
         ) : (
           <p className='rounded-md border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
             {query
-              ? `No role matches “${query}”.`
-              : 'No role assigned — this account cannot reach any protected resource.'}
+              ? t('detail.role_mapping.list.no_match', { query })
+              : t('detail.role_mapping.list.empty')}
           </p>
         )}
       </Section>
 
       <Section
-        title='Assign a role'
-        description='Roles of the realm and of its clients that this account does not hold yet.'
+        title={t('detail.role_mapping.assign.title')}
+        description={t('detail.role_mapping.assign.description')}
         contained={false}
       >
         <div className='space-y-3'>
@@ -153,18 +167,21 @@ export default function UserRoleMappingTab({
             items={assignableRoles.map((role) => ({
               id: role.id,
               label: role.name,
-              sublabel: role.client?.client_id ? `client: ${role.client.client_id}` : 'realm',
+              sublabel: role.client?.client_id
+                ? t('detail.role_mapping.role.client_ref', { clientId: role.client.client_id })
+                : t('detail.role_mapping.role.realm'),
             }))}
             value={selectedRoleIds}
             onChange={onSelectedRoleIdsChange}
-            addLabel='Pick a role'
-            searchPlaceholder='Search a role…'
-            emptyHint='No role selected yet.'
-            exhaustedHint='This account already holds every role of the realm.'
+            addLabel={t('detail.role_mapping.assign.add')}
+            searchPlaceholder={t('detail.role_mapping.assign.search_placeholder')}
+            emptyHint={t('detail.role_mapping.assign.empty_hint')}
+            exhaustedHint={t('detail.role_mapping.assign.exhausted_hint')}
           />
           <Button size='sm' disabled={selectedRoleIds.length === 0} onClick={onAssign}>
-            Assign {selectedRoleIds.length > 0 ? selectedRoleIds.length : ''} role
-            {selectedRoleIds.length > 1 ? 's' : ''}
+            {selectedRoleIds.length === 0
+              ? t('detail.role_mapping.assign.submit_empty')
+              : t('detail.role_mapping.assign.submit', { count: selectedRoleIds.length })}
           </Button>
         </div>
       </Section>

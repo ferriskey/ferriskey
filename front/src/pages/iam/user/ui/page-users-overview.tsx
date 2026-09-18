@@ -1,4 +1,5 @@
 import { Bot, MailCheck, MailX, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
 import type { CardSpec, Column } from '@/components/kit'
@@ -8,17 +9,13 @@ import { Schemas } from '@/api/api.client'
 import User = Schemas.User
 import { cumulativeSeries } from '@/utils/cumulative-series'
 
+const QUERY_SYNTAX = 'username:adm*  email_verified:false  enabled:true'
+
 export interface PageUsersOverviewProps {
   users: User[]
   isLoading: boolean
   userHref: (user: User) => string
   onCreate: () => void
-}
-
-function displayName(user: User) {
-  if (isServiceAccount(user)) return 'Service Account'
-  const full = [user.firstname, user.lastname].filter(Boolean).join(' ')
-  return full || user.username
 }
 
 export default function PageUsersOverview({
@@ -27,10 +24,21 @@ export default function PageUsersOverview({
   userHref,
   onCreate,
 }: PageUsersOverviewProps) {
+  const { t } = useTranslation('user')
+
+  const displayName = (user: User) => {
+    if (isServiceAccount(user)) return t('list.service_account_name')
+    const full = [user.firstname, user.lastname].filter(Boolean).join(' ')
+    return full || user.username
+  }
+
+  const typeLabel = (user: User) =>
+    isServiceAccount(user) ? t('list.type.service') : t('list.type.user')
+
   const columns: Column<User>[] = [
     {
       key: 'user',
-      header: 'User',
+      header: t('list.columns.user'),
       render: (u) => (
         <span className='flex min-w-0 flex-col'>
           <span className='truncate text-neutral-900 dark:text-neutral-100'>{displayName(u)}</span>
@@ -43,7 +51,7 @@ export default function PageUsersOverview({
     },
     {
       key: 'email',
-      header: 'Email',
+      header: t('list.columns.email'),
       render: (u) =>
         u.email ? (
           <span className='inline-flex items-center gap-1.5'>
@@ -55,27 +63,27 @@ export default function PageUsersOverview({
             <span className='text-neutral-600 dark:text-neutral-400'>{u.email}</span>
           </span>
         ) : (
-          <span className='text-neutral-400 dark:text-neutral-500'>no email</span>
+          <span className='text-neutral-400 dark:text-neutral-500'>{t('list.no_email')}</span>
         ),
       sortValue: (u) => u.email ?? '',
     },
     {
       key: 'type',
-      header: 'Type',
+      header: t('list.columns.type'),
       render: (u) => (
         <Pill tone={isServiceAccount(u) ? 'violet' : 'info'} mono>
-          {isServiceAccount(u) ? 'service account' : 'user account'}
+          {typeLabel(u)}
         </Pill>
       ),
-      sortValue: (u) => (isServiceAccount(u) ? 'service account' : 'user account'),
+      sortValue: (u) => typeLabel(u),
     },
     {
       key: 'status',
-      header: 'Status',
+      header: t('list.columns.status'),
       render: (u) => (
         <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={u.enabled} />
-          {u.enabled ? 'Enabled' : 'Disabled'}
+          {u.enabled ? t('list.status.enabled') : t('list.status.disabled')}
         </span>
       ),
       sortValue: (u) => (u.enabled ? 1 : 0),
@@ -97,17 +105,17 @@ export default function PageUsersOverview({
       <>
         <Pill tone={u.enabled ? 'success' : 'neutral'}>
           <StatusDot on={u.enabled} />
-          {u.enabled ? 'enabled' : 'disabled'}
+          {u.enabled ? t('list.card.badge.enabled') : t('list.card.badge.disabled')}
         </Pill>
         <Pill tone={isServiceAccount(u) ? 'violet' : 'info'} mono>
-          {isServiceAccount(u) ? 'service account' : 'user account'}
+          {typeLabel(u)}
         </Pill>
       </>
     ),
     flags: (u) => [
-      { label: 'Account enabled', on: u.enabled },
-      { label: 'Email verified', on: u.email_verified },
-      { label: 'No action required at next sign-in', on: u.required_actions.length === 0 },
+      { label: t('list.card.flags.enabled'), on: u.enabled },
+      { label: t('list.card.flags.email_verified'), on: u.email_verified },
+      { label: t('list.card.flags.no_required_action'), on: u.required_actions.length === 0 },
     ],
     footer: (u) => <span className='truncate'>{u.email || u.username}</span>,
   }
@@ -119,42 +127,51 @@ export default function PageUsersOverview({
 
   const createButton = (
     <Button onClick={onCreate}>
-      <Plus /> New user
+      <Plus /> {t('list.create')}
     </Button>
   )
 
   return (
     <ListingPage
-      title='Users'
-      description='Accounts of this realm, their type and their authentication state.'
+      title={t('list.title')}
+      description={t('list.description')}
       loading={isLoading}
       actions={createButton}
       metrics={[
-        { key: 'total', label: 'Total', value: users.length, hint: 'users', series: cumulativeSeries(users.map((r) => r.created_at)), tone: 'info' },
+        {
+          key: 'total',
+          label: t('list.metrics.total.label'),
+          value: users.length,
+          hint: t('list.metrics.total.hint'),
+          series: cumulativeSeries(users.map((r) => r.created_at)),
+          tone: 'info',
+        },
         {
           key: 'enabled',
-          label: 'Enabled users',
+          label: t('list.metrics.enabled.label'),
           value: enabled.length,
           hint:
             enabled.length > 0 && users.length > 0
-              ? `${((enabled.length / users.length) * 100).toFixed(0)}% active`
-              : 'No enabled users',
+              ? t('list.metrics.enabled.hint', {
+                  percent: ((enabled.length / users.length) * 100).toFixed(0),
+                })
+              : t('list.metrics.enabled.empty_hint'),
           series: cumulativeSeries(enabled.map((r) => r.created_at)),
           tone: 'success',
         },
         {
           key: 'disabled',
-          label: 'Disabled users',
+          label: t('list.metrics.disabled.label'),
           value: disabled.length,
-          hint: 'cannot authenticate',
+          hint: t('list.metrics.disabled.hint'),
           series: cumulativeSeries(disabled.map((r) => r.created_at)),
           tone: 'amber',
         },
         {
           key: 'verified',
-          label: 'Verified users',
+          label: t('list.metrics.verified.label'),
           value: verified.length,
-          hint: 'email verified',
+          hint: t('list.metrics.verified.hint'),
           series: cumulativeSeries(verified.map((r) => r.created_at)),
           tone: 'success',
         },
@@ -164,24 +181,30 @@ export default function PageUsersOverview({
           ? [
               {
                 tone: 'warn' as const,
-                title: `${unverified.length} account${unverified.length > 1 ? 's have' : ' has'} an unverified email`,
-                detail: `${unverified.map((u) => u.username).join(', ')} — password recovery will not reach them.`,
-                action: 'Review',
+                title: t('list.alerts.unverified_email.title', { count: unverified.length }),
+                detail: t('list.alerts.unverified_email.detail', {
+                  names: unverified.map((u) => u.username).join(', '),
+                }),
+                action: t('list.alerts.unverified_email.action'),
               },
             ]
           : []
       }
       filters={[
-        { key: 'users', label: 'Users', predicate: (u) => !isServiceAccount(u) },
-        { key: 'service', label: 'Service accounts', predicate: isServiceAccount },
+        { key: 'users', label: t('list.filters.users'), predicate: (u) => !isServiceAccount(u) },
+        {
+          key: 'service',
+          label: t('list.filters.service_accounts'),
+          predicate: isServiceAccount,
+        },
         {
           key: 'unverified',
-          label: 'Unverified email',
+          label: t('list.filters.unverified'),
           predicate: (u) => !u.email_verified && !isServiceAccount(u),
         },
       ]}
-      searchPlaceholder='Filter by name or email…'
-      querySyntax='username:adm*  email_verified:false  enabled:true'
+      searchPlaceholder={t('list.search_placeholder')}
+      querySyntax={QUERY_SYNTAX}
       searchIn={(u) =>
         `${u.username} ${u.email ?? ''} ${u.firstname ?? ''} ${u.lastname ?? ''}`
       }
@@ -191,11 +214,11 @@ export default function PageUsersOverview({
       getKey={(u) => u.id}
       getHref={userHref}
       aggregates={{
-        user: `${users.length} user${users.length !== 1 ? 's' : ''}`,
-        status: `${enabled.length} enabled`,
+        user: t('list.aggregates.count', { count: users.length }),
+        status: t('list.aggregates.enabled', { total: enabled.length }),
       }}
-      emptyLabel='No user'
-      emptyHint='An account authenticates against this realm; a service account belongs to a client.'
+      emptyLabel={t('list.empty.label')}
+      emptyHint={t('list.empty.hint')}
       emptyAction={createButton}
     />
   )

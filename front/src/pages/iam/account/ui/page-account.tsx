@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, FieldRow, IconTile, PageShell, PageTabs, Pill, Section } from '@/components/kit'
@@ -46,13 +47,14 @@ export default function PageAccount({
   onDiscard,
   onSave,
 }: PageAccountProps) {
+  const { t } = useTranslation('account')
   const { realm_name } = useParams<RouterParams>()
   const { pathname } = useLocation()
 
   const base = ACCOUNT_URL(realm_name)
   const tabs = [
-    { key: 'overview', label: 'Personal info', href: base },
-    { key: 'sessions', label: 'Sessions', href: `${base}/sessions` },
+    { key: 'overview', label: t('tabs.overview'), href: base },
+    { key: 'sessions', label: t('tabs.sessions'), href: `${base}/sessions` },
   ]
   const tab = pathname.endsWith('/sessions') ? 'sessions' : 'overview'
 
@@ -74,9 +76,11 @@ export default function PageAccount({
     return (
       <PageShell>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Profile unavailable</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('unavailable.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            Your account could not be loaded for this realm. Sign in again, then retry.
+            {t('unavailable.description')}
           </p>
         </div>
       </PageShell>
@@ -95,19 +99,18 @@ export default function PageAccount({
         pills={
           <>
             <Pill tone={profile.email_verified ? 'info' : 'amber'} mono>
-              {profile.email_verified ? 'email verified' : 'email unverified'}
+              {profile.email_verified ? t('header.email_verified') : t('header.email_unverified')}
             </Pill>
-            {!usernameEditable && <Pill tone='neutral'>username locked</Pill>}
+            {!usernameEditable && <Pill tone='neutral'>{t('header.username_locked')}</Pill>}
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Member since</dt>
+            <dt className='sr-only'>{t('header.member_since_label')}</dt>
             <dd className='tnum'>
-              Member since{' '}
-              {formatDate(profile.created_at)}
+              {t('header.member_since', { date: formatDate(profile.created_at) })}
             </dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('header.identifier_label')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{profile.id}</dd>
           </dl>
         }
@@ -116,16 +119,13 @@ export default function PageAccount({
       <PageTabs tabs={tabs} value={tab} className='mt-5' />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
-        <Section
-          title='Personal information'
-          description='What other members of this realm see, and where your notifications are sent.'
-        >
+        <Section title={t('profile.title')} description={t('profile.description')}>
           <FieldRow
-            label='Username'
+            label={t('profile.username.label')}
             description={
               usernameEditable
-                ? 'Unique login identifier for your account.'
-                : 'Your administrator has disabled username changes for this realm.'
+                ? t('profile.username.description')
+                : t('profile.username.locked_description')
             }
             htmlFor='account-username'
           >
@@ -143,8 +143,8 @@ export default function PageAccount({
           </FieldRow>
 
           <FieldRow
-            label='Email'
-            description='Contact address used for notifications and password recovery.'
+            label={t('profile.email.label')}
+            description={t('profile.email.description')}
             htmlFor='account-email'
           >
             <Input
@@ -158,22 +158,19 @@ export default function PageAccount({
             {errors.email && <p className='mt-1.5 text-xs text-fk-danger'>{errors.email}</p>}
           </FieldRow>
 
-          <FieldRow
-            label='First and last name'
-            description='Optional — shown in the console and in the tokens issued for you.'
-          >
+          <FieldRow label={t('profile.name.label')} description={t('profile.name.description')}>
             <div className='flex max-w-sm gap-2'>
               <Input
                 value={firstname}
                 onChange={(e) => onFirstnameChange(e.target.value)}
-                placeholder='First name'
-                aria-label='First name'
+                placeholder={t('profile.name.firstname_placeholder')}
+                aria-label={t('profile.name.firstname_placeholder')}
               />
               <Input
                 value={lastname}
                 onChange={(e) => onLastnameChange(e.target.value)}
-                placeholder='Last name'
-                aria-label='Last name'
+                placeholder={t('profile.name.lastname_placeholder')}
+                aria-label={t('profile.name.lastname_placeholder')}
               />
             </div>
           </FieldRow>
@@ -182,11 +179,11 @@ export default function PageAccount({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review your profile before applying the changes.'
+        title={t('profile.save_bar.title', { count: dirtyCount })}
+        description={t('profile.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('profile.save_bar.cancel')}
+        actions={[{ label: t('profile.save_bar.submit'), onClick: onSave }]}
       />
     </PageShell>
   )

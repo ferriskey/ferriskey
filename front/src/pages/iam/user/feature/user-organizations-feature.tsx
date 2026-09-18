@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   useAddUserToOrganization,
@@ -13,6 +14,7 @@ import UserOrganizationsTab, { type UserMembership } from '../ui/user-organizati
 
 export default function UserOrganizationsFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
+  const { t } = useTranslation('user')
   const realm = realm_name ?? 'master'
 
   const {
@@ -42,7 +44,7 @@ export default function UserOrganizationsFeature() {
 
   const handleAssign = () => {
     if (!user_id || !realm_name) {
-      toast.error('User or realm not found')
+      toast.error(t('detail.organizations.toast.missing_context'))
       return
     }
     if (
@@ -57,7 +59,7 @@ export default function UserOrganizationsFeature() {
       })
     }
     setSelectedOrganizationIds([])
-    toast.success('Organization(s) assigned successfully')
+    toast.success(t('detail.organizations.toast.assigned'))
   }
 
   const handleRemove = (organizationId: string) => {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetUserRoles } from '@/api/user.api'
 import { useAssignUserRole, useUnassignUserRole } from '@/api/user_role.api'
@@ -10,6 +11,7 @@ import UserRoleMappingTab from '../ui/user-role-mapping-tab'
 
 export default function UserRoleMappingFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
+  const { t } = useTranslation('user')
   const realm = realm_name ?? 'master'
 
   const {
@@ -32,7 +34,7 @@ export default function UserRoleMappingFeature() {
 
   const handleAssign = () => {
     if (!user_id || !realm_name) {
-      toast.error('User or realm not found')
+      toast.error(t('detail.role_mapping.toast.missing_context'))
       return
     }
     if (!assignRoleSchema.safeParse({ roleIds: selectedRoleIds }).success) return
@@ -41,7 +43,7 @@ export default function UserRoleMappingFeature() {
       assignRole({ path: { realm_name, user_id, role_id: roleId } })
     }
     setSelectedRoleIds([])
-    toast.success('Role(s) assigned successfully')
+    toast.success(t('detail.role_mapping.toast.assigned'))
   }
 
   const handleUnassign = (roleId: string) => {
@@ -50,8 +52,8 @@ export default function UserRoleMappingFeature() {
       { path: { realm_name, user_id, role_id: roleId } },
       {
         onSuccess: () =>
-          toast.success('Role unassigned successfully', {
-            description: 'The role has been successfully removed from the user.',
+          toast.success(t('detail.role_mapping.toast.unassigned_title'), {
+            description: t('detail.role_mapping.toast.unassigned_description'),
           }),
       }
     )

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { KeyRound, Search, ShieldQuestion, Smartphone, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
@@ -15,15 +16,19 @@ import { formatDateTime } from '@/utils/format-date'
 
 const credentialMeta: Record<
   string,
-  { label: string; icon: typeof KeyRound; tone: PillTone }
+  { labelKey: string; icon: typeof KeyRound; tone: PillTone }
 > = {
-  password: { label: 'Password', icon: KeyRound, tone: 'success' },
-  otp: { label: 'One-time password', icon: Smartphone, tone: 'info' },
-  recovery_code: { label: 'Recovery codes', icon: ShieldQuestion, tone: 'violet' },
+  password: { labelKey: 'detail.credentials.types.password', icon: KeyRound, tone: 'success' },
+  otp: { labelKey: 'detail.credentials.types.otp', icon: Smartphone, tone: 'info' },
+  recovery_code: {
+    labelKey: 'detail.credentials.types.recovery_code',
+    icon: ShieldQuestion,
+    tone: 'violet',
+  },
 }
 
 const metaFor = (type: string) =>
-  credentialMeta[type] ?? { label: type, icon: ShieldQuestion, tone: 'neutral' as PillTone }
+  credentialMeta[type] ?? { labelKey: null, icon: ShieldQuestion, tone: 'neutral' as PillTone }
 
 const formatCreatedAt = (iso: string) =>
   formatDateTime(iso)
@@ -41,6 +46,7 @@ export default function UserCredentialsTab({
   onDelete,
   passwordForm,
 }: UserCredentialsTabProps) {
+  const { t } = useTranslation('user')
   const { confirm, ask, close } = useConfirmDeleteAlert()
   const [query, setQuery] = useState('')
 
@@ -59,8 +65,10 @@ export default function UserCredentialsTab({
 
   const askDelete = (credential: CredentialOverview) =>
     ask({
-      title: 'Delete credential?',
-      description: `Are you sure you want to delete this "${credential.credential_type}" credential?`,
+      title: t('detail.credentials.delete.title'),
+      description: t('detail.credentials.delete.description', {
+        type: credential.credential_type,
+      }),
       onConfirm: () => {
         onDelete(credential.id)
         close()
@@ -71,29 +79,41 @@ export default function UserCredentialsTab({
     <>
       <MetricsBand
         metrics={[
-          { key: 'total', label: 'Total credentials', value: total, hint: 'registered' },
+          {
+            key: 'total',
+            label: t('detail.credentials.metrics.total.label'),
+            value: total,
+            hint: t('detail.credentials.metrics.total.hint'),
+          },
           {
             key: 'passwords',
-            label: 'Passwords',
+            label: t('detail.credentials.metrics.passwords.label'),
             value: passwords,
             hint:
               passwords > 0 && total > 0
-                ? `${((passwords / total) * 100).toFixed(0)}% of total`
-                : 'No password credentials',
+                ? t('detail.credentials.metrics.passwords.hint', {
+                    percent: ((passwords / total) * 100).toFixed(0),
+                  })
+                : t('detail.credentials.metrics.passwords.empty_hint'),
           },
-          { key: 'otp', label: 'TOTP', value: totps, hint: 'authenticator app' },
+          {
+            key: 'otp',
+            label: t('detail.credentials.metrics.otp.label'),
+            value: totps,
+            hint: t('detail.credentials.metrics.otp.hint'),
+          },
           {
             key: 'other',
-            label: 'Other',
+            label: t('detail.credentials.metrics.other.label'),
             value: total - passwords - totps,
-            hint: 'recovery codes & more',
+            hint: t('detail.credentials.metrics.other.hint'),
           },
         ]}
       />
 
       <Section
-        title='Authentication methods'
-        description='Credentials registered for this account.'
+        title={t('detail.credentials.list.title')}
+        description={t('detail.credentials.list.description')}
         action={
           credentials.length > 0 ? (
             <label className='relative flex h-7 w-48 items-center'>
@@ -102,7 +122,7 @@ export default function UserCredentialsTab({
                 type='search'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder='Filter credentials…'
+                placeholder={t('detail.credentials.list.search_placeholder')}
                 className='h-full w-full rounded-md border border-fk-line pl-7 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
               />
             </label>
@@ -131,10 +151,13 @@ export default function UserCredentialsTab({
 
                   <div className='min-w-0'>
                     <p className='truncate text-sm font-medium text-neutral-900 dark:text-neutral-100'>
-                      {credential.user_label || meta.label}
+                      {credential.user_label ||
+                        (meta.labelKey ? t(meta.labelKey) : credential.credential_type)}
                     </p>
                     <p className='truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                      Added {formatCreatedAt(credential.created_at)}
+                      {t('detail.credentials.list.added', {
+                        date: formatCreatedAt(credential.created_at),
+                      })}
                     </p>
                   </div>
 
@@ -147,7 +170,9 @@ export default function UserCredentialsTab({
                   <Button
                     variant='ghost'
                     size='icon'
-                    aria-label={`Delete the ${credential.credential_type} credential`}
+                    aria-label={t('detail.credentials.list.delete', {
+                      type: credential.credential_type,
+                    })}
                     onClick={() => askDelete(credential)}
                     className='size-7 shrink-0 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                   >
@@ -160,26 +185,29 @@ export default function UserCredentialsTab({
         ) : (
           <p className='rounded-md border border-dashed border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
             {query
-              ? `No credential matches “${query}”.`
-              : 'No credential registered — this account cannot authenticate.'}
+              ? t('detail.credentials.list.no_match', { query })
+              : t('detail.credentials.list.empty')}
           </p>
         )}
       </Section>
 
       <Section
-        title={hasPassword ? 'Reset the password' : 'Set a password'}
+        title={
+          hasPassword
+            ? t('detail.credentials.password.title_reset')
+            : t('detail.credentials.password.title_set')
+        }
         description={
           hasPassword
-            ? 'The current password is replaced immediately; open sessions stay valid.'
-            : 'This account has no password: it can only authenticate through its other methods.'
+            ? t('detail.credentials.password.description_reset')
+            : t('detail.credentials.password.description_set')
         }
       >
         <UserPasswordForm hasPassword={hasPassword} {...passwordForm} />
       </Section>
 
       <p className='rounded-md border border-fk-amber-border bg-fk-amber-soft/40 px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400'>
-        Deleting a credential is immediate and irreversible: the user loses that authentication
-        method without being notified.
+        {t('detail.credentials.warning')}
       </p>
 
       <ConfirmDeleteAlert

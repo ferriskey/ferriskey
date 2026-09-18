@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useBulkDeleteUser, useGetUser, useUpdateUser } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
-import { useRouteTabs } from '@/components/kit'
+import { useRouteTabs, type TabItem } from '@/components/kit'
 import { updateUserValidator } from '@/pages/iam/user/validators'
 import { USERS_URL } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
@@ -37,17 +38,10 @@ const EMPTY_DRAFT: Draft = {
   requiredActions: [],
 }
 
-const USER_TABS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'credentials', label: 'Credentials' },
-  { key: 'role-mapping', label: 'Role mapping' },
-  { key: 'organizations', label: 'Organizations' },
-  { key: 'attributes', label: 'Attributes' },
-] as const
-
 export default function PageUserDetailFeature() {
   const { realm_name, user_id } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('user')
   const realm = realm_name ?? 'master'
 
   const { data: userResponse, isLoading } = useGetUser({ realm, userId: user_id })
@@ -56,7 +50,17 @@ export default function PageUserDetailFeature() {
 
   const user = userResponse?.data
   const basePath = `${USERS_URL(realm)}/${user_id ?? ''}`
-  const { value: tab, tabs } = useRouteTabs(basePath, USER_TABS)
+  const tabList = useMemo<TabItem[]>(
+    () => [
+      { key: 'overview', label: t('detail.tabs.overview') },
+      { key: 'credentials', label: t('detail.tabs.credentials') },
+      { key: 'role-mapping', label: t('detail.tabs.role_mapping') },
+      { key: 'organizations', label: t('detail.tabs.organizations') },
+      { key: 'attributes', label: t('detail.tabs.attributes') },
+    ],
+    [t]
+  )
+  const { value: tab, tabs } = useRouteTabs(basePath, tabList)
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
 
@@ -120,7 +124,7 @@ export default function PageUserDetailFeature() {
         path: { realm_name, user_id },
       },
       {
-        onSuccess: () => toast.success('User was updated'),
+        onSuccess: () => toast.success(t('detail.toast.updated')),
         onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
@@ -132,7 +136,7 @@ export default function PageUserDetailFeature() {
       await deleteUser({ path: { realm_name }, body: { ids: [user_id] } })
       navigate(USERS_URL(realm))
     } catch {
-      toast.error('The user could not be deleted')
+      toast.error(t('detail.toast.delete_failed'))
     }
   }
 
