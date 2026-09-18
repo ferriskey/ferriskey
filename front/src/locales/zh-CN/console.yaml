@@ -1,0 +1,696 @@
+# 简体中文 catalogue for the console (CIAM) panel.
+#
+# This panel speaks to a product audience: it says "application" where the IAM panel says
+# "client", and "identity" where the IAM panel says "user". The Chinese keeps that split —
+# 应用 for an application, 身份 for an identity — while the IAM catalogues keep 客户端 and 用户.
+#
+# The authentication screens say "the person" in English where the rest of the panel says "your
+# users". Both are rendered 用户 here: Chinese has no natural terse equivalent of "the person",
+# and 本人 read as a legal form rather than as a human being on a sign-in page.
+#
+# The keys, the {{placeholders}} and the <tags> are part of the contract: translate the words
+# around them, never the markup. Protocol names, grant names, brand names and URL examples are
+# left in English on purpose.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English
+# catalogue have no counterpart here.
+#
+# Status: produced without a native reviewer. Lines carrying a TRANSLATOR NOTE are the ones
+# where the English itself is ambiguous and the Chinese had to pick a reading.
+
+# Plain number, formatted for the active locale.
+number: '{{value, number}}'
+
+activity:
+  # Time window every activity screen reports on. Interpolated as {{window}} in the sentences
+  # below; translators may move it anywhere inside them.
+  window_other: 最近 {{count}} 天
+  over_window: '{{window}}内'
+  nothing_recorded: 无记录
+  no_failure: 无失败记录
+  filter:
+    all: 全部
+  capped:
+    title: 已限制为 {{limit, number}} 个事件
+    detail_above: '本域在{{window}}内记录的事件更多；以上数字仅涵盖最近的 {{limit, number}} 个。'
+    detail_below: '本域在{{window}}内记录的事件更多；以下数字仅涵盖最近的 {{limit, number}} 个。'
+  event:
+    columns:
+      event: 事件
+      outcome: 结果
+      actor: 账户
+      target: 目标
+      origin: 来源
+      when: 时间
+    # TRANSLATOR NOTE: "unattributed" — shown in the Account column when the event could not be
+    # tied to an account. Rendered as "not attributed", not as "anonymous".
+    unattributed: 未归属
+    unknown_type: 未知类型
+    no_target: 无
+    not_recorded: 未记录
+    no_detail: 无其他详情
+    flags:
+      actor: 已识别账户
+      origin: 已记录来源
+      device: 已记录设备
+  journal:
+    view:
+      list: 列表视图
+      cards: 卡片视图
+    filtered:
+      label: 无匹配项
+      hint: 没有条目符合当前的搜索和筛选条件。
+      action: 清除筛选
+    count_other: '{{count, number}} 个条目'
+    partial: '{{total, number}} 个中的 {{shown, number}} 个'
+  live:
+    title: 实时
+    description: '本域在{{window}}内记录的注册与登录，统计自 Compass 追踪的认证流程。'
+    range_other: '{{count}} 天'
+    metrics:
+      signups: 注册
+      logins: 登录
+      failures: 登录失败
+      accounts: 每日账户数峰值
+      busiest: '{{window}}内最繁忙的一天'
+    notices:
+      compass_off:
+        title: 本域的 Compass 追踪已关闭
+        detail: 注册与登录的数量统计自被追踪的认证流程。追踪关闭后不会记录任何内容，因此本页无从统计。
+      error:
+        title: 活动数据不可用
+        detail: 无法获取本域的活动数据。请稍后重试。
+    logins:
+      title: 登录
+      description: '{{window}}内每天成功和失败的登录。'
+      legend_logins: '<num>{{total, number}}</num> 次登录'
+      legend_failures: '<num>{{total, number}}</num> 次失败'
+    signups:
+      title: 注册
+      description: '{{window}}内每天新创建的账户。'
+      legend: '<num>{{total, number}}</num> 次注册'
+    flows:
+      title: 最近的认证尝试
+      description: 本页加载时最近被追踪到的流程。此处的内容不会自动刷新。
+      loading: 加载中…
+      empty: 尚未追踪到任何认证流程。每一次登录尝试都会在此新增一行。
+      unidentified: 未识别到账户
+  logs:
+    title: 日志与事件
+    description: '本域在{{window}}内记录的所有认证、凭据和管理事件，最近的排在最前。'
+    filters:
+      failures: 失败
+      authentication: 认证
+      credentials: 凭据
+      administration: 管理
+    metrics:
+      events: 事件
+      # TRANSLATOR NOTE: telegraphic in English ("capped, {{window}}") — a hint under the event
+      # count meaning the count hit its ceiling within the window.
+      capped: '已达上限，{{window}}'
+      latest: 最近一次 {{timestamp}}
+      failures: 失败
+      rate: 成功率
+      successful: '{{total, number}} 次成功'
+      actors: 不同账户数
+    notices:
+      error:
+        title: 事件流不可用
+        detail: 无法获取最新事件。请稍后重试。
+      failures:
+        title_other: '{{window}}内有 {{count, number}} 个失败事件'
+        top_failure: '{{label}} 占其中 {{count, number}} 个'
+        top_error_code: 主要为 {{code}}
+    feed:
+      title: 事件流
+      description: 事件类别由服务器筛选；搜索框用于在已加载的结果中进一步缩小范围。
+      search_placeholder: 按事件、账户、IP 搜索…
+      empty_label: 无事件
+      empty_hint: '当客户登录、重置凭据以及管理员修改本域时，此事件流会逐渐填满。{{window}}内没有任何记录。'
+    aggregates:
+      events_other: '{{count, number}} 个事件'
+      failed: '{{total, number}} 个失败'
+      accounts_other: '{{count, number}} 个账户'
+  sessions:
+    title: 会话
+    description: '本域在{{window}}内打开和撤销的会话。'
+    description_with_latest: '本域在{{window}}内打开和撤销的会话，最近一次在 {{timestamp}}。'
+    filters:
+      opened: 已打开
+      revoked: 已撤销
+    metrics:
+      opened: 已打开的会话
+      revoked: 已撤销的会话
+      none_revoked: 无撤销
+      accounts: 不同账户数
+      origins: 不同来源数
+      no_origin: 未记录 IP 地址
+      origins_hint: 出现过的 IP 地址
+    notices:
+      no_device_list:
+        title: 不存在全域范围的活动设备列表
+        detail: API 一次只能按单个账户列出和撤销会话，因此当前已登录的设备显示在各个账户页面上。全域范围内记录下来的内容就是下方的日志。
+      error:
+        title: 会话日志不可用
+        detail: 无法获取本域的会话事件。请稍后重试。
+    journal:
+      title: 会话日志
+      description: '每打开或撤销一个会话记录一行，并附上当时记录的设备和来源。'
+      search_placeholder: 按账户、IP、设备搜索…
+      empty_label: 无会话事件
+      empty_hint: '当客户登录以及会话被撤销时，此日志会逐渐填满。{{window}}内没有任何记录。'
+    aggregates:
+      opened: '{{total, number}} 个已打开'
+      revoked: '{{total, number}} 个已撤销'
+      accounts_other: '{{count, number}} 个账户'
+  messages:
+    title: 消息投递
+    description: '本域在{{window}}内尝试发送的事务性邮件，以及它所通知的 Webhook 端点。'
+    filters:
+      delivered: 已投递
+      failed: 失败
+    email_types:
+      magic_link: 魔法链接
+      verify_email: 邮箱验证
+      reset_password: 密码重置
+    metrics:
+      delivered: 已投递的邮件
+      failed: 投递失败
+      rate: 投递成功率
+      attempted: '{{total, number}} 次尝试'
+      recipients: 不同收件人数
+    notices:
+      no_smtp:
+        title: 无法读取本域的 SMTP 配置
+        detail: 没有邮件服务器，本域就发不出任何事务性邮件——下方日志为空正是这个意思。
+      error:
+        title: 投递日志不可用
+        detail: 无法获取本域的投递事件。请稍后重试。
+      failed:
+        title_other: '{{count, number}} 封邮件投递失败'
+        detail: 每一行失败记录都附有邮件服务器返回的原因。
+    columns:
+      recipient: 收件人
+      message: 消息
+    # TRANSLATOR NOTE: shown in the Recipient column in place of a name, when only an account id
+    # is known. The English is the bare word "account".
+    recipient_account: 账户
+    default_message: 事务性邮件
+    no_template: 未记录模板
+    journal:
+      title: 邮件投递
+      description: '本域交给邮件服务器的每一封邮件记录一行，无论是否投递成功。'
+      search_placeholder: 按消息、账户搜索…
+      empty_label: 无邮件投递
+      empty_hint: '当本域发送魔法链接、验证邮件和密码重置邮件时，此日志会逐渐填满。{{window}}内没有任何尝试。'
+    aggregates:
+      attempts_other: '{{count, number}} 次尝试'
+      failed: '{{total, number}} 次失败'
+      recipients_other: '{{count, number}} 位收件人'
+    webhooks:
+      title: Webhook 端点
+      description: '本域通知的端点，以及每个端点最后一次触发的时间。单次投递不会记入日志，因此没有逐次投递的状态可供显示。'
+      count_other: '{{count, number}} 个端点'
+      empty: 本域没有注册任何 Webhook 端点。
+      triggers_other: '{{count, number}} 个触发器'
+      never_fired: 从未触发
+
+applications:
+  # "flow" values are OAuth 2.0 / OpenID Connect grant names. Keep them verbatim.
+  types:
+    native:
+      label: 移动端或桌面端
+      short: 原生
+      description: '安装在用户的设备上，因此任何持有该设备的人都能读取它的代码。'
+      flow: Authorization Code + PKCE
+    spa:
+      label: 单页应用
+      short: SPA
+      description: '完全运行在浏览器中，因此不会获得密钥，而是依赖 PKCE。'
+      flow: Authorization Code + PKCE
+    web:
+      label: 服务端渲染的 Web 应用
+      short: Web
+      description: 把密钥保存在你的服务器上，并在那里交换授权码。
+      flow: Authorization Code
+    m2m:
+      label: 机器对机器
+      short: M2M
+      description: '以自身身份登录的后端或守护进程，前面没有用户。'
+      flow: Client Credentials
+    device:
+      label: 设备或 CLI
+      short: 设备
+      description: '设备上没有浏览器：用户在另一块屏幕上批准该请求。'
+      flow: Device Authorization Grant (RFC 8628)
+    choice_description: '{{description}} 通过 {{flow}} 登录。'
+  fields:
+    callbacks:
+      label: 允许的回调 URL
+      hint:
+        native: 登录后把用户送回的地址。移动端请使用自定义 scheme，例如 com.acme.app://callback；桌面端开发可使用 http://localhost。未列出的回调地址会被拒绝。
+        spa: '用户登录后到达的地址。未列出的回调地址会被拒绝，因此请把你部署的每一个环境都加进来。'
+        web: 用授权码换取令牌的服务端端点。未列出的回调地址会被拒绝。
+      placeholder:
+        native: com.acme.app://callback
+        spa: https://app.acme.com/callback
+        web: https://app.acme.com/auth/callback
+    origins:
+      label: 允许的 Web 源
+      hint: '允许从浏览器调用 FerrisKey 的来源。只含 scheme、主机和端口——不含路径。输入 + 可从上面的回调 URL 推导。没有匹配的来源，浏览器就会阻止该调用。'
+      placeholder: https://app.acme.com
+    empty:
+      callbacks_required: 没有回调 URL——登录无法完成。
+      callbacks_optional: 未注册回调 URL。
+      origins: 没有来源——来自其他主机的浏览器调用将被拒绝。
+  list:
+    title: 应用
+    description: '所有与 FerrisKey 通信的程序：移动应用、单页应用、Web 服务器、守护进程。'
+    create: 创建应用
+    all: 所有应用
+    filters:
+      all: 全部
+      enabled: 已启用
+      disabled: 已禁用
+    sorts:
+      recent: 最新优先
+      oldest: 最早优先
+      name: 名称
+    search_placeholder: 按名称或客户端 ID 搜索…
+    alerts:
+      missing_callback:
+        body_other: '<em>{{count, number}} 个应用没有回调 URL</em>——{{names}}：FerrisKey 无处可以把用户送回，因此登录会以错误告终。'
+    empty:
+      label: 暂无应用
+      hint: '选一种类型，起一个名字，我们就会生成集成所需的一切。'
+      filtered_label: 没有匹配的应用
+      filtered_hint: 该类型下没有名称或客户端 ID 与之匹配的应用。
+    card:
+      disabled: 已禁用
+    picker:
+      title: 应用类型
+      description: 它决定该应用使用哪种登录流程，以及是否获得密钥。之后更改类型意味着重新创建该应用。
+  create:
+    back: 应用
+    title: 新建应用
+    change_type: 更改类型
+    type:
+      title: 该类型为你提供什么
+      description: 在创建时选定。它决定登录流程，以及该应用是否获得密钥。
+      flow_label: 登录流程
+      secret_label: 客户端密钥
+      secret_held: '应用创建时会生成一个密钥。请把它保存在你的服务器上：任何持有它的人都能以该应用的身份登录。'
+      secret_none: '不会生成密钥。该应用会分发到用户手中，密钥可能被从中读出——登录改由 PKCE 保护。'
+      secret_generated: 已生成
+      secret_absent: 无
+    identity:
+      title: 标识
+      description: 该应用如何命名和标识。
+      name_label: 应用名称
+      name_description: 在登录页面上展示给你的用户。
+      name_placeholder: Acme Mobile
+      client_id_label: 客户端 ID
+      client_id_description: '每次 OAuth 请求都会发送。由名称推导而来；请在创建前改好，你的代码将把它硬编码进去。'
+      client_id_placeholder: acme-mobile
+    urls:
+      title: 用户返回的地址
+      description: 用户登录后，FerrisKey 可以把他们送往的地址。
+    m2m:
+      title: 无需回调 URL
+      description: 机器对机器应用从不让用户经过浏览器。
+      how_label: 它如何获取令牌
+      how_description: 它使用 client_credentials 授权类型，把自己的客户端 ID 和密钥发送到令牌端点。应用创建后，密钥可在“凭据”标签页中找到。
+    device:
+      title: 无需回调 URL
+      description: '设备流程从不重定向：用户在另一块屏幕上打开验证页面。'
+      how_label: 它如何获取令牌
+      how_description: '设备请求一个用户代码并展示出来，然后轮询令牌端点，直到用户批准为止。'
+    save_bar:
+      title: 创建应用
+      description: '先创建应用，然后注册它的回调 URL 和 Web 源。'
+      cancel: 取消
+      submit: 创建应用
+    validation:
+      client_id_format: '只能使用小写字母、数字、连字符和下划线。'
+      callback_format: 请输入完整的 URL，例如 https://app.acme.com/callback。
+      callback_required: 该应用类型至少需要一个回调 URL。
+      origin_format: '请输入一个来源，例如 https://app.acme.com——不含路径、不含通配符——或输入 {{sentinel}} 以从回调 URL 推导。'
+    toast:
+      created: 应用已创建
+      callback_failed: '无法注册回调 URL：{{value}}'
+      origin_failed: '无法注册 Web 源：{{value}}'
+      create_failed: 创建应用失败
+  detail:
+    back: 应用
+    not_found:
+      title: 未找到该应用
+      description: '它可能已被删除，或者属于另一个域。'
+    state:
+      enabled: 已启用
+      disabled: 已禁用
+      maintenance: 维护中
+    meta:
+      flow_label: 登录流程
+      created_label: 创建时间
+      created: 创建于 {{date}}
+    tabs:
+      quickstart: 快速开始
+      settings: 设置
+      credentials: 凭据
+      api_access: API 访问
+      saml: SAML
+      maintenance: 维护
+  quickstart:
+    identity:
+      title: 标识
+      description: 你的应用在每次请求中发送的内容。
+      client_id_label: 客户端 ID
+      client_id_description: '公开信息：每次登录时都会在浏览器中传输。它不是凭据。'
+      copy_client_id: 复制客户端 ID
+    endpoints:
+      title: 端点
+      description: 把你的 OIDC 或 OAuth 库指向这些 URL。大多数库只需要发现文档。
+      copy: 复制 {{label}} URL
+      issuer:
+        label: 颁发者
+        description: 你的库在每个令牌的 iss 声明中校验的值。
+      discovery:
+        label: 发现文档
+        description: 把这一个 URL 交给你的库，它会自行找到其余的端点。
+      authorization:
+        label: 授权
+        description: 你把用户送去登录的地址。
+      device_authorization:
+        label: 设备授权
+        description: 无浏览器的设备在这里请求它要展示给用户的代码。
+      token:
+        label: 令牌
+        description: '在这里用授权码或凭据换取令牌。'
+      userinfo:
+        label: 用户信息
+        description: 返回已登录用户的资料声明。
+      jwks:
+        label: JWKS
+        description: 你的后端用于验证令牌签名的公钥。
+      logout:
+        label: 退出登录
+        description: '它结束的是 FerrisKey 会话，而不只是你的应用会话。'
+    snippet:
+      copy: 复制代码片段
+      m2m:
+        title: 使用客户端凭据获取令牌
+        description: '不涉及任何用户：该应用以自身身份认证并获得访问令牌。'
+      device:
+        title: 使用设备流程获取令牌
+        description: '设备展示一个代码，用户在另一块屏幕上批准，随后设备拿到它的令牌。'
+      authorization_code:
+        title: 使用授权码流程让用户登录
+        description: '把用户重定向去登录，然后在你这一侧用返回的授权码换取令牌。'
+  credentials:
+    title: 客户端凭据
+    description: 该应用用来证明自己身份的内容。
+    client_id_label: 客户端 ID
+    client_id_description: '公开信息：每次登录时都会在浏览器中传输。它不是凭据。'
+    secret_label: 客户端密钥
+    secret_description: '该应用没有密钥。它运行在你的用户可以读到其代码的地方，密钥会因此泄露——登录改由 {{flow}} 保护。'
+    secret_note: 这里没有可复制的内容。切勿把其他应用的密钥粘贴到这个应用里。
+  settings:
+    general:
+      title: 常规
+      description: 该应用如何呈现，以及它是否可用。
+      name_label: 应用名称
+      name_description: 在登录页面上展示给你的用户。
+      client_id_label: 客户端 ID
+      client_id_description: '每次 OAuth 请求都会发送，并硬编码在你的应用中。修改它会立刻破坏所有正在运行的集成，因此这里固定不变。'
+      type_label: 应用类型
+      type_description: '在创建时选定。它决定登录流程以及是否存在密钥，因此之后无法切换——请改为创建一个新应用。'
+      availability_label: 可用性
+      availability_description: '禁用会立即停止所有登录，包括已经在使用该应用的用户。'
+      state_picker_label: 应用状态
+    state:
+      enabled:
+        label: 已启用
+        description: 你的用户可以通过该应用登录。
+      disabled:
+        label: 已禁用
+        description: 所有登录都会被拒绝。配置将保留。
+    urls:
+      title: 用户返回的地址
+      description: FerrisKey 可以把用户送往的地址。每添加一条都会立即保存。
+      origins_label: 允许的 Web 源
+      origins_description: '允许从浏览器调用 FerrisKey 的来源。只含 scheme、主机和端口——不含路径。输入 + 可从上面的回调 URL 推导；正则表达式形式会被跳过。移除一条来源后，需要几分钟才能清除浏览器的预检缓存，在其他 API 副本上最多需要 30 秒。'
+      origins_placeholder: https://app.acme.com
+    methods:
+      title: 登录方式
+      description: 允许该应用用来获取令牌的方式。
+      password_label: 密码交换
+      password_description: '允许该应用自行收集用户名和密码，并用它们换取令牌。它绕过 FerrisKey 的登录页面，因此 MFA 和社交登录都不会执行。除非有遗留集成需要，否则请保持关闭。'
+      device_label: 设备授权
+      device_description: '允许无浏览器的客户端（CLI、IoT、电视）展示一个代码，由用户在另一块屏幕上批准。'
+      pkce_label: 要求 PKCE
+      pkce_description_confidential: 拒绝不携带 S256 code challenge（RFC 7636）的登录。plain 方法同样会被拒绝。
+      pkce_description_public: '拒绝不携带 S256 code challenge（RFC 7636）的登录。强烈建议开启：该应用会分发到你的用户手中，无法保管密钥。'
+      pkce_on: 必需
+      pkce_off: 可选
+    lifetimes:
+      title: 会话时长
+      description: 留空则采用域的默认值。
+      access_token:
+        label: 访问令牌
+        description: 在必须刷新之前，你的 API 会接受一个令牌多长时间。
+      refresh_token:
+        label: 刷新令牌
+        description: 已登录的用户无需再次输入密码，可以保持登录多长时间。
+      id_token:
+        label: ID 令牌
+        description: 描述用户的身份令牌保持有效多长时间。
+      temporary_token:
+        label: 临时令牌
+        description: '一次性链接（例如密码重置链接）可以使用多长时间。'
+    danger:
+      label: 删除该应用
+      description: 它签发过的所有令牌都将不再被接受，集成会立即中断。此操作无法撤销。
+      button: 删除应用
+      confirm_title: 删除应用
+      confirm_description: '这将永久删除“{{name}}”及其全部配置。'
+    save_bar:
+      title_other: '{{count, number}} 项未保存的更改'
+      # TRANSLATOR NOTE: "Review the application before applying the changes" — read as "check the
+      # application over", not as "approve the request".
+      description: 在提交更改之前，请先检查该应用。
+      cancel: 放弃
+      submit: 保存更改
+    validation:
+      callback_format: 请输入完整的 URL，例如 https://app.acme.com/callback。
+      origin_format: '请输入一个来源，例如 https://app.acme.com——不含路径、不含通配符——或输入 {{sentinel}} 以从回调 URL 推导。'
+    toast:
+      deleted: 应用已删除
+      callback_added: 已添加回调 URL
+      callback_add_failed: 添加回调 URL 失败
+      callback_removed: 已移除回调 URL
+      callback_remove_failed: 移除回调 URL 失败
+      origin_added: 已添加 Web 源
+      origin_add_failed: 添加 Web 源失败
+      origin_removed: 已移除 Web 源
+      origin_remove_failed: 移除 Web 源失败
+
+authentication:
+  sign_in:
+    title: 登录方式
+    description: 本域的用户可以用来证明自己身份的方式。
+    loading_failed:
+      title: 登录方式不可用
+      description: 该域没有控制台可以读取的设置。
+    # TRANSLATOR NOTE: "Branding" and "Email templates" are labels owned by another catalogue;
+    # if their Chinese changes there, this sentence has to follow.
+    smtp_warning: '魔法链接、邮箱验证和密码找回都要发送消息，而本域没有记录任何 SMTP 配置。在“品牌”下的“邮件模板”的 SMTP 标签页中配置好服务器之前，这些方式对正在登录的用户来说都会静默失败。'
+    identifiers:
+      title: 标识符
+      description: 用户在登录页面上输入的、用来指明自己账户的内容。
+      label: 接受的标识符
+      description_row: 两者可以同时接受。当一个值匹配到两个账户时，顺序决定先尝试哪一个。
+      min_selected: 请至少选择一个标识符
+      username:
+        label: 用户名
+        description: 账户开通时用户自己选定的名称。
+      email:
+        label: 邮箱
+        description: 账户上记录的电子邮件地址。
+    passwordless:
+      title: 免密登录方式
+      description: 在密码输入框旁一并提供。密码始终仍被接受。
+      passkey_label: 通行密钥
+      passkey_description: 登录页面会提供一个通行密钥按钮。用户用指纹、人脸或安全密钥解锁设备，无需输入密码。
+      magic_link_label: 魔法链接
+      magic_link_description: 用户输入自己的电子邮件地址，收到一个一次性登录链接。打开该链接即可免密登录。
+      magic_link_ttl_label: 魔法链接有效期
+      magic_link_ttl_description: 消息发出后，该链接可用多长时间。超过之后用户必须重新申请一个。
+      minutes: 分钟
+    mfa:
+      title: 多因素认证
+      description: 第一重因素通过后再要求的第二重因素。
+      label: 要求第二因素
+      description_row: 本域的每位用户在输入密码后都会被要求提供一次性验证码。未注册第二因素的账户会先进入注册界面，然后才能继续。
+    access:
+      title: 账户访问
+      description: 登录页面在表单周围提供的链接和复选框。
+      registration_label: 自助注册
+      registration_description: '登录页面上会出现“创建账户”链接，任何人都可以在没有操作员参与的情况下开通账户。'
+      email_verification_label: 邮箱验证
+      email_verification_description: 新账户必须先从一封邮件中确认自己的电子邮件地址，首次登录才算完成。
+      forgot_password_label: 密码找回
+      forgot_password_description: '登录页面上会出现“忘记密码”链接，并向账户上记录的地址发送重置邮件。'
+      remember_me_label: 保持登录
+      remember_me_description: '登录页面上会出现“记住我”复选框，浏览器重启后仍保持会话。'
+    protection:
+      title: 登录保护
+      description: 同一账户上反复失败后会发生什么。
+      threshold_label: 锁定前允许的失败次数
+      threshold_description: 连续输错多少次密码会锁定账户。填 0 则永不锁定。
+      attempts: 次
+      duration_label: 锁定时长
+      duration_description: 被锁定的账户在重新接受密码之前，拒绝所有密码多长时间。
+      seconds: 秒
+    summary:
+      passkey_on: 提供通行密钥
+      passkey_off: 隐藏通行密钥
+      magic_link_on: 提供魔法链接
+      magic_link_off: 隐藏魔法链接
+      mfa_on: 要求第二因素
+      mfa_off: 第二因素可选
+      lockout_on_other: 失败 {{count, number}} 次后锁定
+      lockout_off: 从不锁定账户
+    save_bar:
+      title_other: '{{count, number}} 项未保存的更改'
+      description: 这些更改将在本域的下一次登录时生效。
+      cancel: 放弃
+      saving: 保存中…
+      submit: 保存更改
+    validation:
+      aliases_required: 请至少选择一个标识符
+      magic_link_ttl: 魔法链接的有效期至少为一分钟
+      not_negative: 不能为负数
+      lockout_without_duration: 没有时长的锁定永远不会解除账户
+    toast:
+      updated: 登录方式已更新。
+      update_failed: 更新登录方式失败
+  password_policy:
+    title: 密码策略
+    description: '本域的密码在注册时以及每次重置时必须满足的规则。'
+    loading_failed:
+      title: 加载密码策略失败
+      description: 该域没有控制台可以读取的密码策略。
+    preview:
+      title: 用户看到的内容
+      description: 注册页和重置页会收到其中五条规则，并列在输入框旁边。其余规则仅在提交时检查。
+      listed: 已列在页面上
+      none: 无——页面只要求输入密码，不说明任何要求。
+      silent: '强制执行但从不列出：{{rules}}。用户只有在提交密码后收到拒绝消息时才会知道它们。'
+      expiry_other: '每个密码在 {{count, number}} 天后过期；过期之后，用户在首次登录时会被送到重置界面。'
+    rules:
+      min_length_other: 至少 {{count, number}} 个字符
+      require_uppercase: 一个大写字母
+      require_lowercase: 一个小写字母
+      require_number: 一个数字
+      require_special: 一个特殊字符
+      min_entropy_other: '{{count, number}} 位熵'
+      forbid_common: '不得是常见密码、用户名或电子邮件地址'
+      check_breached: 不得是已被报告泄露的密码
+    save_bar:
+      title_other: '{{count, number}} 项未保存的更改'
+      description: '已有的密码不会被重新检查；新规则在下一次注册或重置时生效。'
+      cancel: 放弃
+      saving: 保存中…
+      submit: 保存更改
+    toast:
+      updated: 密码策略已更新。
+      update_failed: 更新密码策略失败
+
+identities:
+  list:
+    title: 身份
+    description: '本域的客户账户。可以搜索它们，查看它们的登录状态以及仍需完成的操作。'
+    create: 新建身份
+    search_placeholder: 按姓名、邮箱或用户名筛选…
+    columns:
+      identity: 身份
+      email: 邮箱
+      status: 状态
+      created: 注册时间
+      roles: 角色
+    no_email: 无邮箱
+    status:
+      disabled: 已禁用
+      active: 活跃
+      pending_other: '{{count, number}} 项操作'
+    card:
+      active: 活跃
+      disabled: 已禁用
+      email_verified: 邮箱已验证
+      email_unverified: 邮箱未验证
+      pending_other: '{{count, number}} 项待处理操作'
+      signed_up: 注册于 {{when}}
+      flags:
+        can_sign_in: 可以登录
+        email_verified: 邮箱已验证
+        nothing_required: 下次登录时无需任何操作
+    metrics:
+      total:
+        label: 总计
+        hint_other: 个身份
+      verified:
+        label: 邮箱已验证
+        hint: '占总数的 {{percent}}%'
+        empty_hint: 无已验证的身份
+      pending:
+        label: 待处理操作
+        hint: 下次登录时受阻
+      disabled:
+        label: 已禁用
+        hint: 无法登录
+    alerts:
+      pending:
+        title_other: '{{count, number}} 个身份在下次登录时有待处理的操作'
+        detail: '{{names}}——在完成之前，他们无法完成登录。'
+        action: 查看
+    filters:
+      active: 活跃
+      unverified: 邮箱未验证
+      pending: 待处理操作
+      disabled: 已禁用
+    empty:
+      label: 无身份
+      hint: 身份是本域的一个客户账户。服务账户属于应用，在应用页面中列出。
+    aggregates:
+      identities_other: '{{count, number}} 个身份'
+      active: '{{total, number}} 个活跃'
+  detail:
+    tabs:
+      overview: 概览
+      credentials: 凭据
+      role_mapping: 角色映射
+      organizations: 组织
+      attributes: 属性
+  toast:
+    created: 身份创建成功
+    updated: 身份已更新
+    delete_failed: 无法删除该身份
+
+organizations:
+  detail:
+    tabs:
+      settings: 设置
+      attributes: 属性
+      members: 成员
+  remove_member:
+    title: 移除成员？
+    description: '要把“{{name}}”从该组织中移除吗？其在该组织范围内的角色将被撤销。此操作不会删除该身份。'
+  toast:
+    create_failed: 创建组织失败
+
+roles:
+  detail:
+    tabs:
+      settings: 设置
+      permissions: 权限
+      users: 身份

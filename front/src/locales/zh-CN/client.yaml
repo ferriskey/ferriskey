@@ -1,0 +1,502 @@
+# 简体中文 catalogue for the client screens (list, creation, settings, credentials, roles,
+# scopes, SAML and maintenance).
+#
+# TRANSLATORS: this catalogue was produced without a native reviewer — it is pending native
+# review. Entries preceded by a comment are the ones where the English source is ambiguous and
+# the Chinese follows it literally, defect included.
+#
+# The keys, the {{placeholders}} and the <tags> are part of the contract — translate the words
+# around them, never the markup.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English
+# catalogue have no counterpart here on purpose.
+shared:
+  authentication:
+    public: 公开
+    confidential: 机密
+  # English distinguishes the lowercase inline form (state) from the capitalised badge form
+  # (status). Chinese has no case, so both render identically.
+  state:
+    enabled: 已启用
+    disabled: 已禁用
+  status:
+    enabled: 已启用
+    disabled: 已禁用
+  in_maintenance: 维护中
+  no_description: 无描述
+  discard: 放弃
+  save: 保存更改
+  unsaved_other: '{{count}} 项未保存的更改'
+
+choices:
+  protocol:
+    openid_connect:
+      label: OpenID Connect
+      description: 基于令牌的登录，适用于 Web 应用、SPA、移动应用和 API。
+    saml:
+      label: SAML 2.0
+      description: 基于断言的登录，适用于仅支持 SAML 的应用。
+  state:
+    enabled:
+      label: 已启用
+      description: 该客户端可以发起认证请求。
+    disabled:
+      label: 已禁用
+      description: 所有请求都会被拒绝，配置将保留。
+  authentication:
+    confidential:
+      label: 机密
+      description: 客户端使用保存在服务端的密钥证明自己的身份。
+    public:
+      label: 公开
+      description: 无密钥：适用于 SPA、移动应用和命令行工具。
+    immutable: 创建时确定：客户端之后无法在机密与公开之间切换。
+  maintenance_state:
+    open:
+      label: 开放
+      description: 客户端正常进行认证。
+    maintenance:
+      label: 维护中
+      description: 仅白名单可以通过。
+  session_strategy:
+    expire:
+      label: 自然过期
+      description: 已打开的会话保留至其自身过期。
+    terminate:
+      label: 立即终止
+      description: 所有会话立即被切断。
+
+list:
+  title: 客户端
+  description: 允许发起认证请求的应用和服务。
+  create: 新建客户端
+  columns:
+    name: 客户端
+    # Column header for the raw OAuth field name, shown as-is in the table.
+    client_id: client_id
+    kind: 类型
+    protocol: 协议
+    redirects: 重定向 URI
+    status: 状态
+  card:
+    flags:
+      direct_access_grants: 直接访问授权
+      device_code_grant: 设备授权许可
+      service_account: 服务账户
+      require_pkce: 需要 PKCE
+    redirects_other: '{{count}} 个重定向 URI'
+  metrics:
+    total:
+      label: 总计
+      hint: 已注册的客户端
+    active:
+      label: 活跃
+      hint: 可进行认证
+    public:
+      label: 公开
+      hint: 无密钥
+    confidential:
+      label: 机密
+      hint: 持有密钥
+  alerts:
+    no_redirect:
+      title_other: '{{count}} 个客户端没有重定向 URI'
+      detail: '{{clients}}：授权码流程将会失败。'
+      action: 配置
+    maintenance:
+      title_other: '{{count}} 个客户端处于维护中'
+      detail: '{{clients}}：只有白名单中的账户可以登录。'
+      action: 查看
+  filters:
+    public: 公开
+    confidential: 机密
+    disabled: 已禁用
+  search_placeholder: 按名称或 client_id 筛选…
+  # Example of the search query language, shown under the search field. The field
+  # names (name, type, enabled) are literal syntax and must not be translated.
+  query_syntax: 'name:*portal  type:confidential  enabled:true'
+  aggregates:
+    count_other: '{{count}} 个客户端'
+    enabled: '{{total}} 个已启用'
+  empty:
+    label: 暂无客户端
+    hint: 注册一个应用，让它可以对该域中的账户进行认证。
+  picker:
+    title: 客户端协议
+    description: 它决定应用如何让用户登录，并且在创建后无法更改。
+
+create:
+  back: 客户端
+  title: 新建客户端
+  change_protocol: 更改协议
+  details:
+    title: 客户端详情
+    description: 该客户端在域中的标识方式。
+    client_id:
+      label: 客户端 ID
+      description: 该客户端的唯一标识符。应用在每次请求时都会发送它。
+      placeholder: my-application
+    name:
+      label: 名称
+      description: 在界面中显示的名称。
+    enabled:
+      label: 启用客户端
+      description: 已禁用的客户端无法对用户进行认证。
+    state_picker: 客户端状态
+    authentication:
+      label: 客户端认证
+      description: 创建时确定且不可更改：客户端之后无法在机密与公开之间切换。
+  capability:
+    title: 能力配置
+    description: 该客户端允许使用的 OAuth 流程。
+    direct_access_grants:
+      label: 直接访问授权
+      description: 允许直接用用户凭据换取令牌。仅用于受信任的客户端。
+    device_code_grant:
+      label: OAuth 2.0 设备授权许可
+      description: 允许无浏览器的客户端（命令行工具、物联网设备、电视）针对该客户端发起设备流程。除非该客户端确实需要，否则请保持关闭。
+  saml:
+    title: SAML
+    description: 应用在其 SAML 设置页面上给出的两个值，以及标识符格式。
+    entity_id:
+      # Entity ID, Assertion Consumer Service URL and Name ID are SAML wire terms. They are kept
+      # in English so an administrator can match them against the application's own SAML page.
+      label: Entity ID
+      description: '应用对外公布的自身唯一标识符，例如 https://chat.acme.com/saml/sp/1。'
+      placeholder: https://chat.acme.com/saml/sp/1
+    acs_url:
+      label: Assertion Consumer Service URL
+      description: 用户登录后，已签名的断言将被提交到的地址。
+      placeholder: https://chat.acme.com/saml/acs
+    name_id_format:
+      label: Name ID 格式
+      description: 断言内部对用户的标识方式。
+      placeholder: 选择 Name ID 格式
+  save:
+    title: 创建客户端
+    description_oidc: 将按照以上设置创建该客户端。
+    description_saml: 先创建该客户端，然后将其注册为 SAML 服务提供商。
+    submit: 创建客户端
+  toast:
+    created: 客户端已创建成功
+
+detail:
+  back: 客户端
+  not_found:
+    title: 未找到客户端
+    hint: 它可能已被删除，或者属于另一个域。
+  meta:
+    created_label: 创建时间
+    created: 创建于 {{date}}
+    identifier: 标识符
+  tabs:
+    settings: 设置
+    credentials: 凭据
+    roles: 角色
+    scopes: 客户端作用域
+    saml: SAML
+    maintenance: 维护
+
+settings:
+  general:
+    title: 常规
+    description: 该客户端在域中的标识方式。
+    name:
+      label: 客户端名称
+      description: 在界面中显示的名称。
+    client_id:
+      label: 客户端 ID
+      description: 该客户端的唯一标识符。应用在每次请求时都会发送它。
+    enabled:
+      label: 启用客户端
+      description: 已禁用的客户端无法对用户进行认证。
+    state_picker: 客户端状态
+  capability:
+    title: 能力配置
+    description: 该客户端允许使用的认证流程。
+    authentication:
+      label: 客户端认证
+      description: 创建时确定且不可更改：客户端之后无法在机密与公开之间切换。
+    direct_access_grants:
+      label: 直接访问授权
+      description: 允许直接用用户凭据换取令牌。仅用于受信任的客户端。
+    device_code_grant:
+      label: OAuth 2.0 设备授权许可
+      description: 允许无浏览器的客户端（命令行工具、物联网设备、电视）针对该客户端发起设备流程。除非该客户端确实需要，否则请保持关闭。
+    pkce:
+      # S256, plain and "code challenge" are PKCE wire values and parameter names (RFC 7636).
+      label: 要求 PKCE
+      description: 拒绝不携带 S256 code challenge 的授权请求（RFC 7636）。开启后，plain 方法将被拒绝。
+      description_public: 拒绝不携带 S256 code challenge 的授权请求（RFC 7636）。开启后，plain 方法将被拒绝。强烈建议开启：该客户端无法安全地保管密钥。
+      required: 必需
+      optional: 可选
+  access:
+    title: 访问
+    description: 该客户端可被重定向到的地址，以及它可以发起调用的来源。
+    redirect_uris:
+      label: 重定向 URI
+      description: 认证后允许的重定向 URI。每一条在添加时即会保存。
+      placeholder: https://app.example.com/callback
+      empty: 没有 URI，授权码流程将会失败。
+      required: 重定向 URI 为必填项
+    web_origins:
+      label: Web 源
+      description: 该应用可以在浏览器中调用 FerrisKey 的来源。输入 + 可从上面的重定向 URI 推导，仅推导字面值，正则表达式会被跳过。删除一条来源后，浏览器预检缓存需要几分钟才会清除，其他 API 副本上最多需要 30 秒。
+      placeholder: https://app.example.com
+      empty: 没有来源，来自其他主机的浏览器调用将被拒绝。
+      # {{sentinel}} is the literal character an administrator types to derive the
+      # origins from the redirect URIs. Keep it as a placeholder, never translate it.
+      invalid: '请输入形如 https://app.example.com 的来源（不含路径，不含通配符），或输入 {{sentinel}} 从该客户端的重定向 URI 推导'
+  logout:
+    title: 退出登录
+    description: 会话关闭后用户将到达的位置。
+    post_logout_redirect_uris:
+      label: 退出登录后重定向 URI
+      description: 退出登录后允许的重定向 URI。若未配置任何一条，退出登录将停留在 FerrisKey 页面。
+      placeholder: https://app.example.com
+      empty: 未声明任何退出 URI。
+      required: 退出登录后重定向 URI 为必填项
+  lifetimes:
+    title: 令牌有效期
+    description: 留空则继承域的默认值。
+    access_token:
+      label: 访问令牌有效期
+      description: 访问令牌保持有效的时长。
+    refresh_token:
+      label: 刷新令牌有效期
+      description: 刷新令牌保持有效的时长。
+    id_token:
+      label: ID 令牌有效期
+      description: ID 令牌保持有效的时长。
+    temporary_token:
+      label: 临时令牌有效期
+      description: 临时令牌（例如密码重置令牌）保持有效的时长。
+  danger:
+    label: 删除该客户端
+    description: 一旦删除，所有关联的令牌、角色和配置都将被永久移除。
+    button: 删除客户端
+    confirm_title: 删除客户端
+    confirm_description: 此操作将永久删除客户端“{{name}}”及其所有关联数据。
+  save:
+    description: 应用更改前请先检查该客户端。
+  toast:
+    redirect_uri_added: 重定向 URI 添加成功
+    redirect_uri_deleted: 重定向 URI 删除成功
+    web_origin_added: Web 源添加成功
+    web_origin_deleted: Web 源删除成功
+    post_logout_uri_added: 退出登录后重定向 URI 添加成功
+    post_logout_uri_deleted: 退出登录后重定向 URI 删除成功
+    post_logout_uri_create_failed: 创建退出登录后重定向 URI 失败
+    post_logout_uri_delete_failed: 删除退出登录后重定向 URI 失败
+
+credentials:
+  title: 客户端凭据
+  description: 该客户端用于证明自身身份的内容。
+  copy: 复制
+  client_id:
+    label: 客户端 ID
+    description: 用于对该客户端进行认证的唯一标识符。
+  secret:
+    label: 客户端密钥
+    description: 用于机密客户端认证的密钥。显示该密钥的操作会被记录为安全事件。
+    reveal: 显示
+    hide: 隐藏
+    reveal_label: 显示客户端密钥
+    hide_label: 隐藏客户端密钥
+    # manage-clients is a permission name — never translated.
+    forbidden: 显示该密钥需要 manage-clients 权限。请向域管理员申请权限。
+    failed: 无法显示该密钥。请重试。
+    rotation_hint: 管理 API 尚未提供轮换密钥的功能。
+
+roles:
+  title: 客户端角色
+  title_with_count: 客户端角色（{{total}}）
+  description: 在该客户端上定义的角色，在令牌中通过 resource_access 暴露。
+  error: 加载角色时出错。
+  search_placeholder: 筛选角色…
+  permissions_other: '{{count}} 项权限'
+  delete:
+    label: 删除 {{name}}
+    title: 删除角色？
+    description: 确定要删除“{{name}}”吗？此操作无法撤销。
+  empty:
+    no_match: 没有与“{{query}}”匹配的角色。
+    # AMBIGUOUS IN ENGLISH: "holders of this client" — a client is not held by anyone. It most
+    # likely means the accounts that authenticate through this client. Translated literally.
+    none: 没有自有角色，该客户端的持有者只会获得域角色。
+
+scopes:
+  views:
+    assigned: 已分配的作用域
+    evaluate: 评估
+  assigned:
+    title: 已分配的作用域（{{total}}）
+    description: 该客户端允许请求的声明集合。
+    add: 添加作用域
+    remove: 移除 {{name}}
+    type:
+      default: 默认
+      optional: 可选
+      none: 无
+    empty:
+      label: 未分配任何作用域
+      # AMBIGUOUS IN ENGLISH: "profile claim" may mean the OIDC `profile` scope specifically, or
+      # user-profile claims in general. Read here as the general sense.
+      hint: 为该客户端签发的令牌将不携带任何用户资料声明。
+  effective:
+    title: 生效的作用域
+    description: 包含在为该客户端签发的每个令牌中，无需客户端主动请求。
+    # AMBIGUOUS IN ENGLISH: "opens a right" is not standard IAM vocabulary. Read as "grants an
+    # access right without emitting any claim".
+    no_mapper: 无映射器：该作用域不产生任何声明，仅开放一项权限。
+    empty:
+      label: 没有默认作用域
+      hint: 每一项声明都必须由客户端显式请求。
+  add:
+    title: 添加客户端作用域
+    description: 默认作用域会进入每一个令牌；可选作用域只有在客户端请求时才会加入。
+    search_placeholder: 搜索作用域…
+    type:
+      default: 默认
+      optional: 可选
+    loading: 正在加载可用的作用域…
+    no_match: 没有与“{{query}}”匹配的作用域。
+    exhausted: 该域的所有作用域都已分配。
+    cancel: 取消
+    submit: 分配作用域
+    submitting: 正在分配…
+  evaluate:
+    title: 评估令牌
+    description: 模拟为指定账户签发的令牌，并附带客户端将会请求的可选作用域。
+    account: 账户
+    account_placeholder: 选择要评估的账户
+    account_option: '{{username}} ({{email}})'
+    optional: 请求的可选作用域
+    scope_string: 作用域字符串
+    # Shown in place of the scope string when no scope is requested at all.
+    scope_string_empty: '—'
+    run: 评估
+    running: 正在评估…
+    mappers:
+      title: 生效的协议映射器（{{total}}）
+      description: 最终保留的作用域集合所产生的内容。
+      empty: 该作用域集合没有适用的协议映射器。
+    roles:
+      title: 生效的角色
+      description: 该账户持有的角色，以及它们将被写入令牌的形式。
+      realm: 域角色
+      none: 无
+    claims:
+      title: 生成的声明
+      description: 本次评估产生的三组结果。
+      access_token: 访问令牌
+      id_token: ID 令牌
+      userinfo: Userinfo
+
+saml:
+  not_configured:
+    title: 该客户端尚未使用 SAML
+    hint: 填写应用在其 SAML 设置页面上给出的两个值，然后保存。FerrisKey 将开始为它响应 SAML 登录请求。
+  enable: 启用 SAML
+  service_provider:
+    title: 服务提供商
+    description: 标识该应用，并告知 FerrisKey 将断言发送到何处。
+    entity_id:
+      label: Entity ID
+      description: '应用对外公布的自身唯一标识符，例如 https://chat.acme.com/saml/sp/1。'
+    acs_url:
+      label: Assertion Consumer Service URL
+      description: 用户登录后，已签名的断言将被提交到的地址。
+    name_id_format:
+      label: Name ID 格式
+      description: 断言内部对用户的标识方式。
+      placeholder: 选择 Name ID 格式
+  signatures:
+    title: 签名
+    description: FerrisKey 会签名的内容，以及它要求对方签名的内容。
+    sign_assertions:
+      label: 签名断言
+      description: 对断言本身进行签名。几乎所有应用都要求这一项。
+    sign_documents:
+      label: 签名文档
+      description: 在签名断言之外，同时对整个 SAML 响应进行签名。
+    want_authn_requests_signed:
+      label: 要求认证请求带签名
+      description: 除非来自该应用的登录请求携带有效签名，否则一律拒绝。
+  mappers:
+    title: 属性映射
+    description: 随断言一起发送的用户信息。请与应用所要求的属性名称保持一致。
+    empty: 目前未发送任何属性。大多数应用至少需要一个电子邮件地址。
+    # email, first_name and last_name are attribute identifiers — never translated.
+    add_common_profile: 添加 email、first_name 和 last_name
+    # One row of the attribute mapping list. <attr> holds the SAML attribute name,
+    # <detail> the user detail it is taken from. Reorder the tags freely.
+    row: <attr>{{name}}</attr><from>来自</from><detail>{{source}}</detail>
+    remove: 移除 {{name}} 属性映射
+    submit: 添加属性
+    delete:
+      title: 停止发送 {{name}}？
+      description: 下次登录时，该应用将不再收到此属性。依赖它的功能可能会失效。
+    name:
+      label: 属性名称
+    source:
+      label: 要发送的用户信息
+      placeholder: 选择一项用户信息
+      custom: 自定义用户属性
+    custom_key:
+      label: 属性键
+    name_format:
+      label: 名称格式
+      placeholder: 选择名称格式
+  save:
+    description: 保存该客户端的 SAML 服务提供商设置。
+
+maintenance:
+  banner:
+    title: 该客户端处于维护中
+    detail_other: '{{count}} 条白名单条目仍可进行认证。其他所有请求都会被拒绝。'
+  mode:
+    title: 维护模式
+    description: 在不改动客户端配置的前提下临时限制访问。
+    enabled:
+      label: 启用维护模式
+      description: 生效后，只有白名单中的用户和角色可以进行认证。切换开关后立即生效。
+    state_picker: 维护状态
+    reason:
+      label: 原因
+      description: 在登录页面向被拦截的用户展示的消息。
+      placeholder: 迁移进行中，下午 2 点恢复。
+    strategy:
+      label: 会话策略
+      description: 开启维护模式时，已打开的会话将如何处理。
+  inherited:
+    badge: 继承自域
+    managed: 在域级别管理
+  users:
+    title: 允许的用户
+    description: 在维护期间被逐个指定为允许的账户。域级别的条目会自动继承。
+    add: 添加用户
+    search_placeholder: 搜索用户…
+    empty: 该客户端上没有允许的用户。
+    exhausted: 该域的所有用户都已在允许列表中。
+  roles:
+    title: 允许的角色
+    description: 维护期间，持有这些角色的所有人都被允许。域级别的条目会自动继承。
+    add: 添加角色
+    search_placeholder: 搜索角色…
+    empty: 该客户端上没有允许的角色。
+    exhausted: 该域的所有角色都已在允许列表中。
+  save:
+    title: 未保存的维护设置
+    description: 保存维护原因和会话策略的更改。
+
+validation:
+  client_id_required: 客户端 ID 为必填项
+  name_required: 名称为必填项
+  sp_entity_id_required: Entity ID 为必填项
+  acs_url_required: Assertion Consumer Service URL 为必填项
+  name_id_format_required: Name ID 格式为必填项
+  mapper_name_required: 属性名称为必填项
+  mapper_source_required: 请选择要发送的用户信息
+  mapper_name_format_required: 名称格式为必填项
+  mapper_custom_key_required: 属性键为必填项

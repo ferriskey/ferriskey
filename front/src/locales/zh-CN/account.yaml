@@ -1,0 +1,71 @@
+# 简体中文 catalogue for the self-service account area.
+#
+# STATUS: translated, awaiting native review. Read by signed-in end users, not administrators,
+# so the wording stays plain; where the English itself leaks admin vocabulary ("realm",
+# "tokens") the Chinese follows it and the line carries a `#` note.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English
+# catalogue have no counterpart here on purpose.
+tabs:
+  overview: 个人资料
+  sessions: 会话
+unavailable:
+  title: 无法显示个人资料
+  # ⚠ "realm" is admin vocabulary in an end-user message; 域 follows the glossary, but the
+  # English copy is what should change first.
+  description: 无法在此域中加载您的账户。请重新登录后再试。
+header:
+  email_verified: 邮箱已验证
+  email_unverified: 邮箱未验证
+  username_locked: 用户名已锁定
+  member_since_label: 加入时间
+  member_since: 加入于 {{date}}
+  identifier_label: 标识符
+profile:
+  title: 个人信息
+  description: 此域中的其他成员会看到这些信息，您的通知也会发送到这里。
+  username:
+    label: 用户名
+    description: 您账户的唯一登录标识。
+    locked_description: 管理员已在此域中禁止修改用户名。
+  email:
+    label: 邮箱
+    description: 用于接收通知和找回密码的联系地址。
+  name:
+    label: 姓名
+    # ⚠ "tokens" is admin vocabulary reaching an end user; 令牌 follows the glossary sense.
+    description: 选填。会显示在控制台中，也会出现在为您签发的令牌里。
+    firstname_placeholder: 名字
+    lastname_placeholder: 姓氏
+  save_bar:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请先检查您的资料。
+    cancel: 放弃
+    submit: 保存更改
+  toast:
+    updated: 您的资料已更新
+sessions:
+  # Plain total in a heading, it never inflects.
+  title: 活跃会话（{{total}}）
+  empty: 没有活跃会话。
+  unknown_device: 未知设备
+  # Stands in for the device name inside a sentence, as in "终止 此设备 上的会话".
+  this_device: 此设备
+  unknown_ip: 未知 IP
+  never: 从未
+  current: 当前
+  meta: '{{ip}} · 最后活动 {{lastSeen}} · 登录于 {{signedIn}}'
+  # ⚠ "Revoke" has no glossary entry and the product is already split: console.yaml says 撤销,
+  # errors.yaml says 撤销. This file follows 撤销, the majority rendering, so the user side and
+  # the admin side name one action the same way. 注销 was avoided on purpose — 注销账号 reads
+  # as deleting the account. A native reviewer should settle 撤销 vs 撤销 across all three.
+  revoke: 撤销
+  revoke_label: 撤销 {{device}} 上的会话
+  confirm:
+    title: 撤销会话？
+    description: 这将立即退出 {{device}} 上的会话。
+  toast:
+    revoked: 会话已撤销
+validation:
+  username_required: 请输入用户名
+  email_invalid: 邮箱地址无效

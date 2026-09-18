@@ -1,0 +1,183 @@
+# 简体中文 catalogue for realm settings. Awaiting native review.
+#
+# TRANSLATORS' NOTES
+#   - "realm" is 域 per the glossary. "Realm name" is therefore 域名称 and NOT 域名, which means
+#     "DNS domain name" — see organization.yaml, where 域名 carries that other sense.
+#   - "token" is rendered 令牌 (访问令牌 / 刷新令牌 / ID 令牌 / 临时令牌). Not in the glossary;
+#     see the report.
+#   - "master" in general.danger.description_master is the literal name of the built-in realm,
+#     a wire identifier. It is not translated.
+#   - "CNIL" is the French data protection authority; the acronym and the deliberation number are
+#     left verbatim.
+#   - Chinese declares a single plural category ("other"), so the *_one forms of the English
+#     catalogue have no counterpart here on purpose. The unit labels sitting right of a number
+#     input (minutes / characters / days / bits) are exactly this case.
+
+settings:
+  title: 域设置
+  description: '域 {{name}} 的全局配置。'
+  not_found:
+    title: 未找到该域
+    description: 它可能已被删除，或者您的账户已无权访问它。
+  tabs:
+    general: 常规
+    login: 登录
+    tokens: 令牌
+    password_policy: 密码策略
+    maintenance: 维护
+  save:
+    title_other: '{{count}} 项未保存的更改'
+    description: 应用更改前请先检查该域的配置。
+    cancel: 放弃
+    action: 保存更改
+  toast:
+    updated: 域更新成功。
+    deleted: '域“{{name}}”已被删除。'
+    policy_updated: 密码策略更新成功
+    policy_failed: 更新密码策略失败
+
+general:
+  identity:
+    title: 域标识
+  name:
+    label: 域名称
+    description: 创建后不可更改，它会出现在此域的每个 URL 中。
+  display_name:
+    label: 显示名称
+    description: 在控制台和登录界面中显示的可读名称。留空则使用域名称。
+  signing_algorithm:
+    label: 默认签名算法
+    description: 用于对此域签发的令牌进行签名的算法。
+    note: '只读：控制台从不发送此设置，且此域的 OpenID 发现文档只公布一种算法。'
+  danger:
+    label: 删除此域
+    description: 一旦删除，此域的所有客户端、账户、角色和会话都将被永久移除。
+    # Same warning on the master realm, which the API refuses to delete.
+    description_master: 一旦删除，此域的所有客户端、账户、角色和会话都将被永久移除。master 域无法删除。
+    button: 删除域
+    confirm_title: 删除域
+    confirm_description: '此操作将永久删除域“{{name}}”及其所有数据，包括用户、客户端和角色。'
+
+login:
+  identifiers:
+    title: 登录标识符
+    description: 用户认证时输入的内容。
+    field:
+      label: 登录标识符
+      description: 用户可以使用哪些标识符登录。顺序决定优先级。
+    # Screen-reader label of the ordered card picker.
+    picker_label: 登录标识符
+    min_selected: 请至少选择一个登录标识符
+  # Keyed on the LoginAlias value the API returns. Translate the label, never the key.
+  alias:
+    username:
+      label: 用户名
+      description: 账户的用户名。
+    email:
+      label: 电子邮件
+      description: 账户中已验证的电子邮件地址。
+  capabilities:
+    title: 认证功能
+    description: 用户在登录界面上可以执行的操作。
+    user_registration:
+      label: 用户注册
+      description: 允许用户通过登录页面自行注册。
+    email_verification:
+      label: 电子邮件验证
+      description: 要求用户先验证其电子邮件地址才能登录。
+    forgot_password:
+      label: 忘记密码
+      description: 在登录页面上显示“忘记密码”链接。
+    remember_me:
+      label: 记住我
+      description: 在登录页面上显示“记住我”复选框。
+    passkey:
+      label: 通行密钥认证
+      description: 允许用户使用通行密钥代替密码登录。
+    magic_link:
+      label: 魔法链接
+      description: 允许用户通过电子邮件收到的魔法链接登录。
+  magic_link_ttl:
+    label: 魔法链接 TTL
+    description: 魔法链接保持有效的时长，以分钟为单位。
+    # Unit shown right of the number input.
+    unit_other: 分钟
+
+tokens:
+  title: 默认令牌有效期
+  description: 此域中未覆盖这些设置的每个客户端都会继承它们。
+  access:
+    label: 访问令牌有效期
+    description: 访问令牌保持有效的时长。
+  refresh:
+    label: 刷新令牌有效期
+    description: 刷新令牌保持有效的时长。
+  id:
+    label: ID 令牌有效期
+    description: ID 令牌保持有效的时长。
+  temporary:
+    label: 临时令牌有效期
+    description: 临时令牌保持有效的时长，例如用于密码重置的令牌。
+
+policy:
+  title: 密码策略
+  description: 适用于此域中各账户密码的规则。
+  error:
+    title: 加载密码策略失败
+    description: 此域没有控制台可以读取的密码策略。
+  min_length:
+    label: 最小长度
+    description: 所需的最少字符数。
+    # Unit shown right of the number input.
+    unit_other: 个字符
+  requirements:
+    uppercase:
+      label: 要求包含大写字母
+      description: 强制用户至少包含一个大写字母。
+    lowercase:
+      label: 要求包含小写字母
+      description: 强制用户至少包含一个小写字母。
+    number:
+      label: 要求包含数字
+      description: 强制用户至少包含一个数字。
+    special:
+      label: 要求包含特殊字符
+      # "!@#$%…" is a literal charset sample, kept in ASCII.
+      description: '强制用户至少包含一个特殊字符（!@#$%…）。'
+  max_age:
+    label: 密码有效期
+    description: 经过这么多天后强制更改密码。设为 0 则禁用。
+    unit_other: 天
+  entropy:
+    label: 最小熵
+    description: 拒绝香农熵低于此值的密码。设为 0 则禁用；CNIL 第 2022-100 号决议建议设为 80。
+    unit_other: 比特
+  forbid_common:
+    label: 禁止使用常见密码
+    description: 拒绝常见密码列表中的密码，以及重复使用用户名或电子邮件地址的密码。
+  check_breached:
+    label: 检查已泄露的密码
+    description: 拒绝被报告为已泄露的密码。若未配置外部提供商，此设置不会生效。
+
+maintenance:
+  notice: '这些条目会追加到每个客户端的白名单中：它们允许在此域中所有处于维护状态的客户端上进行认证。'
+  title: 默认维护成员
+  description: 在此域维护期间始终被允许的账户和角色。
+  users:
+    label: 用户
+    description: 在维护期间始终被允许的单个账户。
+    add: 添加用户
+    search_placeholder: 搜索用户…
+    empty_hint: 没有可用的用户。
+    exhausted_hint: 此域中的每个账户都已被允许。
+  roles:
+    label: 角色
+    description: 持有其中任一角色的人在维护期间都被允许。
+    add: 添加角色
+    search_placeholder: 搜索角色…
+    empty_hint: 没有可用的角色。
+    exhausted_hint: 此域中的每个角色都已被允许。
+
+validation:
+  # "max" is the length limit the console enforces before sending the realm; it is a constant.
+  display_name_max: '显示名称最多 {{max}} 个字符'

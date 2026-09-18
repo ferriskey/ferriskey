@@ -1,0 +1,134 @@
+# 简体中文 catalogue for the backend error codes.
+#
+# Every key here is exactly one error `reason` code returned by the API. The key is the contract
+# and is never translated — only the message is.
+#
+# TRANSLATORS: this catalogue was produced without a native reviewer — it is pending native
+# review. Entries preceded by a comment are the ones where the English source is ambiguous, or
+# where the code and the message disagree; the Chinese follows the English literally.
+access_denied: 授权请求被拒绝。
+account_locked: 由于登录失败次数过多，您的账户已被临时锁定。请稍后重试。
+already_exists: 该资源已存在。
+authorization_code_storage_failed: 登录未能完成。请重新开始。
+authorization_pending: 正在等待您批准此设备。
+breached_password: 该密码曾出现在数据泄露事件中。请换一个密码。
+broker_session_expired: 单点登录会话已过期。请重新开始。
+broker_session_not_found: 未找到单点登录会话。请重新开始。
+# master is the literal name of the built-in realm — never translated.
+cannot_delete_master_realm: 无法删除 master 域。
+client_id_already_exists: 该域中已存在使用此 ID 的客户端。
+client_not_found: 未找到该客户端。
+common_password: 该密码过于常见，或与您的账户信息相同。请选择更强的密码。
+configuration: 服务器配置有误。请联系管理员。
+create_client_error: 无法创建该客户端。
+create_credential_error: 无法创建该凭据。
+database: 数据库不可用。请重试。
+delete_credential_error: 无法删除该凭据。
+delete_password_credential_error: 无法删除该密码凭据。
+device_session_forbidden: 您无法操作属于其他域的设备会话。
+email_already_exists: 该电子邮件地址已在此域中使用。
+email_template_not_found: 未找到该邮件模板。
+email_template_render_error: 无法渲染该邮件模板。
+email_verification_template_not_configured: 该域未配置邮件验证模板。
+expired_token: 该令牌已过期。
+external: 某个外部服务不可用。请重试。
+failed_webhook_notification: 无法通知 Webhook 端点。
+federation_authentication_failed: 向联合目录进行的认证失败。
+get_password_credential_error: 无法读取该密码凭据。
+get_user_credentials_error: 无法读取该用户凭据。
+# "secured" stands in for "hashed" in the English copy; kept deliberately vague here too.
+hash_password_error: 无法对该密码进行安全处理。请重试。
+# AMBIGUOUS IN ENGLISH: what an "account hint" is (an OIDC login_hint? a discovery suggestion?)
+# is not stated anywhere in the copy. Translated literally.
+hints_not_found: 未找到任何账户提示。
+idp_authentication_failed: 身份提供商拒绝了此次认证。
+idp_token_exchange_failed: 身份提供商未返回令牌。
+idp_user_info_failed: 身份提供商未返回用户资料。
+insufficient_entropy: 该密码强度不足。请加长密码，或混合使用大小写字母、数字和符号。
+internal_server_error: 服务器端出现问题。请重试。
+invalid: 该资源无效。
+# AMBIGUOUS IN ENGLISH: "the single sign-on state" may mean the OAuth `state` parameter (as in
+# invalid_state below) or the brokered session state. Read here as the session state.
+invalid_broker_state: 单点登录状态无效。请重新开始。
+invalid_client: 该客户端无效。
+invalid_client_secret: 该客户端密钥无效。
+invalid_credentials: 用户名或密码不正确。
+# The English says "identity token"; rendered as ID 令牌 to stay consistent with the ID token
+# wording used everywhere else in the console.
+invalid_id_token: ID 令牌无效。
+invalid_key: 签名密钥无效。
+invalid_magic_link: 该魔法链接无效。
+invalid_or_expired_token: 该邮件验证链接无效或已过期。
+invalid_password: 该密码不正确。
+invalid_provider_url: 身份提供商 URL 无效。
+invalid_realm: 该域无效。
+invalid_redirect_uri: 该客户端不允许使用此重定向 URI。
+invalid_refresh_token: 该刷新令牌无效。
+invalid_request: 该请求无效。
+invalid_session: 该会话无效。
+# state is the OAuth wire parameter name — never translated.
+invalid_state: state 参数不匹配。请重新开始。
+invalid_token: 该令牌无效。
+invalid_totp_secret_format: 认证器密钥的格式无法读取。
+invalid_user: 该用户无效。
+link_not_found: 未找到该账户的身份提供商关联。
+link_only_user_not_found: 没有与此身份匹配的本地账户。请先联系管理员创建一个。
+magic_link_already_used: 该魔法链接已被使用。
+magic_link_expired: 该魔法链接已过期。
+magic_link_not_enabled: 该域未启用魔法链接登录。
+missing_authorization_code: 缺少授权码。
+missing_lowercase: 密码必须包含至少一个小写字母。
+missing_number: 密码必须包含至少一个数字。
+missing_special: 密码必须包含至少一个特殊字符。
+missing_uppercase: 密码必须包含至少一个大写字母。
+not_found: 未找到该资源。
+portal_layout_default: 该门户布局是域的默认布局，无法删除。
+portal_layout_in_use: 该门户布局正被一个或多个主题使用，无法删除。
+portal_theme_active: 该门户主题处于启用状态，无法删除。
+protocol_not_supported: 该客户端的协议不支持此操作。
+provider_disabled: 该身份提供商已被禁用。
+provider_name_already_exists: 已存在同名的身份提供商。
+provider_not_found: 未找到该身份提供商。
+realm_already_exists: 已存在同名的域。
+realm_key_not_found: 未找到该域的签名密钥。
+redirect_uri_not_found: 该客户端未注册任何重定向 URI。
+saml_attribute_mapper_not_found: 此标识符下未注册任何 SAML 属性映射器。
+saml_config_not_found: 该客户端未注册任何 SAML 配置。
+service_account_not_found: 未找到该客户端的服务账户。
+service_unavailable: 服务暂时不可用。请重试。
+session_create_error: 无法创建会话。
+session_delete_error: 无法删除会话。
+session_expired: 您的会话已过期。请重新登录。
+session_not_found: 未找到该会话。
+session_revoked: 该会话已被撤销。请重新登录。
+# The OAuth device-flow slow_down error: the client is polling the token endpoint too often.
+slow_down: 您的查询过于频繁。请稍候片刻。
+token_expiration_error: 无法读取令牌的过期时间。
+token_generation_error: 无法签发令牌。
+token_issuance_failed: 无法签发令牌。
+token_not_found: 未找到该令牌。
+token_parsing_error: 无法读取该令牌。
+token_validation_error: 无法验证该令牌。
+too_short: 该密码太短。
+totp_generation_failed: 无法生成一次性验证码。
+totp_verification_failed: 该一次性验证码不正确。
+unauthorized_client: 该客户端无权使用此授权类型。
+unexpected_credential_data: 该凭据以非预期的格式存储。
+update_credential_error: 无法更新该凭据。
+# CODE AND MESSAGE DISAGREE: the code says user_code, the message says "device code". In the
+# device flow these are two distinct values. The Chinese follows the message.
+user_code_generation_exhausted: 无法生成设备码。请重试。
+user_disabled: 该账户已被禁用。
+user_linking_failed: 无法将此身份关联到某个账户。
+user_not_found: 未找到该用户。
+username_already_exists: 该用户名已在此域中使用。
+verify_password_error: 无法验证该密码。请重试。
+web_origin_not_found: 此标识符下未注册任何 Web 源。
+webauthn_challenge_failed: 通行密钥质询失败。请重试。
+webauthn_credential_not_found: 未找到该通行密钥。
+webauthn_missing_challenge: 缺少通行密钥质询。请重新开始。
+webhook_delivery_not_found: 未找到该 Webhook 投递。
+webhook_delivery_not_replayable: 该 Webhook 投递仍在进行中，无法重放。
+webhook_forbidden: 您无权操作此 Webhook。
+webhook_not_found: 未找到该 Webhook。
+webhook_realm_not_found: 未找到该 Webhook 所属的域。
