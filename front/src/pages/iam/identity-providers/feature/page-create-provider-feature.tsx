@@ -18,14 +18,24 @@ import PageCreateProvider, {
 } from '../ui/page-create-provider'
 import { useIdentityProvidersBase } from '@/hooks/use-section-base'
 import { apiErrorMessage } from '@/lib/api-error'
+import { translate } from '@/lib/i18n'
+
+const invalidUrl = () => translate('identity-provider:validation.url_invalid')
 
 const configSchema = createProviderSchema.extend({
-  displayName: z.string().min(1, 'Display name is required').max(50),
-  clientId: z.string().min(1, 'Client ID is required'),
-  clientSecret: z.string().min(1, 'Client Secret is required'),
-  authorizationUrl: z.string().url('Must be a valid URL'),
-  tokenUrl: z.string().url('Must be a valid URL'),
-  userinfoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  displayName: z
+    .string()
+    .min(1, { error: () => translate('identity-provider:validation.display_name_required') })
+    .max(50),
+  clientId: z
+    .string()
+    .min(1, { error: () => translate('identity-provider:validation.client_id_required') }),
+  clientSecret: z
+    .string()
+    .min(1, { error: () => translate('identity-provider:validation.client_secret_required') }),
+  authorizationUrl: z.string().url({ error: invalidUrl }),
+  tokenUrl: z.string().url({ error: invalidUrl }),
+  userinfoUrl: z.string().url({ error: invalidUrl }).optional().or(z.literal('')),
 })
 
 const EMPTY_VALUES: CreateProviderValues = {
@@ -181,10 +191,12 @@ export default function PageCreateProviderFeature() {
       },
       {
         onError: (error) => {
-          toast.error(apiErrorMessage(error, 'The identity provider could not be created'))
+          toast.error(
+            apiErrorMessage(error, translate('identity-provider:create.error'))
+          )
         },
         onSuccess: () => {
-          toast.success('Identity provider created successfully')
+          toast.success(translate('identity-provider:create.success'))
           navigate(listUrl)
         },
       }

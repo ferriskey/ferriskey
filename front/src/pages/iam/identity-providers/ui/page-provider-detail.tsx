@@ -1,4 +1,5 @@
 import { ArrowLeft, Power, PowerOff } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
@@ -37,20 +38,10 @@ export interface PageProviderDetailProps {
   onDelete: () => void
 }
 
-const enabledChoices: Choice<'enabled' | 'disabled'>[] = [
-  {
-    value: 'enabled',
-    label: 'Enabled',
-    description: 'The provider appears on the login page of this realm.',
-    icon: Power,
-  },
-  {
-    value: 'disabled',
-    label: 'Disabled',
-    description: 'Hidden from the login page; already linked accounts stay linked.',
-    icon: PowerOff,
-  },
-]
+const SECRET_MASK = '\u2022'.repeat(8)
+
+const PROVIDER_STATE_ENABLED = 'enabled' as const
+const PROVIDER_STATE_DISABLED = 'disabled' as const
 
 export default function PageProviderDetail({
   provider,
@@ -66,10 +57,27 @@ export default function PageProviderDetail({
   onSave,
   onDelete,
 }: PageProviderDetailProps) {
+  const { t } = useTranslation('identity-provider')
+
+  const enabledChoices: Choice<'enabled' | 'disabled'>[] = [
+    {
+      value: PROVIDER_STATE_ENABLED,
+      label: t('detail.enabled.on.label'),
+      description: t('detail.enabled.on.description'),
+      icon: Power,
+    },
+    {
+      value: PROVIDER_STATE_DISABLED,
+      label: t('detail.enabled.off.label'),
+      description: t('detail.enabled.off.description'),
+      icon: PowerOff,
+    },
+  ]
+
   const backButton = (
     <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
-      Identity Providers
+      {t('detail.back')}
     </Button>
   )
 
@@ -93,9 +101,11 @@ export default function PageProviderDetail({
       <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Provider not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.hint')}
           </p>
         </div>
       </PageShell>
@@ -106,11 +116,23 @@ export default function PageProviderDetail({
   const config = providerConfig(provider)
   const configEntries = Object.entries(config)
 
+  const metadataRows = [
+    { key: 'detail.metadata.provider_id', value: provider.provider_id },
+    {
+      key: 'detail.metadata.first_broker_flow',
+      value: provider.first_broker_login_flow_alias || t('not_set'),
+    },
+    {
+      key: 'detail.metadata.post_broker_flow',
+      value: provider.post_broker_login_flow_alias || t('not_set'),
+    },
+  ]
+
   return (
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Identity Providers'
+        backLabel={t('detail.back')}
         icon={<ProviderTile providerId={provider.provider_id} size='md' />}
         title={displayName || provider.alias}
         pills={
@@ -121,14 +143,14 @@ export default function PageProviderDetail({
             </Pill>
             <Pill tone={enabled ? 'success' : 'neutral'}>
               <StatusDot on={enabled} />
-              {enabled ? 'enabled' : 'disabled'}
+              {enabled ? t('badge.enabled') : t('badge.disabled')}
             </Pill>
             <ProviderStatusPill health={status.health} label={status.label} />
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Internal identifier</dt>
+            <dt className='sr-only'>{t('detail.internal_id')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
               {provider.internal_id}
             </dd>
@@ -150,10 +172,10 @@ export default function PageProviderDetail({
       )}
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
-        <Section title='General Settings' description='How this provider identifies itself in the realm.'>
+        <Section title={t('detail.general.title')} description={t('detail.general.description')}>
           <FieldRow
-            label='Alias'
-            description='Unique identifier of the provider in this realm. Sealed at creation: it is part of the Redirect URI already declared at the provider, so changing it would break the callback.'
+            label={t('detail.alias.label')}
+            description={t('detail.alias.description')}
             htmlFor='provider-alias'
           >
             <Input
@@ -165,8 +187,8 @@ export default function PageProviderDetail({
           </FieldRow>
 
           <FieldRow
-            label='Display Name'
-            description='Label of the button users click on the login page.'
+            label={t('detail.display_name.label')}
+            description={t('detail.display_name.description')}
             htmlFor='provider-display-name'
           >
             <Input
@@ -178,28 +200,32 @@ export default function PageProviderDetail({
           </FieldRow>
 
           <FieldRow
-            label='Enabled'
-            description='Whether users may authenticate through this provider.'
+            label={t('detail.enabled.label')}
+            description={t('detail.enabled.description')}
           >
             <ChoiceCards
-              label='Provider state'
-              value={enabled ? 'enabled' : 'disabled'}
-              onChange={(value) => onEnabledChange(value === 'enabled')}
+              label={t('detail.enabled.choices_label')}
+              value={enabled ? PROVIDER_STATE_ENABLED : PROVIDER_STATE_DISABLED}
+              onChange={(value) => onEnabledChange(value === PROVIDER_STATE_ENABLED)}
               options={enabledChoices}
             />
           </FieldRow>
 
           <FieldRow
-            label='Redirect URI'
-            description='Declare this URL in the OAuth application of the provider.'
+            label={t('redirect_uri.label')}
+            description={t('detail.redirect_uri_description')}
           >
-            <CopyValue value={callbackUrl} label='the redirect URI' className='max-w-lg' />
+            <CopyValue
+              value={callbackUrl}
+              copyLabel={t('redirect_uri.copy')}
+              className='max-w-lg'
+            />
           </FieldRow>
         </Section>
 
         <Section
-          title='Configuration'
-          description='Protocol settings, as the API returns them. Secrets never leave the server in clear text.'
+          title={t('detail.config.title')}
+          description={t('detail.config.description')}
           contained={configEntries.length > 0}
         >
           {configEntries.length > 0 ? (
@@ -215,14 +241,14 @@ export default function PageProviderDetail({
                     {isSecretKey(key) ? (
                       <span
                         className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'
-                        title='The API never returns this value in clear text.'
+                        title={t('detail.config.secret_title')}
                       >
-                        ••••••••
+                        {SECRET_MASK}
                       </span>
                     ) : (
                       <span className='block break-all font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
                         {value === null || value === undefined || value === ''
-                          ? 'Not set'
+                          ? t('not_set')
                           : String(value)}
                       </span>
                     )}
@@ -231,24 +257,20 @@ export default function PageProviderDetail({
             ))
           ) : (
             <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-              No configuration setting recorded — this provider cannot broker a login.
+              {t('detail.config.empty')}
             </p>
           )}
         </Section>
 
-        <Section title='Metadata' description='System information, not editable.'>
-          {(
-            [
-              ['Provider ID', provider.provider_id],
-              ['First Broker Flow', provider.first_broker_login_flow_alias || 'Not set'],
-              ['Post Broker Flow', provider.post_broker_login_flow_alias || 'Not set'],
-            ] as const
-          ).map(([label, value]) => (
+        <Section title={t('detail.metadata.title')} description={t('detail.metadata.description')}>
+          {metadataRows.map(({ key, value }) => (
             <div
-              key={label}
+              key={key}
               className='grid gap-x-8 gap-y-1 py-3 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
             >
-              <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>{label}</p>
+              <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
+              {t(key)}
+            </p>
               <div className='min-w-0 break-all font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>
                 {value}
               </div>
@@ -258,22 +280,24 @@ export default function PageProviderDetail({
 
         <DangerZone
         resourceName={provider.display_name || provider.alias}
-          label='Delete this identity provider'
-          description='All associated data will be permanently removed. This action is irreversible.'
-          buttonLabel='Delete provider'
-          confirmTitle='Delete identity provider'
-          confirmDescription={`This will permanently delete the provider "${providerName(provider)}" and all its associated data.`}
+          label={t('detail.danger.label')}
+          description={t('detail.danger.description')}
+          buttonLabel={t('detail.danger.button')}
+          confirmTitle={t('detail.danger.confirm_title')}
+          confirmDescription={t('detail.danger.confirm_description', {
+            name: providerName(provider),
+          })}
           onConfirm={onDelete}
         />
       </div>
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='Review the provider before applying the changes.'
+        title={t('detail.save.dirty', { count: dirtyCount })}
+        description={t('detail.save.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save.discard')}
+        actions={[{ label: t('detail.save.submit'), onClick: onSave }]}
       />
     </PageShell>
   )

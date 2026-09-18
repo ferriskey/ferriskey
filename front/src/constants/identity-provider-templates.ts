@@ -1,8 +1,15 @@
+import { preloadNamespaces, translate } from '@/lib/i18n'
+
+export const IDENTITY_PROVIDER_NAMESPACE = 'identity-provider'
+
+void preloadNamespaces(IDENTITY_PROVIDER_NAMESPACE).catch(() => undefined)
+
 export interface ProviderTemplate {
   id: string
   name: string
   displayName: string
-  description: string
+  displayNameKey?: string
+  descriptionKey: string
   icon: 'google' | 'discord' | 'github' | 'microsoft' | 'apple' | 'facebook' | 'gitlab' | 'twitter' | 'linkedin' | 'custom'
   category: 'social' | 'enterprise' | 'developer' | 'custom'
   provider_type: 'oidc' | 'oauth2'
@@ -13,7 +20,7 @@ export interface ProviderTemplate {
   default_scopes: string[]
   custom_fields?: Array<{
     name: string
-    label: string
+    labelKey: string
     placeholder: string
     required: boolean
     type: 'text' | 'url' | 'select'
@@ -26,7 +33,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'google',
     name: 'google',
     displayName: 'Google',
-    description: 'Sign in with Google accounts',
+    descriptionKey: 'template.google.description',
     icon: 'google',
     category: 'social',
     provider_type: 'oidc',
@@ -40,7 +47,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'discord',
     name: 'discord',
     displayName: 'Discord',
-    description: 'Sign in with Discord accounts',
+    descriptionKey: 'template.discord.description',
     icon: 'discord',
     category: 'social',
     provider_type: 'oauth2',
@@ -54,7 +61,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'github',
     name: 'github',
     displayName: 'GitHub',
-    description: 'Sign in with GitHub accounts',
+    descriptionKey: 'template.github.description',
     icon: 'github',
     category: 'developer',
     provider_type: 'oauth2',
@@ -68,7 +75,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'microsoft',
     name: 'microsoft',
     displayName: 'Microsoft',
-    description: 'Sign in with Microsoft & Azure AD',
+    descriptionKey: 'template.microsoft.description',
     icon: 'microsoft',
     category: 'enterprise',
     provider_type: 'oidc',
@@ -82,7 +89,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'apple',
     name: 'apple',
     displayName: 'Apple',
-    description: 'Sign in with Apple ID',
+    descriptionKey: 'template.apple.description',
     icon: 'apple',
     category: 'social',
     provider_type: 'oidc',
@@ -95,7 +102,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'facebook',
     name: 'facebook',
     displayName: 'Facebook',
-    description: 'Sign in with Facebook accounts',
+    descriptionKey: 'template.facebook.description',
     icon: 'facebook',
     category: 'social',
     provider_type: 'oauth2',
@@ -109,7 +116,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'gitlab',
     name: 'gitlab',
     displayName: 'GitLab',
-    description: 'Sign in with GitLab accounts',
+    descriptionKey: 'template.gitlab.description',
     icon: 'gitlab',
     category: 'developer',
     provider_type: 'oidc',
@@ -123,7 +130,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'twitter',
     name: 'twitter',
     displayName: 'X (Twitter)',
-    description: 'Sign in with X/Twitter accounts',
+    descriptionKey: 'template.twitter.description',
     icon: 'twitter',
     category: 'social',
     provider_type: 'oauth2',
@@ -137,7 +144,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: 'linkedin',
     name: 'linkedin',
     displayName: 'LinkedIn',
-    description: 'Sign in with LinkedIn accounts',
+    descriptionKey: 'template.linkedin.description',
     icon: 'linkedin',
     category: 'enterprise',
     provider_type: 'oidc',
@@ -153,7 +160,8 @@ export const CUSTOM_PROVIDER_TEMPLATE: ProviderTemplate = {
   id: 'custom',
   name: 'custom',
   displayName: 'Custom Provider',
-  description: 'Configure a custom OAuth2/OIDC provider',
+  displayNameKey: 'template.custom.display_name',
+  descriptionKey: 'template.custom.description',
   icon: 'custom',
   category: 'custom',
   provider_type: 'oauth2',
@@ -168,6 +176,16 @@ export const ALL_TEMPLATES = [...PROVIDER_TEMPLATES, CUSTOM_PROVIDER_TEMPLATE]
 
 export function getTemplateById(id: string): ProviderTemplate | undefined {
   return ALL_TEMPLATES.find((t) => t.id === id)
+}
+
+export function templateDisplayName(template: ProviderTemplate): string {
+  return template.displayNameKey
+    ? translate(`${IDENTITY_PROVIDER_NAMESPACE}:${template.displayNameKey}`)
+    : template.displayName
+}
+
+export function templateDescription(template: ProviderTemplate): string {
+  return translate(`${IDENTITY_PROVIDER_NAMESPACE}:${template.descriptionKey}`)
 }
 
 export function getTemplatesByCategory(category: ProviderTemplate['category']): ProviderTemplate[] {

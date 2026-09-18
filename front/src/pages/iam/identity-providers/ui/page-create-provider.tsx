@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +11,11 @@ import {
 } from '@/components/ui/input-group'
 import { ChipInput, FieldRow, PageShell, Pill, Section } from '@/components/kit'
 import ProviderIcon from '@/components/provider-icon'
-import type { ProviderTemplate } from '@/constants/identity-provider-templates'
+import {
+  templateDescription,
+  templateDisplayName,
+  type ProviderTemplate,
+} from '@/constants/identity-provider-templates'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { ProviderProtocol } from '../provider-status'
@@ -46,18 +51,21 @@ export interface PageCreateProviderProps {
   onSubmit: () => void
 }
 
-const steps = [
-  { n: 1, title: 'Provider' },
-  { n: 2, title: 'Configuration' },
-  { n: 3, title: 'Review' },
-] as const
+const CUSTOM_TEMPLATE_ID = 'custom'
 
-const categoryLabels: Record<ProviderTemplate['category'], string> = {
-  social: 'Social',
-  enterprise: 'Enterprise',
-  developer: 'Developer tools',
-  custom: 'Custom',
-}
+const ALIAS_PLACEHOLDER = 'google-workspace'
+const AUTHORIZATION_URL_PLACEHOLDER = 'https://provider.com/oauth/authorize'
+const TOKEN_URL_PLACEHOLDER = 'https://provider.com/oauth/token'
+const USERINFO_URL_PLACEHOLDER = 'https://provider.com/api/userinfo'
+const SCOPE_PLACEHOLDER = 'openid'
+const SECRET_MASK_CHARACTER = '\u2022'
+const SECRET_MASK_LENGTH = 24
+
+const steps = [
+  { n: 1, titleKey: 'create.steps.provider' },
+  { n: 2, titleKey: 'create.steps.configuration' },
+  { n: 3, titleKey: 'create.steps.review' },
+] as const
 
 const categoryOrder: ProviderTemplate['category'][] = [
   'social',
@@ -67,6 +75,8 @@ const categoryOrder: ProviderTemplate['category'][] = [
 ]
 
 function Stepper({ current }: { current: number }) {
+  const { t } = useTranslation('identity-provider')
+
   return (
     <ol className='flex items-center gap-2'>
       {steps.map((step, index) => {
@@ -95,7 +105,7 @@ function Stepper({ current }: { current: number }) {
                     : 'text-neutral-400 dark:text-neutral-500'
               )}
             >
-              {step.title}
+              {t(step.titleKey)}
             </span>
             {index < steps.length - 1 && (
               <span
@@ -125,6 +135,7 @@ export default function PageCreateProvider({
   onBack,
   onSubmit,
 }: PageCreateProviderProps) {
+  const { t } = useTranslation('identity-provider')
   const [search, setSearch] = useState('')
   const [showSecret, setShowSecret] = useState(false)
 
@@ -133,9 +144,9 @@ export default function PageCreateProvider({
 
     const query = search.toLowerCase()
     return templates.filter(
-      (t) =>
-        t.displayName.toLowerCase().includes(query) ||
-        t.description.toLowerCase().includes(query)
+      (item) =>
+        templateDisplayName(item).toLowerCase().includes(query) ||
+        templateDescription(item).toLowerCase().includes(query)
     )
   }, [templates, search])
 
@@ -144,25 +155,45 @@ export default function PageCreateProvider({
       categoryOrder
         .map((category) => ({
           category,
-          items: matching.filter((t) => t.category === category),
+          items: matching.filter((item) => item.category === category),
         }))
         .filter((group) => group.items.length > 0),
     [matching]
   )
 
-  const isCustom = template?.id === 'custom'
+  const isCustom = template?.id === CUSTOM_TEMPLATE_ID
+  const providerLabel = template ? templateDisplayName(template) : ''
+
+  const reviewRows = [
+    { key: 'create.review.template', value: providerLabel },
+    { key: 'create.review.protocol', value: protocol },
+    { key: 'create.alias.label', value: values.alias },
+    { key: 'create.display_name.label', value: values.displayName || providerLabel },
+    { key: 'create.client_id.label', value: values.clientId },
+    {
+      key: 'create.client_secret.label',
+      value: SECRET_MASK_CHARACTER.repeat(
+        Math.min(values.clientSecret.length, SECRET_MASK_LENGTH)
+      ),
+    },
+    { key: 'redirect_uri.label', value: callbackUrl },
+    { key: 'create.authorization_url.label', value: values.authorizationUrl },
+    { key: 'create.token_url.label', value: values.tokenUrl },
+    { key: 'create.userinfo_url.label', value: values.userinfoUrl || t('not_set') },
+    { key: 'create.scopes.label', value: values.scopes.join(' ') || t('none') },
+  ]
 
   return (
     <PageShell>
       <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
         <ArrowLeft className='size-3.5' />
-        Identity Providers
+        {t('create.back')}
       </Button>
 
       <div className={tokens.header.spacing}>
-        <h1 className={tokens.header.title}>Add an identity provider</h1>
+        <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          Connecting an external {protocol.toUpperCase()} provider to this realm.
+          {t('create.description', { protocol: protocol.toUpperCase() })}
         </p>
       </div>
 
@@ -172,8 +203,8 @@ export default function PageCreateProvider({
 
       {step === 1 && (
         <Section
-          title='Choose a provider'
-          description='A template fills the endpoints and the scopes in; only your application credentials are left.'
+          title={t('create.templates.title')}
+          description={t('create.templates.description')}
           contained={false}
         >
           <div className='space-y-5'>
@@ -183,21 +214,21 @@ export default function PageCreateProvider({
                 type='search'
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder='Search providers…'
+                placeholder={t('create.templates.search_placeholder')}
                 className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
               />
             </label>
 
             {groups.length === 0 && (
               <p className='text-sm text-neutral-500 dark:text-neutral-400'>
-                No provider found matching '{search}'
+                {t('create.templates.empty', { query: search })}
               </p>
             )}
 
             {groups.map((group) => (
               <div key={group.category}>
                 <p className='pb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
-                  {categoryLabels[group.category]}
+                  {t(`template_category.${group.category}`)}
                 </p>
                 <div className='grid gap-2 sm:grid-cols-2 xl:grid-cols-3'>
                   {group.items.map((item) => (
@@ -218,14 +249,14 @@ export default function PageCreateProvider({
                       <span className='min-w-0 flex-1'>
                         <span className='flex items-center gap-2'>
                           <span className='truncate text-xs font-medium text-neutral-900 dark:text-neutral-100'>
-                            {item.displayName}
+                            {templateDisplayName(item)}
                           </span>
                           <Pill tone={item.provider_type === 'oidc' ? 'violet' : 'amber'} mono>
                             {item.provider_type}
                           </Pill>
                         </span>
                         <span className='mt-0.5 block truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                          {item.description}
+                          {templateDescription(item)}
                         </span>
                       </span>
                     </button>
@@ -241,19 +272,19 @@ export default function PageCreateProvider({
         <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]'>
           <div className={tokens.page.blockGap}>
             <Section
-              title={`Configure ${template.displayName}`}
-              description='Credentials issued by the provider console.'
+              title={t('create.credentials.title', { provider: providerLabel })}
+              description={t('create.credentials.description')}
             >
               <FieldRow
-                label='Alias'
-                description='Technical name of the provider in this realm. It appears in the Redirect URI and cannot be changed after creation.'
+                label={t('create.alias.label')}
+                description={t('create.alias.description')}
                 htmlFor='create-provider-alias'
               >
                 <Input
                   id='create-provider-alias'
                   value={values.alias}
                   onChange={(e) => onChange({ alias: e.target.value })}
-                  placeholder='google-workspace'
+                  placeholder={ALIAS_PLACEHOLDER}
                   className='max-w-sm'
                   aria-invalid={Boolean(errors.alias)}
                 />
@@ -261,15 +292,15 @@ export default function PageCreateProvider({
               </FieldRow>
 
               <FieldRow
-                label='Display Name'
-                description='Label of the button users click on the login page.'
+                label={t('create.display_name.label')}
+                description={t('create.display_name.description')}
                 htmlFor='create-provider-display-name'
               >
                 <Input
                   id='create-provider-display-name'
                   value={values.displayName}
                   onChange={(e) => onChange({ displayName: e.target.value })}
-                  placeholder={template.displayName}
+                  placeholder={providerLabel}
                   className='max-w-sm'
                   aria-invalid={Boolean(errors.displayName)}
                 />
@@ -279,8 +310,8 @@ export default function PageCreateProvider({
               </FieldRow>
 
               <FieldRow
-                label='Client ID'
-                description={`Identifier of the OAuth application created at ${template.displayName}.`}
+                label={t('create.client_id.label')}
+                description={t('create.client_id.description', { provider: providerLabel })}
                 htmlFor='create-provider-client-id'
               >
                 <Input
@@ -296,8 +327,8 @@ export default function PageCreateProvider({
               </FieldRow>
 
               <FieldRow
-                label='Client Secret'
-                description='Stored encrypted; it is never displayed again after creation.'
+                label={t('create.client_secret.label')}
+                description={t('create.client_secret.description')}
                 htmlFor='create-provider-client-secret'
               >
                 <InputGroup className='max-w-sm'>
@@ -312,7 +343,9 @@ export default function PageCreateProvider({
                   <InputGroupAddon align='inline-end'>
                     <InputGroupButton
                       size='icon-xs'
-                      aria-label={showSecret ? 'Hide the secret' : 'Show the secret'}
+                      aria-label={
+                        showSecret ? t('create.client_secret.hide') : t('create.client_secret.show')
+                      }
                       onClick={() => setShowSecret((value) => !value)}
                     >
                       {showSecret ? <EyeOff /> : <Eye />}
@@ -326,23 +359,23 @@ export default function PageCreateProvider({
             </Section>
 
             <Section
-              title='Endpoints'
+              title={t('create.endpoints.title')}
               description={
                 isCustom
-                  ? 'Required: no template knows them for a custom provider.'
-                  : `Pre-filled from the ${template.displayName} template — change them only for a self-hosted instance.`
+                  ? t('create.endpoints.description_custom')
+                  : t('create.endpoints.description_template', { provider: providerLabel })
               }
             >
               <FieldRow
-                label='Authorization URL'
-                description='Where the user is sent to grant consent.'
+                label={t('create.authorization_url.label')}
+                description={t('create.authorization_url.description')}
                 htmlFor='create-provider-authorization-url'
               >
                 <Input
                   id='create-provider-authorization-url'
                   value={values.authorizationUrl}
                   onChange={(e) => onChange({ authorizationUrl: e.target.value })}
-                  placeholder='https://provider.com/oauth/authorize'
+                  placeholder={AUTHORIZATION_URL_PLACEHOLDER}
                   className='max-w-lg'
                   aria-invalid={Boolean(errors.authorizationUrl)}
                 />
@@ -352,15 +385,15 @@ export default function PageCreateProvider({
               </FieldRow>
 
               <FieldRow
-                label='Token URL'
-                description='Where the authorization code is exchanged for a token.'
+                label={t('create.token_url.label')}
+                description={t('create.token_url.description')}
                 htmlFor='create-provider-token-url'
               >
                 <Input
                   id='create-provider-token-url'
                   value={values.tokenUrl}
                   onChange={(e) => onChange({ tokenUrl: e.target.value })}
-                  placeholder='https://provider.com/oauth/token'
+                  placeholder={TOKEN_URL_PLACEHOLDER}
                   className='max-w-lg'
                   aria-invalid={Boolean(errors.tokenUrl)}
                 />
@@ -370,11 +403,11 @@ export default function PageCreateProvider({
               </FieldRow>
 
               <FieldRow
-                label='Userinfo URL'
+                label={t('create.userinfo_url.label')}
                 description={
                   protocol === 'oidc'
-                    ? 'Optional in OIDC: the claims can come from the ID token.'
-                    : 'Where the user profile is read once the token is issued.'
+                    ? t('create.userinfo_url.description_oidc')
+                    : t('create.userinfo_url.description_oauth2')
                 }
                 htmlFor='create-provider-userinfo-url'
               >
@@ -382,7 +415,7 @@ export default function PageCreateProvider({
                   id='create-provider-userinfo-url'
                   value={values.userinfoUrl}
                   onChange={(e) => onChange({ userinfoUrl: e.target.value })}
-                  placeholder='https://provider.com/api/userinfo'
+                  placeholder={USERINFO_URL_PLACEHOLDER}
                   className='max-w-lg'
                   aria-invalid={Boolean(errors.userinfoUrl)}
                 />
@@ -391,12 +424,15 @@ export default function PageCreateProvider({
                 )}
               </FieldRow>
 
-              <FieldRow label='Scopes' description='Requested at every authorization.'>
+              <FieldRow
+                label={t('create.scopes.label')}
+                description={t('create.scopes.description')}
+              >
                 <ChipInput
                   values={values.scopes}
                   onChange={(scopes) => onChange({ scopes })}
-                  placeholder='openid'
-                  emptyHint='No scope requested — most providers reject an authorization request without one.'
+                  placeholder={SCOPE_PLACEHOLDER}
+                  emptyHint={t('create.scopes.empty_hint')}
                 />
               </FieldRow>
             </Section>
@@ -407,27 +443,13 @@ export default function PageCreateProvider({
       )}
 
       {step === 3 && template && (
-        <Section title='Review' description='What will be created in the realm.'>
-          {(
-            [
-              ['Template', template.displayName],
-              ['Protocol', protocol],
-              ['Alias', values.alias],
-              ['Display Name', values.displayName || template.displayName],
-              ['Client ID', values.clientId],
-              ['Client Secret', '•'.repeat(Math.min(values.clientSecret.length, 24))],
-              ['Redirect URI', callbackUrl],
-              ['Authorization URL', values.authorizationUrl],
-              ['Token URL', values.tokenUrl],
-              ['Userinfo URL', values.userinfoUrl || 'Not set'],
-              ['Scopes', values.scopes.join(' ') || 'None'],
-            ] as const
-          ).map(([label, value]) => (
+        <Section title={t('create.review.title')} description={t('create.review.description')}>
+          {reviewRows.map(({ key, value }) => (
             <div
-              key={label}
+              key={key}
               className='grid gap-x-8 gap-y-1 py-2.5 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]'
             >
-              <p className='text-xs text-neutral-500 dark:text-neutral-400'>{label}</p>
+              <p className='text-xs text-neutral-500 dark:text-neutral-400'>{t(key)}</p>
               <div className='min-w-0 break-all font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
                 {value}
               </div>
@@ -438,16 +460,16 @@ export default function PageCreateProvider({
 
       <div className='mt-4 flex items-center justify-between'>
         <Button variant='outline' onClick={onBack}>
-          <ArrowLeft /> {step === 1 ? 'Cancel' : 'Back'}
+          <ArrowLeft /> {step === 1 ? t('create.actions.cancel') : t('create.actions.back')}
         </Button>
 
         {step < 3 ? (
           <Button onClick={onNext} disabled={!canContinue}>
-            Continue <ArrowRight />
+            {t('create.actions.continue')} <ArrowRight />
           </Button>
         ) : (
           <Button onClick={onSubmit} disabled={isPending}>
-            <Plus /> Create provider
+            <Plus /> {t('create.actions.submit')}
           </Button>
         )}
       </div>
