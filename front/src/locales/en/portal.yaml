@@ -1,0 +1,391 @@
+# Catalogue for the Portal section of the console: theme list, layout list, theme detail, and the
+# chrome around the page/layout editors.
+#
+# Out of scope on purpose: the drag-and-drop engine itself (src/lib/builder-core, builder-portal).
+# Block labels, block config fields and the preset names/descriptions shown in the editor sidebar
+# come from that engine and are not translated here.
+#
+# Block type identifiers (email_input, totp_input, page-content…), page type identifiers
+# (login, totp_setup…), design-token names (primaryButton, widgetRadius…), CSS units and the
+# example font URL are wire values. They stay verbatim and live in code, not here.
+
+header:
+  title: Portal
+  description: Appearance of the public authentication pages of this realm.
+  tabs:
+    themes: Themes
+    layouts: Layouts
+
+actions:
+  import: Import
+
+# One entry per PortalPageType returned by the API. The keys mirror the enum values and must not
+# be renamed; the enum value itself is also rendered as-is next to the label.
+page_type:
+  login:
+    label: Login
+    description: Credentials, identity providers and the entry point of every flow.
+  register:
+    label: Register
+    description: Self-service account creation, when the realm allows it.
+  totp:
+    label: OTP challenge
+    description: Second factor asked after a successful password check.
+  forgot_password:
+    label: Forgot password
+    description: Asks for an address and sends the reset mail.
+  reset_password:
+    label: Reset password
+    description: Reached from the mail link; sets the new password.
+  magic_link_request:
+    label: Magic link request
+    description: Asks for an address and sends a passwordless sign-in link.
+  magic_link_verify:
+    label: Magic link verify
+    description: Landing page of the link, where the session is opened.
+  verify_email:
+    label: Verify email
+    description: Asks the user to confirm the address they registered with.
+  email_verified:
+    label: Email verified
+    description: Confirmation screen once the address is proven.
+  totp_setup:
+    label: TOTP setup
+    description: 'First-time enrolment: QR code, secret and confirmation code.'
+  device_verify:
+    label: Device verification
+    description: 'RFC 8628 consent screen: the user code, approve and deny.'
+  device_verified:
+    label: Device verified
+    description: Confirmation screen; the device signs in on its own.
+
+# Device preview toggles in both editors. The width and the Tailwind breakpoint are technical
+# facts the administrator matches against their own CSS — keep the numbers and the `sm`/`md`/`xl`
+# identifiers verbatim.
+viewport:
+  iphone: iPhone — 402 (base, below Tailwind sm)
+  tablet: Tablet — 768 (Tailwind md)
+  desktop: Desktop — 1280 (Tailwind xl)
+
+themes:
+  create: New theme
+  section:
+    title: Themes
+    description: Only one theme is active at a time; it is the one the portal renders.
+  empty: >-
+    No theme yet. A theme carries the colours, the typography and the {{total}} pages the portal
+    renders.
+  metrics:
+    total:
+      label: Themes
+      hint: in this realm
+    active:
+      label: Active
+      hint: rendered by the portal
+      empty_hint: the portal falls back
+    activatable:
+      label: Activatable
+      hint: every page valid
+    pages:
+      label: Pages per theme
+      hint: page types
+  row:
+    active: active
+    active_theme: active theme
+    # <num> wraps the "valid/total" counter so it can be rendered with tabular figures. Never
+    # inflects: both numbers are raw counters, which is why they are not {{count}}.
+    pages_valid: <num>{{valid}}/{{total}}</num> pages valid
+    layout: Layout {{name}}
+    no_layout: No layout
+    summary: '{{layout}} · updated {{date}}'
+    # "theme_id" is the API field name, keep it verbatim.
+    identifier: 'theme_id: {{id}}'
+    incomplete_pages_one: <num>{{count}}</num> incomplete page
+    incomplete_pages_other: <num>{{count}}</num> incomplete pages
+    activation_blocked: 'Cannot be activated: {{detail}}'
+    activate: Activate
+    export: Export {{name}}
+    delete: Delete {{name}}
+    delete_blocked: The active theme cannot be deleted. Activate another one first.
+    # Tooltip on a colour swatch. {{token}} is a design-token name and stays in English.
+    swatch: '{{token}} · {{value}}'
+    swatch_default: default
+  create_dialog:
+    title: New portal theme
+    description: >-
+      The {{total}} pages are pre-filled with their default composition, so the theme is
+      activatable as soon as it is created.
+    name_placeholder: Theme name
+    cancel: Cancel
+    submit: Create
+    submitting: Creating…
+  toast:
+    seed_failed_one: '{{count}} page could not be pre-filled — open it before activating this theme.'
+    seed_failed_other: >-
+      {{count}} pages could not be pre-filled — open them before activating this theme.
+    export_failed: Could not export this theme
+    saved: Portal theme saved
+    created: Portal theme created
+    imported: Portal theme imported
+    import_failed: Failed to import
+    activated: Portal theme activated
+    activation_failed: Cannot activate portal theme
+    deleted: Portal theme deleted
+
+layouts:
+  create: New layout
+  section:
+    title: Layouts
+    description: 'The page structure a theme reuses: where the card, the visual and the footer sit.'
+  empty: >-
+    No layout yet. A theme without a layout renders its pages bare, which is a valid composition.
+  metrics:
+    total:
+      label: Layouts
+      hint: in this realm
+    default:
+      label: Default
+      hint: used when a theme names none
+    used:
+      label: Attached
+      hint: held by a theme
+    free:
+      label: Deletable
+      hint: neither default nor held
+  row:
+    default: default
+    unused: unused
+    theme_count_one: '{{count}} theme'
+    theme_count_other: '{{count}} themes'
+    # <num> wraps the block counter so it can be rendered with tabular figures.
+    summary_one: <num>{{count}}</num> block · updated {{date}}
+    summary_other: <num>{{count}}</num> blocks · updated {{date}}
+    # "layout_id" is the API field name, keep it verbatim.
+    identifier: 'layout_id: {{id}}'
+    open: Open
+    export: Export {{name}}
+    delete: Delete {{name}}
+    refusal:
+      default: The default layout cannot be deleted. Make another layout the default first.
+      in_use_one: Used by {{themes}}. Detach it from that theme first.
+      in_use_other: Used by {{themes}}. Detach it from those themes first.
+  toast:
+    export_failed: Could not export this layout
+
+detail:
+  draft: draft
+  activate: Activate this theme
+  activating: Activating…
+  activation_blocked: Activation blocked
+  not_found:
+    title: Theme not found
+    hint: It may have been deleted, or it belongs to another realm.
+  tabs:
+    theme: Theme
+    layout: Layout
+    pages: Pages
+  meta:
+    updated: Updated {{date}}
+    updated_label: Updated at
+    identifier_label: Identifier
+  banner:
+    active: >-
+      The portal renders this theme: every page you save is validated immediately, and a missing
+      required block is refused.
+    draft: >-
+      Draft: pages save without constraint. Required blocks are checked when the theme is
+      activated.
+  identity:
+    title: Identity
+    name:
+      label: Theme name
+      description: Names the theme in the console; end users never read it.
+      required: A theme needs a name.
+  tokens:
+    title: Design tokens
+    description: >-
+      Every change is reflected live in the preview. Untouched fields keep the value the domain
+      defaults to.
+  layout:
+    title: Layout
+    description: The header, footer and card wrapper every page of this theme is rendered inside.
+    field:
+      label: Portal layout
+      description: Optional. Without a layout the portal renders the page tree on its own.
+    option_none: No layout — render the page bare
+    option_default: '{{name}} · default'
+    locked: While this theme uses it, “{{name}}” cannot be deleted.
+    detaching: >-
+      Saving detaches “{{name}}” from this theme; it becomes deletable unless another theme holds
+      it.
+  pages:
+    title: Pages
+    all_valid: 'Every page carries its required blocks: this theme can be activated.'
+    blocking_one: >-
+      {{count}} page blocks activation. It is listed below — fixing it does not reveal a new one.
+    blocking_other: >-
+      {{count}} pages block activation. All of them are listed below — fixing one does not reveal a
+      new one.
+    no_required_block: no required block
+    # {{block}} is a block type identifier with its underscores replaced by spaces.
+    block_missing: '{{block}} is missing'
+    edit: Edit
+  danger:
+    label: Delete this theme
+    description: Its design tokens and the trees of its {{total}} pages are lost for good.
+    button: Delete theme
+    confirm_title: Delete theme
+    confirm_description: >-
+      This will permanently delete the theme "{{name}}" and the composition of its {{total}} pages.
+  save_bar:
+    title_one: '{{count}} unsaved change'
+    title_other: '{{count}} unsaved changes'
+    description: The portal only reads what has been saved.
+    discard: Discard
+    save: Save changes
+    saving: Saving…
+  toast:
+    saved: Portal theme saved
+    save_failed: Failed to save portal theme
+
+page_builder:
+  title: '{{page}} page'
+  all_blocks_present: All required blocks present
+  # {{blocks}} is a comma-separated list of block type identifiers built in code.
+  missing_blocks: 'Missing: {{blocks}}'
+  framed_by: framed by {{name}}
+  no_layout: no layout
+  unsaved: unsaved
+  save: Save page
+  saving: Saving…
+  toast:
+    saved: Page saved
+    save_failed: Failed to save this page
+    unknown_error: Unknown error
+  # Details of a refused save or activation, built from the structured payload the API returns.
+  # {{blocks}} is a comma-separated list of block type identifiers with their underscores
+  # replaced by spaces, as everywhere else in this namespace.
+  error:
+    missing_on_page_one: '{{page}} page — missing required block: {{blocks}}'
+    missing_on_page_other: '{{page}} page — missing required blocks: {{blocks}}'
+    missing_one: 'Missing required block: {{blocks}}'
+    missing_other: 'Missing required blocks: {{blocks}}'
+    pages_missing_blocks: 'The following pages are missing required blocks:'
+    unknown_page: Unknown page
+
+layout_builder:
+  name_placeholder: Layout name
+  create: Create
+  save: Save
+  saving: Saving…
+
+builder:
+  sidebar:
+    components: Components
+    presets: Presets
+    tree: Tree
+  library:
+    required_for_page: Required for this page
+    required_for_layout: Required for this layout
+    group:
+      layout: Layout
+      content: Content
+      form: Form & Actions
+      identity: Identity fields
+      other: Other
+  presets:
+    hint: Click a preset to append it to the page.
+    confirm_title: Confirm actual preset deletion
+    confirm_description: This action cannot be undone.
+  panel:
+    buttons:
+      title: Buttons
+      description: Primary and secondary CTAs, including their shape and typography.
+      section:
+        primary: Primary
+        secondary: Secondary
+        social: Social (Google, GitHub, …)
+        magic_link: Magic link
+        passkey: Passkey
+        shape: Shape
+        typography: Typography
+    inputs:
+      title: Inputs
+      description: >-
+        Form fields (email, password, OTP). Background and text colors follow the page tokens; tune
+        shape and label typography here.
+      section:
+        shape: Shape
+        label_typography: Label typography
+    widget:
+      title: Widget
+      description: The card that wraps every auth flow — Login, Register, Magic link, etc.
+      section:
+        surface: Surface
+        shape: Shape
+        spacing: Spacing
+    typography:
+      title: Typography
+      description: Font family, base size, and the heading/body/link styles used everywhere.
+      section:
+        family: Family
+        body_color: Body color
+        links: Links
+      style:
+        title: Title
+        subtitle: Subtitle
+        body: Body
+    page:
+      title: Page
+      description: Outermost surface behind the widget plus global feedback colors and spacing.
+      section:
+        surface: Surface
+        feedback: Feedback
+        spacing: Spacing
+  control:
+    background: Background
+    label: Label
+    border: Border
+    border_color: Border color
+    border_width: Border width
+    radius: Radius
+    shadow: Shadow
+    padding: Padding
+    weight: Weight
+    size: Size
+    custom_url: Custom URL
+    base_size: Base size
+    default_text: Default text
+    color: Color
+    decoration: Decoration
+    error: Error
+    field_gap: Field gap
+    section_gap: Section gap
+    reset: Reset to default
+    reset_field: Reset {{label}} to default
+    pick_color: Pick color for {{label}}
+  # Keys mirror the ThemeShadow values stored in the theme config.
+  shadow:
+    none: None
+    small: Small
+    large: Large
+  # Keys mirror the link style values stored in the theme config.
+  link_style:
+    normal: Normal
+    underline: Underline
+  # Static mock of an authentication screen, rendered next to the token panels so the administrator
+  # sees the effect of a token change. It is console chrome, not seeded content: nothing here is
+  # written to a theme.
+  preview:
+    title: Welcome back
+    subtitle: Sign in to your workspace.
+    error: Invalid email or password.
+    email: Email
+    password: Password
+    submit: Continue
+    other_account: Use another account
+    separator: or continue with
+    forgot_password: Forgot password?
+    social:
+      google: Continue with Google
+      github: Continue with GitHub

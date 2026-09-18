@@ -8,6 +8,7 @@ import {
   FALLBACK_LOCALE,
   SUPPORTED_LOCALES,
   applyLocalePreferences,
+  displayLocale,
   setLocale as applyLocale,
   type SupportedLocale,
 } from '@/lib/i18n'
@@ -39,6 +40,7 @@ function useRealmName(): string | undefined {
 export function useLocaleSync(): void {
   const realm = useRealmName()
   const isAuthenticated = userStore((state) => state.isAuthenticated)
+  const isAuthResolving = userStore((state) => state.isLoading)
   const { data: realmSettings } = useGetRealmLocaleSettings({ realm })
   const { data: accountLocale } = useGetOwnLocale({ realm, enabled: isAuthenticated })
 
@@ -56,7 +58,7 @@ export function useLocaleSync(): void {
     let cancelled = false
 
     const resolve = async () => {
-      if (pendingChoice) return
+      if (pendingChoice || isAuthResolving) return
 
       const resolved = await applyLocalePreferences({
         userLocale: isAuthenticated ? accountLocale : null,
@@ -68,7 +70,7 @@ export function useLocaleSync(): void {
           : (realmDefaultLocale ?? FALLBACK_LOCALE)
 
       if (allowed !== resolved) {
-        await applyLocale(allowed)
+        await displayLocale(allowed)
       }
 
       if (!cancelled) commitLocale(allowed)
@@ -79,7 +81,14 @@ export function useLocaleSync(): void {
     return () => {
       cancelled = true
     }
-  }, [accountLocale, commitLocale, isAuthenticated, realmDefaultLocale, realmLocales])
+  }, [
+    accountLocale,
+    commitLocale,
+    isAuthResolving,
+    isAuthenticated,
+    realmDefaultLocale,
+    realmLocales,
+  ])
 }
 
 export function useLocale(): UseLocaleResult {
@@ -108,7 +117,7 @@ export function useLocale(): UseLocaleResult {
         await applyLocale(target)
         commitLocale(target)
 
-        if (isAuthenticated && realm && realmLocales.includes(target)) {
+        if (isAuthenticated && realm) {
           await saveAccountLocale({ realm, locale: target }).catch((error: unknown) => {
             toast.error(apiErrorMessage(error))
           })
@@ -117,15 +126,7 @@ export function useLocale(): UseLocaleResult {
         pendingChoice = null
       }
     },
-    [
-      commitLocale,
-      defaultLocale,
-      isAuthenticated,
-      offeredLocales,
-      realm,
-      realmLocales,
-      saveAccountLocale,
-    ]
+    [commitLocale, defaultLocale, isAuthenticated, offeredLocales, realm, saveAccountLocale]
   )
 
   return useMemo(

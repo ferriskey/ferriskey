@@ -1,0 +1,382 @@
+# 简体中文 catalogue for the Portal section of the console.
+#
+# Produced without a native reviewer — pending native review. Lines marked "REVIEW" are the ones
+# where a native reader's judgement matters most; lines marked "TRANSLATOR NOTE" are the ones where
+# the English source itself is unclear and the Chinese follows it literally, defect included.
+#
+# Glossary terms applied here: portal → 门户, theme → 主题, layout → 布局, realm → 域,
+# magic link → 魔法链接, passkey → 通行密钥, credential → 凭据, identity provider → 身份提供商.
+# Terms fixed for this batch and absent from the glossary: block → 块, design token → 设计令牌,
+# preset → 预设, breakpoint → 断点, builder → 编辑器 (agreed with the email-template batch, which
+# already renders "open builder" as 打开编辑器).
+#
+# The keys, the {{placeholders}} and the <tags> are contract. Every key under page_type.* is a
+# PortalPageType enum value sent by the API and must never be touched. Block type identifiers,
+# design-token names, CSS units and the example font URL live in code, not here.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose.
+
+header:
+  title: 门户
+  description: 此域公开认证页面的外观。
+  tabs:
+    themes: 主题
+    layouts: 布局
+
+actions:
+  import: 导入
+
+page_type:
+  login:
+    label: 登录
+    description: 凭据、身份提供商，以及每个流程的入口。
+  register:
+    label: 注册
+    description: 域允许时的自助账户创建。
+  totp:
+    label: OTP 验证
+    description: 密码校验通过后要求的第二因素。
+  forgot_password:
+    label: 忘记密码
+    description: 询问邮箱地址并发送重置邮件。
+  reset_password:
+    label: 重置密码
+    description: 从邮件链接进入，用于设置新密码。
+  magic_link_request:
+    label: 魔法链接请求
+    description: 询问邮箱地址并发送免密登录链接。
+  magic_link_verify:
+    label: 魔法链接验证
+    description: 链接的落地页面，会话在此打开。
+  verify_email:
+    label: 验证邮箱
+    description: 要求用户确认其注册时使用的邮箱地址。
+  email_verified:
+    label: 邮箱已验证
+    description: 邮箱地址验证通过后的确认页面。
+  totp_setup:
+    label: TOTP 设置
+    description: '首次注册：二维码、密钥和确认码。'
+  device_verify:
+    label: 设备验证
+    description: 'RFC 8628 同意页面：用户代码、批准与拒绝。'
+  device_verified:
+    label: 设备已验证
+    description: 确认页面；设备将自行完成登录。
+
+# The width and the Tailwind breakpoint are technical facts the administrator matches against their
+# own CSS — the numbers and the sm/md/xl identifiers stay verbatim.
+viewport:
+  iphone: iPhone —— 402（基准，低于 Tailwind sm）
+  tablet: 平板 —— 768（Tailwind md）
+  desktop: 桌面 —— 1280（Tailwind xl）
+
+themes:
+  create: 新建主题
+  section:
+    title: 主题
+    description: 同一时间只能启用一个主题，门户渲染的就是它。
+  empty: 尚无主题。主题承载颜色、排版以及门户渲染的 {{total}} 个页面。
+  metrics:
+    total:
+      label: 主题
+      hint: 在此域中
+    active:
+      label: 已启用
+      hint: 由门户渲染
+      # REVIEW: the English "the portal falls back" is elliptical and does not say what it falls
+      # back to. Rendered as "回退到默认值" — confirm with a maintainer what the fallback actually is.
+      empty_hint: 门户回退到默认值
+    activatable:
+      label: 可启用
+      hint: 所有页面均有效
+    pages:
+      label: 每个主题的页面数
+      hint: 页面类型
+  row:
+    # REVIEW: "active" here means "the one currently in effect", not "recently used". Rendered with
+    # the 启用 family rather than 活跃, which console.yaml uses for active users and sessions.
+    active: 已启用
+    active_theme: 当前启用的主题
+    # <num> wraps the "valid/total" counter so it can be rendered with tabular figures.
+    pages_valid: <num>{{valid}}/{{total}}</num> 个页面有效
+    layout: 布局 {{name}}
+    no_layout: 无布局
+    summary: '{{layout}} · 更新于 {{date}}'
+    identifier: 'theme_id: {{id}}'
+    incomplete_pages_other: <num>{{count}}</num> 个页面不完整
+    activation_blocked: '无法启用：{{detail}}'
+    activate: 启用
+    export: 导出 {{name}}
+    delete: 删除 {{name}}
+    delete_blocked: 已启用的主题无法删除。请先启用另一个主题。
+    swatch: '{{token}} · {{value}}'
+    swatch_default: 默认
+  create_dialog:
+    title: 新建门户主题
+    description: 这 {{total}} 个页面会以默认组合预填充，因此主题创建后即可启用。
+    name_placeholder: 主题名称
+    cancel: 取消
+    submit: 创建
+    submitting: 创建中…
+  toast:
+    # Chinese has a single plural form, so the wording is kept count-neutral: 其 covers both one
+    # page and several, where "open them" would read wrong at {{count}} = 1.
+    seed_failed_other: '{{count}} 个页面未能预填充——启用此主题前请先将其打开。'
+    export_failed: 无法导出此主题
+    saved: 门户主题已保存
+    created: 门户主题已创建
+    imported: 门户主题已导入
+    import_failed: 导入失败
+    activated: 门户主题已启用
+    activation_failed: 无法启用门户主题
+    deleted: 门户主题已删除
+
+layouts:
+  create: 新建布局
+  section:
+    title: 布局
+    description: '主题复用的页面结构：卡片、视觉图和页脚所在的位置。'
+  empty: 尚无布局。没有布局的主题会裸渲染其页面，这也是一种有效的组合。
+  metrics:
+    total:
+      label: 布局
+      hint: 在此域中
+    default:
+      label: 默认
+      hint: 主题未指定布局时使用
+    used:
+      label: 已附加
+      hint: 被某个主题持有
+    free:
+      label: 可删除
+      hint: 既非默认也未被持有
+  row:
+    default: 默认
+    unused: 未使用
+    theme_count_other: '{{count}} 个主题'
+    # <num> wraps the block counter so it can be rendered with tabular figures.
+    summary_other: <num>{{count}}</num> 个块 · 更新于 {{date}}
+    identifier: 'layout_id: {{id}}'
+    open: 打开
+    export: 导出 {{name}}
+    delete: 删除 {{name}}
+    refusal:
+      default: 默认布局无法删除。请先将另一个布局设为默认。
+      # Count-neutral on purpose: 相关主题 covers both "that theme" and "those themes", which the
+      # single Chinese plural form cannot distinguish.
+      in_use_other: 被 {{themes}} 使用。请先将其从相关主题上分离。
+  toast:
+    export_failed: 无法导出此布局
+
+detail:
+  draft: 草稿
+  activate: 启用此主题
+  activating: 启用中…
+  activation_blocked: 无法启用
+  not_found:
+    title: 未找到主题
+    hint: 它可能已被删除，或属于另一个域。
+  tabs:
+    theme: 主题
+    layout: 布局
+    pages: 页面
+  meta:
+    updated: 更新于 {{date}}
+    updated_label: 更新时间
+    identifier_label: 标识符
+  banner:
+    active: 门户正在渲染此主题：保存的每个页面都会立即校验，缺少必需块将被拒绝。
+    draft: 草稿：页面保存时不受约束。必需块会在主题启用时检查。
+  identity:
+    # REVIEW: the English section is called "Identity" but holds only the theme name. 标识 is the
+    # closest reading; a reviewer may prefer 基本信息. Do not use 身份, which the glossary reserves
+    # for the CIAM sense of a user.
+    title: 标识
+    name:
+      label: 主题名称
+      description: 用于在控制台中标识该主题，最终用户不会看到它。
+      required: 主题需要一个名称。
+  tokens:
+    title: 设计令牌
+    # TRANSLATOR NOTE: the English says "the value the domain defaults to" — "domain" is the
+    # backend domain layer, not a realm (域) and not an organization domain (域名). Rendering it
+    # would invent a meaning, so the qualifier is dropped here and must be confirmed.
+    description: 每一处更改都会实时反映在预览中。未修改的字段保留其默认值。
+  layout:
+    title: 布局
+    description: 包裹此主题每个页面的页眉、页脚和卡片容器。
+    field:
+      label: 门户布局
+      description: 可选。没有布局时，门户会自行渲染页面树。
+    option_none: 无布局——裸渲染页面
+    option_default: '{{name}} · 默认'
+    locked: 在此主题使用它期间，“{{name}}”无法删除。
+    detaching: 保存会将“{{name}}”从此主题分离；除非另一个主题持有它，否则它将变为可删除。
+  pages:
+    title: 页面
+    all_valid: '每个页面都包含其必需块：此主题可以启用。'
+    # Count-neutral on purpose: the English has a singular and a plural sentence, Chinese has one
+    # form, so 相关页面 replaces "it"/"all of them".
+    blocking_other: '{{count}} 个页面阻止启用。相关页面已全部列在下方——修复其中一个不会再暴露出新的问题。'
+    no_required_block: 无必需块
+    # {{block}} is a block type identifier with its underscores replaced by spaces.
+    block_missing: '缺少 {{block}}'
+    edit: 编辑
+  danger:
+    label: 删除此主题
+    description: 它的设计令牌以及 {{total}} 个页面的树将永久丢失。
+    button: 删除主题
+    confirm_title: 删除主题
+    confirm_description: 这将永久删除主题“{{name}}”及其 {{total}} 个页面的组合。
+  save_bar:
+    title_other: '{{count}} 项未保存的更改'
+    description: 门户只读取已保存的内容。
+    discard: 放弃
+    save: 保存更改
+    saving: 保存中…
+  toast:
+    saved: 门户主题已保存
+    save_failed: 门户主题保存失败
+
+page_builder:
+  title: '{{page}}页面'
+  all_blocks_present: 所有必需块齐全
+  # {{blocks}} is a comma-separated list of block type identifiers built in code.
+  missing_blocks: '缺少：{{blocks}}'
+  framed_by: 由 {{name}} 框定
+  no_layout: 无布局
+  unsaved: 未保存
+  save: 保存页面
+  saving: 保存中…
+  toast:
+    saved: 页面已保存
+    save_failed: 此页面保存失败
+    unknown_error: 未知错误
+  # Chinese has a single plural form, so one wording covers a single missing block and several.
+  error:
+    missing_on_page_other: '{{page}}页面缺少必需块：{{blocks}}'
+    missing_other: '缺少必需块：{{blocks}}'
+    pages_missing_blocks: 以下页面缺少必需块：
+    unknown_page: 未知页面
+
+layout_builder:
+  name_placeholder: 布局名称
+  create: 创建
+  save: 保存
+  saving: 保存中…
+
+builder:
+  sidebar:
+    components: 组件
+    presets: 预设
+    tree: 树
+  library:
+    required_for_page: 此页面的必需块
+    required_for_layout: 此布局的必需块
+    group:
+      layout: 布局
+      content: 内容
+      form: 表单与操作
+      identity: 身份字段
+      other: 其他
+  presets:
+    hint: 点击预设即可将其追加到页面。
+    # TRANSLATOR NOTE: the English title says "preset deletion", but the action it confirms
+    # replaces the current page tree with the preset — nothing is deleted from the preset list.
+    # The Chinese follows the English literally, defect included, until the copy is fixed.
+    confirm_title: 确认删除当前预设
+    confirm_description: 此操作无法撤销。
+  panel:
+    buttons:
+      title: 按钮
+      description: 主要和次要 CTA 按钮，包括其形状与排版。
+      section:
+        primary: 主要
+        secondary: 次要
+        social: 社交登录（Google、GitHub…）
+        magic_link: 魔法链接
+        passkey: 通行密钥
+        shape: 形状
+        typography: 排版
+    inputs:
+      title: 输入框
+      description: 表单字段（邮箱、密码、OTP）。背景色和文字颜色沿用页面令牌；在此调整形状与标签排版。
+      section:
+        shape: 形状
+        label_typography: 标签排版
+    widget:
+      # REVIEW: "widget" has no precedent in the translated catalogues. 小部件 is the common
+      # Simplified Chinese rendering; 卡片 was avoided because "card" is also a block type the
+      # administrator can drop on the canvas.
+      title: 小部件
+      description: 包裹每个认证流程的卡片——登录、注册、魔法链接等。
+      section:
+        surface: 表面
+        shape: 形状
+        spacing: 间距
+    typography:
+      title: 排版
+      description: 字体、基准字号，以及各处使用的标题/正文/链接样式。
+      section:
+        family: 字体
+        body_color: 正文颜色
+        links: 链接
+      style:
+        title: 标题
+        subtitle: 副标题
+        body: 正文
+    page:
+      title: 页面
+      description: 小部件背后的最外层表面，以及全局反馈颜色和间距。
+      section:
+        surface: 表面
+        feedback: 反馈
+        spacing: 间距
+  control:
+    background: 背景
+    # In the button panels this control picks the colour of the button's own text, not the colour
+    # of a form label — hence 文字 here and 标签 under inputs.section.label_typography.
+    label: 文字
+    border: 边框
+    border_color: 边框颜色
+    border_width: 边框宽度
+    radius: 圆角
+    shadow: 阴影
+    padding: 内边距
+    weight: 字重
+    size: 字号
+    custom_url: 自定义 URL
+    base_size: 基准字号
+    default_text: 默认文本
+    color: 颜色
+    decoration: 装饰
+    error: 错误
+    field_gap: 字段间距
+    section_gap: 区块间距
+    reset: 重置为默认值
+    reset_field: 将{{label}}重置为默认值
+    pick_color: 选择{{label}}的颜色
+  shadow:
+    none: 无
+    small: 小
+    large: 大
+  link_style:
+    normal: 常规
+    underline: 下划线
+  # Static mock of an authentication screen. It is console chrome, not seeded content: the wording
+  # is aligned with auth.yaml so the administrator previews the same words the end user will read.
+  preview:
+    title: 欢迎回来
+    subtitle: 登录到您的工作区。
+    error: 邮箱或密码不正确。
+    email: 邮箱
+    password: 密码
+    submit: 继续
+    other_account: 使用其他账户
+    separator: 或使用以下方式继续
+    forgot_password: 忘记密码？
+    social:
+      google: 使用 Google 继续
+      github: 使用 GitHub 继续

@@ -86,6 +86,11 @@ standard, or stored data.
 | alias | 别名 | |
 | lockout | 锁定 | |
 | second factor / MFA | 第二因素 / 多因素认证 | |
+| builder | 编辑器 | The drag-and-drop editors for emails and portal pages. Had no precedent across 17 catalogues; two lots needed it at once. |
+| template | 模板 | |
+| variable | 变量 | The `{{user.first_name}}` kind. |
+| assignment / unassign | 分配 / 解除分配 | |
+| transactional email | 事务性邮件 | |
 | audit / security event | 安全事件 | |
 | authentication flow | 认证流程 | |
 | maintenance mode | 维护模式 | |
@@ -141,6 +146,12 @@ and accept that this is a workaround rather than a clean distinction.
 `permission` is 权限, which leaves nothing for the English "right" / "access right". Where the source
 says "right", use **权利** and flag it — asserting 权限 would claim a link to the bitmask permission
 model that the English does not make.
+
+## Tokens the user has to retype are never translated
+
+A confirmation dialog that asks an administrator to type `delete`, or a realm name, is asking for an
+exact string match. Translating it to 删除 forces the user onto an IME to complete a destructive
+action. Keep the ASCII token and translate the sentence around it.
 
 ## SAML wire values stay in English
 

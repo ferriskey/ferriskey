@@ -196,6 +196,9 @@ delivery:
   description: Every attempt FerrisKey made to call this endpoint, newest first.
   error: Delivery history is unavailable. Try again in a moment.
   retry_failed: Could not queue this delivery
+  toast:
+    retry_queued: Delivery queued for another attempt
+    in_flight: This delivery is still in flight. Wait for it to finish.
   status:
     pending: Queued
     delivering: Sending

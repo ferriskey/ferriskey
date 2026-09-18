@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Monitor, Smartphone, Tablet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -32,6 +33,7 @@ import { PortalPreview } from '@/lib/builder-portal/preview'
 import type { Schemas } from '@/api/api.client'
 import { useGetPortalPageRequirements } from '@/api/portal-theme.api'
 import { cn } from '@/lib/utils'
+import { labelForPortalPage } from '../portal-pages'
 import { PageComponentLibrary } from './page-component-library'
 
 interface Props {
@@ -53,7 +55,11 @@ interface Props {
 //   iphone  402×874   — below sm (640), so only the BASE layer applies.
 //   tablet  768×1024  — md+ kicks in (sm fires too, since 768 ≥ 640).
 //   desktop 1280×800  — xl+ kicks in.
-type Viewport = 'iphone' | 'tablet' | 'desktop'
+const VIEWPORT_IPHONE = 'iphone'
+const VIEWPORT_TABLET = 'tablet'
+const VIEWPORT_DESKTOP = 'desktop'
+
+type Viewport = typeof VIEWPORT_IPHONE | typeof VIEWPORT_TABLET | typeof VIEWPORT_DESKTOP
 
 const VIEWPORT_WIDTHS: Record<Viewport, number> = {
   iphone: 402,
@@ -108,9 +114,10 @@ export default function PageTreeEditor({
   onTreeChange,
   leftRailNav,
 }: Props) {
+  const { t } = useTranslation('portal')
   const adapter = useMemo(() => createPortalAdapter(), [])
   const [tree, setTree] = useState<BuilderNode[]>(() => parseTree(initialTree))
-  const [viewport, setViewport] = useState<Viewport>('desktop')
+  const [viewport, setViewport] = useState<Viewport>(VIEWPORT_DESKTOP)
   const iframeRectRef = useRef<DOMRect | null>(null)
   const iframeScaleRef = useRef<number>(1)
   const getIframeRect = useCallback(() => iframeRectRef.current, [])
@@ -200,17 +207,17 @@ export default function PageTreeEditor({
           <main className='flex min-w-0 flex-col overflow-hidden'>
             <header className='flex items-center justify-between border-b border-border px-4 py-2'>
               <div className='flex items-center gap-3'>
-                <span className='text-sm font-medium capitalize'>
-                  {pageType.replace(/_/g, ' ')} page
+                <span className='text-sm font-medium'>
+                  {t('page_builder.title', { page: labelForPortalPage(pageType) })}
                 </span>
                 {missing.length === 0 ? (
                   <Badge variant='outline' className='gap-1 border-emerald-300 text-emerald-700'>
-                    All required blocks present
+                    {t('page_builder.all_blocks_present')}
                   </Badge>
                 ) : (
                   <Badge variant='outline' className='gap-1 border-amber-300 text-amber-700'>
                     <AlertTriangle size={12} />
-                    Missing: {missing.join(', ')}
+                    {t('page_builder.missing_blocks', { blocks: missing.join(', ') })}
                   </Badge>
                 )}
               </div>
@@ -328,26 +335,28 @@ function ViewportSwitcher({
   viewport: Viewport
   onChange: (v: Viewport) => void
 }) {
+  const { t } = useTranslation('portal')
+
   return (
     <div className='flex items-center gap-1 rounded-md border border-border p-0.5'>
       <ViewportButton
-        active={viewport === 'iphone'}
-        onClick={() => onChange('iphone')}
-        label='iPhone — 402 (base, below Tailwind sm)'
+        active={viewport === VIEWPORT_IPHONE}
+        onClick={() => onChange(VIEWPORT_IPHONE)}
+        label={t('viewport.iphone')}
       >
         <Smartphone size={14} />
       </ViewportButton>
       <ViewportButton
-        active={viewport === 'tablet'}
-        onClick={() => onChange('tablet')}
-        label='Tablet — 768 (Tailwind md)'
+        active={viewport === VIEWPORT_TABLET}
+        onClick={() => onChange(VIEWPORT_TABLET)}
+        label={t('viewport.tablet')}
       >
         <Tablet size={14} />
       </ViewportButton>
       <ViewportButton
-        active={viewport === 'desktop'}
-        onClick={() => onChange('desktop')}
-        label='Desktop — 1280 (Tailwind xl)'
+        active={viewport === VIEWPORT_DESKTOP}
+        onClick={() => onChange(VIEWPORT_DESKTOP)}
+        label={t('viewport.desktop')}
       >
         <Monitor size={14} />
       </ViewportButton>

@@ -20,7 +20,7 @@ export default function UserRoleMappingFeature() {
     isError,
   } = useGetUserRoles({ realm, userId: user_id ?? '' })
   const { data: rolesResponse } = useGetRoles({ realm })
-  const { mutate: assignRole } = useAssignUserRole()
+  const { mutateAsync: assignRole } = useAssignUserRole()
   const { mutate: unassignRole } = useUnassignUserRole()
 
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
@@ -32,18 +32,28 @@ export default function UserRoleMappingFeature() {
     return (rolesResponse?.data ?? []).filter((role) => !assigned.has(role.id))
   }, [roles, rolesResponse])
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!user_id || !realm_name) {
       toast.error(t('detail.role_mapping.toast.missing_context'))
       return
     }
     if (!assignRoleSchema.safeParse({ roleIds: selectedRoleIds }).success) return
 
-    for (const roleId of selectedRoleIds) {
-      assignRole({ path: { realm_name, user_id, role_id: roleId } })
+    const attempted = selectedRoleIds
+    const outcomes = await Promise.allSettled(
+      attempted.map((roleId) => assignRole({ path: { realm_name, user_id, role_id: roleId } }))
+    )
+
+    const failed = attempted.filter((_, index) => outcomes[index].status === 'rejected')
+    setSelectedRoleIds(failed)
+
+    const assignedCount = attempted.length - failed.length
+    if (assignedCount > 0) {
+      toast.success(t('detail.role_mapping.toast.assigned', { count: assignedCount }))
     }
-    setSelectedRoleIds([])
-    toast.success(t('detail.role_mapping.toast.assigned'))
+    if (failed.length > 0) {
+      toast.error(t('detail.role_mapping.toast.assign_failed', { count: failed.length }))
+    }
   }
 
   const handleUnassign = (roleId: string) => {

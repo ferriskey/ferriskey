@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   useDeletePortalLayout,
@@ -9,11 +10,12 @@ import {
 import { useListPortalThemes } from '@/api/portal-theme.api'
 import { downloadPortalLayoutExport, readExportFile } from '@/api/builder-export'
 import { RouterParams } from '@/routes/router'
-import { usePortalUrls } from '../use-portal-urls'
+import { NEW_LAYOUT_ID, usePortalUrls } from '../use-portal-urls'
 import { countNodes } from '../theme-validation'
 import PagePortalLayouts, { type PortalLayoutRow } from '../ui/page-portal-layouts'
 
 export default function PagePortalLayoutsFeature() {
+  const { t } = useTranslation('portal')
   const portal = usePortalUrls()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
@@ -45,14 +47,14 @@ export default function PagePortalLayoutsFeature() {
     <PagePortalLayouts
       rows={rows}
       isLoading={isLoading}
-      onCreate={() => navigate(portal.layout('new'))}
+      onCreate={() => navigate(portal.layout(NEW_LAYOUT_ID))}
       onEdit={(layoutId) => navigate(portal.layout(layoutId))}
       onDelete={(layoutId) =>
         deleteLayout({ path: { realm_name: realm, layout_id: layoutId } })
       }
       onExport={(layoutId) =>
         downloadPortalLayoutExport(realm, layoutId).catch(() =>
-          toast.error('Could not export this layout')
+          toast.error(t('layouts.toast.export_failed'))
         )
       }
       onImport={handleImport}

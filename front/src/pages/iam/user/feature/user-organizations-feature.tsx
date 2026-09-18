@@ -23,7 +23,7 @@ export default function UserOrganizationsFeature() {
     isError,
   } = useGetUserOrganizations({ realm, userId: user_id })
   const { data: allOrgsResponse, isLoading: isLoadingOrgs } = useGetOrganizations({ realm })
-  const { mutate: addToOrganization } = useAddUserToOrganization()
+  const { mutateAsync: addToOrganization } = useAddUserToOrganization()
   const { mutate: removeFromOrganization } = useRemoveUserFromOrganization()
 
   const [selectedOrganizationIds, setSelectedOrganizationIds] = useState<string[]>([])
@@ -42,7 +42,7 @@ export default function UserOrganizationsFeature() {
     return (allOrgsResponse?.data ?? []).filter((org) => !assigned.has(org.id))
   }, [memberships, allOrgsResponse])
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!user_id || !realm_name) {
       toast.error(t('detail.organizations.toast.missing_context'))
       return
@@ -52,14 +52,26 @@ export default function UserOrganizationsFeature() {
     )
       return
 
-    for (const organizationId of selectedOrganizationIds) {
-      addToOrganization({
-        path: { realm_name, organization_id: organizationId },
-        body: { user_id },
-      })
+    const attempted = selectedOrganizationIds
+    const outcomes = await Promise.allSettled(
+      attempted.map((organizationId) =>
+        addToOrganization({
+          path: { realm_name, organization_id: organizationId },
+          body: { user_id },
+        })
+      )
+    )
+
+    const failed = attempted.filter((_, index) => outcomes[index].status === 'rejected')
+    setSelectedOrganizationIds(failed)
+
+    const assignedCount = attempted.length - failed.length
+    if (assignedCount > 0) {
+      toast.success(t('detail.organizations.toast.assigned', { count: assignedCount }))
     }
-    setSelectedOrganizationIds([])
-    toast.success(t('detail.organizations.toast.assigned'))
+    if (failed.length > 0) {
+      toast.error(t('detail.organizations.toast.assign_failed', { count: failed.length }))
+    }
   }
 
   const handleRemove = (organizationId: string) => {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, ArrowLeft, Copy, Download, Pencil } from 'lucide-react'
+import { Trans, useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
@@ -8,11 +9,23 @@ import { DetailHeader, FieldRow, IconTile, PageShell, Pill, Section } from '@/co
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
-import { citedVariables, emailTypeSpec, type EmailTypeSpec } from '../email-types'
+import {
+  EMAIL_TEMPLATE_NAMESPACE,
+  EXPORT_JSON,
+  EXPORT_MJML,
+  citedVariables,
+  emailTypeSpec,
+  variableToken,
+  type EmailTypeSpec,
+} from '../email-types'
 
 import EmailTemplate = Schemas.EmailTemplate
 import TemplateVariable = Schemas.TemplateVariable
 import { formatDate } from '@/utils/format-date'
+
+const LIST_SEPARATOR = ', '
+
+const COPIED_FEEDBACK_MS = 1500
 
 export interface PageEmailTemplateDetailProps {
   template?: EmailTemplate
@@ -47,6 +60,7 @@ export default function PageEmailTemplateDetail({
   onSave,
   onDelete,
 }: PageEmailTemplateDetailProps) {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const [copied, setCopied] = useState(false)
 
   if (isLoading) {
@@ -69,12 +83,14 @@ export default function PageEmailTemplateDetail({
       <PageShell>
         <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
           <ArrowLeft className='size-3.5' />
-          Emails
+          {t('detail.back')}
         </Button>
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Email template not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.hint')}
           </p>
         </div>
       </PageShell>
@@ -89,7 +105,7 @@ export default function PageEmailTemplateDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Emails'
+        backLabel={t('detail.back')}
         icon={
           <IconTile tone={spec.tone} className='size-15'>
             <spec.icon className='size-6' strokeWidth={1.5} />
@@ -102,28 +118,28 @@ export default function PageEmailTemplateDetail({
               {template.email_type}
             </Pill>
             {assignedTo.length > 0 ? (
-              <Pill tone='success'>assigned</Pill>
+              <Pill tone='success'>{t('detail.pills.assigned')}</Pill>
             ) : (
-              <Pill tone='amber'>not assigned</Pill>
+              <Pill tone='amber'>{t('detail.pills.not_assigned')}</Pill>
             )}
           </>
         }
         meta={
           <div className='flex shrink-0 items-start gap-4'>
             <dl className='text-right text-xs text-neutral-500 dark:text-neutral-400'>
-              <dt className='sr-only'>Updated at</dt>
+              <dt className='sr-only'>{t('detail.meta.updated_at')}</dt>
               <dd className='tnum'>
-                Updated {formatDate(template.updated_at)}
+                {t('detail.meta.updated', { date: formatDate(template.updated_at) })}
               </dd>
-              <dt className='sr-only'>Identifier</dt>
+              <dt className='sr-only'>{t('detail.meta.identifier')}</dt>
               <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{template.id}</dd>
             </dl>
             <div className='flex gap-2'>
-              <Button variant='outline' onClick={() => onExport('json')}>
-                <Download /> Export
+              <Button variant='outline' onClick={() => onExport(EXPORT_JSON)}>
+                <Download /> {t('detail.meta.export')}
               </Button>
               <Button onClick={onOpenBuilder}>
-                <Pencil /> Open the builder
+                <Pencil /> {t('detail.meta.open_builder')}
               </Button>
             </div>
           </div>
@@ -131,10 +147,10 @@ export default function PageEmailTemplateDetail({
       />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
-        <Section title='General' description={spec.trigger}>
+        <Section title={t('detail.general.title')} description={t(spec.triggerKey)}>
           <FieldRow
-            label='Name'
-            description='How this template is named in the console. Required.'
+            label={t('detail.general.name.label')}
+            description={t('detail.general.name.description')}
             htmlFor='email-template-name'
           >
             <Input
@@ -148,8 +164,8 @@ export default function PageEmailTemplateDetail({
           </FieldRow>
 
           <FieldRow
-            label='Type'
-            description='Fixed at creation: it decides which variables the engine supplies and which email uses this template.'
+            label={t('detail.general.type.label')}
+            description={t('detail.general.type.description')}
             htmlFor='email-template-type'
           >
             <Input
@@ -161,26 +177,28 @@ export default function PageEmailTemplateDetail({
           </FieldRow>
 
           <FieldRow
-            label='Used for'
-            description='Set on the Emails listing. An email with no template falls back to the plain-text default.'
+            label={t('detail.general.used_for.label')}
+            description={t('detail.general.used_for.description')}
           >
             <div className='flex flex-wrap items-center gap-2'>
               {assignedTo.length > 0 ? (
                 assignedTo.map((used) => (
                   <Pill key={used.key} tone='success'>
-                    {used.label}
+                    {t(used.labelKey)}
                   </Pill>
                 ))
               ) : (
-                <span className='text-sm text-neutral-400 dark:text-neutral-500'>No email uses this template</span>
+                <span className='text-sm text-neutral-400 dark:text-neutral-500'>
+                  {t('detail.general.used_for.empty')}
+                </span>
               )}
             </div>
           </FieldRow>
         </Section>
 
         <Section
-          title='Available variables'
-          description='Interpolated at send time and HTML-escaped. Any other expression is left as it is.'
+          title={t('detail.variables.title')}
+          description={t('detail.variables.description')}
         >
           {variables.map((variable) => {
             const used = cited.has(variable.name)
@@ -197,11 +215,16 @@ export default function PageEmailTemplateDetail({
                       : 'border-fk-line bg-neutral-50 text-neutral-500 dark:bg-fk-surface dark:text-neutral-400'
                   )}
                 >
-                  {`{{${variable.name}}}`}
+                  {variableToken(variable.name)}
                 </code>
                 <p className='min-w-0 text-xs text-neutral-500 dark:text-neutral-400'>
                   {variable.description}
-                  {!used && <span className='text-neutral-400 dark:text-neutral-500'> — absent from this template</span>}
+                  {!used && (
+                    <span className='text-neutral-400 dark:text-neutral-500'>
+                      {' '}
+                      {t('detail.variables.absent')}
+                    </span>
+                  )}
                 </p>
               </div>
             )
@@ -212,22 +235,27 @@ export default function PageEmailTemplateDetail({
           <div className='flex items-start gap-2.5 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3'>
             <AlertTriangle className='mt-0.5 size-4 shrink-0 text-fk-amber' strokeWidth={2} />
             <p className='text-xs text-neutral-700 dark:text-neutral-300'>
-              {unsupplied.map((variable) => `{{${variable}}}`).join(', ')}{' '}
-              {unsupplied.length > 1 ? 'are not supplied' : 'is not supplied'} for the{' '}
-              <code className='font-mono-ui'>{template.email_type}</code> type:{' '}
-              {unsupplied.length > 1 ? 'they leave' : 'it leaves'} verbatim in the email the user
-              receives.
+              <Trans
+                i18nKey='detail.variables.unsupplied'
+                ns={EMAIL_TEMPLATE_NAMESPACE}
+                count={unsupplied.length}
+                values={{
+                  names: unsupplied.map(variableToken).join(LIST_SEPARATOR),
+                  type: template.email_type,
+                }}
+                components={{ code: <code className='font-mono-ui' /> }}
+              />
             </p>
           </div>
         )}
 
         <Section
-          title='MJML'
-          description='Produced by the builder from the stored structure.'
+          title={t('detail.mjml.title')}
+          description={t('detail.mjml.description')}
           action={
             <div className='flex items-center gap-2'>
-              <Button variant='ghost' size='sm' className='text-xs' onClick={() => onExport('mjml')}>
-                <Download /> Export MJML
+              <Button variant='ghost' size='sm' className='text-xs' onClick={() => onExport(EXPORT_MJML)}>
+                <Download /> {t('detail.mjml.export')}
               </Button>
               <Button
                 variant='ghost'
@@ -236,10 +264,10 @@ export default function PageEmailTemplateDetail({
                 onClick={() => {
                   void navigator.clipboard.writeText(template.mjml)
                   setCopied(true)
-                  window.setTimeout(() => setCopied(false), 1500)
+                  window.setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS)
                 }}
               >
-                <Copy /> {copied ? 'Copied' : 'Copy'}
+                <Copy /> {copied ? t('detail.mjml.copied') : t('detail.mjml.copy')}
               </Button>
             </div>
           }
@@ -251,31 +279,30 @@ export default function PageEmailTemplateDetail({
         </Section>
 
         <DangerZone
-        resourceName={template.name}
-          label='Delete this template'
+          resourceName={template.name}
+          label={t('detail.danger.label')}
           description={
             assignedTo.length > 0
-              ? `It is assigned to ${assignedTo
-                  .map((used) => used.label)
-                  .join(', ')}. Deleting it succeeds and unassigns it: ${
-                  assignedTo.length > 1 ? 'those emails' : 'that email'
-                } falls back to the plain-text default.`
-              : 'Its structure and its rendered MJML are lost for good.'
+              ? t('detail.danger.assigned', {
+                  count: assignedTo.length,
+                  targets: assignedTo.map((used) => t(used.labelKey)).join(LIST_SEPARATOR),
+                })
+              : t('detail.danger.plain')
           }
-          buttonLabel='Delete template'
-          confirmTitle='Delete email template'
-          confirmDescription={`This will permanently delete the template "${template.name}".`}
+          buttonLabel={t('detail.danger.button')}
+          confirmTitle={t('detail.danger.confirm_title')}
+          confirmDescription={t('detail.danger.confirm_description', { name: template.name })}
           onConfirm={onDelete}
         />
       </div>
 
       <SaveBar
         show={dirty}
-        title='1 unsaved change'
-        description='Only the name is editable here; the content is edited in the builder.'
+        title={t('detail.save.title')}
+        description={t('detail.save.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save.cancel')}
+        actions={[{ label: t('detail.save.action'), onClick: onSave }]}
       />
     </PageShell>
   )

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   useActivatePortalTheme,
@@ -21,6 +22,7 @@ import { failingPages, requirementsByPage, statusesForTheme } from '../theme-val
 import PagePortalThemes, { type PortalThemeRow } from '../ui/page-portal-themes'
 
 export default function PagePortalThemesFeature() {
+  const { t } = useTranslation('portal')
   const portal = usePortalUrls()
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
@@ -64,9 +66,7 @@ export default function PagePortalThemesFeature() {
     }
 
     if (failed > 0) {
-      toast.warning(
-        `${failed} page${failed > 1 ? 's' : ''} could not be pre-filled — open them before activating this theme.`
-      )
+      toast.warning(t('themes.toast.seed_failed', { count: failed }))
     }
   }
 
@@ -108,7 +108,7 @@ export default function PagePortalThemesFeature() {
       onDelete={(themeId) => deleteTheme({ path: { realm_name: realm, theme_id: themeId } })}
       onExport={(themeId) =>
         downloadPortalThemeExport(realm, themeId).catch(() =>
-          toast.error('Could not export this theme')
+          toast.error(t('themes.toast.export_failed'))
         )
       }
       onImport={handleImport}

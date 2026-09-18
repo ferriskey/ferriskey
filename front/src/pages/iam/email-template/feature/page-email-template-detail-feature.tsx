@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   useDeleteEmailTemplate,
@@ -9,7 +10,7 @@ import {
 } from '@/api/email-template.api'
 import { useGetRealm } from '@/api/realm.api'
 import { downloadEmailTemplateExport } from '@/api/builder-export'
-import { EMAIL_TYPES } from '../email-types'
+import { EMAIL_TEMPLATE_NAMESPACE, EMAIL_TYPES } from '../email-types'
 import PageEmailTemplateDetail from '../ui/page-email-template-detail'
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 import { useEmailTemplatesBase } from '@/hooks/use-section-base'
@@ -22,6 +23,7 @@ interface Draft {
 const EMPTY_DRAFT: Draft = { key: '', name: '' }
 
 export default function PageEmailTemplateDetailFeature() {
+  const { t } = useTranslation(EMAIL_TEMPLATE_NAMESPACE)
   const emailTemplatesBase = useEmailTemplatesBase()
   const { realm_name, template_id } = useParams<{ realm_name: string; template_id: string }>()
   const navigate = useNavigate()
@@ -49,7 +51,8 @@ export default function PageEmailTemplateDetailFeature() {
   )
 
   const dirty = Boolean(template && name !== template.name)
-  const nameError = name.trim().length === 0 ? 'Name is required' : undefined
+  const nameError =
+    name.trim().length === 0 ? t('detail.validation.name_required') : undefined
 
   const save = () => {
     if (!template || nameError) return
@@ -88,7 +91,7 @@ export default function PageEmailTemplateDetailFeature() {
       }
       onExport={(format: 'json' | 'mjml') =>
         downloadEmailTemplateExport(realm, templateId, format).catch(() =>
-          toast.error('Could not export this template')
+          toast.error(t('detail.toast.export_failed'))
         )
       }
       onDiscard={() => setDraft(pristine)}

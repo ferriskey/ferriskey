@@ -1,0 +1,228 @@
+# Catalogue of the Emails section: the template listing, the SMTP tab, the template detail and the
+# MJML builder chrome. The drag-and-drop engine itself (src/lib/builder-core, src/lib/builder-mjml)
+# is deliberately out of the translation scope and carries no key here.
+
+page:
+  title: Emails
+  description: Models of the transactional emails of this realm, and the server that sends them.
+  import: Import
+  create: New template
+  tabs:
+    templates: Templates
+    smtp: SMTP
+
+# Keys are EmailType enum values sent by the API and must never be renamed.
+# "label" names the email in prose, "short" fits a metric tile and a filter chip, and "trigger"
+# tells an administrator when FerrisKey actually sends it.
+type:
+  reset_password:
+    label: Reset Password
+    short: Password
+    trigger: Sent when a user asks to reset their password.
+  magic_link:
+    label: Magic Link
+    short: Magic Link
+    trigger: Sent when a user asks for a sign-in link.
+  email_verification:
+    label: Email Verification
+    short: Verification
+    trigger: Sent when an account is created, or on a verification request.
+
+# Relative "last updated" of a template row. The abbreviated forms never inflect, so they take
+# {{total}} rather than {{count}}.
+relative:
+  just_now: just now
+  minutes: '{{total}}m ago'
+  hours: '{{total}}h ago'
+  days: '{{total}}d ago'
+
+list:
+  alert:
+    # {{names}} is a comma-joined list of type labels, built in code.
+    unassigned_one: '{{names}} has no template assigned — FerrisKey sends its plain-text default email for that one.'
+    unassigned_other: '{{names}} have no template assigned — FerrisKey sends its plain-text default email for those.'
+  metrics:
+    total:
+      label: Templates
+      hint: in this realm
+    type:
+      # Lowercase on purpose: these sit as the hint line under a metric tile.
+      assigned: assigned
+      none: none assigned
+  assignment:
+    title: Assignment
+    description: One template per email. Without an assignment, FerrisKey sends its plain-text default email.
+    not_configured: Not configured
+    empty: No template of this type in this realm.
+  templates:
+    title: Templates
+    description: 'The type of a template is fixed at creation: it decides the variables available to it.'
+    search_placeholder: Filter templates…
+    filter_all: All
+    # Lowercase on purpose: rendered inside a pill next to the template name.
+    assigned: assigned
+    meta: '{{type}} · updated {{when}}'
+    edit: Edit
+    # Export formats, not prose: they name the file the button downloads.
+    export_json: JSON
+    export_mjml: MJML
+    delete_aria: Delete {{name}}
+  empty:
+    none:
+      label: No email template
+      hint: Until a template is assigned, FerrisKey sends its plain-text default emails.
+    filtered:
+      label: No template matches the filter
+      hint: Adjust the search or the type filter.
+    clear: Clear filters
+    create: New template
+  delete:
+    title: Delete email template
+    # {{targets}} is a comma-joined list of type labels, built in code.
+    assigned_one: '"{{name}}" is assigned to {{targets}}. Deleting it succeeds and unassigns it: that email falls back to the plain-text default.'
+    assigned_other: '"{{name}}" is assigned to {{targets}}. Deleting it succeeds and unassigns it: those emails fall back to the plain-text default.'
+    plain: 'This permanently deletes "{{name}}", its structure and its MJML.'
+  toast:
+    export_failed: Could not export this template
+
+smtp:
+  alert:
+    no_server: This realm has no SMTP server. No transactional email leaves — password resets, magic links and verifications are stored but never delivered.
+  server:
+    title: SMTP server
+    description: The server this realm sends its emails through.
+    host:
+      label: Host
+      description: Hostname of the SMTP server.
+    port:
+      label: Port
+      description: Port of the SMTP server — 587, 465 or 25.
+    encryption:
+      label: Encryption
+      description: How the connection to the server is encrypted.
+      tls:
+        label: TLS
+        hint: Encrypted from the first byte, usually on port 465.
+      starttls:
+        label: STARTTLS
+        hint: Plain connection upgraded to encryption, usually on port 587.
+      none:
+        label: None
+        hint: In the clear. Only for a local relay.
+    username:
+      label: Username
+      description: Account used to authenticate against the server.
+    password:
+      label: Password
+      description: 'Never returned by the API, so it cannot be pre-filled: it has to be typed again to save any change on this tab.'
+      # Lowercase on purpose: rendered inside a pill under the password field.
+      stored: stored, write-only
+  sender:
+    title: Sender
+    description: What recipients see in their inbox.
+    from_email:
+      label: From email
+      description: Address the outgoing emails are sent from.
+    from_name:
+      label: From name
+      description: Display name shown next to the address.
+  danger:
+    label: Delete SMTP configuration
+    description: Remove the SMTP configuration for this realm. Email features (password reset, magic links, verification) will stop working.
+    button: Delete SMTP config
+    confirm_title: Delete SMTP configuration
+    confirm_description: This will permanently remove the SMTP configuration for this realm. Email delivery will be disabled.
+  save:
+    title_dirty: Unsaved SMTP changes
+    title_new: SMTP server not configured yet
+    description: Saving replaces the whole configuration, password included.
+    cancel: Discard
+    action_dirty: Save changes
+    action_new: Save configuration
+  # Client-side checks of the SMTP form. The schema they come from lives in
+  # src/pages/iam/realm/schemas/smtp-config.schema.ts, which this batch does not own, so the
+  # messages are resolved here from the field the issue points at.
+  validation:
+    host: Host is required
+    port: Port must be between 1 and 65535
+    username: Username is required
+    password: Password is required
+    from_email: Must be a valid email
+    from_name: From name is required
+    encryption: Choose how the connection is encrypted
+
+detail:
+  back: Emails
+  not_found:
+    title: Email template not found
+    hint: It may have been deleted, or it belongs to another realm.
+  pills:
+    # Lowercase on purpose: both sit in a pill next to the template name.
+    assigned: assigned
+    not_assigned: not assigned
+  meta:
+    # Screen-reader-only label of the date below it.
+    updated_at: Updated at
+    updated: Updated {{date}}
+    # Screen-reader-only label of the template id below it.
+    identifier: Identifier
+    export: Export
+    open_builder: Open the builder
+  general:
+    title: General
+    name:
+      label: Name
+      description: How this template is named in the console. Required.
+    type:
+      label: Type
+      description: 'Fixed at creation: it decides which variables the engine supplies and which email uses this template.'
+    used_for:
+      label: Used for
+      description: Set on the Emails listing. An email with no template falls back to the plain-text default.
+      empty: No email uses this template
+  variables:
+    title: Available variables
+    description: Interpolated at send time and HTML-escaped. Any other expression is left as it is.
+    # Appended after the variable description, on the same line.
+    absent: — absent from this template
+    # Rendered with <Trans>. <code> wraps the email type, which is an API enum value and is never
+    # translated. {{names}} is a comma-joined list of {{variable}} tokens, built in code.
+    unsupplied_one: '{{names}} is not supplied for the <code>{{type}}</code> type: it leaves verbatim in the email the user receives.'
+    unsupplied_other: '{{names}} are not supplied for the <code>{{type}}</code> type: they leave verbatim in the email the user receives.'
+  mjml:
+    title: MJML
+    description: Produced by the builder from the stored structure.
+    export: Export MJML
+    copy: Copy
+    copied: Copied
+  danger:
+    label: Delete this template
+    # {{targets}} is a comma-joined list of type labels, built in code.
+    assigned_one: 'It is assigned to {{targets}}. Deleting it succeeds and unassigns it: that email falls back to the plain-text default.'
+    assigned_other: 'It is assigned to {{targets}}. Deleting it succeeds and unassigns it: those emails fall back to the plain-text default.'
+    plain: Its structure and its rendered MJML are lost for good.
+    button: Delete template
+    confirm_title: Delete email template
+    confirm_description: 'This will permanently delete the template "{{name}}".'
+  save:
+    # The name is the only editable field on this screen, so the count is always one.
+    title: 1 unsaved change
+    description: Only the name is editable here; the content is edited in the builder.
+    cancel: Discard
+    action: Save changes
+  validation:
+    name_required: Name is required
+  toast:
+    export_failed: Could not export this template
+
+builder:
+  back: Emails
+  loading: Loading template…
+  name_placeholder: Template name…
+  email_type: Email type
+  viewport:
+    desktop: Desktop
+    tablet: Tablet
+    mobile: Mobile
+  save: Save
+  saving: Saving…

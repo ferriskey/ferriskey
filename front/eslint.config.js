@@ -10,11 +10,27 @@ const outOfScopeForTranslation = [
   'src/lib/builder-core/**',
   'src/lib/builder-mjml/**',
   'src/lib/builder-portal/**',
-  'src/pages/iam/portal/**',
-  'src/pages/iam/email-template/**',
-  'src/api/portal-theme.api.tsx',
   '**/*.test.{ts,tsx}',
   '**/*.spec.{ts,tsx}',
+]
+
+// Overriding `callees` replaces the plugin default wholesale, so the default list is restated
+// here. `translate` is the non-hook entry point of src/lib/i18n, used where no component is in
+// scope; without it every key it is given would be reported as an untranslated literal.
+const translationCallees = ['i18n(ext)?', 't', 'translate']
+
+const technicalCallees = [
+  'require',
+  'addEventListener',
+  'removeEventListener',
+  'postMessage',
+  'getElementById',
+  'dispatch',
+  'commit',
+  'includes',
+  'indexOf',
+  'endsWith',
+  'startsWith',
 ]
 
 const technicalJsxAttributes = [
@@ -113,6 +129,9 @@ export default tseslint.config(
         {
           framework: 'react',
           mode: 'jsx-only',
+          callees: {
+            exclude: [...translationCallees, ...technicalCallees],
+          },
           'jsx-attributes': {
             exclude: technicalJsxAttributes,
           },

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FieldRow, Section } from '@/components/kit'
@@ -17,12 +18,14 @@ export interface ThemeTokensTabProps {
 }
 
 export default function ThemeTokensTab({ name, onNameChange, nameError }: ThemeTokensTabProps) {
+  const { t } = useTranslation('portal')
+
   return (
     <>
-      <Section title='Identity'>
+      <Section title={t('detail.identity.title')}>
         <FieldRow
-          label='Theme name'
-          description='Names the theme in the console; end users never read it.'
+          label={t('detail.identity.name.label')}
+          description={t('detail.identity.name.description')}
           htmlFor='portal-theme-name'
         >
           <Input
@@ -37,8 +40,8 @@ export default function ThemeTokensTab({ name, onNameChange, nameError }: ThemeT
       </Section>
 
       <Section
-        title='Design tokens'
-        description='Every change is reflected live in the preview. Untouched fields keep the value the domain defaults to.'
+        title={t('detail.tokens.title')}
+        description={t('detail.tokens.description')}
         contained={false}
       >
         <div

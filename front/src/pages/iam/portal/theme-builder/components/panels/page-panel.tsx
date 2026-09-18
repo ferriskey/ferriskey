@@ -1,57 +1,67 @@
+import { useTranslation } from 'react-i18next'
 import { defaultTheme, usePortalThemeContext } from '../../context/portal-theme-context'
 import { ColorPicker } from '../controls/color-picker'
 import { ValueSlider } from '../controls/value-slider'
 import { PanelHeader, PanelSection } from './section'
+import { UNIT_PX } from './units'
 
 const D = defaultTheme
 
+const TOKENS = {
+  background: 'pageBackground',
+  error: 'error',
+  fieldGap: 'fieldGap',
+  sectionGap: 'sectionGap',
+} as const
+
 export function PagePanel() {
+  const { t } = useTranslation('portal')
   const { theme, setColor, setSpacing } = usePortalThemeContext()
   const { colors, spacing } = theme
 
   return (
     <div className='flex flex-col'>
       <PanelHeader
-        title='Page'
-        description='Outermost surface behind the widget plus global feedback colors and spacing.'
+        title={t('builder.panel.page.title')}
+        description={t('builder.panel.page.description')}
       />
 
-      <PanelSection title='Surface'>
+      <PanelSection title={t('builder.panel.page.section.surface')}>
         <ColorPicker
-          label='Background'
+          label={t('builder.control.background')}
           value={colors.pageBackground}
           defaultValue={D.colors.pageBackground}
-          onChange={(v) => setColor('pageBackground', v)}
+          onChange={(v) => setColor(TOKENS.background, v)}
         />
       </PanelSection>
 
-      <PanelSection title='Feedback'>
+      <PanelSection title={t('builder.panel.page.section.feedback')}>
         <ColorPicker
-          label='Error'
+          label={t('builder.control.error')}
           value={colors.error}
           defaultValue={D.colors.error}
-          onChange={(v) => setColor('error', v)}
+          onChange={(v) => setColor(TOKENS.error, v)}
         />
       </PanelSection>
 
-      <PanelSection title='Spacing'>
+      <PanelSection title={t('builder.panel.page.section.spacing')}>
         <ValueSlider
-          label='Field gap'
+          label={t('builder.control.field_gap')}
           value={spacing.fieldGap}
           defaultValue={D.spacing.fieldGap}
-          onChange={(v) => setSpacing('fieldGap', v)}
+          onChange={(v) => setSpacing(TOKENS.fieldGap, v)}
           min={0}
           max={48}
-          unit='px'
+          unit={UNIT_PX}
         />
         <ValueSlider
-          label='Section gap'
+          label={t('builder.control.section_gap')}
           value={spacing.sectionGap}
           defaultValue={D.spacing.sectionGap}
-          onChange={(v) => setSpacing('sectionGap', v)}
+          onChange={(v) => setSpacing(TOKENS.sectionGap, v)}
           min={0}
           max={64}
-          unit='px'
+          unit={UNIT_PX}
         />
       </PanelSection>
     </div>

@@ -1,0 +1,223 @@
+# 简体中文 catalogue for the Emails section: template listing, SMTP tab, template detail and the
+# builder chrome.
+#
+# Produced without a native reviewer — see front/src/locales/GLOSSARY.md, which fixes the domain
+# terms used here (realm → 域, SMTP left in English, magic link → 魔法链接). The three email type
+# names follow console.yaml's delivery journal verbatim: reset_password → 密码重置,
+# magic_link → 魔法链接, email_verification → 邮箱验证.
+#
+# Entries carrying a "TRANSLATOR NOTE" are the ones a reviewer should read first.
+#
+# The keys, the {{placeholders}} and the <tags> are contract. In particular every key under type.*
+# is an EmailType enum value sent by the API and must never be touched.
+#
+# Chinese declares a single plural category ("other"), so the *_one forms of the English catalogue
+# have no counterpart here on purpose. Their Chinese wording is written to read correctly for one
+# item as well as for several.
+
+page:
+  title: 邮件
+  description: 本域事务性邮件的模板，以及发送它们的服务器。
+  import: 导入
+  create: 新建模板
+  tabs:
+    templates: 模板
+    smtp: SMTP
+
+type:
+  reset_password:
+    label: 密码重置
+    short: 密码
+    trigger: 用户申请重置密码时发送。
+  magic_link:
+    label: 魔法链接
+    short: 魔法链接
+    trigger: 用户申请登录链接时发送。
+  email_verification:
+    label: 邮箱验证
+    short: 验证
+    trigger: 账户创建时，或收到验证请求时发送。
+
+relative:
+  just_now: 刚刚
+  minutes: '{{total}} 分钟前'
+  hours: '{{total}} 小时前'
+  days: '{{total}} 天前'
+
+list:
+  alert:
+    # {{names}} is a comma-joined list of type labels, built in code — the separator stays ASCII
+    # ", " rather than the Chinese "、" because the join happens outside this catalogue.
+    unassigned_other: '{{names}} 未分配模板——FerrisKey 将为其发送纯文本默认邮件。'
+  metrics:
+    total:
+      label: 模板
+      hint: 在本域中
+    type:
+      assigned: 已分配
+      none: 未分配
+  assignment:
+    title: 分配
+    description: 每种邮件对应一个模板。未分配时，FerrisKey 将发送纯文本默认邮件。
+    not_configured: 未配置
+    empty: 本域中没有此类型的模板。
+  templates:
+    title: 模板
+    description: '模板的类型在创建时即已固定：它决定了该模板可用的变量。'
+    search_placeholder: 筛选模板…
+    filter_all: 全部
+    assigned: 已分配
+    meta: '{{type}} · 更新于 {{when}}'
+    edit: 编辑
+    export_json: JSON
+    export_mjml: MJML
+    delete_aria: 删除 {{name}}
+  empty:
+    none:
+      label: 暂无邮件模板
+      hint: 在分配模板之前，FerrisKey 会发送纯文本默认邮件。
+    filtered:
+      label: 没有模板符合当前筛选条件
+      hint: 请调整搜索或类型筛选条件。
+    clear: 清除筛选
+    create: 新建模板
+  delete:
+    title: 删除邮件模板
+    assigned_other: '“{{name}}”已分配给 {{targets}}。删除会成功并解除分配：这些邮件将回退到纯文本默认模板。'
+    plain: '此操作将永久删除“{{name}}”及其结构和 MJML。'
+  toast:
+    export_failed: 无法导出此模板
+
+smtp:
+  alert:
+    no_server: 本域没有 SMTP 服务器。任何事务性邮件都发不出去——密码重置、魔法链接和验证邮件虽会被存储，但永远不会投递。
+  server:
+    title: SMTP 服务器
+    description: 本域通过该服务器发送邮件。
+    host:
+      label: 主机
+      description: SMTP 服务器的主机名。
+    port:
+      label: 端口
+      description: SMTP 服务器的端口——587、465 或 25。
+    encryption:
+      label: 加密方式
+      description: 与服务器之间的连接如何加密。
+      tls:
+        label: TLS
+        hint: 从第一个字节起即加密，通常使用 465 端口。
+      starttls:
+        label: STARTTLS
+        hint: 先建立明文连接，再升级为加密连接，通常使用 587 端口。
+      none:
+        label: 无
+        hint: 明文传输。仅适用于本地中继。
+    username:
+      label: 用户名
+      description: 用于向服务器进行认证的账户。
+    password:
+      label: 密码
+      description: 'API 从不返回该值，因此无法预填：在此标签页保存任何改动都需要重新输入。'
+      stored: 已存储，只写
+  sender:
+    title: 发件人
+    description: 收件人在收件箱中看到的内容。
+    from_email:
+      label: 发件地址
+      description: 外发邮件所使用的发件地址。
+    from_name:
+      label: 发件人名称
+      description: 显示在地址旁边的名称。
+  danger:
+    label: 删除 SMTP 配置
+    description: 移除本域的 SMTP 配置。邮件功能（密码重置、魔法链接、邮箱验证）将停止工作。
+    button: 删除 SMTP 配置
+    confirm_title: 删除 SMTP 配置
+    confirm_description: 此操作将永久移除本域的 SMTP 配置。邮件投递将被禁用。
+  save:
+    title_dirty: SMTP 配置有未保存的更改
+    title_new: 尚未配置 SMTP 服务器
+    description: 保存会替换整份配置，密码也包括在内。
+    cancel: 放弃
+    action_dirty: 保存更改
+    action_new: 保存配置
+  validation:
+    host: 主机为必填项
+    # TRANSLATOR NOTE: the English side of this key replaces a raw Zod default message; see the
+    # note in the en catalogue.
+    port: 端口必须介于 1 和 65535 之间
+    username: 用户名为必填项
+    password: 密码为必填项
+    from_email: 必须是有效的电子邮件地址
+    from_name: 发件人名称为必填项
+    encryption: 请选择连接的加密方式
+
+detail:
+  back: 邮件
+  not_found:
+    title: 未找到邮件模板
+    hint: 它可能已被删除，或属于另一个域。
+  pills:
+    assigned: 已分配
+    not_assigned: 未分配
+  meta:
+    updated_at: 更新时间
+    updated: 更新于 {{date}}
+    identifier: 标识符
+    export: 导出
+    open_builder: 打开编辑器
+  general:
+    title: 常规
+    name:
+      label: 名称
+      description: 此模板在控制台中的名称。必填。
+    type:
+      label: 类型
+      description: '在创建时即已固定：它决定了引擎提供哪些变量，以及哪种邮件使用此模板。'
+    used_for:
+      label: 用于
+      description: 在“邮件”列表页中设置。未分配模板的邮件将回退到纯文本默认模板。
+      empty: 没有邮件使用此模板
+  variables:
+    title: 可用变量
+    description: 在发送时插值并进行 HTML 转义。其他表达式保持原样。
+    absent: ——此模板中未使用
+    # Rendered with <Trans>. <code> wraps the email type, which is an API enum value and is never
+    # translated. {{names}} is a comma-joined list of {{variable}} tokens, built in code.
+    unsupplied_other: '<code>{{type}}</code> 类型不提供 {{names}}：它们会原样保留在用户收到的邮件中。'
+  mjml:
+    title: MJML
+    description: 由编辑器根据已存储的结构生成。
+    export: 导出 MJML
+    copy: 复制
+    copied: 已复制
+  danger:
+    label: 删除此模板
+    assigned_other: '它已分配给 {{targets}}。删除会成功并解除分配：这些邮件将回退到纯文本默认模板。'
+    plain: 其结构及渲染出的 MJML 将永久丢失。
+    button: 删除模板
+    confirm_title: 删除邮件模板
+    confirm_description: '此操作将永久删除模板“{{name}}”。'
+  save:
+    title: 1 项未保存的更改
+    description: 此处仅可编辑名称；内容请在编辑器中编辑。
+    cancel: 放弃
+    action: 保存更改
+  validation:
+    name_required: 名称为必填项
+  toast:
+    export_failed: 无法导出此模板
+
+builder:
+  back: 邮件
+  loading: 正在加载模板…
+  name_placeholder: 模板名称…
+  email_type: 邮件类型
+  # TRANSLATOR NOTE: preview widths of the canvas, not client types. The console renders "mobile"
+  # as 移动端 where it names a kind of application; here it names a phone-sized viewport.
+  viewport:
+    desktop: 桌面
+    tablet: 平板
+    mobile: 手机
+  save: 保存
+  saving: 正在保存…

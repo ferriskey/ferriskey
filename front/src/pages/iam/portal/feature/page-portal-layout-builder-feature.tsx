@@ -11,7 +11,7 @@ import type { BuilderNode } from '@/lib/builder-core'
 import { createPortalAdapter } from '@/lib/builder-portal'
 import { defaultTheme, mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import { RouterParams } from '@/routes/router'
-import { usePortalUrls } from '../use-portal-urls'
+import { NEW_LAYOUT_ID, usePortalUrls } from '../use-portal-urls'
 import { parseTree } from '../theme-validation'
 import PagePortalLayoutBuilder from '../ui/page-portal-layout-builder'
 
@@ -20,7 +20,7 @@ export default function PagePortalLayoutBuilderFeature() {
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
   const layoutId = layout_id ?? ''
-  const isNew = layoutId === 'new'
+  const isNew = layoutId === NEW_LAYOUT_ID
 
   const { data: layoutData, isLoading } = useGetPortalLayout({ realm, layoutId })
   const { data: themeData } = useGetPortalTheme({ realm })

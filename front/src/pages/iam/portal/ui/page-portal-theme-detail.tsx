@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next'
 import { AlertTriangle, ArrowLeft, Check, Palette } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -63,10 +64,12 @@ export default function PagePortalThemeDetail({
   onSave,
   onDelete,
 }: PagePortalThemeDetailProps) {
+  const { t } = useTranslation('portal')
+
   const backButton = (
     <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
-      Portal
+      {t('header.title')}
     </Button>
   )
 
@@ -90,9 +93,11 @@ export default function PagePortalThemeDetail({
       <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Theme not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.hint')}
           </p>
         </div>
       </PageShell>
@@ -105,7 +110,7 @@ export default function PagePortalThemeDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Portal'
+        backLabel={t('header.title')}
         icon={
           <IconTile tone={isActive ? 'primary' : 'info'} className='size-15'>
             <Palette className='size-6' strokeWidth={1.5} />
@@ -117,16 +122,20 @@ export default function PagePortalThemeDetail({
             {isActive ? (
               <Pill tone='success'>
                 <Check className='size-3' strokeWidth={3} />
-                active
+                {t('themes.row.active')}
               </Pill>
             ) : (
-              <Pill tone='neutral'>draft</Pill>
+              <Pill tone='neutral'>{t('detail.draft')}</Pill>
             )}
             <Pill tone={failures.length === 0 ? 'neutral' : 'amber'}>
-              <span className='tnum'>
-                {PORTAL_PAGES.length - failures.length}/{PORTAL_PAGES.length}
-              </span>{' '}
-              pages valid
+              <Trans
+                i18nKey='portal:themes.row.pages_valid'
+                values={{
+                  valid: PORTAL_PAGES.length - failures.length,
+                  total: PORTAL_PAGES.length,
+                }}
+                components={{ num: <span className='tnum' /> }}
+              />
             </Pill>
           </>
         }
@@ -135,14 +144,14 @@ export default function PagePortalThemeDetail({
             {!isActive &&
               (failures.length === 0 ? (
                 <Button variant='outline' onClick={onActivate} disabled={isActivating}>
-                  {isActivating ? 'Activating…' : 'Activate this theme'}
+                  {isActivating ? t('detail.activating') : t('detail.activate')}
                 </Button>
               ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className='inline-flex items-center gap-1.5 text-xs text-fk-amber'>
                       <AlertTriangle className='size-3.5' strokeWidth={2} />
-                      Activation blocked
+                      {t('detail.activation_blocked')}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side='left' className='max-w-xs'>
@@ -157,11 +166,11 @@ export default function PagePortalThemeDetail({
               ))}
 
             <dl className='text-right text-xs text-neutral-500 dark:text-neutral-400'>
-              <dt className='sr-only'>Updated at</dt>
+              <dt className='sr-only'>{t('detail.meta.updated_label')}</dt>
               <dd className='tnum'>
-                Updated {formatDate(theme.updated_at)}
+                {t('detail.meta.updated', { date: formatDate(theme.updated_at) })}
               </dd>
-              <dt className='sr-only'>Identifier</dt>
+              <dt className='sr-only'>{t('detail.meta.identifier_label')}</dt>
               <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{theme.id}</dd>
             </dl>
           </div>
@@ -176,9 +185,7 @@ export default function PagePortalThemeDetail({
             : 'border-fk-line bg-neutral-50 text-neutral-600 dark:bg-fk-surface dark:text-neutral-400'
         )}
       >
-        {isActive
-          ? 'The portal renders this theme: every page you save is validated immediately, and a missing required block is refused.'
-          : 'Draft: pages save without constraint. Required blocks are checked when the theme is activated.'}
+        {isActive ? t('detail.banner.active') : t('detail.banner.draft')}
       </div>
 
       <PageTabs tabs={tabs} value={tab} className='mt-4'>
@@ -192,16 +199,19 @@ export default function PagePortalThemeDetail({
               />
               {isActive ? (
                 <div className={cn(tokens.surface.panel, 'px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400')}>
-                  The active theme cannot be deleted. Activate another one first.
+                  {t('themes.row.delete_blocked')}
                 </div>
               ) : (
                 <DangerZone
-        resourceName={theme.name}
-                  label='Delete this theme'
-                  description='Its design tokens and the trees of its twelve pages are lost for good.'
-                  buttonLabel='Delete theme'
-                  confirmTitle='Delete theme'
-                  confirmDescription={`This will permanently delete the theme "${theme.name}" and the composition of its twelve pages.`}
+                  resourceName={theme.name}
+                  label={t('detail.danger.label')}
+                  description={t('detail.danger.description', { total: PORTAL_PAGES.length })}
+                  buttonLabel={t('detail.danger.button')}
+                  confirmTitle={t('detail.danger.confirm_title')}
+                  confirmDescription={t('detail.danger.confirm_description', {
+                    name: theme.name,
+                    total: PORTAL_PAGES.length,
+                  })}
                   onConfirm={onDelete}
                 />
               )}
@@ -223,11 +233,16 @@ export default function PagePortalThemeDetail({
 
       <SaveBar
         show={dirtyCount > 0}
-        title={`${dirtyCount} unsaved change${dirtyCount > 1 ? 's' : ''}`}
-        description='The portal only reads what has been saved.'
+        title={t('detail.save_bar.title', { count: dirtyCount })}
+        description={t('detail.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: isSaving ? 'Saving…' : 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save_bar.discard')}
+        actions={[
+          {
+            label: isSaving ? t('detail.save_bar.saving') : t('detail.save_bar.save'),
+            onClick: onSave,
+          },
+        ]}
       />
     </PageShell>
   )

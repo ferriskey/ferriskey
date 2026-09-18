@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { BasicSpinner } from '@/components/ui/spinner'
 import {
@@ -19,6 +20,7 @@ import PagePortalPageBuilder from '../ui/page-portal-page-builder'
 const PAGE_TYPES = new Set<string>(PORTAL_PAGES.map((p) => p.type))
 
 export default function PagePortalPageBuilderFeature() {
+  const { t } = useTranslation('portal')
   const portal = usePortalUrls()
   const { realm_name, theme_id, page_type } = useParams<
     RouterParams & { theme_id: string; page_type: string }
@@ -60,11 +62,11 @@ export default function PagePortalPageBuilderFeature() {
       {
         onSuccess: () => {
           setDraft(null)
-          toast.success('Page saved')
+          toast.success(t('page_builder.toast.saved'))
         },
         onError: (error) => {
-          toast.error('Failed to save this page', {
-            description: describePortalPageError(error) ?? 'Unknown error',
+          toast.error(t('page_builder.toast.save_failed'), {
+            description: describePortalPageError(error) ?? t('page_builder.toast.unknown_error'),
           })
         },
       }

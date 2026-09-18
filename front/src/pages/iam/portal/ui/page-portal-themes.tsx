@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Trans, useTranslation } from 'react-i18next'
 import { AlertTriangle, Check, Download, Palette, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,7 @@ import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
 import { PORTAL_PAGES, labelForPortalPage, humanizeBlockType } from '../portal-pages'
 import type { PortalPageStatus } from '../theme-validation'
-import { PortalPageHeader } from './portal-page-header'
+import { PORTAL_TAB_THEMES, PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
 import { formatDate } from '@/utils/format-date'
 
@@ -51,13 +52,17 @@ const SWATCH_KEYS = [
 
 
 function Swatches({ config }: { config: Schemas.PortalThemeConfig }) {
+  const { t } = useTranslation('portal')
   const colors = (config?.colors ?? {}) as Record<string, string | undefined>
   return (
     <span className='flex shrink-0 items-center gap-1'>
       {SWATCH_KEYS.map((key) => (
         <span
           key={key}
-          title={`${key} · ${colors[key] ?? 'default'}`}
+          title={t('themes.row.swatch', {
+            token: key,
+            value: colors[key] ?? t('themes.row.swatch_default'),
+          })}
           className='size-3.5 rounded-sm border border-fk-line'
           style={{ backgroundColor: colors[key] ?? 'transparent' }}
         />
@@ -86,6 +91,7 @@ export default function PagePortalThemes({
   onExport,
   onImport,
 }: PagePortalThemesProps) {
+  const { t } = useTranslation('portal')
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
 
@@ -101,43 +107,51 @@ export default function PagePortalThemes({
 
   const createButton = (
     <Button onClick={() => setCreateOpen(true)}>
-      <Plus /> New theme
+      <Plus /> {t('themes.create')}
     </Button>
   )
 
   return (
     <PageShell>
-      <PortalPageHeader tab='themes' actions={createButton} />
+      <PortalPageHeader tab={PORTAL_TAB_THEMES} actions={createButton} />
 
       <div className={cn('mt-4', tokens.page.blockGap)}>
         <MetricsBand
           metrics={[
-            { key: 'total', label: 'Themes', value: rows.length, hint: 'in this realm' },
+            {
+              key: 'total',
+              label: t('themes.metrics.total.label'),
+              value: rows.length,
+              hint: t('themes.metrics.total.hint'),
+            },
             {
               key: 'active',
-              label: 'Active',
+              label: t('themes.metrics.active.label'),
               value: activeCount,
-              hint: activeCount > 0 ? 'rendered by the portal' : 'the portal falls back',
+              hint:
+                activeCount > 0
+                  ? t('themes.metrics.active.hint')
+                  : t('themes.metrics.active.empty_hint'),
             },
             {
               key: 'activatable',
-              label: 'Activatable',
+              label: t('themes.metrics.activatable.label'),
               value: activatable,
-              hint: 'every page valid',
+              hint: t('themes.metrics.activatable.hint'),
             },
             {
               key: 'pages',
-              label: 'Pages per theme',
+              label: t('themes.metrics.pages.label'),
               value: PORTAL_PAGES.length,
-              hint: 'page types',
+              hint: t('themes.metrics.pages.hint'),
             },
           ]}
         />
 
         <Section
-          title='Themes'
-          description='Only one theme is active at a time; it is the one the portal renders.'
-          action={<ImportButton label='Import' onImport={onImport} />}
+          title={t('themes.section.title')}
+          description={t('themes.section.description')}
+          action={<ImportButton label={t('actions.import')} onImport={onImport} />}
         >
           {isLoading ? (
             <ul className={tokens.surface.divider}>
@@ -156,8 +170,7 @@ export default function PagePortalThemes({
             <div className='grid place-items-center gap-3 py-16'>
               <Palette className='size-8 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
               <p className='max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-                No theme yet. A theme carries the colours, the typography and the twelve
-                pages the portal renders.
+                {t('themes.empty', { total: PORTAL_PAGES.length })}
               </p>
               {createButton}
             </div>
@@ -180,45 +193,60 @@ export default function PagePortalThemes({
                       {isActive && (
                         <Pill tone='success'>
                           <Check className='size-3' strokeWidth={3} />
-                          active
+                          {t('themes.row.active')}
                         </Pill>
                       )}
                       <Pill tone={failures.length === 0 ? 'neutral' : 'amber'}>
-                        <span className='tnum'>
-                          {PORTAL_PAGES.length - failures.length}/{PORTAL_PAGES.length}
-                        </span>{' '}
-                        pages valid
+                        <Trans
+                          i18nKey='portal:themes.row.pages_valid'
+                          values={{
+                            valid: PORTAL_PAGES.length - failures.length,
+                            total: PORTAL_PAGES.length,
+                          }}
+                          components={{ num: <span className='tnum' /> }}
+                        />
                       </Pill>
                     </div>
                     <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                      {layoutName ? `Layout ${layoutName}` : 'No layout'} · updated{' '}
-                      {formatDate(theme.updated_at)}
+                      {t('themes.row.summary', {
+                        layout: layoutName
+                          ? t('themes.row.layout', { name: layoutName })
+                          : t('themes.row.no_layout'),
+                        date: formatDate(theme.updated_at),
+                      })}
                     </p>
                     <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
-                      theme_id: {theme.id}
+                      {t('themes.row.identifier', { id: theme.id })}
                     </p>
                   </div>
 
                   <Swatches config={theme.config} />
 
                   {isActive ? (
-                    <span className='px-2 text-xs text-neutral-400 dark:text-neutral-500'>active theme</span>
+                    <span className='px-2 text-xs text-neutral-400 dark:text-neutral-500'>
+                      {t('themes.row.active_theme')}
+                    </span>
                   ) : failures.length > 0 ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className='inline-flex items-center gap-1.5 px-2 text-xs text-fk-amber'>
                           <AlertTriangle className='size-3.5' strokeWidth={2} />
-                          <span className='tnum'>{failures.length}</span> incomplete page
-                          {failures.length > 1 ? 's' : ''}
+                          <Trans
+                            i18nKey='portal:themes.row.incomplete_pages'
+                            count={failures.length}
+                            components={{ num: <span className='tnum' /> }}
+                          />
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side='left' className='max-w-xs'>
-                        Cannot be activated: {describeFailures(failures)}
+                        {t('themes.row.activation_blocked', {
+                          detail: describeFailures(failures),
+                        })}
                       </TooltipContent>
                     </Tooltip>
                   ) : (
                     <Button variant='outline' size='sm' onClick={() => onActivate(theme.id)}>
-                      Activate
+                      {t('themes.row.activate')}
                     </Button>
                   )}
 
@@ -226,7 +254,7 @@ export default function PagePortalThemes({
                     variant='ghost'
                     size='icon'
                     className='size-8 text-neutral-400 dark:text-neutral-500'
-                    aria-label={`Export ${theme.name}`}
+                    aria-label={t('themes.row.export', { name: theme.name })}
                     onClick={() => onExport(theme.id)}
                   >
                     <Download className='size-4' />
@@ -240,14 +268,14 @@ export default function PagePortalThemes({
                         </span>
                       </TooltipTrigger>
                       <TooltipContent side='left' className='max-w-xs'>
-                        The active theme cannot be deleted. Activate another one first.
+                        {t('themes.row.delete_blocked')}
                       </TooltipContent>
                     </Tooltip>
                   ) : (
                     <Button
                       variant='ghost'
                       size='icon'
-                      aria-label={`Delete ${theme.name}`}
+                      aria-label={t('themes.row.delete', { name: theme.name })}
                       className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
                       onClick={() => onDelete(theme.id)}
                     >
@@ -264,14 +292,13 @@ export default function PagePortalThemes({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New portal theme</DialogTitle>
+            <DialogTitle>{t('themes.create_dialog.title')}</DialogTitle>
           </DialogHeader>
           <p className='text-sm text-neutral-500 dark:text-neutral-400'>
-            The twelve pages are pre-filled with their default composition, so the theme is
-            activatable as soon as it is created.
+            {t('themes.create_dialog.description', { total: PORTAL_PAGES.length })}
           </p>
           <Input
-            placeholder='Theme name'
+            placeholder={t('themes.create_dialog.name_placeholder')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
@@ -280,10 +307,12 @@ export default function PagePortalThemes({
           />
           <DialogFooter>
             <Button variant='outline' onClick={() => setCreateOpen(false)}>
-              Cancel
+              {t('themes.create_dialog.cancel')}
             </Button>
             <Button onClick={submitCreate} disabled={isCreating || !newName.trim()}>
-              {isCreating ? 'Creating…' : 'Create'}
+              {isCreating
+                ? t('themes.create_dialog.submitting')
+                : t('themes.create_dialog.submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
