@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   buildLoginErrorRedirect,
   validateCallbackParams,
-} from './callback-helpers'
+} from './callback-helpers.ts'
 
 test('validateCallbackParams rejects missing authorization code', () => {
   assert.equal(
@@ -13,7 +13,7 @@ test('validateCallbackParams rejects missing authorization code', () => {
       returnedState: 'state-1',
       expectedState: 'state-1',
     }),
-    'Missing authorization code. Please try again.'
+    'missing_code'
   )
 })
 
@@ -24,7 +24,7 @@ test('validateCallbackParams rejects mismatched oauth state', () => {
       returnedState: 'state-1',
       expectedState: 'state-2',
     }),
-    'Invalid login state. Please try signing in again.'
+    'invalid_state'
   )
 })
 

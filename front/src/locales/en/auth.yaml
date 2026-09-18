@@ -1,0 +1,264 @@
+# These screens are read by the people signing in — not by administrators.
+# Keep the wording plain and avoid the console's vocabulary: a visitor here
+# does not know what a realm, a client, a scope or a credential is.
+
+actions:
+  back_to_login: Back to login
+  cancel: Cancel
+
+login:
+  # Shown as the heading when the realm has no display name of its own.
+  title: Login
+  identifier:
+    username: Username
+    email: Email
+    username_or_email: Username or email
+  password: Password
+  forgot_password: Forgot your password?
+  submit: Login
+  # Divider between the password form and the other ways to sign in.
+  separator: or
+  passkey: Sign in with a passkey
+  magic_link: Sign in with a magic link
+  no_account: Don't have an account? <signup>Sign up</signup>
+  failed: Authentication failed. Please check your credentials and try again.
+  failure:
+    title: An error occurred during login
+    description: Please try again
+  rejected:
+    title: Authentication error
+    hint: Contact your administrator if this problem persists.
+
+providers:
+  separator: Or continue with
+  continue_with: Continue with {{name}}
+
+register:
+  # Shown as the heading when the realm name is missing from the URL.
+  title: Create account
+  username: Username
+  email: Email
+  password: Password
+  confirm_password: Confirm Password
+  firstname: Firstname
+  lastname: Lastname
+  submit: Create Account
+  failed: We could not create your account. Please try again.
+
+magic_link:
+  form:
+    title: Sign in by email
+    description: Enter your email address and we'll send you a link to sign in instantly.
+    email_label: Email address
+    submit: Send magic link
+    submitting: Sending...
+  sent:
+    title: Check your inbox
+    description: We sent a magic link to your email address. Click the link to sign in — no password needed.
+    hint: The link expires in 15 minutes. Check your spam folder if you don't see it.
+  verify:
+    checking: Verifying your magic link...
+    invalid: This magic link is invalid or has expired.
+    missing_params: Missing magic link parameters.
+    no_redirect: Verification succeeded but no redirect URL was provided.
+    failed: This magic link could not be verified.
+  toast:
+    send_failed: Failed to send magic link
+    sent: Magic link sent — check your inbox.
+
+forgot_password:
+  title: Forgot your password?
+  description: Enter your email address and we'll send you a link to reset your password.
+  email_label: Email
+  submit: Send reset link
+  submitting: Sending...
+  sent: If an account exists with this email, a reset link has been sent.
+
+reset_password:
+  title: Set a new password
+  password_label: New password
+  confirm_label: Confirm password
+  submit: Reset password
+  submitting: Resetting...
+  checking: Verifying your reset link...
+  invalid: This reset link is invalid or has expired.
+  request_new: Request a new reset link
+  failed: Could not reset your password.
+
+update_password:
+  title: Update your password
+  description: Your password is temporary and must be updated before continuing.
+  password_label: New password
+  confirm_label: Confirm password
+  submit: Update password
+  submitting: Updating...
+  requirements_label: Password requirements
+  # Read out by screen readers after each requirement, never shown on screen.
+  requirement_met: (met)
+  requirement_unmet: (not met yet)
+  failed: Failed to update your password
+
+otp:
+  title: Verification code
+  description: Enter the 6-digit code from your authenticator app.
+  description_for: Enter the 6-digit code from your authenticator app for <account>{{email}}</account>.
+  hint: Paste your code or enter it digit by digit.
+  submit: Sign in
+  submitting: Signing in...
+  invalid: Invalid OTP code, please try again.
+
+configure_otp:
+  title: Enable two-factor authentication
+  description: Secure your account with an additional layer of protection using a TOTP authenticator app.
+  step_app:
+    title: Install an authenticator app
+    description: Use Google Authenticator, Authy, Microsoft Authenticator, 1Password or any other TOTP app on your device.
+  step_qr:
+    title: Scan the QR code
+    manual: "Can't scan? Enter this secret manually:"
+  step_verify:
+    title: Verify and name your device
+    device_label: Device name (optional)
+    backup_hint: Save your backup codes in a secure place — you'll need them if you lose your device.
+  submit: Enable two-factor authentication
+  setup_failed: Error during OTP configuration
+  not_ready: OTP setup is not ready yet
+
+configure_passkey:
+  title: Register a Passkey
+  description: Set up a passkey for passwordless sign-in. Your browser will prompt you to use your device's built-in authenticator.
+  benefits:
+    secure:
+      title: Secure & convenient
+      description: Passkeys use biometrics or your device PIN — no password to remember.
+    portable:
+      title: Works across devices
+      description: Synced via iCloud Keychain, Google Password Manager, or Windows Hello.
+  submit: Register Passkey
+  submitting: Registering…
+  success: Passkey registered successfully
+  redirecting: Redirecting…
+  already_exists: A passkey already exists for this account. Redirecting...
+  failed: Passkey registration failed
+
+passkey:
+  unsupported: WebAuthn is not supported in this browser
+  failed: Passkey authentication failed
+  start_failed: Failed to start passkey authentication
+
+verify_email:
+  title: Verify your email
+  description: A verification link has been sent to your email address. Please check your inbox and click the link to verify your account.
+  spam_hint: If you don't see the email, check your spam folder.
+  resend: Resend verification email
+  resending: Sending...
+  # The number never inflects — it is an abbreviated seconds countdown.
+  resend_in: Resend in {{seconds}}s
+  missing_context: "Unable to resend email: missing authentication context"
+  sent: Verification email sent! Check your inbox.
+  resend_failed: Failed to resend verification email
+
+verify_email_state:
+  checking: Verifying your email...
+  finishing: Finishing up...
+  expired:
+    title: Link expired
+    description: This verification link has expired. Please register again or request a new link.
+  failed:
+    title: Verification failed
+    description: The verification link is invalid.
+
+check_email:
+  title: Check your email
+  description: We've sent a verification link to
+  description_to: We've sent a verification link to<recipient>{{email}}</recipient>
+  hint: Click the link in the email to verify your account. The link expires soon.
+
+email_verified:
+  title: Email verified
+  description: Your email address has been confirmed. You can now sign in to your account.
+  action: Continue to sign in
+
+device:
+  title: Device verification
+  description: Enter the code displayed on your device to authorise it.
+  format_hint: Format <mono>XXXX-XXXX</mono>, letters only.
+  consent:
+    request: <app>{{name}}</app> is asking to sign in as you.
+    grants: It will be granted
+  approve: Approve
+  approving: Approving…
+  deny: Deny
+  denying: Denying…
+  approved:
+    title: Device approved
+    description: You can now return to the device that requested access. It should sign in automatically within a few seconds.
+  denied:
+    title: Access denied
+    description: We told the device its request was denied. You can safely close this window.
+  retry: Verify another code
+  failed: Unable to verify this code. Please try again.
+
+callback:
+  error_title: Unable to complete sign in
+  missing_code: Missing authorization code. Please try again.
+  invalid_state: Invalid login state. Please try signing in again.
+  failed: Unable to complete sign in. Please try again.
+
+session:
+  expired: Session expired
+  # The number never inflects — it is an abbreviated seconds countdown.
+  refreshing: Refreshing automatically in {{seconds}}s...
+  restart: Restart your session to continue.
+  refresh: Refresh session
+  refreshed: Session refreshed
+  refreshed_description: You can now log in again.
+  refresh_failed: Session refresh failed
+  refresh_failed_description: Please try again.
+
+required_action:
+  loading: Loading ...
+  none: No action required
+
+password:
+  rules:
+    min_length_one: At least {{count}} character
+    min_length_other: At least {{count}} characters
+    uppercase: At least one uppercase letter
+    lowercase: At least one lowercase letter
+    number: At least one number
+    special: At least one special character
+    special_detailed: "At least one special character (!@#$%^&*…)"
+
+# Messages the pages built in the realm's own theme get back from our submit
+# handlers. The pages themselves are authored by the administrator and are not
+# translated here.
+form:
+  login_fields_required: Enter your username and password to continue.
+  login_failed: Sign-in failed. Please try again.
+  passwords_mismatch: Passwords do not match.
+  register_fields_required: Email and password are required.
+  forgot_email_required: Enter your email to receive a reset link.
+  reset_password_required: Choose a new password.
+  reset_link_missing: Reset link is missing or expired. Request a new one.
+  reset_succeeded: Password updated. Sign in with your new password.
+  reset_failed: Could not reset password.
+  verification_sent: Verification email sent. Check your inbox.
+  device_code_required: Enter the 8-character code shown on your device.
+  otp_code_required: Enter the 6-digit code from your authenticator app.
+  otp_code_mismatch: Code didn't match — try the latest one from your app.
+
+validation:
+  username_required: Username is required
+  password_required: Password is required
+  email_required: Email is required
+  email_invalid: Invalid email address
+  email_invalid_hint: Please enter a valid email address
+  password_confirm_required: Please confirm your password
+  password_confirm_new_required: Confirm your new password
+  passwords_mismatch: Passwords do not match
+  password_must_match: Password must match
+  otp_code_length: Code must be at least 6 characters long
+  otp_pin_length: Pin must be at least 6 characters long
+  device_name_required: Device name must be at least 1 character long
+  device_code_format: Expected format XXXX-XXXX using the device code charset.

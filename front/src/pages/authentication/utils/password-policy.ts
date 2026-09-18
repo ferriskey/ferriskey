@@ -1,4 +1,6 @@
 import type { PublicPasswordPolicy } from '@/api/password-policy.api'
+import { translate } from '@/lib/i18n'
+import { AUTH_NAMESPACE } from '../constants'
 
 /**
  * The special character set the backend validates against.
@@ -31,11 +33,15 @@ export function evaluatePassword(
     !policy.require_special || [...password].some((ch) => SPECIAL_CHARS.includes(ch))
 
   const unmetMessages: string[] = []
-  if (!minLength) unmetMessages.push(`At least ${policy.min_length} characters`)
-  if (!uppercase) unmetMessages.push('At least one uppercase letter')
-  if (!lowercase) unmetMessages.push('At least one lowercase letter')
-  if (!number) unmetMessages.push('At least one number')
-  if (!special) unmetMessages.push('At least one special character')
+  if (!minLength) {
+    unmetMessages.push(
+      translate(`${AUTH_NAMESPACE}:password.rules.min_length`, { count: policy.min_length })
+    )
+  }
+  if (!uppercase) unmetMessages.push(translate(`${AUTH_NAMESPACE}:password.rules.uppercase`))
+  if (!lowercase) unmetMessages.push(translate(`${AUTH_NAMESPACE}:password.rules.lowercase`))
+  if (!number) unmetMessages.push(translate(`${AUTH_NAMESPACE}:password.rules.number`))
+  if (!special) unmetMessages.push(translate(`${AUTH_NAMESPACE}:password.rules.special`))
 
   const valid = minLength && uppercase && lowercase && number && special
 

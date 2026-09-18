@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormField } from '@/components/ui/form'
 import { UseFormReturn } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { RegisterSchema } from '../feature/page-register-feature'
 import { InputText } from '@/components/ui/input-text'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,8 @@ import { useParams } from 'react-router'
 import './page-login.css'
 import type { PublicPasswordPolicy } from '@/api/password-policy.api'
 import PasswordRequirements from '../components/password-requirements'
+import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
+import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 export interface PageRegisterProps {
   form: UseFormReturn<RegisterSchema>
@@ -18,6 +21,7 @@ export interface PageRegisterProps {
 
 export default function PageRegister({ form, onSubmit, backToLogin, policy }: PageRegisterProps) {
   const { realm_name } = useParams()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const password = form.watch('password')
   const isPasswordValid = !form.formState.errors.password && password.length > 0
   const isFormSubmittable =
@@ -25,6 +29,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
 
   return (
     <div className='login-shell flex min-h-svh flex-col items-center justify-center px-6 py-10'>
+      <AuthLanguageSwitcher />
       <div className='w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
@@ -37,16 +42,16 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                         <div className='flex items-center gap-3'>
                           <img
                             src='/logo_ferriskey.png'
-                            alt='FerrisKey'
+                            alt={BRAND_NAME}
                             className='h-7 w-7 object-contain'
                           />
                           <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                            FerrisKey
+                            {BRAND_NAME}
                           </p>
                         </div>
                         <div className='space-y-1'>
                           <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground md:text-4xl'>
-                            {realm_name ?? 'Create account'}
+                            {realm_name ?? t('register.title')}
                           </h1>
                         </div>
                       </div>
@@ -58,7 +63,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                             name='username'
                             render={({ field, fieldState }) => (
                               <div className='flex flex-col gap-1'>
-                                <InputText {...field} label='Username' className='w-full' />
+                                <InputText {...field} label={t('register.username')} className='w-full' />
                                 {fieldState.error && (
                                   <p className='text-sm text-destructive'>
                                     {fieldState.error.message}
@@ -73,7 +78,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                             name='email'
                             render={({ field, fieldState }) => (
                               <div className='flex flex-col gap-1'>
-                                <InputText {...field} label='Email' className='w-full' />
+                                <InputText {...field} label={t('register.email')} className='w-full' />
                                 {fieldState.error && (
                                   <p className='text-sm text-destructive'>
                                     {fieldState.error.message}
@@ -92,7 +97,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                               <div className='flex flex-col gap-1'>
                                 <InputText
                                   {...field}
-                                  label='Password'
+                                  label={t('register.password')}
                                   type='password'
                                   className='w-full'
                                 />
@@ -113,7 +118,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                               <div className='flex flex-col gap-1'>
                                 <InputText
                                   {...field}
-                                  label='Confirm Password'
+                                  label={t('register.confirm_password')}
                                   type='password'
                                   className='w-full'
                                 />
@@ -133,7 +138,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                             name='firstName'
                             render={({ field, fieldState }) => (
                               <div className='flex flex-col gap-1'>
-                                <InputText {...field} label='Firstname' className='w-full' />
+                                <InputText {...field} label={t('register.firstname')} className='w-full' />
                                 {fieldState.error && (
                                   <p className='text-sm text-destructive'>
                                     {fieldState.error.message}
@@ -148,7 +153,7 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
                             name='lastName'
                             render={({ field, fieldState }) => (
                               <div className='flex flex-col gap-1'>
-                                <InputText {...field} label='Lastname' className='w-full' />
+                                <InputText {...field} label={t('register.lastname')} className='w-full' />
                                 {fieldState.error && (
                                   <p className='text-sm text-destructive'>
                                     {fieldState.error.message}
@@ -162,11 +167,11 @@ export default function PageRegister({ form, onSubmit, backToLogin, policy }: Pa
 
                       <div className='flex flex-col gap-2'>
                         <Button className='w-full' disabled={!isFormSubmittable}>
-                          Create Account
+                          {t('register.submit')}
                         </Button>
 
                         <Button type='button' variant='outline' onClick={backToLogin} className='w-full'>
-                          Back to login
+                          {t('actions.back_to_login')}
                         </Button>
                       </div>
                     </div>

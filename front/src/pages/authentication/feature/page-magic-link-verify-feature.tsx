@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useParams } from 'react-router'
 import { useVerifyMagicLink } from '@/api/trident.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import PageMagicLinkVerify from '../ui/page-magic-link-verify'
+import { AUTH_NAMESPACE } from '../constants'
 
 type VerifyStatus = 'loading' | 'error'
 
 export default function PageMagicLinkVerifyFeature() {
   const { realm_name } = useParams()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const location = useLocation()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
 
@@ -17,7 +20,7 @@ export default function PageMagicLinkVerifyFeature() {
 
   const [status, setStatus] = useState<VerifyStatus>(missingParams ? 'error' : 'loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(
-    missingParams ? 'Missing magic link parameters.' : null
+    missingParams ? t('magic_link.verify.missing_params') : null
   )
 
   const { mutateAsync: verifyMagicLink } = useVerifyMagicLink()
@@ -38,12 +41,12 @@ export default function PageMagicLinkVerifyFeature() {
         if (data.url) {
           window.location.href = data.url
         } else {
-          setErrorMessage('Verification succeeded but no redirect URL was provided.')
+          setErrorMessage(t('magic_link.verify.no_redirect'))
           setStatus('error')
         }
       })
       .catch((err: Error) => {
-        setErrorMessage(apiErrorMessage(err, 'This magic link could not be verified.'))
+        setErrorMessage(apiErrorMessage(err, t('magic_link.verify.failed')))
         setStatus('error')
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

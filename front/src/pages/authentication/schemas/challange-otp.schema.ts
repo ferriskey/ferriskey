@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { translate } from '@/lib/i18n'
+import { AUTH_NAMESPACE } from '../constants'
 
 export const challengeOtpSchema = z.object({
   code: z.string().min(6, {
-    message: 'Code must be at least 6 characters long',
+    error: () => translate(`${AUTH_NAMESPACE}:validation.otp_code_length`),
   }),
 })
 

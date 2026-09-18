@@ -3,11 +3,14 @@ import { InputText } from '@/components/ui/input-text.tsx'
 import { Button } from '@/components/ui/button.tsx'
 import { FormField } from '@/components/ui/form'
 import { useFormContext } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PasswordRequirement } from '@/lib/password-policy'
 import { UpdatePasswordSchema } from '../../schemas/update-password.schema'
 import '../page-login.css'
+import { AUTH_NAMESPACE, BRAND_NAME } from '../../constants'
+import { AuthLanguageSwitcher } from '../../components/auth-language-switcher'
 
 export interface UpdatePasswordProps {
   handleClick: () => void
@@ -16,11 +19,13 @@ export interface UpdatePasswordProps {
 
 export default function UpdatePassword({ handleClick, requirements }: UpdatePasswordProps) {
   const form = useFormContext<UpdatePasswordSchema>()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const isPending = form.formState.isSubmitting
   const password = form.watch('password') ?? ''
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
+      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
@@ -31,18 +36,18 @@ export default function UpdatePassword({ handleClick, requirements }: UpdatePass
                     <div className='flex items-center gap-3'>
                       <img
                         src='/logo_ferriskey.png'
-                        alt='FerrisKey'
+                        alt={BRAND_NAME}
                         className='h-7 w-7 object-contain'
                       />
                       <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                        FerrisKey
+                        {BRAND_NAME}
                       </p>
                     </div>
                     <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                      Update your password
+                      {t('update_password.title')}
                     </h1>
                     <p className='text-sm text-muted-foreground'>
-                      Your password is temporary and must be updated before continuing.
+                      {t('update_password.description')}
                     </p>
                   </div>
 
@@ -55,7 +60,7 @@ export default function UpdatePassword({ handleClick, requirements }: UpdatePass
                           render={({ field }) => (
                             <InputText
                               {...field}
-                              label='New password'
+                              label={t('update_password.password_label')}
                               name='password'
                               type='password'
                               className='w-full'
@@ -64,7 +69,10 @@ export default function UpdatePassword({ handleClick, requirements }: UpdatePass
                           )}
                         />
                         {requirements.length > 0 && (
-                          <ul className='flex flex-col gap-1.5' aria-label='Password requirements'>
+                          <ul
+                            className='flex flex-col gap-1.5'
+                            aria-label={t('update_password.requirements_label')}
+                          >
                             {requirements.map((requirement) => {
                               const isMet = requirement.isMet(password)
 
@@ -83,7 +91,9 @@ export default function UpdatePassword({ handleClick, requirements }: UpdatePass
                                   )}
                                   <span>{requirement.label}</span>
                                   <span className='sr-only'>
-                                    {isMet ? '(met)' : '(not met yet)'}
+                                    {isMet
+                                      ? t('update_password.requirement_met')
+                                      : t('update_password.requirement_unmet')}
                                   </span>
                                 </li>
                               )
@@ -98,7 +108,7 @@ export default function UpdatePassword({ handleClick, requirements }: UpdatePass
                           render={({ field }) => (
                             <InputText
                               {...field}
-                              label='Confirm password'
+                              label={t('update_password.confirm_label')}
                               name='confirmPassword'
                               type='password'
                               className='w-full'
@@ -112,7 +122,9 @@ export default function UpdatePassword({ handleClick, requirements }: UpdatePass
                         className='w-full rounded-lg py-5 text-sm'
                         disabled={isPending}
                       >
-                        {isPending ? 'Updating...' : 'Update password'}
+                        {isPending
+                          ? t('update_password.submitting')
+                          : t('update_password.submit')}
                       </Button>
                     </div>
                   </form>

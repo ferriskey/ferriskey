@@ -1,14 +1,17 @@
 import { useAuthenticateMutation } from '@/api/auth.api'
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
 import ConfigurePasskey from '../../ui/execution/configure-passkey'
 import { isWebAuthnAvailable, startRegistration } from '@/lib/webauthn'
+import { AUTH_NAMESPACE } from '../../constants'
 
 export default function ConfigurePasskeyFeature() {
   const { realm_name } = useParams<RouterParams>()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const navigate = useNavigate()
   const {
     mutate: authenticate,
@@ -28,7 +31,7 @@ export default function ConfigurePasskeyFeature() {
 
   const onRegister = useCallback(async () => {
     if (!isWebAuthnAvailable()) {
-      toast.error('WebAuthn is not supported in this browser')
+      toast.error(t('passkey.unsupported'))
       return
     }
 
@@ -55,22 +58,22 @@ export default function ConfigurePasskeyFeature() {
       )
 
       setIsSuccess(true)
-      toast.success('Passkey registered successfully')
+      toast.success(t('configure_passkey.success'))
 
       // Step 4: Complete authentication
       setTimeout(() => completeAuth(), 1000)
     } catch (err) {
       console.error('Passkey registration failed:', err)
       if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'InvalidStateError')) {
-        toast.info('A passkey already exists for this account. Redirecting...')
+        toast.info(t('configure_passkey.already_exists'))
         setTimeout(() => completeAuth(), 1000)
       } else {
-        toast.error('Passkey registration failed')
+        toast.error(t('configure_passkey.failed'))
       }
     } finally {
       setIsLoading(false)
     }
-  }, [realm_name, completeAuth])
+  }, [realm_name, completeAuth, t])
 
   useEffect(() => {
     if (!authenticateData) return

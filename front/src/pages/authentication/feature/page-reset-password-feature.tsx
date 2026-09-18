@@ -4,11 +4,13 @@ import { useAuth } from '@/hooks/use-auth'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { buildResetPasswordSchema, type ResetPasswordSchema } from '../schemas/reset-password.schema'
 import PageResetPassword from '../ui/page-reset-password'
 import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
 import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
+import { AUTH_NAMESPACE } from '../constants'
 
 type TokenStatus = 'loading' | 'valid' | 'invalid'
 
@@ -20,6 +22,7 @@ const FIELD_BY_API_FIELD: Record<string, keyof ResetPasswordSchema> = {
 
 export default function PageResetPasswordFeature() {
   const { realm_name } = useParams()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const navigate = useNavigate()
   const location = useLocation()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
@@ -110,7 +113,7 @@ export default function PageResetPasswordFeature() {
           if (byField.size > 0 && unattached.length === 0) return
 
           setErrorMessage(
-            unattached.join(' — ') || apiErrorMessage(error, 'Could not reset your password.')
+            unattached.join(' — ') || apiErrorMessage(error, t('reset_password.failed'))
           )
         },
       }

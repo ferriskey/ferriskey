@@ -1,8 +1,11 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { CheckCircle, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { BasicSpinner } from '@/components/ui/spinner'
 import '../page-login.css'
+import { AUTH_NAMESPACE, BRAND_NAME } from '../../constants'
+import { AuthLanguageSwitcher } from '../../components/auth-language-switcher'
 
 export interface ConfigurePasskeyProps {
   onRegister: () => void
@@ -15,8 +18,11 @@ export default function ConfigurePasskey({
   isLoading,
   isSuccess,
 }: ConfigurePasskeyProps) {
+  const { t } = useTranslation(AUTH_NAMESPACE)
+
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
+      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
@@ -27,19 +33,18 @@ export default function ConfigurePasskey({
                     <div className='flex items-center gap-3'>
                       <img
                         src='/logo_ferriskey.png'
-                        alt='FerrisKey'
+                        alt={BRAND_NAME}
                         className='h-7 w-7 object-contain'
                       />
                       <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                        FerrisKey
+                        {BRAND_NAME}
                       </p>
                     </div>
                     <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                      Register a Passkey
+                      {t('configure_passkey.title')}
                     </h1>
                     <p className='text-sm text-muted-foreground'>
-                      Set up a passkey for passwordless sign-in. Your browser will prompt you to
-                      use your device&apos;s built-in authenticator.
+                      {t('configure_passkey.description')}
                     </p>
                   </div>
 
@@ -49,9 +54,11 @@ export default function ConfigurePasskey({
                         <CheckCircle className='h-6 w-6 text-green-600 dark:text-green-400' />
                       </div>
                       <p className='text-base font-semibold text-foreground'>
-                        Passkey registered successfully
+                        {t('configure_passkey.success')}
                       </p>
-                      <p className='text-sm text-muted-foreground'>Redirecting…</p>
+                      <p className='text-sm text-muted-foreground'>
+                        {t('configure_passkey.redirecting')}
+                      </p>
                     </div>
                   ) : (
                     <>
@@ -66,11 +73,10 @@ export default function ConfigurePasskey({
                           <ShieldCheck className='h-5 w-5 text-primary mt-0.5 shrink-0' />
                           <div>
                             <p className='text-sm font-medium text-foreground'>
-                              Secure & convenient
+                              {t('configure_passkey.benefits.secure.title')}
                             </p>
                             <p className='text-xs text-muted-foreground'>
-                              Passkeys use biometrics or your device PIN — no password to
-                              remember.
+                              {t('configure_passkey.benefits.secure.description')}
                             </p>
                           </div>
                         </div>
@@ -78,11 +84,10 @@ export default function ConfigurePasskey({
                           <Fingerprint className='h-5 w-5 text-primary mt-0.5 shrink-0' />
                           <div>
                             <p className='text-sm font-medium text-foreground'>
-                              Works across devices
+                              {t('configure_passkey.benefits.portable.title')}
                             </p>
                             <p className='text-xs text-muted-foreground'>
-                              Synced via iCloud Keychain, Google Password Manager, or Windows
-                              Hello.
+                              {t('configure_passkey.benefits.portable.description')}
                             </p>
                           </div>
                         </div>
@@ -97,12 +102,12 @@ export default function ConfigurePasskey({
                         {isLoading ? (
                           <div className='flex items-center gap-2'>
                             <BasicSpinner />
-                            <span>Registering…</span>
+                            <span>{t('configure_passkey.submitting')}</span>
                           </div>
                         ) : (
                           <>
                             <KeyRound className='mr-2 h-4 w-4' />
-                            Register Passkey
+                            {t('configure_passkey.submit')}
                           </>
                         )}
                       </Button>

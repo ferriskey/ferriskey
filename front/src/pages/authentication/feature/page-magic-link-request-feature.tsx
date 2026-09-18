@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useSendMagicLink } from '@/api/trident.api'
@@ -10,6 +11,7 @@ import {
 } from '@/pages/authentication/schemas/magic-link.schema'
 import PageMagicLinkRequest from '../ui/page-magic-link-request'
 import { Form } from '@/components/ui/form'
+import { AUTH_NAMESPACE } from '../constants'
 
 /**
  * Hosts the dedicated magic-link request page. The portal layout wrapper
@@ -19,6 +21,7 @@ import { Form } from '@/components/ui/form'
  */
 export default function PageMagicLinkRequestFeature() {
   const { realm_name } = useParams()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const [searchParams] = useSearchParams()
   const [sent, setSent] = useState(false)
 
@@ -49,7 +52,7 @@ export default function PageMagicLinkRequestFeature() {
       },
       {
         onSuccess: () => setSent(true),
-        onError: () => toast.error('Failed to send magic link'),
+        onError: () => toast.error(t('magic_link.toast.send_failed')),
       },
     )
   }

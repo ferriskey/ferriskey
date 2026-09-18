@@ -10,8 +10,14 @@ import { REGEXP_ONLY_DIGITS } from 'input-otp'
 import { Skeleton } from '@/components/ui/skeleton'
 import { VerifyOtpSchema } from '../../schemas/verify-otp.schema'
 import { useFormContext } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { FormControl, FormField, FormItem } from '@/components/ui/form'
 import '../page-login.css'
+import { AUTH_NAMESPACE, BRAND_NAME } from '../../constants'
+import { AuthLanguageSwitcher } from '../../components/auth-language-switcher'
+
+const QR_BACKGROUND_COLOR = 'transparent'
+const QR_FOREGROUND_COLOR = 'currentColor'
 
 export interface ConfigureOtpProps {
   secret?: string
@@ -28,6 +34,7 @@ export default function ConfigureOtp({
 }: ConfigureOtpProps) {
   const [secretCopied, setSecretCopied] = useState<boolean>(false)
   const form = useFormContext<VerifyOtpSchema>()
+  const { t } = useTranslation(AUTH_NAMESPACE)
 
   const copySecret = () => {
     if (!secret) return
@@ -38,6 +45,7 @@ export default function ConfigureOtp({
 
   return (
     <div className='login-shell relative flex min-h-svh items-center justify-center px-6 py-10'>
+      <AuthLanguageSwitcher />
       <div className='relative z-10 w-full max-w-sm md:max-w-md lg:max-w-lg'>
         <div className='flex flex-col gap-6'>
           <Card className='login-card overflow-hidden border p-0 shadow-sm'>
@@ -49,39 +57,37 @@ export default function ConfigureOtp({
                       <div className='flex items-center gap-3'>
                         <img
                           src='/logo_ferriskey.png'
-                          alt='FerrisKey'
+                          alt={BRAND_NAME}
                           className='h-7 w-7 object-contain'
                         />
                         <p className='text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground'>
-                          FerrisKey
+                          {BRAND_NAME}
                         </p>
                       </div>
                       <h1 className='login-title text-3xl font-semibold tracking-tight text-foreground'>
-                        Enable two-factor authentication
+                        {t('configure_otp.title')}
                       </h1>
                       <p className='text-sm text-muted-foreground'>
-                        Secure your account with an additional layer of protection using a TOTP
-                        authenticator app.
+                        {t('configure_otp.description')}
                       </p>
                     </div>
 
-                    <Step number={1} title='Install an authenticator app'>
+                    <Step number={1} title={t('configure_otp.step_app.title')}>
                       <p className='text-sm text-muted-foreground'>
-                        Use Google Authenticator, Authy, Microsoft Authenticator, 1Password or any
-                        other TOTP app on your device.
+                        {t('configure_otp.step_app.description')}
                       </p>
                     </Step>
 
                     <Separator />
 
-                    <Step number={2} title='Scan the QR code'>
+                    <Step number={2} title={t('configure_otp.step_qr.title')}>
                       <div className='flex justify-center rounded-lg border bg-background p-4'>
                         {qrCodeUrl ? (
                           <QRCodeSVG
                             value={qrCodeUrl}
                             size={160}
-                            bgColor='transparent'
-                            fgColor='currentColor'
+                            bgColor={QR_BACKGROUND_COLOR}
+                            fgColor={QR_FOREGROUND_COLOR}
                           />
                         ) : (
                           <Skeleton className='h-40 w-40' />
@@ -89,7 +95,7 @@ export default function ConfigureOtp({
                       </div>
                       <div className='space-y-2'>
                         <p className='text-xs text-muted-foreground'>
-                          Can't scan? Enter this secret manually:
+                          {t('configure_otp.step_qr.manual')}
                         </p>
                         <div className='flex items-center gap-2'>
                           {secret ? (
@@ -118,7 +124,7 @@ export default function ConfigureOtp({
 
                     <Separator />
 
-                    <Step number={3} title='Verify and name your device'>
+                    <Step number={3} title={t('configure_otp.step_verify.title')}>
                       <div className='flex flex-col items-center gap-3'>
                         <FormField
                           control={form.control}
@@ -162,7 +168,7 @@ export default function ConfigureOtp({
                         name='deviceName'
                         render={({ field }) => (
                           <InputText
-                            label='Device name (optional)'
+                            label={t('configure_otp.step_verify.device_label')}
                             name='deviceName'
                             value={field.value}
                             onChange={field.onChange}
@@ -172,10 +178,7 @@ export default function ConfigureOtp({
                       />
                       <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
                         <ShieldCheck className='mt-0.5 h-4 w-4 shrink-0' />
-                        <span>
-                          Save your backup codes in a secure place — you'll need them if you lose
-                          your device.
-                        </span>
+                        <span>{t('configure_otp.step_verify.backup_hint')}</span>
                       </div>
                     </Step>
 
@@ -185,7 +188,7 @@ export default function ConfigureOtp({
                         className='w-full rounded-lg py-5 text-sm'
                         disabled={!form.formState.isValid}
                       >
-                        Enable two-factor authentication
+                        {t('configure_otp.submit')}
                       </Button>
                       {handleCancel && (
                         <Button
@@ -194,7 +197,7 @@ export default function ConfigureOtp({
                           className='w-full rounded-lg py-5 text-sm'
                           onClick={handleCancel}
                         >
-                          Cancel
+                          {t('actions.cancel')}
                         </Button>
                       )}
                     </div>

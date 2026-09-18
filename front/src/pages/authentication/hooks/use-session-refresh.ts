@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { AUTH_NAMESPACE } from '../constants'
 
 type Options = {
   isRedirecting: boolean
@@ -18,6 +20,7 @@ export function useSessionRefresh({
   resetAuthenticate,
 }: Options) {
   const navigate = useNavigate()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const [showSessionBar, setShowSessionBar] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
@@ -69,9 +72,11 @@ export function useSessionRefresh({
 
       setShowSessionBar(false)
       scheduleSessionExpirationBar()
-      toast.success('Session refreshed', { description: 'You can now log in again.' })
+      toast.success(t('session.refreshed'), { description: t('session.refreshed_description') })
     } catch {
-      toast.error('Session refresh failed', { description: 'Please try again.' })
+      toast.error(t('session.refresh_failed'), {
+        description: t('session.refresh_failed_description'),
+      })
     }
   }, [
     cancelAutoRefresh,
@@ -80,6 +85,7 @@ export function useSessionRefresh({
     navigate,
     scheduleSessionExpirationBar,
     resetAuthenticate,
+    t,
   ])
 
   useEffect(() => {

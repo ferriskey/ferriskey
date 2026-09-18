@@ -1,6 +1,7 @@
 import { useGetLoginSettings } from '@/api/realm.api'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLoginForm } from '../hooks/use-login-form'
 import { useMagicLinkAuth } from '../hooks/use-magic-link-auth'
 import { useOAuthParams } from '../hooks/use-oauth-params'
@@ -9,10 +10,12 @@ import { useSessionRefresh } from '../hooks/use-session-refresh'
 import PageLogin, { LoginErrorPage } from '../ui/page-login'
 import { useAuth } from '@/hooks/use-auth'
 import { useNavigate } from 'react-router'
+import { AUTH_NAMESPACE } from '../constants'
 export type { AuthenticateSchema } from '../hooks/use-login-form'
 
 export default function PageLoginFeature() {
   const navigate = useNavigate()
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const { isAuthenticated, clearAuthState } = useAuth()
   const { realm_name, sessionExpired, isAuthInitiated, loginError, getAuthParamsFromUrl, getOAuthParams } =
     useOAuthParams()
@@ -114,15 +117,15 @@ export default function PageLoginFeature() {
       />
       <FloatingActionBar
         show={showFloatingActionBar}
-        title='Session expired'
+        title={t('session.expired')}
         description={
           countdown !== null
-            ? `Refreshing automatically in ${countdown}s...`
-            : 'Restart your session to continue.'
+            ? t('session.refreshing', { seconds: countdown })
+            : t('session.restart')
         }
         onCancel={countdown !== null ? cancelAutoRefresh : undefined}
         actions={[
-          { label: 'Refresh session', variant: 'default', onClick: () => restartAuthFlow() },
+          { label: t('session.refresh'), variant: 'default', onClick: () => restartAuthFlow() },
         ]}
       />
     </>
