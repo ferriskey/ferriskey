@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ArrowLeft, Building2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
@@ -66,10 +67,12 @@ export default function PageOrganizationDetail({
   groups,
   onBack,
 }: PageOrganizationDetailProps) {
+  const { t } = useTranslation('organization')
+
   const backButton = (
     <Button variant='ghost' size='sm' className='-ml-2 mb-2 text-neutral-500 dark:text-neutral-400' onClick={onBack}>
       <ArrowLeft className='size-3.5' />
-      Organizations
+      {t('detail.back')}
     </Button>
   )
 
@@ -93,9 +96,11 @@ export default function PageOrganizationDetail({
       <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Organization not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been deleted, or it belongs to another realm.
+            {t('detail.not_found.description')}
           </p>
         </div>
       </PageShell>
@@ -106,7 +111,7 @@ export default function PageOrganizationDetail({
     <PageShell>
       <DetailHeader
         onBack={onBack}
-        backLabel='Organizations'
+        backLabel={t('detail.back')}
         icon={
           <IconTile tone='violet' className='size-15'>
             <Building2 className='size-6' strokeWidth={1.75} />
@@ -118,24 +123,28 @@ export default function PageOrganizationDetail({
             <Pill mono>{organization.alias}</Pill>
             <Pill tone={organization.enabled ? 'success' : 'neutral'}>
               <StatusDot on={organization.enabled} />
-              {organization.enabled ? 'enabled' : 'disabled'}
+              {organization.enabled
+                ? t('organization.status.enabled')
+                : t('organization.status.disabled')}
             </Pill>
             {organization.domain ? (
               <Pill tone='info' mono>
                 {organization.domain}
               </Pill>
             ) : (
-              <span className='text-xs text-neutral-400 dark:text-neutral-500'>no domain</span>
+              <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+                {t('organization.no_domain')}
+              </span>
             )}
           </>
         }
         meta={
           <dl className='shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400'>
-            <dt className='sr-only'>Created at</dt>
+            <dt className='sr-only'>{t('detail.meta.created_label')}</dt>
             <dd className='tnum'>
-              Created {formatDate(organization.created_at)}
+              {t('detail.meta.created', { date: formatDate(organization.created_at) })}
             </dd>
-            <dt className='sr-only'>Identifier</dt>
+            <dt className='sr-only'>{t('detail.meta.identifier_label')}</dt>
             <dd className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>{organization.id}</dd>
           </dl>
         }
@@ -179,11 +188,11 @@ export default function PageOrganizationDetail({
 
       <SaveBar
         show={isDirty}
-        title='Unsaved changes'
-        description='Review the organization before applying the changes.'
+        title={t('detail.save_bar.title')}
+        description={t('detail.save_bar.description')}
         onCancel={onDiscard}
-        cancelLabel='Discard'
-        actions={[{ label: 'Save changes', onClick: onSave }]}
+        cancelLabel={t('detail.save_bar.cancel')}
+        actions={[{ label: t('detail.save_bar.submit'), onClick: onSave }]}
       />
     </PageShell>
   )

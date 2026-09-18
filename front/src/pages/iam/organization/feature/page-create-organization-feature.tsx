@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useCreateOrganization } from '@/api/organization.api'
 import { RouterParams } from '@/routes/router'
@@ -22,6 +23,7 @@ const EMPTY_DRAFT: CreateOrganizationDraft = {
 export default function PageCreateOrganizationFeature() {
   const { realm_name } = useParams<RouterParams>()
   const navigate = useNavigate()
+  const { t } = useTranslation('organization')
   const realm = realm_name ?? 'master'
 
   const { mutate: createOrganization } = useCreateOrganization()
@@ -63,7 +65,7 @@ export default function PageCreateOrganizationFeature() {
       {
         onSuccess: (payload) =>
           navigate(`${ORGANIZATION_URL(realm, payload.id)}/settings`),
-        onError: () => toast.error('Failed to create organization'),
+        onError: () => toast.error(t('create.toast.failed')),
       }
     )
   }

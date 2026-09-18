@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/kit'
@@ -25,6 +26,7 @@ function AttributeRow({
   onEdit: (key: string, value: string) => void
   onDelete: (key: string) => void
 }) {
+  const { t } = useTranslation('organization')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(attribute.value)
 
@@ -64,7 +66,7 @@ function AttributeRow({
               variant='ghost'
               size='icon'
               className='size-7 text-fk-success'
-              aria-label='Save attribute'
+              aria-label={t('detail.attributes.save')}
               onClick={save}
             >
               <Check />
@@ -73,7 +75,7 @@ function AttributeRow({
               variant='ghost'
               size='icon'
               className='size-7 text-neutral-400 dark:text-neutral-500'
-              aria-label='Cancel'
+              aria-label={t('detail.attributes.cancel')}
               onClick={cancel}
             >
               <X />
@@ -85,7 +87,7 @@ function AttributeRow({
               variant='ghost'
               size='icon'
               className='size-7 text-neutral-400 dark:text-neutral-500'
-              aria-label={`Edit ${attribute.key}`}
+              aria-label={t('detail.attributes.edit', { key: attribute.key })}
               onClick={() => setEditing(true)}
             >
               <Pencil />
@@ -94,7 +96,7 @@ function AttributeRow({
               variant='ghost'
               size='icon'
               className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
-              aria-label={`Delete ${attribute.key}`}
+              aria-label={t('detail.attributes.delete', { key: attribute.key })}
               onClick={() => onDelete(attribute.key)}
             >
               <Trash2 />
@@ -113,6 +115,7 @@ function AddAttributeRow({
   onAdd: (key: string, value: string) => void
   onCancel: () => void
 }) {
+  const { t } = useTranslation('organization')
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
 
@@ -126,14 +129,14 @@ function AddAttributeRow({
     <div className='flex items-center gap-4 bg-fk-primary-soft/40 px-3 py-1.5'>
       <Input
         autoFocus
-        placeholder='Key'
+        placeholder={t('detail.attributes.key_placeholder')}
         value={key}
         onChange={(e) => setKey(e.target.value)}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
         className='h-8 w-48 shrink-0'
       />
       <Input
-        placeholder='Value'
+        placeholder={t('detail.attributes.value_placeholder')}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
@@ -147,7 +150,7 @@ function AddAttributeRow({
           variant='ghost'
           size='icon'
           className='size-7 text-fk-success'
-          aria-label='Save attribute'
+          aria-label={t('detail.attributes.save')}
           disabled={!canSave}
           onClick={save}
         >
@@ -157,7 +160,7 @@ function AddAttributeRow({
           variant='ghost'
           size='icon'
           className='size-7 text-neutral-400 dark:text-neutral-500'
-          aria-label='Cancel'
+          aria-label={t('detail.attributes.cancel')}
           onClick={onCancel}
         >
           <X />
@@ -173,17 +176,18 @@ export default function OrganizationAttributesTab({
   onUpsert,
   onDelete,
 }: OrganizationAttributesTabProps) {
+  const { t } = useTranslation('organization')
   const [adding, setAdding] = useState(false)
 
   return (
     <Section
-      title={`Attributes (${attributes.length})`}
-      description='Custom key-value metadata carried by this organization.'
+      title={t('detail.attributes.title', { total: attributes.length })}
+      description={t('detail.attributes.description')}
       contained={false}
       action={
         !adding && (
           <Button size='sm' variant='outline' onClick={() => setAdding(true)}>
-            <Plus /> Add attribute
+            <Plus /> {t('detail.attributes.add')}
           </Button>
         )
       }
@@ -195,8 +199,8 @@ export default function OrganizationAttributesTab({
             tokens.table.headerText
           )}
         >
-          <span className='w-48 shrink-0'>Key</span>
-          <span>Value</span>
+          <span className='w-48 shrink-0'>{t('detail.attributes.columns.key')}</span>
+          <span>{t('detail.attributes.columns.value')}</span>
         </div>
 
         {adding && (
@@ -218,7 +222,7 @@ export default function OrganizationAttributesTab({
           ))
         ) : attributes.length === 0 && !adding ? (
           <p className='px-3 py-8 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            No attribute defined for this organization.
+            {t('detail.attributes.empty')}
           </p>
         ) : (
           attributes.map((attribute) => (

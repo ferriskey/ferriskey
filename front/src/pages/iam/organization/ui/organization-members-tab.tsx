@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search, Shield, Trash2, UserPlus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EntityPicker, IconTile, Pill, Section, StatusDot } from '@/components/kit'
@@ -10,6 +11,9 @@ import { Schemas } from '@/api/api.client'
 import { memberDisplayName } from '../member-name'
 
 import User = Schemas.User
+
+const SERVICE_ACCOUNT_INITIAL = 'S'
+const FALLBACK_INITIAL = 'U'
 
 export interface OrganizationMembersTabProps {
   members: User[]
@@ -28,6 +32,7 @@ export default function OrganizationMembersTab({
   onRemove,
   onManageRoles,
 }: OrganizationMembersTabProps) {
+  const { t } = useTranslation('organization')
   const [staged, setStaged] = useState<string[]>([])
   const [query, setQuery] = useState('')
 
@@ -44,8 +49,8 @@ export default function OrganizationMembersTab({
   return (
     <>
       <Section
-        title='Add members'
-        description='Only accounts of this realm that are not members yet can be picked.'
+        title={t('detail.members.add.title')}
+        description={t('detail.members.add.description')}
         contained={false}
       >
         <div className='space-y-2'>
@@ -57,10 +62,10 @@ export default function OrganizationMembersTab({
             }))}
             value={staged}
             onChange={setStaged}
-            addLabel='Pick an account'
-            searchPlaceholder='Search an account…'
-            emptyHint='No account selected yet.'
-            exhaustedHint='Every account of this realm is already a member.'
+            addLabel={t('detail.members.add.pick')}
+            searchPlaceholder={t('detail.members.add.search_placeholder')}
+            emptyHint={t('detail.members.add.empty_hint')}
+            exhaustedHint={t('detail.members.add.exhausted_hint')}
           />
           {staged.length > 0 && (
             <Button
@@ -70,15 +75,15 @@ export default function OrganizationMembersTab({
                 setStaged([])
               }}
             >
-              <UserPlus /> Add {staged.length} member{staged.length > 1 ? 's' : ''}
+              <UserPlus /> {t('detail.members.add.submit', { count: staged.length })}
             </Button>
           )}
         </div>
       </Section>
 
       <Section
-        title={`Members (${members.length})`}
-        description='Accounts attached to this organization, with their organization-scoped roles.'
+        title={t('detail.members.title', { total: members.length })}
+        description={t('detail.members.description')}
         contained={false}
         action={
           <label className='relative flex h-8 w-64 items-center'>
@@ -87,7 +92,7 @@ export default function OrganizationMembersTab({
               type='search'
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Search members…'
+              placeholder={t('detail.members.search_placeholder')}
               className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
             />
           </label>
@@ -103,11 +108,11 @@ export default function OrganizationMembersTab({
             ))
           ) : members.length === 0 ? (
             <p className='px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-              This organization has no member yet.
+              {t('detail.members.empty')}
             </p>
           ) : filtered.length === 0 ? (
             <p className='px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-              No member matches this search.
+              {t('detail.members.no_match')}
             </p>
           ) : (
             filtered.map((user) => {
@@ -116,7 +121,10 @@ export default function OrganizationMembersTab({
                 <div key={user.id} className='flex items-center gap-3 px-3 py-2'>
                   <IconTile tone={serviceAccount ? 'violet' : 'info'}>
                     <span className='text-xs font-semibold uppercase'>
-                      {(serviceAccount ? 'S' : user.firstname || user.username || 'U').charAt(0)}
+                      {(serviceAccount
+                        ? SERVICE_ACCOUNT_INITIAL
+                        : user.firstname || user.username || FALLBACK_INITIAL
+                      ).charAt(0)}
                     </span>
                   </IconTile>
                   <div className='min-w-0 flex-1'>
@@ -125,7 +133,9 @@ export default function OrganizationMembersTab({
                         {memberDisplayName(user)}
                       </span>
                       <Pill tone={serviceAccount ? 'violet' : 'info'} mono>
-                        {serviceAccount ? 'service account' : 'user account'}
+                        {serviceAccount
+                          ? t('member.kind.service_account')
+                          : t('member.kind.user_account')}
                       </Pill>
                     </div>
                     <p className='truncate text-xs text-neutral-500 dark:text-neutral-400'>
@@ -134,7 +144,7 @@ export default function OrganizationMembersTab({
                   </div>
                   <span className='inline-flex shrink-0 items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
                     <StatusDot on={user.enabled} />
-                    {user.enabled ? 'active' : 'inactive'}
+                    {user.enabled ? t('member.status.active') : t('member.status.inactive')}
                   </span>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -142,13 +152,15 @@ export default function OrganizationMembersTab({
                         variant='ghost'
                         size='icon'
                         className='size-7 text-neutral-400 dark:text-neutral-500'
-                        aria-label={`Manage roles of ${memberDisplayName(user)}`}
+                        aria-label={t('detail.members.manage_roles_for', {
+                          name: memberDisplayName(user),
+                        })}
                         onClick={() => onManageRoles(user)}
                       >
                         <Shield />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Manage roles</TooltipContent>
+                    <TooltipContent>{t('detail.members.manage_roles')}</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -156,13 +168,15 @@ export default function OrganizationMembersTab({
                         variant='ghost'
                         size='icon'
                         className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
-                        aria-label={`Remove ${memberDisplayName(user)}`}
+                        aria-label={t('detail.members.remove_member', {
+                          name: memberDisplayName(user),
+                        })}
                         onClick={() => onRemove(user)}
                       >
                         <Trash2 />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Remove from organization</TooltipContent>
+                    <TooltipContent>{t('detail.members.remove')}</TooltipContent>
                   </Tooltip>
                 </div>
               )

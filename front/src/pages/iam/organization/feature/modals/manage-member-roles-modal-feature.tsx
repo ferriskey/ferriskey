@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Schemas } from '@/api/api.client'
@@ -36,6 +37,7 @@ export default function ManageMemberRolesModalFeature({
   open,
   onOpenChange,
 }: ManageMemberRolesModalFeatureProps) {
+  const { t } = useTranslation('organization')
   const userId = user?.id
   const { data: assigned } = useOrganizationMemberRoles(realm, orgId, userId)
   const rolesResp = useGetRoles({ realm })
@@ -71,21 +73,24 @@ export default function ManageMemberRolesModalFeature({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage roles{user ? ` — ${user.username}` : ''}</DialogTitle>
-          <DialogDescription>
-            Assign realm or client roles scoped to this member within the organization. These
-            roles are surfaced in the member's token under the organization context.
-          </DialogDescription>
+          <DialogTitle>
+            {user
+              ? t('member_roles.title_for', { username: user.username })
+              : t('member_roles.title')}
+          </DialogTitle>
+          <DialogDescription>{t('member_roles.description')}</DialogDescription>
         </DialogHeader>
         <DialogBody>
           <MultipleSelector
             value={value}
             options={options}
             onChange={onChange}
-            placeholder='Search and assign roles…'
+            placeholder={t('member_roles.search_placeholder')}
             hidePlaceholderWhenSelected
             emptyIndicator={
-              <p className='text-center text-sm text-muted-foreground'>No roles found.</p>
+              <p className='text-center text-sm text-muted-foreground'>
+                {t('member_roles.empty')}
+              </p>
             }
           />
         </DialogBody>
