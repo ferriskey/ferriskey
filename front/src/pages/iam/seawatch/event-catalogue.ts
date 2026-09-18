@@ -1,41 +1,44 @@
 export { formatRelative, formatTimestamp } from '@/utils/format-date'
 
+import { translate } from '@/lib/i18n'
 import { Schemas } from '@/api/api.client'
 
 import SecurityEvent = Schemas.SecurityEvent
 import SecurityEventType = Schemas.SecurityEventType
 
-export const eventLabels: Record<SecurityEventType, string> = {
-  login_success: 'Login succeeded',
-  login_failure: 'Login failed',
-  password_reset: 'Password reset',
-  password_reset_requested: 'Password reset requested',
-  password_reset_completed: 'Password reset completed',
-  user_created: 'User created',
-  user_email_verified: 'Email address verified',
-  user_deleted: 'User deleted',
-  role_assigned: 'Role assigned',
-  role_unassigned: 'Role unassigned',
-  role_created: 'Role created',
-  role_removed: 'Role removed',
-  client_created: 'Client created',
-  client_deleted: 'Client deleted',
-  client_secret_rotated: 'Client secret rotated',
-  client_secret_viewed: 'Client secret viewed',
-  realm_config_changed: 'Realm configuration changed',
-  email_not_sent: 'Email delivery failed',
-  email_sent: 'Email delivered',
-  client_maintenance_enabled: 'Client maintenance enabled',
-  client_maintenance_disabled: 'Client maintenance disabled',
-  session_created: 'Session opened',
-  session_revoked: 'Session revoked',
-  webhook_delivery_exhausted: 'Webhook delivery gave up',
-  identity_provider_link_removed: 'Identity provider link removed',
-  unknown: 'Unrecognised event',
+export const catalogedEventTypes: Record<SecurityEventType, true> = {
+  login_success: true,
+  login_failure: true,
+  password_reset: true,
+  password_reset_requested: true,
+  password_reset_completed: true,
+  user_created: true,
+  user_email_verified: true,
+  user_deleted: true,
+  role_assigned: true,
+  role_unassigned: true,
+  role_created: true,
+  role_removed: true,
+  client_created: true,
+  client_deleted: true,
+  client_secret_rotated: true,
+  client_secret_viewed: true,
+  realm_config_changed: true,
+  email_not_sent: true,
+  email_sent: true,
+  client_maintenance_enabled: true,
+  client_maintenance_disabled: true,
+  session_created: true,
+  session_revoked: true,
+  webhook_delivery_exhausted: true,
+  identity_provider_link_removed: true,
+  unknown: true,
 }
 
 export const eventLabel = (event: SecurityEvent) =>
-  eventLabels[event.event_type] ?? event.event_type
+  catalogedEventTypes[event.event_type]
+    ? translate(`seawatch:event.${event.event_type}`)
+    : event.event_type
 
 const authenticationEvents: SecurityEventType[] = [
   'login_success',

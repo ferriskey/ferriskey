@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AlertTriangle, ArrowLeft, Clock, Loader, Monitor, User } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -50,6 +51,8 @@ export default function PageFlowDetail({
   isError,
   onBack,
 }: PageFlowDetailProps) {
+  const { t } = useTranslation('compass')
+
   const backButton = (
     <Button
       variant='ghost'
@@ -58,7 +61,7 @@ export default function PageFlowDetail({
       onClick={onBack}
     >
       <ArrowLeft className='size-3.5' />
-      Compass
+      {t('detail.back')}
     </Button>
   )
 
@@ -84,10 +87,11 @@ export default function PageFlowDetail({
       <PageShell>
         {backButton}
         <div className={cn(tokens.surface.panel, 'grid place-items-center px-6 py-16')}>
-          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>Execution not found</p>
+          <p className='text-sm font-medium text-neutral-700 dark:text-neutral-300'>
+            {t('detail.not_found.title')}
+          </p>
           <p className='mt-1 max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-            It may have been purged with the realm retention, or it belongs to another
-            realm.
+            {t('detail.not_found.detail')}
           </p>
         </div>
       </PageShell>
@@ -97,6 +101,24 @@ export default function PageFlowDetail({
   const steps = orderedSteps(flow)
   const failing = failingStep(flow)
   const stepsTotal = steps.reduce((n, s) => n + (s.duration_ms ?? 0), 0)
+
+  const originRows = [
+    {
+      key: 'grant_type',
+      label: t('detail.origin.grant_type'),
+      value: flow.grant_type,
+    },
+    {
+      key: 'ip_address',
+      label: t('detail.origin.ip_address'),
+      value: flow.ip_address ?? t('detail.origin.not_recorded'),
+    },
+    {
+      key: 'user_agent',
+      label: t('detail.origin.user_agent'),
+      value: flow.user_agent ?? t('detail.origin.not_recorded'),
+    },
+  ]
 
   return (
     <PageShell>
@@ -126,7 +148,7 @@ export default function PageFlowDetail({
           />
           <div className='min-w-0'>
             <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>
-              Failed at {stepLabel(failing)}
+              {t('detail.failure.title', { step: stepLabel(failing) })}
               {failing.error_code && (
                 <span className='ml-1.5 font-mono-ui text-neutral-500 dark:text-neutral-400'>
                   {failing.error_code}
@@ -142,66 +164,68 @@ export default function PageFlowDetail({
 
       {flow.status === 'expired' && (
         <div className='mt-4 rounded-sm border border-fk-amber-border bg-fk-amber-soft/50 px-4 py-3 text-xs text-neutral-700 dark:text-neutral-300'>
-          This execution never came back. No step failed — the user simply did not
-          return, so neither an end date nor a duration was ever recorded.
+          {t('detail.expired')}
         </div>
       )}
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
         <div className='grid gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-          <Meta icon={Clock} label='Started'>
+          <Meta icon={Clock} label={t('detail.meta.started')}>
             {formatDateTime(flow.started_at)}
           </Meta>
-          <Meta icon={Clock} label='Completed'>
+          <Meta icon={Clock} label={t('detail.meta.completed')}>
             {flow.completed_at ? (
               formatDateTime(flow.completed_at)
             ) : (
               <span className='text-neutral-400 dark:text-neutral-500'>
-                {flow.status === 'pending' ? 'in progress' : 'never'}
+                {flow.status === 'pending'
+                  ? t('detail.meta.in_progress')
+                  : t('detail.meta.never')}
               </span>
             )}
           </Meta>
-          <Meta icon={Monitor} label='Client'>
+          <Meta icon={Monitor} label={t('detail.meta.client')}>
             {flow.client_id ? (
               <span className='font-mono-ui'>{flow.client_id}</span>
             ) : (
-              <span className='text-neutral-400 dark:text-neutral-500'>unresolved</span>
+              <span className='text-neutral-400 dark:text-neutral-500'>
+                {t('detail.meta.unresolved')}
+              </span>
             )}
           </Meta>
-          <Meta icon={User} label='User'>
+          <Meta icon={User} label={t('detail.meta.user')}>
             {flow.user_id ? (
               <span className='font-mono-ui'>{flow.user_id}</span>
             ) : (
-              <span className='text-neutral-400 dark:text-neutral-500'>never identified</span>
+              <span className='text-neutral-400 dark:text-neutral-500'>
+                {t('detail.meta.never_identified')}
+              </span>
             )}
           </Meta>
         </div>
 
         <Section
-          title='Steps'
+          title={t('detail.steps.title')}
           description={
             steps.length > 0
-              ? `${steps.length} step${steps.length > 1 ? 's' : ''} recorded — ${formatDuration(stepsTotal)} of cumulated processing, waiting on the user excluded.`
-              : 'No step recorded for this execution.'
+              ? t('detail.steps.description', {
+                  count: steps.length,
+                  duration: formatDuration(stepsTotal),
+                })
+              : t('detail.steps.empty')
           }
         >
           <FlowSteps steps={steps} pending={flow.status === 'pending'} />
         </Section>
 
-        <Section title='Origin'>
+        <Section title={t('detail.origin.title')}>
           <dl className={tokens.surface.divider}>
-            {(
-              [
-                ['Grant type', flow.grant_type],
-                ['IP address', flow.ip_address ?? 'not recorded'],
-                ['User agent', flow.user_agent ?? 'not recorded'],
-              ] as const
-            ).map(([key, value]) => (
+            {originRows.map(({ key, label, value }) => (
               <div
                 key={key}
                 className='grid gap-x-6 py-2.5 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]'
               >
-                <dt className='text-xs text-neutral-500 dark:text-neutral-400'>{key}</dt>
+                <dt className='text-xs text-neutral-500 dark:text-neutral-400'>{label}</dt>
                 <dd className='min-w-0 break-all font-mono-ui text-xs text-neutral-900 dark:text-neutral-100'>
                   {value}
                 </dd>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -68,7 +69,7 @@ const riskyActors = (events: SecurityEvent[]): RiskyActor[] => {
   events
     .filter((event) => event.status === 'failure')
     .forEach((event) => {
-      const key = event.actor_id ?? 'Unknown actor'
+      const key = event.actor_id ?? ''
       const existing = grouped.get(key)
       if (!existing) {
         grouped.set(key, {
@@ -92,14 +93,14 @@ const riskyActors = (events: SecurityEvent[]): RiskyActor[] => {
 }
 
 const latestTimestamp = (events: SecurityEvent[]) => {
-  if (events.length === 0) return 'No activity yet'
+  if (events.length === 0) return null
   const latest = events.reduce((acc, event) => {
     if (!acc) return event.timestamp
     return new Date(event.timestamp).getTime() > new Date(acc).getTime()
       ? event.timestamp
       : acc
   }, '')
-  if (!latest) return 'No activity yet'
+  if (!latest) return null
   return formatTimestamp(latest)
 }
 
@@ -128,20 +129,29 @@ const windowDayKeys = (days: number) => {
   })
 }
 
+const QUERY_SYNTAX = 'event:login_failure  ip:10.0.0.6'
+
+const DEFAULT_FILTER = 'all'
+
+const viewOptions = [
+  { mode: 'list' as const, Icon: List, labelKey: 'stream.view.list' },
+  { mode: 'cards' as const, Icon: LayoutGrid, labelKey: 'stream.view.cards' },
+]
+
 const eventFilters: {
   key: string
-  label: string
+  labelKey: string
   predicate?: (event: SecurityEvent) => boolean
 }[] = [
-  { key: 'all', label: 'All' },
+  { key: DEFAULT_FILTER, labelKey: 'stream.filters.all' },
   {
     key: 'failures',
-    label: 'Failures',
+    labelKey: 'stream.filters.failures',
     predicate: (event) => event.status === 'failure',
   },
-  { key: 'authentication', label: 'Authentication' },
-  { key: 'credentials', label: 'Credentials' },
-  { key: 'administration', label: 'Administration' },
+  { key: 'authentication', labelKey: 'stream.filters.authentication' },
+  { key: 'credentials', labelKey: 'stream.filters.credentials' },
+  { key: 'administration', labelKey: 'stream.filters.administration' },
 ]
 
 const searchIn = (event: SecurityEvent) =>
@@ -158,18 +168,17 @@ export default function PageSecurityEvents({
   listing,
   directory,
 }: PageSecurityEventsProps) {
+  const { t } = useTranslation('seawatch')
   const [view, setView] = useState<ViewMode>('list')
   const [query, setQuery] = useState('')
 
   const tier = useLayoutTier()
   const effectiveView = tier === 'phone' ? 'cards' : view
 
-  const windowLabel = `last ${windowDays} days`
-
   const columns: Column<SecurityEvent>[] = [
     {
       key: 'event_type',
-      header: 'Event',
+      header: t('stream.columns.event'),
       render: (e) => (
         <div className='min-w-0'>
           <span>{eventLabel(e)}</span>
@@ -182,7 +191,7 @@ export default function PageSecurityEvents({
     },
     {
       key: 'status',
-      header: 'Outcome',
+      header: t('stream.columns.status'),
       render: (e) => {
         const reason = eventReason(e)
         return (
@@ -206,11 +215,15 @@ export default function PageSecurityEvents({
     },
     {
       key: 'actor',
-      header: 'Actor',
+      header: t('stream.columns.actor'),
       render: (e) => {
         const identifier = actorLabel(e)
         if (!identifier)
-          return <span className='text-xs text-neutral-400 dark:text-neutral-500'>unattributed</span>
+          return (
+            <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+              {t('stream.actor.unattributed')}
+            </span>
+          )
         const name = directory.label(e.actor_id, e.actor_type)
         return (
           <div className='min-w-0'>
@@ -222,7 +235,7 @@ export default function PageSecurityEvents({
               {name ?? identifier}
             </span>
             <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
-              {name ? identifier : (e.actor_type ?? 'unknown type')}
+              {name ? identifier : (e.actor_type ?? t('stream.actor.unknown_type'))}
             </p>
           </div>
         )
@@ -231,10 +244,15 @@ export default function PageSecurityEvents({
     },
     {
       key: 'target',
-      header: 'Target',
+      header: t('stream.columns.target'),
       render: (e) => {
         const identifier = e.target_id ?? e.resource
-        if (!identifier) return <span className='text-xs text-neutral-400 dark:text-neutral-500'>none</span>
+        if (!identifier)
+          return (
+            <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+              {t('stream.target.none')}
+            </span>
+          )
         const name = directory.label(e.target_id, e.target_type) ?? e.resource
         const resolved = name && name !== identifier
         return (
@@ -247,7 +265,7 @@ export default function PageSecurityEvents({
               {name ?? identifier}
             </span>
             <p className='truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
-              {resolved ? identifier : (e.target_type ?? 'unknown type')}
+              {resolved ? identifier : (e.target_type ?? t('stream.target.unknown_type'))}
             </p>
           </div>
         )
@@ -257,18 +275,20 @@ export default function PageSecurityEvents({
     },
     {
       key: 'ip_address',
-      header: 'IP address',
+      header: t('stream.columns.ip_address'),
       render: (e) =>
         e.ip_address ? (
           <span className='font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'>{e.ip_address}</span>
         ) : (
-          <span className='text-xs text-neutral-400 dark:text-neutral-500'>not recorded</span>
+          <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+            {t('stream.ip.not_recorded')}
+          </span>
         ),
       sortValue: (e) => e.ip_address ?? '',
     },
     {
       key: 'timestamp',
-      header: 'When',
+      header: t('stream.columns.timestamp'),
       align: 'right',
       render: (e) => (
         <div className='min-w-0 whitespace-nowrap'>
@@ -307,14 +327,14 @@ export default function PageSecurityEvents({
       </>
     ),
     flags: (e) => [
-      { label: 'Actor identified', on: Boolean(e.actor_id) },
-      { label: 'Target recorded', on: Boolean(e.target_id ?? e.resource) },
-      { label: 'Origin recorded', on: Boolean(e.ip_address) },
+      { label: t('stream.card.flags.actor'), on: Boolean(e.actor_id) },
+      { label: t('stream.card.flags.target'), on: Boolean(e.target_id ?? e.resource) },
+      { label: t('stream.card.flags.origin'), on: Boolean(e.ip_address) },
     ],
     footer: (e) => (
       <>
         <span className='truncate'>
-          {eventDetailSummary(e) ?? e.user_agent ?? 'no additional detail'}
+          {eventDetailSummary(e) ?? e.user_agent ?? t('stream.card.no_detail')}
         </span>
         <span className='tnum shrink-0 pl-3 text-right'>
           {formatTimestamp(e.timestamp)}
@@ -357,44 +377,48 @@ export default function PageSecurityEvents({
     return Math.round(((bucket.length - failed) / bucket.length) * 100)
   })
 
+  const latest = latestTimestamp(events)
+
   const metrics: Metric[] = [
     {
       key: 'total',
-      label: 'Events',
-      value: events.length.toLocaleString(),
+      label: t('metrics.total.label'),
+      value: t('metrics.value', { total: events.length }),
       hint: truncated
-        ? `capped, ${windowLabel}`
+        ? t('metrics.total.hint_capped', { days: windowDays })
         : events.length > 0
-          ? `last ${latestTimestamp(events)}`
-          : windowLabel,
+          ? t('metrics.total.hint_latest', {
+              timestamp: latest ?? t('stream.no_activity'),
+            })
+          : t('metrics.total.hint_window', { days: windowDays }),
       series: measured(eventsPerDay),
       tone: 'info',
     },
     {
       key: 'failures',
-      label: 'Failures',
-      value: failures.length.toLocaleString(),
+      label: t('metrics.failures.label'),
+      value: t('metrics.value', { total: failures.length }),
       hint: topErrorCode
         ? topErrorCode[0]
         : topFailure
           ? topFailure[0].toLowerCase()
-          : 'no failure recorded',
+          : t('metrics.failures.hint_none'),
       series: measured(failuresPerDay),
       tone: 'brand',
     },
     {
       key: 'rate',
-      label: 'Success rate',
-      value: `${successRate}%`,
-      hint: `${successes.toLocaleString()} successful`,
+      label: t('metrics.rate.label'),
+      value: t('metrics.rate.value', { total: successRate }),
+      hint: t('metrics.rate.hint', { total: successes }),
       series: measured(successRatePerDay),
       tone: 'success',
     },
     {
       key: 'actors',
-      label: 'Distinct actors',
-      value: uniqueActors.toLocaleString(),
-      hint: `over the ${windowLabel}`,
+      label: t('metrics.actors.label'),
+      value: t('metrics.value', { total: uniqueActors }),
+      hint: t('metrics.actors.hint', { days: windowDays }),
       series: measured(actorsPerDay),
       tone: 'violet',
     },
@@ -409,8 +433,8 @@ export default function PageSecurityEvents({
       ? [
           {
             tone: 'error' as const,
-            title: 'Security events unavailable',
-            detail: 'We could not fetch the latest events. Please try again later.',
+            title: t('alerts.unavailable.title'),
+            detail: t('alerts.unavailable.detail'),
           },
         ]
       : []),
@@ -418,8 +442,8 @@ export default function PageSecurityEvents({
       ? [
           {
             tone: 'warn' as const,
-            title: `Capped at ${windowLimit} events`,
-            detail: `The realm recorded more over the ${windowLabel}; the figures below cover the ${windowLimit} most recent only.`,
+            title: t('alerts.capped.title', { limit: windowLimit }),
+            detail: t('alerts.capped.detail', { limit: windowLimit, days: windowDays }),
           },
         ]
       : []),
@@ -427,11 +451,21 @@ export default function PageSecurityEvents({
       ? [
           {
             tone: 'error' as const,
-            title: `${failures.length} failed event${failures.length > 1 ? 's' : ''} over the ${windowLabel}`,
+            title: t('alerts.failures.title', {
+              count: failures.length,
+              days: windowDays,
+            }),
             detail: [
-              topFailure ? `${topFailure[0]} accounts for ${topFailure[1]}` : null,
-              topErrorCode ? `mostly ${topErrorCode[0]}` : null,
-              topFailingResource ? `on ${topFailingResource[0]}` : null,
+              topFailure
+                ? t('alerts.failures.share', {
+                    label: topFailure[0],
+                    total: topFailure[1],
+                  })
+                : null,
+              topErrorCode ? t('alerts.failures.error_code', { code: topErrorCode[0] }) : null,
+              topFailingResource
+                ? t('alerts.failures.resource', { resource: topFailingResource[0] })
+                : null,
             ]
               .filter(Boolean)
               .join(' · '),
@@ -440,10 +474,18 @@ export default function PageSecurityEvents({
       : []),
     ...riskyActors(events).map((actor) => ({
       tone: actor.count > 3 ? ('error' as const) : ('warn' as const),
-      title: `${actor.identifier} — ${actor.count} failure${actor.count > 1 ? 's' : ''}`,
+      title: t('alerts.actor.title', {
+        actor: actor.identifier || t('alerts.actor.unknown'),
+        count: actor.count,
+      }),
       detail: actor.ip
-        ? `Last seen from ${actor.ip} on ${formatTimestamp(actor.lastSeen)}.`
-        : `Last seen on ${formatTimestamp(actor.lastSeen)}, origin not recorded.`,
+        ? t('alerts.actor.detail_with_ip', {
+            ip: actor.ip,
+            timestamp: formatTimestamp(actor.lastSeen),
+          })
+        : t('alerts.actor.detail_without_ip', {
+            timestamp: formatTimestamp(actor.lastSeen),
+          }),
     })),
   ]
 
@@ -455,7 +497,7 @@ export default function PageSecurityEvents({
     return out
   }, [events, listing.filter, query])
 
-  const narrowed = Boolean(query.trim()) || listing.filter !== 'all'
+  const narrowed = Boolean(query.trim()) || listing.filter !== DEFAULT_FILTER
   const filteredOut = narrowed && filtered.length === 0
 
   const searchBox = (
@@ -466,9 +508,7 @@ export default function PageSecurityEvents({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={
-          tokens.toolbar.showQuerySyntax
-            ? 'event:login_failure  ip:10.0.0.6'
-            : 'Filter the stream…'
+          tokens.toolbar.showQuerySyntax ? QUERY_SYNTAX : t('stream.search_placeholder')
         }
         className={cn(
           'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-7 pr-2 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
@@ -489,9 +529,9 @@ export default function PageSecurityEvents({
         )}
       >
         <div className='min-w-0'>
-          <h1 className={tokens.header.title}>Sea Watch</h1>
+          <h1 className={tokens.header.title}>{t('page.title')}</h1>
           <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-            {`Security events recorded for this realm over the ${windowLabel}, most recent first.`}
+            {t('page.description', { days: windowDays })}
           </p>
         </div>
       </div>
@@ -533,18 +573,28 @@ export default function PageSecurityEvents({
 
         {hasActivity && (
           <Section
-            title='Authentication traffic'
-            description={`Logins and failures traced by Compass over the ${windowLabel}.`}
+            title={t('activity.title')}
+            description={t('activity.description', { days: windowDays })}
             contained={false}
             action={
               <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
                 <span className='inline-flex items-center gap-1'>
                   <span className='size-1.5 rounded-full bg-fk-success' />
-                  <span className='tnum'>{totalLogins}</span> logins
+                  <Trans
+                    ns='seawatch'
+                    i18nKey='activity.logins'
+                    count={totalLogins}
+                    components={{ value: <span className='tnum' /> }}
+                  />
                 </span>
                 <span className='inline-flex items-center gap-1'>
                   <span className='size-1.5 rounded-full bg-fk-danger' />
-                  <span className='tnum'>{totalLoginFailures}</span> failures
+                  <Trans
+                    ns='seawatch'
+                    i18nKey='activity.failures'
+                    count={totalLoginFailures}
+                    components={{ value: <span className='tnum' /> }}
+                  />
                 </span>
               </div>
             }
@@ -556,8 +606,8 @@ export default function PageSecurityEvents({
         )}
 
         <Section
-          title='Event stream'
-          description='Event families are applied by the server; the search box narrows the events loaded above.'
+          title={t('stream.title')}
+          description={t('stream.description')}
           contained={false}
           action={
             <div className='flex flex-wrap items-center justify-end gap-2'>
@@ -574,24 +624,19 @@ export default function PageSecurityEvents({
                         : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
                     )}
                   >
-                    {f.label}
+                    {t(f.labelKey)}
                   </button>
                 ))}
               </div>
               {searchBox}
               {tokens.toolbar.showViewToggle && tier !== 'phone' && (
                 <div className='flex rounded-md border border-fk-line p-0.5'>
-                  {(
-                    [
-                      ['list', List, 'List view'],
-                      ['cards', LayoutGrid, 'Card view'],
-                    ] as const
-                  ).map(([mode, Icon, label]) => (
+                  {viewOptions.map(({ mode, Icon, labelKey }) => (
                     <button
                       key={mode}
                       type='button'
                       onClick={() => setView(mode)}
-                      aria-label={label}
+                      aria-label={t(labelKey)}
                       aria-pressed={view === mode}
                       className={cn(
                         'grid size-6 cursor-pointer place-items-center rounded transition-colors',
@@ -617,15 +662,17 @@ export default function PageSecurityEvents({
               view={effectiveView}
               loading={isLoading}
               aggregates={{
-                event_type: `${events.length} event${events.length !== 1 ? 's' : ''}`,
-                status: `${failures.length} failed`,
-                actor: `${uniqueActors} actor${uniqueActors !== 1 ? 's' : ''}`,
+                event_type: t('stream.aggregates.events', { count: events.length }),
+                status: t('stream.aggregates.failures', { total: failures.length }),
+                actor: t('stream.aggregates.actors', { count: uniqueActors }),
               }}
-              emptyLabel={filteredOut ? 'No match' : 'No security event'}
+              emptyLabel={
+                filteredOut ? t('stream.empty.filtered_label') : t('stream.empty.label')
+              }
               emptyHint={
                 filteredOut
-                  ? 'No event matches the current search and filter.'
-                  : `Sea Watch records every security-relevant action taken in this realm — logins, credential changes, and administrative operations. Nothing was recorded over the ${windowLabel}.`
+                  ? t('stream.empty.filtered_hint')
+                  : t('stream.empty.hint', { days: windowDays })
               }
               emptyAction={
                 filteredOut ? (
@@ -633,10 +680,10 @@ export default function PageSecurityEvents({
                     variant='outline'
                     onClick={() => {
                       setQuery('')
-                      listing.setFilter('all')
+                      listing.setFilter(DEFAULT_FILTER)
                     }}
                   >
-                    Clear filter
+                    {t('stream.empty.clear')}
                   </Button>
                 ) : undefined
               }
@@ -645,8 +692,11 @@ export default function PageSecurityEvents({
             {!isLoading && events.length > 0 && (
               <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
                 {filtered.length === events.length
-                  ? `${events.length} ${events.length > 1 ? 'entries' : 'entry'}`
-                  : `${filtered.length} of ${events.length}`}
+                  ? t('stream.count', { count: events.length })
+                  : t('stream.filtered', {
+                      shown: filtered.length,
+                      total: events.length,
+                    })}
               </p>
             )}
           </div>

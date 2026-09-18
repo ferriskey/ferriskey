@@ -1,0 +1,136 @@
+# "Compass" is the name of the FerrisKey authentication-tracing module. Translate it only if the
+# product name itself is localised.
+page:
+  title: Compass
+  description: Trace of the authentication executions of this realm.
+
+# Labels and descriptions for the FlowStepName values the API sends, keyed on the enum value itself.
+# The raw value stays on screen in a monospace font next to the label. The description is read while
+# diagnosing a failed sign-in, so keep it factual and in the past tense — it states what the step
+# did, not what it is for. "AuthnRequest" is the SAML element name and stays as spelled.
+step:
+  authorize:
+    label: Authorization request
+    description: The client asked the realm for an authorization code.
+  credential_validation:
+    label: Credential validation
+    description: The submitted secret was compared with the stored credential.
+  mfa_challenge:
+    label: Second factor
+    description: A second factor was requested and verified before any token was issued.
+  token_exchange:
+    label: Token exchange
+    description: The code or the refresh token was traded for an access token.
+  idp_redirect:
+    label: Redirect to provider
+    description: The browser was handed over to an external identity provider.
+  idp_callback:
+    label: Provider callback
+    description: The external provider sent the browser back with its answer.
+  finalize:
+    label: Session opened
+    description: The session was persisted and the tokens returned to the client.
+  saml_authn_request:
+    label: SAML AuthnRequest
+    description: The service provider request was parsed and its signature checked.
+  saml_assertion:
+    label: SAML assertion
+    description: The signed assertion was built and posted back to the service provider.
+
+# Rendered in a badge next to a progress bar, so keep them short. "ms" and "s" are the SI symbols.
+duration:
+  milliseconds: '{{value}} ms'
+  seconds: '{{value}} s'
+
+list:
+  search_hint: Filters are applied by the server; the search box narrows the executions loaded above.
+  search_placeholder: Filter by id, client or user…
+  columns:
+    started_at: Started
+    grant_type: Grant type
+    status: Outcome
+    client_id: Client
+    user_id: User
+    steps: Steps
+    duration: Duration
+  client:
+    unresolved: unresolved
+  user:
+    never_identified: never identified
+  card:
+    unresolved_client: unresolved client
+    flags:
+      user: User identified
+      completed: Execution completed
+      no_failure: No failing step
+  metrics:
+    total:
+      label: Executions
+      hint: recorded in this realm
+    success:
+      label: Succeeded
+      hint: '{{rate}}% of total'
+      hint_none: no execution recorded
+    failure:
+      label: Failed
+      hint: a step failed
+    duration:
+      label: Average duration
+      hint: completed executions
+  filters:
+    failed: Failed
+    unfinished: Unfinished
+    anonymous: No user
+  aggregates:
+    executions_one: '{{count}} execution'
+    executions_other: '{{count}} executions'
+    # Never inflects: the noun it qualifies is the column header, not a word in this string.
+    unfinished: '{{total}} unfinished'
+  alerts:
+    unavailable:
+      title: Flows unavailable
+      detail: We could not fetch the latest flows. Please try again later.
+    failed:
+      title_one: '{{count}} failed execution'
+      title_other: '{{count}} failed executions'
+      # {{step}} is a step label from the catalogue above; {{total}} is how many executions failed there.
+      detail: '{{step}} accounts for {{total}} of them.'
+      no_step: No failing step recorded
+    expired:
+      title_one: '{{count}} expired execution'
+      title_other: '{{count}} expired executions'
+      detail: Left for an external provider and never came back — no step failed.
+  empty:
+    label: No execution recorded
+    hint: Compass records every authentication attempt made against this realm.
+
+detail:
+  back: Compass
+  not_found:
+    title: Execution not found
+    detail: It may have been purged with the realm retention, or it belongs to another realm.
+  failure:
+    title: 'Failed at {{step}}'
+  expired: This execution never came back. No step failed — the user simply did not return, so neither an end date nor a duration was ever recorded.
+  meta:
+    started: Started
+    completed: Completed
+    client: Client
+    user: User
+    in_progress: in progress
+    never: never
+    unresolved: unresolved
+    never_identified: never identified
+  steps:
+    title: Steps
+    description_one: '{{count}} step recorded — {{duration}} of cumulated processing, waiting on the user excluded.'
+    description_other: '{{count}} steps recorded — {{duration}} of cumulated processing, waiting on the user excluded.'
+    empty: No step recorded for this execution.
+    skipped: Not applicable to this execution.
+    waiting: Waiting for the next step…
+  origin:
+    title: Origin
+    grant_type: Grant type
+    ip_address: IP address
+    user_agent: User agent
+    not_recorded: not recorded

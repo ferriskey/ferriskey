@@ -1,11 +1,12 @@
 import { Check, Loader, Minus, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { Schemas } from '@/api/api.client'
 import {
   formatDuration,
   formatTime,
-  stepDescriptions,
+  stepDescription,
   stepLabel,
   stepStatusTone,
 } from '../flow-format'
@@ -27,6 +28,7 @@ interface StepRowProps {
 }
 
 function StepRow({ step, index, last, maxMs }: StepRowProps) {
+  const { t } = useTranslation('compass')
   const share = step.duration_ms ? (step.duration_ms / maxMs) * 100 : 0
 
   return (
@@ -61,9 +63,7 @@ function StepRow({ step, index, last, maxMs }: StepRowProps) {
         </div>
 
         <p className='mt-0.5 text-xs text-neutral-500 dark:text-neutral-400'>
-          {step.status === 'skipped'
-            ? 'Not applicable to this execution.'
-            : stepDescriptions[step.step_name]}
+          {step.status === 'skipped' ? t('detail.steps.skipped') : stepDescription(step)}
         </p>
 
         {(step.error_code || step.error_message) && (
@@ -101,6 +101,7 @@ export interface FlowStepsProps {
 }
 
 export default function FlowSteps({ steps, pending }: FlowStepsProps) {
+  const { t } = useTranslation('compass')
   const maxMs = Math.max(...steps.map((s) => s.duration_ms ?? 0), 1)
 
   return (
@@ -122,7 +123,7 @@ export default function FlowSteps({ steps, pending }: FlowStepsProps) {
             </span>
           </div>
           <p className='pb-2 pt-0.5 text-xs text-neutral-400 dark:text-neutral-500'>
-            Waiting for the next step…
+            {t('detail.steps.waiting')}
           </p>
         </li>
       )}

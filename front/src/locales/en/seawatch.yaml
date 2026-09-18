@@ -1,0 +1,146 @@
+# "Sea Watch" is the name of the FerrisKey audit module. Translate it only if the product name
+# itself is localised.
+page:
+  title: Sea Watch
+  # {{days}} is the width of the observation window. The screen fixes it at 7, so it never inflects;
+  # write the sentence for a plural count.
+  description: 'Security events recorded for this realm over the last {{days}} days, most recent first.'
+
+# Labels for the SecurityEventType values the API sends, keyed on the enum value itself. The raw
+# value stays on screen in a monospace font right next to the label, so the label never has to echo
+# the identifier — it has to say what happened. These are read to reconstruct an incident: prefer the
+# literal action over a smoother phrase, and keep "failed" distinct from "not sent".
+event:
+  login_success: Login succeeded
+  login_failure: Login failed
+  password_reset: Password reset
+  password_reset_requested: Password reset requested
+  password_reset_completed: Password reset completed
+  user_created: User created
+  user_email_verified: Email address verified
+  user_deleted: User deleted
+  role_assigned: Role assigned
+  role_unassigned: Role unassigned
+  role_created: Role created
+  role_removed: Role removed
+  client_created: Client created
+  client_deleted: Client deleted
+  client_secret_rotated: Client secret rotated
+  client_secret_viewed: Client secret viewed
+  realm_config_changed: Realm configuration changed
+  email_not_sent: Email delivery failed
+  email_sent: Email delivered
+  client_maintenance_enabled: Client maintenance enabled
+  client_maintenance_disabled: Client maintenance disabled
+  session_created: Session opened
+  session_revoked: Session revoked
+  webhook_delivery_exhausted: Webhook delivery gave up
+  identity_provider_link_removed: Identity provider link removed
+  unknown: Unrecognised event
+
+metrics:
+  # A raw counter rendered on its own. The "number" formatter applies the digit grouping of the
+  # active locale — do not replace it with a bare {{total}}.
+  value: '{{total, number}}'
+  total:
+    label: Events
+    hint_capped: 'capped, last {{days}} days'
+    hint_latest: 'last {{timestamp}}'
+    hint_window: 'last {{days}} days'
+  failures:
+    label: Failures
+    hint_none: no failure recorded
+  rate:
+    label: Success rate
+    value: '{{total}}%'
+    hint: '{{total, number}} successful'
+  actors:
+    label: Distinct actors
+    hint: 'over the last {{days}} days'
+
+activity:
+  title: Authentication traffic
+  description: 'Logins and failures traced by Compass over the last {{days}} days.'
+  # The count sits in its own element so it can be rendered with tabular figures. Keep <value>
+  # around the number and nothing else.
+  logins_one: '<value>{{count}}</value> login'
+  logins_other: '<value>{{count}}</value> logins'
+  failures_one: '<value>{{count}}</value> failure'
+  failures_other: '<value>{{count}}</value> failures'
+
+stream:
+  title: Event stream
+  description: Event families are applied by the server; the search box narrows the events loaded above.
+  search_placeholder: Filter the stream…
+  no_activity: No activity yet
+  count_one: '{{count}} entry'
+  count_other: '{{count}} entries'
+  # Two raw counters side by side, neither of which inflects.
+  filtered: '{{shown}} of {{total}}'
+  columns:
+    event: Event
+    status: Outcome
+    actor: Actor
+    target: Target
+    ip_address: IP address
+    timestamp: When
+  filters:
+    all: All
+    failures: Failures
+    authentication: Authentication
+    credentials: Credentials
+    administration: Administration
+  view:
+    list: List view
+    cards: Card view
+  actor:
+    unattributed: unattributed
+    unknown_type: unknown type
+  target:
+    none: none
+    unknown_type: unknown type
+  ip:
+    not_recorded: not recorded
+  card:
+    no_detail: no additional detail
+    flags:
+      actor: Actor identified
+      target: Target recorded
+      origin: Origin recorded
+  aggregates:
+    events_one: '{{count}} event'
+    events_other: '{{count}} events'
+    # Never inflects: the noun it qualifies is the column header, not a word in this string.
+    failures: '{{total}} failed'
+    actors_one: '{{count}} actor'
+    actors_other: '{{count}} actors'
+  empty:
+    label: No security event
+    hint: 'Sea Watch records every security-relevant action taken in this realm — logins, credential changes, and administrative operations. Nothing was recorded over the last {{days}} days.'
+    filtered_label: No match
+    filtered_hint: No event matches the current search and filter.
+    clear: Clear filter
+
+alerts:
+  unavailable:
+    title: Security events unavailable
+    detail: We could not fetch the latest events. Please try again later.
+  capped:
+    # {{limit}} is a fixed ceiling in the hundreds, so this reads as a plural in every case.
+    title: 'Capped at {{limit}} events'
+    detail: 'The realm recorded more over the last {{days}} days; the figures below cover the {{limit}} most recent only.'
+  failures:
+    title_one: '{{count}} failed event over the last {{days}} days'
+    title_other: '{{count}} failed events over the last {{days}} days'
+    # {{label}} is an event label from the catalogue above; {{total}} is how many of them occurred.
+    share: '{{label}} accounts for {{total}}'
+    # {{code}} is a server error code. It is never translated.
+    error_code: 'mostly {{code}}'
+    resource: 'on {{resource}}'
+  actor:
+    unknown: Unknown actor
+    # {{actor}} is a user identifier or, failing that, the label above. It is never translated.
+    title_one: '{{actor}} — {{count}} failure'
+    title_other: '{{actor}} — {{count}} failures'
+    detail_with_ip: 'Last seen from {{ip}} on {{timestamp}}.'
+    detail_without_ip: 'Last seen on {{timestamp}}, origin not recorded.'
