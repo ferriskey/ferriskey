@@ -8,7 +8,6 @@ import { useParams } from 'react-router'
 import { toast } from 'sonner'
 import { apiErrorMessage } from '@/lib/api-error'
 import { AUTH_NAMESPACE } from '../../constants'
-import { AuthLanguageSwitcher } from '../../components/auth-language-switcher'
 import { storeVerifyEmailContext } from './verify-email-context'
 
 const RESEND_COOLDOWN_SECONDS = 60
@@ -59,7 +58,6 @@ export default function VerifyEmailFeature() {
 
   return (
     <div className='flex flex-col items-center justify-center min-h-screen p-4'>
-      <AuthLanguageSwitcher />
       <div className='max-w-md w-full space-y-6 text-center'>
         <div className='mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center'>
           <Mail className='w-8 h-8 text-blue-600' />

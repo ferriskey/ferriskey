@@ -2,7 +2,6 @@ import { useLocation, useParams, Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { Mail, ArrowLeft } from 'lucide-react'
 import { AUTH_NAMESPACE } from '../constants'
-import { AuthLanguageSwitcher } from '../components/auth-language-switcher'
 
 export default function PageCheckYourEmail() {
   const { realm_name } = useParams()
@@ -12,7 +11,6 @@ export default function PageCheckYourEmail() {
 
   return (
     <div className='flex flex-col items-center justify-center min-h-screen p-4'>
-      <AuthLanguageSwitcher />
       <div className='max-w-md w-full space-y-6 text-center'>
         <div className='mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center'>
           <Mail className='w-8 h-8 text-blue-600' />
