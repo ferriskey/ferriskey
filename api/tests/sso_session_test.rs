@@ -188,6 +188,14 @@ mod tests {
         shared_ctx().realm_name.as_str()
     }
 
+    static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn serial() -> std::sync::MutexGuard<'static, ()> {
+        SERIAL
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     async fn set_admin_enabled(enabled: bool) {
         sqlx::query("UPDATE users SET enabled = $1 WHERE username = 'admin'")
             .bind(enabled)
@@ -297,6 +305,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn a_second_application_signs_in_from_the_session_cookie() {
+        let _serial = serial();
         rt().block_on(async {
             set_admin_enabled(true).await;
             let server = make_server();
@@ -323,6 +332,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn the_login_hands_the_browser_an_opaque_session_cookie() {
+        let _serial = serial();
         rt().block_on(async {
             set_admin_enabled(true).await;
             let server = make_server();
@@ -382,6 +392,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn the_second_application_joins_the_session_instead_of_opening_another() {
+        let _serial = serial();
         rt().block_on(async {
             set_admin_enabled(true).await;
             let server = make_server();
@@ -406,6 +417,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn resuming_a_session_is_recorded_as_a_login() {
+        let _serial = serial();
         rt().block_on(async {
             set_admin_enabled(true).await;
             let server = make_server();
@@ -430,6 +442,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn a_disabled_user_cannot_resume_a_session() {
+        let _serial = serial();
         rt().block_on(async {
             set_admin_enabled(true).await;
             let server = make_server();
@@ -438,9 +451,9 @@ mod tests {
             set_admin_enabled(false).await;
 
             let survey = start_survey_authorization(&server, Some(&sso)).await;
-            let location = location_of(&survey);
-
             set_admin_enabled(true).await;
+
+            let location = location_of(&survey);
 
             assert!(
                 !location.starts_with(SURVEY_REDIRECT_URI),
@@ -456,6 +469,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn an_unknown_session_falls_back_to_the_login_page() {
+        let _serial = serial();
         rt().block_on(async {
             let server = make_server();
 
@@ -477,6 +491,7 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
     fn no_cookie_means_the_ordinary_login_page() {
+        let _serial = serial();
         rt().block_on(async {
             let server = make_server();
 
