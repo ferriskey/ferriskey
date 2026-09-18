@@ -97,6 +97,14 @@ jobs:
       - name: run session management integration tests
         run: cargo test -p ferriskey-api --test session_management_test -- --ignored
 
+      # Cross-application single sign-on (#1329): one login reaching a second,
+      # confidential client without the login form, plus the refusals (expired or
+      # unknown session, disabled account) and the shape of the FERRISKEY_SSO
+      # cookie. The suite shares one `admin` user and toggles its `enabled` flag,
+      # so the tests take an in-file lock rather than relying on --test-threads=1.
+      - name: run SSO session integration tests
+        run: cargo test -p ferriskey-api --test sso_session_test -- --ignored
+
       - name: run redirect_uri validation integration tests
         run: cargo test -p ferriskey-api --test redirect_uri_validation_test -- --ignored
 
