@@ -273,7 +273,8 @@ detail:
       submit_other: 'Assign {{count}} roles'
     toast:
       missing_context: User or realm not found
-      assigned: Role(s) assigned successfully
+      assigned_one: Role assigned successfully
+      assigned_other: Roles assigned successfully
       unassigned_title: Role unassigned successfully
       unassigned_description: The role has been successfully removed from the user.
 
@@ -303,7 +304,8 @@ detail:
       submit_other: 'Add to {{count}} organizations'
     toast:
       missing_context: User or realm not found
-      assigned: Organization(s) assigned successfully
+      assigned_one: Organization assigned successfully
+      assigned_other: Organizations assigned successfully
 
   attributes:
     list:

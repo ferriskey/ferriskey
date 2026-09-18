@@ -39,11 +39,13 @@ export default function UserRoleMappingFeature() {
     }
     if (!assignRoleSchema.safeParse({ roleIds: selectedRoleIds }).success) return
 
+    const assignedCount = selectedRoleIds.length
+
     for (const roleId of selectedRoleIds) {
       assignRole({ path: { realm_name, user_id, role_id: roleId } })
     }
     setSelectedRoleIds([])
-    toast.success(t('detail.role_mapping.toast.assigned'))
+    toast.success(t('detail.role_mapping.toast.assigned', { count: assignedCount }))
   }
 
   const handleUnassign = (roleId: string) => {

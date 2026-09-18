@@ -279,7 +279,7 @@ detail:
       submit_other: '分配 {{count}} 个角色'
     toast:
       missing_context: 未找到用户或域
-      assigned: 角色分配成功
+      assigned_other: 角色分配成功
       unassigned_title: 角色解除分配成功
       unassigned_description: 该角色已成功从此用户中移除。
 
@@ -308,7 +308,7 @@ detail:
       submit_other: '添加到 {{count}} 个组织'
     toast:
       missing_context: 未找到用户或域
-      assigned: 组织分配成功
+      assigned_other: 组织分配成功
 
   attributes:
     list:

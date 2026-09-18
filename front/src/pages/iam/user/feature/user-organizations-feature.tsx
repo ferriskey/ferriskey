@@ -52,6 +52,8 @@ export default function UserOrganizationsFeature() {
     )
       return
 
+    const assignedCount = selectedOrganizationIds.length
+
     for (const organizationId of selectedOrganizationIds) {
       addToOrganization({
         path: { realm_name, organization_id: organizationId },
@@ -59,7 +61,7 @@ export default function UserOrganizationsFeature() {
       })
     }
     setSelectedOrganizationIds([])
-    toast.success(t('detail.organizations.toast.assigned'))
+    toast.success(t('detail.organizations.toast.assigned', { count: assignedCount }))
   }
 
   const handleRemove = (organizationId: string) => {
