@@ -1,26 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
-import { toast } from 'sonner'
-import { AUTH_NAMESPACE } from '../constants'
 
 type Options = {
   isRedirecting: boolean
   isSessionError: boolean
   getOAuthParams: () => Promise<{ query: string; realm: string }>
-  getAuthParamsFromUrl: () => { clientId: string; redirectUri: string }
-  resetAuthenticate: () => void
 }
 
-export function useSessionRefresh({
-  isRedirecting,
-  isSessionError,
-  getOAuthParams,
-  getAuthParamsFromUrl,
-  resetAuthenticate,
-}: Options) {
-  const navigate = useNavigate()
-  const { t } = useTranslation(AUTH_NAMESPACE)
+export function useSessionRefresh({ isRedirecting, isSessionError, getOAuthParams }: Options) {
   const [showSessionBar, setShowSessionBar] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
@@ -51,42 +37,12 @@ export function useSessionRefresh({
 
   const restartAuthFlow = useCallback(async () => {
     cancelAutoRefresh()
+    setShowSessionBar(false)
 
     const { query, realm } = await getOAuthParams()
 
-    await fetch(`${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`, {
-      credentials: 'include',
-      redirect: 'manual',
-    })
-
-    try {
-      resetAuthenticate()
-
-      const { clientId: cId, redirectUri: rUri } = getAuthParamsFromUrl()
-      const newState = new URLSearchParams(query).get('state') ?? crypto.randomUUID()
-
-      navigate(
-        `/realms/${realm}/authentication/login?client_id=${cId}&redirect_uri=${rUri}&state=${newState}`,
-        { replace: true }
-      )
-
-      setShowSessionBar(false)
-      scheduleSessionExpirationBar()
-      toast.success(t('session.refreshed'), { description: t('session.refreshed_description') })
-    } catch {
-      toast.error(t('session.refresh_failed'), {
-        description: t('session.refresh_failed_description'),
-      })
-    }
-  }, [
-    cancelAutoRefresh,
-    getOAuthParams,
-    getAuthParamsFromUrl,
-    navigate,
-    scheduleSessionExpirationBar,
-    resetAuthenticate,
-    t,
-  ])
+    window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+  }, [cancelAutoRefresh, getOAuthParams])
 
   useEffect(() => {
     restartAuthFlowRef.current = restartAuthFlow
