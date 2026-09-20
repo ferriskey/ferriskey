@@ -213,6 +213,17 @@ where
 
         let user = self.user_repository.get_by_id(user_id).await?;
 
+        if user.realm_id != auth_session.realm_id {
+            warn!(
+                user_id = %user_id,
+                user_realm = ?user.realm_id,
+                session_realm = ?auth_session.realm_id,
+                "rejecting a saml assertion: the code is bound to an account of another realm"
+            );
+
+            return Err(CoreError::InvalidAuthorizationCode);
+        }
+
         if !user.enabled {
             return Err(CoreError::UserDisabled);
         }

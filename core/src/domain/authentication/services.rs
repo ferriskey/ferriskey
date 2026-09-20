@@ -163,8 +163,13 @@ pub(crate) fn format_auth_completion(
 /// has not already been consumed by a prior authentication — a session that
 /// already has a `user_id` *and* is flagged `authenticated` is spent, and
 /// replaying it would mint a second authorization code for a stale request.
-fn auth_session_can_resume(auth_session: &AuthSession, now: DateTime<Utc>) -> bool {
-    auth_session.expires_at >= now
+fn auth_session_can_resume(
+    auth_session: &AuthSession,
+    realm_id: RealmId,
+    now: DateTime<Utc>,
+) -> bool {
+    auth_session.realm_id == realm_id
+        && auth_session.expires_at >= now
         && !(auth_session.user_id.is_some() && auth_session.authenticated)
 }
 
@@ -2116,6 +2121,17 @@ where
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
         let user = self.user_repository.get_by_id(user_id).await?;
 
+        if user.realm_id != auth_session.realm_id {
+            warn!(
+                user_id = %user_id,
+                client_id = %params.client_id,
+                user_realm = ?user.realm_id,
+                session_realm = ?auth_session.realm_id,
+                "authorization_code: the code is bound to an account of another realm"
+            );
+            return Err(CoreError::InvalidAuthorizationCode);
+        }
+
         let pending_step = self
             .resolve_pending_auth_step(user_id, params.realm_id)
             .await?;
@@ -3923,6 +3939,16 @@ where
             return Err(CoreError::InvalidToken);
         }
 
+        if auth_session.realm_id != user.realm_id {
+            warn!(
+                auth_session_id = %auth_session.id,
+                session_realm = ?auth_session.realm_id,
+                user_realm = ?user.realm_id,
+                "Refusing a login action: the authorization request belongs to another realm"
+            );
+            return Err(CoreError::InvalidToken);
+        }
+
         if auth_session.expires_at <= Utc::now() {
             return Err(CoreError::InvalidToken);
         }
@@ -3972,6 +3998,16 @@ where
             .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
+
+        if auth_session.realm_id != realm.id {
+            warn!(
+                auth_session_id = %auth_session.id,
+                session_realm = ?auth_session.realm_id,
+                request_realm = ?realm.id,
+                "Refusing a login: the authorization request was opened in another realm"
+            );
+            return Err(CoreError::InvalidSession);
+        }
 
         match input.auth_method {
             AuthenticationMethod::ExistingToken { token } => {
@@ -4156,7 +4192,7 @@ where
                 .auth_session_repository
                 .get_by_session_code(session_code)
                 .await
-            && auth_session_can_resume(&auth_session, Utc::now())
+            && auth_session_can_resume(&auth_session, realm.id, Utc::now())
         {
             let output = self
                 .finalize_authentication(
@@ -4866,7 +4902,7 @@ mod tests {
             false,
         );
 
-        assert!(auth_session_can_resume(&session, now));
+        assert!(auth_session_can_resume(&session, session.realm_id, now));
     }
 
     #[test]
@@ -4875,7 +4911,7 @@ mod tests {
         let now = Utc::now();
         let session = auth_session(Some("s"), "https://c/cb", now, None, false);
 
-        assert!(auth_session_can_resume(&session, now));
+        assert!(auth_session_can_resume(&session, session.realm_id, now));
     }
 
     #[test]
@@ -4889,7 +4925,7 @@ mod tests {
             false,
         );
 
-        assert!(!auth_session_can_resume(&session, now));
+        assert!(!auth_session_can_resume(&session, session.realm_id, now));
     }
 
     #[test]
@@ -4905,7 +4941,7 @@ mod tests {
             true,
         );
 
-        assert!(!auth_session_can_resume(&session, now));
+        assert!(!auth_session_can_resume(&session, session.realm_id, now));
     }
 
     #[test]
@@ -4920,7 +4956,25 @@ mod tests {
             false,
         );
 
-        assert!(auth_session_can_resume(&session, now));
+        assert!(auth_session_can_resume(&session, session.realm_id, now));
+    }
+
+    #[test]
+    fn resume_rejected_for_a_session_opened_in_another_realm() {
+        let now = Utc::now();
+        let session = auth_session(
+            Some("s"),
+            "https://c/cb",
+            now + Duration::minutes(5),
+            None,
+            false,
+        );
+
+        assert!(!auth_session_can_resume(
+            &session,
+            RealmId::from(Uuid::new_v4()),
+            now
+        ));
     }
 
     // ---- PKCE (RFC 7636) unit tests --------------------------------------
