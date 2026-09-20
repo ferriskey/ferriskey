@@ -23,6 +23,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub subject_types_supported: Vec<String>,
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
+    pub code_challenge_methods_supported: Vec<String>,
 }
 
 #[utoipa::path(
@@ -95,5 +96,6 @@ pub async fn get_openid_configuration(
             "client_secret_basic".to_string(),
             "client_secret_post".to_string(),
         ],
+        code_challenge_methods_supported: vec!["S256".to_string()],
     }))
 }
