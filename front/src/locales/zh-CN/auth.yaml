@@ -239,8 +239,6 @@ session:
   refreshing: '{{seconds}} 秒后自动刷新…'
   restart: 请重新开始会话以继续。
   refresh: 刷新会话
-  refreshed: 会话已刷新
-  refreshed_description: 您现在可以重新登录了。
   refresh_failed: 会话刷新失败
   refresh_failed_description: 请重试。
 

@@ -211,8 +211,6 @@ session:
   refreshing: Refreshing automatically in {{seconds}}s...
   restart: Restart your session to continue.
   refresh: Refresh session
-  refreshed: Session refreshed
-  refreshed_description: You can now log in again.
   refresh_failed: Session refresh failed
   refresh_failed_description: Please try again.
 
