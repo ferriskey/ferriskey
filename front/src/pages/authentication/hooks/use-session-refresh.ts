@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { AUTH_NAMESPACE } from '../constants'
 
 type Options = {
   isRedirecting: boolean
@@ -7,6 +10,7 @@ type Options = {
 }
 
 export function useSessionRefresh({ isRedirecting, isSessionError, getOAuthParams }: Options) {
+  const { t } = useTranslation(AUTH_NAMESPACE)
   const [showSessionBar, setShowSessionBar] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const timerRef = useRef<number | null>(null)
@@ -37,12 +41,17 @@ export function useSessionRefresh({ isRedirecting, isSessionError, getOAuthParam
 
   const restartAuthFlow = useCallback(async () => {
     cancelAutoRefresh()
-    setShowSessionBar(false)
 
-    const { query, realm } = await getOAuthParams()
+    try {
+      const { query, realm } = await getOAuthParams()
 
-    window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
-  }, [cancelAutoRefresh, getOAuthParams])
+      window.location.href = `${window.apiUrl}/realms/${realm}/protocol/openid-connect/auth?${query}`
+    } catch {
+      toast.error(t('session.refresh_failed'), {
+        description: t('session.refresh_failed_description'),
+      })
+    }
+  }, [cancelAutoRefresh, getOAuthParams, t])
 
   useEffect(() => {
     restartAuthFlowRef.current = restartAuthFlow

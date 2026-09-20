@@ -211,6 +211,8 @@ session:
   refreshing: Refreshing automatically in {{seconds}}s...
   restart: Restart your session to continue.
   refresh: Refresh session
+  refresh_failed: Session refresh failed
+  refresh_failed_description: Please try again.
 
 required_action:
   loading: Loading ...
