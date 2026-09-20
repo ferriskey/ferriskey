@@ -1,38 +1,79 @@
-use reqwest::Client;
+use std::time::Duration;
+
+use reqwest::header::ACCEPT;
+use reqwest::redirect;
+use reqwest::{Client, Url};
+use tokio::net::lookup_host;
 use tracing::instrument;
+
+use ferriskey_webhook::endpoint::{PrivateEndpoints, allows_cleartext, is_forbidden_address};
 
 use crate::domain::abyss::identity_provider::broker::{
     BrokeredUserInfo, OAuthClient, OAuthTokenResponse,
 };
 use crate::domain::common::entities::app_errors::CoreError;
 
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+const USER_AGENT: &str = concat!("FerrisKey/", env!("CARGO_PKG_VERSION"));
+
 /// HTTP client implementation for OAuth operations with external IdPs
 #[derive(Debug, Clone)]
 pub struct ReqwestOAuthClient {
-    client: Client,
+    private_endpoints: PrivateEndpoints,
 }
 
 impl ReqwestOAuthClient {
-    pub fn new() -> Self {
-        // A User-Agent header is required by some IdP APIs (notably GitHub,
-        // which returns 403 without one).
-        let client = Client::builder()
-            .user_agent(concat!("FerrisKey/", env!("CARGO_PKG_VERSION")))
-            .build()
-            .unwrap_or_default();
-
-        Self { client }
+    pub fn new(private_endpoints: PrivateEndpoints) -> Self {
+        Self { private_endpoints }
     }
 
-    #[allow(unused)]
-    pub fn with_client(client: Client) -> Self {
-        Self { client }
+    async fn secured_client(&self, raw_url: &str) -> Result<Client, CoreError> {
+        let url = Url::parse(raw_url).map_err(|_| CoreError::InvalidProviderUrl)?;
+
+        let host = url
+            .host_str()
+            .ok_or(CoreError::InvalidProviderUrl)?
+            .to_string();
+
+        let port = url
+            .port_or_known_default()
+            .ok_or(CoreError::InvalidProviderUrl)?;
+
+        let mut resolved = lookup_host((host.as_str(), port)).await.map_err(|error| {
+            tracing::error!(%host, %error, "identity provider host did not resolve");
+            CoreError::InvalidProviderUrl
+        })?;
+
+        let addr = resolved
+            .find(|candidate| !is_forbidden_address(candidate.ip(), self.private_endpoints))
+            .ok_or_else(|| {
+                tracing::error!(%host, "identity provider host resolved to a forbidden address");
+                CoreError::InvalidProviderUrl
+            })?;
+
+        if url.scheme() != "https" && !allows_cleartext(addr.ip(), self.private_endpoints) {
+            tracing::error!(%host, "identity provider endpoint may not use cleartext http");
+            return Err(CoreError::InvalidProviderUrl);
+        }
+
+        Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(REQUEST_TIMEOUT)
+            .connect_timeout(CONNECT_TIMEOUT)
+            .redirect(redirect::Policy::none())
+            .resolve(&host, addr)
+            .build()
+            .map_err(|error| {
+                tracing::error!(%host, %error, "failed to build the identity provider http client");
+                CoreError::InvalidProviderUrl
+            })
     }
 }
 
 impl Default for ReqwestOAuthClient {
     fn default() -> Self {
-        Self::new()
+        Self::new(PrivateEndpoints::default())
     }
 }
 
@@ -47,6 +88,8 @@ impl OAuthClient for ReqwestOAuthClient {
         client_secret: &str,
         code_verifier: Option<&str>,
     ) -> Result<OAuthTokenResponse, CoreError> {
+        let client = self.secured_client(token_url).await?;
+
         let mut params = vec![
             ("grant_type", "authorization_code"),
             ("code", code),
@@ -60,33 +103,29 @@ impl OAuthClient for ReqwestOAuthClient {
             params.push(("code_verifier", verifier));
         }
 
-        let response = self
-            .client
+        let response = client
             .post(token_url)
             // GitHub (and some other IdPs) default to form-urlencoded token
             // responses unless the client explicitly asks for JSON.
-            .header(reqwest::header::ACCEPT, "application/json")
+            .header(ACCEPT, "application/json")
             .form(&params)
             .send()
             .await
-            .map_err(|e| {
-                tracing::error!("Token exchange request failed: {}", e);
-                CoreError::IdpTokenExchangeFailed(format!("Request failed: {}", e))
+            .map_err(|error| {
+                tracing::error!(%error, "token exchange request failed");
+                CoreError::IdpTokenExchangeFailed("upstream request failed".to_string())
             })?;
 
         if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            tracing::error!("Token exchange failed with status {}: {}", status, body);
-            return Err(CoreError::IdpTokenExchangeFailed(format!(
-                "HTTP {}: {}",
-                status, body
-            )));
+            tracing::error!(status = %response.status(), "token exchange returned a non-success status");
+            return Err(CoreError::IdpTokenExchangeFailed(
+                "upstream request failed".to_string(),
+            ));
         }
 
-        let token_response: OAuthTokenResponse = response.json().await.map_err(|e| {
-            tracing::error!("Failed to parse token response: {}", e);
-            CoreError::IdpTokenExchangeFailed(format!("Failed to parse response: {}", e))
+        let token_response: OAuthTokenResponse = response.json().await.map_err(|error| {
+            tracing::error!(%error, "failed to parse the token response");
+            CoreError::IdpTokenExchangeFailed("upstream request failed".to_string())
         })?;
 
         Ok(token_response)
@@ -94,18 +133,20 @@ impl OAuthClient for ReqwestOAuthClient {
 
     #[instrument(skip(self), fields(jwks_url = %jwks_url))]
     async fn fetch_jwks(&self, jwks_url: &str) -> Result<serde_json::Value, CoreError> {
-        let response = self.client.get(jwks_url).send().await.map_err(|e| {
-            tracing::error!("JWKS request failed: {}", e);
+        let client = self.secured_client(jwks_url).await?;
+
+        let response = client.get(jwks_url).send().await.map_err(|error| {
+            tracing::error!(%error, "jwks request failed");
             CoreError::InvalidIdToken
         })?;
 
         if !response.status().is_success() {
-            tracing::error!("JWKS request failed with status {}", response.status());
+            tracing::error!(status = %response.status(), "jwks request returned a non-success status");
             return Err(CoreError::InvalidIdToken);
         }
 
-        response.json().await.map_err(|e| {
-            tracing::error!("Failed to parse JWKS document: {}", e);
+        response.json().await.map_err(|error| {
+            tracing::error!(%error, "failed to parse the jwks document");
             CoreError::InvalidIdToken
         })
     }
@@ -116,31 +157,29 @@ impl OAuthClient for ReqwestOAuthClient {
         userinfo_url: &str,
         access_token: &str,
     ) -> Result<BrokeredUserInfo, CoreError> {
-        let response = self
-            .client
+        let client = self.secured_client(userinfo_url).await?;
+
+        let response = client
             .get(userinfo_url)
             .bearer_auth(access_token)
             .send()
             .await
-            .map_err(|e| {
-                tracing::error!("Userinfo request failed: {}", e);
-                CoreError::IdpUserInfoFailed(format!("Request failed: {}", e))
+            .map_err(|error| {
+                tracing::error!(%error, "userinfo request failed");
+                CoreError::IdpUserInfoFailed("upstream request failed".to_string())
             })?;
 
         if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            tracing::error!("Userinfo request failed with status {}: {}", status, body);
-            return Err(CoreError::IdpUserInfoFailed(format!(
-                "HTTP {}: {}",
-                status, body
-            )));
+            tracing::error!(status = %response.status(), "userinfo request returned a non-success status");
+            return Err(CoreError::IdpUserInfoFailed(
+                "upstream request failed".to_string(),
+            ));
         }
 
         // Parse the userinfo response - it can have various field names depending on the IdP
-        let json: serde_json::Value = response.json().await.map_err(|e| {
-            tracing::error!("Failed to parse userinfo response: {}", e);
-            CoreError::IdpUserInfoFailed(format!("Failed to parse response: {}", e))
+        let json: serde_json::Value = response.json().await.map_err(|error| {
+            tracing::error!(%error, "failed to parse the userinfo response");
+            CoreError::IdpUserInfoFailed("upstream request failed".to_string())
         })?;
 
         let user_info = BrokeredUserInfo {
@@ -186,7 +225,7 @@ mod tests {
 
     #[test]
     fn test_reqwest_oauth_client_new() {
-        let _client = ReqwestOAuthClient::new();
+        let _client = ReqwestOAuthClient::new(PrivateEndpoints::from_allowed(false));
         // Just verify it can be created without panic
     }
 
@@ -194,5 +233,49 @@ mod tests {
     fn test_reqwest_oauth_client_default() {
         let _client = ReqwestOAuthClient::default();
         // Just verify it can be created without panic
+    }
+
+    #[test]
+    fn forbidden_addresses_are_rejected_when_private_endpoints_disabled() {
+        let policy = PrivateEndpoints::from_allowed(false);
+
+        assert!(is_forbidden_address("127.0.0.1".parse().unwrap(), policy));
+        assert!(is_forbidden_address("::1".parse().unwrap(), policy));
+        assert!(is_forbidden_address(
+            "169.254.169.254".parse().unwrap(),
+            policy
+        ));
+    }
+
+    #[tokio::test]
+    async fn fetch_userinfo_rejects_loopback_target_without_reflecting_upstream() {
+        let client = ReqwestOAuthClient::new(PrivateEndpoints::from_allowed(false));
+
+        let error = client
+            .fetch_userinfo("http://127.0.0.1:1/userinfo", "unused-access-token")
+            .await
+            .expect_err("a userinfo endpoint on loopback must be refused");
+
+        assert!(matches!(error, CoreError::InvalidProviderUrl));
+        assert_eq!(error.to_string(), "Invalid provider URL");
+    }
+
+    #[tokio::test]
+    async fn exchange_code_rejects_loopback_target_without_reflecting_upstream() {
+        let client = ReqwestOAuthClient::new(PrivateEndpoints::from_allowed(false));
+
+        let error = client
+            .exchange_code(
+                "http://127.0.0.1:1/token",
+                "authorization-code",
+                "https://app.example/callback",
+                "client-id",
+                "client-secret",
+                None,
+            )
+            .await
+            .expect_err("a token endpoint on loopback must be refused");
+
+        assert!(matches!(error, CoreError::InvalidProviderUrl));
     }
 }
