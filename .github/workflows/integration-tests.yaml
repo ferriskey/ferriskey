@@ -126,6 +126,9 @@ jobs:
       - name: run cross-realm organization isolation integration tests
         run: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored
 
+      - name: run cross-realm role isolation integration tests
+        run: cargo test -p ferriskey-api --test role_cross_realm_test -- --ignored
+
       - name: run cross-realm auth session isolation integration tests
         run: cargo test -p ferriskey-api --test auth_session_cross_realm_test -- --ignored
 
