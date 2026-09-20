@@ -234,5 +234,6 @@ pub struct GetCredentialsInput {
 
 pub struct DeleteCredentialInput {
     pub realm_name: String,
+    pub user_id: Uuid,
     pub credential_id: Uuid,
 }

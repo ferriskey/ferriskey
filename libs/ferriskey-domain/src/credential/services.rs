@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use tracing::warn;
+use uuid::Uuid;
+
 use crate::auth::Identity;
 use crate::client::ports::ClientRepository;
 use crate::common::app_errors::CoreError;
@@ -20,6 +23,7 @@ where
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) credential_repository: Arc<CR>,
+    pub(crate) user_repository: Arc<U>,
 
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
@@ -35,11 +39,13 @@ where
     pub fn new(
         realm_repository: Arc<R>,
         credential_repository: Arc<CR>,
+        user_repository: Arc<U>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
             realm_repository,
             credential_repository,
+            user_repository,
             policy,
         }
     }
@@ -70,6 +76,18 @@ where
             "insufficient permissions",
         )?;
 
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        if user.realm_id != realm.id {
+            warn!(
+                user_id = %input.user_id,
+                user_realm_id = %Uuid::from(user.realm_id),
+                request_realm_id = %Uuid::from(realm.id),
+                "Refused cross-realm access to a user's credentials"
+            );
+            return Err(CoreError::NotFound);
+        }
+
         let credentials = self
             .credential_repository
             .get_credentials_by_user_id(input.user_id)
@@ -98,6 +116,35 @@ where
             self.policy.can_delete_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        let user = self.user_repository.get_by_id(input.user_id).await?;
+
+        if user.realm_id != realm.id {
+            warn!(
+                user_id = %input.user_id,
+                user_realm_id = %Uuid::from(user.realm_id),
+                request_realm_id = %Uuid::from(realm.id),
+                "Refused cross-realm credential deletion"
+            );
+            return Err(CoreError::NotFound);
+        }
+
+        let owns_credential = self
+            .credential_repository
+            .get_credentials_by_user_id(input.user_id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?
+            .iter()
+            .any(|credential| credential.id == input.credential_id);
+
+        if !owns_credential {
+            warn!(
+                user_id = %input.user_id,
+                credential_id = %input.credential_id,
+                "Refused deletion of a credential that does not belong to the target user"
+            );
+            return Err(CoreError::NotFound);
+        }
 
         self.credential_repository
             .delete_by_id(input.credential_id)
