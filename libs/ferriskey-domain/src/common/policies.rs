@@ -166,7 +166,7 @@ where
             return Ok(permissions);
         }
 
-        if self.is_cross_realm_access(user_realm, target_realm) {
+        if user_realm.name == "master" {
             let client_id = format!("{}-realm", target_realm.name);
 
             let client = self
@@ -177,9 +177,28 @@ where
                     CoreError::Forbidden("client not found for target realm".to_string())
                 })?;
 
-            let client_permissions = self.get_client_specific_permissions(user, &client).await?;
+            let roles = self
+                .user_role_repository
+                .get_user_roles(user.id)
+                .await
+                .map_err(|_| CoreError::Forbidden("user not found".to_string()))?;
 
-            permissions.extend(client_permissions);
+            for role in roles {
+                if role.client_id.is_none() || role.client_id == Some(client.id) {
+                    let role_permissions: HashSet<Permissions> = role
+                        .permissions
+                        .iter()
+                        .filter_map(|p| Permissions::from_name(p))
+                        .collect();
+
+                    let permissions_as_vec: Vec<Permissions> =
+                        role_permissions.into_iter().collect();
+                    let permissions_bits = Permissions::to_bitfield(&permissions_as_vec);
+                    let validated_permissions = Permissions::from_bitfield(permissions_bits);
+
+                    permissions.extend(validated_permissions);
+                }
+            }
         } else {
             let user_permissions = self.get_user_permissions(user).await?;
             permissions.extend(user_permissions);
@@ -588,5 +607,207 @@ where
         );
 
         Ok(has_permission)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::ports::MockClientRepository;
+    use crate::realm::RealmId;
+    use crate::user::ports::{MockUserRepository, MockUserRoleRepository};
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    fn make_realm(name: &str) -> Realm {
+        Realm {
+            id: RealmId::new(Uuid::new_v4()),
+            name: name.to_string(),
+            display_name: None,
+            settings: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn make_user(realm: &Realm) -> User {
+        User {
+            id: Uuid::new_v4(),
+            realm_id: realm.id,
+            client_id: None,
+            username: "caller".to_string(),
+            firstname: None,
+            lastname: None,
+            email: None,
+            email_verified: true,
+            enabled: true,
+            roles: None,
+            realm: Some(realm.clone()),
+            required_actions: vec![],
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            failed_login_attempts: 0,
+            locked_until: None,
+            locale: None,
+        }
+    }
+
+    fn make_role(realm_id: RealmId, client_id: Option<Uuid>, permissions: Vec<String>) -> Role {
+        Role {
+            id: Uuid::new_v4(),
+            name: "role".to_string(),
+            description: None,
+            permissions,
+            realm_id,
+            client_id,
+            client: None,
+            require_mfa: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn build_policy(
+        user_role_repo: MockUserRoleRepository,
+        client_repo: MockClientRepository,
+    ) -> FerriskeyPolicy<MockUserRepository, MockClientRepository, MockUserRoleRepository> {
+        FerriskeyPolicy::new(
+            Arc::new(MockUserRepository::new()),
+            Arc::new(client_repo),
+            Arc::new(user_role_repo),
+        )
+    }
+
+    #[tokio::test]
+    async fn master_user_with_only_a_foreign_tenant_mirror_role_gets_no_permission_on_master() {
+        let master = make_realm("master");
+        let tenant_mirror =
+            Client::from_realm_and_client_id(master.id, "tenant-a-realm".to_string());
+        let master_mirror = Client::from_realm_and_client_id(master.id, "master-realm".to_string());
+        let user = make_user(&master);
+
+        let malicious_role = make_role(
+            master.id,
+            Some(tenant_mirror.id),
+            vec![Permissions::ManageRealm.name()],
+        );
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .times(1)
+            .returning(move |_| {
+                let role = malicious_role.clone();
+                Box::pin(async move { Ok(vec![role]) })
+            });
+
+        let mut client_repo = MockClientRepository::new();
+        client_repo
+            .expect_get_by_client_id()
+            .times(0..=1)
+            .returning(move |_, _| {
+                let client = master_mirror.clone();
+                Box::pin(async move { Ok(client) })
+            });
+
+        let policy = build_policy(user_role_repo, client_repo);
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &master)
+            .await
+            .expect("policy lookup should succeed");
+
+        assert!(
+            permissions.is_empty(),
+            "a master user holding only a foreign tenant mirror role must gain no permission on master, got {permissions:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn master_user_with_a_tenant_mirror_role_can_manage_that_tenant() {
+        let master = make_realm("master");
+        let tenant = make_realm("tenant-a");
+        let tenant_mirror =
+            Client::from_realm_and_client_id(master.id, "tenant-a-realm".to_string());
+        let user = make_user(&master);
+
+        let delegated_role = make_role(
+            master.id,
+            Some(tenant_mirror.id),
+            vec![Permissions::ManageRealm.name()],
+        );
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .times(1)
+            .returning(move |_| {
+                let role = delegated_role.clone();
+                Box::pin(async move { Ok(vec![role]) })
+            });
+
+        let mut client_repo = MockClientRepository::new();
+        client_repo
+            .expect_get_by_client_id()
+            .times(0..=1)
+            .returning(move |_, _| {
+                let client = tenant_mirror.clone();
+                Box::pin(async move { Ok(client) })
+            });
+
+        let policy = build_policy(user_role_repo, client_repo);
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &tenant)
+            .await
+            .expect("policy lookup should succeed");
+
+        assert!(
+            permissions.contains(&Permissions::ManageRealm),
+            "a master user holding the tenant-a mirror role must manage tenant-a, got {permissions:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn bootstrap_master_admin_keeps_manage_realm_on_master() {
+        let master = make_realm("master");
+        let master_mirror = Client::from_realm_and_client_id(master.id, "master-realm".to_string());
+        let user = make_user(&master);
+
+        let admin_role = make_role(
+            master.id,
+            Some(master_mirror.id),
+            vec![Permissions::ManageRealm.name()],
+        );
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .times(1)
+            .returning(move |_| {
+                let role = admin_role.clone();
+                Box::pin(async move { Ok(vec![role]) })
+            });
+
+        let mut client_repo = MockClientRepository::new();
+        client_repo
+            .expect_get_by_client_id()
+            .times(0..=1)
+            .returning(move |_, _| {
+                let client = master_mirror.clone();
+                Box::pin(async move { Ok(client) })
+            });
+
+        let policy = build_policy(user_role_repo, client_repo);
+
+        let permissions = policy
+            .get_permission_for_target_realm(&user, &master)
+            .await
+            .expect("policy lookup should succeed");
+
+        assert!(
+            permissions.contains(&Permissions::ManageRealm),
+            "the bootstrap admin (role on the master-realm client) must keep ManageRealm on master, got {permissions:?}"
+        );
     }
 }
