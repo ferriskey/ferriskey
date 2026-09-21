@@ -5,12 +5,14 @@ use sea_orm::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::domain::abyss::identity_provider::IdentityProviderId;
+use crate::domain::abyss::identity_provider::IdentityProvider;
 use crate::domain::abyss::identity_provider::broker::{
     CreateIdentityProviderLinkRequest, IdentityProviderLink, IdentityProviderLinkRepository,
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
+use crate::domain::realm::entities::Scoped;
+use crate::domain::user::entities::User;
 use crate::entity::identity_provider_links::{
     ActiveModel, Column, Entity as IdentityProviderLinkEntity,
 };
@@ -54,14 +56,14 @@ impl IdentityProviderLinkRepository for PostgresIdentityProviderLinkRepository {
         Ok(link.into())
     }
 
-    #[instrument(skip(self), fields(idp_id = ?identity_provider_id, external_id = %external_user_id))]
+    #[instrument(skip(self), fields(idp_id = %provider.get().id, external_id = %external_user_id))]
     async fn get_by_provider_and_external_id(
         &self,
-        identity_provider_id: IdentityProviderId,
+        provider: &Scoped<IdentityProvider>,
         external_user_id: &str,
     ) -> Result<Option<IdentityProviderLink>, CoreError> {
         let link = IdentityProviderLinkEntity::find()
-            .filter(Column::IdentityProviderId.eq::<Uuid>(identity_provider_id.into()))
+            .filter(Column::IdentityProviderId.eq::<Uuid>(provider.get().id.into()))
             .filter(Column::IdentityProviderUserId.eq(external_user_id))
             .one(&self.db)
             .await
@@ -74,10 +76,13 @@ impl IdentityProviderLinkRepository for PostgresIdentityProviderLinkRepository {
         Ok(link)
     }
 
-    #[instrument(skip(self), fields(user_id = %user_id))]
-    async fn get_by_user_id(&self, user_id: Uuid) -> Result<Vec<IdentityProviderLink>, CoreError> {
+    #[instrument(skip(self), fields(user_id = %user.get().id))]
+    async fn get_by_user_id(
+        &self,
+        user: &Scoped<User>,
+    ) -> Result<Vec<IdentityProviderLink>, CoreError> {
         let links = IdentityProviderLinkEntity::find()
-            .filter(Column::UserId.eq(user_id))
+            .filter(Column::UserId.eq(user.get().id))
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -91,15 +96,15 @@ impl IdentityProviderLinkRepository for PostgresIdentityProviderLinkRepository {
         Ok(links)
     }
 
-    #[instrument(skip(self), fields(user_id = %user_id, idp_id = ?identity_provider_id))]
+    #[instrument(skip(self), fields(user_id = %user.get().id, idp_id = %provider.get().id))]
     async fn get_by_user_and_provider(
         &self,
-        user_id: Uuid,
-        identity_provider_id: IdentityProviderId,
+        user: &Scoped<User>,
+        provider: &Scoped<IdentityProvider>,
     ) -> Result<Option<IdentityProviderLink>, CoreError> {
         let link = IdentityProviderLinkEntity::find()
-            .filter(Column::UserId.eq(user_id))
-            .filter(Column::IdentityProviderId.eq::<Uuid>(identity_provider_id.into()))
+            .filter(Column::UserId.eq(user.get().id))
+            .filter(Column::IdentityProviderId.eq::<Uuid>(provider.get().id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -114,10 +119,16 @@ impl IdentityProviderLinkRepository for PostgresIdentityProviderLinkRepository {
         Ok(link)
     }
 
-    #[instrument(skip(self), fields(link_id = %id))]
-    async fn update_token(&self, id: Uuid, token: Option<String>) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(link_id = %id, idp_id = %provider.get().id))]
+    async fn update_token(
+        &self,
+        provider: &Scoped<IdentityProvider>,
+        id: Uuid,
+        token: Option<String>,
+    ) -> Result<(), CoreError> {
         let existing = IdentityProviderLinkEntity::find()
             .filter(Column::Id.eq(id))
+            .filter(Column::IdentityProviderId.eq::<Uuid>(provider.get().id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -138,10 +149,11 @@ impl IdentityProviderLinkRepository for PostgresIdentityProviderLinkRepository {
         Ok(())
     }
 
-    #[instrument(skip(self), fields(link_id = %id))]
-    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(link_id = %id, user_id = %user.get().id))]
+    async fn delete(&self, user: &Scoped<User>, id: Uuid) -> Result<(), CoreError> {
         IdentityProviderLinkEntity::delete_many()
             .filter(Column::Id.eq(id))
+            .filter(Column::UserId.eq(user.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -152,10 +164,10 @@ impl IdentityProviderLinkRepository for PostgresIdentityProviderLinkRepository {
         Ok(())
     }
 
-    #[instrument(skip(self), fields(user_id = %user_id))]
-    async fn delete_by_user_id(&self, user_id: Uuid) -> Result<u64, CoreError> {
+    #[instrument(skip(self), fields(user_id = %user.get().id))]
+    async fn delete_by_user_id(&self, user: &Scoped<User>) -> Result<u64, CoreError> {
         let result = IdentityProviderLinkEntity::delete_many()
-            .filter(Column::UserId.eq(user_id))
+            .filter(Column::UserId.eq(user.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {

@@ -11,7 +11,7 @@ use crate::domain::abyss::identity_provider::{
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
 use crate::entity::identity_providers::{ActiveModel, Column, Entity as IdentityProviderEntity};
 
 /// PostgreSQL implementation of the IdentityProviderRepository trait
@@ -70,7 +70,7 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
     async fn get_identity_provider_by_id(
         &self,
         id: Uuid,
-    ) -> Result<Option<IdentityProvider>, CoreError> {
+    ) -> Result<Option<Unscoped<IdentityProvider>>, CoreError> {
         let identity_provider = IdentityProviderEntity::find()
             .filter(Column::Id.eq(id))
             .one(&self.db)
@@ -79,7 +79,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
                 tracing::error!("Failed to get identity provider by id: {}", e);
                 CoreError::InternalServerError
             })?
-            .map(IdentityProvider::from);
+            .map(IdentityProvider::from)
+            .map(Unscoped::new);
 
         Ok(identity_provider)
     }
@@ -134,14 +135,14 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(identity_providers)
     }
 
-    #[instrument(skip(self, request), fields(identity_provider_id = %id))]
+    #[instrument(skip(self, request), fields(identity_provider_id = %provider.get().id))]
     async fn update_identity_provider(
         &self,
-        id: Uuid,
+        provider: &Scoped<IdentityProvider>,
         request: UpdateIdentityProviderRequest,
     ) -> Result<IdentityProvider, CoreError> {
         let existing = IdentityProviderEntity::find()
-            .filter(Column::Id.eq(id))
+            .filter(Column::Id.eq::<Uuid>(provider.get().id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -192,10 +193,13 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(updated.into())
     }
 
-    #[instrument(skip(self), fields(identity_provider_id = %id))]
-    async fn delete_identity_provider(&self, id: Uuid) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(identity_provider_id = %provider.get().id))]
+    async fn delete_identity_provider(
+        &self,
+        provider: &Scoped<IdentityProvider>,
+    ) -> Result<(), CoreError> {
         let result = IdentityProviderEntity::delete_many()
-            .filter(Column::Id.eq(id))
+            .filter(Column::Id.eq::<Uuid>(provider.get().id.into()))
             .exec(&self.db)
             .await
             .map_err(|e| {

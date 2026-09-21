@@ -2998,7 +2998,9 @@ where
                     .get_by_id(mapping.provider_id)
                     .await
                     .map_err(|_| CoreError::InternalServerError)?
-                    .ok_or(CoreError::InternalServerError)?;
+                    .ok_or(CoreError::InternalServerError)?
+                    .in_realm(&RealmScope::from_realm(realm.clone()))?
+                    .into_inner();
 
                 if !provider.enabled {
                     error!("Federation provider {} is disabled", provider.name);
