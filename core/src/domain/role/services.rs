@@ -15,7 +15,7 @@ use crate::domain::{
         ports::RealmRepository,
     },
     role::{
-        entities::{CreateRoleInput, GetUserRolesInput, Role, UpdateRoleInput},
+        entities::{CreateRoleInput, Role, UpdateRoleInput},
         ports::{RolePolicy, RoleRepository, RoleService},
         value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
@@ -42,8 +42,6 @@ where
     pub(crate) role_repository: Arc<RO>,
     pub(crate) security_event_repository: Arc<SE>,
     pub(crate) webhook_repository: Arc<W>,
-    pub(crate) user_role_repository: Arc<UR>,
-
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
@@ -62,7 +60,6 @@ where
         role_repository: Arc<RO>,
         security_event_repository: Arc<SE>,
         webhook_repository: Arc<W>,
-        user_role_repository: Arc<UR>,
         policy: Arc<FerriskeyPolicy<U, C, UR>>,
     ) -> Self {
         Self {
@@ -70,7 +67,6 @@ where
             role_repository,
             security_event_repository,
             webhook_repository,
-            user_role_repository,
             policy,
         }
     }
@@ -228,25 +224,6 @@ where
             .find_by_realm_id(realm_id)
             .await
             .map_err(|_| CoreError::NotFound)
-    }
-
-    async fn get_user_roles(
-        &self,
-        identity: Identity,
-        input: GetUserRolesInput,
-    ) -> Result<Vec<Role>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
-        let realm = scope.realm().clone();
-
-        ensure_policy(
-            self.policy.can_view_role(&identity, &realm).await,
-            "insufficient permissions",
-        )?;
-
-        self.user_role_repository
-            .get_user_roles(input.user_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)
     }
 
     async fn update_role(
@@ -504,7 +481,6 @@ mod tests {
                 self.role_repo,
                 self.security_event_repo,
                 self.webhook_repo,
-                self.user_role_repo,
                 Arc::new(policy),
             )
         }

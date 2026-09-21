@@ -285,6 +285,7 @@ mod tests {
     use crate::email_template::ports::MockEmailTemplateRepository;
     use chrono::Utc;
     use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
     use ferriskey_domain::role::entities::Role;
     use ferriskey_domain::user::{
@@ -378,7 +379,7 @@ mod tests {
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -515,7 +516,7 @@ mod tests {
         let u = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = u.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();

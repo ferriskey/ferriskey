@@ -24,7 +24,7 @@ use crate::domain::authentication::value_objects::CodeChallengeMethod;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::client::redirect_uri_matching::redirect_uri_matches_any;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::RealmScope;
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
@@ -210,11 +210,13 @@ where
     /// Finds or creates a user based on the brokered user info
     async fn find_or_create_user(
         &self,
-        realm_id: RealmId,
+        scope: &RealmScope,
         idp: &IdentityProvider,
         user_info: &BrokeredUserInfo,
         access_token: Option<&str>,
     ) -> Result<(User, bool), CoreError> {
+        let realm_id = scope.id();
+
         // 1. Check if user is already linked to this IdP
         if let Some(link) = self
             .link_repository
@@ -227,7 +229,9 @@ where
                 .user_repository
                 .get_by_id(link.user_id)
                 .await
-                .map_err(|_| CoreError::UserNotFound)?;
+                .map_err(|_| CoreError::UserNotFound)?
+                .in_realm(scope)?
+                .into_inner();
 
             // Update token if store_token is enabled
             if idp.store_token
@@ -729,7 +733,7 @@ where
         // 8. Find or create user
         let (user, is_new_user) = self
             .find_or_create_user(
-                realm.id,
+                &RealmScope::from_realm(realm.clone()),
                 &idp,
                 &user_info,
                 Some(&token_response.access_token),

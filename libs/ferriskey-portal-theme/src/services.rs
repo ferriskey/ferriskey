@@ -337,6 +337,7 @@ mod tests {
     use crate::ports::MockPortalThemeRepository;
     use chrono::Utc;
     use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
     use ferriskey_domain::role::entities::Role;
     use ferriskey_domain::user::{
@@ -458,7 +459,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -503,7 +504,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -554,7 +555,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -602,7 +603,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -742,7 +743,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -815,7 +816,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -860,7 +861,7 @@ mod tests {
         let user_clone = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = user_clone.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut user_role_repo = MockUserRoleRepository::new();

@@ -418,7 +418,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             role.clone(),
             security_event.clone(),
             webhook.clone(),
-            user_role.clone(),
             policy.clone(),
         ),
         security_event_service: SecurityEventServiceImpl::new(

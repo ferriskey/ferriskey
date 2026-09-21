@@ -212,7 +212,10 @@ mod tests {
         authentication::value_objects::Identity,
         client::ports::MockClientRepository,
         common::{entities::app_errors::CoreError, policies::FerriskeyPolicy},
-        realm::{entities::Realm, ports::MockRealmRepository},
+        realm::{
+            entities::{Realm, Unscoped},
+            ports::MockRealmRepository,
+        },
         role::entities::Role,
         user::{
             entities::User,
@@ -334,7 +337,7 @@ mod tests {
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = admin.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
         user_repo
     }

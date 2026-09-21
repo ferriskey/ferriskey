@@ -211,7 +211,11 @@ where
             .get_attribute_mappers(client.id)
             .await?;
 
-        let user = self.user_repository.get_by_id(user_id).await?;
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .across_realms();
 
         if user.realm_id != auth_session.realm_id {
             warn!(
@@ -616,7 +620,7 @@ pub(crate) mod tests {
     use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
     use crate::domain::client::ports::MockClientRepository;
     use crate::domain::jwt::entities::JwtKeyPair;
-    use crate::domain::realm::entities::{Realm, RealmId};
+    use crate::domain::realm::entities::{Realm, RealmId, Unscoped};
     use crate::domain::realm::ports::MockRealmRepository;
     use crate::domain::saml::entities::fixtures::{acs_url, sp_entity_id};
     use crate::domain::saml::entities::{
@@ -1409,7 +1413,7 @@ pub(crate) mod tests {
                 .expect_get_by_id()
                 .returning(move |_| {
                     let user = user.clone();
-                    Box::pin(async move { Ok(user) })
+                    Box::pin(async move { Ok(Unscoped::new(user)) })
                 });
         }
 

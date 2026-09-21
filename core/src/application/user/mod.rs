@@ -3,7 +3,7 @@ use crate::{
     domain::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
-        role::entities::permission::Permissions,
+        role::entities::{GetUserRolesInput, Role, permission::Permissions},
         user::{
             entities::{
                 AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
@@ -120,6 +120,14 @@ impl UserService for ApplicationService {
         self.user_service
             .get_user_permissions(identity, input)
             .await
+    }
+
+    async fn get_user_roles(
+        &self,
+        identity: Identity,
+        input: GetUserRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        self.user_service.get_user_roles(identity, input).await
     }
 
     async fn get_user_attributes(

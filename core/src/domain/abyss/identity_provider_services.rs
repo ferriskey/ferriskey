@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tracing::{instrument, warn};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::policies::ensure_policy;
-use crate::domain::realm::entities::Realm;
+use crate::domain::realm::entities::{Realm, RealmScope};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::seawatch::{
     EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
@@ -104,17 +104,12 @@ where
             "insufficient permissions to manage identity provider links",
         )?;
 
-        let user = self.user_repository.get_by_id(user_id).await?;
-
-        if user.realm_id != realm.id {
-            warn!(
-                user_id = %user_id,
-                user_realm_id = %Uuid::from(user.realm_id),
-                request_realm_id = %Uuid::from(realm.id),
-                "Refused cross-realm access to identity provider links"
-            );
-            return Err(CoreError::NotFound);
-        }
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         Ok((realm, user))
     }

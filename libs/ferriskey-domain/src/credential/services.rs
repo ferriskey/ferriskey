@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use tracing::warn;
-use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::client::ports::ClientRepository;
@@ -10,6 +9,7 @@ use crate::common::policies::{FerriskeyPolicy, ensure_policy};
 use crate::credential::entities::{CredentialOverview, DeleteCredentialInput, GetCredentialsInput};
 use crate::credential::ports::{CredentialRepository, CredentialService};
 use crate::realm::ports::RealmRepository;
+use crate::realm::scope::RealmScope;
 use crate::user::ports::{UserPolicy, UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
@@ -64,29 +64,18 @@ where
         identity: Identity,
         input: GetCredentialsInput,
     ) -> Result<Vec<CredentialOverview>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_view_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
-
-        if user.realm_id != realm.id {
-            warn!(
-                user_id = %input.user_id,
-                user_realm_id = %Uuid::from(user.realm_id),
-                request_realm_id = %Uuid::from(realm.id),
-                "Refused cross-realm access to a user's credentials"
-            );
-            return Err(CoreError::NotFound);
-        }
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
 
         let credentials = self
             .credential_repository
@@ -105,29 +94,18 @@ where
         identity: Identity,
         input: DeleteCredentialInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_delete_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
-
-        if user.realm_id != realm.id {
-            warn!(
-                user_id = %input.user_id,
-                user_realm_id = %Uuid::from(user.realm_id),
-                request_realm_id = %Uuid::from(realm.id),
-                "Refused cross-realm credential deletion"
-            );
-            return Err(CoreError::NotFound);
-        }
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
 
         let owns_credential = self
             .credential_repository
