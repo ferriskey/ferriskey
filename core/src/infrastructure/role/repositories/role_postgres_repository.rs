@@ -4,7 +4,7 @@ use sea_orm::{
 };
 use uuid::Uuid;
 
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
 use crate::domain::{
     common::{entities::app_errors::CoreError, generate_uuid_v7},
     role::{
@@ -64,7 +64,7 @@ impl RoleRepository for PostgresRoleRepository {
         Ok(roles)
     }
 
-    async fn get_by_id(&self, id: Uuid) -> Result<Option<Role>, CoreError> {
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<Unscoped<Role>>, CoreError> {
         let roles_with_clients = crate::entity::roles::Entity::find()
             .filter(crate::entity::roles::Column::Id.eq(id))
             .find_with_related(crate::entity::clients::Entity)
@@ -84,12 +84,12 @@ impl RoleRepository for PostgresRoleRepository {
             role.client = Some(client_model.clone().into());
         }
 
-        Ok(Some(role))
+        Ok(Some(Unscoped::new(role)))
     }
 
-    async fn delete_by_id(&self, id: uuid::Uuid) -> Result<(), CoreError> {
+    async fn delete_by_id(&self, role: &Scoped<Role>) -> Result<(), CoreError> {
         let result = crate::entity::roles::Entity::delete_many()
-            .filter(crate::entity::roles::Column::Id.eq(id))
+            .filter(crate::entity::roles::Column::Id.eq(role.get().id))
             .exec(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
@@ -127,21 +127,30 @@ impl RoleRepository for PostgresRoleRepository {
         Ok(roles)
     }
 
-    async fn find_by_name(&self, name: String, realm_id: Uuid) -> Result<Option<Role>, CoreError> {
+    async fn find_by_name(
+        &self,
+        name: String,
+        realm_id: Uuid,
+    ) -> Result<Option<Unscoped<Role>>, CoreError> {
         let role = crate::entity::roles::Entity::find()
             .filter(crate::entity::roles::Column::Name.eq(name))
             .filter(crate::entity::roles::Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .map(Role::from);
+            .map(Role::from)
+            .map(Unscoped::new);
 
         Ok(role)
     }
 
-    async fn update_by_id(&self, id: Uuid, payload: UpdateRoleRequest) -> Result<Role, CoreError> {
+    async fn update_by_id(
+        &self,
+        role: &Scoped<Role>,
+        payload: UpdateRoleRequest,
+    ) -> Result<Role, CoreError> {
         let role = crate::entity::roles::Entity::find()
-            .filter(crate::entity::roles::Column::Id.eq(id))
+            .filter(crate::entity::roles::Column::Id.eq(role.get().id))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -169,11 +178,11 @@ impl RoleRepository for PostgresRoleRepository {
 
     async fn update_permissions_by_id(
         &self,
-        id: Uuid,
+        role: &Scoped<Role>,
         payload: UpdateRolePermissionsRequest,
     ) -> Result<Role, CoreError> {
         let role = crate::entity::roles::Entity::find()
-            .filter(crate::entity::roles::Column::Id.eq(id))
+            .filter(crate::entity::roles::Column::Id.eq(role.get().id))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?

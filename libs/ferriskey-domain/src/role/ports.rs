@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
+use crate::realm::scope::{Scoped, Unscoped};
 use crate::realm::{Realm, RealmId};
 use crate::role::{
     commands::{CreateRoleInput, GetUserRolesInput, UpdateRoleInput},
@@ -84,8 +85,14 @@ pub trait RoleRepository: Send + Sync {
         &self,
         client_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Option<Role>, CoreError>> + Send;
-    fn delete_by_id(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Option<Unscoped<Role>>, CoreError>> + Send;
+    fn delete_by_id(
+        &self,
+        role: &Scoped<Role>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn find_by_realm_id(
         &self,
@@ -95,17 +102,17 @@ pub trait RoleRepository: Send + Sync {
         &self,
         name: String,
         realm_id: Uuid,
-    ) -> impl Future<Output = Result<Option<Role>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<Role>>, CoreError>> + Send;
 
     fn update_by_id(
         &self,
-        id: Uuid,
+        role: &Scoped<Role>,
         payload: UpdateRoleRequest,
     ) -> impl Future<Output = Result<Role, CoreError>> + Send;
 
     fn update_permissions_by_id(
         &self,
-        id: Uuid,
+        role: &Scoped<Role>,
         payload: UpdateRolePermissionsRequest,
     ) -> impl Future<Output = Result<Role, CoreError>> + Send;
 }

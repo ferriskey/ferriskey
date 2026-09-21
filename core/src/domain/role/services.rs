@@ -10,7 +10,10 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    realm::{entities::Realm, ports::RealmRepository},
+    realm::{
+        entities::{RealmScope, Scoped},
+        ports::RealmRepository,
+    },
     role::{
         entities::{CreateRoleInput, GetUserRolesInput, Role, UpdateRoleInput},
         ports::{RolePolicy, RoleRepository, RoleService},
@@ -72,27 +75,19 @@ where
         }
     }
 
-    async fn load_role_in_realm(&self, role_id: Uuid, realm: &Realm) -> Result<Role, CoreError> {
-        let role = self
-            .role_repository
+    async fn load_role_in_realm(
+        &self,
+        role_id: Uuid,
+        scope: &RealmScope,
+    ) -> Result<Scoped<Role>, CoreError> {
+        self.role_repository
             .get_by_id(role_id)
             .await?
             .ok_or_else(|| {
                 warn!(role_id = %role_id, "Role not found");
                 CoreError::NotFound
-            })?;
-
-        if role.realm_id != realm.id {
-            warn!(
-                role_id = %role_id,
-                role_realm_id = %Uuid::from(role.realm_id),
-                request_realm_id = %Uuid::from(realm.id),
-                "Refused cross-realm access to a role"
-            );
-            return Err(CoreError::NotFound);
-        }
-
-        Ok(role)
+            })?
+            .in_realm(scope)
     }
 }
 
@@ -111,12 +106,8 @@ where
         identity: Identity,
         input: CreateRoleInput,
     ) -> Result<Role, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -165,12 +156,8 @@ where
         realm_name: String,
         role_id: uuid::Uuid,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -178,8 +165,8 @@ where
             "insufficient permissions",
         )?;
 
-        let role = self.load_role_in_realm(role_id, &realm).await?;
-        self.role_repository.delete_by_id(role_id).await?;
+        let role = self.load_role_in_realm(role_id, &scope).await?;
+        self.role_repository.delete_by_id(&role).await?;
 
         self.security_event_repository
             .store_event(SecurityEvent::new(
@@ -193,7 +180,11 @@ where
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::RoleDeleted, realm_id.into(), Some(role)),
+                WebhookPayload::new(
+                    WebhookTrigger::RoleDeleted,
+                    realm_id.into(),
+                    Some(role.into_inner()),
+                ),
             )
             .await?;
 
@@ -206,19 +197,17 @@ where
         realm_name: String,
         role_id: uuid::Uuid,
     ) -> Result<Role, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_view_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        self.load_role_in_realm(role_id, &realm).await
+        self.load_role_in_realm(role_id, &scope)
+            .await
+            .map(Scoped::into_inner)
     }
 
     async fn get_roles(
@@ -226,12 +215,8 @@ where
         identity: Identity,
         realm_name: String,
     ) -> Result<Vec<Role>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -250,12 +235,8 @@ where
         identity: Identity,
         input: GetUserRolesInput,
     ) -> Result<Vec<Role>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_view_role(&identity, &realm).await,
@@ -273,12 +254,8 @@ where
         identity: Identity,
         input: UpdateRoleInput,
     ) -> Result<Role, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -286,12 +263,12 @@ where
             "insufficient permissions",
         )?;
 
-        self.load_role_in_realm(input.role_id, &realm).await?;
+        let scoped = self.load_role_in_realm(input.role_id, &scope).await?;
 
         let role = self
             .role_repository
             .update_by_id(
-                input.role_id,
+                &scoped,
                 UpdateRoleRequest {
                     description: input.description,
                     name: input.name,
@@ -322,12 +299,8 @@ where
         role_id: uuid::Uuid,
         permissions: Vec<String>,
     ) -> Result<Role, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InternalServerError)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
 
@@ -336,11 +309,11 @@ where
             "insufficient permissions",
         )?;
 
-        self.load_role_in_realm(role_id, &realm).await?;
+        let scoped = self.load_role_in_realm(role_id, &scope).await?;
 
         let role = self
             .role_repository
-            .update_permissions_by_id(role_id, UpdateRolePermissionsRequest { permissions })
+            .update_permissions_by_id(&scoped, UpdateRolePermissionsRequest { permissions })
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -377,7 +350,7 @@ mod tests {
             },
         },
         realm::{
-            entities::{Realm, RealmId},
+            entities::{Realm, RealmId, Unscoped},
             ports::MockRealmRepository,
         },
         role::{
@@ -445,7 +418,7 @@ mod tests {
                 .expect_get_by_id()
                 .with(eq(role_id))
                 .times(1)
-                .return_once(move |_| Box::pin(async move { Ok(Some(role)) }));
+                .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(role))) }));
             self
         }
 

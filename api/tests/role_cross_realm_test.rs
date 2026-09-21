@@ -14,7 +14,7 @@ mod tests {
             DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
         },
     };
-    use serde_json::Value;
+    use serde_json::{Value, json};
     use sqlx::Executor;
     use uuid::Uuid;
 
@@ -243,6 +243,56 @@ mod tests {
                 response.status_code(),
                 404,
                 "a role from another realm must not be deletable through the principal realm: {}",
+                response.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test role_cross_realm_test -- --ignored"]
+    fn updating_a_role_from_another_realm_is_not_found() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let foreign_role_id = shared_ctx().neighbour_role_id;
+
+            let response = server
+                .put(&format!("/realms/{}/roles/{}", realm(), foreign_role_id))
+                .add_header("Authorization", auth_header(&token))
+                .json(&json!({ "name": "seized", "require_mfa": false }))
+                .await;
+
+            assert_eq!(
+                response.status_code(),
+                404,
+                "a role from another realm must not be renamable through the principal realm: {}",
+                response.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test role_cross_realm_test -- --ignored"]
+    fn repermissioning_a_role_from_another_realm_is_not_found() {
+        rt().block_on(async {
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let foreign_role_id = shared_ctx().neighbour_role_id;
+
+            let response = server
+                .patch(&format!(
+                    "/realms/{}/roles/{}/permissions",
+                    realm(),
+                    foreign_role_id
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .json(&json!({ "permissions": ["manage_realm"] }))
+                .await;
+
+            assert_eq!(
+                response.status_code(),
+                404,
+                "a role from another realm must not gain permissions through the principal realm: {}",
                 response.text()
             );
         });
