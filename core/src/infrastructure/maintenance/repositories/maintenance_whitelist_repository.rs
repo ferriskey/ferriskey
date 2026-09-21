@@ -61,9 +61,22 @@ impl MaintenanceWhitelistRepository for PostgresMaintenanceWhitelistRepository {
         Ok(entry)
     }
 
-    async fn remove(&self, entry_id: Uuid) -> Result<(), CoreError> {
+    async fn get_by_id(
+        &self,
+        entry_id: Uuid,
+    ) -> Result<Option<MaintenanceWhitelistEntry>, CoreError> {
+        let model = WhitelistEntity::find_by_id(entry_id)
+            .one(&self.db)
+            .await
+            .map_err(|e| CoreError::Database(e.to_string()))?;
+
+        Ok(model.map(Into::into))
+    }
+
+    async fn remove(&self, client_id: Uuid, entry_id: Uuid) -> Result<(), CoreError> {
         let result = WhitelistEntity::delete_many()
             .filter(Column::Id.eq(entry_id))
+            .filter(Column::ClientId.eq(client_id))
             .exec(&self.db)
             .await
             .map_err(|e| CoreError::Database(e.to_string()))?;

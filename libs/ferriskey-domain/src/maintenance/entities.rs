@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::realm::scope::RealmOwned;
 use crate::{generate_timestamp, realm::RealmId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -68,5 +69,11 @@ impl RealmMaintenanceWhitelistEntry {
             role_id: Some(role_id),
             created_at: now,
         }
+    }
+}
+
+impl RealmOwned for RealmMaintenanceWhitelistEntry {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }

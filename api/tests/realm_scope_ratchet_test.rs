@@ -11,7 +11,6 @@ mod tests {
         "core/src/domain/authentication/services.rs",
         "core/src/domain/client/services.rs",
         "core/src/domain/common/services.rs",
-        "core/src/domain/maintenance/services.rs",
         "core/src/domain/organization/member_role_services.rs",
         "core/src/domain/realm/services.rs",
         "core/src/domain/saml/services.rs",
