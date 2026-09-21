@@ -1,3 +1,6 @@
+pub use ferriskey_domain::realm::scope::{
+    RealmOwned, RealmScope, Scoped, Unscoped, UnscopedOption,
+};
 pub use ferriskey_domain::realm::{
     LoginAlias, LoginAliases, Realm, RealmId, RealmSetting, SmtpConfig, SmtpEncryption,
 };

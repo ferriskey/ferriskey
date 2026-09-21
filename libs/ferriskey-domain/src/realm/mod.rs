@@ -1,4 +1,5 @@
 pub mod ports;
+pub mod scope;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
