@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use reqwest::header::ACCEPT;
@@ -16,6 +17,41 @@ use crate::domain::common::entities::app_errors::CoreError;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const USER_AGENT: &str = concat!("FerrisKey/", env!("CARGO_PKG_VERSION"));
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AddressRejection {
+    AllForbidden,
+    CleartextNotAllowed,
+}
+
+fn permitted_addresses(
+    resolved: impl Iterator<Item = SocketAddr>,
+    requires_tls: bool,
+    policy: PrivateEndpoints,
+) -> Result<Vec<SocketAddr>, AddressRejection> {
+    let permitted: Vec<SocketAddr> = resolved
+        .filter(|candidate| !is_forbidden_address(candidate.ip(), policy))
+        .collect();
+
+    if permitted.is_empty() {
+        return Err(AddressRejection::AllForbidden);
+    }
+
+    if requires_tls {
+        return Ok(permitted);
+    }
+
+    let cleartext: Vec<SocketAddr> = permitted
+        .into_iter()
+        .filter(|candidate| allows_cleartext(candidate.ip(), policy))
+        .collect();
+
+    if cleartext.is_empty() {
+        return Err(AddressRejection::CleartextNotAllowed);
+    }
+
+    Ok(cleartext)
+}
 
 /// HTTP client implementation for OAuth operations with external IdPs
 #[derive(Debug, Clone)]
@@ -40,29 +76,35 @@ impl ReqwestOAuthClient {
             .port_or_known_default()
             .ok_or(CoreError::InvalidProviderUrl)?;
 
-        let mut resolved = lookup_host((host.as_str(), port)).await.map_err(|error| {
+        let resolved = lookup_host((host.as_str(), port)).await.map_err(|error| {
             tracing::error!(%host, %error, "identity provider host did not resolve");
             CoreError::InvalidProviderUrl
         })?;
 
-        let addr = resolved
-            .find(|candidate| !is_forbidden_address(candidate.ip(), self.private_endpoints))
-            .ok_or_else(|| {
-                tracing::error!(%host, "identity provider host resolved to a forbidden address");
-                CoreError::InvalidProviderUrl
-            })?;
+        let addresses =
+            permitted_addresses(resolved, url.scheme() == "https", self.private_endpoints)
+                .map_err(|rejection| {
+                    match rejection {
+                        AddressRejection::AllForbidden => tracing::error!(
+                            %host,
+                            "identity provider host resolved to a forbidden address"
+                        ),
+                        AddressRejection::CleartextNotAllowed => tracing::error!(
+                            %host,
+                            "identity provider endpoint may not use cleartext http"
+                        ),
+                    }
 
-        if url.scheme() != "https" && !allows_cleartext(addr.ip(), self.private_endpoints) {
-            tracing::error!(%host, "identity provider endpoint may not use cleartext http");
-            return Err(CoreError::InvalidProviderUrl);
-        }
+                    CoreError::InvalidProviderUrl
+                })?;
 
         Client::builder()
+            .no_proxy()
             .user_agent(USER_AGENT)
             .timeout(REQUEST_TIMEOUT)
             .connect_timeout(CONNECT_TIMEOUT)
             .redirect(redirect::Policy::none())
-            .resolve(&host, addr)
+            .resolve_to_addrs(&host, &addresses)
             .build()
             .map_err(|error| {
                 tracing::error!(%host, %error, "failed to build the identity provider http client");
@@ -245,6 +287,80 @@ mod tests {
             "169.254.169.254".parse().unwrap(),
             policy
         ));
+    }
+
+    fn addr(raw: &str) -> SocketAddr {
+        raw.parse().expect("the test address literal must parse")
+    }
+
+    #[test]
+    fn every_permitted_address_is_pinned_so_a_dead_one_can_fall_back() {
+        let resolved = [addr("[2001:db8::1]:443"), addr("203.0.113.5:443")];
+
+        let addresses = permitted_addresses(
+            resolved.into_iter(),
+            true,
+            PrivateEndpoints::from_allowed(false),
+        )
+        .expect("public addresses must be permitted");
+
+        assert_eq!(addresses, resolved);
+    }
+
+    #[test]
+    fn a_forbidden_address_is_dropped_without_discarding_its_permitted_siblings() {
+        let resolved = [addr("169.254.169.254:443"), addr("203.0.113.5:443")];
+
+        let addresses = permitted_addresses(
+            resolved.into_iter(),
+            true,
+            PrivateEndpoints::from_allowed(false),
+        )
+        .expect("the public sibling must survive");
+
+        assert_eq!(addresses, [addr("203.0.113.5:443")]);
+    }
+
+    #[test]
+    fn a_host_resolving_only_to_forbidden_addresses_is_refused() {
+        let resolved = [addr("127.0.0.1:443"), addr("169.254.169.254:443")];
+
+        let rejection = permitted_addresses(
+            resolved.into_iter(),
+            true,
+            PrivateEndpoints::from_allowed(false),
+        )
+        .expect_err("every address is forbidden under the default policy");
+
+        assert_eq!(rejection, AddressRejection::AllForbidden);
+    }
+
+    #[test]
+    fn cleartext_is_refused_when_private_endpoints_are_not_opted_in() {
+        let resolved = [addr("203.0.113.5:80")];
+
+        let rejection = permitted_addresses(
+            resolved.into_iter(),
+            false,
+            PrivateEndpoints::from_allowed(false),
+        )
+        .expect_err("cleartext towards a public address must be refused");
+
+        assert_eq!(rejection, AddressRejection::CleartextNotAllowed);
+    }
+
+    #[test]
+    fn cleartext_pins_loopback_only_and_leaves_its_public_sibling_out() {
+        let resolved = [addr("203.0.113.5:80"), addr("127.0.0.1:80")];
+
+        let addresses = permitted_addresses(
+            resolved.into_iter(),
+            false,
+            PrivateEndpoints::from_allowed(true),
+        )
+        .expect("loopback may be reached in cleartext once private endpoints are allowed");
+
+        assert_eq!(addresses, [addr("127.0.0.1:80")]);
     }
 
     #[tokio::test]
