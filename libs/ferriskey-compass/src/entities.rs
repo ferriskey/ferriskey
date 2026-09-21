@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
-use ferriskey_domain::{generate_uuid_v7, realm::RealmId};
+use ferriskey_domain::{
+    generate_uuid_v7,
+    realm::{RealmId, scope::RealmOwned},
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -192,6 +195,12 @@ impl CompassFlow {
             duration_ms: None,
             steps: Vec::new(),
         }
+    }
+}
+
+impl RealmOwned for CompassFlow {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 

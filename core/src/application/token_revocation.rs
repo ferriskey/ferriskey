@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use ferriskey_domain::realm::scope::Scoped;
+use ferriskey_domain::session::entities::UserSession;
 use ferriskey_domain::session::ports::{TokenRevocationPort, UserSessionRepository};
 use ferriskey_security::jwt::ports::{AccessTokenRepository, RefreshTokenRepository};
 use tracing::warn;
@@ -44,7 +46,9 @@ where
     R: RefreshTokenRepository,
     S: UserSessionRepository,
 {
-    async fn revoke_session_tokens(&self, session_id: Uuid) -> Result<(), CoreError> {
+    async fn revoke_session_tokens(&self, session: &Scoped<UserSession>) -> Result<(), CoreError> {
+        let session_id = session.get().id;
+
         let refresh_revoked = self
             .refresh_token_repository
             .revoke_by_session_id(session_id)
@@ -111,7 +115,8 @@ where
 mod tests {
     use super::*;
     use chrono::Duration;
-    use ferriskey_domain::session::entities::UserSession;
+    use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
+    use ferriskey_domain::realm::{Realm, RealmId};
     use ferriskey_domain::session::ports::MockUserSessionRepository;
     use ferriskey_security::jwt::ports::{MockAccessTokenRepository, MockRefreshTokenRepository};
 
@@ -130,9 +135,19 @@ mod tests {
         }
     }
 
+    fn scoped_session(user_id: Uuid, realm_id: Uuid) -> Scoped<UserSession> {
+        let mut realm = Realm::new("token-revocation".to_string());
+        realm.id = RealmId::new(realm_id);
+
+        Unscoped::new(make_session(user_id, realm_id))
+            .in_realm(&RealmScope::from_realm(realm))
+            .expect("a session of the scoped realm must be accepted")
+    }
+
     #[tokio::test]
     async fn revoke_session_tokens_hits_both_token_stores() {
-        let session_id = Uuid::new_v4();
+        let session = scoped_session(Uuid::new_v4(), Uuid::new_v4());
+        let session_id = session.get().id;
 
         let mut access = MockAccessTokenRepository::new();
         access
@@ -154,7 +169,7 @@ mod tests {
             Arc::new(MockUserSessionRepository::new()),
         );
 
-        assert!(adapter.revoke_session_tokens(session_id).await.is_ok());
+        assert!(adapter.revoke_session_tokens(&session).await.is_ok());
     }
 
     #[tokio::test]

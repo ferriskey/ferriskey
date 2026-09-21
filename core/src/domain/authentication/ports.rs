@@ -4,7 +4,7 @@ use crate::domain::authentication::value_objects::{
     EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput, Identity,
     IntrospectTokenInput, RevokeTokenInput, UserInfoResponse,
 };
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::RealmScope;
 use crate::domain::{
     authentication::{
         entities::{
@@ -191,7 +191,7 @@ pub trait AuthenticatePort: Send + Sync {
     fn handle_token_refresh(
         &self,
         token: String,
-        realm_id: RealmId,
+        scope: RealmScope,
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;

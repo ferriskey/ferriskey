@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::authentication::value_objects::CodeChallengeMethod;
+use crate::realm::scope::Scoped;
+use crate::session::entities::UserSession;
 use crate::user::entities::RequiredAction;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -469,8 +471,13 @@ pub enum AuthenticationStepStatus {
 #[derive(Debug, Clone)]
 pub enum SsoSessionBinding {
     Open,
-    Resume { session_id: Uuid, cookie: String },
-    Adopt { session_id: Uuid },
+    Resume {
+        session: Scoped<UserSession>,
+        cookie: String,
+    },
+    Adopt {
+        session: Scoped<UserSession>,
+    },
 }
 
 #[derive(Debug, Clone)]
