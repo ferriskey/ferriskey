@@ -167,15 +167,19 @@ where
         }
 
         if user_realm.name == "master" {
-            let client_id = format!("{}-realm", target_realm.name);
+            let mirror_client_id = format!("{}-realm", target_realm.name);
 
-            let client = self
+            let mirror_client = match self
                 .client_repository
-                .get_by_client_id(client_id, user_realm.id)
+                .get_by_client_id(mirror_client_id, user_realm.id)
                 .await
-                .map_err(|_| {
-                    CoreError::Forbidden("client not found for target realm".to_string())
-                })?;
+            {
+                Ok(client) => Some(client),
+                Err(CoreError::NotFound) => None,
+                Err(error) => return Err(error),
+            };
+
+            let targets_own_realm = user_realm.name == target_realm.name;
 
             let roles = self
                 .user_role_repository
@@ -184,7 +188,14 @@ where
                 .map_err(|_| CoreError::Forbidden("user not found".to_string()))?;
 
             for role in roles {
-                if role.client_id.is_none() || role.client_id == Some(client.id) {
+                let role_grants_on_target = match role.client_id {
+                    None => targets_own_realm,
+                    Some(role_client_id) => mirror_client
+                        .as_ref()
+                        .is_some_and(|client| client.id == role_client_id),
+                };
+
+                if role_grants_on_target {
                     let role_permissions: HashSet<Permissions> = role
                         .permissions
                         .iter()
