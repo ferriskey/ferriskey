@@ -5,6 +5,7 @@ use crate::common::app_errors::CoreError;
 use crate::maintenance::entities::{MaintenanceWhitelistEntry, RealmMaintenanceWhitelistEntry};
 use crate::maintenance::value_objects::ToggleMaintenanceRequest;
 use crate::realm::RealmId;
+use crate::realm::scope::{Scoped, Unscoped};
 
 pub trait MaintenanceWhitelistRepository: Send + Sync {
     fn add_user(
@@ -19,7 +20,16 @@ pub trait MaintenanceWhitelistRepository: Send + Sync {
         role_id: Uuid,
     ) -> impl Future<Output = Result<MaintenanceWhitelistEntry, CoreError>> + Send;
 
-    fn remove(&self, entry_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        entry_id: Uuid,
+    ) -> impl Future<Output = Result<Option<MaintenanceWhitelistEntry>, CoreError>> + Send;
+
+    fn remove(
+        &self,
+        client_id: Uuid,
+        entry_id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_by_client_id(
         &self,
@@ -50,7 +60,15 @@ pub trait RealmMaintenanceWhitelistRepository: Send + Sync {
         role_id: Uuid,
     ) -> impl Future<Output = Result<RealmMaintenanceWhitelistEntry, CoreError>> + Send;
 
-    fn remove(&self, entry_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        entry_id: Uuid,
+    ) -> impl Future<Output = Result<Option<Unscoped<RealmMaintenanceWhitelistEntry>>, CoreError>> + Send;
+
+    fn remove(
+        &self,
+        entry: &Scoped<RealmMaintenanceWhitelistEntry>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_by_realm_id(
         &self,

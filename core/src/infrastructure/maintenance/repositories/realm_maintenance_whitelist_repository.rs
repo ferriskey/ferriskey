@@ -9,6 +9,7 @@ use ferriskey_domain::maintenance::{
     entities::RealmMaintenanceWhitelistEntry, ports::RealmMaintenanceWhitelistRepository,
 };
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
 
 #[derive(Clone, Debug)]
 pub struct PostgresRealmMaintenanceWhitelistRepository {
@@ -62,9 +63,26 @@ impl RealmMaintenanceWhitelistRepository for PostgresRealmMaintenanceWhitelistRe
         Ok(entry)
     }
 
-    async fn remove(&self, entry_id: Uuid) -> Result<(), CoreError> {
+    async fn get_by_id(
+        &self,
+        entry_id: Uuid,
+    ) -> Result<Option<Unscoped<RealmMaintenanceWhitelistEntry>>, CoreError> {
+        let model = WhitelistEntity::find_by_id(entry_id)
+            .one(&self.db)
+            .await
+            .map_err(|e| CoreError::Database(e.to_string()))?;
+
+        Ok(model
+            .map(RealmMaintenanceWhitelistEntry::from)
+            .map(Unscoped::new))
+    }
+
+    async fn remove(
+        &self,
+        entry: &Scoped<RealmMaintenanceWhitelistEntry>,
+    ) -> Result<(), CoreError> {
         let result = WhitelistEntity::delete_many()
-            .filter(Column::Id.eq(entry_id))
+            .filter(Column::Id.eq(entry.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| CoreError::Database(e.to_string()))?;
