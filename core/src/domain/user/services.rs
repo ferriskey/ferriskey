@@ -17,7 +17,10 @@ use crate::domain::{
         entity::PasswordPolicy, repository::PasswordPolicyRepository,
         service::violations_to_core_error, validator,
     },
-    realm::{entities::Realm, ports::RealmRepository},
+    realm::{
+        entities::{Realm, RealmScope, Scoped},
+        ports::RealmRepository,
+    },
     role::{
         entities::{Role, permission::Permissions},
         ports::RoleRepository,
@@ -155,26 +158,15 @@ where
     }
 
     async fn load_role_in_realm(&self, role_id: Uuid, realm: &Realm) -> Result<Role, CoreError> {
-        let role = self
-            .role_repository
+        self.role_repository
             .get_by_id(role_id)
             .await?
             .ok_or_else(|| {
                 warn!(role_id = %role_id, "Role not found");
                 CoreError::NotFound
-            })?;
-
-        if role.realm_id != realm.id {
-            warn!(
-                role_id = %role_id,
-                role_realm_id = %Uuid::from(role.realm_id),
-                request_realm_id = %Uuid::from(realm.id),
-                "Refused cross-realm access to a role"
-            );
-            return Err(CoreError::NotFound);
-        }
-
-        Ok(role)
+            })?
+            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .map(Scoped::into_inner)
     }
 }
 
@@ -962,7 +954,10 @@ mod tests {
         credential::ports::MockCredentialRepository,
         crypto::MockHasherRepository,
         password_policy::repository::MockPasswordPolicyRepository,
-        realm::{entities::Realm, ports::MockRealmRepository},
+        realm::{
+            entities::{Realm, Unscoped},
+            ports::MockRealmRepository,
+        },
         role::ports::MockRoleRepository,
         seawatch::ports::MockSecurityEventRepository,
         session::ports::MockTokenRevocationPort,
@@ -1122,7 +1117,7 @@ mod tests {
                 .expect_get_by_id()
                 .with(mockall::predicate::eq(role.id))
                 .times(1)
-                .return_once(move |_| Box::pin(async move { Ok(Some(role)) }));
+                .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(role))) }));
             self
         }
 

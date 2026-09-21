@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::client::entities::Client;
 use crate::realm::RealmId;
+use crate::realm::scope::RealmOwned;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, ToSchema)]
 pub struct Role {
@@ -18,4 +19,10 @@ pub struct Role {
     pub require_mfa: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmOwned for Role {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
+    }
 }
