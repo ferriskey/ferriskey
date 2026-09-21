@@ -23,6 +23,8 @@ event:
   role_unassigned: Role unassigned
   role_created: Role created
   role_removed: Role removed
+  role_updated: Role updated
+  role_permission_updated: Role permissions updated
   client_created: Client created
   client_deleted: Client deleted
   client_secret_rotated: Client secret rotated

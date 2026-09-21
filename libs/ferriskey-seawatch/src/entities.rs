@@ -46,6 +46,12 @@ pub enum SecurityEventType {
     #[serde(rename = "role_removed")]
     RoleRemoved,
 
+    #[serde(rename = "role_updated")]
+    RoleUpdated,
+
+    #[serde(rename = "role_permission_updated")]
+    RolePermissionUpdated,
+
     #[serde(rename = "client_created")]
     ClientCreated,
 
@@ -112,6 +118,8 @@ impl SecurityEventType {
             "role_unassigned" => Self::RoleUnassigned,
             "role_created" => Self::RoleCreated,
             "role_removed" => Self::RoleRemoved,
+            "role_updated" => Self::RoleUpdated,
+            "role_permission_updated" => Self::RolePermissionUpdated,
             "client_created" => Self::ClientCreated,
             "client_deleted" => Self::ClientDeleted,
             "client_secret_rotated" => Self::ClientSecretRotated,
@@ -145,6 +153,8 @@ impl Display for SecurityEventType {
             SecurityEventType::RoleUnassigned => write!(f, "role_unassigned"),
             SecurityEventType::RoleCreated => write!(f, "role_created"),
             SecurityEventType::RoleRemoved => write!(f, "role_removed"),
+            SecurityEventType::RoleUpdated => write!(f, "role_updated"),
+            SecurityEventType::RolePermissionUpdated => write!(f, "role_permission_updated"),
             SecurityEventType::ClientCreated => write!(f, "client_created"),
             SecurityEventType::ClientDeleted => write!(f, "client_deleted"),
             SecurityEventType::ClientSecretRotated => write!(f, "client_secret_rotated"),
