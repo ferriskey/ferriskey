@@ -102,7 +102,8 @@ where
             "insufficient permissions",
         )?;
 
-        self.user_repository
+        let user = self
+            .user_repository
             .get_by_id(input.user_id)
             .await?
             .in_realm(&scope)?;
@@ -125,7 +126,7 @@ where
         }
 
         self.credential_repository
-            .delete_by_id(input.credential_id)
+            .delete_by_id(&user, input.credential_id)
             .await
             .map_err(|_| CoreError::DeleteCredentialError)?;
 

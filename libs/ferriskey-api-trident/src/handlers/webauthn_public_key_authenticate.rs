@@ -1,4 +1,7 @@
-use axum::{Extension, extract::State};
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
@@ -70,6 +73,7 @@ pub struct AuthenticationAttemptResponse {
 )]
 pub async fn webauthn_public_key_authenticate(
     State(state): State<AppState>,
+    Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticationAttemptRequest>,
@@ -87,6 +91,7 @@ pub async fn webauthn_public_key_authenticate(
         .webauthn_public_key_authenticate(
             identity,
             WebAuthnPublicKeyAuthenticateInput {
+                realm_name,
                 session_code,
                 rp_info,
                 credential: payload.0,

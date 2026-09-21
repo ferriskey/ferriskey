@@ -43,7 +43,7 @@ use crate::{
             service::violations_to_core_error, validator,
         },
         realm::{
-            entities::{RealmId, RealmScope, Unscoped},
+            entities::{RealmId, RealmScope, Scoped, Unscoped},
             ports::{RealmRepository, SmtpConfigRepository},
         },
         seawatch::{
@@ -71,7 +71,7 @@ use crate::{
             },
         },
         user::{
-            entities::RequiredAction,
+            entities::{RequiredAction, User},
             ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         },
         webhook::{
@@ -492,15 +492,27 @@ where
         &self,
         credential_id: &[u8],
         user_handle: &[u8],
-    ) -> Result<Credential, CoreError> {
+        scope: &RealmScope,
+    ) -> Result<(Scoped<User>, Credential), CoreError> {
         let user_uuid =
             Uuid::from_slice(user_handle).map_err(|_| CoreError::WebAuthnChallengeFailed)?;
 
-        self.credential_repository
-            .get_webauthn_credential_by_credential_id_and_user(credential_id, user_uuid)
+        let user = self
+            .user_repository
+            .get_by_id(user_uuid)
+            .await
+            .map_err(|_| CoreError::WebAuthnChallengeFailed)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+        let credential = self
+            .credential_repository
+            .get_webauthn_credential_by_credential_id_and_user(credential_id, &user)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::WebAuthnChallengeFailed)
+            .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+        Ok((user, credential))
     }
 }
 
@@ -553,17 +565,24 @@ where
         identity: Identity,
         input: GenerateRecoveryCodeInput,
     ) -> Result<GenerateRecoveryCodeOutput, CoreError> {
-        let user = match identity {
-            Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("is not user".to_string())),
-        };
+        if !matches!(identity, Identity::User(_)) {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
 
         let format =
             RecoveryCodeFormat::try_from(input.format).map_err(CoreError::RecoveryCodeGenError)?;
 
         let stored_codes = self
             .credential_repository
-            .get_credentials_by_user_id(user.id)
+            .get_credentials_by_user_id(user.get().id)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .into_iter()
@@ -582,7 +601,7 @@ where
         let secure_codes = try_join_all(futures).await?;
 
         self.credential_repository
-            .create_recovery_code_credentials(user.id, secure_codes)
+            .create_recovery_code_credentials(user.get().id, secure_codes)
             .await
             .map_err(|e| {
                 error!("{e}");
@@ -593,7 +612,7 @@ where
         let _ = {
             let futures = stored_codes
                 .into_iter()
-                .map(|c| self.credential_repository.delete_by_id(c.id));
+                .map(|c| self.credential_repository.delete_by_id(&user, c.id));
             try_join_all(futures).await
         }
         .map_err(|e| {
@@ -616,10 +635,9 @@ where
         identity: Identity,
         input: BurnRecoveryCodeInput,
     ) -> Result<BurnRecoveryCodeOutput, CoreError> {
-        let user = match identity {
-            Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("Is not an user".to_string())),
-        };
+        if !matches!(identity, Identity::User(_)) {
+            return Err(CoreError::Forbidden("Is not an user".to_string()));
+        }
 
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
@@ -635,9 +653,22 @@ where
             .await
             .map_err(|_| CoreError::SessionNotFound)?;
 
+        let realm = self
+            .realm_repository
+            .get_by_id(auth_session.realm_id)
+            .await?
+            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::from_realm(realm);
+
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
+
         let user_credentials = self
             .credential_repository
-            .get_credentials_by_user_id(user.id)
+            .get_credentials_by_user_id(user.get().id)
             .await
             .map_err(|_| CoreError::GetUserCredentialsError)?;
 
@@ -694,7 +725,7 @@ where
 
         self
             .credential_repository
-            .delete_by_id(burnt_code.id)
+            .delete_by_id(&user, burnt_code.id)
             .await
             .map_err(|e| {
                 error!("Failed to delete a credential even though it was just fetched with the same repository: {e}");
@@ -704,7 +735,7 @@ where
         let authorization_code = generate_random_string();
 
         self.auth_session_repository
-            .update_code_and_user_id(session_code, authorization_code.clone(), user.id)
+            .update_code_and_user_id(session_code, authorization_code.clone(), user.get().id)
             .await
             .map_err(|e| CoreError::TotpVerificationFailed(e.to_string()))?;
 
@@ -910,10 +941,17 @@ where
         identity: Identity,
         input: WebAuthnPublicKeyAuthenticateInput,
     ) -> Result<WebAuthnPublicKeyAuthenticateOutput, CoreError> {
-        let user = match identity {
-            Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("is not user".to_string())),
-        };
+        if !matches!(identity, Identity::User(_)) {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
 
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
@@ -939,7 +977,7 @@ where
         if auth_result.needs_update() {
             let _ = self
                 .credential_repository
-                .update_webauthn_credential(&auth_result)
+                .update_webauthn_credential(&user, &auth_result)
                 .await
                 .map_err(|e| {
                     debug!("{e:?}");
@@ -952,7 +990,7 @@ where
         }
 
         let login_url = self
-            .store_auth_code_and_generate_login_url(&auth_session, user.id, &[])
+            .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &[])
             .await?;
 
         Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
@@ -1052,9 +1090,10 @@ where
             .get_by_name(&input.realm_name)
             .await?
             .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::from_realm(realm);
 
         let webauthn_challenge = auth_session.webauthn_challenge.take();
-        let (auth_result, resolved_user_id) = match webauthn_challenge {
+        let (auth_result, user) = match webauthn_challenge {
             Some(WebAuthnChallenge::Authentication(ref pa)) => {
                 let auth_result = webauthn
                     .finish_passkey_authentication(&input.credential, pa)
@@ -1068,8 +1107,12 @@ where
                     .get_user_unique_id()
                     .ok_or(CoreError::WebAuthnChallengeFailed)?;
 
-                let credential = self
-                    .resolve_webauthn_credential(auth_result.cred_id().as_slice(), user_handle)
+                let (user, _) = self
+                    .resolve_webauthn_credential(
+                        auth_result.cred_id().as_slice(),
+                        user_handle,
+                        &scope,
+                    )
                     .await
                     .inspect_err(|e| {
                         warn!(
@@ -1077,7 +1120,7 @@ where
                         )
                     })?;
 
-                (auth_result, credential.user_id)
+                (auth_result, user)
             }
             Some(WebAuthnChallenge::DiscoverableAuthentication(da)) => {
                 // Discoverable: resolve credential from the assertion response
@@ -1088,11 +1131,9 @@ where
 
                 let cred_id_bytes: &[u8] = input.credential.raw_id.as_ref();
 
-                let credential = self
-                    .resolve_webauthn_credential(cred_id_bytes, user_handle)
+                let (user, credential) = self
+                    .resolve_webauthn_credential(cred_id_bytes, user_handle, &scope)
                     .await?;
-
-                let resolved_user_id = credential.user_id;
 
                 let passkey = match credential.credential_data {
                     CredentialData::WebAuthn { credential } => Passkey::from(*credential),
@@ -1107,7 +1148,7 @@ where
                         CoreError::WebAuthnChallengeFailed
                     })?;
 
-                (auth_result, resolved_user_id)
+                (auth_result, user)
             }
             _ => return Err(CoreError::WebAuthnMissingChallenge),
         };
@@ -1115,7 +1156,7 @@ where
         if auth_result.needs_update() {
             let _ = self
                 .credential_repository
-                .update_webauthn_credential(&auth_result)
+                .update_webauthn_credential(&user, &auth_result)
                 .await
                 .map_err(|e| {
                     debug!("{e:?}");
@@ -1127,17 +1168,8 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        let user = self
-            .user_repository
-            .get_by_id(resolved_user_id)
-            .await
-            .map_err(|_| CoreError::WebAuthnChallengeFailed)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
-            .map_err(|_| CoreError::WebAuthnChallengeFailed)?
-            .into_inner();
-
         let login_url = self
-            .store_auth_code_and_generate_login_url(&auth_session, user.id, &[])
+            .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &[])
             .await?;
 
         Ok(PasskeyAuthenticateOutput { login_url })
@@ -1349,14 +1381,21 @@ where
         identity: Identity,
         input: VerifyOtpInput,
     ) -> Result<VerifyOtpOutput, CoreError> {
-        let user = match identity {
-            Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("is not user".to_string())),
-        };
+        if !matches!(identity, Identity::User(_)) {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
 
         let existing_credentials = self
             .credential_repository
-            .get_credentials_by_user_id(user.id)
+            .get_credentials_by_user_id(user.get().id)
             .await
             .map_err(|_| CoreError::GetUserCredentialsError)?;
 
@@ -1371,13 +1410,13 @@ where
         if !existing_otp_credentials.is_empty() {
             let required_actions = self
                 .user_required_action_repository
-                .get_required_actions(user.id)
+                .get_required_actions(user.get().id)
                 .await
                 .map_err(|_| CoreError::InternalServerError)?;
 
             if !required_actions.contains(&RequiredAction::ConfigureOtp) {
                 warn!(
-                    user_id = %user.id,
+                    user_id = %user.get().id,
                     "Refused OTP enrolment: user already has an OTP credential and carries no ConfigureOtp required action"
                 );
                 return Err(CoreError::Forbidden(
@@ -1390,10 +1429,10 @@ where
         // replay lands here as `None` exactly like an absent or expired enrolment.
         let enrollment = self
             .otp_enrollment_repository
-            .consume_enrollment(user.id, Utc::now())
+            .consume_enrollment(user.get().id, Utc::now())
             .await?
             .ok_or_else(|| {
-                warn!(user_id = %user.id, "Refused OTP enrolment: no live enrolment to claim");
+                warn!(user_id = %user.get().id, "Refused OTP enrolment: no live enrolment to claim");
                 CoreError::TotpVerificationFailed(
                     "no pending OTP enrollment for this user".to_string(),
                 )
@@ -1404,7 +1443,7 @@ where
         let is_valid = verify(&secret, &input.code)?;
 
         if !is_valid {
-            error!(user_id = %user.id, "invalid OTP code");
+            error!(user_id = %user.get().id, "invalid OTP code");
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".to_string(),
             ));
@@ -1420,11 +1459,11 @@ where
 
         for cred in existing_otp_credentials {
             self.credential_repository
-                .delete_by_id(cred.id)
+                .delete_by_id(&user, cred.id)
                 .await
                 .map_err(|e| {
                     error!(
-                        user_id = %user.id,
+                        user_id = %user.get().id,
                         credential_id = %cred.id,
                         "Failed to delete existing OTP credential before re-enrollment: {e:?}"
                     );
@@ -1434,7 +1473,7 @@ where
 
         self.credential_repository
             .create_custom_credential(
-                user.id,
+                user.get().id,
                 "otp".to_string(),
                 secret.base32_encoded().to_string(),
                 input.label,
@@ -1445,18 +1484,18 @@ where
 
         if let Err(e) = self
             .user_required_action_repository
-            .remove_required_action(user.id, RequiredAction::ConfigureOtp)
+            .remove_required_action(user.get().id, RequiredAction::ConfigureOtp)
             .await
         {
             warn!(
-                user_id = %user.id,
+                user_id = %user.get().id,
                 "Failed to remove ConfigureOtp required action after OTP setup: {e:?}"
             );
         }
 
         Ok(VerifyOtpOutput {
             message: "OTP verified successfully".to_string(),
-            user_id: user.id,
+            user_id: user.get().id,
         })
     }
 
@@ -2224,7 +2263,7 @@ mod tests {
     };
     use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
     use chrono::DateTime;
-    use ferriskey_domain::realm::RealmSetting;
+    use ferriskey_domain::realm::{Realm, RealmSetting};
     use ferriskey_security::crypto::{entities::HashResult, ports::MockHasherRepository};
     use p256::ecdsa::{Signature, SigningKey};
     use sha2::{Digest, Sha256};
@@ -2322,6 +2361,28 @@ mod tests {
                 user_role_repo: Arc::new(MockUserRoleRepository::new()),
                 token_revocation: Arc::new(MockTokenRevocationPort::new()),
             }
+        }
+
+        fn with_realm_and_user(mut self, realm: &Realm, user: &User) -> Self {
+            let resolved = realm.clone();
+            Arc::get_mut(&mut self.realm_repo)
+                .unwrap()
+                .expect_get_by_name()
+                .returning(move |_| {
+                    let realm = resolved.clone();
+                    Box::pin(async move { Ok(Some(realm)) })
+                });
+
+            let owner = user.clone();
+            Arc::get_mut(&mut self.user_repo)
+                .unwrap()
+                .expect_get_by_id()
+                .returning(move |_| {
+                    let user = owner.clone();
+                    Box::pin(async move { Ok(Unscoped::new(user)) })
+                });
+
+            self
         }
 
         fn with_user_access_revoked(mut self, times: usize) -> Self {
@@ -3032,9 +3093,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify_otp_rejects_code_computed_from_caller_chosen_secret() {
-        let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -3069,6 +3130,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(ATTACKER_SECRET),
                     label: Some("attacker device".to_string()),
                 },
@@ -3083,9 +3145,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify_otp_without_pending_enrollment_is_rejected() {
-        let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -3111,6 +3173,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -3125,9 +3188,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify_otp_rejects_expired_enrollment() {
-        let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -3166,6 +3229,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -3180,9 +3244,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify_otp_rejects_second_use_of_same_enrollment() {
-        let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -3235,6 +3299,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user.clone()),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -3246,6 +3311,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -3260,9 +3326,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify_otp_rejects_reenrollment_without_configure_otp_and_keeps_existing_credential() {
-        let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "victim@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         let victim_credential = otp_credential(user.id);
         Arc::get_mut(&mut builder.credential_repo)
@@ -3284,7 +3350,7 @@ mod tests {
             .unwrap()
             .expect_delete_by_id()
             .never()
-            .returning(|_| Box::pin(async { Ok(()) }));
+            .returning(|_, _| Box::pin(async { Ok(()) }));
 
         // …and nothing of the attacker's must be written.
         Arc::get_mut(&mut builder.credential_repo)
@@ -3308,6 +3374,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(SERVER_SECRET),
                     label: Some("attacker device".to_string()),
                 },
@@ -3322,9 +3389,9 @@ mod tests {
 
     #[tokio::test]
     async fn verify_otp_allows_reenrollment_when_configure_otp_is_required() {
-        let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         let stale_credential = otp_credential(user.id);
         let stale_credential_id = stale_credential.id;
@@ -3358,8 +3425,8 @@ mod tests {
             .unwrap()
             .expect_delete_by_id()
             .times(1)
-            .withf(move |id| *id == stale_credential_id)
-            .returning(|_| Box::pin(async { Ok(()) }));
+            .withf(move |_, id| *id == stale_credential_id)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -3381,6 +3448,7 @@ mod tests {
             .verify_otp(
                 Identity::User(user),
                 VerifyOtpInput {
+                    realm_name: realm.name.clone(),
                     code: current_code_for(SERVER_SECRET),
                     label: Some("new phone".to_string()),
                 },
@@ -4299,8 +4367,8 @@ mod tests {
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_get_webauthn_credential_by_credential_id_and_user()
-            .withf(move |credential_id, user_id| {
-                credential_id == expected_credential_id.as_slice() && *user_id == victim_id
+            .withf(move |credential_id, user| {
+                credential_id == expected_credential_id.as_slice() && user.get().id == victim_id
             })
             .returning(|_, _| Box::pin(async { Ok(None) }));
 
@@ -4357,8 +4425,8 @@ mod tests {
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_get_webauthn_credential_by_credential_id_and_user()
-            .withf(move |credential_id, user_id| {
-                credential_id == expected_credential_id.as_slice() && *user_id == owner_id
+            .withf(move |credential_id, user| {
+                credential_id == expected_credential_id.as_slice() && user.get().id == owner_id
             })
             .returning(move |_, _| {
                 let c = stored.clone();

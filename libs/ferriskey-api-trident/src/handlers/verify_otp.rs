@@ -1,5 +1,8 @@
 use crate::validators::OtpVerifyRequest;
-use axum::{Extension, extract::State};
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -39,6 +42,7 @@ pub struct VerifyOtpResponse {
 )]
 pub async fn verify_otp(
     State(state): State<AppState>,
+    Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
 ) -> Result<Response<VerifyOtpResponse>, ApiError> {
@@ -47,6 +51,7 @@ pub async fn verify_otp(
         .verify_otp(
             identity,
             VerifyOtpInput {
+                realm_name,
                 code: payload.code,
                 label: Some(payload.label),
             },
