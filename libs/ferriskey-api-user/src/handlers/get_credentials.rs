@@ -56,7 +56,7 @@ pub async fn get_user_credentials(
             },
         )
         .await
-        .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
+        .map_err(ApiError::from)?;
 
     Ok(Response::OK(GetUserCredentialsResponse {
         data: credentials,

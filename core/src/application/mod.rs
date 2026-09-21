@@ -393,6 +393,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         credential_service: CredentialServiceImpl::new(
             realm.clone(),
             credential.clone(),
+            user.clone(),
             policy.clone(),
         ),
         health_service: HealthServiceImpl::new(health_check.clone()),

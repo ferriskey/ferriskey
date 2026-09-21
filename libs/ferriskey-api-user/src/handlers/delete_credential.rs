@@ -53,6 +53,7 @@ pub async fn delete_user_credential(
             identity,
             DeleteCredentialInput {
                 credential_id,
+                user_id,
                 realm_name: realm_name.clone(),
             },
         )
