@@ -225,7 +225,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let identity_provider_link = Arc::new(PostgresIdentityProviderLinkRepository::new(
         postgres.get_db(),
     ));
-    let oauth_client = Arc::new(ReqwestOAuthClient::new());
+    let oauth_client = Arc::new(ReqwestOAuthClient::new(private_endpoints));
     let magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
     let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
     let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
