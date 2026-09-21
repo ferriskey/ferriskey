@@ -12,7 +12,7 @@ mod tests {
     use crate::domain::authentication::value_objects::Identity;
     use crate::domain::client::ports::MockClientRepository;
     use crate::domain::common::policies::FerriskeyPolicy;
-    use crate::domain::realm::entities::{Realm, RealmId};
+    use crate::domain::realm::entities::{Realm, RealmId, Unscoped};
     use crate::domain::role::entities::Role;
     use crate::domain::role::entities::permission::Permissions;
     use crate::domain::user::entities::User;
@@ -291,7 +291,7 @@ mod tests {
             .times(1)
             .returning(move |_, _| {
                 let c = target_client.clone();
-                Box::pin(async move { Ok(c) })
+                Box::pin(async move { Ok(Unscoped::new(c)) })
             });
 
         // Scoped to the `other-realm` client: this is a legitimate delegation.
@@ -336,7 +336,7 @@ mod tests {
             .times(1)
             .returning(move |_, _| {
                 let c = target_client.clone();
-                Box::pin(async move { Ok(c) })
+                Box::pin(async move { Ok(Unscoped::new(c)) })
             });
 
         // A plain realm role of `master` — `client_id: None`. Under the old code the

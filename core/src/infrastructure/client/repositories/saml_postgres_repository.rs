@@ -11,7 +11,7 @@ use crate::domain::client::{
     ports::ClientSamlRepository,
 };
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Unscoped};
 use crate::entity::{
     client_saml_attribute_mappers::{
         ActiveModel as AttributeMapperActiveModel, Column as AttributeMapperColumn,
@@ -32,10 +32,8 @@ impl PostgresClientSamlRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
-}
 
-impl ClientSamlRepository for PostgresClientSamlRepository {
-    async fn get_config_by_client_id(
+    async fn read_config_by_client_id(
         &self,
         client_id: Uuid,
     ) -> Result<Option<ClientSamlConfig>, CoreError> {
@@ -45,6 +43,18 @@ impl ClientSamlRepository for PostgresClientSamlRepository {
             .map_err(|_| CoreError::InternalServerError)?
             .map(ClientSamlConfig::try_from)
             .transpose()
+    }
+}
+
+impl ClientSamlRepository for PostgresClientSamlRepository {
+    async fn get_config_by_client_id(
+        &self,
+        client_id: Uuid,
+    ) -> Result<Option<Unscoped<ClientSamlConfig>>, CoreError> {
+        Ok(self
+            .read_config_by_client_id(client_id)
+            .await?
+            .map(Unscoped::new))
     }
 
     async fn upsert_config(
@@ -182,7 +192,7 @@ impl crate::domain::saml::ports::SamlServiceProviderRepository for PostgresClien
         &self,
         client_id: Uuid,
     ) -> Result<Option<ClientSamlConfig>, CoreError> {
-        ClientSamlRepository::get_config_by_client_id(self, client_id).await
+        self.read_config_by_client_id(client_id).await
     }
 
     async fn get_attribute_mappers(
@@ -509,7 +519,8 @@ mod tests {
             .get_config_by_client_id(client)
             .await
             .expect("read the config")
-            .expect("the config exists");
+            .expect("the config exists")
+            .across_realms();
 
         assert_eq!(read, written);
         assert_eq!(read.name_id_format, NameIdFormat::EmailAddress);

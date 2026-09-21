@@ -17,7 +17,7 @@ use crate::domain::client::entities::Client;
 use crate::domain::client::entities::saml::SpEntityId;
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::Realm;
+use crate::domain::realm::entities::{Realm, RealmScope};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::saml::entities::{
     AssertionBlueprint, FinishSsoInput, SamlAssertionDelivery, SamlSsoError, StartSsoInput,
@@ -111,7 +111,10 @@ where
             .client_repository
             .get_by_id(realm.id, config.client_id)
             .await
-            .map_err(|_| RejectedAuthnRequest::unreadable(CoreError::InvalidClient))?;
+            .map_err(|_| RejectedAuthnRequest::unreadable(CoreError::InvalidClient))?
+            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .map_err(RejectedAuthnRequest::unreadable)?
+            .into_inner();
 
         if !client.enabled {
             warn!(
@@ -194,7 +197,9 @@ where
             .client_repository
             .get_by_id(realm.id, auth_session.client_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         if !client.enabled {
             return Err(CoreError::InvalidClient);
@@ -888,7 +893,7 @@ pub(crate) mod tests {
                 .expect_get_by_id()
                 .returning(move |_, _| {
                     let client = client.clone();
-                    Box::pin(async move { Ok(client) })
+                    Box::pin(async move { Ok(Unscoped::new(client)) })
                 });
 
             self

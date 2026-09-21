@@ -5,7 +5,7 @@ use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
 use crate::domain::authentication::services::client_secret_matches;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, RealmScope};
 
 use crate::{
     application::migrate::{build_runner, context::MigrationContext},
@@ -689,7 +689,10 @@ impl ApplicationService {
             .client_repository
             .get_by_client_id(input.client_id, realm.id)
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?;
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .into_inner();
 
         if !client.public_client
             && !client_secret_matches(client.secret_str(), input.client_secret.as_deref())
@@ -746,7 +749,10 @@ impl ApplicationService {
             .client_repository
             .get_by_client_id(input.client_id, realm.id)
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?;
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .into_inner();
 
         if !client.public_client
             && !client_secret_matches(client.secret_str(), input.client_secret.as_deref())
@@ -785,21 +791,24 @@ impl ApplicationService {
         user_code: String,
         user_realm_id: RealmId,
     ) -> Result<DeviceVerificationPreview, DeviceFlowError> {
-        let realm_id = self
+        let scope = self
             .device_realm_for_actor(&realm_name, user_realm_id)
             .await?;
 
         let preview = self
             .device_flow_service
-            .preview_user_code(user_code, realm_id)
+            .preview_user_code(user_code, scope.id())
             .await?;
 
         let client = self
             .client_service
             .client_repository
-            .get_by_id(realm_id, preview.client_id)
+            .get_by_id(scope.id(), preview.client_id)
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?;
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .in_realm(&scope)
+            .map_err(|_| DeviceFlowError::InvalidClient)?
+            .into_inner();
 
         Ok(DeviceVerificationPreview {
             client_id: client.client_id,
@@ -820,12 +829,12 @@ impl ApplicationService {
         user_id: uuid::Uuid,
         user_realm_id: RealmId,
     ) -> Result<(), DeviceFlowError> {
-        let realm_id = self
+        let scope = self
             .device_realm_for_actor(&realm_name, user_realm_id)
             .await?;
 
         self.device_flow_service
-            .verify_user_code(user_code, user_id, realm_id)
+            .verify_user_code(user_code, user_id, scope.id())
             .await
     }
 
@@ -833,7 +842,7 @@ impl ApplicationService {
         &self,
         realm_name: &str,
         user_realm_id: RealmId,
-    ) -> Result<RealmId, DeviceFlowError> {
+    ) -> Result<RealmScope, DeviceFlowError> {
         let realm = self
             .realm_service
             .realm_repository
@@ -846,7 +855,7 @@ impl ApplicationService {
             return Err(DeviceFlowError::Forbidden);
         }
 
-        Ok(realm.id)
+        Ok(RealmScope::from_realm(realm))
     }
 
     /// Verification page: mark the device session identified by `user_code`
@@ -858,12 +867,12 @@ impl ApplicationService {
         user_id: uuid::Uuid,
         user_realm_id: RealmId,
     ) -> Result<(), DeviceFlowError> {
-        let realm_id = self
+        let scope = self
             .device_realm_for_actor(&realm_name, user_realm_id)
             .await?;
 
         self.device_flow_service
-            .deny(user_code, user_id, realm_id)
+            .deny(user_code, user_id, scope.id())
             .await
     }
 

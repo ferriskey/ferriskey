@@ -377,6 +377,11 @@ mod tests {
         secret: String,
     }
 
+    struct VictimSamlClient {
+        uuid: String,
+        sp_entity_id: String,
+    }
+
     /// Create a confidential client in `tenant-b` — confidential so the repository
     /// generates a secret — harden it with `require_pkce`, and register one redirect
     /// URI so the injection test has a baseline to compare against.
@@ -445,6 +450,74 @@ mod tests {
         );
 
         VictimClient { uuid, secret }
+    }
+
+    async fn create_victim_saml_client(server: &TestServer, master: &str) -> VictimSamlClient {
+        let client_id = format!("victim-saml-{}", Uuid::new_v4().simple());
+
+        let response = server
+            .post(&format!("/realms/{TENANT_B}/clients"))
+            .add_header("Authorization", auth_header(master))
+            .json(&json!({
+                "client_id": client_id,
+                "name": "Tenant B saml service provider",
+                "client_type": "confidential",
+                "protocol": "saml",
+                "public_client": false,
+                "service_account_enabled": false,
+                "direct_access_grants_enabled": false,
+                "enabled": true,
+                "oauth_device_code_grant_enabled": false,
+            }))
+            .await;
+        assert_eq!(
+            response.status_code(),
+            201,
+            "creating the victim SAML client failed: {}",
+            response.text()
+        );
+        let body: Value = response.json();
+        let uuid = body["id"]
+            .as_str()
+            .expect("victim saml client id")
+            .to_string();
+
+        let sp_entity_id = format!("https://tenant-b.example/sp/{}", Uuid::new_v4().simple());
+        let response = server
+            .put(&format!("/realms/{TENANT_B}/clients/{uuid}/saml-config"))
+            .add_header("Authorization", auth_header(master))
+            .json(&json!({
+                "sp_entity_id": sp_entity_id,
+                "acs_url": "https://tenant-b.example/acs",
+                "name_id_format": "email",
+                "sign_assertions": true,
+                "sign_documents": false,
+                "want_authn_requests_signed": false,
+            }))
+            .await;
+        assert_eq!(
+            response.status_code(),
+            201,
+            "writing the victim SAML config failed: {}",
+            response.text()
+        );
+
+        VictimSamlClient { uuid, sp_entity_id }
+    }
+
+    async fn read_victim_saml_config(server: &TestServer, master: &str, uuid: &str) -> Value {
+        let response = server
+            .get(&format!("/realms/{TENANT_B}/clients/{uuid}/saml-config"))
+            .add_header("Authorization", auth_header(master))
+            .await;
+        assert_eq!(
+            response.status_code(),
+            200,
+            "master admin could not read the victim SAML config {uuid}: {}",
+            response.text()
+        );
+        let body: Value = response.json();
+        body["data"].clone()
     }
 
     /// Read a `tenant-b` client back through the master admin, whose cross-realm
@@ -694,6 +767,139 @@ mod tests {
             assert_eq!(
                 before, after,
                 "the victim's redirect URI list changed. Attack returned HTTP {status}",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored"]
+    fn tenant_admin_cannot_reveal_another_tenants_client_secret() {
+        rt().block_on(async {
+            let server = make_server();
+            let master = master_token(&server).await;
+            let victim = create_victim_client(&server, &master).await;
+            let alice = alice_token(&server).await;
+
+            let response = server
+                .get(&format!(
+                    "/realms/{TENANT_A}/clients/{}/client-secret",
+                    victim.uuid
+                ))
+                .add_header("Authorization", auth_header(&alice))
+                .await;
+
+            let status = response.status_code();
+            let body = response.text();
+
+            assert!(
+                !body.contains(&victim.secret),
+                "the tenant-a administrator revealed tenant-b's client secret \
+                 ({secret}) through the dedicated endpoint. HTTP {status}, body: {body}",
+                secret = victim.secret,
+            );
+            assert_eq!(
+                status, 404,
+                "expected 404 when revealing the secret of a client outside the URL \
+                 realm, body: {body}",
+            );
+
+            let reveal = server
+                .get(&format!(
+                    "/realms/{TENANT_B}/clients/{}/client-secret",
+                    victim.uuid
+                ))
+                .add_header("Authorization", auth_header(&master))
+                .await;
+            assert_eq!(
+                reveal.status_code(),
+                200,
+                "the refusal must be realm-bound, not a blanket denial: {}",
+                reveal.text()
+            );
+            let oracle: Value = reveal.json();
+            assert_eq!(
+                oracle["client_secret"], victim.secret,
+                "the oracle no longer returns the real secret, so the leak assertion \
+                 above proves nothing: {oracle}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored"]
+    fn tenant_admin_cannot_read_another_tenants_saml_config() {
+        rt().block_on(async {
+            let server = make_server();
+            let master = master_token(&server).await;
+            let victim = create_victim_saml_client(&server, &master).await;
+            let alice = alice_token(&server).await;
+
+            let response = server
+                .get(&format!(
+                    "/realms/{TENANT_A}/clients/{}/saml-config",
+                    victim.uuid
+                ))
+                .add_header("Authorization", auth_header(&alice))
+                .await;
+
+            let status = response.status_code();
+            let body = response.text();
+
+            assert!(
+                !body.contains(&victim.sp_entity_id),
+                "the tenant-a administrator read tenant-b's service provider \
+                 configuration ({entity_id}). HTTP {status}, body: {body}",
+                entity_id = victim.sp_entity_id,
+            );
+            assert_eq!(
+                status, 404,
+                "expected 404 when reading the SAML config of a client outside the \
+                 URL realm, body: {body}",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored"]
+    fn tenant_admin_cannot_rewrite_another_tenants_saml_config() {
+        rt().block_on(async {
+            let server = make_server();
+            let master = master_token(&server).await;
+            let victim = create_victim_saml_client(&server, &master).await;
+            let alice = alice_token(&server).await;
+
+            let hostile_acs = "https://attacker.tenant-a.example/acs";
+
+            let response = server
+                .put(&format!(
+                    "/realms/{TENANT_A}/clients/{}/saml-config",
+                    victim.uuid
+                ))
+                .add_header("Authorization", auth_header(&alice))
+                .json(&json!({
+                    "sp_entity_id": victim.sp_entity_id,
+                    "acs_url": hostile_acs,
+                    "name_id_format": "email",
+                    "sign_assertions": true,
+                    "sign_documents": false,
+                    "want_authn_requests_signed": false,
+                }))
+                .await;
+
+            let status = response.status_code();
+            let body = response.text();
+            assert_eq!(
+                status, 404,
+                "expected 404 when rewriting the SAML config of a client outside the \
+                 URL realm, body: {body}",
+            );
+
+            let config = read_victim_saml_config(&server, &master, &victim.uuid).await;
+            let serialized = config.to_string();
+            assert!(
+                !serialized.contains(hostile_acs),
+                "tenant-a redirected tenant-b's assertions to {hostile_acs}. \
+                 Attack returned HTTP {status}; config is now {serialized}",
             );
         });
     }

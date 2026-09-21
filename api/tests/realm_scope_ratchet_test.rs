@@ -9,7 +9,6 @@ mod tests {
         "core/src/domain/abyss/federation/services.rs",
         "core/src/domain/abyss/identity_provider_services.rs",
         "core/src/domain/authentication/services.rs",
-        "core/src/domain/client/services.rs",
         "core/src/domain/common/services.rs",
         "core/src/domain/organization/member_role_services.rs",
         "core/src/domain/realm/services.rs",

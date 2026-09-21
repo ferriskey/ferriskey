@@ -22,6 +22,7 @@ use ferriskey_domain::client::ports::MockClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::FerriskeyPolicy;
 use ferriskey_domain::realm::ports::MockRealmRepository;
+use ferriskey_domain::realm::scope::Unscoped;
 use ferriskey_domain::realm::{Realm, RealmId};
 use ferriskey_domain::role::entities::Role;
 use ferriskey_domain::user::entities::User;
@@ -188,7 +189,7 @@ pub(crate) fn mock_client_repository(clients: Vec<Client>) -> MockClientReposito
                 .iter()
                 .find(|client| client.id == id && client.realm_id == realm_id)
                 .cloned();
-            Box::pin(async move { found.ok_or(CoreError::NotFound) })
+            Box::pin(async move { found.map(Unscoped::new).ok_or(CoreError::NotFound) })
         });
     repository
 }

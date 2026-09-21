@@ -464,7 +464,9 @@ where
             .client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
             .await
-            .map_err(|_| CoreError::ClientNotFound)?;
+            .map_err(|_| CoreError::ClientNotFound)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         self.validate_redirect_uri(client.id, &input.redirect_uri)
             .await?;
@@ -632,7 +634,9 @@ where
         let client = self
             .client_repository
             .get_by_id(broker_session.realm_id, broker_session.client_id)
-            .await?;
+            .await?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;
 

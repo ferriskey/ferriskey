@@ -438,7 +438,7 @@ mod tests {
                 .expect_get_by_client_id()
                 .with(eq(client_id.to_string()), eq(realm_id))
                 .times(1)
-                .return_once(move |_, _| Box::pin(async move { Ok(client) }));
+                .return_once(move |_, _| Box::pin(async move { Ok(Unscoped::new(client)) }));
             self
         }
 

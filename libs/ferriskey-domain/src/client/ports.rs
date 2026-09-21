@@ -26,6 +26,7 @@ use crate::client::{
     web_origin_resolution::ClientOriginSources,
 };
 use crate::common::app_errors::CoreError;
+use crate::realm::scope::{Scoped, Unscoped};
 use crate::realm::{Realm, RealmId};
 use crate::role::entities::Role;
 
@@ -188,13 +189,13 @@ pub trait ClientRepository: Send + Sync {
         &self,
         client_id: String,
         realm_id: RealmId,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Unscoped<Client>, CoreError>> + Send;
 
     fn get_by_id(
         &self,
         realm_id: RealmId,
         id: Uuid,
-    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Unscoped<Client>, CoreError>> + Send;
 
     fn get_by_realm_id(
         &self,
@@ -203,15 +204,13 @@ pub trait ClientRepository: Send + Sync {
 
     fn update_client(
         &self,
-        realm_id: RealmId,
-        client_id: Uuid,
+        client: &Scoped<Client>,
         data: UpdateClientRequest,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
 
     fn delete_by_id(
         &self,
-        realm_id: RealmId,
-        id: Uuid,
+        client: &Scoped<Client>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
@@ -278,7 +277,7 @@ pub trait ClientSamlRepository: Send + Sync {
     fn get_config_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<Option<ClientSamlConfig>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<ClientSamlConfig>>, CoreError>> + Send;
 
     fn upsert_config(
         &self,

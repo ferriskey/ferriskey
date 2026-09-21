@@ -14,8 +14,9 @@ use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
-use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::RealmScope;
+use ferriskey_domain::realm::{Realm, RealmId};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 use uuid::Uuid;
 
@@ -63,13 +64,14 @@ where
 
     async fn ensure_client_in_realm(
         &self,
-        realm_id: RealmId,
+        realm: &Realm,
         client_id: Uuid,
     ) -> Result<(), CoreError> {
         self.client_repository
-            .get_by_id(realm_id, client_id)
+            .get_by_id(realm.id, client_id)
             .await
-            .map_err(|_| CoreError::NotFound)?;
+            .map_err(|_| CoreError::NotFound)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?;
 
         Ok(())
     }
@@ -124,8 +126,7 @@ where
             "insufficient permissions",
         )?;
 
-        self.ensure_client_in_realm(realm.id, input.client_id)
-            .await?;
+        self.ensure_client_in_realm(&realm, input.client_id).await?;
         self.ensure_scope_in_realm(realm.id, input.scope_id).await?;
 
         let mapping = self
@@ -168,8 +169,7 @@ where
             "insufficient permissions",
         )?;
 
-        self.ensure_client_in_realm(realm.id, input.client_id)
-            .await?;
+        self.ensure_client_in_realm(&realm, input.client_id).await?;
         self.ensure_scope_in_realm(realm.id, input.scope_id).await?;
 
         self.scope_mapping_repository
@@ -205,8 +205,7 @@ where
             "insufficient permissions",
         )?;
 
-        self.ensure_client_in_realm(realm.id, input.client_id)
-            .await?;
+        self.ensure_client_in_realm(&realm, input.client_id).await?;
 
         let mut scopes = self
             .scope_mapping_repository
