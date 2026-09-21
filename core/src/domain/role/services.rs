@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+use tracing::warn;
+use uuid::Uuid;
+
 use crate::domain::{
     authentication::value_objects::Identity,
     client::ports::ClientRepository,
@@ -7,7 +10,7 @@ use crate::domain::{
         entities::app_errors::CoreError,
         policies::{FerriskeyPolicy, ensure_policy},
     },
-    realm::ports::RealmRepository,
+    realm::{entities::Realm, ports::RealmRepository},
     role::{
         entities::{CreateRoleInput, GetUserRolesInput, Role, UpdateRoleInput},
         ports::{RolePolicy, RoleRepository, RoleService},
@@ -67,6 +70,29 @@ where
             user_role_repository,
             policy,
         }
+    }
+
+    async fn load_role_in_realm(&self, role_id: Uuid, realm: &Realm) -> Result<Role, CoreError> {
+        let role = self
+            .role_repository
+            .get_by_id(role_id)
+            .await?
+            .ok_or_else(|| {
+                warn!(role_id = %role_id, "Role not found");
+                CoreError::NotFound
+            })?;
+
+        if role.realm_id != realm.id {
+            warn!(
+                role_id = %role_id,
+                role_realm_id = %Uuid::from(role.realm_id),
+                request_realm_id = %Uuid::from(realm.id),
+                "Refused cross-realm access to a role"
+            );
+            return Err(CoreError::NotFound);
+        }
+
+        Ok(role)
     }
 }
 
@@ -152,7 +178,7 @@ where
             "insufficient permissions",
         )?;
 
-        let role = self.role_repository.get_by_id(role_id).await?;
+        let role = self.load_role_in_realm(role_id, &realm).await?;
         self.role_repository.delete_by_id(role_id).await?;
 
         self.security_event_repository
@@ -192,11 +218,7 @@ where
             "insufficient permissions",
         )?;
 
-        self.role_repository
-            .get_by_id(role_id)
-            .await
-            .map_err(|_| CoreError::NotFound)?
-            .ok_or(CoreError::NotFound)
+        self.load_role_in_realm(role_id, &realm).await
     }
 
     async fn get_roles(
@@ -264,6 +286,8 @@ where
             "insufficient permissions",
         )?;
 
+        self.load_role_in_realm(input.role_id, &realm).await?;
+
         let role = self
             .role_repository
             .update_by_id(
@@ -311,6 +335,8 @@ where
             self.policy.can_update_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        self.load_role_in_realm(role_id, &realm).await?;
 
         let role = self
             .role_repository
@@ -786,5 +812,63 @@ mod tests {
 
         let returned_role = assert_success(result);
         assert_eq!(returned_role.id, role_in_target.id);
+    }
+
+    #[tokio::test]
+    async fn test_get_role_scoped_to_url_realm_returns_not_found() {
+        let principal_realm = create_test_realm_with_name("principal");
+        let neighbor_realm = create_test_realm_with_name("neighbor");
+        let admin = create_test_user_with_realm(&principal_realm);
+        let identity = Identity::User(admin.clone());
+
+        let admin_role = create_test_role_with_params(
+            principal_realm.id,
+            "principal-viewer",
+            vec![Permissions::ViewRoles.name()],
+            None,
+        );
+
+        let foreign_role = create_test_role(neighbor_realm.id);
+
+        let service = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&principal_realm.name, principal_realm.clone())
+            .with_user_roles(admin.id, vec![admin_role])
+            .with_successful_role_lookup(foreign_role.id, foreign_role.clone())
+            .build();
+
+        let result = service
+            .get_role(identity, principal_realm.name.clone(), foreign_role.id)
+            .await;
+
+        assert!(matches!(result.unwrap_err(), CoreError::NotFound));
+    }
+
+    #[tokio::test]
+    async fn test_delete_role_scoped_to_url_realm_returns_not_found() {
+        let principal_realm = create_test_realm_with_name("principal");
+        let neighbor_realm = create_test_realm_with_name("neighbor");
+        let admin = create_test_user_with_realm(&principal_realm);
+        let identity = Identity::User(admin.clone());
+
+        let admin_role = create_test_role_with_params(
+            principal_realm.id,
+            "principal-manager",
+            vec![Permissions::ManageUsers.name()],
+            None,
+        );
+
+        let foreign_role = create_test_role(neighbor_realm.id);
+
+        let service = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&principal_realm.name, principal_realm.clone())
+            .with_user_roles(admin.id, vec![admin_role])
+            .with_successful_role_lookup(foreign_role.id, foreign_role.clone())
+            .build();
+
+        let result = service
+            .delete_role(identity, principal_realm.name.clone(), foreign_role.id)
+            .await;
+
+        assert!(matches!(result.unwrap_err(), CoreError::NotFound));
     }
 }
