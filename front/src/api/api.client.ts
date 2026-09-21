@@ -620,6 +620,7 @@ export namespace Schemas {
     subject_types_supported: Array<string>;
     token_endpoint: string;
     token_endpoint_auth_methods_supported: Array<string>;
+    code_challenge_methods_supported: Array<string>;
     userinfo_endpoint: string;
   };
   export type GetPortalLayoutResponse = { data: PortalLayout };
