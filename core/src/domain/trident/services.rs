@@ -483,6 +483,21 @@ where
 
         Ok(interpolate_variables(&html, &variables))
     }
+
+    async fn resolve_webauthn_credential(
+        &self,
+        credential_id: &[u8],
+        user_handle: &[u8],
+    ) -> Result<Credential, CoreError> {
+        let user_uuid =
+            Uuid::from_slice(user_handle).map_err(|_| CoreError::WebAuthnChallengeFailed)?;
+
+        self.credential_repository
+            .get_webauthn_credential_by_credential_id_and_user(credential_id, user_uuid)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::WebAuthnChallengeFailed)
+    }
 }
 
 impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
@@ -1035,15 +1050,30 @@ where
             .ok_or(CoreError::InvalidRealm)?;
 
         let webauthn_challenge = auth_session.webauthn_challenge.take();
-        let auth_result = match webauthn_challenge {
+        let (auth_result, resolved_user_id) = match webauthn_challenge {
             Some(WebAuthnChallenge::Authentication(ref pa)) => {
-                // Non-discoverable: user was known at challenge time
-                webauthn
+                let auth_result = webauthn
                     .finish_passkey_authentication(&input.credential, pa)
                     .map_err(|e| {
                         error!("Error during passkey authentication: {e:?}");
                         CoreError::WebAuthnChallengeFailed
-                    })?
+                    })?;
+
+                let user_handle = input
+                    .credential
+                    .get_user_unique_id()
+                    .ok_or(CoreError::WebAuthnChallengeFailed)?;
+
+                let credential = self
+                    .resolve_webauthn_credential(auth_result.cred_id().as_slice(), user_handle)
+                    .await
+                    .inspect_err(|e| {
+                        warn!(
+                            "Refused passkey authentication: the signing credential does not belong to the claimed user handle: {e:?}"
+                        )
+                    })?;
+
+                (auth_result, credential.user_id)
             }
             Some(WebAuthnChallenge::DiscoverableAuthentication(da)) => {
                 // Discoverable: resolve credential from the assertion response
@@ -1052,17 +1082,13 @@ where
                     .get_user_unique_id()
                     .ok_or(CoreError::WebAuthnChallengeFailed)?;
 
-                let user_uuid = Uuid::from_slice(user_handle)
-                    .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
-
                 let cred_id_bytes: &[u8] = input.credential.raw_id.as_ref();
 
                 let credential = self
-                    .credential_repository
-                    .get_webauthn_credential_by_credential_id_and_user(cred_id_bytes, user_uuid)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?
-                    .ok_or(CoreError::WebAuthnChallengeFailed)?;
+                    .resolve_webauthn_credential(cred_id_bytes, user_handle)
+                    .await?;
+
+                let resolved_user_id = credential.user_id;
 
                 let passkey = match credential.credential_data {
                     CredentialData::WebAuthn { credential } => Passkey::from(*credential),
@@ -1070,12 +1096,14 @@ where
                 };
 
                 let dk: DiscoverableKey = passkey.into();
-                webauthn
+                let auth_result = webauthn
                     .finish_discoverable_authentication(&input.credential, da, &[dk])
                     .map_err(|e| {
                         error!("Error during discoverable authentication: {e:?}");
                         CoreError::WebAuthnChallengeFailed
-                    })?
+                    })?;
+
+                (auth_result, resolved_user_id)
             }
             _ => return Err(CoreError::WebAuthnMissingChallenge),
         };
@@ -1095,18 +1123,9 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        // Resolve the user from the assertion response
-        let user_handle = input
-            .credential
-            .get_user_unique_id()
-            .ok_or(CoreError::WebAuthnChallengeFailed)?;
-
-        let user_uuid =
-            Uuid::from_slice(user_handle).map_err(|_| CoreError::WebAuthnChallengeFailed)?;
-
         let user = self
             .user_repository
-            .get_by_id(user_uuid)
+            .get_by_id(resolved_user_id)
             .await
             .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
 
@@ -2195,10 +2214,15 @@ mod tests {
         },
         webhook::ports::MockWebhookRepository,
     };
+    use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
     use chrono::DateTime;
     use ferriskey_domain::realm::RealmSetting;
     use ferriskey_security::crypto::{entities::HashResult, ports::MockHasherRepository};
+    use p256::ecdsa::{Signature, SigningKey};
+    use sha2::{Digest, Sha256};
+    use signature::Signer;
     use std::sync::Mutex;
+    use webauthn_rs::prelude::Credential as WebAuthnCredential;
 
     #[derive(Debug, Clone)]
     struct NoopTemplateRenderer;
@@ -4077,6 +4101,288 @@ mod tests {
         assert!(
             login_url.ends_with("&state=a%20b%26next%3Dhttps%3A%2F%2Fevil.example"),
             "state must be echoed back percent-encoded: {login_url}"
+        );
+    }
+
+    fn passkey_rp_info() -> WebAuthnRpInfo {
+        WebAuthnRpInfo {
+            rp_id: "localhost".to_string(),
+            allowed_origin: "http://localhost:5555".to_string(),
+        }
+    }
+
+    fn passkey_signing_key() -> SigningKey {
+        SigningKey::from_slice(&[0x42; 32]).expect("the fixed scalar is a valid p256 secret")
+    }
+
+    fn webauthn_credential_for(credential_id: &[u8], key: &SigningKey) -> WebAuthnCredential {
+        let point = key.verifying_key().to_encoded_point(false);
+
+        WebAuthnCredential {
+            cred_id: credential_id.to_vec().into(),
+            cred: COSEKey {
+                type_: COSEAlgorithm::ES256,
+                key: COSEKeyType::EC_EC2(COSEEC2Key {
+                    curve: ECDSACurve::SECP256R1,
+                    x: point
+                        .x()
+                        .expect("an uncompressed point carries x")
+                        .to_vec()
+                        .into(),
+                    y: point
+                        .y()
+                        .expect("an uncompressed point carries y")
+                        .to_vec()
+                        .into(),
+                }),
+            },
+            counter: 0,
+            transports: None,
+            user_verified: true,
+            backup_eligible: false,
+            backup_state: false,
+            registration_policy: Default::default(),
+            extensions: Default::default(),
+            attestation: ParsedAttestation::default(),
+            attestation_format: AttestationFormat::None,
+        }
+    }
+
+    fn stored_passkey_credential(user_id: Uuid, credential: WebAuthnCredential) -> Credential {
+        let credential_id = credential.cred_id.to_vec();
+
+        Credential {
+            id: Uuid::new_v4(),
+            salt: None,
+            credential_type: CredentialType::WebAuthnPublicKeyCredential,
+            user_id,
+            user_label: None,
+            secret_data: String::new(),
+            credential_data: CredentialData::WebAuthn {
+                credential: Box::new(credential),
+            },
+            temporary: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            webauthn_credential_id: Some(credential_id.into()),
+        }
+    }
+
+    fn signed_passkey_assertion(
+        challenge: &[u8],
+        credential_id: &[u8],
+        key: &SigningKey,
+        claimed_user_handle: Uuid,
+    ) -> PublicKeyCredential {
+        let rp_info = passkey_rp_info();
+
+        let client_data = serde_json::json!({
+            "type": "webauthn.get",
+            "challenge": BASE64_URL_SAFE_NO_PAD.encode(challenge),
+            "origin": rp_info.allowed_origin,
+            "crossOrigin": false,
+        })
+        .to_string();
+
+        let mut authenticator_data = Sha256::digest(rp_info.rp_id.as_bytes()).to_vec();
+        authenticator_data.push(0x05);
+        authenticator_data.extend_from_slice(&0u32.to_be_bytes());
+
+        let mut signed_payload = authenticator_data.clone();
+        signed_payload.extend_from_slice(&Sha256::digest(client_data.as_bytes()));
+
+        let signature: Signature = key.sign(&signed_payload);
+
+        serde_json::from_value(serde_json::json!({
+            "id": BASE64_URL_SAFE_NO_PAD.encode(credential_id),
+            "rawId": BASE64_URL_SAFE_NO_PAD.encode(credential_id),
+            "response": {
+                "authenticatorData": BASE64_URL_SAFE_NO_PAD.encode(&authenticator_data),
+                "clientDataJSON": BASE64_URL_SAFE_NO_PAD.encode(client_data.as_bytes()),
+                "signature": BASE64_URL_SAFE_NO_PAD.encode(signature.to_der().as_bytes()),
+                "userHandle": BASE64_URL_SAFE_NO_PAD.encode(claimed_user_handle.as_bytes()),
+            },
+            "type": "public-key",
+        }))
+        .expect("the assertion fixture must deserialize")
+    }
+
+    struct PasskeyAssertionFixture {
+        builder: TridentTestBuilder,
+        session_code: Uuid,
+        session: AuthSession,
+        credential_id: Vec<u8>,
+        credential: WebAuthnCredential,
+        assertion: PublicKeyCredential,
+    }
+
+    fn passkey_assertion_fixture(
+        realm: &crate::domain::realm::entities::Realm,
+        claimed_user_handle: Uuid,
+    ) -> PasskeyAssertionFixture {
+        let key = passkey_signing_key();
+        let credential_id = b"passkey-credential-id".to_vec();
+        let credential = webauthn_credential_for(&credential_id, &key);
+
+        let webauthn =
+            build_webauthn_client(passkey_rp_info()).expect("the fixture rp info is valid");
+        let (request, state) = webauthn
+            .start_passkey_authentication(&[Passkey::from(credential.clone())])
+            .expect("a challenge must be issued for an enrolled passkey");
+
+        let session_code = Uuid::new_v4();
+        let session = AuthSession {
+            webauthn_challenge: Some(WebAuthnChallenge::Authentication(state)),
+            ..auth_session_with_challenge_issued_at(realm, session_code, Some(Utc::now()))
+        };
+
+        let assertion = signed_passkey_assertion(
+            request.public_key.challenge.as_slice(),
+            &credential_id,
+            &key,
+            claimed_user_handle,
+        );
+
+        let mut builder = TridentTestBuilder::new();
+
+        let realm_clone = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm_clone.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
+        let session_clone = session.clone();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = session_clone.clone();
+                Box::pin(async move { Ok(s) })
+            });
+
+        PasskeyAssertionFixture {
+            builder,
+            session_code,
+            session,
+            credential_id,
+            credential,
+            assertion,
+        }
+    }
+
+    #[tokio::test]
+    async fn passkey_authenticate_refuses_a_user_handle_the_signing_passkey_does_not_belong_to() {
+        let realm = create_test_realm_with_name("passkey-realm");
+        let victim = create_test_user_with_email(&realm, "victim@example.com");
+
+        let PasskeyAssertionFixture {
+            mut builder,
+            session_code,
+            credential_id,
+            assertion,
+            ..
+        } = passkey_assertion_fixture(&realm, victim.id);
+
+        let victim_id = victim.id;
+        let expected_credential_id = credential_id.clone();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_webauthn_credential_by_credential_id_and_user()
+            .withf(move |credential_id, user_id| {
+                credential_id == expected_credential_id.as_slice() && *user_id == victim_id
+            })
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+
+        expect_pending_step_lookups(
+            &mut builder,
+            victim.clone(),
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.build();
+
+        let result = service
+            .passkey_authenticate(PasskeyAuthenticateInput {
+                realm_name: realm.name.clone(),
+                session_code: session_code.to_string(),
+                rp_info: passkey_rp_info(),
+                credential: assertion,
+            })
+            .await;
+
+        let error = match result {
+            Ok(output) => panic!(
+                "a user handle the signing passkey does not belong to must not yield a code, got {}",
+                output.login_url
+            ),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(error, CoreError::WebAuthnChallengeFailed),
+            "the claimed user handle must be rejected as a failed challenge: {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn passkey_authenticate_issues_the_code_for_the_owner_of_the_signing_passkey() {
+        let realm = create_test_realm_with_name("passkey-realm");
+        let owner = create_test_user_with_email(&realm, "owner@example.com");
+
+        let PasskeyAssertionFixture {
+            mut builder,
+            session_code,
+            session,
+            credential_id,
+            credential,
+            assertion,
+        } = passkey_assertion_fixture(&realm, owner.id);
+
+        let owner_id = owner.id;
+        let expected_credential_id = credential_id.clone();
+        let stored = stored_passkey_credential(owner_id, credential);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_webauthn_credential_by_credential_id_and_user()
+            .withf(move |credential_id, user_id| {
+                credential_id == expected_credential_id.as_slice() && *user_id == owner_id
+            })
+            .returning(move |_, _| {
+                let c = stored.clone();
+                Box::pin(async move { Ok(Some(c)) })
+            });
+
+        expect_pending_step_lookups(
+            &mut builder,
+            owner.clone(),
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_authorization_code(&mut builder, session.clone());
+
+        let service = builder.build();
+
+        let output = service
+            .passkey_authenticate(PasskeyAuthenticateInput {
+                realm_name: realm.name.clone(),
+                session_code: session_code.to_string(),
+                rp_info: passkey_rp_info(),
+                credential: assertion,
+            })
+            .await
+            .expect("the owner of the signing passkey must complete authentication");
+
+        assert!(
+            output
+                .login_url
+                .starts_with("https://app.example/callback?code="),
+            "the owner must be redirected with an authorization code: {}",
+            output.login_url
         );
     }
 }
