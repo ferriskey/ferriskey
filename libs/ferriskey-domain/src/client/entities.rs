@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::authentication::entities::AuthProtocol;
 use crate::client::entities::saml::InvalidSamlConfig;
+use crate::realm::scope::RealmOwned;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
 pub mod redirect_uri;
@@ -196,6 +197,12 @@ impl Client {
             created_at: now,
             updated_at: now,
         }
+    }
+}
+
+impl RealmOwned for Client {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 

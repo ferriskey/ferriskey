@@ -18,7 +18,7 @@ use crate::domain::{
     },
     credential::ports::CredentialRepository,
     crypto::HasherRepository,
-    realm::ports::RealmRepository,
+    realm::{entities::RealmScope, ports::RealmRepository},
     role::{
         entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
     },
@@ -209,6 +209,8 @@ where
                 );
 
                 client
+                    .in_realm(&RealmScope::from_realm(realm.clone()))?
+                    .into_inner()
             }
             Err(_) => {
                 tracing::info!("createing client {:}", config.default_client_id.clone());
@@ -248,6 +250,8 @@ where
             Ok(client) => {
                 tracing::info!("client {:} created", master_realm_client_id.clone());
                 client
+                    .in_realm(&RealmScope::from_realm(realm.clone()))?
+                    .into_inner()
             }
             Err(_) => {
                 tracing::info!("creating client {:}", master_realm_client_id.clone());
@@ -461,7 +465,7 @@ where
             {
                 Ok(c) => {
                     tracing::info!("security-admin-console already exists in realm {:}", r.name);
-                    c
+                    c.in_realm(&RealmScope::from_realm(r.clone()))?.into_inner()
                 }
                 Err(_) => {
                     tracing::info!("creating security-admin-console for realm {:}", r.name);

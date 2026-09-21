@@ -10,7 +10,7 @@ use sea_orm::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
 use crate::domain::{
     client::{
         entities::{Client, redirect_uri::RedirectUri},
@@ -79,7 +79,7 @@ impl ClientRepository for PostgresClientRepository {
         &self,
         client_id: String,
         realm_id: RealmId,
-    ) -> Result<Client, CoreError> {
+    ) -> Result<Unscoped<Client>, CoreError> {
         let client = ClientEntity::find()
             .filter(crate::entity::clients::Column::ClientId.eq(client_id))
             .filter(crate::entity::clients::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -89,10 +89,14 @@ impl ClientRepository for PostgresClientRepository {
             .map(Client::from)
             .ok_or(CoreError::NotFound)?;
 
-        Ok(client)
+        Ok(Unscoped::new(client))
     }
 
-    async fn get_by_id(&self, realm_id: RealmId, id: uuid::Uuid) -> Result<Client, CoreError> {
+    async fn get_by_id(
+        &self,
+        realm_id: RealmId,
+        id: uuid::Uuid,
+    ) -> Result<Unscoped<Client>, CoreError> {
         let clients_model = ClientEntity::find()
             .filter(crate::entity::clients::Column::Id.eq(id))
             .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
@@ -116,7 +120,7 @@ impl ClientRepository for PostgresClientRepository {
 
         client.redirect_uris = Some(redirect_uris);
 
-        Ok(client)
+        Ok(Unscoped::new(client))
     }
 
     async fn get_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<Client>, CoreError> {
@@ -133,13 +137,12 @@ impl ClientRepository for PostgresClientRepository {
 
     async fn update_client(
         &self,
-        realm_id: RealmId,
-        client_id: Uuid,
+        client: &Scoped<Client>,
         data: UpdateClientRequest,
     ) -> Result<Client, CoreError> {
         let client = ClientEntity::find()
-            .filter(crate::entity::clients::Column::Id.eq(client_id))
-            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
+            .filter(crate::entity::clients::Column::Id.eq(client.get().id))
+            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(client.get().realm_id)))
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
@@ -204,10 +207,10 @@ impl ClientRepository for PostgresClientRepository {
         Ok(client.into())
     }
 
-    async fn delete_by_id(&self, realm_id: RealmId, id: Uuid) -> Result<(), CoreError> {
+    async fn delete_by_id(&self, client: &Scoped<Client>) -> Result<(), CoreError> {
         let result = ClientEntity::delete_many()
-            .filter(crate::entity::clients::Column::Id.eq(id))
-            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(realm_id)))
+            .filter(crate::entity::clients::Column::Id.eq(client.get().id))
+            .filter(crate::entity::clients::Column::RealmId.eq(Uuid::from(client.get().realm_id)))
             .exec(&self.db)
             .await
             .map_err(|e| {

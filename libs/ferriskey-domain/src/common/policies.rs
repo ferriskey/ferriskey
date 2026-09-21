@@ -7,6 +7,7 @@ use crate::client::ports::{ClientPolicy, ClientRepository};
 use crate::common::app_errors::CoreError;
 use crate::realm::Realm;
 use crate::realm::ports::RealmPolicy;
+use crate::realm::scope::RealmScope;
 use crate::role::entities::Role;
 use crate::role::permission::Permissions;
 use crate::role::ports::RolePolicy;
@@ -169,12 +170,14 @@ where
         if user_realm.name == "master" {
             let mirror_client_id = format!("{}-realm", target_realm.name);
 
+            let user_scope = RealmScope::from_realm(user_realm.clone());
+
             let mirror_client = match self
                 .client_repository
                 .get_by_client_id(mirror_client_id, user_realm.id)
                 .await
             {
-                Ok(client) => Some(client),
+                Ok(client) => Some(client.in_realm(&user_scope)?),
                 Err(CoreError::NotFound) => None,
                 Err(error) => return Err(error),
             };
@@ -192,7 +195,7 @@ where
                     None => targets_own_realm,
                     Some(role_client_id) => mirror_client
                         .as_ref()
-                        .is_some_and(|client| client.id == role_client_id),
+                        .is_some_and(|client| client.get().id == role_client_id),
                 };
 
                 if role_grants_on_target {
@@ -626,6 +629,7 @@ mod tests {
     use super::*;
     use crate::client::ports::MockClientRepository;
     use crate::realm::RealmId;
+    use crate::realm::scope::Unscoped;
     use crate::user::ports::{MockUserRepository, MockUserRoleRepository};
     use chrono::Utc;
     use uuid::Uuid;
@@ -718,7 +722,7 @@ mod tests {
             .times(0..=1)
             .returning(move |_, _| {
                 let client = master_mirror.clone();
-                Box::pin(async move { Ok(client) })
+                Box::pin(async move { Ok(Unscoped::new(client)) })
             });
 
         let policy = build_policy(user_role_repo, client_repo);
@@ -763,7 +767,7 @@ mod tests {
             .times(0..=1)
             .returning(move |_, _| {
                 let client = tenant_mirror.clone();
-                Box::pin(async move { Ok(client) })
+                Box::pin(async move { Ok(Unscoped::new(client)) })
             });
 
         let policy = build_policy(user_role_repo, client_repo);
@@ -806,7 +810,7 @@ mod tests {
             .times(0..=1)
             .returning(move |_, _| {
                 let client = master_mirror.clone();
-                Box::pin(async move { Ok(client) })
+                Box::pin(async move { Ok(Unscoped::new(client)) })
             });
 
         let policy = build_policy(user_role_repo, client_repo);

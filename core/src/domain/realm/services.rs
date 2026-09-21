@@ -19,7 +19,7 @@ use crate::domain::{
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
-        entities::{Realm, RealmId, RealmLoginSetting, RealmSetting, SmtpConfig},
+        entities::{Realm, RealmId, RealmLoginSetting, RealmScope, RealmSetting, SmtpConfig},
         ports::{
             CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, DeleteSmtpConfigInput,
             GetRealmInput, GetRealmSettingInput, GetSmtpConfigInput, MailService, RealmPolicy,
@@ -358,14 +358,13 @@ where
             .await
         {
             Ok(orphan) => {
+                let orphan = orphan.in_realm(&RealmScope::from_realm(realm_master.clone()))?;
                 tracing::warn!(
-                    client.id = %orphan.id,
+                    client.id = %orphan.get().id,
                     client.client_id = %name,
                     "removing a mirror client orphaned by an earlier realm deletion"
                 );
-                self.client_repository
-                    .delete_by_id(realm_master_id, orphan.id)
-                    .await?;
+                self.client_repository.delete_by_id(&orphan).await?;
             }
             Err(CoreError::NotFound) => {}
             Err(e) => return Err(e),
@@ -494,7 +493,8 @@ where
         let account_client = self
             .client_repository
             .get_by_client_id("ferriskey-account".to_string(), realm_id)
-            .await?;
+            .await?
+            .across_realms();
 
         self.seed_default_scopes_for_client(realm_id, account_client.id)
             .await
@@ -637,9 +637,8 @@ where
             Ok(client) => {
                 // Deleting the client cascades to the `{realm}-realm` role and
                 // to every assignment of it.
-                self.client_repository
-                    .delete_by_id(realm_master.id, client.id)
-                    .await?;
+                let client = client.in_realm(&RealmScope::from_realm(realm_master.clone()))?;
+                self.client_repository.delete_by_id(&client).await?;
             }
             Err(CoreError::NotFound) => {
                 tracing::warn!(
@@ -1104,6 +1103,7 @@ mod tests {
     use crate::domain::aegis::mocks::{
         MockClientScopeMappingRepository, MockClientScopeRepository, MockProtocolMapperRepository,
     };
+    use crate::domain::realm::entities::Unscoped;
     use crate::domain::{
         abyss::identity_provider::ports::MockIdentityProviderRepository,
         client::ports::{MockClientRepository, MockRedirectUriRepository},
@@ -1586,7 +1586,7 @@ mod tests {
                             },
                         );
                         client.id = client_id;
-                        Ok(client)
+                        Ok(Unscoped::new(client))
                     })
                 });
             self
@@ -1599,12 +1599,11 @@ mod tests {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
                 .expect_delete_by_id()
-                .with(
-                    mockall::predicate::eq(realm_id),
-                    mockall::predicate::eq(client_id),
-                )
+                .withf(move |client| {
+                    client.get().realm_id == realm_id && client.get().id == client_id
+                })
                 .times(1)
-                .return_once(|_, _| Box::pin(async move { Ok(()) }));
+                .return_once(|_| Box::pin(async move { Ok(()) }));
             self
         }
 

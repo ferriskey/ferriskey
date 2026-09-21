@@ -891,7 +891,8 @@ where
             .client_repository
             .get_by_id(realm_id, client_uuid)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         Ok(TokenLifetimes::resolve(&realm_settings, &client))
     }
@@ -2064,7 +2065,8 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         // The code itself is a secret: never log it, since log exposure is one of
         // the ways it gets into an attacker's hands in the first place.
@@ -2267,7 +2269,8 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
@@ -2350,7 +2353,8 @@ where
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .instrument(info_span!("auth.password.client_lookup"))
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         if !client.direct_access_grants_enabled {
             // Public clients must have direct access grants enabled for password flow.
@@ -2579,7 +2583,8 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         let lifetimes = self
             .resolve_token_lifetimes(params.realm_id, client.id)
@@ -2909,7 +2914,9 @@ where
                 warn!("Client not found for client_id {}: {:?}", client_id, e);
 
                 CoreError::InvalidClient
-            })?;
+            })?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
         let login_aliases = realm_settings
@@ -3252,7 +3259,8 @@ This is a server error that should be investigated. Do not forward back this mes
             .client_repository
             .get_by_id(realm_id, auth_session.client_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
             .await?;
@@ -3396,7 +3404,8 @@ This is a server error that should be investigated. Do not forward back this mes
             .client_repository
             .get_by_id(realm_id, auth_session.client_id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .across_realms();
 
         self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
             .await?;
@@ -3639,7 +3648,9 @@ where
         let client = self
             .client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
-            .await?;
+            .await?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         let protocol = client.protocol;
 
@@ -3791,7 +3802,8 @@ where
                     input.client_id, e
                 );
                 e
-            })?;
+            })?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?;
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
@@ -3907,7 +3919,8 @@ where
                 let client = self
                     .client_repository
                     .get_by_id(user.realm_id, client_id)
-                    .await?;
+                    .await?
+                    .across_realms();
 
                 Identity::Client(client)
             }
@@ -4309,7 +4322,9 @@ where
             .client_repository
             .get_by_client_id(input.client_id.clone(), realm.id)
             .await
-            .map_err(|_| CoreError::InvalidClient)?;
+            .map_err(|_| CoreError::InvalidClient)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         if !client.enabled || client.public_client {
             return Err(CoreError::InvalidClient);
@@ -4492,7 +4507,9 @@ where
             let client = self
                 .client_repository
                 .get_by_client_id(resolved_client_id, realm.id)
-                .await?;
+                .await?
+                .in_realm(&RealmScope::from_realm(realm.clone()))?
+                .into_inner();
 
             let enabled_redirect_uris = self
                 .post_logout_redirect_uri_repository
@@ -4579,7 +4596,9 @@ where
             let client = self
                 .client_repository
                 .get_by_id(realm.id, client_uuid)
-                .await?;
+                .await?
+                .in_realm(&RealmScope::from_realm(realm.clone()))?
+                .into_inner();
             let scope = self
                 .resolve_scopes_for_client(client_uuid, input.scope.clone())
                 .await?;
