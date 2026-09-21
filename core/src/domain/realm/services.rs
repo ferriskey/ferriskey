@@ -1220,9 +1220,18 @@ mod tests {
             Arc::get_mut(&mut self.client_repo)
                 .unwrap()
                 .expect_get_by_client_id()
-                .withf(|client_id, _| client_id.ends_with("-realm"))
+                .withf(|client_id, _| client_id.ends_with("-realm") && client_id != "master-realm")
                 .times(1)
                 .return_once(|_, _| Box::pin(async move { Err(CoreError::NotFound) }));
+            self
+        }
+
+        fn with_master_mirror_client_lookup(mut self) -> Self {
+            Arc::get_mut(&mut self.client_repo)
+                .unwrap()
+                .expect_get_by_client_id()
+                .withf(|client_id, _| client_id == "master-realm")
+                .returning(|_, _| Box::pin(async move { Err(CoreError::NotFound) }));
             self
         }
 
@@ -1752,6 +1761,7 @@ mod tests {
             .with_created_realm("realm_test".to_string(), new_realm.clone())
             .with_realm_settings(new_realm.id)
             .with_no_orphan_mirror_client()
+            .with_master_mirror_client_lookup()
             .with_system_client(master_realm.id)
             .with_role_creation(master_realm.id)
             .with_assign_role()
@@ -1811,6 +1821,7 @@ mod tests {
             .with_created_realm("realm_test".to_string(), new_realm.clone())
             .with_realm_settings(new_realm.id)
             .with_no_orphan_mirror_client()
+            .with_master_mirror_client_lookup()
             .with_system_client(master_realm.id)
             .with_role_creation(master_realm.id)
             .with_assign_role()

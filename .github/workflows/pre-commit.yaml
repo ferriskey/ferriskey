@@ -56,3 +56,6 @@ jobs:
 
       - name: run pre-commit
         uses: pre-commit/action@v3.0.1
+
+      - name: run workspace unit tests
+        run: cargo test --workspace --exclude ferriskey-client
