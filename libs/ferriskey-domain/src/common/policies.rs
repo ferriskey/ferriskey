@@ -110,7 +110,7 @@ where
                     .await
                     .map_err(|e| CoreError::Forbidden(e.to_string()))?;
 
-                Ok(service_account)
+                Ok(service_account.across_realms())
             }
         }
     }

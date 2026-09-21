@@ -5,7 +5,7 @@ use crate::common::app_errors::CoreError;
 use crate::realm::scope::{Scoped, Unscoped};
 use crate::realm::{Realm, RealmId};
 use crate::role::{
-    commands::{CreateRoleInput, GetUserRolesInput, UpdateRoleInput},
+    commands::{CreateRoleInput, UpdateRoleInput},
     entities::Role,
     value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
 };
@@ -45,11 +45,6 @@ pub trait RoleService: Send + Sync {
         identity: Identity,
         input: UpdateRoleInput,
     ) -> impl Future<Output = Result<Role, CoreError>> + Send;
-    fn get_user_roles(
-        &self,
-        identity: Identity,
-        input: GetUserRolesInput,
-    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
 }
 
 pub trait RolePolicy: Send + Sync {

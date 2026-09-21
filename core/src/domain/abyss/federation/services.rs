@@ -19,6 +19,7 @@ use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::policies::ensure_policy;
 use crate::domain::credential::ports::CredentialRepository;
+use crate::domain::realm::entities::{RealmId, RealmScope};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::user::ports::UserRepository;
 use crate::domain::user::value_objects::{CreateUserRequest, UpdateUserRequest};
@@ -381,6 +382,13 @@ where
         let ldap_external_ids: HashSet<String> =
             ldap_users.iter().map(|u| u.external_id.clone()).collect();
 
+        let scope = RealmScope::from_realm(
+            self.realm_repository
+                .get_by_id(RealmId::from(provider.realm_id))
+                .await?
+                .ok_or(CoreError::InvalidRealm)?,
+        );
+
         // Step 3: Fetch all existing federation mappings for this provider (optimized batch fetch)
         info!(
             "Fetching existing federation mappings for provider '{}'",
@@ -417,7 +425,7 @@ where
             let existing_mapping = mappings_by_external_id.remove(&ldap_user.external_id);
 
             match self
-                .reconcile_user_optimized(provider, &ldap_user, existing_mapping, mode)
+                .reconcile_user_optimized(provider, &scope, &ldap_user, existing_mapping, mode)
                 .await
             {
                 Ok(action) => match action {
@@ -467,7 +475,7 @@ where
         if mode == SyncMode::Force {
             info!("Checking for users to disable (Force mode enabled)");
             match self
-                .disable_missing_users(provider, &ldap_external_ids)
+                .disable_missing_users(provider, &scope, &ldap_external_ids)
                 .await
             {
                 Ok(disabled_count) => {
@@ -521,6 +529,7 @@ where
     async fn reconcile_user(
         &self,
         provider: &FederationProvider,
+        scope: &RealmScope,
         ldap_user: &crate::domain::abyss::federation::entities::FederatedUser,
         mode: SyncMode,
     ) -> Result<ReconcileAction, CoreError> {
@@ -533,17 +542,21 @@ where
         match existing_mapping {
             Some(mapping) => {
                 // User exists - check if update is needed
-                let user = self.user_repository.get_by_id(mapping.user_id).await?;
+                let user = self
+                    .user_repository
+                    .get_by_id(mapping.user_id)
+                    .await?
+                    .in_realm(scope)?;
 
                 let needs_update = match mode {
                     SyncMode::Force => true, // Always update in Force mode
                     SyncMode::Import | SyncMode::LinkOnly => {
                         // Check if attributes have changed
-                        user.email.as_deref().unwrap_or("")
+                        user.get().email.as_deref().unwrap_or("")
                             != ldap_user.email.as_deref().unwrap_or("")
-                            || user.firstname.as_deref().unwrap_or("")
+                            || user.get().firstname.as_deref().unwrap_or("")
                                 != ldap_user.first_name.as_deref().unwrap_or("")
-                            || user.lastname.as_deref().unwrap_or("")
+                            || user.get().lastname.as_deref().unwrap_or("")
                                 != ldap_user.last_name.as_deref().unwrap_or("")
                     }
                 };
@@ -552,16 +565,19 @@ where
                     // Update user attributes
                     let update_request = UpdateUserRequest {
                         username: None,
-                        email: ldap_user.email.clone().or(user.email.clone()),
-                        firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
-                        lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
+                        email: ldap_user.email.clone().or(user.get().email.clone()),
+                        firstname: ldap_user
+                            .first_name
+                            .clone()
+                            .or(user.get().firstname.clone()),
+                        lastname: ldap_user.last_name.clone().or(user.get().lastname.clone()),
                         enabled: true, // Re-enable if was disabled
-                        email_verified: user.email_verified,
+                        email_verified: user.get().email_verified,
                         required_actions: None,
                     };
 
                     self.user_repository
-                        .update_user(user.id, update_request)
+                        .update_user(&user, update_request)
                         .await?;
 
                     // Update mapping timestamp
@@ -626,6 +642,7 @@ where
     async fn reconcile_user_optimized(
         &self,
         provider: &FederationProvider,
+        scope: &RealmScope,
         ldap_user: &crate::domain::abyss::federation::entities::FederatedUser,
         existing_mapping: Option<FederationMapping>,
         mode: SyncMode,
@@ -633,17 +650,21 @@ where
         match existing_mapping {
             Some(mapping) => {
                 // User exists - check if update is needed
-                let user = self.user_repository.get_by_id(mapping.user_id).await?;
+                let user = self
+                    .user_repository
+                    .get_by_id(mapping.user_id)
+                    .await?
+                    .in_realm(scope)?;
 
                 let needs_update = match mode {
                     SyncMode::Force => true, // Always update in Force mode
                     SyncMode::Import | SyncMode::LinkOnly => {
                         // Check if attributes have changed
-                        user.email.as_deref().unwrap_or("")
+                        user.get().email.as_deref().unwrap_or("")
                             != ldap_user.email.as_deref().unwrap_or("")
-                            || user.firstname.as_deref().unwrap_or("")
+                            || user.get().firstname.as_deref().unwrap_or("")
                                 != ldap_user.first_name.as_deref().unwrap_or("")
-                            || user.lastname.as_deref().unwrap_or("")
+                            || user.get().lastname.as_deref().unwrap_or("")
                                 != ldap_user.last_name.as_deref().unwrap_or("")
                     }
                 };
@@ -652,16 +673,19 @@ where
                     // Update user attributes
                     let update_request = UpdateUserRequest {
                         username: None,
-                        email: ldap_user.email.clone().or(user.email.clone()),
-                        firstname: ldap_user.first_name.clone().or(user.firstname.clone()),
-                        lastname: ldap_user.last_name.clone().or(user.lastname.clone()),
+                        email: ldap_user.email.clone().or(user.get().email.clone()),
+                        firstname: ldap_user
+                            .first_name
+                            .clone()
+                            .or(user.get().firstname.clone()),
+                        lastname: ldap_user.last_name.clone().or(user.get().lastname.clone()),
                         enabled: true, // Re-enable if was disabled
-                        email_verified: user.email_verified,
+                        email_verified: user.get().email_verified,
                         required_actions: None,
                     };
 
                     self.user_repository
-                        .update_user(user.id, update_request)
+                        .update_user(&user, update_request)
                         .await?;
 
                     // Update mapping timestamp
@@ -799,6 +823,7 @@ where
     async fn disable_missing_users(
         &self,
         provider: &FederationProvider,
+        scope: &RealmScope,
         ldap_external_ids: &HashSet<String>,
     ) -> Result<u32, CoreError> {
         info!(
@@ -824,23 +849,28 @@ where
                 );
 
                 // Fetch the user to get current values
-                match self.user_repository.get_by_id(mapping.user_id).await {
+                match self
+                    .user_repository
+                    .get_by_id(mapping.user_id)
+                    .await
+                    .and_then(|user| user.in_realm(scope))
+                {
                     Ok(user) => {
                         // Only disable if not already disabled
-                        if user.enabled {
+                        if user.get().enabled {
                             let update_request = UpdateUserRequest {
                                 username: None,
-                                email: user.email.clone(),
-                                firstname: user.firstname.clone(),
-                                lastname: user.lastname.clone(),
+                                email: user.get().email.clone(),
+                                firstname: user.get().firstname.clone(),
+                                lastname: user.get().lastname.clone(),
                                 enabled: false, // Disable the user
-                                email_verified: user.email_verified,
+                                email_verified: user.get().email_verified,
                                 required_actions: None,
                             };
 
                             match self
                                 .user_repository
-                                .update_user(mapping.user_id, update_request)
+                                .update_user(&user, update_request)
                                 .await
                             {
                                 Ok(_) => {

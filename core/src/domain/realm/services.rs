@@ -392,7 +392,11 @@ where
 
         let user = match identity {
             Identity::User(u) => u,
-            Identity::Client(c) => self.user_repository.get_by_client_id(c.id).await?,
+            Identity::Client(c) => self
+                .user_repository
+                .get_by_client_id(c.id)
+                .await?
+                .across_realms(),
         };
 
         self.user_role_repository
@@ -521,7 +525,11 @@ where
 
         let user = match identity {
             Identity::User(user) => user,
-            Identity::Client(client) => self.user_repository.get_by_client_id(client.id).await?,
+            Identity::Client(client) => self
+                .user_repository
+                .get_by_client_id(client.id)
+                .await?
+                .across_realms(),
         };
 
         let realm_master = self
@@ -731,7 +739,11 @@ where
     async fn get_realms_by_user(&self, identity: Identity) -> Result<Vec<Realm>, CoreError> {
         let user = match identity {
             Identity::User(user) => user,
-            Identity::Client(client) => self.user_repository.get_by_client_id(client.id).await?,
+            Identity::Client(client) => self
+                .user_repository
+                .get_by_client_id(client.id)
+                .await?
+                .across_realms(),
         };
 
         let realm = user.realm.clone().ok_or(CoreError::InternalServerError)?;

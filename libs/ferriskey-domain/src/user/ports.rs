@@ -6,7 +6,9 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
+use crate::realm::scope::{Scoped, Unscoped};
 use crate::realm::{Realm, RealmId};
+use crate::role::commands::GetUserRolesInput;
 use crate::role::entities::Role;
 use crate::role::permission::Permissions;
 use crate::user::commands::{
@@ -95,6 +97,12 @@ pub trait UserService: Send + Sync {
         input: GetUserPermissionsInput,
     ) -> impl Future<Output = Result<Vec<Permissions>, CoreError>> + Send;
 
+    fn get_user_roles(
+        &self,
+        identity: Identity,
+        input: GetUserRolesInput,
+    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+
     fn get_user_attributes(
         &self,
         identity: Identity,
@@ -143,9 +151,12 @@ pub trait UserRepository: Send + Sync {
     fn get_by_client_id(
         &self,
         client_id: Uuid,
-    ) -> impl Future<Output = Result<User, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Unscoped<User>, CoreError>> + Send;
 
-    fn get_by_id(&self, user_id: Uuid) -> impl Future<Output = Result<User, CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Unscoped<User>, CoreError>> + Send;
 
     fn find_by_realm_id(
         &self,
@@ -164,17 +175,20 @@ pub trait UserRepository: Send + Sync {
         ids: Vec<Uuid>,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 
-    fn delete_user(&self, user_id: Uuid) -> impl Future<Output = Result<u64, CoreError>> + Send;
+    fn delete_user(
+        &self,
+        user: &Scoped<User>,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 
     fn update_user(
         &self,
-        user_id: Uuid,
+        user: &Scoped<User>,
         dto: UpdateUserRequest,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 
     fn update_locale(
         &self,
-        user_id: Uuid,
+        user: &Scoped<User>,
         locale: Option<String>,
     ) -> impl Future<Output = Result<User, CoreError>> + Send;
 
@@ -189,7 +203,10 @@ pub trait UserRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn unlock_user(&self, user_id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn unlock_user(
+        &self,
+        user: &Scoped<User>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]

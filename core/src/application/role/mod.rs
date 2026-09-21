@@ -6,7 +6,7 @@ use crate::{
         authentication::value_objects::Identity,
         common::entities::app_errors::CoreError,
         role::{
-            entities::{CreateRoleInput, GetUserRolesInput, Role, UpdateRoleInput},
+            entities::{CreateRoleInput, Role, UpdateRoleInput},
             ports::RoleService,
         },
     },
@@ -49,14 +49,6 @@ impl RoleService for ApplicationService {
         realm_name: String,
     ) -> Result<Vec<Role>, CoreError> {
         self.role_service.get_roles(identity, realm_name).await
-    }
-
-    async fn get_user_roles(
-        &self,
-        identity: Identity,
-        input: GetUserRolesInput,
-    ) -> Result<Vec<Role>, CoreError> {
-        self.role_service.get_user_roles(identity, input).await
     }
 
     async fn update_role(

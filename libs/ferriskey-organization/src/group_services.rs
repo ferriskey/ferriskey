@@ -7,6 +7,7 @@ use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::Realm;
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::RealmScope;
 use ferriskey_domain::role::entities::Role;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
@@ -342,8 +343,14 @@ where
 
         self.get_group_in_org(org.id, input.group_id).await?;
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
-        validate_membership_realms(org.realm_id, user.realm_id).map_err(|_| CoreError::Invalid)?;
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .map_err(|_| CoreError::Invalid)?;
+        validate_membership_realms(org.realm_id, user.get().realm_id)
+            .map_err(|_| CoreError::Invalid)?;
 
         if self
             .group_member_repository
@@ -547,6 +554,7 @@ mod tests {
     use uuid::Uuid;
 
     use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{RealmId, ports::MockRealmRepository};
     use ferriskey_domain::user::entities::User;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
@@ -822,7 +830,7 @@ mod tests {
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
             let u = victim_user.clone();
-            Box::pin(async move { Ok(u) })
+            Box::pin(async move { Ok(Unscoped::new(u)) })
         });
 
         let mut group_member_repo = MockGroupMemberRepository::new();

@@ -43,7 +43,7 @@ use crate::{
             service::violations_to_core_error, validator,
         },
         realm::{
-            entities::RealmId,
+            entities::{RealmId, RealmScope, Unscoped},
             ports::{RealmRepository, SmtpConfigRepository},
         },
         seawatch::{
@@ -370,7 +370,11 @@ where
         user_id: Uuid,
         actions_satisfied_by_path: &[RequiredAction],
     ) -> Result<Option<PendingAuthStep>, CoreError> {
-        let user = self.user_repository.get_by_id(user_id).await?;
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .across_realms();
 
         let credentials = self
             .credential_repository
@@ -1127,11 +1131,10 @@ where
             .user_repository
             .get_by_id(resolved_user_id)
             .await
-            .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
-
-        if user.realm_id != realm.id {
-            return Err(CoreError::WebAuthnChallengeFailed);
-        }
+            .map_err(|_| CoreError::WebAuthnChallengeFailed)?
+            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .map_err(|_| CoreError::WebAuthnChallengeFailed)?
+            .into_inner();
 
         let login_url = self
             .store_auth_code_and_generate_login_url(&auth_session, user.id, &[])
@@ -2034,7 +2037,12 @@ where
             .unwrap_or_else(|| PasswordPolicy::default(prt.realm_id));
 
         // Look up user context for the common-password check (username/email match).
-        let target_user = self.user_repository.get_by_id(prt.user_id).await.ok();
+        let target_user = self
+            .user_repository
+            .get_by_id(prt.user_id)
+            .await
+            .ok()
+            .map(Unscoped::across_realms);
 
         let (username_buf, email_local_buf);
         let (username_ref, email_local_ref) = if let Some(ref u) = target_user {
@@ -3560,7 +3568,7 @@ mod tests {
             .expect_get_by_id()
             .returning(move |_| {
                 let u = user.clone();
-                Box::pin(async move { Ok(u) })
+                Box::pin(async move { Ok(Unscoped::new(u)) })
             });
 
         Arc::get_mut(&mut builder.credential_repo)

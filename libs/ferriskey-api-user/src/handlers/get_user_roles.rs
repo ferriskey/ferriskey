@@ -10,7 +10,7 @@ use ferriskey_api_core::{
     app_state::AppState,
 };
 use ferriskey_core::domain::role::entities::Role;
-use ferriskey_core::domain::role::ports::RoleService;
+use ferriskey_core::domain::user::ports::UserService;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity, role::entities::GetUserRolesInput,
 };
@@ -37,6 +37,7 @@ pub struct GetUserRolesResponse {
         (status = 200, description = "User roles retrieved successfully", body = GetUserRolesResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "User not found in this realm", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]

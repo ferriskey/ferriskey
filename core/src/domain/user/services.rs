@@ -18,12 +18,12 @@ use crate::domain::{
         service::violations_to_core_error, validator,
     },
     realm::{
-        entities::{Realm, RealmScope, Scoped},
+        entities::{RealmScope, Scoped},
         ports::RealmRepository,
     },
     role::{
-        entities::{Role, permission::Permissions},
-        ports::RoleRepository,
+        entities::{GetUserRolesInput, Role, permission::Permissions},
+        ports::{RolePolicy, RoleRepository},
     },
     seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     session::ports::TokenRevocationPort,
@@ -141,23 +141,11 @@ where
         }
     }
 
-    async fn load_user_in_realm(&self, user_id: Uuid, realm: &Realm) -> Result<User, CoreError> {
-        let user = self.user_repository.get_by_id(user_id).await?;
-
-        if user.realm_id != realm.id {
-            warn!(
-                user_id = %user_id,
-                user_realm_id = %Uuid::from(user.realm_id),
-                request_realm_id = %Uuid::from(realm.id),
-                "Refused cross-realm access to a user"
-            );
-            return Err(CoreError::NotFound);
-        }
-
-        Ok(user)
-    }
-
-    async fn load_role_in_realm(&self, role_id: Uuid, realm: &Realm) -> Result<Role, CoreError> {
+    async fn load_role_in_realm(
+        &self,
+        role_id: Uuid,
+        scope: &RealmScope,
+    ) -> Result<Role, CoreError> {
         self.role_repository
             .get_by_id(role_id)
             .await?
@@ -165,7 +153,7 @@ where
                 warn!(role_id = %role_id, "Role not found");
                 CoreError::NotFound
             })?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .in_realm(scope)
             .map(Scoped::into_inner)
     }
 }
@@ -193,12 +181,8 @@ where
         realm_name: String,
         user_id: Uuid,
     ) -> Result<u64, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -206,11 +190,15 @@ where
             "insufficient permissions",
         )?;
 
-        let user = self.load_user_in_realm(user_id, &realm).await?;
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .in_realm(&scope)?;
 
         let count = self
             .user_repository
-            .delete_user(user_id)
+            .delete_user(&user)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -222,14 +210,18 @@ where
                     EventStatus::Success,
                     identity.id(),
                 )
-                .with_target("user".to_string(), user.id, None),
+                .with_target("user".to_string(), user.get().id, None),
             )
             .await?;
 
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(WebhookTrigger::UserDeleted, realm_id.into(), Some(user)),
+                WebhookPayload::new(
+                    WebhookTrigger::UserDeleted,
+                    realm_id.into(),
+                    Some(user.into_inner()),
+                ),
             )
             .await?;
 
@@ -241,21 +233,8 @@ where
         identity: Identity,
         input: ResetPasswordInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|e| {
-                error!(
-                    "reset_password: failed to fetch realm {}: {e:?}",
-                    input.realm_name
-                );
-                CoreError::InvalidRealm
-            })?
-            .ok_or_else(|| {
-                warn!("reset_password: realm {} not found", input.realm_name);
-                CoreError::InvalidRealm
-            })?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_update_user(&identity, &realm).await,
@@ -275,7 +254,12 @@ where
             })?
             .unwrap_or_else(|| PasswordPolicy::default(realm.id.into()));
 
-        let target_user = self.load_user_in_realm(input.user_id, &realm).await?;
+        let target_user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?
+            .into_inner();
 
         let username = target_user.username.clone();
         let email_local_buf = target_user
@@ -375,11 +359,8 @@ where
         identity: Identity,
         input: UpdateUserInput,
     ) -> Result<User, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -387,13 +368,17 @@ where
             "You are not allowed to view users in this realm.",
         )?;
 
-        let existing = self.load_user_in_realm(input.user_id, &realm).await?;
-        let is_being_disabled = existing.enabled && !input.enabled;
+        let existing = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
+        let is_being_disabled = existing.get().enabled && !input.enabled;
 
         let user = self
             .user_repository
             .update_user(
-                input.user_id,
+                &existing,
                 UpdateUserRequest {
                     username: None,
                     email: normalize_optional_email(input.email),
@@ -447,11 +432,8 @@ where
         identity: Identity,
         realm_name: String,
     ) -> Result<Vec<User>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
 
@@ -471,11 +453,8 @@ where
         identity: Identity,
         input: AssignRoleInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
 
@@ -484,8 +463,11 @@ where
             "insufficient permissions",
         )?;
 
-        self.load_user_in_realm(input.user_id, &realm).await?;
-        let role = self.load_role_in_realm(input.role_id, &realm).await?;
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
+        let role = self.load_role_in_realm(input.role_id, &scope).await?;
 
         self.user_role_repository
             .assign_role(input.user_id, input.role_id)
@@ -527,11 +509,8 @@ where
         identity: Identity,
         input: BulkDeleteUsersInput,
     ) -> Result<u64, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
 
@@ -577,11 +556,8 @@ where
         identity: Identity,
         input: CreateUserInput,
     ) -> Result<User, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -632,18 +608,19 @@ where
     }
 
     async fn get_user(&self, identity: Identity, input: GetUserInput) -> Result<User, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_view_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        self.load_user_in_realm(input.user_id, &realm).await
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)
+            .map(Scoped::into_inner)
     }
 
     async fn get_own_profile(
@@ -655,13 +632,13 @@ where
             return Err(CoreError::Forbidden("is not user".to_string()));
         }
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        self.load_user_in_realm(identity.id(), &realm).await
+        self.user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)
+            .map(Scoped::into_inner)
     }
 
     async fn update_own_profile(
@@ -673,19 +650,19 @@ where
             return Err(CoreError::Forbidden("is not user".to_string()));
         }
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let existing = self.load_user_in_realm(identity.id(), &realm).await?;
+        let existing = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
 
         let username = match input.username {
-            Some(username) if username != existing.username => {
+            Some(username) if username != existing.get().username => {
                 let edit_username_enabled = self
                     .realm_repository
-                    .get_realm_settings(realm.id)
+                    .get_realm_settings(scope.id())
                     .await?
                     .map(|settings| settings.edit_username_enabled)
                     .unwrap_or(false);
@@ -705,20 +682,22 @@ where
         // A changed email has not been verified under its new value, whatever
         // the old address's verification status was.
         let email_verified = match &email {
-            Some(email) if Some(email) != existing.email.as_ref() => false,
-            _ => existing.email_verified,
+            Some(email) if Some(email) != existing.get().email.as_ref() => false,
+            _ => existing.get().email_verified,
         };
+
+        let enabled = existing.get().enabled;
 
         self.user_repository
             .update_user(
-                identity.id(),
+                &existing,
                 UpdateUserRequest {
                     username,
                     firstname: input.firstname,
                     lastname: input.lastname,
                     email,
                     email_verified,
-                    enabled: existing.enabled,
+                    enabled,
                     required_actions: None,
                 },
             )
@@ -734,16 +713,16 @@ where
             return Err(CoreError::Forbidden("is not user".to_string()));
         }
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        self.load_user_in_realm(identity.id(), &realm).await?;
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
 
         self.user_repository
-            .update_locale(identity.id(), input.locale)
+            .update_locale(&user, input.locale)
             .await
     }
 
@@ -752,11 +731,8 @@ where
         identity: Identity,
         input: UnassignRoleInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let realm_id = realm.id;
         ensure_policy(
@@ -764,8 +740,11 @@ where
             "insufficient permissions",
         )?;
 
-        self.load_user_in_realm(input.user_id, &realm).await?;
-        let role = self.load_role_in_realm(input.role_id, &realm).await?;
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
+        let role = self.load_role_in_realm(input.role_id, &scope).await?;
 
         self.user_role_repository
             .revoke_role(input.user_id, input.role_id)
@@ -807,11 +786,8 @@ where
         identity: Identity,
         input: GetUserPermissionsInput,
     ) -> Result<Vec<Permissions>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy
@@ -820,14 +796,42 @@ where
             "insufficient permissions",
         )?;
 
-        let user = self.load_user_in_realm(input.user_id, &realm).await?;
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
 
         let permissions = self
             .policy
-            .get_permission_for_target_realm(&user, &realm)
+            .get_permission_for_target_realm(user.get(), &realm)
             .await?;
 
         Ok(permissions.into_iter().collect())
+    }
+
+    async fn get_user_roles(
+        &self,
+        identity: Identity,
+        input: GetUserRolesInput,
+    ) -> Result<Vec<Role>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
+
+        ensure_policy(
+            self.policy.can_view_role(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
+
+        self.user_role_repository
+            .get_user_roles(input.user_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)
     }
 
     async fn get_user_attributes(
@@ -835,22 +839,18 @@ where
         identity: Identity,
         input: GetUserAttributesInput,
     ) -> Result<Vec<UserAttribute>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_view_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
-
-        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
-            return Err(CoreError::NotFound);
-        }
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
 
         self.user_attribute_repository
             .list_by_user_id(input.user_id)
@@ -866,25 +866,21 @@ where
             return Err(CoreError::Invalid);
         }
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
-
-        if Into::<Uuid>::into(user.realm_id) != Into::<Uuid>::into(realm.id) {
-            return Err(CoreError::NotFound);
-        }
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
 
         self.user_attribute_repository
-            .upsert_many(input.user_id, realm.id, input.attributes)
+            .upsert_many(input.user_id, scope.id(), input.attributes)
             .await
     }
 
@@ -893,22 +889,18 @@ where
         identity: Identity,
         input: DeleteUserAttributeInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
-
-        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
-            return Err(CoreError::NotFound);
-        }
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
 
         self.user_attribute_repository
             .delete_by_key(input.user_id, input.key)
@@ -921,24 +913,21 @@ where
         realm_name: String,
         user_id: Uuid,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
             self.policy.can_update_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
 
-        let user = self.user_repository.get_by_id(user_id).await?;
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .in_realm(&scope)?;
 
-        if Into::<uuid::Uuid>::into(user.realm_id) != Into::<uuid::Uuid>::into(realm.id) {
-            return Err(CoreError::NotFound);
-        }
-
-        self.user_repository.unlock_user(user_id).await
+        self.user_repository.unlock_user(&user).await
     }
 }
 
@@ -1087,7 +1076,9 @@ mod tests {
                 .unwrap()
                 .expect_update_user()
                 .with(
-                    mockall::predicate::eq(user_id),
+                    mockall::predicate::function(move |user: &Scoped<User>| {
+                        user.get().id == user_id
+                    }),
                     mockall::predicate::always(),
                 )
                 .times(1)
@@ -1100,7 +1091,9 @@ mod tests {
                 .unwrap()
                 .expect_update_user()
                 .with(
-                    mockall::predicate::eq(user_id),
+                    mockall::predicate::function(move |user: &Scoped<User>| {
+                        user.get().id == user_id
+                    }),
                     mockall::predicate::always(),
                 )
                 .times(1)
@@ -1121,14 +1114,13 @@ mod tests {
             self
         }
 
-        /// Stub the `get_by_id` that `load_user_in_realm` performs before any write.
         fn with_target_user(mut self, user: User) -> Self {
             Arc::get_mut(&mut self.user_repo)
                 .unwrap()
                 .expect_get_by_id()
                 .with(mockall::predicate::eq(user.id))
                 .times(1)
-                .return_once(move |_| Box::pin(async move { Ok(user) }));
+                .return_once(move |_| Box::pin(async move { Ok(Unscoped::new(user)) }));
             self
         }
 

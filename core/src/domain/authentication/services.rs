@@ -63,7 +63,7 @@ use crate::domain::{
         ports::{AccessTokenRepository, RefreshTokenRepository, RotateOutcome},
     },
     realm::{
-        entities::{RealmId, RealmSetting},
+        entities::{RealmId, RealmScope, RealmSetting, Unscoped},
         ports::RealmRepository,
     },
     role::entities::Role,
@@ -1276,7 +1276,13 @@ where
         &self,
         input: EvaluateClientScopesInput,
     ) -> Result<EvaluateClientScopesResult, CoreError> {
-        let user = self.user_repository.get_by_id(input.user_id).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?
+            .into_inner();
         let lifetimes = self
             .resolve_token_lifetimes(input.realm_id, input.client_uuid)
             .await?;
@@ -2119,7 +2125,11 @@ where
 
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id.ok_or(CoreError::NotFound)?;
-        let user = self.user_repository.get_by_id(user_id).await?;
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .across_realms();
 
         if user.realm_id != auth_session.realm_id {
             warn!(
@@ -2283,7 +2293,8 @@ where
             .map_err(|e| match e {
                 CoreError::NotFound => CoreError::ServiceAccountNotFound,
                 _ => CoreError::InternalServerError,
-            })?;
+            })?
+            .across_realms();
 
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
@@ -2557,7 +2568,8 @@ where
             .user_repository
             .get_by_id(claims.sub)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .across_realms();
 
         if !user.enabled {
             return Err(CoreError::UserDisabled);
@@ -2749,7 +2761,7 @@ where
                 .get_by_id(auth_result.user_id)
                 .await
                 .ok()
-                .and_then(|user| user.email);
+                .and_then(|user| user.across_realms().email);
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
                 token,
@@ -3227,7 +3239,8 @@ This is a server error that should be investigated. Do not forward back this mes
             .user_repository
             .get_by_id(session.user_id)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .across_realms();
 
         if !user.enabled {
             self.record_login_failure(realm_id, Some(user.id), "user_disabled")
@@ -3370,7 +3383,8 @@ This is a server error that should be investigated. Do not forward back this mes
             .user_repository
             .get_by_id(claims.sub)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .across_realms();
 
         if !user.enabled {
             self.record_login_failure(realm_id, Some(user.id), "user_disabled")
@@ -3874,7 +3888,11 @@ where
             return Err(CoreError::InvalidToken);
         }
 
-        let user = self.user_repository.get_by_id(input.claims.sub).await?;
+        let user = self
+            .user_repository
+            .get_by_id(input.claims.sub)
+            .await?
+            .across_realms();
 
         self.verify_token(input.token, user.realm_id).await?;
 
@@ -3909,17 +3927,15 @@ where
 
         let user = self.user_repository.get_by_id(input.claims.sub).await?;
 
-        if let Some(realm_name) = input.realm_name.as_deref() {
-            let realm = self
-                .realm_repository
-                .get_by_name(realm_name)
-                .await?
-                .ok_or(CoreError::InvalidRealm)?;
-
-            if realm.id != user.realm_id {
-                return Err(CoreError::InvalidToken);
+        let user = match input.realm_name.as_deref() {
+            Some(realm_name) => {
+                let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
+                user.in_realm(&scope)
+                    .map_err(|_| CoreError::InvalidToken)?
+                    .into_inner()
             }
-        }
+            None => user.across_realms(),
+        };
 
         let session_id = input
             .claims
@@ -4045,11 +4061,8 @@ where
             verification_base_url,
         } = url_context;
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
         let firstname = input.first_name;
         let lastname = input.last_name;
@@ -4112,7 +4125,11 @@ where
                 .await
             {
                 // Avoid leaving behind an unverified user that can no longer re-register.
-                if let Err(cleanup_err) = self.user_repository.delete_user(user.id).await {
+                let registered = Unscoped::new(user.clone()).in_realm(&scope);
+
+                if let Ok(registered) = registered
+                    && let Err(cleanup_err) = self.user_repository.delete_user(&registered).await
+                {
                     warn!(
                         user_id = %user.id,
                         error = %cleanup_err,
@@ -4231,7 +4248,11 @@ where
         identity: Identity,
         input: GetUserInfoInput,
     ) -> Result<UserInfoResponse, CoreError> {
-        let user = self.user_repository.get_by_id(identity.id()).await?;
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .across_realms();
 
         let scopes = input
             .claims
@@ -4524,7 +4545,12 @@ where
             }
         };
 
-        let user = self.user_repository.get_by_id(input.user_id).await?;
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .into_inner();
 
         if !user.enabled {
             warn!(

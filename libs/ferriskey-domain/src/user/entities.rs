@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::generate_uuid_v7;
+use crate::realm::scope::RealmOwned;
 use crate::realm::{Realm, RealmId};
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
@@ -48,6 +49,12 @@ pub struct User {
 impl User {
     pub fn is_locked(&self, now: DateTime<Utc>) -> bool {
         self.locked_until.is_some_and(|t| t > now)
+    }
+}
+
+impl RealmOwned for User {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 
