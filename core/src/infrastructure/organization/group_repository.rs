@@ -93,10 +93,12 @@ impl GroupRepository for PostgresGroupRepository {
 
     async fn update_group(
         &self,
+        organization_id: OrganizationId,
         id: GroupId,
         params: UpdateGroupParams,
     ) -> Result<Group, CoreError> {
         let existing = GroupEntity::find_by_id(id.as_uuid())
+            .filter(GroupColumn::OrganizationId.eq(organization_id.as_uuid()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -128,8 +130,14 @@ impl GroupRepository for PostgresGroupRepository {
         Ok(model_to_domain(model))
     }
 
-    async fn delete_group(&self, id: GroupId) -> Result<(), CoreError> {
-        GroupEntity::delete_by_id(id.as_uuid())
+    async fn delete_group(
+        &self,
+        organization_id: OrganizationId,
+        id: GroupId,
+    ) -> Result<(), CoreError> {
+        GroupEntity::delete_many()
+            .filter(GroupColumn::Id.eq(id.as_uuid()))
+            .filter(GroupColumn::OrganizationId.eq(organization_id.as_uuid()))
             .exec(&self.db)
             .await
             .map_err(|e| {

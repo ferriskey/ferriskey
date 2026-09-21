@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
 use ferriskey_domain::realm::{Realm, RealmId};
 use ferriskey_domain::role::entities::Role;
 
@@ -31,7 +32,7 @@ pub trait OrganizationRepository: Send + Sync {
     fn get_organization_by_id(
         &self,
         id: OrganizationId,
-    ) -> impl Future<Output = Result<Option<Organization>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<Organization>>, CoreError>> + Send;
 
     fn get_organization_by_realm_and_alias(
         &self,
@@ -46,13 +47,13 @@ pub trait OrganizationRepository: Send + Sync {
 
     fn update_organization(
         &self,
-        id: OrganizationId,
+        organization: &Scoped<Organization>,
         params: UpdateOrganizationParams,
     ) -> impl Future<Output = Result<Organization, CoreError>> + Send;
 
     fn delete_organization(
         &self,
-        id: OrganizationId,
+        organization: &Scoped<Organization>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn exists_organization_by_realm_and_alias(
@@ -123,13 +124,13 @@ pub trait OrganizationMemberRoleRepository: Send + Sync {
     fn assign_role(
         &self,
         organization_member_id: Uuid,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn revoke_role(
         &self,
         organization_member_id: Uuid,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn list_role_ids(
@@ -238,11 +239,16 @@ pub trait GroupRepository: Send + Sync {
 
     fn update_group(
         &self,
+        organization_id: OrganizationId,
         id: GroupId,
         params: UpdateGroupParams,
     ) -> impl Future<Output = Result<Group, CoreError>> + Send;
 
-    fn delete_group(&self, id: GroupId) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_group(
+        &self,
+        organization_id: OrganizationId,
+        id: GroupId,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 /// Persistence for group memberships.
@@ -289,13 +295,13 @@ pub trait GroupRoleRepository: Send + Sync {
     fn assign_role(
         &self,
         group_id: GroupId,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> impl Future<Output = Result<GroupRoleMapping, CoreError>> + Send;
 
     fn revoke_role(
         &self,
         group_id: GroupId,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn list_role_ids(

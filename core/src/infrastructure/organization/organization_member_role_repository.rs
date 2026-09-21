@@ -4,6 +4,8 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySe
 use tracing::error;
 use uuid::Uuid;
 
+use ferriskey_domain::realm::scope::Scoped;
+use ferriskey_domain::role::entities::Role;
 use ferriskey_organization::OrganizationMemberRoleRepository;
 
 use crate::domain::common::entities::app_errors::CoreError;
@@ -27,7 +29,7 @@ impl OrganizationMemberRoleRepository for PostgresOrganizationMemberRoleReposito
     async fn assign_role(
         &self,
         organization_member_id: Uuid,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> Result<(), CoreError> {
         let (_, timestamp) = generate_timestamp();
         let id = Uuid::new_v7(timestamp);
@@ -36,7 +38,7 @@ impl OrganizationMemberRoleRepository for PostgresOrganizationMemberRoleReposito
         RoleEntity::insert(RoleActiveModel {
             id: Set(id),
             organization_member_id: Set(organization_member_id),
-            role_id: Set(role_id),
+            role_id: Set(role.get().id),
             created_at: Set(now),
         })
         .exec(&self.db)
@@ -52,11 +54,11 @@ impl OrganizationMemberRoleRepository for PostgresOrganizationMemberRoleReposito
     async fn revoke_role(
         &self,
         organization_member_id: Uuid,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> Result<(), CoreError> {
         RoleEntity::delete_many()
             .filter(RoleColumn::OrganizationMemberId.eq(organization_member_id))
-            .filter(RoleColumn::RoleId.eq(role_id))
+            .filter(RoleColumn::RoleId.eq(role.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {

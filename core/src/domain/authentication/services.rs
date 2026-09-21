@@ -1129,6 +1129,7 @@ where
                 .organization_repository
                 .get_organization_by_id(org_id)
                 .await
+                .map(|org| org.map(Unscoped::across_realms))
             {
                 let raw_attrs = self
                     .organization_attribute_repository

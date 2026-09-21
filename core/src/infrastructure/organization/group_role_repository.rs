@@ -4,6 +4,8 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySe
 use tracing::error;
 use uuid::Uuid;
 
+use ferriskey_domain::realm::scope::Scoped;
+use ferriskey_domain::role::entities::Role;
 use ferriskey_organization::{GroupId, GroupRoleMapping, GroupRoleRepository};
 
 use crate::domain::common::entities::app_errors::CoreError;
@@ -36,7 +38,7 @@ impl GroupRoleRepository for PostgresGroupRoleRepository {
     async fn assign_role(
         &self,
         group_id: GroupId,
-        role_id: Uuid,
+        role: &Scoped<Role>,
     ) -> Result<GroupRoleMapping, CoreError> {
         let (_, timestamp) = generate_timestamp();
         let id = Uuid::new_v7(timestamp);
@@ -45,7 +47,7 @@ impl GroupRoleRepository for PostgresGroupRoleRepository {
         let model = RoleEntity::insert(RoleActiveModel {
             id: Set(id),
             group_id: Set(group_id.as_uuid()),
-            role_id: Set(role_id),
+            role_id: Set(role.get().id),
             created_at: Set(now),
         })
         .exec_with_returning(&self.db)
@@ -58,10 +60,10 @@ impl GroupRoleRepository for PostgresGroupRoleRepository {
         Ok(model_to_domain(model))
     }
 
-    async fn revoke_role(&self, group_id: GroupId, role_id: Uuid) -> Result<(), CoreError> {
+    async fn revoke_role(&self, group_id: GroupId, role: &Scoped<Role>) -> Result<(), CoreError> {
         RoleEntity::delete_many()
             .filter(RoleColumn::GroupId.eq(group_id.as_uuid()))
-            .filter(RoleColumn::RoleId.eq(role_id))
+            .filter(RoleColumn::RoleId.eq(role.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {

@@ -5,7 +5,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
-use ferriskey_domain::realm::scope::RealmScope;
+use ferriskey_domain::realm::scope::{RealmScope, Scoped};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 use crate::{
@@ -66,33 +66,16 @@ where
         }
     }
 
-    async fn get_realm_by_name(
-        &self,
-        realm_name: String,
-    ) -> Result<ferriskey_domain::realm::Realm, CoreError> {
-        self.realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)
-    }
-
-    async fn get_org_for_realm(
+    async fn load_organization_in_realm(
         &self,
         organization_id: OrganizationId,
-        realm_id: ferriskey_domain::realm::RealmId,
-    ) -> Result<Organization, CoreError> {
-        let org = self
-            .organization_repository
+        scope: &RealmScope,
+    ) -> Result<Scoped<Organization>, CoreError> {
+        self.organization_repository
             .get_organization_by_id(organization_id)
             .await?
-            .ok_or(CoreError::NotFound)?;
-
-        if org.realm_id != realm_id {
-            return Err(CoreError::NotFound);
-        }
-
-        Ok(org)
+            .ok_or(CoreError::NotFound)?
+            .in_realm(scope)
     }
 }
 
@@ -112,23 +95,25 @@ where
         identity: Identity,
         input: CreateOrganizationInput,
     ) -> Result<Organization, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_create_organization(&identity, &realm).await,
+            self.policy
+                .can_create_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to create organization",
         )?;
 
         if self
             .organization_repository
-            .exists_organization_by_realm_and_alias(realm.id, &input.alias)
+            .exists_organization_by_realm_and_alias(scope.id(), &input.alias)
             .await?
         {
             return Err(CoreError::AlreadyExists);
         }
 
         let org_config = OrganizationConfig {
-            realm_id: realm.id,
+            realm_id: scope.id(),
             name: input.name,
             alias: input.alias,
             domain: input.domain,
@@ -157,17 +142,19 @@ where
         identity: Identity,
         input: GetOrganizationInput,
     ) -> Result<Organization, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to view organization",
         )?;
 
-        Ok(org)
+        Ok(org.into_inner())
     }
 
     async fn list_organizations(
@@ -175,15 +162,17 @@ where
         identity: Identity,
         input: ListOrganizationsInput,
     ) -> Result<Vec<Organization>, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to list organizations",
         )?;
 
         self.organization_repository
-            .list_organizations_by_realm(realm.id)
+            .list_organizations_by_realm(scope.id())
             .await
     }
 
@@ -192,21 +181,23 @@ where
         identity: Identity,
         input: UpdateOrganizationInput,
     ) -> Result<Organization, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_update_organization(&identity, &realm).await,
+            self.policy
+                .can_update_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to update organization",
         )?;
 
         if let Some(ref new_alias) = input.alias
-            && *new_alias != org.alias
+            && *new_alias != org.get().alias
             && self
                 .organization_repository
-                .exists_organization_by_realm_and_alias(realm.id, new_alias)
+                .exists_organization_by_realm_and_alias(scope.id(), new_alias)
                 .await?
         {
             return Err(CoreError::AlreadyExists);
@@ -222,7 +213,7 @@ where
         };
 
         self.organization_repository
-            .update_organization(org.id, params)
+            .update_organization(&org, params)
             .await
     }
 
@@ -231,19 +222,19 @@ where
         identity: Identity,
         input: DeleteOrganizationInput,
     ) -> Result<(), CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_delete_organization(&identity, &realm).await,
+            self.policy
+                .can_delete_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to delete organization",
         )?;
 
-        self.organization_repository
-            .delete_organization(org.id)
-            .await
+        self.organization_repository.delete_organization(&org).await
     }
 
     async fn list_attributes(
@@ -251,18 +242,20 @@ where
         identity: Identity,
         input: ListOrganizationAttributesInput,
     ) -> Result<Vec<OrganizationAttribute>, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to list organization attributes",
         )?;
 
         self.organization_attribute_repository
-            .list_attributes(org.id)
+            .list_attributes(org.get().id)
             .await
     }
 
@@ -271,18 +264,20 @@ where
         identity: Identity,
         input: UpsertOrganizationAttributeInput,
     ) -> Result<OrganizationAttribute, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_update_organization(&identity, &realm).await,
+            self.policy
+                .can_update_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to upsert organization attribute",
         )?;
 
         // Validate attribute key and value via domain constructor
-        OrganizationAttribute::new(org.id, input.key.clone(), input.value.clone()).map_err(
+        OrganizationAttribute::new(org.get().id, input.key.clone(), input.value.clone()).map_err(
             |e| match e {
                 OrganizationValidationError::EmptyAttributeKey
                 | OrganizationValidationError::AttributeKeyTooLong
@@ -292,7 +287,7 @@ where
         )?;
 
         self.organization_attribute_repository
-            .upsert_attribute(org.id, input.key, input.value)
+            .upsert_attribute(org.get().id, input.key, input.value)
             .await
     }
 
@@ -301,18 +296,20 @@ where
         identity: Identity,
         input: DeleteOrganizationAttributeInput,
     ) -> Result<(), CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_update_organization(&identity, &realm).await,
+            self.policy
+                .can_update_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to delete organization attribute",
         )?;
 
         self.organization_attribute_repository
-            .delete_attribute(org.id, &input.key)
+            .delete_attribute(org.get().id, &input.key)
             .await
     }
 
@@ -321,18 +318,20 @@ where
         identity: Identity,
         input: AddOrganizationMemberInput,
     ) -> Result<OrganizationMember, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to add organization member",
         )?;
 
         // Disabled organizations cannot accept new members
-        if !org.enabled {
+        if !org.get().enabled {
             return Err(CoreError::Invalid);
         }
 
@@ -342,16 +341,16 @@ where
             .get_by_id(input.user_id)
             .await
             .map_err(|_| CoreError::UserNotFound)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .in_realm(&scope)
             .map_err(|_| CoreError::Invalid)?;
 
-        validate_membership_realms(org.realm_id, user.get().realm_id)
+        validate_membership_realms(org.get().realm_id, user.get().realm_id)
             .map_err(|_| CoreError::Invalid)?;
 
         // Reject duplicate memberships
         if self
             .organization_member_repository
-            .get_member(org.id, input.user_id)
+            .get_member(org.get().id, input.user_id)
             .await?
             .is_some()
         {
@@ -359,7 +358,7 @@ where
         }
 
         self.organization_member_repository
-            .add_member(org.id, input.user_id)
+            .add_member(org.get().id, input.user_id)
             .await
     }
 
@@ -368,24 +367,26 @@ where
         identity: Identity,
         input: RemoveOrganizationMemberInput,
     ) -> Result<(), CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to remove organization member",
         )?;
 
         // Verify the membership exists before attempting removal
         self.organization_member_repository
-            .get_member(org.id, input.user_id)
+            .get_member(org.get().id, input.user_id)
             .await?
             .ok_or(CoreError::NotFound)?;
 
         self.organization_member_repository
-            .remove_member(org.id, input.user_id)
+            .remove_member(org.get().id, input.user_id)
             .await
     }
 
@@ -394,18 +395,20 @@ where
         identity: Identity,
         input: ListOrganizationMembersInput,
     ) -> Result<Vec<OrganizationMember>, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let org = self
-            .get_org_for_realm(input.organization_id, realm.id)
+            .load_organization_in_realm(input.organization_id, &scope)
             .await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to list organization members",
         )?;
 
         self.organization_member_repository
-            .list_members(org.id)
+            .list_members(org.get().id)
             .await
     }
 
@@ -414,10 +417,12 @@ where
         identity: Identity,
         input: ListUserOrganizationsInput,
     ) -> Result<Vec<OrganizationMember>, CoreError> {
-        let realm = self.get_realm_by_name(input.realm_name).await?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to list user organizations",
         )?;
 
@@ -425,10 +430,10 @@ where
             .get_by_id(input.user_id)
             .await
             .map_err(|_| CoreError::NotFound)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?;
+            .in_realm(&scope)?;
 
         self.organization_member_repository
-            .list_organizations_for_user(realm.id, input.user_id)
+            .list_organizations_for_user(scope.id(), input.user_id)
             .await
     }
 }
@@ -637,7 +642,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
@@ -690,7 +695,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut attr_repo = MockOrganizationAttributeRepository::new();
         attr_repo
@@ -749,7 +754,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
@@ -805,7 +810,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
         org_repo
             .expect_exists_organization_by_realm_and_alias()
             .return_once(|_, _| Box::pin(async { Ok(true) }));
@@ -873,7 +878,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut member_repo = MockOrganizationMemberRepository::new();
         member_repo
@@ -946,7 +951,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut user_repo = MockUserRepository::new();
         user_repo.expect_get_by_id().returning(move |_| {
@@ -1005,7 +1010,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         // Policy call returns admin, member lookup returns cross-realm user
         let mut user_repo = MockUserRepository::new();
@@ -1071,7 +1076,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut member_repo = MockOrganizationMemberRepository::new();
         member_repo
@@ -1138,7 +1143,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut member_repo = MockOrganizationMemberRepository::new();
         member_repo
@@ -1199,7 +1204,7 @@ mod tests {
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
             .expect_get_organization_by_id()
-            .return_once(move |_| Box::pin(async move { Ok(Some(org)) }));
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(org))) }));
 
         let mut member_repo = MockOrganizationMemberRepository::new();
         member_repo
@@ -1442,7 +1447,7 @@ mod tests {
             .expect_get_organization_by_id()
             .returning(move |_| {
                 let o = org.clone();
-                Box::pin(async move { Ok(Some(o)) })
+                Box::pin(async move { Ok(Some(Unscoped::new(o))) })
             });
 
         let service = build_service(
@@ -1483,7 +1488,7 @@ mod tests {
             .expect_get_organization_by_id()
             .returning(move |_| {
                 let o = org.clone();
-                Box::pin(async move { Ok(Some(o)) })
+                Box::pin(async move { Ok(Some(Unscoped::new(o))) })
             });
         org_repo
             .expect_delete_organization()
@@ -1552,7 +1557,7 @@ mod tests {
             .expect_get_organization_by_id()
             .returning(move |_| {
                 let o = org.clone();
-                Box::pin(async move { Ok(Some(o)) })
+                Box::pin(async move { Ok(Some(Unscoped::new(o))) })
             });
 
         let mut member_repo = MockOrganizationMemberRepository::new();
