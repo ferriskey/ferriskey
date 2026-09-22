@@ -17,7 +17,7 @@ use crate::domain::client::entities::Client;
 use crate::domain::client::entities::saml::SpEntityId;
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::{Realm, RealmScope};
+use crate::domain::realm::entities::RealmScope;
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::saml::entities::{
     AssertionBlueprint, FinishSsoInput, SamlAssertionDelivery, SamlSsoError, StartSsoInput,
@@ -84,7 +84,7 @@ where
 
     async fn accept_authn_request(
         &self,
-        realm: &Realm,
+        scope: &RealmScope,
         input: &StartSsoInput,
     ) -> Result<AcceptedAuthnRequest, RejectedAuthnRequest> {
         let request = AuthnRequest::parse(&input.authn_request)
@@ -98,7 +98,7 @@ where
 
         let config = self
             .service_provider_repository
-            .get_by_entity_id(realm.id, issuer.clone())
+            .get_by_entity_id(scope.id(), issuer.clone())
             .await
             .map_err(RejectedAuthnRequest::unreadable)?
             .ok_or_else(|| {
@@ -109,10 +109,10 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(realm.id, config.client_id)
+            .get_by_id(scope.id(), config.client_id)
             .await
             .map_err(|_| RejectedAuthnRequest::unreadable(CoreError::InvalidClient))?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .in_realm(scope)
             .map_err(RejectedAuthnRequest::unreadable)?
             .into_inner();
 
@@ -180,7 +180,7 @@ where
 
     async fn issue_assertion(
         &self,
-        realm: &Realm,
+        scope: &RealmScope,
         auth_session: AuthSession,
         input: &FinishSsoInput,
     ) -> Result<SamlAssertionDelivery, CoreError> {
@@ -195,43 +195,40 @@ where
 
         let client = self
             .client_repository
-            .get_by_id(realm.id, auth_session.client_id)
+            .get_by_id(scope.id(), auth_session.client_id)
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
-            .into_inner();
+            .in_realm(scope)?;
 
-        if !client.enabled {
+        if !client.get().enabled {
             return Err(CoreError::InvalidClient);
         }
 
         let config = self
             .service_provider_repository
-            .get_by_client_id(client.id)
+            .get_by_client_id(&client)
             .await?
             .ok_or(CoreError::SamlConfigNotFound)?;
 
         let mappers = self
             .service_provider_repository
-            .get_attribute_mappers(client.id)
+            .get_attribute_mappers(&client)
             .await?;
 
         let user = self
             .user_repository
             .get_by_id(user_id)
             .await?
-            .across_realms();
+            .in_realm(scope)
+            .map_err(|_| {
+                warn!(
+                    user_id = %user_id,
+                    "rejecting a saml assertion: the code is bound to an account of another realm"
+                );
 
-        if user.realm_id != auth_session.realm_id {
-            warn!(
-                user_id = %user_id,
-                user_realm = ?user.realm_id,
-                session_realm = ?auth_session.realm_id,
-                "rejecting a saml assertion: the code is bound to an account of another realm"
-            );
-
-            return Err(CoreError::InvalidAuthorizationCode);
-        }
+                CoreError::InvalidAuthorizationCode
+            })?
+            .into_inner();
 
         if !user.enabled {
             return Err(CoreError::UserDisabled);
@@ -247,7 +244,7 @@ where
 
         let keypair = self
             .keystore_repository
-            .get_or_generate_key(realm.id)
+            .get_or_generate_key(scope.id())
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
@@ -261,7 +258,7 @@ where
             response_id: generate_element_id()?,
             assertion_id: generate_element_id()?,
             in_response_to,
-            idp_entity_id: idp_entity_id(&input.public_base_url, &realm.name),
+            idp_entity_id: idp_entity_id(&input.public_base_url, scope.name()),
             sp_entity_id: config.sp_entity_id.clone(),
             acs_url: config.acs_url.clone(),
             name_id: derive_name_id(config.name_id_format, &user, &session_index)?,
@@ -287,7 +284,7 @@ where
             render_signed_response(&descriptor, &keypair.private_key, &certificate).map_err(
                 |reason| {
                     error!(
-                        client_id = %client.client_id,
+                        client_id = %client.get().client_id,
                         %reason,
                         "failed to sign a saml response"
                     );
@@ -381,19 +378,15 @@ where
     async fn start_sso(&self, input: StartSsoInput) -> Result<AuthOutput, CoreError> {
         let started_at = Utc::now();
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let accepted = match self.accept_authn_request(&realm, &input).await {
+        let accepted = match self.accept_authn_request(&scope, &input).await {
             Ok(accepted) => accepted,
             Err(rejection) => {
                 let flow_id = self
                     .flow_recorder
                     .start_flow(
-                        &realm,
+                        scope.realm(),
                         rejection.client_id,
                         SAML_SSO_GRANT_TYPE.to_string(),
                         None,
@@ -419,12 +412,12 @@ where
             }
         };
 
-        let redirect_uri = sso_continue_url(&input.public_base_url, &realm.name);
+        let redirect_uri = sso_continue_url(&input.public_base_url, scope.name());
 
         let flow_id = self
             .flow_recorder
             .start_flow(
-                &realm,
+                scope.realm(),
                 Some(accepted.client.client_id.clone()),
                 SAML_SSO_GRANT_TYPE.to_string(),
                 None,
@@ -435,7 +428,7 @@ where
         let parked = self
             .auth_session_repository
             .create(&AuthSession::new(AuthSessionParams {
-                realm_id: realm.id,
+                realm_id: scope.id(),
                 client_id: accepted.client.id,
                 protocol: AuthProtocol::Saml,
                 redirect_uri: redirect_uri.clone(),
@@ -502,15 +495,11 @@ where
     }
 
     async fn idp_signing_certificate(&self, realm_name: String) -> Result<String, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         let keypair = self
             .keystore_repository
-            .get_or_generate_key(realm.id)
+            .get_or_generate_key(scope.id())
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
@@ -522,11 +511,7 @@ where
     async fn finish_sso(&self, input: FinishSsoInput) -> Result<SamlAssertionDelivery, CoreError> {
         let started_at = Utc::now();
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let auth_session = self
             .auth_session_repository
@@ -545,10 +530,10 @@ where
             return Err(SamlSsoError::NotASamlAuthentication.into());
         }
 
-        if auth_session.realm_id != realm.id {
+        if auth_session.realm_id != scope.id() {
             warn!(
                 session_realm = ?auth_session.realm_id,
-                request_realm = ?realm.id,
+                request_realm = ?scope.id(),
                 "rejecting a saml continuation: the code was issued for a different realm"
             );
 
@@ -567,7 +552,7 @@ where
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id;
 
-        let delivery = self.issue_assertion(&realm, auth_session, &input).await;
+        let delivery = self.issue_assertion(&scope, auth_session, &input).await;
 
         let duration = elapsed_since(started_at);
 
@@ -1577,6 +1562,19 @@ pub(crate) mod tests {
         let rejection = refusal(
             harness.finish().await,
             "a code from another realm must not be signed with this realm's key",
+        );
+
+        assert!(matches!(rejection, CoreError::InvalidAuthorizationCode));
+    }
+
+    #[tokio::test]
+    async fn an_account_of_another_realm_yields_no_assertion() {
+        let mut harness = FinishHarness::new(NameIdFormat::EmailAddress, Vec::new());
+        harness.user.realm_id = RealmId::default();
+
+        let rejection = refusal(
+            harness.finish().await,
+            "an account of another realm must not be attested to this realm's service provider",
         );
 
         assert!(matches!(rejection, CoreError::InvalidAuthorizationCode));

@@ -1,9 +1,8 @@
-use uuid::Uuid;
-
 use crate::domain::authentication::entities::AuthOutput;
+use crate::domain::client::entities::Client;
 use crate::domain::client::entities::saml::{ClientSamlConfig, SamlAttributeMapper, SpEntityId};
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Scoped};
 use crate::domain::saml::entities::{FinishSsoInput, SamlAssertionDelivery, StartSsoInput};
 
 #[cfg_attr(test, mockall::automock)]
@@ -16,12 +15,12 @@ pub trait SamlServiceProviderRepository: Send + Sync {
 
     fn get_by_client_id(
         &self,
-        client_id: Uuid,
+        client: &Scoped<Client>,
     ) -> impl Future<Output = Result<Option<ClientSamlConfig>, CoreError>> + Send;
 
     fn get_attribute_mappers(
         &self,
-        client_id: Uuid,
+        client: &Scoped<Client>,
     ) -> impl Future<Output = Result<Vec<SamlAttributeMapper>, CoreError>> + Send;
 }
 
