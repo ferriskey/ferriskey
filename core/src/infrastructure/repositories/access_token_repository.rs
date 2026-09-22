@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::domain::{
     common::generate_uuid_v7,
     jwt::{JwtError, entities::AccessToken, ports::AccessTokenRepository},
+    realm::entities::Unscoped,
 };
 
 impl From<crate::entity::access_tokens::Model> for AccessToken {
@@ -70,14 +71,17 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
         Ok(access_token.into())
     }
 
-    async fn get_by_token_hash(&self, token_hash: String) -> Result<Option<AccessToken>, JwtError> {
+    async fn get_by_token_hash(
+        &self,
+        token_hash: String,
+    ) -> Result<Option<Unscoped<AccessToken>>, JwtError> {
         let access_token = crate::entity::access_tokens::Entity::find()
             .filter(crate::entity::access_tokens::Column::TokenHash.eq(token_hash))
             .one(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
-        Ok(access_token.map(|t| t.into()))
+        Ok(access_token.map(|t| Unscoped::new(t.into())))
     }
 
     async fn revoke_by_session_id(&self, session_id: Uuid) -> Result<u64, JwtError> {

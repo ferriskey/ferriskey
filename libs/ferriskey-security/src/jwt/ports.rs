@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use ferriskey_domain::realm::{Realm, RealmId};
+use ferriskey_domain::realm::{Realm, RealmId, scope::Unscoped};
 use uuid::Uuid;
 
 use crate::{
@@ -111,7 +111,7 @@ pub trait AccessTokenRepository: Send + Sync {
     fn get_by_token_hash(
         &self,
         token_hash: String,
-    ) -> impl Future<Output = Result<Option<AccessToken>, SecurityError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<AccessToken>>, SecurityError>> + Send;
 
     fn revoke_by_token_hash(
         &self,

@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::authentication::value_objects::CodeChallengeMethod;
-use crate::realm::scope::Scoped;
+use crate::realm::scope::{RealmScope, Scoped};
 use crate::session::entities::UserSession;
 use crate::user::entities::RequiredAction;
 
@@ -452,7 +452,7 @@ impl AuthenticateOutput {
 
 #[derive(Debug)]
 pub struct CredentialsAuthParams {
-    pub realm_name: String,
+    pub realm: RealmScope,
     pub client_id: String,
     pub session_code: Uuid,
     pub base_url: String,

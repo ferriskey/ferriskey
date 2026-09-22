@@ -889,21 +889,23 @@ where
 
     async fn resolve_token_lifetimes(
         &self,
-        realm_id: RealmId,
+        scope: &RealmScope,
         client_uuid: Uuid,
     ) -> Result<TokenLifetimes, CoreError> {
         let realm_settings = self
             .realm_repository
-            .get_realm_settings(realm_id)
+            .get_realm_settings(scope.id())
             .await?
             .ok_or(CoreError::InvalidRealm)?;
 
         let client = self
             .client_repository
-            .get_by_id(realm_id, client_uuid)
+            .get_by_id(scope.id(), client_uuid)
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(scope)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         Ok(TokenLifetimes::resolve(&realm_settings, &client))
     }
@@ -955,8 +957,8 @@ where
         &self,
         input: &GenerateTokenInput,
     ) -> Result<AssembledClaims, CoreError> {
-        let iss = format!("{}/realms/{}", input.base_url, input.realm_name);
-        let realm_audit = format!("{}-realm", input.realm_name);
+        let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
+        let realm_audit = format!("{}-realm", input.realm.name());
 
         // Resolve protocol mappers from client scopes (default + requested optional)
         let mut applicable_scopes = self
@@ -1115,7 +1117,7 @@ where
         // Load user organization memberships with their attributes
         let org_memberships = self
             .organization_member_repository
-            .list_organizations_for_user(input.realm_id, input.user_id)
+            .list_organizations_for_user(input.realm.id(), input.user_id)
             .await
             .unwrap_or_default();
 
@@ -1140,7 +1142,8 @@ where
                 .organization_repository
                 .get_organization_by_id(org_id)
                 .await
-                .map(|org| org.map(Unscoped::across_realms))
+                .and_then(|org| org.in_realm(&input.realm))
+                .map(|org| org.map(Scoped::into_inner))
             {
                 let raw_attrs = self
                     .organization_attribute_repository
@@ -1188,8 +1191,8 @@ where
             client_roles,
             client_id: input.client_id.clone(),
             client_uuid: input.client_uuid,
-            realm_name: input.realm_name.clone(),
-            realm_id: input.realm_id,
+            realm_name: input.realm.name().to_owned(),
+            realm_id: input.realm.id(),
             user_attributes,
             organizations,
             groups,
@@ -1289,20 +1292,19 @@ where
         &self,
         input: EvaluateClientScopesInput,
     ) -> Result<EvaluateClientScopesResult, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let user = self
             .user_repository
             .get_by_id(input.user_id)
             .await?
-            .in_realm(&scope)?
+            .in_realm(&input.realm)?
             .into_inner();
         let lifetimes = self
-            .resolve_token_lifetimes(input.realm_id, input.client_uuid)
+            .resolve_token_lifetimes(&input.realm, input.client_uuid)
             .await?;
 
         let gen_input = GenerateTokenInput {
             base_url: input.base_url,
-            realm_name: input.realm_name,
+            realm: input.realm,
             user_id: user.id,
             username: user.username.clone(),
             firstname: user.firstname.clone().unwrap_or_default(),
@@ -1311,7 +1313,6 @@ where
             client_id: input.client_id,
             client_uuid: input.client_uuid,
             email: user.email.clone().unwrap_or_default(),
-            realm_id: input.realm_id,
             scope: input.scope,
             access_token_lifetime: lifetimes.access_token,
             refresh_token_lifetime: lifetimes.refresh_token,
@@ -1510,22 +1511,16 @@ where
         Err(CoreError::ClientUnderMaintenance(reason))
     }
 
-    async fn resume_bound_session(&self, auth_session: &AuthSession) -> Option<UserSession> {
+    async fn resume_bound_session(
+        &self,
+        auth_session: &AuthSession,
+        scope: &RealmScope,
+    ) -> Option<UserSession> {
         let session_id = auth_session.user_session_id?;
 
         match self.user_session_repository.find_by_id(session_id).await {
             Ok(Some(session)) => {
-                let session = session.across_realms();
-
-                if session.realm_id != Uuid::from(auth_session.realm_id) {
-                    warn!(
-                        session_id = %session_id,
-                        session_realm_id = %session.realm_id,
-                        auth_session_realm_id = %Uuid::from(auth_session.realm_id),
-                        "Refusing the session bound to an auth session of another realm, opening a new one"
-                    );
-                    return None;
-                }
+                let session = session.in_realm(scope).ok()?.into_inner();
 
                 (!session.is_expired()).then_some(session)
             }
@@ -1688,7 +1683,7 @@ where
     ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
         let jwt_key_pair = self
             .keystore_repository
-            .get_or_generate_key(input.realm_id)
+            .get_or_generate_key(input.realm.id())
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -1773,7 +1768,7 @@ where
                     access_token_hash,
                     Some(claims.jti),
                     claims.sub,
-                    input.realm_id,
+                    input.realm.id(),
                     access_token_expires_at,
                     access_token_claims,
                 )
@@ -1785,7 +1780,7 @@ where
                     access_token_hash,
                     Some(claims.jti),
                     claims.sub,
-                    input.realm_id,
+                    input.realm.id(),
                     access_token_expires_at,
                     access_token_claims,
                 ),
@@ -1853,6 +1848,7 @@ where
                 .get_by_token_hash(token_hash)
                 .await
                 .map_err(|_| CoreError::InternalServerError)?
+                .map(Unscoped::across_realms)
                 && stored.revoked
             {
                 return Err(CoreError::InvalidToken);
@@ -2097,10 +2093,12 @@ where
         // request can never reach the code lookup at all.
         let client = self
             .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .get_by_client_id(params.client_id.clone(), params.realm.id())
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         // The code itself is a secret: never log it, since log exposure is one of
         // the ways it gets into an attacker's hands in the first place.
@@ -2126,7 +2124,7 @@ where
         validate_authorization_code_request(
             &auth_session,
             &client,
-            params.realm_id,
+            params.realm.id(),
             params.redirect_uri.as_deref(),
             params.client_secret.as_deref(),
             Utc::now(),
@@ -2165,21 +2163,12 @@ where
             .user_repository
             .get_by_id(user_id)
             .await?
-            .across_realms();
-
-        if user.realm_id != auth_session.realm_id {
-            warn!(
-                user_id = %user_id,
-                client_id = %params.client_id,
-                user_realm = ?user.realm_id,
-                session_realm = ?auth_session.realm_id,
-                "authorization_code: the code is bound to an account of another realm"
-            );
-            return Err(CoreError::InvalidAuthorizationCode);
-        }
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidAuthorizationCode)?
+            .into_inner();
 
         let pending_step = self
-            .resolve_pending_auth_step(user_id, params.realm_id)
+            .resolve_pending_auth_step(user_id, params.realm.id())
             .await?;
 
         if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
@@ -2199,16 +2188,19 @@ where
         info!("Final scope for authorization code grant: {}", final_scope);
 
         let lifetimes = self
-            .resolve_token_lifetimes(params.realm_id, auth_session.client_id)
+            .resolve_token_lifetimes(&params.realm, auth_session.client_id)
             .await?;
 
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
         // and refresh.
-        let user_session = match self.resume_bound_session(&auth_session).await {
+        let user_session = match self
+            .resume_bound_session(&auth_session, &params.realm)
+            .await
+        {
             Some(session) => session,
             None => {
-                self.create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
+                self.create_user_session(user.id, params.realm.id(), lifetimes.refresh_token)
                     .await?
                     .0
             }
@@ -2223,8 +2215,7 @@ where
                 email_verified: user.email_verified,
                 firstname: user.firstname.clone().unwrap_or_default(),
                 lastname: user.lastname.clone().unwrap_or_default(),
-                realm_id: params.realm_id,
-                realm_name: params.realm_name,
+                realm: params.realm,
                 user_id: user.id,
                 username: user.username.clone(),
                 scope: Some(final_scope.clone()),
@@ -2301,10 +2292,12 @@ where
     async fn client_credential(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let client = self
             .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .get_by_client_id(params.client_id.clone(), params.realm.id())
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
             return Err(CoreError::InvalidClientSecret);
@@ -2331,14 +2324,16 @@ where
                 CoreError::NotFound => CoreError::ServiceAccountNotFound,
                 _ => CoreError::InternalServerError,
             })?
-            .across_realms();
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::ServiceAccountNotFound)?
+            .into_inner();
 
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
             .await?;
 
         let lifetimes = self
-            .resolve_token_lifetimes(params.realm_id, client.id)
+            .resolve_token_lifetimes(&params.realm, client.id)
             .await?;
 
         let (jwt, refresh_token, id_token) = self
@@ -2350,8 +2345,7 @@ where
                 email_verified: user.email_verified,
                 firstname: user.firstname.clone().unwrap_or_default(),
                 lastname: user.lastname.clone().unwrap_or_default(),
-                realm_id: params.realm_id,
-                realm_name: params.realm_name,
+                realm: params.realm,
                 user_id: user.id,
                 username: user.username,
                 scope: Some(final_scope),
@@ -2384,11 +2378,13 @@ where
 
         let client = self
             .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .get_by_client_id(params.client_id.clone(), params.realm.id())
             .instrument(info_span!("auth.password.client_lookup"))
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         if !client.direct_access_grants_enabled {
             // Public clients must have direct access grants enabled for password flow.
@@ -2412,7 +2408,7 @@ where
 
         let login_aliases = self
             .realm_repository
-            .get_realm_settings(params.realm_id)
+            .get_realm_settings(params.realm.id())
             .await?
             .map(|s| s.login_aliases)
             .unwrap_or_default();
@@ -2420,27 +2416,27 @@ where
         let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
             self.user_repository.as_ref(),
             &username,
-            params.realm_id,
+            params.realm.id(),
             &login_aliases,
         )
         .instrument(info_span!("auth.password.user_lookup"))
         .await?;
 
         let Some(user) = user else {
-            self.record_login_failure(params.realm_id, None, "user_not_found")
+            self.record_login_failure(params.realm.id(), None, "user_not_found")
                 .await;
             return Err(CoreError::Invalid);
         };
 
         if !user.enabled {
-            self.record_login_failure(params.realm_id, Some(user.id), "user_disabled")
+            self.record_login_failure(params.realm.id(), Some(user.id), "user_disabled")
                 .await;
             return Err(CoreError::UserDisabled);
         }
 
         let realm_settings = self
             .realm_repository
-            .get_realm_settings(params.realm_id)
+            .get_realm_settings(params.realm.id())
             .await?;
 
         let lockout_threshold = realm_settings
@@ -2454,7 +2450,7 @@ where
 
         let now = Utc::now();
         if user.is_locked(now) {
-            self.record_login_failure(params.realm_id, Some(user.id), "account_locked")
+            self.record_login_failure(params.realm.id(), Some(user.id), "account_locked")
                 .await;
             return Err(CoreError::AccountLocked);
         }
@@ -2477,7 +2473,7 @@ where
                     .user_repository
                     .increment_failed_login_attempts(user.id, locked_until)
                     .await;
-                self.record_login_failure(params.realm_id, Some(user.id), "invalid_credentials")
+                self.record_login_failure(params.realm.id(), Some(user.id), "invalid_credentials")
                     .await;
                 return Err(CoreError::Invalid);
             }
@@ -2494,7 +2490,7 @@ where
                 .user_repository
                 .increment_failed_login_attempts(user.id, locked_until)
                 .await;
-            self.record_login_failure(params.realm_id, Some(user.id), "invalid_credentials")
+            self.record_login_failure(params.realm.id(), Some(user.id), "invalid_credentials")
                 .await;
             return Err(CoreError::Invalid);
         }
@@ -2505,7 +2501,7 @@ where
             .await;
 
         let pending_step = self
-            .resolve_pending_auth_step(user.id, params.realm_id)
+            .resolve_pending_auth_step(user.id, params.realm.id())
             .instrument(info_span!("auth.password.pending_step"))
             .await?;
 
@@ -2524,11 +2520,11 @@ where
             .await?;
 
         let lifetimes = self
-            .resolve_token_lifetimes(params.realm_id, client.id)
+            .resolve_token_lifetimes(&params.realm, client.id)
             .await?;
 
         let (user_session, _) = self
-            .create_user_session(user.id, params.realm_id, lifetimes.refresh_token)
+            .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token)
             .await?;
 
         let (jwt, refresh_token, id_token) = self
@@ -2540,8 +2536,7 @@ where
                 email_verified: user.email_verified,
                 firstname: user.firstname.clone().unwrap_or_default(),
                 lastname: user.lastname.clone().unwrap_or_default(),
-                realm_id: params.realm_id,
-                realm_name: params.realm_name,
+                realm: params.realm,
                 user_id: user.id,
                 username: user.username,
                 scope: Some(final_scope),
@@ -2572,7 +2567,7 @@ where
         let token_str = params.refresh_token.ok_or(CoreError::InvalidRefreshToken)?;
 
         let (claims, stored) = self
-            .verify_refresh_token(token_str, params.realm_id)
+            .verify_refresh_token(token_str, params.realm.id())
             .await
             // A refresh presented against a revoked or expired session is a
             // grant failure, not an authentication failure: RFC 6749 §5.2 asks
@@ -2607,7 +2602,9 @@ where
             .get_by_id(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .across_realms();
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidRefreshToken)?
+            .into_inner();
 
         if !user.enabled {
             return Err(CoreError::UserDisabled);
@@ -2615,13 +2612,15 @@ where
 
         let client = self
             .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm_id)
+            .get_by_client_id(params.client_id.clone(), params.realm.id())
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         let lifetimes = self
-            .resolve_token_lifetimes(params.realm_id, client.id)
+            .resolve_token_lifetimes(&params.realm, client.id)
             .await?;
 
         let new_refresh_jti = Uuid::new_v4();
@@ -2671,8 +2670,7 @@ where
                         email_verified: user.email_verified,
                         firstname: user.firstname.clone().unwrap_or_default(),
                         lastname: user.lastname.clone().unwrap_or_default(),
-                        realm_id: params.realm_id,
-                        realm_name: params.realm_name,
+                        realm: params.realm,
                         user_id: user.id,
                         username: user.username,
                         scope: claims.scope.clone(),
@@ -2734,7 +2732,7 @@ where
 
         let auth_result = self
             .using_session_code(
-                params.realm_name,
+                &params.realm,
                 params.client_id,
                 params.session_code,
                 params.username,
@@ -2766,8 +2764,13 @@ where
             None,
         );
 
-        self.determine_next_step(auth_result, params.session_code, auth_session)
-            .await
+        self.determine_next_step(
+            auth_result,
+            params.session_code,
+            auth_session,
+            &params.realm,
+        )
+        .await
     }
 
     async fn determine_next_step(
@@ -2775,6 +2778,7 @@ where
         auth_result: AuthenticationResult,
         session_code: Uuid,
         auth_session: AuthSession,
+        scope: &RealmScope,
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
@@ -2800,7 +2804,8 @@ where
                 .get_by_id(auth_result.user_id)
                 .await
                 .ok()
-                .and_then(|user| user.across_realms().email);
+                .and_then(|user| user.in_realm(scope).ok())
+                .and_then(|user| user.into_inner().email);
             return Ok(AuthenticateOutput::requires_otp_challenge(
                 auth_result.user_id,
                 token,
@@ -2822,6 +2827,7 @@ where
             session_code,
             auth_session,
             SsoSessionBinding::Open,
+            scope,
         )
         .await
     }
@@ -2832,6 +2838,7 @@ where
         session_code: Uuid,
         auth_session: AuthSession,
         sso_session: SsoSessionBinding,
+        scope: &RealmScope,
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
 
@@ -2851,10 +2858,10 @@ where
             }
             SsoSessionBinding::Open => {
                 let lifetimes = self
-                    .resolve_token_lifetimes(auth_session.realm_id, auth_session.client_id)
+                    .resolve_token_lifetimes(scope, auth_session.client_id)
                     .await?;
 
-                self.create_user_session(user_id, auth_session.realm_id, lifetimes.refresh_token)
+                self.create_user_session(user_id, scope.id(), lifetimes.refresh_token)
                     .await?
             }
         };
@@ -2911,32 +2918,26 @@ where
 
     async fn using_session_code(
         &self,
-        realm_name: String,
+        scope: &RealmScope,
         client_id: String,
         session_code: Uuid,
         username: String,
         password: String,
         base_url: String,
     ) -> Result<AuthenticationResult, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
         let client = self
             .client_repository
-            .get_by_client_id(client_id.clone(), realm.id)
+            .get_by_client_id(client_id.clone(), scope.id())
             .await
             .map_err(|e| {
                 warn!("Client not found for client_id {}: {:?}", client_id, e);
 
                 CoreError::InvalidClient
             })?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(scope)?
             .into_inner();
 
-        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
+        let realm_settings = self.realm_repository.get_realm_settings(scope.id()).await?;
         let login_aliases = realm_settings
             .as_ref()
             .map(|s| s.login_aliases.clone())
@@ -2945,27 +2946,27 @@ where
         let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
             self.user_repository.as_ref(),
             &username,
-            realm.id,
+            scope.id(),
             &login_aliases,
         )
         .await?;
 
         let Some(user) = user else {
-            self.record_login_failure(realm.id, None, "user_not_found")
+            self.record_login_failure(scope.id(), None, "user_not_found")
                 .await;
             return Err(CoreError::UserNotFound);
         };
 
         if !user.enabled {
-            self.record_login_failure(realm.id, Some(user.id), "user_disabled")
+            self.record_login_failure(scope.id(), Some(user.id), "user_disabled")
                 .await;
             return Err(CoreError::UserDisabled);
         }
 
-        self.enforce_maintenance_mode(realm.id, &client, user.id, &user.username)
+        self.enforce_maintenance_mode(scope.id(), &client, user.id, &user.username)
             .await?;
 
-        let realm_settings = self.realm_repository.get_realm_settings(realm.id).await?;
+        let realm_settings = self.realm_repository.get_realm_settings(scope.id()).await?;
         let lockout_threshold = realm_settings
             .as_ref()
             .map(|s| s.lockout_threshold)
@@ -2977,7 +2978,7 @@ where
 
         let now = Utc::now();
         if user.is_locked(now) {
-            self.record_login_failure(realm.id, Some(user.id), "account_locked")
+            self.record_login_failure(scope.id(), Some(user.id), "account_locked")
                 .await;
             return Err(CoreError::AccountLocked);
         }
@@ -3016,12 +3017,12 @@ where
                     .await
                     .map_err(|_| CoreError::InternalServerError)?
                     .ok_or(CoreError::InternalServerError)?
-                    .in_realm(&RealmScope::from_realm(realm.clone()))?
+                    .in_realm(scope)?
                     .into_inner();
 
                 if !provider.enabled {
                     error!("Federation provider {} is disabled", provider.name);
-                    self.record_login_failure(realm.id, Some(user.id), "provider_disabled")
+                    self.record_login_failure(scope.id(), Some(user.id), "provider_disabled")
                         .await;
                     return Err(CoreError::InvalidPassword);
                 }
@@ -3118,7 +3119,7 @@ This is a server error that should be investigated. Do not forward back this mes
             } else {
                 "invalid_credentials"
             };
-            self.record_login_failure(realm.id, Some(user.id), reason)
+            self.record_login_failure(scope.id(), Some(user.id), reason)
                 .await;
             return Err(CoreError::InvalidPassword);
         }
@@ -3134,7 +3135,7 @@ This is a server error that should be investigated. Do not forward back this mes
             .await
             .map_err(|_| CoreError::SessionNotFound)?;
 
-        let iss = format!("{}/realms/{}", base_url, realm.name);
+        let iss = format!("{}/realms/{}", base_url, scope.name());
 
         // A step token must not borrow the (possibly hours-long) access-token
         // lifetime — it only has to survive the next hop of the login flow.
@@ -3145,7 +3146,7 @@ This is a server error that should be investigated. Do not forward back this mes
             user.id,
             user.username.clone(),
             iss,
-            vec![format!("{}-realm", realm.name), "account".to_string()],
+            vec![format!("{}-realm", scope.name()), "account".to_string()],
             ClaimsTyp::Temporary,
             client_id.clone(),
             user.email.clone(),
@@ -3161,7 +3162,7 @@ This is a server error that should be investigated. Do not forward back this mes
             .create(LoginActionToken {
                 jti: jwt_claim.jti,
                 user_id: user.id,
-                realm_id: realm.id.into(),
+                realm_id: scope.id().into(),
                 auth_session_id,
                 expires_at: Utc::now() + Duration::seconds(temporary_lifetime),
                 consumed_at: None,
@@ -3192,7 +3193,7 @@ This is a server error that should be investigated. Do not forward back this mes
         }
 
         if !effective_required_actions.is_empty() || has_temporary_password {
-            let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
+            let jwt_token = self.generate_token(jwt_claim, scope.id()).await?;
 
             let required_actions = if has_temporary_password {
                 vec![RequiredAction::UpdatePassword]
@@ -3210,7 +3211,7 @@ This is a server error that should be investigated. Do not forward back this mes
         }
 
         if has_otp_credentials {
-            let jwt_token = self.generate_token(jwt_claim, realm.id).await?;
+            let jwt_token = self.generate_token(jwt_claim, scope.id()).await?;
 
             return Ok(AuthenticationResult {
                 code: None,
@@ -3261,7 +3262,9 @@ This is a server error that should be investigated. Do not forward back this mes
             .get_by_id(session.get().user_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .across_realms();
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
 
         if !user.enabled {
             self.record_login_failure(realm_id, Some(user.id), "user_disabled")
@@ -3274,7 +3277,9 @@ This is a server error that should be investigated. Do not forward back this mes
             .get_by_id(realm_id, auth_session.client_id)
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
             .await?;
@@ -3342,6 +3347,7 @@ This is a server error that should be investigated. Do not forward back this mes
             session_code,
             auth_session,
             SsoSessionBinding::Resume { session, cookie },
+            &scope,
         )
         .await
     }
@@ -3405,7 +3411,9 @@ This is a server error that should be investigated. Do not forward back this mes
             .get_by_id(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .across_realms();
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidToken)?
+            .into_inner();
 
         if !user.enabled {
             self.record_login_failure(realm_id, Some(user.id), "user_disabled")
@@ -3418,7 +3426,9 @@ This is a server error that should be investigated. Do not forward back this mes
             .get_by_id(realm_id, auth_session.client_id)
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .across_realms();
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
 
         self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
             .await?;
@@ -3485,7 +3495,7 @@ This is a server error that should be investigated. Do not forward back this mes
             None => SsoSessionBinding::Open,
         };
 
-        self.finalize_authentication(claims.sub, session_code, auth_session, binding)
+        self.finalize_authentication(claims.sub, session_code, auth_session, binding, &scope)
             .await
     }
 
@@ -3665,17 +3675,13 @@ where
     LAT: LoginActionTokenRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let client = self
             .client_repository
-            .get_by_client_id(input.client_id.clone(), realm.id)
+            .get_by_client_id(input.client_id.clone(), scope.id())
             .await?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(&scope)?
             .into_inner();
 
         let protocol = client.protocol;
@@ -3722,7 +3728,7 @@ where
         let flow_id = self
             .flow_recorder
             .start_flow(
-                &realm,
+                scope.realm(),
                 Some(input.client_id.clone()),
                 "authorization_code".to_string(),
                 None,
@@ -3731,7 +3737,7 @@ where
             .await;
 
         let params = AuthSessionParams {
-            realm_id: realm.id,
+            realm_id: scope.id(),
             client_id: client.id,
             protocol,
             redirect_uri,
@@ -3774,15 +3780,11 @@ where
     }
 
     async fn get_certs(&self, realm_name: String) -> Result<Vec<JwkKey>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         let jwk_keypair = self
             .keystore_repository
-            .get_or_generate_key(realm.id)
+            .get_or_generate_key(scope.id())
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
@@ -3811,15 +3813,12 @@ where
         let grant_type = input.grant_type.clone();
         let is_code_grant = grant_type == GrantType::Code;
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name)
             .instrument(info_span!("auth.exchange_token.realm_lookup"))
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+            .await?;
 
         self.client_repository
-            .get_by_client_id(input.client_id.clone(), realm.id)
+            .get_by_client_id(input.client_id.clone(), scope.id())
             .instrument(info_span!("auth.exchange_token.client_lookup"))
             .await
             .map_err(|e| {
@@ -3829,7 +3828,7 @@ where
                 );
                 e
             })?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?;
+            .in_realm(&scope)?;
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
@@ -3840,7 +3839,7 @@ where
         } else {
             self.flow_recorder
                 .start_flow(
-                    &realm,
+                    scope.realm(),
                     Some(input.client_id.clone()),
                     grant_type.to_string(),
                     None,
@@ -3850,9 +3849,8 @@ where
         };
 
         let params = GrantTypeParams {
-            realm_id: realm.id,
+            realm: scope,
             base_url: input.base_url,
-            realm_name: realm.name,
             client_id: input.client_id,
             client_secret: input.client_secret,
             code: input.code,
@@ -4048,17 +4046,13 @@ where
             return Err(CoreError::InvalidSession);
         }
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        if auth_session.realm_id != realm.id {
+        if auth_session.realm_id != scope.id() {
             warn!(
                 auth_session_id = %auth_session.id,
                 session_realm = ?auth_session.realm_id,
-                request_realm = ?realm.id,
+                request_realm = ?scope.id(),
                 "Refusing a login: the authorization request was opened in another realm"
             );
             return Err(CoreError::InvalidSession);
@@ -4066,26 +4060,16 @@ where
 
         match input.auth_method {
             AuthenticationMethod::ExistingToken { token } => {
-                self.handle_token_refresh(
-                    token,
-                    RealmScope::from_realm(realm),
-                    auth_session,
-                    input.session_code,
-                )
-                .await
+                self.handle_token_refresh(token, scope, auth_session, input.session_code)
+                    .await
             }
             AuthenticationMethod::SsoSession { cookie } => {
-                self.handle_sso_session(
-                    cookie,
-                    RealmScope::from_realm(realm),
-                    auth_session,
-                    input.session_code,
-                )
-                .await
+                self.handle_sso_session(cookie, scope, auth_session, input.session_code)
+                    .await
             }
             AuthenticationMethod::UserCredentials { username, password } => {
                 let params = CredentialsAuthParams {
-                    realm_name: input.realm_name,
+                    realm: scope,
                     client_id: input.client_id,
                     session_code: input.session_code,
                     base_url: input.base_url,
@@ -4266,6 +4250,7 @@ where
                     session_code,
                     auth_session,
                     SsoSessionBinding::Open,
+                    &scope,
                 )
                 .await?;
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
@@ -4297,11 +4282,15 @@ where
         identity: Identity,
         input: GetUserInfoInput,
     ) -> Result<UserInfoResponse, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
         let user = self
             .user_repository
             .get_by_id(identity.id())
             .await?
-            .across_realms();
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidToken)?
+            .into_inner();
 
         let scopes = input
             .claims
@@ -4348,18 +4337,14 @@ where
             ..Default::default()
         };
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let client = self
             .client_repository
-            .get_by_client_id(input.client_id.clone(), realm.id)
+            .get_by_client_id(input.client_id.clone(), scope.id())
             .await
             .map_err(|_| CoreError::InvalidClient)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(&scope)?
             .into_inner();
 
         if !client.enabled || client.public_client {
@@ -4374,12 +4359,20 @@ where
         let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
 
         // Opaque token support: prefer DB lookup by hash. This also enables immediate revocation.
-        if let Some(stored) = self
+        let stored = self
             .access_token_repository
             .get_by_token_hash(token_hash.clone())
             .await
             .map_err(|_| CoreError::InternalServerError)?
-        {
+            .in_realm(&scope);
+
+        let Ok(stored) = stored else {
+            return Ok(inactive);
+        };
+
+        if let Some(stored) = stored {
+            let stored = stored.into_inner();
+
             if stored.revoked {
                 return Ok(inactive);
             }
@@ -4393,7 +4386,10 @@ where
             let claims: JwtClaim = serde_json::from_value(stored.claims)
                 .map_err(|_| CoreError::InternalServerError)?;
 
-            return Ok(Self::claims_to_introspection_response(claims, realm.name));
+            return Ok(Self::claims_to_introspection_response(
+                claims,
+                scope.name().to_owned(),
+            ));
         }
 
         // Backward-compatible JWT introspection: validate signature + expiry even if not persisted.
@@ -4402,7 +4398,7 @@ where
             return Ok(inactive);
         }
 
-        let mut claims = match self.verify_token(token.clone(), realm.id).await {
+        let mut claims = match self.verify_token(token.clone(), scope.id()).await {
             Ok(c) => c,
             Err(_) => return Ok(inactive),
         };
@@ -4411,26 +4407,25 @@ where
         if input.token_type_hint.as_deref() == Some("refresh_token")
             || claims.typ == ClaimsTyp::Refresh
         {
-            claims = match self.verify_refresh_token(token, realm.id).await {
+            claims = match self.verify_refresh_token(token, scope.id()).await {
                 Ok((c, _stored)) => c,
                 Err(_) => return Ok(inactive),
             };
         }
 
-        Ok(Self::claims_to_introspection_response(claims, realm.name))
+        Ok(Self::claims_to_introspection_response(
+            claims,
+            scope.name().to_owned(),
+        ))
     }
 
     async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let hinted_refresh = input.token_type_hint.as_deref() == Some("refresh_token");
         let hinted_access = input.token_type_hint.as_deref() == Some("access_token");
 
-        let claims = match self.verify_token(input.token.clone(), realm.id).await {
+        let claims = match self.verify_token(input.token.clone(), scope.id()).await {
             Ok(claims) => claims,
             // RFC 7009 behavior: revocation is idempotent and should not reveal token validity.
             Err(CoreError::InvalidToken)
@@ -4475,15 +4470,11 @@ where
     }
 
     async fn end_session(&self, input: EndSessionInput) -> Result<EndSessionOutput, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let id_token_claims = if let Some(id_token_hint) = input.id_token_hint.as_deref() {
             match self
-                .verify_id_token_hint(id_token_hint, realm.id, &input.expected_issuer)
+                .verify_id_token_hint(id_token_hint, scope.id(), &input.expected_issuer)
                 .await
             {
                 Ok(claims) => Some(claims),
@@ -4538,10 +4529,10 @@ where
                     warn!(session_id = %session_id, error = ?e, "Failed to load the session a logout names");
                     CoreError::InternalServerError
                 })?
-                .in_realm(&RealmScope::from_realm(realm.clone()))?;
+                .in_realm(&scope)?;
 
             if let Some(session) = session {
-                self.revoke_session_cascade(&session, realm.id, claims.sub)
+                self.revoke_session_cascade(&session, scope.id(), claims.sub)
                     .await?;
             }
         }
@@ -4554,9 +4545,9 @@ where
 
             let client = self
                 .client_repository
-                .get_by_client_id(resolved_client_id, realm.id)
+                .get_by_client_id(resolved_client_id, scope.id())
                 .await?
-                .in_realm(&RealmScope::from_realm(realm.clone()))?
+                .in_realm(&scope)?
                 .into_inner();
 
             let enabled_redirect_uris = self
@@ -4597,13 +4588,17 @@ where
             .get_by_id(input.realm_id.into())
             .await?
             .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope = RealmScope::from_realm(realm);
 
         let lifetimes = match input.client_id {
-            Some(client_uuid) => self.resolve_token_lifetimes(realm.id, client_uuid).await?,
+            Some(client_uuid) => {
+                self.resolve_token_lifetimes(&realm_scope, client_uuid)
+                    .await?
+            }
             None => {
                 let realm_settings = self
                     .realm_repository
-                    .get_realm_settings(realm.id)
+                    .get_realm_settings(realm_scope.id())
                     .await?
                     .ok_or(CoreError::InvalidRealm)?;
                 TokenLifetimes::from_realm(&realm_settings)
@@ -4614,7 +4609,7 @@ where
             .user_repository
             .get_by_id(input.user_id)
             .await?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(&realm_scope)?
             .into_inner();
 
         if !user.enabled {
@@ -4625,7 +4620,9 @@ where
             return Err(CoreError::Forbidden("account is disabled".to_string()));
         }
 
-        let pending_step = self.resolve_pending_auth_step(user.id, realm.id).await?;
+        let pending_step = self
+            .resolve_pending_auth_step(user.id, realm_scope.id())
+            .await?;
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
             warn!(
@@ -4637,15 +4634,15 @@ where
         }
 
         let (user_session, _) = self
-            .create_user_session(user.id, realm.id, lifetimes.refresh_token)
+            .create_user_session(user.id, realm_scope.id(), lifetimes.refresh_token)
             .await?;
 
         if let Some(client_uuid) = input.client_id {
             let client = self
                 .client_repository
-                .get_by_id(realm.id, client_uuid)
+                .get_by_id(realm_scope.id(), client_uuid)
                 .await?
-                .in_realm(&RealmScope::from_realm(realm.clone()))?
+                .in_realm(&realm_scope)?
                 .into_inner();
             let scope = self
                 .resolve_scopes_for_client(client_uuid, input.scope.clone())
@@ -4654,7 +4651,7 @@ where
             let (jwt, refresh_token, id_token) = self
                 .create_jwt(GenerateTokenInput {
                     base_url: input.base_url.clone(),
-                    realm_name: realm.name.clone(),
+                    realm: realm_scope.clone(),
                     user_id: user.id,
                     username: user.username.clone(),
                     firstname: user.firstname.clone().unwrap_or_default(),
@@ -4663,7 +4660,6 @@ where
                     client_id: client.client_id,
                     client_uuid,
                     email: user.email.clone().unwrap_or_default(),
-                    realm_id: realm.id,
                     scope: Some(scope),
                     access_token_lifetime: lifetimes.access_token,
                     refresh_token_lifetime: lifetimes.refresh_token,
@@ -4688,12 +4684,15 @@ where
         let azp = String::new();
         let scope = None;
 
-        let iss = format!("{}/realms/{}", input.base_url, realm.name);
+        let iss = format!("{}/realms/{}", input.base_url, realm_scope.name());
         let mut claims = JwtClaim::new(
             user.id,
             user.username.clone(),
             iss.clone(),
-            vec![format!("{}-realm", realm.name), "account".to_string()],
+            vec![
+                format!("{}-realm", realm_scope.name()),
+                "account".to_string(),
+            ],
             ClaimsTyp::Bearer,
             azp,
             user.email.clone(),
@@ -4702,7 +4701,9 @@ where
         );
         claims.sid = Some(user_session.id);
 
-        let jwt = self.generate_token(claims.clone(), realm.id).await?;
+        let jwt = self
+            .generate_token(claims.clone(), realm_scope.id())
+            .await?;
 
         let mut refresh_claims = JwtClaim::new_refresh_token(
             claims.sub,
@@ -4715,7 +4716,7 @@ where
         refresh_claims.sid = Some(user_session.id);
 
         let refresh_token = self
-            .generate_token(refresh_claims.clone(), realm.id)
+            .generate_token(refresh_claims.clone(), realm_scope.id())
             .await?;
 
         let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
@@ -4734,7 +4735,7 @@ where
                 access_token_hash,
                 Some(claims.jti),
                 claims.sub,
-                realm.id,
+                realm_scope.id(),
                 access_token_expires_at,
                 access_token_claims,
             ),

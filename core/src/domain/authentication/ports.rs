@@ -205,6 +205,7 @@ pub trait AuthenticatePort: Send + Sync {
         auth_result: AuthenticationResult,
         session_code: Uuid,
         auth_session: AuthSession,
+        scope: &RealmScope,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
     fn finalize_authentication(
         &self,
@@ -212,6 +213,7 @@ pub trait AuthenticatePort: Send + Sync {
         session_code: Uuid,
         auth_session: AuthSession,
         sso_session: SsoSessionBinding,
+        scope: &RealmScope,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
 
     fn build_auth_completion(
@@ -222,7 +224,7 @@ pub trait AuthenticatePort: Send + Sync {
 
     fn using_session_code(
         &self,
-        realm_name: String,
+        scope: &RealmScope,
         client_id: String,
         session_code: Uuid,
         username: String,

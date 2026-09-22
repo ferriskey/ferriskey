@@ -3,11 +3,7 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    const MANUAL_RESOLUTION: &[&str] = &[
-        "core/src/application/services.rs",
-        "core/src/domain/authentication/services.rs",
-        "core/src/domain/common/services.rs",
-    ];
+    const MANUAL_RESOLUTION: &[&str] = &["core/src/domain/common/services.rs"];
 
     const MANUAL_COMPARISON: &[&str] = &[
         "core/src/application/services.rs",
