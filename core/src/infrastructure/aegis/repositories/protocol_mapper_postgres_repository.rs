@@ -5,13 +5,14 @@ use sea_orm::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::domain::aegis::entities::ProtocolMapper;
+use crate::domain::aegis::entities::{ClientScope, ProtocolMapper};
 use crate::domain::aegis::ports::ProtocolMapperRepository;
 use crate::domain::aegis::value_objects::{
     CreateProtocolMapperRequest, UpdateProtocolMapperRequest,
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
+use crate::domain::realm::entities::Scoped;
 use crate::entity::client_scope_protocol_mappers;
 
 #[allow(dead_code)]
@@ -52,15 +53,15 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(model.into())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), fields(scope.id = %client_scope.get().id))]
     async fn get_by_id(
         &self,
-        client_scope_id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         id: Uuid,
     ) -> Result<Option<ProtocolMapper>, CoreError> {
         let model = client_scope_protocol_mappers::Entity::find()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
-            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope_id))
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope.get().id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -85,16 +86,16 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(models.into_iter().map(ProtocolMapper::from).collect())
     }
 
-    #[instrument(skip(self, payload))]
+    #[instrument(skip(self, payload), fields(scope.id = %client_scope.get().id))]
     async fn update_by_id(
         &self,
-        client_scope_id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         id: Uuid,
         payload: UpdateProtocolMapperRequest,
     ) -> Result<ProtocolMapper, CoreError> {
         let model = client_scope_protocol_mappers::Entity::find()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
-            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope_id))
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope.get().id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -126,11 +127,15 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
         Ok(model.into())
     }
 
-    #[instrument(skip(self))]
-    async fn delete_by_id(&self, client_scope_id: Uuid, id: Uuid) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(scope.id = %client_scope.get().id))]
+    async fn delete_by_id(
+        &self,
+        client_scope: &Scoped<ClientScope>,
+        id: Uuid,
+    ) -> Result<(), CoreError> {
         let result = client_scope_protocol_mappers::Entity::delete_many()
             .filter(client_scope_protocol_mappers::Column::Id.eq(id))
-            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope_id))
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.eq(client_scope.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {

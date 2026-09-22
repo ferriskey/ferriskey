@@ -7,7 +7,10 @@ use ferriskey_aegis::{
 use ferriskey_migrate::ports::{Migration, MigrationFuture};
 use serde_json::json;
 
-use crate::domain::{client::ports::ClientRepository, realm::ports::RealmRepository};
+use crate::domain::{
+    client::ports::ClientRepository,
+    realm::{entities::RealmScope, ports::RealmRepository},
+};
 
 use super::context::MigrationContext;
 
@@ -70,13 +73,15 @@ where
             for realm in realms {
                 tracing::info!(realm.id = ?realm.id, realm.name = %realm.name, "seeding organization scope");
 
+                let realm_scope = RealmScope::from_realm(realm.clone());
+
                 // 1. Ensure the scope and its mappers exist.
                 let scope = match ctx
                     .client_scope_repository
                     .find_by_name("organization".to_string(), realm.id)
                     .await?
                 {
-                    Some(existing) => existing,
+                    Some(existing) => existing.in_realm(&realm_scope)?.into_inner(),
                     None => {
                         let created = ctx
                             .client_scope_repository

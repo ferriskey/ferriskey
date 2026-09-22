@@ -2,8 +2,12 @@ use std::future::Future;
 
 use ferriskey_domain::{
     auth::Identity,
+    client::entities::Client,
     common::app_errors::CoreError,
-    realm::{Realm, RealmId},
+    realm::{
+        Realm, RealmId,
+        scope::{Scoped, Unscoped},
+    },
 };
 use uuid::Uuid;
 
@@ -29,7 +33,7 @@ pub trait ClientScopeRepository: Send + Sync {
         &self,
         realm_id: RealmId,
         id: Uuid,
-    ) -> impl Future<Output = Result<Option<ClientScope>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<ClientScope>>, CoreError>> + Send;
 
     fn find_by_realm_id(
         &self,
@@ -40,19 +44,17 @@ pub trait ClientScopeRepository: Send + Sync {
         &self,
         name: String,
         realm_id: RealmId,
-    ) -> impl Future<Output = Result<Option<ClientScope>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<ClientScope>>, CoreError>> + Send;
 
     fn update_by_id(
         &self,
-        realm_id: RealmId,
-        id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         payload: UpdateClientScopeRequest,
     ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
 
     fn delete_by_id(
         &self,
-        realm_id: RealmId,
-        id: Uuid,
+        client_scope: &Scoped<ClientScope>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
@@ -86,7 +88,7 @@ pub trait ProtocolMapperRepository: Send + Sync {
 
     fn get_by_id(
         &self,
-        client_scope_id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         id: Uuid,
     ) -> impl Future<Output = Result<Option<ProtocolMapper>, CoreError>> + Send;
 
@@ -97,14 +99,14 @@ pub trait ProtocolMapperRepository: Send + Sync {
 
     fn update_by_id(
         &self,
-        client_scope_id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         id: Uuid,
         payload: UpdateProtocolMapperRequest,
     ) -> impl Future<Output = Result<ProtocolMapper, CoreError>> + Send;
 
     fn delete_by_id(
         &self,
-        client_scope_id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
@@ -121,8 +123,8 @@ pub trait ClientScopeMappingRepository: Send + Sync {
 
     fn remove_scope_from_client(
         &self,
-        client_id: Uuid,
-        scope_id: Uuid,
+        client: &Scoped<Client>,
+        client_scope: &Scoped<ClientScope>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_client_scopes(

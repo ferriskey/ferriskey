@@ -18,6 +18,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::{RealmScope, UnscopedOption};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
@@ -82,22 +83,20 @@ where
         identity: Identity,
         input: CreateClientScopeInput,
     ) -> Result<ClientScope, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_create_scope(&identity, &realm).await,
+            self.policy
+                .can_create_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         let client_scope = self
             .client_scope_repository
             .create(CreateClientScopeRequest {
-                realm_id: realm.id,
+                realm_id: realm_scope.id(),
                 name: input.name,
                 description: input.description,
                 protocol: input.protocol,
@@ -122,23 +121,23 @@ where
         identity: Identity,
         input: GetClientScopeInput,
     ) -> Result<ClientScope, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_scope(&identity, &realm).await,
+            self.policy
+                .can_view_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         let mut client_scope = self
             .client_scope_repository
-            .get_by_id(realm.id, input.scope_id)
+            .get_by_id(realm_scope.id(), input.scope_id)
             .await?
-            .ok_or(CoreError::NotFound)?;
+            .in_realm(&realm_scope)?
+            .ok_or(CoreError::NotFound)?
+            .into_inner();
 
         let mappers = self
             .protocol_mapper_repository
@@ -162,21 +161,19 @@ where
         identity: Identity,
         input: GetClientScopesInput,
     ) -> Result<Vec<ClientScope>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_scope(&identity, &realm).await,
+            self.policy
+                .can_view_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         let mut client_scopes = self
             .client_scope_repository
-            .find_by_realm_id(realm.id)
+            .find_by_realm_id(realm_scope.id())
             .await?;
 
         for scope in &mut client_scopes {
@@ -204,21 +201,26 @@ where
         identity: Identity,
         input: UpdateClientScopeInput,
     ) -> Result<ClientScope, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_scope(&identity, &realm).await,
+            self.policy
+                .can_update_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         let client_scope = self
             .client_scope_repository
-            .update_by_id(realm.id, input.scope_id, input.payload)
+            .get_by_id(realm_scope.id(), input.scope_id)
+            .await?
+            .in_realm(&realm_scope)?
+            .ok_or(CoreError::NotFound)?;
+
+        let client_scope = self
+            .client_scope_repository
+            .update_by_id(&client_scope, input.payload)
             .await?;
 
         Ok(client_scope)
@@ -238,20 +240,25 @@ where
         identity: Identity,
         input: DeleteClientScopeInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_delete_scope(&identity, &realm).await,
+            self.policy
+                .can_delete_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
+        let client_scope = self
+            .client_scope_repository
+            .get_by_id(realm_scope.id(), input.scope_id)
+            .await?
+            .in_realm(&realm_scope)?
+            .ok_or(CoreError::NotFound)?;
+
         self.client_scope_repository
-            .delete_by_id(realm.id, input.scope_id)
+            .delete_by_id(&client_scope)
             .await?;
 
         Ok(())
@@ -265,6 +272,7 @@ mod tests {
     use ferriskey_domain::client::ports::MockClientRepository;
     use ferriskey_domain::realm::Realm;
     use ferriskey_domain::realm::ports::MockRealmRepository;
+    use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::role::entities::Role;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
 
@@ -298,6 +306,17 @@ mod tests {
         )
     }
 
+    fn scope_reader(scope: ClientScope) -> MockClientScopeRepository {
+        let mut scope_repository = MockClientScopeRepository::new();
+        scope_repository
+            .expect_get_by_id()
+            .returning(move |realm_id, id| {
+                let found = row_in_realm(&scope, realm_id, id).map(Unscoped::new);
+                Box::pin(async move { Ok(found) })
+            });
+        scope_repository
+    }
+
     /// FK-005: the scope lives in `tenant-b`, the request travels through
     /// `tenant-a` — reading it must be indistinguishable from a missing scope.
     #[tokio::test]
@@ -309,14 +328,6 @@ mod tests {
         let foreign_scope = make_scope(realm_b.id);
         let scope_id = foreign_scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&foreign_scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository
             .expect_get_by_scope_id()
@@ -325,7 +336,7 @@ mod tests {
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(foreign_scope),
             mapper_repository,
         );
 
@@ -350,14 +361,6 @@ mod tests {
         let scope = make_scope(realm_a.id);
         let scope_id = scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository
             .expect_get_by_scope_id()
@@ -366,7 +369,7 @@ mod tests {
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(scope),
             mapper_repository,
         );
 
@@ -396,13 +399,11 @@ mod tests {
         let foreign_scope = make_scope(realm_b.id);
         let scope_id = foreign_scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
+        let mut scope_repository = scope_reader(foreign_scope);
         scope_repository
             .expect_update_by_id()
-            .returning(move |realm_id, id, _| {
-                let found = row_in_realm(&foreign_scope, realm_id, id);
-                Box::pin(async move { found.ok_or(CoreError::NotFound) })
-            });
+            .times(0)
+            .returning(|_, _| Box::pin(async { Err(CoreError::NotFound) }));
 
         let service = build_service(
             vec![realm_a],
@@ -441,11 +442,12 @@ mod tests {
         let scope = make_scope(realm_a.id);
         let scope_id = scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
+        let mut scope_repository = scope_reader(scope.clone());
         scope_repository
             .expect_update_by_id()
-            .returning(move |realm_id, id, _| {
-                let found = row_in_realm(&scope, realm_id, id);
+            .returning(move |client_scope, _| {
+                let found =
+                    row_in_realm(&scope, client_scope.get().realm_id, client_scope.get().id);
                 Box::pin(async move { found.ok_or(CoreError::NotFound) })
             });
 
@@ -488,13 +490,11 @@ mod tests {
         let foreign_scope = make_scope(realm_b.id);
         let scope_id = foreign_scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
+        let mut scope_repository = scope_reader(foreign_scope);
         scope_repository
             .expect_delete_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&foreign_scope, realm_id, id);
-                Box::pin(async move { found.map(|_| ()).ok_or(CoreError::NotFound) })
-            });
+            .times(0)
+            .returning(|_| Box::pin(async { Err(CoreError::NotFound) }));
 
         let service = build_service(
             vec![realm_a],
@@ -526,11 +526,12 @@ mod tests {
         let scope = make_scope(realm_a.id);
         let scope_id = scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
+        let mut scope_repository = scope_reader(scope.clone());
         scope_repository
             .expect_delete_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
+            .returning(move |client_scope| {
+                let found =
+                    row_in_realm(&scope, client_scope.get().realm_id, client_scope.get().id);
                 Box::pin(async move { found.map(|_| ()).ok_or(CoreError::NotFound) })
             });
 

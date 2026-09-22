@@ -11,7 +11,7 @@ use crate::domain::aegis::ports::ClientScopeRepository;
 use crate::domain::aegis::value_objects::{CreateClientScopeRequest, UpdateClientScopeRequest};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
 use crate::entity::client_scopes;
 
 #[allow(dead_code)]
@@ -60,7 +60,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         &self,
         realm_id: RealmId,
         id: Uuid,
-    ) -> Result<Option<ClientScope>, CoreError> {
+    ) -> Result<Option<Unscoped<ClientScope>>, CoreError> {
         let model = client_scopes::Entity::find()
             .filter(client_scopes::Column::Id.eq(id))
             .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -71,7 +71,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(ClientScope::from))
+        Ok(model.map(ClientScope::from).map(Unscoped::new))
     }
 
     #[instrument(skip(self))]
@@ -93,7 +93,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         &self,
         name: String,
         realm_id: RealmId,
-    ) -> Result<Option<ClientScope>, CoreError> {
+    ) -> Result<Option<Unscoped<ClientScope>>, CoreError> {
         let model = client_scopes::Entity::find()
             .filter(client_scopes::Column::Name.eq(name))
             .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -104,19 +104,18 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(ClientScope::from))
+        Ok(model.map(ClientScope::from).map(Unscoped::new))
     }
 
-    #[instrument(skip(self, payload))]
+    #[instrument(skip(self, payload), fields(scope.id = %client_scope.get().id))]
     async fn update_by_id(
         &self,
-        realm_id: RealmId,
-        id: Uuid,
+        client_scope: &Scoped<ClientScope>,
         payload: UpdateClientScopeRequest,
     ) -> Result<ClientScope, CoreError> {
         let model = client_scopes::Entity::find()
-            .filter(client_scopes::Column::Id.eq(id))
-            .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
+            .filter(client_scopes::Column::Id.eq(client_scope.get().id))
+            .filter(client_scopes::Column::RealmId.eq::<Uuid>(client_scope.get().realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -157,11 +156,11 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(model.into())
     }
 
-    #[instrument(skip(self))]
-    async fn delete_by_id(&self, realm_id: RealmId, id: Uuid) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(scope.id = %client_scope.get().id))]
+    async fn delete_by_id(&self, client_scope: &Scoped<ClientScope>) -> Result<(), CoreError> {
         let result = client_scopes::Entity::delete_many()
-            .filter(client_scopes::Column::Id.eq(id))
-            .filter(client_scopes::Column::RealmId.eq::<Uuid>(realm_id.into()))
+            .filter(client_scopes::Column::Id.eq(client_scope.get().id))
+            .filter(client_scopes::Column::RealmId.eq::<Uuid>(client_scope.get().realm_id.into()))
             .exec(&self.db)
             .await
             .map_err(|e| {

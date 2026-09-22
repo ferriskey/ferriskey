@@ -1,4 +1,5 @@
 use ferriskey_aegis::entities::ScopeType;
+use sea_orm::sea_query::{Query, SelectStatement};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -7,8 +8,18 @@ use uuid::Uuid;
 
 use crate::domain::aegis::entities::{ClientScope, ClientScopeMapping};
 use crate::domain::aegis::ports::ClientScopeMappingRepository;
+use crate::domain::client::entities::Client;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::entity::{client_scope_mappings, client_scopes};
+use crate::domain::realm::entities::Scoped;
+use crate::entity::{client_scope_mappings, client_scopes, clients};
+
+fn realm_of_client(client_id: Uuid) -> SelectStatement {
+    Query::select()
+        .column(clients::Column::RealmId)
+        .from(clients::Entity)
+        .and_where(clients::Column::Id.eq(client_id))
+        .to_owned()
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -40,6 +51,17 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
             ScopeType::None
         };
 
+        client_scopes::Entity::find()
+            .filter(client_scopes::Column::Id.eq(scope_id))
+            .filter(client_scopes::Column::RealmId.in_subquery(realm_of_client(client_id)))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check the realm of the assigned scope: {}", e);
+                CoreError::InternalServerError
+            })?
+            .ok_or(CoreError::NotFound)?;
+
         let active_model = client_scope_mappings::ActiveModel {
             client_id: Set(client_id),
             client_scope_id: Set(scope_id),
@@ -54,15 +76,18 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
         Ok(model.into())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(
+        skip(self),
+        fields(client.id = %client.get().id, scope.id = %client_scope.get().id)
+    )]
     async fn remove_scope_from_client(
         &self,
-        client_id: Uuid,
-        scope_id: Uuid,
+        client: &Scoped<Client>,
+        client_scope: &Scoped<ClientScope>,
     ) -> Result<(), CoreError> {
         let result = client_scope_mappings::Entity::delete_many()
-            .filter(client_scope_mappings::Column::ClientId.eq(client_id))
-            .filter(client_scope_mappings::Column::ClientScopeId.eq(scope_id))
+            .filter(client_scope_mappings::Column::ClientId.eq(client.get().id))
+            .filter(client_scope_mappings::Column::ClientScopeId.eq(client_scope.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -114,6 +139,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
 
         let scopes = client_scopes::Entity::find()
             .filter(client_scopes::Column::Id.is_in(scope_ids))
+            .filter(client_scopes::Column::RealmId.in_subquery(realm_of_client(client_id)))
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -153,6 +179,7 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
 
         let scopes = client_scopes::Entity::find()
             .filter(client_scopes::Column::Id.is_in(scope_ids))
+            .filter(client_scopes::Column::RealmId.in_subquery(realm_of_client(client_id)))
             .all(&self.db)
             .await
             .map_err(|e| {

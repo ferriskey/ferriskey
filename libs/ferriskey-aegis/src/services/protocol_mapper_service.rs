@@ -16,6 +16,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::{RealmScope, UnscopedOption};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
@@ -72,27 +73,27 @@ where
         identity: Identity,
         input: CreateProtocolMapperInput,
     ) -> Result<ProtocolMapper, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_scope(&identity, &realm).await,
+            self.policy
+                .can_update_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        self.client_scope_repository
-            .get_by_id(realm.id, input.scope_id)
+        let client_scope = self
+            .client_scope_repository
+            .get_by_id(realm_scope.id(), input.scope_id)
             .await?
+            .in_realm(&realm_scope)?
             .ok_or(CoreError::NotFound)?;
 
         let mapper = self
             .protocol_mapper_repository
             .create(CreateProtocolMapperRequest {
-                client_scope_id: input.scope_id,
+                client_scope_id: client_scope.get().id,
                 name: input.name,
                 mapper_type: input.mapper_type,
                 config: input.config,
@@ -107,26 +108,26 @@ where
         identity: Identity,
         input: UpdateProtocolMapperInput,
     ) -> Result<ProtocolMapper, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_scope(&identity, &realm).await,
+            self.policy
+                .can_update_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        self.client_scope_repository
-            .get_by_id(realm.id, input.scope_id)
+        let client_scope = self
+            .client_scope_repository
+            .get_by_id(realm_scope.id(), input.scope_id)
             .await?
+            .in_realm(&realm_scope)?
             .ok_or(CoreError::NotFound)?;
 
         let mapper = self
             .protocol_mapper_repository
-            .update_by_id(input.scope_id, input.mapper_id, input.payload)
+            .update_by_id(&client_scope, input.mapper_id, input.payload)
             .await?;
 
         Ok(mapper)
@@ -137,25 +138,25 @@ where
         identity: Identity,
         input: DeleteProtocolMapperInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm_scope =
+            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_scope(&identity, &realm).await,
+            self.policy
+                .can_update_scope(&identity, realm_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        self.client_scope_repository
-            .get_by_id(realm.id, input.scope_id)
+        let client_scope = self
+            .client_scope_repository
+            .get_by_id(realm_scope.id(), input.scope_id)
             .await?
+            .in_realm(&realm_scope)?
             .ok_or(CoreError::NotFound)?;
 
         self.protocol_mapper_repository
-            .delete_by_id(input.scope_id, input.mapper_id)
+            .delete_by_id(&client_scope, input.mapper_id)
             .await?;
 
         Ok(())
@@ -169,10 +170,12 @@ mod tests {
     use ferriskey_domain::client::ports::MockClientRepository;
     use ferriskey_domain::realm::Realm;
     use ferriskey_domain::realm::ports::MockRealmRepository;
+    use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::role::entities::Role;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
     use uuid::Uuid;
 
+    use crate::entities::ClientScope;
     use crate::ports::{MockClientScopeRepository, MockProtocolMapperRepository};
     use crate::services::test_support::{
         make_admin_role, make_mapper, make_realm, make_scope, make_user, mock_client_repository,
@@ -203,6 +206,17 @@ mod tests {
         )
     }
 
+    fn scope_reader(scope: ClientScope) -> MockClientScopeRepository {
+        let mut scope_repository = MockClientScopeRepository::new();
+        scope_repository
+            .expect_get_by_id()
+            .returning(move |realm_id, id| {
+                let found = row_in_realm(&scope, realm_id, id).map(Unscoped::new);
+                Box::pin(async move { Ok(found) })
+            });
+        scope_repository
+    }
+
     fn mapper_config() -> serde_json::Value {
         serde_json::json!({ "claim.name": "realm_access.roles" })
     }
@@ -217,24 +231,19 @@ mod tests {
         let foreign_scope = make_scope(realm_b.id);
         let scope_id = foreign_scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&foreign_scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
-        mapper_repository.expect_create().returning(move |payload| {
-            let mapper = make_mapper(payload.client_scope_id);
-            Box::pin(async move { Ok(mapper) })
-        });
+        mapper_repository
+            .expect_create()
+            .times(0)
+            .returning(move |payload| {
+                let mapper = make_mapper(payload.client_scope_id);
+                Box::pin(async move { Ok(mapper) })
+            });
 
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(foreign_scope),
             mapper_repository,
         );
 
@@ -266,26 +275,18 @@ mod tests {
         let foreign_mapper = make_mapper(Uuid::new_v4());
         let mapper_id = foreign_mapper.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository
             .expect_update_by_id()
-            .returning(move |client_scope_id, id, _| {
-                let found = row_in_scope(&foreign_mapper, client_scope_id, id);
+            .returning(move |client_scope, id, _| {
+                let found = row_in_scope(&foreign_mapper, client_scope.get().id, id);
                 Box::pin(async move { found.ok_or(CoreError::NotFound) })
             });
 
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(scope),
             mapper_repository,
         );
 
@@ -320,26 +321,18 @@ mod tests {
         let mapper = make_mapper(scope_id);
         let mapper_id = mapper.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository
             .expect_update_by_id()
-            .returning(move |client_scope_id, id, _| {
-                let found = row_in_scope(&mapper, client_scope_id, id);
+            .returning(move |client_scope, id, _| {
+                let found = row_in_scope(&mapper, client_scope.get().id, id);
                 Box::pin(async move { found.ok_or(CoreError::NotFound) })
             });
 
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(scope),
             mapper_repository,
         );
 
@@ -375,26 +368,18 @@ mod tests {
         let foreign_mapper = make_mapper(Uuid::new_v4());
         let mapper_id = foreign_mapper.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository
             .expect_delete_by_id()
-            .returning(move |client_scope_id, id| {
-                let found = row_in_scope(&foreign_mapper, client_scope_id, id);
+            .returning(move |client_scope, id| {
+                let found = row_in_scope(&foreign_mapper, client_scope.get().id, id);
                 Box::pin(async move { found.map(|_| ()).ok_or(CoreError::NotFound) })
             });
 
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(scope),
             mapper_repository,
         );
 
@@ -423,26 +408,18 @@ mod tests {
         let mapper = make_mapper(scope_id);
         let mapper_id = mapper.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository
             .expect_delete_by_id()
-            .returning(move |client_scope_id, id| {
-                let found = row_in_scope(&mapper, client_scope_id, id);
+            .returning(move |client_scope, id| {
+                let found = row_in_scope(&mapper, client_scope.get().id, id);
                 Box::pin(async move { found.map(|_| ()).ok_or(CoreError::NotFound) })
             });
 
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(scope),
             mapper_repository,
         );
 
@@ -468,14 +445,6 @@ mod tests {
         let scope = make_scope(realm_a.id);
         let scope_id = scope.id;
 
-        let mut scope_repository = MockClientScopeRepository::new();
-        scope_repository
-            .expect_get_by_id()
-            .returning(move |realm_id, id| {
-                let found = row_in_realm(&scope, realm_id, id);
-                Box::pin(async move { Ok(found) })
-            });
-
         let mut mapper_repository = MockProtocolMapperRepository::new();
         mapper_repository.expect_create().returning(move |payload| {
             let mapper = make_mapper(payload.client_scope_id);
@@ -485,7 +454,7 @@ mod tests {
         let service = build_service(
             vec![realm_a],
             vec![role],
-            scope_repository,
+            scope_reader(scope),
             mapper_repository,
         );
 

@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
+use ferriskey_domain::realm::scope::RealmOwned;
 use ferriskey_domain::{generate_timestamp, generate_uuid_v7, realm::RealmId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -90,6 +91,12 @@ impl ClientScope {
             created_at: now,
             updated_at: now,
         }
+    }
+}
+
+impl RealmOwned for ClientScope {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 

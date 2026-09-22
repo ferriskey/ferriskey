@@ -8,7 +8,10 @@ use ferriskey_migrate::ports::{Migration, MigrationFuture};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::domain::{client::ports::ClientRepository, realm::ports::RealmRepository};
+use crate::domain::{
+    client::ports::ClientRepository,
+    realm::{entities::RealmScope, ports::RealmRepository},
+};
 
 use super::context::MigrationContext;
 
@@ -163,6 +166,8 @@ where
             for realm in realms {
                 tracing::info!(realm.id = ?realm.id, realm.name = %realm.name, "seeding default scopes");
 
+                let realm_scope = RealmScope::from_realm(realm.clone());
+
                 // 1. Ensure each scope and its mappers exist, collect their ids.
                 let mut scope_ids: Vec<(Uuid, bool)> = Vec::new();
 
@@ -177,7 +182,7 @@ where
                                 scope = name,
                                 "scope already exists, skipping creation"
                             );
-                            existing
+                            existing.in_realm(&realm_scope)?.into_inner()
                         }
                         None => {
                             let created = ctx
