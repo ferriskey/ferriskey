@@ -4,7 +4,7 @@ use crate::domain::authentication::value_objects::{
     EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput, Identity,
     IntrospectTokenInput, RevokeTokenInput, UserInfoResponse,
 };
-use crate::domain::realm::entities::RealmScope;
+use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::domain::{
     authentication::{
         entities::{
@@ -59,11 +59,11 @@ pub trait AuthSessionRepository: Send + Sync {
     fn get_by_session_code(
         &self,
         session_code: Uuid,
-    ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+    ) -> impl Future<Output = Result<Unscoped<AuthSession>, AuthenticationError>> + Send;
     fn get_by_code(
         &self,
         code: String,
-    ) -> impl Future<Output = Result<Option<AuthSession>, AuthenticationError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<AuthSession>>, AuthenticationError>> + Send;
     fn update_code_and_user_id(
         &self,
         session_code: Uuid,
@@ -100,7 +100,7 @@ pub trait AuthSessionRepository: Send + Sync {
 
     fn update_authenticated(
         &self,
-        session_code: Uuid,
+        auth_session: &Scoped<AuthSession>,
         authenticated: bool,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 

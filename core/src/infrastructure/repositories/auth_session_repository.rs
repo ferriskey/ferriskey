@@ -11,6 +11,7 @@ use crate::domain::authentication::{
     ports::AuthSessionRepository,
     value_objects::CodeChallengeMethod,
 };
+use crate::domain::realm::entities::{Scoped, Unscoped};
 
 impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
     type Error = AuthenticationError;
@@ -123,7 +124,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn get_by_session_code(
         &self,
         session_code: Uuid,
-    ) -> Result<AuthSession, AuthenticationError> {
+    ) -> Result<Unscoped<AuthSession>, AuthenticationError> {
         let session = crate::entity::auth_sessions::Entity::find()
             .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
             .one(&self.db)
@@ -135,10 +136,13 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         let session = session.ok_or(AuthenticationError::NotFound)?.try_into()?;
 
-        Ok(session)
+        Ok(Unscoped::new(session))
     }
 
-    async fn get_by_code(&self, code: String) -> Result<Option<AuthSession>, AuthenticationError> {
+    async fn get_by_code(
+        &self,
+        code: String,
+    ) -> Result<Option<Unscoped<AuthSession>>, AuthenticationError> {
         let session = crate::entity::auth_sessions::Entity::find()
             .filter(crate::entity::auth_sessions::Column::Code.eq(code))
             .one(&self.db)
@@ -150,7 +154,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         let session = session.map(AuthSession::try_from).transpose()?;
 
-        Ok(session)
+        Ok(session.map(Unscoped::new))
     }
 
     async fn update_code_and_user_id(
@@ -367,7 +371,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
     async fn update_authenticated(
         &self,
-        session_code: Uuid,
+        auth_session: &Scoped<AuthSession>,
         authenticated: bool,
     ) -> Result<(), AuthenticationError> {
         crate::entity::auth_sessions::Entity::update_many()
@@ -375,7 +379,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 crate::entity::auth_sessions::Column::Authenticated,
                 Expr::value(authenticated),
             )
-            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .filter(crate::entity::auth_sessions::Column::Id.eq(auth_session.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -429,7 +433,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::domain::authentication::entities::{AuthSession, AuthSessionParams};
-    use crate::domain::realm::entities::RealmId;
+    use crate::domain::realm::entities::{Realm, RealmId, RealmScope};
 
     async fn setup() -> (PostgresAuthSessionRepository, Uuid, Uuid) {
         let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
@@ -484,6 +488,12 @@ mod tests {
             .await
             .expect("sea-orm connect");
         (PostgresAuthSessionRepository::new(db), realm_id, client_id)
+    }
+
+    fn make_scope(realm_id: Uuid) -> RealmScope {
+        let mut realm = Realm::new(format!("test-realm-{realm_id}"));
+        realm.id = RealmId::new(realm_id);
+        RealmScope::from_realm(realm)
     }
 
     fn make_session(realm_id: Uuid, client_id: Uuid, authenticated: bool) -> AuthSession {
@@ -560,7 +570,10 @@ mod tests {
         assert!(!after_first.authenticated, "ready for first exchange");
 
         // Token exchange marks the code as used (RFC 6749 §4.1.3).
-        repo.update_authenticated(created.id, true)
+        let scoped = Unscoped::new(after_first.clone())
+            .in_realm(&make_scope(realm_id))
+            .expect("the session belongs to the realm it was created in");
+        repo.update_authenticated(&scoped, true)
             .await
             .expect("mark used");
 

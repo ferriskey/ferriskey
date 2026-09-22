@@ -660,9 +660,7 @@ where
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::SessionNotFound)?;
-
-        let auth_session = Unscoped::new(auth_session)
+            .map_err(|_| CoreError::SessionNotFound)?
             .in_realm(&scope)
             .map_err(|_| CoreError::SessionNotFound)?
             .into_inner();
@@ -845,11 +843,21 @@ where
 
         let webauthn = build_webauthn_client(input.rp_info)?;
 
+        let scope = RealmScope::from_realm(
+            self.realm_repository
+                .get_by_id(user.realm_id)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?,
+        );
+
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::InternalServerError)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
 
         // `webauthn_challenge_issued_at` was already being written on every challenge but
         // never read, so a challenge stayed valid for the whole life of the auth session.
@@ -974,9 +982,7 @@ where
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let auth_session = Unscoped::new(auth_session)
+            .map_err(|_| CoreError::InternalServerError)?
             .in_realm(&scope)
             .map_err(|_| CoreError::SessionNotFound)?
             .into_inner();
@@ -1102,7 +1108,7 @@ where
 
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let mut auth_session = Unscoped::new(auth_session)
+        let mut auth_session = auth_session
             .in_realm(&scope)
             .map_err(|_| CoreError::SessionNotFound)?
             .into_inner();
@@ -1203,11 +1209,21 @@ where
             _ => return Err(CoreError::Forbidden("is not user".to_string())),
         };
 
+        let scope = RealmScope::from_realm(
+            self.realm_repository
+                .get_by_id(user.realm_id)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?,
+        );
+
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::SessionNotFound)?;
+            .map_err(|_| CoreError::SessionNotFound)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
 
         let user_credentials = self
             .credential_repository
@@ -1747,7 +1763,8 @@ where
             .get_by_session_code(session_code)
             .await
             .inspect_err(|_| error!("Session not found for code: {}", session_code))
-            .map_err(|_| CoreError::SessionNotFound)?;
+            .map_err(|_| CoreError::SessionNotFound)?
+            .across_realms();
 
         let scope = RealmScope::from_realm(
             self.realm_repository
@@ -2203,29 +2220,29 @@ where
                 .get_by_session_code(session_code)
                 .await
             {
-                Ok(auth_session) if Uuid::from(auth_session.realm_id) == realm_id => {
-                    match self
-                        .store_auth_code_and_generate_login_url(&auth_session, user_id, &scope, &[])
-                        .await
-                    {
-                        Ok(url) => Some(url),
-                        Err(e) => {
-                            warn!(
-                                "Failed to generate login URL after password reset, falling back to console: {}",
-                                e
-                            );
-                            None
+                Ok(auth_session) => match auth_session.in_realm(&scope) {
+                    Ok(auth_session) => {
+                        match self
+                            .store_auth_code_and_generate_login_url(
+                                auth_session.get(),
+                                user_id,
+                                &scope,
+                                &[],
+                            )
+                            .await
+                        {
+                            Ok(url) => Some(url),
+                            Err(e) => {
+                                warn!(
+                                    "Failed to generate login URL after password reset, falling back to console: {}",
+                                    e
+                                );
+                                None
+                            }
                         }
                     }
-                }
-                Ok(auth_session) => {
-                    warn!(
-                        "AuthSession realm {} does not match password reset realm {}, falling back to console",
-                        Uuid::from(auth_session.realm_id),
-                        realm_id
-                    );
-                    None
-                }
+                    Err(_) => None,
+                },
                 Err(_) => {
                     // Session might have expired or been purged between request and completion.
                     // Falling back to console-login is safer than returning a 500 here.
@@ -3661,6 +3678,15 @@ mod tests {
             .expect_get_required_actions()
             .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigurePasskey]) }));
 
+        let owning_realm = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let realm = owning_realm.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+
         let stale = auth_session_with_challenge_issued_at(
             &realm,
             session_code,
@@ -3671,7 +3697,7 @@ mod tests {
             .expect_get_by_session_code()
             .returning(move |_| {
                 let session = stale.clone();
-                Box::pin(async move { Ok(session) })
+                Box::pin(async move { Ok(Unscoped::new(session)) })
             });
 
         Arc::get_mut(&mut builder.credential_repo)
@@ -3815,7 +3841,7 @@ mod tests {
             .expect_get_by_session_code()
             .returning(move |_| {
                 let s = session_clone.clone();
-                Box::pin(async move { Ok(s) })
+                Box::pin(async move { Ok(Unscoped::new(s)) })
             });
 
         Arc::get_mut(&mut builder.hasher_repo)
@@ -4085,7 +4111,7 @@ mod tests {
             .expect_get_by_session_code()
             .returning(move |_| {
                 let s = session_clone.clone();
-                Box::pin(async move { Ok(s) })
+                Box::pin(async move { Ok(Unscoped::new(s)) })
             });
 
         PasswordResetFixture {
@@ -4469,7 +4495,7 @@ mod tests {
             .expect_get_by_session_code()
             .returning(move |_| {
                 let s = session_clone.clone();
-                Box::pin(async move { Ok(s) })
+                Box::pin(async move { Ok(Unscoped::new(s)) })
             });
 
         PasskeyAssertionFixture {
@@ -4570,7 +4596,7 @@ mod tests {
             .expect_get_by_session_code()
             .returning(move |_| {
                 let s = foreign_session.clone();
-                Box::pin(async move { Ok(s) })
+                Box::pin(async move { Ok(Unscoped::new(s)) })
             });
 
         let owner_id = owner.id;
