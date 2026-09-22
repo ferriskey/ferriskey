@@ -1303,9 +1303,7 @@ mod tests {
     // ─── cross-realm isolation (FK-006) ──────────────────────────────────────────
     //
     // Every actor below holds *real* IAM permissions in their own realm. The expected denial
-    // therefore proves the realm gate fired, not that the actor was simply under-privileged:
-    // `get_permission_for_target_realm` returns an empty set as soon as the caller's realm is
-    // neither the target realm nor `master`.
+    // therefore proves the realm gate fired, not that the actor was simply under-privileged.
 
     const ATTACKER_REALM: &str = "attacker-realm";
     const VICTIM_REALM: &str = "victim-realm";
@@ -1389,7 +1387,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not create organizations here, got {result:?}"
         );
     }
@@ -1427,7 +1425,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not enumerate organizations here, got {result:?}"
         );
     }
@@ -1470,7 +1468,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an actor of another realm must not read this organization, got {result:?}"
         );
     }
@@ -1514,7 +1512,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not delete this organization, got {result:?}"
         );
     }
@@ -1590,7 +1588,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not enroll members here, got {result:?}"
         );
     }
@@ -1654,7 +1652,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not read this user's memberships, got {result:?}"
         );
     }

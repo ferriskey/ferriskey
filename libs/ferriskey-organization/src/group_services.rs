@@ -872,7 +872,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not create groups here, got {result:?}"
         );
     }
@@ -913,7 +913,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an actor of another realm must not enumerate groups here, got {result:?}"
         );
     }
@@ -976,7 +976,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(CoreError::Forbidden(_))),
+            matches!(result, Err(CoreError::NotFound)),
             "an admin of another realm must not add members to this group, got {result:?}"
         );
     }

@@ -22,6 +22,7 @@ mod tests {
     const SEEDED_CLIENT_ID: &str = "ferriskey-admin";
     const MASTER_REALM: &str = "master";
     const ALICE_PASSWORD: &str = "Al1ce-Tenant-Adm!";
+    const READER_PASSWORD: &str = "R3ader-Tenant-A!!";
 
     const TENANT_B_SMTP_HOST: &str = "smtp.tenant-b.test";
     const TENANT_A_SMTP_HOST: &str = "smtp.tenant-a.test";
@@ -505,8 +506,8 @@ mod tests {
             let foreign = get_settings(&server, alice_token(), tenant_b()).await;
             assert_eq!(
                 foreign.status_code(),
-                403,
-                "a tenant administrator must not read another tenant's realm settings: {}",
+                404,
+                "another tenant's realm settings must read as absent, not as a refusal that confirms the realm exists: {}",
                 foreign.text()
             );
 
@@ -580,8 +581,8 @@ mod tests {
             .await;
             assert_eq!(
                 attack.status_code(),
-                403,
-                "a tenant administrator must not change another tenant's realm settings: {}",
+                404,
+                "another tenant's realm settings must read as absent, not as a refusal that confirms the realm exists: {}",
                 attack.text()
             );
 
@@ -637,8 +638,8 @@ mod tests {
             let read = get_smtp_config(&server, alice_token(), tenant_b()).await;
             assert_eq!(
                 read.status_code(),
-                403,
-                "a tenant administrator must not read another tenant's SMTP credentials: {}",
+                404,
+                "another tenant's SMTP credentials must read as absent, not as a refusal that confirms the realm exists: {}",
                 read.text()
             );
 
@@ -646,16 +647,16 @@ mod tests {
                 upsert_smtp_config(&server, alice_token(), tenant_b(), ATTACKER_SMTP_HOST).await;
             assert_eq!(
                 write.status_code(),
-                403,
-                "a tenant administrator must not redirect another tenant's mail: {}",
+                404,
+                "redirecting another tenant's mail must read as absent, not as a refusal that confirms the realm exists: {}",
                 write.text()
             );
 
             let removal = delete_smtp_config(&server, alice_token(), tenant_b()).await;
             assert_eq!(
                 removal.status_code(),
-                403,
-                "a tenant administrator must not delete another tenant's SMTP configuration: {}",
+                404,
+                "deleting another tenant's SMTP configuration must read as absent, not as a refusal that confirms the realm exists: {}",
                 removal.text()
             );
 
@@ -697,8 +698,8 @@ mod tests {
             let read = get_realm(&server, alice_token(), tenant_b()).await;
             assert_eq!(
                 read.status_code(),
-                403,
-                "a tenant administrator must not read another realm: {}",
+                404,
+                "another realm must read as absent, not as a refusal that confirms it exists: {}",
                 read.text()
             );
 
@@ -706,8 +707,8 @@ mod tests {
             let write = rename_realm(&server, alice_token(), tenant_b(), &renamed).await;
             assert_eq!(
                 write.status_code(),
-                403,
-                "a tenant administrator must not rename another realm: {}",
+                404,
+                "renaming another realm must read as absent, not as a refusal that confirms it exists: {}",
                 write.text()
             );
 
@@ -745,8 +746,8 @@ mod tests {
             let attack = delete_realm(&server, alice_token(), &victim).await;
             assert_eq!(
                 attack.status_code(),
-                403,
-                "a tenant administrator must not delete another realm: {}",
+                404,
+                "deleting another realm must read as absent, not as a refusal that confirms it exists: {}",
                 attack.text()
             );
 
@@ -774,7 +775,7 @@ mod tests {
             let gone = get_realm(&server, admin_token(), &victim).await;
             assert_eq!(
                 gone.status_code(),
-                401,
+                404,
                 "a deleted realm must no longer resolve: {}",
                 gone.text()
             );
@@ -783,7 +784,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test realm_cross_realm_test -- --ignored"]
-    fn login_settings_are_public_per_realm_and_an_unknown_realm_is_refused_with_401() {
+    fn login_settings_are_public_per_realm_and_an_unknown_realm_is_refused_with_404() {
         rt().block_on(async {
             let server = make_server();
 
@@ -805,9 +806,79 @@ mod tests {
             let refused = login_settings(&server, &unknown).await;
             assert_eq!(
                 refused.status_code(),
-                401,
-                "an unknown realm is refused with 401 today; changing that to 404 is a public contract change and has its own pull request: {}",
+                404,
+                "an unknown realm must be refused with 404, so that the status code does not tell a stranger which tenants exist: {}",
                 refused.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test realm_cross_realm_test -- --ignored"]
+    fn a_missing_right_at_home_stays_forbidden_while_a_foreign_realm_reads_as_absent() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let suffix = Uuid::new_v4().simple().to_string();
+            let username = format!("reader-{}", &suffix[..8]);
+            let user_id = create_user(&server, admin_token(), tenant_a(), &username).await;
+            set_password(
+                &server,
+                admin_token(),
+                tenant_a(),
+                &user_id,
+                READER_PASSWORD,
+            )
+            .await;
+
+            let role_id = create_role(
+                &server,
+                admin_token(),
+                tenant_a(),
+                &format!("tenant-a-user-reader-{}", &suffix[..8]),
+                &["view_users"],
+            )
+            .await;
+            assign_role(&server, admin_token(), tenant_a(), &user_id, &role_id).await;
+
+            let reader_token = direct_grant(&server, tenant_a(), &username, READER_PASSWORD).await;
+
+            let witness = get_realm(&server, alice_token(), tenant_a()).await;
+            assert_eq!(
+                witness.status_code(),
+                200,
+                "the same read must succeed for a caller who holds the right, otherwise the refusals below prove nothing: {}",
+                witness.text()
+            );
+
+            let missing_right = get_realm(&server, &reader_token, tenant_a()).await;
+            assert_eq!(
+                missing_right.status_code(),
+                403,
+                "a member of the realm who merely lacks view_realm must still be told so: hiding an ordinary permission refusal behind a 404 would be a regression: {}",
+                missing_right.text()
+            );
+
+            let foreign = get_realm(&server, alice_token(), tenant_b()).await;
+            assert_eq!(
+                foreign.status_code(),
+                404,
+                "a realm the caller may not reach must read as absent: {}",
+                foreign.text()
+            );
+
+            let ghost = format!("ghost-{}", &Uuid::new_v4().simple().to_string()[..8]);
+            let unknown = get_realm(&server, alice_token(), &ghost).await;
+            assert_eq!(
+                unknown.status_code(),
+                404,
+                "an unknown realm must answer exactly as a foreign one: {}",
+                unknown.text()
+            );
+            assert_eq!(
+                unknown.text(),
+                foreign.text(),
+                "the two refusals must be byte-identical, otherwise the status code closed the enumeration oracle and the body reopened it"
             );
         });
     }

@@ -58,7 +58,9 @@ impl From<CoreError> for ApiError {
                 CoreError::InvalidSamlAttributeMapper(detail).to_string().into(),
             ),
             CoreError::InvalidClient => Self::Unauthorized("Invalid client".into()),
-            CoreError::InvalidRealm => Self::Unauthorized("Invalid realm".into()),
+            CoreError::InvalidRealm => {
+                Self::NotFound(ApiErrorBody::new("Resource not found", "not_found"))
+            }
             CoreError::RealmAlreadyExists(name) => {
                 Self::Conflict(CoreError::RealmAlreadyExists(name).to_string().into())
             }
