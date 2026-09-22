@@ -5,7 +5,7 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, Unscoped};
 use crate::domain::seawatch::{
     entities::SecurityEvent,
     hashing::{GENESIS_PREV_HASH, compute_event_hash},
@@ -158,7 +158,10 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
         Ok(events)
     }
 
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<SecurityEvent, CoreError>> + Send {
+    fn get_by_id(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Unscoped<SecurityEvent>, CoreError>> + Send {
         let db = self.db.clone();
         async move {
             let model = security_events::Entity::find_by_id(id)
@@ -170,7 +173,7 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
                 })?
                 .ok_or(CoreError::NotFound)?;
 
-            Ok(model.into())
+            Ok(Unscoped::new(model.into()))
         }
     }
 

@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::generate_uuid_v7;
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum SecurityEventType {
@@ -335,5 +336,11 @@ impl SecurityEvent {
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self
+    }
+}
+
+impl RealmOwned for SecurityEvent {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }

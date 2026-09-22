@@ -12,6 +12,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, UnscopedOption};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
@@ -62,20 +63,16 @@ where
         identity: Identity,
         input: GetThemeInput,
     ) -> Result<PortalThemeConfig, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_theme(&identity, &realm).await,
+            self.policy.can_view_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         let stored = self
             .portal_theme_repository
-            .get_by_realm(realm.id.into())
+            .get_by_realm(scope.id().into())
             .await?;
 
         Ok(stored.map(|b| b.config).unwrap_or_default())
@@ -86,32 +83,24 @@ where
         identity: Identity,
         input: UpdateThemeInput,
     ) -> Result<PortalTheme, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_theme(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         self.portal_theme_repository
-            .upsert(realm.id.into(), input.config)
+            .upsert(scope.id().into(), input.config)
             .await
     }
 
     async fn get_public_theme(&self, input: GetThemeInput) -> Result<PortalThemeConfig, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let stored = self
             .portal_theme_repository
-            .get_by_realm(realm.id.into())
+            .get_by_realm(scope.id().into())
             .await?;
 
         Ok(stored.map(|b| b.config).unwrap_or_default())
@@ -122,19 +111,15 @@ where
         identity: Identity,
         input: ListThemesInput,
     ) -> Result<Vec<PortalTheme>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_theme(&identity, &realm).await,
+            self.policy.can_view_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         self.portal_theme_repository
-            .list_by_realm(realm.id.into())
+            .list_by_realm(scope.id().into())
             .await
     }
 
@@ -143,20 +128,18 @@ where
         identity: Identity,
         input: GetThemeByIdInput,
     ) -> Result<PortalTheme, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_theme(&identity, &realm).await,
+            self.policy.can_view_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         self.portal_theme_repository
-            .get_by_id(realm.id.into(), input.theme_id)
+            .get_by_id(scope.id().into(), input.theme_id)
             .await?
+            .in_realm(&scope)?
+            .map(Scoped::into_inner)
             .ok_or(CoreError::NotFound)
     }
 
@@ -165,19 +148,15 @@ where
         identity: Identity,
         input: CreateThemeInput,
     ) -> Result<PortalTheme, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_theme(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         self.portal_theme_repository
-            .create(realm.id.into(), input.name, input.layout_id, input.config)
+            .create(scope.id().into(), input.name, input.layout_id, input.config)
             .await
     }
 
@@ -186,25 +165,22 @@ where
         identity: Identity,
         input: UpdateThemeMetadataInput,
     ) -> Result<PortalTheme, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_theme(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
+        let theme = self
+            .portal_theme_repository
+            .get_by_id(scope.id().into(), input.theme_id)
+            .await?
+            .in_realm(&scope)?
+            .ok_or(CoreError::NotFound)?;
+
         self.portal_theme_repository
-            .update_metadata(
-                realm.id.into(),
-                input.theme_id,
-                input.name,
-                input.layout_id,
-                input.config,
-            )
+            .update_metadata(&theme, input.name, input.layout_id, input.config)
             .await
     }
 
@@ -213,14 +189,10 @@ where
         identity: Identity,
         input: UpdateThemePageInput,
     ) -> Result<PortalTheme, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_theme(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -230,7 +202,7 @@ where
         // because the public portal already renders it.
         let active_theme = self
             .portal_theme_repository
-            .get_active(realm.id.into())
+            .get_active(scope.id().into())
             .await?;
         if active_theme
             .as_ref()
@@ -244,8 +216,15 @@ where
             })?;
         }
 
+        let theme = self
+            .portal_theme_repository
+            .get_by_id(scope.id().into(), input.theme_id)
+            .await?
+            .in_realm(&scope)?
+            .ok_or(CoreError::NotFound)?;
+
         self.portal_theme_repository
-            .update_page(realm.id.into(), input.theme_id, input.page_type, input.tree)
+            .update_page(&theme, input.page_type, input.tree)
             .await
     }
 
@@ -254,14 +233,10 @@ where
         identity: Identity,
         input: GetThemeByIdInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_theme(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -270,19 +245,18 @@ where
         // missing required block would break authentication.
         let theme = self
             .portal_theme_repository
-            .get_by_id(realm.id.into(), input.theme_id)
+            .get_by_id(scope.id().into(), input.theme_id)
             .await?
+            .in_realm(&scope)?
             .ok_or(CoreError::NotFound)?;
 
-        validate_pages(|pt| theme.pages.get(pt).clone()).map_err(|missing| {
+        validate_pages(|pt| theme.get().pages.get(pt).clone()).map_err(|missing| {
             CoreError::PortalThemeInvalidForActivation(
                 serde_json::to_string(&missing).unwrap_or_else(|_| "[]".to_string()),
             )
         })?;
 
-        self.portal_theme_repository
-            .activate(realm.id.into(), input.theme_id)
-            .await
+        self.portal_theme_repository.activate(&theme).await
     }
 
     async fn delete_theme(
@@ -290,43 +264,40 @@ where
         identity: Identity,
         input: GetThemeByIdInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_theme(&identity, &realm).await,
+            self.policy.can_manage_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         if let Some(active) = self
             .portal_theme_repository
-            .get_active(realm.id.into())
+            .get_active(scope.id().into())
             .await?
             && active.id == input.theme_id
         {
             return Err(CoreError::PortalThemeActive);
         }
 
-        self.portal_theme_repository
-            .delete(realm.id.into(), input.theme_id)
-            .await
+        let theme = self
+            .portal_theme_repository
+            .get_by_id(scope.id().into(), input.theme_id)
+            .await?
+            .in_realm(&scope)?
+            .ok_or(CoreError::NotFound)?;
+
+        self.portal_theme_repository.delete(&theme).await
     }
 
     async fn get_active_theme(
         &self,
         input: ListThemesInput,
     ) -> Result<Option<PortalTheme>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         self.portal_theme_repository
-            .get_active(realm.id.into())
+            .get_active(scope.id().into())
             .await
     }
 }
@@ -759,10 +730,25 @@ mod tests {
         theme_repo
             .expect_get_active()
             .returning(|_| Box::pin(async { Ok(None) }));
+        let realm_for_lookup = realm.clone();
+        theme_repo.expect_get_by_id().returning(move |_, id| {
+            let stored = PortalTheme {
+                id,
+                realm_id: realm_for_lookup.id,
+                name: "Draft".to_string(),
+                layout_id: None,
+                config: PortalThemeConfig::default(),
+                pages: PortalThemePages::default(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            Box::pin(async move { Ok(Some(Unscoped::new(stored))) })
+        });
         let realm_for_update = realm.clone();
         theme_repo
             .expect_update_page()
-            .returning(move |_, theme_id, _, tree| {
+            .returning(move |theme, _, tree| {
+                let theme_id = theme.get().id;
                 let theme = PortalTheme {
                     id: theme_id,
                     realm_id: realm_for_update.id,
@@ -885,7 +871,7 @@ mod tests {
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
             };
-            Box::pin(async move { Ok(Some(theme)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(theme))) })
         });
 
         let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);

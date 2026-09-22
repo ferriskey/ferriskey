@@ -6,6 +6,7 @@ use crate::email_template::entities::{EmailTemplate, EmailType};
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::Realm;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
 
 pub trait EmailTemplateService: Send + Sync {
     fn get_templates_by_realm(
@@ -62,7 +63,7 @@ pub trait EmailTemplateRepository: Send + Sync {
         &self,
         realm_id: Uuid,
         template_id: Uuid,
-    ) -> impl Future<Output = Result<Option<EmailTemplate>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<EmailTemplate>>, CoreError>> + Send;
 
     fn create(
         &self,
@@ -75,8 +76,7 @@ pub trait EmailTemplateRepository: Send + Sync {
 
     fn update(
         &self,
-        realm_id: Uuid,
-        template_id: Uuid,
+        template: &Scoped<EmailTemplate>,
         name: String,
         structure: serde_json::Value,
         mjml: String,
@@ -84,8 +84,7 @@ pub trait EmailTemplateRepository: Send + Sync {
 
     fn delete(
         &self,
-        realm_id: Uuid,
-        template_id: Uuid,
+        template: &Scoped<EmailTemplate>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 

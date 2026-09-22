@@ -2,6 +2,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmailVerificationToken {
     pub id: Uuid,
@@ -11,6 +14,12 @@ pub struct EmailVerificationToken {
     pub expires_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub used_at: Option<DateTime<Utc>>,
+}
+
+impl RealmOwned for EmailVerificationToken {
+    fn realm_id(&self) -> RealmId {
+        RealmId::new(self.realm_id)
+    }
 }
 
 impl EmailVerificationToken {

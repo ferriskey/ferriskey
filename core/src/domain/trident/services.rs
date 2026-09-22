@@ -43,7 +43,7 @@ use crate::{
             service::violations_to_core_error, validator,
         },
         realm::{
-            entities::{RealmId, RealmScope, Scoped, Unscoped},
+            entities::{RealmId, RealmScope, Scoped, Unscoped, UnscopedOption},
             ports::{RealmRepository, SmtpConfigRepository},
         },
         seawatch::{
@@ -455,18 +455,21 @@ where
 
     async fn render_email_template(
         &self,
-        realm_id: Uuid,
+        scope: &RealmScope,
         template_id: Uuid,
         user: &crate::domain::user::entities::User,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
         let template = self
             .email_template_repository
-            .get_by_id(realm_id, template_id)
+            .get_by_id(scope.id().into(), template_id)
             .await?
+            .in_realm(scope)?
             .ok_or(CoreError::EmailTemplateNotFound)?;
 
-        let html = self.template_renderer.render_to_html(&template.mjml)?;
+        let html = self
+            .template_renderer
+            .render_to_html(&template.get().mjml)?;
 
         let mut variables = std::collections::HashMap::new();
         variables.insert(
@@ -1581,7 +1584,7 @@ where
 
                 let html_body = self
                     .render_email_template(
-                        realm.id.into(),
+                        &RealmScope::from_realm(realm.clone()),
                         tid,
                         &user,
                         &[
@@ -1898,7 +1901,7 @@ where
 
                 let html_body = self
                     .render_email_template(
-                        realm.id.into(),
+                        &RealmScope::from_realm(realm.clone()),
                         tid,
                         &user,
                         &[

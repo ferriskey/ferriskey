@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -15,6 +16,12 @@ pub struct PortalLayout {
     pub is_default: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmOwned for PortalLayout {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
+    }
 }
 
 /// Checks that a layout tree is a well-formed builder tree before it is stored.

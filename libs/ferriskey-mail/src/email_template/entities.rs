@@ -7,6 +7,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -103,6 +105,12 @@ pub struct EmailTemplate {
     pub mjml: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmOwned for EmailTemplate {
+    fn realm_id(&self) -> RealmId {
+        RealmId::new(self.realm_id)
+    }
 }
 
 /// Interpolates template variables into HTML content.

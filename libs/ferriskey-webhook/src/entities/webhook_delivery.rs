@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::generate_uuid_v7;
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 
 use crate::entities::webhook_trigger::WebhookTrigger;
 
@@ -197,6 +198,12 @@ pub struct WebhookDelivery {
     pub last_error_detail: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmOwned for WebhookDelivery {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
+    }
 }
 
 impl WebhookDelivery {
