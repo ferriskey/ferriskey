@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -69,6 +71,12 @@ pub struct MagicLink {
     /// Used at verify time to redirect the user to the correct client, bypassing the
     /// OAuth redirect loop that would otherwise default to `security-admin-console`.
     pub auth_session_code: Option<Uuid>,
+}
+
+impl RealmOwned for MagicLink {
+    fn realm_id(&self) -> RealmId {
+        RealmId::new(self.realm_id)
+    }
 }
 
 impl MagicLink {

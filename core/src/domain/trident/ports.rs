@@ -52,6 +52,7 @@ pub struct WebAuthnValidatePublicKeyInput {
 pub struct WebAuthnValidatePublicKeyOutput {}
 
 pub struct WebAuthnPublicKeyRequestOptionsInput {
+    pub realm_name: String,
     pub session_code: String,
     pub rp_info: WebAuthnRpInfo,
 }
@@ -135,6 +136,7 @@ pub struct GenerateRecoveryCodeOutput {
 }
 
 pub struct BurnRecoveryCodeInput {
+    pub realm_name: String,
     pub session_code: String,
     pub format: String,
     pub code: String,

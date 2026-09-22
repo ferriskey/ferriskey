@@ -1,4 +1,7 @@
-use axum::{Extension, extract::State};
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
@@ -49,6 +52,7 @@ pub struct BurnRecoveryCodeResponse {
     )
 )]
 pub async fn burn_recovery_code(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
@@ -65,6 +69,7 @@ pub async fn burn_recovery_code(
         .burn_recovery_code(
             identity,
             BurnRecoveryCodeInput {
+                realm_name,
                 session_code,
                 format: payload.recovery_code_format,
                 code: payload.recovery_code,

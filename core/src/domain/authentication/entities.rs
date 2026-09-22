@@ -8,7 +8,7 @@ use webauthn_rs::prelude::{
 use crate::domain::authentication::value_objects::CodeChallengeMethod;
 use crate::domain::common::generate_timestamp;
 use crate::domain::jwt::entities::JwtClaim;
-use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmId, RealmOwned};
 
 // Plain OAuth2/OIDC domain types now live in the shared `ferriskey-domain` crate.
 // Re-exported here so existing `crate::domain::authentication::entities::*` call sites keep
@@ -52,6 +52,12 @@ pub struct AuthSession {
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
     pub user_session_id: Option<Uuid>,
+}
+
+impl RealmOwned for AuthSession {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
+    }
 }
 
 #[derive(Debug, Clone)]
