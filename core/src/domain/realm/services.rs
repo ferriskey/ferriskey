@@ -325,15 +325,13 @@ where
         identity: Identity,
         input: CreateRealmInput,
     ) -> Result<Realm, CoreError> {
-        let realm_master = self
-            .realm_repository
-            .get_by_name("master")
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let master_scope = RealmScope::resolve(self.realm_repository.as_ref(), "master").await?;
 
-        let realm_master_id = realm_master.id;
+        let realm_master_id = master_scope.id();
         ensure_policy(
-            self.policy.can_create_realm(&identity, &realm_master).await,
+            self.policy
+                .can_create_realm(&identity, master_scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
@@ -358,7 +356,7 @@ where
             .await
         {
             Ok(orphan) => {
-                let orphan = orphan.in_realm(&RealmScope::from_realm(realm_master.clone()))?;
+                let orphan = orphan.in_realm(&master_scope)?;
                 tracing::warn!(
                     client.id = %orphan.get().id,
                     client.client_id = %name,
@@ -532,17 +530,13 @@ where
                 .across_realms(),
         };
 
-        let realm_master = self
-            .realm_repository
-            .get_by_name("master")
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let master_scope = RealmScope::resolve(self.realm_repository.as_ref(), "master").await?;
 
         let client_id = format!("{}-realm", input.realm_name);
         let client = self
             .client_repository
             .create_client(CreateClientRequest {
-                realm_id: realm_master.id,
+                realm_id: master_scope.id(),
                 name: client_id.clone(),
                 client_id,
                 secret: Some(generate_random_string()),
@@ -571,7 +565,7 @@ where
                 client_id: Some(client.id),
                 name: format!("{}-realm-admin", input.realm_name),
                 permissions,
-                realm_id: realm_master.id,
+                realm_id: master_scope.id(),
                 description: Some(format!("role for manage realm {}", input.realm_name)),
             })
             .await?;
@@ -596,17 +590,10 @@ where
         identity: Identity,
         input: DeleteRealmInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
 
-        let realm_master = self
-            .realm_repository
-            .get_by_name("master")
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let master_scope = RealmScope::resolve(self.realm_repository.as_ref(), "master").await?;
 
         if !realm.can_delete() {
             return Err(CoreError::CannotDeleteMasterRealm);
@@ -631,13 +618,13 @@ where
         // operation that has nothing left to do.
         match self
             .client_repository
-            .get_by_client_id(format!("{}-realm", input.realm_name), realm_master.id)
+            .get_by_client_id(format!("{}-realm", input.realm_name), master_scope.id())
             .await
         {
             Ok(client) => {
                 // Deleting the client cascades to the `{realm}-realm` role and
                 // to every assignment of it.
-                let client = client.in_realm(&RealmScope::from_realm(realm_master.clone()))?;
+                let client = client.in_realm(&master_scope)?;
                 self.client_repository.delete_by_id(&client).await?;
             }
             Err(CoreError::NotFound) => {
@@ -678,15 +665,13 @@ where
         identity: Identity,
         input: GetRealmInput,
     ) -> Result<Realm, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name)
             .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+            .map_err(|_| CoreError::InvalidRealm)?;
+        let realm = scope.realm().clone();
 
         ensure_policy(
-            self.policy.can_view_realm(&identity, &realm).await,
+            self.policy.can_view_realm(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -706,22 +691,16 @@ where
         identity: Identity,
         input: GetRealmSettingInput,
     ) -> Result<RealmSetting, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
-        let realm_id = realm.id;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_realm(&identity, &realm).await,
+            self.policy.can_view_realm(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         let realm_setting = self
             .realm_repository
-            .get_realm_settings(realm_id)
+            .get_realm_settings(scope.id())
             .await?
             .ok_or(CoreError::NotFound)?;
 
@@ -746,10 +725,7 @@ where
         };
 
         let realm = user.realm.clone().ok_or(CoreError::InternalServerError)?;
-        self.realm_repository
-            .get_by_name(&realm.name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        RealmScope::resolve(self.realm_repository.as_ref(), &realm.name).await?;
 
         let user_roles = self.user_role_repository.get_user_roles(user.id).await?;
 
@@ -807,15 +783,11 @@ where
         identity: Identity,
         input: UpdateRealmInput,
     ) -> Result<Realm, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
         ensure_policy(
-            self.policy.can_update_realm(&identity, &realm).await,
+            self.policy.can_update_realm(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -851,21 +823,18 @@ where
         identity: Identity,
         input: UpdateRealmSettingInput,
     ) -> Result<Realm, CoreError> {
-        let mut realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let mut realm = scope.realm().clone();
 
         ensure_policy(
-            self.policy.can_update_realm(&identity, &realm).await,
+            self.policy.can_update_realm(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         let realm_setting = self
             .realm_repository
             .update_realm_setting(
-                realm.id,
+                scope.id(),
                 input.algorithm,
                 input.user_registration_enabled,
                 input.forgot_password_enabled,
@@ -921,22 +890,19 @@ where
         )
     )]
     async fn get_login_settings(&self, realm_name: String) -> Result<RealmLoginSetting, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let mut settings: RealmLoginSetting = self
             .realm_repository
-            .get_realm_settings(realm.id)
+            .get_realm_settings(scope.id())
             .await?
             .ok_or(CoreError::NotFound)?
             .into();
 
         let idp: Vec<IdentityProviderPresentation> = self
             .identity_provider_repository
-            .list_identity_providers_by_realm(realm.id, Some(true))
+            .list_identity_providers_by_realm(scope.id(), Some(true))
             .await?
             .into_iter()
             .map(|i| IdentityProviderPresentation::new(i, &realm.name))
@@ -1006,19 +972,15 @@ where
         identity: Identity,
         input: GetSmtpConfigInput,
     ) -> Result<SmtpConfig, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_realm(&identity, &realm).await,
+            self.policy.can_view_realm(&identity, scope.realm()).await,
             "view realm settings",
         )?;
 
         self.smtp_config_repository
-            .get_by_realm_id(realm.id)
+            .get_by_realm_id(scope.id())
             .await?
             .ok_or(CoreError::NotFound)
     }
@@ -1036,20 +998,16 @@ where
         identity: Identity,
         input: UpsertSmtpConfigInput,
     ) -> Result<SmtpConfig, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_realm(&identity, &realm).await,
+            self.policy.can_update_realm(&identity, scope.realm()).await,
             "update realm SMTP config",
         )?;
 
         let config = SmtpConfig {
             id: uuid::Uuid::nil(),
-            realm_id: realm.id.into(),
+            realm_id: scope.id().into(),
             host: input.host,
             port: input.port,
             username: input.username,
@@ -1080,19 +1038,15 @@ where
         identity: Identity,
         input: DeleteSmtpConfigInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_realm(&identity, &realm).await,
+            self.policy.can_update_realm(&identity, scope.realm()).await,
             "delete realm SMTP config",
         )?;
 
         self.smtp_config_repository
-            .delete_by_realm_id(realm.id)
+            .delete_by_realm_id(scope.id())
             .await
     }
 }
