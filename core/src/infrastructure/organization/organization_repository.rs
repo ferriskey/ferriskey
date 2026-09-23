@@ -5,6 +5,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
 use ferriskey_organization::{
     CreateOrganizationParams, Organization, OrganizationId, OrganizationRepository,
     UpdateOrganizationParams,
@@ -77,7 +78,7 @@ impl OrganizationRepository for PostgresOrganizationRepository {
     async fn get_organization_by_id(
         &self,
         id: OrganizationId,
-    ) -> Result<Option<Organization>, CoreError> {
+    ) -> Result<Option<Unscoped<Organization>>, CoreError> {
         let model = OrganizationEntity::find_by_id(id.as_uuid())
             .one(&self.db)
             .await
@@ -86,7 +87,7 @@ impl OrganizationRepository for PostgresOrganizationRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(model_to_domain))
+        Ok(model.map(model_to_domain).map(Unscoped::new))
     }
 
     async fn get_organization_by_realm_and_alias(
@@ -125,9 +126,10 @@ impl OrganizationRepository for PostgresOrganizationRepository {
 
     async fn update_organization(
         &self,
-        id: OrganizationId,
+        organization: &Scoped<Organization>,
         params: UpdateOrganizationParams,
     ) -> Result<Organization, CoreError> {
+        let id = organization.get().id;
         let now = Utc::now().fixed_offset();
 
         let mut active_model = OrganizationActiveModel {
@@ -167,8 +169,11 @@ impl OrganizationRepository for PostgresOrganizationRepository {
         Ok(model_to_domain(model))
     }
 
-    async fn delete_organization(&self, id: OrganizationId) -> Result<(), CoreError> {
-        OrganizationEntity::delete_by_id(id.as_uuid())
+    async fn delete_organization(
+        &self,
+        organization: &Scoped<Organization>,
+    ) -> Result<(), CoreError> {
+        OrganizationEntity::delete_by_id(organization.get().id.as_uuid())
             .exec(&self.db)
             .await
             .map_err(|e| {

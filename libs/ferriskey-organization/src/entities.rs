@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
+use ferriskey_domain::realm::scope::RealmOwned;
 use ferriskey_domain::{generate_timestamp, realm::RealmId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -135,6 +136,12 @@ impl Organization {
             created_at: now,
             updated_at: now,
         })
+    }
+}
+
+impl RealmOwned for Organization {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 

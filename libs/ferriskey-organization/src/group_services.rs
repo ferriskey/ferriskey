@@ -5,11 +5,13 @@ use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
-use ferriskey_domain::realm::Realm;
 use ferriskey_domain::realm::ports::RealmRepository;
-use ferriskey_domain::realm::scope::RealmScope;
+use ferriskey_domain::realm::scope::{RealmScope, Scoped};
 use ferriskey_domain::role::entities::Role;
+use ferriskey_domain::role::ports::RoleRepository;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
+use tracing::warn;
+use uuid::Uuid;
 
 use crate::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, CreateGroupParams,
@@ -23,12 +25,13 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub struct GroupServiceImpl<R, U, C, UR, OR, GR, GMR, GRR, GAR>
+pub struct GroupServiceImpl<R, U, C, UR, RO, OR, GR, GMR, GRR, GAR>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
+    RO: RoleRepository,
     OR: OrganizationRepository,
     GR: GroupRepository,
     GMR: GroupMemberRepository,
@@ -38,6 +41,7 @@ where
     pub(crate) realm_repository: Arc<R>,
     pub(crate) user_repository: Arc<U>,
     pub(crate) user_role_repository: Arc<UR>,
+    pub(crate) role_repository: Arc<RO>,
     pub(crate) organization_repository: Arc<OR>,
     pub(crate) group_repository: Arc<GR>,
     pub(crate) group_member_repository: Arc<GMR>,
@@ -46,12 +50,14 @@ where
     pub(crate) policy: Arc<FerriskeyPolicy<U, C, UR>>,
 }
 
-impl<R, U, C, UR, OR, GR, GMR, GRR, GAR> GroupServiceImpl<R, U, C, UR, OR, GR, GMR, GRR, GAR>
+impl<R, U, C, UR, RO, OR, GR, GMR, GRR, GAR>
+    GroupServiceImpl<R, U, C, UR, RO, OR, GR, GMR, GRR, GAR>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
+    RO: RoleRepository,
     OR: OrganizationRepository,
     GR: GroupRepository,
     GMR: GroupMemberRepository,
@@ -63,6 +69,7 @@ where
         realm_repository: Arc<R>,
         user_repository: Arc<U>,
         user_role_repository: Arc<UR>,
+        role_repository: Arc<RO>,
         organization_repository: Arc<OR>,
         group_repository: Arc<GR>,
         group_member_repository: Arc<GMR>,
@@ -74,6 +81,7 @@ where
             realm_repository,
             user_repository,
             user_role_repository,
+            role_repository,
             organization_repository,
             group_repository,
             group_member_repository,
@@ -83,36 +91,27 @@ where
         }
     }
 
-    async fn get_org(
+    async fn load_organization_in_realm(
         &self,
-        realm_name: String,
+        realm_name: &str,
         organization_id: OrganizationId,
-    ) -> Result<(Realm, Organization), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+    ) -> Result<(RealmScope, Scoped<Organization>), CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
 
-        let org = self
+        let organization = self
             .organization_repository
             .get_organization_by_id(organization_id)
             .await?
-            .ok_or(CoreError::NotFound)?;
+            .ok_or(CoreError::NotFound)?
+            .in_realm(&scope)?;
 
-        if org.realm_id != realm.id {
-            return Err(CoreError::NotFound);
-        }
-
-        Ok((realm, org))
+        Ok((scope, organization))
     }
 
-    /// Load a group and assert it belongs to `organization_id`.
-    async fn get_group_in_org(
+    async fn load_group_of_organization(
         &self,
-        organization_id: OrganizationId,
         group_id: GroupId,
+        organization: &Scoped<Organization>,
     ) -> Result<Group, CoreError> {
         let group = self
             .group_repository
@@ -120,11 +119,43 @@ where
             .await?
             .ok_or(CoreError::NotFound)?;
 
-        if group.organization_id != organization_id {
+        if group.organization_id != organization.get().id {
+            warn!(
+                group_id = %group_id,
+                group_organization_id = %group.organization_id,
+                request_organization_id = %organization.get().id,
+                "Refused access to a group of another organization"
+            );
             return Err(CoreError::NotFound);
         }
 
         Ok(group)
+    }
+
+    async fn load_member_of_group(
+        &self,
+        group: &Group,
+        user_id: Uuid,
+    ) -> Result<GroupMember, CoreError> {
+        self.group_member_repository
+            .get_member(group.id, user_id)
+            .await?
+            .ok_or(CoreError::NotFound)
+    }
+
+    async fn load_role_in_realm(
+        &self,
+        role_id: Uuid,
+        scope: &RealmScope,
+    ) -> Result<Scoped<Role>, CoreError> {
+        self.role_repository
+            .get_by_id(role_id)
+            .await?
+            .ok_or_else(|| {
+                warn!(role_id = %role_id, "Role not found");
+                CoreError::NotFound
+            })?
+            .in_realm(scope)
     }
 
     /// Reject a parent assignment that would create a cycle (parent is the group itself
@@ -193,13 +224,14 @@ fn build_nodes(
         .unwrap_or_default()
 }
 
-impl<R, U, C, UR, OR, GR, GMR, GRR, GAR> GroupService
-    for GroupServiceImpl<R, U, C, UR, OR, GR, GMR, GRR, GAR>
+impl<R, U, C, UR, RO, OR, GR, GMR, GRR, GAR> GroupService
+    for GroupServiceImpl<R, U, C, UR, RO, OR, GR, GMR, GRR, GAR>
 where
     R: RealmRepository,
     U: UserRepository,
     C: ClientRepository,
     UR: UserRoleRepository,
+    RO: RoleRepository,
     OR: OrganizationRepository,
     GR: GroupRepository,
     GMR: GroupMemberRepository,
@@ -211,21 +243,23 @@ where
         identity: Identity,
         input: CreateGroupInput,
     ) -> Result<Group, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage groups",
         )?;
 
         // A provided parent must belong to the same organization.
         if let Some(parent_id) = input.parent_group_id {
-            self.get_group_in_org(org.id, parent_id).await?;
+            self.load_group_of_organization(parent_id, &org).await?;
         }
 
         let group = Group::new(GroupConfig {
-            organization_id: org.id,
+            organization_id: org.get().id,
             parent_group_id: input.parent_group_id,
             name: input.name,
             description: input.description,
@@ -247,15 +281,17 @@ where
         identity: Identity,
         input: GetGroupInput,
     ) -> Result<Group, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to view groups",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await
+        self.load_group_of_organization(input.group_id, &org).await
     }
 
     async fn list_groups(
@@ -263,17 +299,19 @@ where
         identity: Identity,
         input: ListGroupsInput,
     ) -> Result<Vec<GroupNode>, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to view groups",
         )?;
 
         let flat = self
             .group_repository
-            .list_groups_by_organization(org.id)
+            .list_groups_by_organization(org.get().id)
             .await?;
 
         Ok(Self::build_tree(flat))
@@ -284,24 +322,29 @@ where
         identity: Identity,
         input: UpdateGroupInput,
     ) -> Result<Group, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage groups",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
 
         if let Some(Some(parent_id)) = input.parent_group_id {
-            self.validate_parent(org.id, input.group_id, parent_id)
+            self.validate_parent(org.get().id, group.id, parent_id)
                 .await?;
         }
 
         self.group_repository
             .update_group(
-                input.group_id,
+                org.get().id,
+                group.id,
                 UpdateGroupParams {
                     name: input.name,
                     description: input.description,
@@ -316,16 +359,22 @@ where
         identity: Identity,
         input: DeleteGroupInput,
     ) -> Result<(), CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage groups",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
-        self.group_repository.delete_group(input.group_id).await
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
+        self.group_repository
+            .delete_group(org.get().id, group.id)
+            .await
     }
 
     async fn add_member(
@@ -333,28 +382,32 @@ where
         identity: Identity,
         input: AddGroupMemberInput,
     ) -> Result<GroupMember, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage group members",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
 
         let user = self
             .user_repository
             .get_by_id(input.user_id)
             .await?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .in_realm(&scope)
             .map_err(|_| CoreError::Invalid)?;
-        validate_membership_realms(org.realm_id, user.get().realm_id)
+        validate_membership_realms(org.get().realm_id, user.get().realm_id)
             .map_err(|_| CoreError::Invalid)?;
 
         if self
             .group_member_repository
-            .get_member(input.group_id, input.user_id)
+            .get_member(group.id, input.user_id)
             .await?
             .is_some()
         {
@@ -362,7 +415,7 @@ where
         }
 
         self.group_member_repository
-            .add_member(input.group_id, input.user_id)
+            .add_member(group.id, input.user_id)
             .await
     }
 
@@ -371,17 +424,22 @@ where
         identity: Identity,
         input: RemoveGroupMemberInput,
     ) -> Result<(), CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage group members",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
+        let member = self.load_member_of_group(&group, input.user_id).await?;
         self.group_member_repository
-            .remove_member(input.group_id, input.user_id)
+            .remove_member(group.id, member.user_id)
             .await
     }
 
@@ -390,15 +448,19 @@ where
         identity: Identity,
         input: ListGroupMembersInput,
     ) -> Result<GroupMemberPage, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to view group members",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
 
         // Clamp pagination to sane bounds (default page of 50, hard max of 200).
         let limit = input.limit.unwrap_or(50).clamp(1, 200);
@@ -406,11 +468,11 @@ where
 
         let data = self
             .group_member_repository
-            .list_members(input.group_id, limit, offset, input.search.clone())
+            .list_members(group.id, limit, offset, input.search.clone())
             .await?;
         let total = self
             .group_member_repository
-            .count_members(input.group_id, input.search)
+            .count_members(group.id, input.search)
             .await?;
 
         Ok(GroupMemberPage {
@@ -426,17 +488,22 @@ where
         identity: Identity,
         input: AssignGroupRoleInput,
     ) -> Result<(), CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage group roles",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
+        let role = self.load_role_in_realm(input.role_id, &scope).await?;
         self.group_role_repository
-            .assign_role(input.group_id, input.role_id)
+            .assign_role(group.id, &role)
             .await?;
 
         Ok(())
@@ -447,17 +514,22 @@ where
         identity: Identity,
         input: RevokeGroupRoleInput,
     ) -> Result<(), CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage group roles",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
+        let role = self.load_role_in_realm(input.role_id, &scope).await?;
         self.group_role_repository
-            .revoke_role(input.group_id, input.role_id)
+            .revoke_role(group.id, &role)
             .await
     }
 
@@ -466,19 +538,20 @@ where
         identity: Identity,
         input: ListGroupRolesInput,
     ) -> Result<Vec<Role>, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to view group roles",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
-        let role_ids = self
-            .group_role_repository
-            .list_role_ids(input.group_id)
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
             .await?;
+        let role_ids = self.group_role_repository.list_role_ids(group.id).await?;
 
         self.user_role_repository.get_roles_by_ids(role_ids).await
     }
@@ -488,17 +561,21 @@ where
         identity: Identity,
         input: ListGroupAttributesInput,
     ) -> Result<Vec<GroupAttribute>, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_view_organization(&identity, &realm).await,
+            self.policy
+                .can_view_organization(&identity, scope.realm())
+                .await,
             "insufficient permissions to view group attributes",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
         self.group_attribute_repository
-            .list_attributes(input.group_id)
+            .list_attributes(group.id)
             .await
     }
 
@@ -507,22 +584,26 @@ where
         identity: Identity,
         input: UpsertGroupAttributeInput,
     ) -> Result<GroupAttribute, CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage group attributes",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
 
         // Validate key/value using the domain constructor before persisting.
-        let attribute = GroupAttribute::new(input.group_id, input.key, input.value)
+        let attribute = GroupAttribute::new(group.id, input.key, input.value)
             .map_err(|_| CoreError::Invalid)?;
 
         self.group_attribute_repository
-            .upsert_attribute(input.group_id, attribute.key, attribute.value)
+            .upsert_attribute(group.id, attribute.key, attribute.value)
             .await
     }
 
@@ -531,17 +612,21 @@ where
         identity: Identity,
         input: DeleteGroupAttributeInput,
     ) -> Result<(), CoreError> {
-        let (realm, org) = self
-            .get_org(input.realm_name, input.organization_id)
+        let (scope, org) = self
+            .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
         ensure_policy(
-            self.policy.can_manage_members(&identity, &realm).await,
+            self.policy
+                .can_manage_members(&identity, scope.realm())
+                .await,
             "insufficient permissions to manage group attributes",
         )?;
 
-        self.get_group_in_org(org.id, input.group_id).await?;
+        let group = self
+            .load_group_of_organization(input.group_id, &org)
+            .await?;
         self.group_attribute_repository
-            .delete_attribute(input.group_id, &input.key)
+            .delete_attribute(group.id, &input.key)
             .await
     }
 }
@@ -554,8 +639,10 @@ mod tests {
     use uuid::Uuid;
 
     use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::realm::Realm;
     use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{RealmId, ports::MockRealmRepository};
+    use ferriskey_domain::role::ports::MockRoleRepository;
     use ferriskey_domain::user::entities::User;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
 
@@ -649,6 +736,7 @@ mod tests {
         MockUserRepository,
         MockClientRepository,
         MockUserRoleRepository,
+        MockRoleRepository,
         MockOrganizationRepository,
         MockGroupRepository,
         MockGroupMemberRepository,
@@ -664,6 +752,29 @@ mod tests {
         group_repo: MockGroupRepository,
         group_member_repo: MockGroupMemberRepository,
     ) -> TestService {
+        build_service_with_roles(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            MockRoleRepository::new(),
+            org_repo,
+            group_repo,
+            group_member_repo,
+            MockGroupRoleRepository::new(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_service_with_roles(
+        realm_repo: MockRealmRepository,
+        user_repo: MockUserRepository,
+        user_role_repo: MockUserRoleRepository,
+        role_repo: MockRoleRepository,
+        org_repo: MockOrganizationRepository,
+        group_repo: MockGroupRepository,
+        group_member_repo: MockGroupMemberRepository,
+        group_role_repo: MockGroupRoleRepository,
+    ) -> TestService {
         let user_arc = Arc::new(user_repo);
         let user_role_arc = Arc::new(user_role_repo);
         let policy = Arc::new(FerriskeyPolicy::new(
@@ -676,10 +787,11 @@ mod tests {
             Arc::new(realm_repo),
             user_arc,
             user_role_arc,
+            Arc::new(role_repo),
             Arc::new(org_repo),
             Arc::new(group_repo),
             Arc::new(group_member_repo),
-            Arc::new(MockGroupRoleRepository::new()),
+            Arc::new(group_role_repo),
             Arc::new(MockGroupAttributeRepository::new()),
             policy,
         )
@@ -717,7 +829,7 @@ mod tests {
             .expect_get_organization_by_id()
             .returning(move |_| {
                 let o = org.clone();
-                Box::pin(async move { Ok(Some(o)) })
+                Box::pin(async move { Ok(Some(Unscoped::new(o))) })
             });
         org_repo
     }
@@ -922,6 +1034,74 @@ mod tests {
         assert!(
             result.is_ok(),
             "the organization's own realm admin must be allowed, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn assign_role_refuses_a_role_from_another_realm() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let identity = Identity::User(make_user(&realm));
+        let org = make_org(realm_id);
+        let org_id = org.id;
+        let group = make_group(org_id);
+        let group_id = group.id;
+        let foreign_role = make_role_with_permission(RealmId::new(Uuid::new_v4()), "manage_realm");
+        let foreign_role_id = foreign_role.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let role = make_role_with_permission(realm_id, "manage_users");
+            Box::pin(async move { Ok(vec![role]) })
+        });
+
+        let mut group_repo = MockGroupRepository::new();
+        group_repo.expect_get_group_by_id().returning(move |_| {
+            let g = group.clone();
+            Box::pin(async move { Ok(Some(g)) })
+        });
+
+        let mut role_repo = MockRoleRepository::new();
+        role_repo.expect_get_by_id().returning(move |_| {
+            let r = foreign_role.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(r))) })
+        });
+
+        let mut group_role_repo = MockGroupRoleRepository::new();
+        group_role_repo.expect_assign_role().times(0);
+
+        let service = build_service_with_roles(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            role_repo,
+            org_repo_returning(org),
+            group_repo,
+            MockGroupMemberRepository::new(),
+            group_role_repo,
+        );
+
+        let result = service
+            .assign_role(
+                identity,
+                AssignGroupRoleInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    group_id,
+                    role_id: foreign_role_id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::NotFound)),
+            "a role of another realm must not be attachable to this group, got {result:?}"
         );
     }
 }

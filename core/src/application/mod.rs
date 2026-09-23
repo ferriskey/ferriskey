@@ -564,6 +564,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             realm.clone(),
             user.clone(),
             user_role.clone(),
+            role.clone(),
             organization.clone(),
             group.clone(),
             group_member.clone(),
@@ -574,6 +575,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         organization_member_role_service: OrganizationMemberRoleServiceImpl::new(
             realm.clone(),
             user_role.clone(),
+            role.clone(),
             organization.clone(),
             organization_member.clone(),
             organization_member_role.clone(),

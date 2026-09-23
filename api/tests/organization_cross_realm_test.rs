@@ -36,6 +36,7 @@ mod tests {
 
     use axum::{Router, http::HeaderValue};
     use axum_test::{TestResponse, TestServer};
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -69,10 +70,19 @@ mod tests {
 
     /// Must satisfy the default password policy: >= 12 characters, 4 character classes.
     const ALICE_PASSWORD: &str = "Alice-P4ssw0rd!";
+    const BOB_PASSWORD: &str = "Bob-P4ssw0rd!";
 
     const VICTIM_ORG_NAME: &str = "Victim Corp";
     const VICTIM_ORG_ALIAS: &str = "victim-corp";
     const VICTIM_GROUP_NAME: &str = "Victim Payroll Group";
+    const TOKEN_GROUP_NAME: &str = "Victim Token Group";
+
+    const TENANT_A_ORG_NAME: &str = "Tenant A Corp";
+    const TENANT_A_ORG_ALIAS: &str = "tenant-a-corp";
+    const TENANT_A_GROUP_NAME: &str = "Tenant A Payroll Group";
+
+    const FOREIGN_ROLE_NAME: &str = "tenant-a-foreign-role";
+    const VICTIM_ROLE_NAME: &str = "tenant-b-own-role";
 
     fn env_or(key: &str, default: &str) -> String {
         env::var(key).unwrap_or_else(|_| default.to_string())
@@ -97,8 +107,14 @@ mod tests {
         victim_org_id: String,
         /// Group seeded inside that organization.
         victim_group_id: String,
+        token_group_id: String,
         /// A `tenant-b` user, member of the victim organization.
         victim_user_id: String,
+        tenant_a_org_id: String,
+        tenant_a_group_id: String,
+        tenant_a_member_user_id: String,
+        foreign_role_id: String,
+        victim_role_id: String,
     }
 
     // `router()` installs a *global* Prometheus recorder, so it can only be built
@@ -244,22 +260,77 @@ mod tests {
             VICTIM_GROUP_NAME,
         )
         .await;
+        let token_group_id = create_group(
+            &server,
+            &admin_token,
+            TENANT_B,
+            &victim_org_id,
+            TOKEN_GROUP_NAME,
+        )
+        .await;
 
         let victim_user_id = create_user(&server, &admin_token, TENANT_B, "bob").await;
-        let add_member = server
-            .post(&format!(
-                "/realms/{}/organizations/{}/members",
-                TENANT_B, victim_org_id
-            ))
-            .add_header("Authorization", auth_header(&admin_token))
-            .json(&json!({ "user_id": victim_user_id }))
-            .await;
-        assert!(
-            add_member.status_code().is_success(),
-            "seeding the victim membership failed: {} {}",
-            add_member.status_code(),
-            add_member.text()
-        );
+        add_organization_member(
+            &server,
+            &admin_token,
+            TENANT_B,
+            &victim_org_id,
+            &victim_user_id,
+        )
+        .await;
+        set_password(
+            &server,
+            &admin_token,
+            TENANT_B,
+            &victim_user_id,
+            BOB_PASSWORD,
+        )
+        .await;
+
+        let tenant_a_org_id = create_organization(
+            &server,
+            &admin_token,
+            TENANT_A,
+            TENANT_A_ORG_NAME,
+            TENANT_A_ORG_ALIAS,
+        )
+        .await;
+        let tenant_a_group_id = create_group(
+            &server,
+            &admin_token,
+            TENANT_A,
+            &tenant_a_org_id,
+            TENANT_A_GROUP_NAME,
+        )
+        .await;
+        let tenant_a_member_user_id = create_user(&server, &admin_token, TENANT_A, "carol").await;
+        add_organization_member(
+            &server,
+            &admin_token,
+            TENANT_A,
+            &tenant_a_org_id,
+            &tenant_a_member_user_id,
+        )
+        .await;
+
+        let foreign_role_id = create_role(
+            &server,
+            &admin_token,
+            TENANT_A,
+            FOREIGN_ROLE_NAME,
+            &["manage_realm"],
+        )
+        .await;
+        let victim_role_id = create_role(
+            &server,
+            &admin_token,
+            TENANT_B,
+            VICTIM_ROLE_NAME,
+            &["view_users"],
+        )
+        .await;
+
+        enable_role_claims(&server, &admin_token, TENANT_B).await;
 
         SharedContext {
             app: std::sync::Mutex::new(app),
@@ -268,7 +339,13 @@ mod tests {
             alice_user_id: alice_id,
             victim_org_id,
             victim_group_id,
+            token_group_id,
             victim_user_id,
+            tenant_a_org_id,
+            tenant_a_group_id,
+            tenant_a_member_user_id,
+            foreign_role_id,
+            victim_role_id,
         }
     }
 
@@ -515,6 +592,122 @@ mod tests {
             .to_string()
     }
 
+    async fn add_organization_member(
+        server: &TestServer,
+        token: &str,
+        realm: &str,
+        organization_id: &str,
+        user_id: &str,
+    ) {
+        let response = server
+            .post(&format!(
+                "/realms/{}/organizations/{}/members",
+                realm, organization_id
+            ))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({ "user_id": user_id }))
+            .await;
+
+        assert!(
+            response.status_code().is_success(),
+            "seeding the membership of {user_id} in {organization_id}@{realm} failed: {} {}",
+            response.status_code(),
+            response.text()
+        );
+    }
+
+    async fn enable_role_claims(server: &TestServer, admin_token: &str, realm: &str) {
+        let clients = server
+            .get(&format!("/realms/{}/clients", realm))
+            .add_header("Authorization", auth_header(admin_token))
+            .await;
+        assert_eq!(
+            clients.status_code(),
+            200,
+            "listing the clients of {realm} failed: {}",
+            clients.text()
+        );
+        let clients_body: Value = clients.json();
+        let client_uuid = clients_body["data"]
+            .as_array()
+            .and_then(|list| {
+                list.iter()
+                    .find(|client| client["client_id"] == json!("admin-cli"))
+            })
+            .and_then(|client| client["id"].as_str())
+            .unwrap_or_else(|| panic!("no admin-cli client in {realm}: {clients_body}"))
+            .to_string();
+
+        let scopes = server
+            .get(&format!("/realms/{}/client-scopes", realm))
+            .add_header("Authorization", auth_header(admin_token))
+            .await;
+        assert_eq!(
+            scopes.status_code(),
+            200,
+            "listing the client scopes of {realm} failed: {}",
+            scopes.text()
+        );
+        let scopes_body: Value = scopes.json();
+        let scope_id = scopes_body["data"]
+            .as_array()
+            .and_then(|list| list.iter().find(|scope| scope["name"] == json!("roles")))
+            .and_then(|scope| scope["id"].as_str())
+            .unwrap_or_else(|| panic!("no roles client scope in {realm}: {scopes_body}"))
+            .to_string();
+
+        let assigned = server
+            .put(&format!(
+                "/realms/{}/clients/{}/default-client-scopes/{}",
+                realm, client_uuid, scope_id
+            ))
+            .add_header("Authorization", auth_header(admin_token))
+            .json(&json!({}))
+            .await;
+        assert!(
+            assigned.status_code().is_success(),
+            "attaching the roles scope to admin-cli of {realm} failed: {} {}",
+            assigned.status_code(),
+            assigned.text()
+        );
+    }
+
+    async fn assign_group_role(
+        server: &TestServer,
+        token: &str,
+        realm: &str,
+        organization_id: &str,
+        group_id: &str,
+        role_id: &str,
+    ) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/organizations/{}/groups/{}/roles",
+                realm, organization_id, group_id
+            ))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({ "role_id": role_id }))
+            .await
+    }
+
+    async fn assign_member_role(
+        server: &TestServer,
+        token: &str,
+        realm: &str,
+        organization_id: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/organizations/{}/members/{}/roles",
+                realm, organization_id, user_id
+            ))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({ "role_id": role_id }))
+            .await
+    }
+
     // ── out-of-band verification, always through the master administrator ───────
 
     /// Every organization currently living in `realm`, read with a token that is
@@ -560,6 +753,75 @@ mod tests {
         response.text()
     }
 
+    async fn group_roles_text_of(
+        server: &TestServer,
+        realm: &str,
+        organization_id: &str,
+        group_id: &str,
+    ) -> String {
+        let response = server
+            .get(&format!(
+                "/realms/{}/organizations/{}/groups/{}/roles",
+                realm, organization_id, group_id
+            ))
+            .add_header("Authorization", auth_header(&ctx().admin_token))
+            .await;
+
+        assert_eq!(
+            response.status_code(),
+            200,
+            "master admin could not list the roles of group {group_id}@{realm}: {}",
+            response.text()
+        );
+
+        response.text()
+    }
+
+    async fn member_roles_text_of(
+        server: &TestServer,
+        realm: &str,
+        organization_id: &str,
+        user_id: &str,
+    ) -> String {
+        let response = server
+            .get(&format!(
+                "/realms/{}/organizations/{}/members/{}/roles",
+                realm, organization_id, user_id
+            ))
+            .add_header("Authorization", auth_header(&ctx().admin_token))
+            .await;
+
+        assert_eq!(
+            response.status_code(),
+            200,
+            "master admin could not list the roles of member {user_id}@{realm}: {}",
+            response.text()
+        );
+
+        response.text()
+    }
+
+    fn realm_access_roles(access_token: &str) -> Vec<String> {
+        let parts: Vec<&str> = access_token.split('.').collect();
+        assert_eq!(parts.len(), 3, "an access token has three JWT segments");
+
+        let payload_bytes = URL_SAFE_NO_PAD
+            .decode(parts[1])
+            .expect("the access token payload is valid base64url");
+        let payload: Value =
+            serde_json::from_slice(&payload_bytes).expect("the access token payload is valid JSON");
+
+        payload["realm_access"]["roles"]
+            .as_array()
+            .map(|roles| {
+                roles
+                    .iter()
+                    .filter_map(|role| role.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// A cross-realm request must be refused, and refused as an authorization failure
     /// rather than by accident (a 404 from a missing object would prove nothing).
     fn assert_forbidden(response: &TestResponse, what: &str) {
@@ -567,6 +829,16 @@ mod tests {
             response.status_code(),
             403,
             "{what}: expected 403, got {} with body {}",
+            response.status_code(),
+            response.text()
+        );
+    }
+
+    fn assert_not_found(response: &TestResponse, what: &str) {
+        assert_eq!(
+            response.status_code(),
+            404,
+            "{what}: expected 404, got {} with body {}",
             response.status_code(),
             response.text()
         );
@@ -813,6 +1085,446 @@ mod tests {
                 200,
                 "alice cannot read memberships in her own realm: {}",
                 memberships.text()
+            );
+
+            let renamed = server
+                .put(&format!(
+                    "/realms/{}/organizations/{}/groups/{}",
+                    TENANT_A, org_id, group_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().alice_token))
+                .json(&json!({ "name": "Home Group Renamed" }))
+                .await;
+            assert!(
+                renamed.status_code().is_success(),
+                "alice cannot rename her own group: {} {}",
+                renamed.status_code(),
+                renamed.text()
+            );
+
+            let deleted = server
+                .delete(&format!(
+                    "/realms/{}/organizations/{}/groups/{}",
+                    TENANT_A, org_id, group_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().alice_token))
+                .await;
+            assert!(
+                deleted.status_code().is_success(),
+                "alice cannot delete her own group: {} {}",
+                deleted.status_code(),
+                deleted.text()
+            );
+
+            let after = server
+                .get(&format!(
+                    "/realms/{}/organizations/{}/groups",
+                    TENANT_A, org_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().alice_token))
+                .await;
+            assert!(
+                !after.text().contains(&group_id),
+                "alice's group survived her own delete: {}",
+                after.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn assigning_a_role_of_another_realm_to_a_member_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = assign_member_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_user_id,
+                &ctx().foreign_role_id,
+            )
+            .await;
+
+            assert_not_found(&response, "attaching a tenant-a role to a tenant-b member");
+
+            let roles = member_roles_text_of(
+                &server,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_user_id,
+            )
+            .await;
+            assert_body_free_of(
+                &roles,
+                &[FOREIGN_ROLE_NAME, &ctx().foreign_role_id],
+                "roles of the tenant-b member after the refused assignment",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn assigning_a_role_of_another_realm_to_a_group_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = assign_group_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_group_id,
+                &ctx().foreign_role_id,
+            )
+            .await;
+
+            assert_not_found(&response, "attaching a tenant-a role to a tenant-b group");
+
+            let roles = group_roles_text_of(
+                &server,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_group_id,
+            )
+            .await;
+            assert_body_free_of(
+                &roles,
+                &[FOREIGN_ROLE_NAME, &ctx().foreign_role_id],
+                "roles of the tenant-b group after the refused assignment",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn a_role_of_another_realm_never_reaches_a_token() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let own_role = assign_group_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().token_group_id,
+                &ctx().victim_role_id,
+            )
+            .await;
+            assert!(
+                own_role.status_code().is_success(),
+                "seeding a tenant-b role on the token group failed: {} {}",
+                own_role.status_code(),
+                own_role.text()
+            );
+
+            let attachment = assign_group_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().token_group_id,
+                &ctx().foreign_role_id,
+            )
+            .await;
+
+            let add_member = server
+                .post(&format!(
+                    "/realms/{}/organizations/{}/groups/{}/members",
+                    TENANT_B,
+                    ctx().victim_org_id,
+                    ctx().token_group_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .json(&json!({ "user_id": ctx().victim_user_id }))
+                .await;
+            assert!(
+                add_member.status_code().is_success(),
+                "putting bob in the token group failed: {} {}",
+                add_member.status_code(),
+                add_member.text()
+            );
+
+            let bob_token = password_grant(&server, TENANT_B, "bob", BOB_PASSWORD).await;
+            let roles = realm_access_roles(&bob_token);
+
+            assert!(
+                roles.iter().any(|role| role == VICTIM_ROLE_NAME),
+                "bob's token does not carry the group role of his own realm, so this test \
+                 could not detect a foreign one either: realm_access.roles = {roles:?}"
+            );
+            assert!(
+                !roles.iter().any(|role| role == FOREIGN_ROLE_NAME),
+                "a role of {TENANT_A} reached a {TENANT_B} token: realm_access.roles = {roles:?}"
+            );
+
+            assert_not_found(
+                &attachment,
+                "attaching a tenant-a role to the group that feeds bob's token",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn a_role_of_the_url_realm_is_still_attachable() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let to_group = assign_group_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_group_id,
+                &ctx().victim_role_id,
+            )
+            .await;
+            assert!(
+                to_group.status_code().is_success(),
+                "a tenant-b role must be attachable to a tenant-b group: {} {}",
+                to_group.status_code(),
+                to_group.text()
+            );
+
+            let group_roles = group_roles_text_of(
+                &server,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_group_id,
+            )
+            .await;
+            assert!(
+                group_roles.contains(VICTIM_ROLE_NAME),
+                "the tenant-b role is missing from the group's roles: {group_roles}"
+            );
+
+            let to_member = assign_member_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_user_id,
+                &ctx().victim_role_id,
+            )
+            .await;
+            assert!(
+                to_member.status_code().is_success(),
+                "a tenant-b role must be attachable to a tenant-b member: {} {}",
+                to_member.status_code(),
+                to_member.text()
+            );
+
+            let member_roles = member_roles_text_of(
+                &server,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_user_id,
+            )
+            .await;
+            assert!(
+                member_roles.contains(VICTIM_ROLE_NAME),
+                "the tenant-b role is missing from the member's roles: {member_roles}"
+            );
+
+            let revoked = server
+                .delete(&format!(
+                    "/realms/{}/organizations/{}/members/{}/roles/{}",
+                    TENANT_B,
+                    ctx().victim_org_id,
+                    ctx().victim_user_id,
+                    ctx().victim_role_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .await;
+            assert!(
+                revoked.status_code().is_success(),
+                "a tenant-b role must be revocable from a tenant-b member: {} {}",
+                revoked.status_code(),
+                revoked.text()
+            );
+
+            let after = member_roles_text_of(
+                &server,
+                TENANT_B,
+                &ctx().victim_org_id,
+                &ctx().victim_user_id,
+            )
+            .await;
+            assert!(
+                !after.contains(VICTIM_ROLE_NAME),
+                "the revoked role is still attached to the member: {after}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn reading_a_group_through_another_realms_url_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = server
+                .get(&format!(
+                    "/realms/{}/organizations/{}/groups/{}",
+                    TENANT_B,
+                    ctx().tenant_a_org_id,
+                    ctx().tenant_a_group_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .await;
+
+            let body = response.text();
+            assert_not_found(&response, "reading a tenant-a group from the tenant-b url");
+            assert_body_free_of(
+                &body,
+                &[TENANT_A_GROUP_NAME, &ctx().tenant_a_group_id],
+                "read of a tenant-a group from the tenant-b url",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn deleting_a_group_through_another_realms_url_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = server
+                .delete(&format!(
+                    "/realms/{}/organizations/{}/groups/{}",
+                    TENANT_B,
+                    ctx().tenant_a_org_id,
+                    ctx().tenant_a_group_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .await;
+
+            assert_not_found(&response, "deleting a tenant-a group from the tenant-b url");
+
+            let groups = groups_text_of(&server, TENANT_A, &ctx().tenant_a_org_id).await;
+            assert!(
+                groups.contains(TENANT_A_GROUP_NAME),
+                "the tenant-a group was deleted through the tenant-b url: {groups}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn a_group_of_another_organization_is_not_reachable_through_this_one() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = server
+                .get(&format!(
+                    "/realms/{}/organizations/{}/groups/{}",
+                    TENANT_A,
+                    ctx().tenant_a_org_id,
+                    ctx().victim_group_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .await;
+
+            let body = response.text();
+            assert_not_found(
+                &response,
+                "reading a group of another organization of the same realm",
+            );
+            assert_body_free_of(
+                &body,
+                &[VICTIM_GROUP_NAME, &ctx().victim_group_id],
+                "read of a group of another organization",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn reading_member_roles_through_another_realms_url_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = server
+                .get(&format!(
+                    "/realms/{}/organizations/{}/members/{}/roles",
+                    TENANT_B,
+                    ctx().tenant_a_org_id,
+                    ctx().tenant_a_member_user_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .await;
+
+            let body = response.text();
+            assert_not_found(
+                &response,
+                "reading the roles of a tenant-a member from the tenant-b url",
+            );
+            assert_body_free_of(
+                &body,
+                &[&ctx().tenant_a_member_user_id],
+                "read of a tenant-a member's roles from the tenant-b url",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn assigning_a_member_role_through_another_realms_url_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = assign_member_role(
+                &server,
+                &ctx().admin_token,
+                TENANT_B,
+                &ctx().tenant_a_org_id,
+                &ctx().tenant_a_member_user_id,
+                &ctx().foreign_role_id,
+            )
+            .await;
+
+            assert_not_found(
+                &response,
+                "assigning a role to a tenant-a member from the tenant-b url",
+            );
+
+            let roles = member_roles_text_of(
+                &server,
+                TENANT_A,
+                &ctx().tenant_a_org_id,
+                &ctx().tenant_a_member_user_id,
+            )
+            .await;
+            assert_body_free_of(
+                &roles,
+                &[FOREIGN_ROLE_NAME, &ctx().foreign_role_id],
+                "roles of the tenant-a member after the refused assignment",
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
+    fn removing_a_group_member_who_is_not_one_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let response = server
+                .delete(&format!(
+                    "/realms/{}/organizations/{}/groups/{}/members/{}",
+                    TENANT_A,
+                    ctx().tenant_a_org_id,
+                    ctx().tenant_a_group_id,
+                    ctx().victim_user_id
+                ))
+                .add_header("Authorization", auth_header(&ctx().admin_token))
+                .await;
+
+            assert_not_found(
+                &response,
+                "removing a tenant-b user from a tenant-a group they never joined",
             );
         });
     }
