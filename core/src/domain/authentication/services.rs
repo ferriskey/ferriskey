@@ -494,6 +494,7 @@ async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialRepository
     hasher: &H,
     credential_repository: &CR,
     user_id: Uuid,
+    verified_secret_data: &str,
     password: &str,
     algorithm: &str,
 ) {
@@ -510,7 +511,7 @@ async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialRepository
     };
 
     if let Err(e) = credential_repository
-        .update_password_credential(user_id, hash_result)
+        .update_password_credential(user_id, verified_secret_data, hash_result)
         .await
     {
         warn!(%user_id, from = %algorithm, "password rehash not persisted: {e:?}");
@@ -1942,6 +1943,7 @@ where
                 self.hasher_repository.as_ref(),
                 self.credential_repository.as_ref(),
                 user_id,
+                &credential.secret_data,
                 &password,
                 &algorithm,
             )
@@ -3157,6 +3159,7 @@ This is a server error that should be investigated. Do not forward back this mes
                         self.hasher_repository.as_ref(),
                         self.credential_repository.as_ref(),
                         user.id,
+                        &credential.secret_data,
                         &password,
                         algorithm,
                     )
@@ -6021,6 +6024,8 @@ mod password_hash_tests {
     use crate::domain::credential::ports::MockCredentialRepository;
     use crate::domain::crypto::{HashResult, MockHasherRepository};
 
+    const LEGACY_HASH: &str = "$2a$10$legacy";
+
     fn argon2id_hash() -> HashResult {
         HashResult::new(
             "$argon2id$new".to_string(),
@@ -6086,8 +6091,15 @@ mod password_hash_tests {
         let mut credentials = MockCredentialRepository::new();
         credentials.expect_update_password_credential().never();
 
-        rehash_password_if_needed(&hasher, &credentials, Uuid::new_v4(), "secret", "argon2id")
-            .await;
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "argon2id",
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -6106,15 +6118,24 @@ mod password_hash_tests {
         let mut credentials = MockCredentialRepository::new();
         credentials
             .expect_update_password_credential()
-            .withf(move |id, hash_result| {
+            .withf(move |id, expected, hash_result| {
                 *id == user_id
+                    && expected == LEGACY_HASH
                     && hash_result.hash == "$argon2id$new"
                     && hash_result.algorithm == "argon2id"
             })
             .times(1)
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
 
-        rehash_password_if_needed(&hasher, &credentials, user_id, "secret", "bcrypt").await;
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            user_id,
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -6127,7 +6148,15 @@ mod password_hash_tests {
         let mut credentials = MockCredentialRepository::new();
         credentials.expect_update_password_credential().never();
 
-        rehash_password_if_needed(&hasher, &credentials, Uuid::new_v4(), "secret", "bcrypt").await;
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -6141,8 +6170,16 @@ mod password_hash_tests {
         credentials
             .expect_update_password_credential()
             .times(1)
-            .returning(|_, _| Box::pin(async { Err(CredentialError::UpdateCredentialError) }));
+            .returning(|_, _, _| Box::pin(async { Err(CredentialError::UpdateCredentialError) }));
 
-        rehash_password_if_needed(&hasher, &credentials, Uuid::new_v4(), "secret", "bcrypt").await;
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+        )
+        .await;
     }
 }

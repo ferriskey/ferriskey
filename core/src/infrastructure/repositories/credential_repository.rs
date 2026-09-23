@@ -123,6 +123,7 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn update_password_credential(
         &self,
         user_id: uuid::Uuid,
+        expected_secret_data: &str,
         hash_result: HashResult,
     ) -> Result<(), CredentialError> {
         let (now, _) = generate_timestamp();
@@ -158,6 +159,7 @@ impl CredentialRepository for PostgresCredentialRepository {
                 crate::entity::credentials::Column::CredentialType
                     .eq(CredentialType::Password.as_str()),
             )
+            .filter(crate::entity::credentials::Column::SecretData.eq(expected_secret_data))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -551,7 +553,7 @@ mod tests {
 
         fixture
             .repository
-            .update_password_credential(user_id, argon2id_hash())
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
             .await
             .expect("update password credential");
 
@@ -609,13 +611,42 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_password_credential_keeps_a_hash_changed_since_verification() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        insert_bcrypt_password(&fixture.pool, user_id, false).await;
+        sqlx::query("UPDATE credentials SET secret_data = '$argon2id$reset' WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&fixture.pool)
+            .await
+            .expect("simulate a concurrent reset");
+
+        let result = fixture
+            .repository
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(CredentialError::UpdateCredentialError)
+        ));
+        let credential = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("password credential");
+        assert_eq!(credential.secret_data, "$argon2id$reset");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn update_password_credential_fails_without_a_password_credential() {
         let fixture = setup().await;
         let user_id = insert_user(&fixture.pool).await;
 
         let result = fixture
             .repository
-            .update_password_credential(user_id, argon2id_hash())
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
             .await;
 
         assert!(matches!(
