@@ -130,6 +130,17 @@ pub enum CoreError {
     #[error("Invalid token")]
     InvalidToken,
 
+    #[error("This operation requires a fresh re-authentication")]
+    ElevationRequired,
+
+    #[error("Removing this credential would leave the account with no way to sign in")]
+    LastSignInMeans,
+
+    #[error(
+        "Removing this credential would leave the account without the second factor this realm requires"
+    )]
+    MfaFactorRequired,
+
     #[error("Expired token")]
     ExpiredToken,
 
@@ -417,6 +428,9 @@ impl CoreError {
             CoreError::TokenExpirationError(_) => "token_expiration_error",
             CoreError::RealmKeyNotFound => "realm_key_not_found",
             CoreError::InvalidToken => "invalid_token",
+            CoreError::ElevationRequired => "elevation_required",
+            CoreError::LastSignInMeans => "last_sign_in_means",
+            CoreError::MfaFactorRequired => "mfa_factor_required",
             CoreError::ExpiredToken => "expired_token",
             CoreError::InvalidKey(_) => "invalid_key",
             CoreError::SessionNotFound => "session_not_found",

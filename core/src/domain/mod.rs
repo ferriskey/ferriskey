@@ -1,5 +1,6 @@
 pub mod abyss;
 pub mod account;
+pub mod account_security;
 pub mod aegis;
 pub mod authentication;
 pub mod client;

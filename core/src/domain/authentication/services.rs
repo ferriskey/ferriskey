@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use ferriskey_security::crypto::password_check::verify_user_password;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -1859,41 +1860,14 @@ where
     }
 
     async fn verify_password(&self, user_id: Uuid, password: String) -> Result<bool, CoreError> {
-        let credential = self
-            .credential_repository
-            .get_password_credential(user_id)
-            .instrument(info_span!("auth.verify_password.credential_fetch"))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
-        let CredentialData::Hash {
-            hash_iterations,
-            algorithm,
-        } = credential.credential_data
-        else {
-            return Err(CoreError::InternalServerError);
-        };
-
-        let is_valid = self
-            .hasher_repository
-            .verify_password(
-                &password,
-                &credential.secret_data,
-                hash_iterations,
-                &algorithm,
-                &salt,
-            )
-            .instrument(info_span!(
-                "auth.verify_password.hasher_verify",
-                hash_algorithm = %algorithm,
-                hash_iterations
-            ))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        Ok(is_valid)
+        verify_user_password(
+            self.credential_repository.as_ref(),
+            self.hasher_repository.as_ref(),
+            user_id,
+            &password,
+        )
+        .instrument(info_span!("auth.verify_password"))
+        .await
     }
 
     async fn refuse_login_identifier_collision(
