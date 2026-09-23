@@ -29,6 +29,7 @@ pub trait HasherRepository: Send + Sync {
         algorithm: &str,
         salt: &str,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
+    fn needs_rehash(&self, algorithm: &str) -> bool;
     fn hash_magic_token(
         &self,
         token: &str,

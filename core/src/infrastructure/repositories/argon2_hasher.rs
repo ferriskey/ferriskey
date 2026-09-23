@@ -90,6 +90,10 @@ impl HasherRepository for Argon2HasherRepository {
         Ok(is_valid)
     }
 
+    fn needs_rehash(&self, algorithm: &str) -> bool {
+        algorithm != Algorithm::Argon2id.as_str()
+    }
+
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
         self.hash_password(token).await
     }
@@ -200,6 +204,15 @@ mod tests {
             result.is_err(),
             "Verification should fail with an invalid hash"
         );
+    }
+
+    #[test]
+    fn test_needs_rehash_only_for_non_argon2id() {
+        let hasher = Argon2HasherRepository::new();
+
+        assert!(!hasher.needs_rehash("argon2id"));
+        assert!(hasher.needs_rehash("argon2i"));
+        assert!(hasher.needs_rehash("bcrypt"));
     }
 
     #[tokio::test]

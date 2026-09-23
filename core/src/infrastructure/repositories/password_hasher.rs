@@ -66,6 +66,10 @@ impl HasherRepository for PasswordHasherRepository {
             .await
     }
 
+    fn needs_rehash(&self, algorithm: &str) -> bool {
+        self.argon2.needs_rehash(algorithm)
+    }
+
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
         self.argon2.hash_magic_token(token).await
     }
@@ -166,6 +170,7 @@ mod tests {
 
         assert_eq!(hash.algorithm, "argon2id");
         assert!(hash.hash.starts_with("$argon2id$"));
+        assert!(!hasher.needs_rehash(&hash.algorithm));
     }
 
     #[tokio::test]
@@ -178,5 +183,12 @@ mod tests {
             .await;
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn flags_bcrypt_credentials_for_rehash() {
+        let hasher = PasswordHasherRepository::new();
+
+        assert!(hasher.needs_rehash(BCRYPT_ALGORITHM));
     }
 }

@@ -490,6 +490,33 @@ async fn verify_password_hash<H: HasherRepository>(
         .await
 }
 
+async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialRepository>(
+    hasher: &H,
+    credential_repository: &CR,
+    user_id: Uuid,
+    password: &str,
+    algorithm: &str,
+) {
+    if !hasher.needs_rehash(algorithm) {
+        return;
+    }
+
+    let hash_result = match hasher.hash_password(password).await {
+        Ok(hash_result) => hash_result,
+        Err(e) => {
+            warn!(%user_id, from = %algorithm, "password rehash failed: {e}");
+            return;
+        }
+    };
+
+    if let Err(e) = credential_repository
+        .update_password_credential(user_id, hash_result)
+        .await
+    {
+        warn!(%user_id, from = %algorithm, "password rehash not persisted: {e:?}");
+    }
+}
+
 /// Validate `code_verifier` per RFC 7636 §4.1:
 /// length 43–128, characters in `[A-Z a-z 0-9 \-._~]`.
 fn pkce_validate_verifier(verifier: &str) -> bool {
@@ -1910,6 +1937,17 @@ where
         .await
         .map_err(|_| CoreError::InternalServerError)?;
 
+        if is_valid {
+            rehash_password_if_needed(
+                self.hasher_repository.as_ref(),
+                self.credential_repository.as_ref(),
+                user_id,
+                &password,
+                &algorithm,
+            )
+            .await;
+        }
+
         Ok(is_valid)
     }
 
@@ -3113,6 +3151,17 @@ This is a server error that should be investigated. Do not forward back this mes
                 )
                 .await
                 .map_err(|_| CoreError::InvalidPassword)?;
+
+                if is_valid {
+                    rehash_password_if_needed(
+                        self.hasher_repository.as_ref(),
+                        self.credential_repository.as_ref(),
+                        user.id,
+                        &password,
+                        algorithm,
+                    )
+                    .await;
+                }
 
                 (is_valid, creds, has_temp_password)
             };
@@ -5963,8 +6012,23 @@ mod tests {
 
 #[cfg(test)]
 mod password_hash_tests {
-    use super::verify_password_hash;
-    use crate::domain::crypto::MockHasherRepository;
+    use ferriskey_security::SecurityError;
+    use mockall::predicate::eq;
+    use uuid::Uuid;
+
+    use super::{rehash_password_if_needed, verify_password_hash};
+    use crate::domain::credential::entities::CredentialError;
+    use crate::domain::credential::ports::MockCredentialRepository;
+    use crate::domain::crypto::{HashResult, MockHasherRepository};
+
+    fn argon2id_hash() -> HashResult {
+        HashResult::new(
+            "$argon2id$new".to_string(),
+            "new_salt".to_string(),
+            5,
+            "argon2id".to_string(),
+        )
+    }
 
     #[tokio::test]
     async fn verify_passes_an_empty_salt_when_the_credential_has_none() {
@@ -6009,5 +6073,76 @@ mod password_hash_tests {
         .expect("verification should succeed");
 
         assert!(!is_valid);
+    }
+
+    #[tokio::test]
+    async fn rehash_is_skipped_for_current_algorithm() {
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_needs_rehash()
+            .with(eq("argon2id"))
+            .return_const(false);
+        hasher.expect_hash_password().never();
+        let mut credentials = MockCredentialRepository::new();
+        credentials.expect_update_password_credential().never();
+
+        rehash_password_if_needed(&hasher, &credentials, Uuid::new_v4(), "secret", "argon2id")
+            .await;
+    }
+
+    #[tokio::test]
+    async fn rehash_replaces_a_legacy_hash_with_argon2id() {
+        let user_id = Uuid::new_v4();
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_needs_rehash()
+            .with(eq("bcrypt"))
+            .return_const(true);
+        hasher
+            .expect_hash_password()
+            .with(eq("secret"))
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(argon2id_hash()) }));
+        let mut credentials = MockCredentialRepository::new();
+        credentials
+            .expect_update_password_credential()
+            .withf(move |id, hash_result| {
+                *id == user_id
+                    && hash_result.hash == "$argon2id$new"
+                    && hash_result.algorithm == "argon2id"
+            })
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        rehash_password_if_needed(&hasher, &credentials, user_id, "secret", "bcrypt").await;
+    }
+
+    #[tokio::test]
+    async fn rehash_does_not_persist_when_hashing_fails() {
+        let mut hasher = MockHasherRepository::new();
+        hasher.expect_needs_rehash().return_const(true);
+        hasher.expect_hash_password().times(1).returning(|_| {
+            Box::pin(async { Err(SecurityError::HashingError("boom".to_string())) })
+        });
+        let mut credentials = MockCredentialRepository::new();
+        credentials.expect_update_password_credential().never();
+
+        rehash_password_if_needed(&hasher, &credentials, Uuid::new_v4(), "secret", "bcrypt").await;
+    }
+
+    #[tokio::test]
+    async fn rehash_swallows_persistence_failures() {
+        let mut hasher = MockHasherRepository::new();
+        hasher.expect_needs_rehash().return_const(true);
+        hasher
+            .expect_hash_password()
+            .returning(|_| Box::pin(async { Ok(argon2id_hash()) }));
+        let mut credentials = MockCredentialRepository::new();
+        credentials
+            .expect_update_password_credential()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Err(CredentialError::UpdateCredentialError) }));
+
+        rehash_password_if_needed(&hasher, &credentials, Uuid::new_v4(), "secret", "bcrypt").await;
     }
 }
