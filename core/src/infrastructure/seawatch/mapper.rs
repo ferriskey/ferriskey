@@ -101,6 +101,8 @@ mod tests {
         SecurityEventType::RoleUnassigned,
         SecurityEventType::RoleCreated,
         SecurityEventType::RoleRemoved,
+        SecurityEventType::RoleUpdated,
+        SecurityEventType::RolePermissionUpdated,
         SecurityEventType::ClientCreated,
         SecurityEventType::ClientDeleted,
         SecurityEventType::ClientSecretRotated,
@@ -159,6 +161,8 @@ mod tests {
                 | SecurityEventType::RoleUnassigned
                 | SecurityEventType::RoleCreated
                 | SecurityEventType::RoleRemoved
+                | SecurityEventType::RoleUpdated
+                | SecurityEventType::RolePermissionUpdated
                 | SecurityEventType::ClientCreated
                 | SecurityEventType::ClientDeleted
                 | SecurityEventType::ClientSecretRotated

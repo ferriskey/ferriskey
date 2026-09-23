@@ -30,6 +30,8 @@ event:
   role_unassigned: 角色已解除分配
   role_created: 角色已创建
   role_removed: 角色已移除
+  role_updated: 角色已更新
+  role_permission_updated: 角色权限已更新
   client_created: 客户端已创建
   client_deleted: 客户端已删除
   client_secret_rotated: 客户端密钥已轮换

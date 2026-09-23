@@ -642,6 +642,8 @@ export namespace Schemas {
     | "role_unassigned"
     | "role_created"
     | "role_removed"
+    | "role_updated"
+    | "role_permission_updated"
     | "client_created"
     | "client_deleted"
     | "client_secret_rotated"
