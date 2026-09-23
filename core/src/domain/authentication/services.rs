@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use ferriskey_security::SecurityError;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -468,6 +469,25 @@ fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallenge
             .ct_eq(code_challenge.as_bytes())
             .into(),
     }
+}
+
+async fn verify_password_hash<H: HasherRepository>(
+    hasher: &H,
+    secret_data: &str,
+    salt: Option<&str>,
+    hash_iterations: u32,
+    algorithm: &str,
+    password: &str,
+) -> Result<bool, SecurityError> {
+    hasher
+        .verify_password(
+            password,
+            secret_data,
+            hash_iterations,
+            algorithm,
+            salt.unwrap_or_default(),
+        )
+        .await
 }
 
 /// Validate `code_verifier` per RFC 7636 §4.1:
@@ -1866,8 +1886,6 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
         let CredentialData::Hash {
             hash_iterations,
             algorithm,
@@ -1876,22 +1894,21 @@ where
             return Err(CoreError::InternalServerError);
         };
 
-        let is_valid = self
-            .hasher_repository
-            .verify_password(
-                &password,
-                &credential.secret_data,
-                hash_iterations,
-                &algorithm,
-                &salt,
-            )
-            .instrument(info_span!(
-                "auth.verify_password.hasher_verify",
-                hash_algorithm = %algorithm,
-                hash_iterations
-            ))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let is_valid = verify_password_hash(
+            self.hasher_repository.as_ref(),
+            &credential.secret_data,
+            credential.salt.as_deref(),
+            hash_iterations,
+            &algorithm,
+            &password,
+        )
+        .instrument(info_span!(
+            "auth.verify_password.hasher_verify",
+            hash_algorithm = %algorithm,
+            hash_iterations
+        ))
+        .await
+        .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(is_valid)
     }
@@ -3074,8 +3091,6 @@ where
                     .await
                     .map_err(|_| CoreError::InternalServerError)?;
 
-                let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
                 let CredentialData::Hash {
                     hash_iterations,
                     algorithm,
@@ -3088,17 +3103,16 @@ This is a server error that should be investigated. Do not forward back this mes
                     return Err(CoreError::InternalServerError);
                 };
 
-                let is_valid = self
-                    .hasher_repository
-                    .verify_password(
-                        &password,
-                        &credential.secret_data,
-                        *hash_iterations,
-                        algorithm,
-                        &salt,
-                    )
-                    .await
-                    .map_err(|_| CoreError::InvalidPassword)?;
+                let is_valid = verify_password_hash(
+                    self.hasher_repository.as_ref(),
+                    &credential.secret_data,
+                    credential.salt.as_deref(),
+                    *hash_iterations,
+                    algorithm,
+                    &password,
+                )
+                .await
+                .map_err(|_| CoreError::InvalidPassword)?;
 
                 (is_valid, creds, has_temp_password)
             };
@@ -5944,5 +5958,56 @@ mod tests {
             refuse_token_issuance_when_actions_pending(step(&[], false, false, false).as_ref())
                 .is_ok()
         );
+    }
+}
+
+#[cfg(test)]
+mod password_hash_tests {
+    use super::verify_password_hash;
+    use crate::domain::crypto::MockHasherRepository;
+
+    #[tokio::test]
+    async fn verify_passes_an_empty_salt_when_the_credential_has_none() {
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_verify_password()
+            .withf(|password, secret_data, iterations, algorithm, salt| {
+                password == "secret"
+                    && secret_data == "$2a$10$hash"
+                    && *iterations == 10
+                    && algorithm == "bcrypt"
+                    && salt.is_empty()
+            })
+            .times(1)
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(true) }));
+
+        let is_valid = verify_password_hash(&hasher, "$2a$10$hash", None, 10, "bcrypt", "secret")
+            .await
+            .expect("verification should succeed");
+
+        assert!(is_valid);
+    }
+
+    #[tokio::test]
+    async fn verify_forwards_the_stored_salt() {
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_verify_password()
+            .withf(|_, _, _, _, salt| salt == "stored_salt")
+            .times(1)
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(false) }));
+
+        let is_valid = verify_password_hash(
+            &hasher,
+            "$argon2id$hash",
+            Some("stored_salt"),
+            5,
+            "argon2id",
+            "secret",
+        )
+        .await
+        .expect("verification should succeed");
+
+        assert!(!is_valid);
     }
 }

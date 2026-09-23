@@ -1,0 +1,182 @@
+use bcrypt::BcryptError;
+use tokio::task;
+use tracing::instrument;
+
+use ferriskey_security::SecurityError;
+
+use crate::domain::crypto::{HashResult, HasherRepository};
+use crate::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
+
+const BCRYPT_ALGORITHM: &str = "bcrypt";
+
+#[derive(Debug, Clone, Default)]
+pub struct PasswordHasherRepository {
+    argon2: Argon2HasherRepository,
+}
+
+impl PasswordHasherRepository {
+    pub fn new() -> Self {
+        Self {
+            argon2: Argon2HasherRepository::new(),
+        }
+    }
+
+    async fn verify_bcrypt(password: &str, secret_data: &str) -> Result<bool, SecurityError> {
+        let password = password.to_string();
+        let secret_data = secret_data.to_string();
+
+        task::spawn_blocking(move || {
+            match bcrypt::non_truncating_verify(password.as_bytes(), &secret_data) {
+                Ok(is_valid) => Ok(is_valid),
+                Err(BcryptError::Truncation(_)) => Ok(false),
+                Err(e) => Err(SecurityError::HashingError(e.to_string())),
+            }
+        })
+        .await
+        .map_err(|e| SecurityError::HashingError(format!("bcrypt verify task join error: {e}")))?
+    }
+}
+
+impl HasherRepository for PasswordHasherRepository {
+    async fn hash_password(&self, password: &str) -> Result<HashResult, SecurityError> {
+        self.argon2.hash_password(password).await
+    }
+
+    #[instrument(
+        skip(self, password, secret_data, salt),
+        fields(
+            algorithm = %algorithm,
+            hash_len = secret_data.len()
+        )
+    )]
+    async fn verify_password(
+        &self,
+        password: &str,
+        secret_data: &str,
+        hash_iterations: u32,
+        algorithm: &str,
+        salt: &str,
+    ) -> Result<bool, SecurityError> {
+        if algorithm == BCRYPT_ALGORITHM {
+            return Self::verify_bcrypt(password, secret_data).await;
+        }
+
+        self.argon2
+            .verify_password(password, secret_data, hash_iterations, algorithm, salt)
+            .await
+    }
+
+    async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
+        self.argon2.hash_magic_token(token).await
+    }
+
+    async fn verify_magic_token(
+        &self,
+        token: &str,
+        secret_data: &str,
+    ) -> Result<bool, SecurityError> {
+        self.argon2.verify_magic_token(token, secret_data).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bcrypt::Version;
+
+    use super::*;
+
+    const PASSWORD: &str = "correct horse battery staple";
+
+    fn bcrypt_hash(password: &str, version: Version) -> String {
+        bcrypt::hash_with_result(password, 4)
+            .expect("bcrypt hash")
+            .format_for_version(version)
+    }
+
+    async fn verify_bcrypt(hasher: &PasswordHasherRepository, password: &str, hash: &str) -> bool {
+        hasher
+            .verify_password(password, hash, 4, BCRYPT_ALGORITHM, "")
+            .await
+            .expect("bcrypt verification should not error")
+    }
+
+    #[tokio::test]
+    async fn verifies_every_bcrypt_version_prefix() {
+        let hasher = PasswordHasherRepository::new();
+
+        for version in [Version::TwoA, Version::TwoB, Version::TwoY] {
+            let hash = bcrypt_hash(PASSWORD, version);
+            assert!(verify_bcrypt(&hasher, PASSWORD, &hash).await, "{hash}");
+        }
+    }
+
+    #[tokio::test]
+    async fn rejects_wrong_password_against_bcrypt_hash() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoA);
+
+        assert!(!verify_bcrypt(&hasher, "wrong password", &hash).await);
+    }
+
+    #[tokio::test]
+    async fn rejects_password_longer_than_bcrypt_limit_instead_of_truncating() {
+        let hasher = PasswordHasherRepository::new();
+        let prefix = "a".repeat(72);
+        let hash = bcrypt_hash(&prefix, Version::TwoB);
+        let longer = format!("{prefix}suffix");
+
+        assert!(!verify_bcrypt(&hasher, &longer, &hash).await);
+    }
+
+    #[tokio::test]
+    async fn errors_on_malformed_bcrypt_hash() {
+        let hasher = PasswordHasherRepository::new();
+
+        let result = hasher
+            .verify_password(PASSWORD, "not-a-bcrypt-hash", 10, BCRYPT_ALGORITHM, "")
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn verifies_argon2id_hash_through_argon2() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = hasher.hash_password(PASSWORD).await.expect("argon2 hash");
+
+        let is_valid = hasher
+            .verify_password(
+                PASSWORD,
+                &hash.hash,
+                hash.hash_iterations,
+                &hash.algorithm,
+                &hash.salt,
+            )
+            .await
+            .expect("argon2 verification should not error");
+
+        assert!(is_valid);
+    }
+
+    #[tokio::test]
+    async fn hashes_new_passwords_with_argon2id() {
+        let hasher = PasswordHasherRepository::new();
+
+        let hash = hasher.hash_password(PASSWORD).await.expect("argon2 hash");
+
+        assert_eq!(hash.algorithm, "argon2id");
+        assert!(hash.hash.starts_with("$argon2id$"));
+    }
+
+    #[tokio::test]
+    async fn bcrypt_hash_under_argon2_label_is_rejected() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoB);
+
+        let result = hasher
+            .verify_password(PASSWORD, &hash, 10, "argon2id", "")
+            .await;
+
+        assert!(result.is_err());
+    }
+}
