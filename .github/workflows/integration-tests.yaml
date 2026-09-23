@@ -94,6 +94,9 @@ jobs:
       - name: run account lockout integration tests
         run: cargo test -p ferriskey-api --test account_lockout_test -- --ignored
 
+      - name: run password import integration tests
+        run: cargo test -p ferriskey-api --test password_import_test -- --ignored
+
       - name: run session management integration tests
         run: cargo test -p ferriskey-api --test session_management_test -- --ignored
 

@@ -370,6 +370,12 @@ pub enum CoreError {
 
     #[error("Password policy violated: {0}")]
     PasswordPolicyViolation(String),
+
+    #[error("Invalid password hash: {0}")]
+    InvalidPasswordHash(String),
+
+    #[error("User already has a password credential")]
+    PasswordCredentialAlreadyExists,
 }
 
 impl CoreError {
@@ -497,6 +503,8 @@ impl CoreError {
             CoreError::PortalLayoutInUse => "portal_layout_in_use",
             CoreError::PortalLayoutInvalidTree(_) => "portal_layout_invalid_tree",
             CoreError::PasswordPolicyViolation(_) => "password_policy_violation",
+            CoreError::InvalidPasswordHash(_) => "invalid_password_hash",
+            CoreError::PasswordCredentialAlreadyExists => "password_credential_already_exists",
         }
     }
 }
@@ -801,8 +809,16 @@ mod tests {
                 "portal_layout_invalid_tree",
             ),
             (
-                CoreError::PasswordPolicyViolation(payload),
+                CoreError::PasswordPolicyViolation(payload.clone()),
                 "password_policy_violation",
+            ),
+            (
+                CoreError::InvalidPasswordHash(payload),
+                "invalid_password_hash",
+            ),
+            (
+                CoreError::PasswordCredentialAlreadyExists,
+                "password_credential_already_exists",
             ),
         ]
     }
@@ -835,7 +851,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 120);
+        assert_eq!(every_variant_with_expected_reason().len(), 122);
     }
 
     #[test]

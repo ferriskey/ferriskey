@@ -12,6 +12,7 @@ export const catalogedEventTypes: Record<SecurityEventType, true> = {
   password_reset: true,
   password_reset_requested: true,
   password_reset_completed: true,
+  password_imported: true,
   user_created: true,
   user_email_verified: true,
   user_deleted: true,
@@ -54,6 +55,7 @@ const credentialEvents: SecurityEventType[] = [
   'password_reset',
   'password_reset_requested',
   'password_reset_completed',
+  'password_imported',
   'user_email_verified',
 ]
 

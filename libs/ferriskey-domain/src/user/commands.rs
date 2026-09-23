@@ -30,6 +30,16 @@ pub struct ResetPasswordInput {
     pub realm_name: String,
 }
 
+pub struct ImportPasswordCredentialInput {
+    pub realm_name: String,
+    pub user_id: Uuid,
+    pub algorithm: String,
+    pub secret_data: String,
+    pub hash_iterations: u32,
+    pub salt: Option<String>,
+    pub temporary: bool,
+}
+
 pub struct AssignRoleInput {
     pub realm_name: String,
     pub user_id: Uuid,

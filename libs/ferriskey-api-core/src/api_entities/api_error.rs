@@ -293,6 +293,9 @@ impl From<JwtError> for ApiError {
                 "Realm key not found",
                 "realm_key_not_found",
             )),
+            JwtError::UnsupportedHash(e) => {
+                Self::validation_error("secret_data", "invalid_password_hash", e)
+            }
         }
     }
 }
@@ -333,7 +336,7 @@ pub struct OAuth2ErrorResponse {
     pub error_description: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct ValidationErrorResponse {
     pub errors: Vec<ValidationError>,
 }

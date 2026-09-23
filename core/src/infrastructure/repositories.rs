@@ -7,6 +7,7 @@ pub mod email_verification_token_repository;
 pub mod keystore_repository;
 pub mod login_action_token_repository;
 pub mod magic_link_repository;
+pub mod password_hasher;
 pub mod password_policy_repository;
 pub mod password_reset_token_repository;
 pub mod portal_layouts_repository;

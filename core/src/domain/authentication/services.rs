@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use ferriskey_security::SecurityError;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -467,6 +468,53 @@ fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallenge
             .as_bytes()
             .ct_eq(code_challenge.as_bytes())
             .into(),
+    }
+}
+
+async fn verify_password_hash<H: HasherRepository>(
+    hasher: &H,
+    secret_data: &str,
+    salt: Option<&str>,
+    hash_iterations: u32,
+    algorithm: &str,
+    password: &str,
+) -> Result<bool, SecurityError> {
+    hasher
+        .verify_password(
+            password,
+            secret_data,
+            hash_iterations,
+            algorithm,
+            salt.unwrap_or_default(),
+        )
+        .await
+}
+
+async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialRepository>(
+    hasher: &H,
+    credential_repository: &CR,
+    user_id: Uuid,
+    verified_secret_data: &str,
+    password: &str,
+    algorithm: &str,
+) {
+    if !hasher.needs_rehash(algorithm) {
+        return;
+    }
+
+    let hash_result = match hasher.hash_password(password).await {
+        Ok(hash_result) => hash_result,
+        Err(e) => {
+            warn!(%user_id, from = %algorithm, "password rehash failed: {e}");
+            return;
+        }
+    };
+
+    if let Err(e) = credential_repository
+        .update_password_credential(user_id, verified_secret_data, hash_result)
+        .await
+    {
+        warn!(%user_id, from = %algorithm, "password rehash not persisted: {e:?}");
     }
 }
 
@@ -1866,8 +1914,6 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
         let CredentialData::Hash {
             hash_iterations,
             algorithm,
@@ -1876,22 +1922,33 @@ where
             return Err(CoreError::InternalServerError);
         };
 
-        let is_valid = self
-            .hasher_repository
-            .verify_password(
-                &password,
+        let is_valid = verify_password_hash(
+            self.hasher_repository.as_ref(),
+            &credential.secret_data,
+            credential.salt.as_deref(),
+            hash_iterations,
+            &algorithm,
+            &password,
+        )
+        .instrument(info_span!(
+            "auth.verify_password.hasher_verify",
+            hash_algorithm = %algorithm,
+            hash_iterations
+        ))
+        .await
+        .map_err(|_| CoreError::InternalServerError)?;
+
+        if is_valid {
+            rehash_password_if_needed(
+                self.hasher_repository.as_ref(),
+                self.credential_repository.as_ref(),
+                user_id,
                 &credential.secret_data,
-                hash_iterations,
+                &password,
                 &algorithm,
-                &salt,
             )
-            .instrument(info_span!(
-                "auth.verify_password.hasher_verify",
-                hash_algorithm = %algorithm,
-                hash_iterations
-            ))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .await;
+        }
 
         Ok(is_valid)
     }
@@ -3074,8 +3131,6 @@ where
                     .await
                     .map_err(|_| CoreError::InternalServerError)?;
 
-                let salt = credential.salt.ok_or(CoreError::InternalServerError)?;
-
                 let CredentialData::Hash {
                     hash_iterations,
                     algorithm,
@@ -3088,17 +3143,28 @@ This is a server error that should be investigated. Do not forward back this mes
                     return Err(CoreError::InternalServerError);
                 };
 
-                let is_valid = self
-                    .hasher_repository
-                    .verify_password(
-                        &password,
+                let is_valid = verify_password_hash(
+                    self.hasher_repository.as_ref(),
+                    &credential.secret_data,
+                    credential.salt.as_deref(),
+                    *hash_iterations,
+                    algorithm,
+                    &password,
+                )
+                .await
+                .map_err(|_| CoreError::InvalidPassword)?;
+
+                if is_valid {
+                    rehash_password_if_needed(
+                        self.hasher_repository.as_ref(),
+                        self.credential_repository.as_ref(),
+                        user.id,
                         &credential.secret_data,
-                        *hash_iterations,
+                        &password,
                         algorithm,
-                        &salt,
                     )
-                    .await
-                    .map_err(|_| CoreError::InvalidPassword)?;
+                    .await;
+                }
 
                 (is_valid, creds, has_temp_password)
             };
@@ -5944,5 +6010,176 @@ mod tests {
             refuse_token_issuance_when_actions_pending(step(&[], false, false, false).as_ref())
                 .is_ok()
         );
+    }
+}
+
+#[cfg(test)]
+mod password_hash_tests {
+    use ferriskey_security::SecurityError;
+    use mockall::predicate::eq;
+    use uuid::Uuid;
+
+    use super::{rehash_password_if_needed, verify_password_hash};
+    use crate::domain::credential::entities::CredentialError;
+    use crate::domain::credential::ports::MockCredentialRepository;
+    use crate::domain::crypto::{HashResult, MockHasherRepository};
+
+    const LEGACY_HASH: &str = "$2a$10$legacy";
+
+    fn argon2id_hash() -> HashResult {
+        HashResult::new(
+            "$argon2id$new".to_string(),
+            "new_salt".to_string(),
+            5,
+            "argon2id".to_string(),
+        )
+    }
+
+    #[tokio::test]
+    async fn verify_passes_an_empty_salt_when_the_credential_has_none() {
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_verify_password()
+            .withf(|password, secret_data, iterations, algorithm, salt| {
+                password == "secret"
+                    && secret_data == "$2a$10$hash"
+                    && *iterations == 10
+                    && algorithm == "bcrypt"
+                    && salt.is_empty()
+            })
+            .times(1)
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(true) }));
+
+        let is_valid = verify_password_hash(&hasher, "$2a$10$hash", None, 10, "bcrypt", "secret")
+            .await
+            .expect("verification should succeed");
+
+        assert!(is_valid);
+    }
+
+    #[tokio::test]
+    async fn verify_forwards_the_stored_salt() {
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_verify_password()
+            .withf(|_, _, _, _, salt| salt == "stored_salt")
+            .times(1)
+            .returning(|_, _, _, _, _| Box::pin(async { Ok(false) }));
+
+        let is_valid = verify_password_hash(
+            &hasher,
+            "$argon2id$hash",
+            Some("stored_salt"),
+            5,
+            "argon2id",
+            "secret",
+        )
+        .await
+        .expect("verification should succeed");
+
+        assert!(!is_valid);
+    }
+
+    #[tokio::test]
+    async fn rehash_is_skipped_for_current_algorithm() {
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_needs_rehash()
+            .with(eq("argon2id"))
+            .return_const(false);
+        hasher.expect_hash_password().never();
+        let mut credentials = MockCredentialRepository::new();
+        credentials.expect_update_password_credential().never();
+
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "argon2id",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn rehash_replaces_a_legacy_hash_with_argon2id() {
+        let user_id = Uuid::new_v4();
+        let mut hasher = MockHasherRepository::new();
+        hasher
+            .expect_needs_rehash()
+            .with(eq("bcrypt"))
+            .return_const(true);
+        hasher
+            .expect_hash_password()
+            .with(eq("secret"))
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(argon2id_hash()) }));
+        let mut credentials = MockCredentialRepository::new();
+        credentials
+            .expect_update_password_credential()
+            .withf(move |id, expected, hash_result| {
+                *id == user_id
+                    && expected == LEGACY_HASH
+                    && hash_result.hash == "$argon2id$new"
+                    && hash_result.algorithm == "argon2id"
+            })
+            .times(1)
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
+
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            user_id,
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn rehash_does_not_persist_when_hashing_fails() {
+        let mut hasher = MockHasherRepository::new();
+        hasher.expect_needs_rehash().return_const(true);
+        hasher.expect_hash_password().times(1).returning(|_| {
+            Box::pin(async { Err(SecurityError::HashingError("boom".to_string())) })
+        });
+        let mut credentials = MockCredentialRepository::new();
+        credentials.expect_update_password_credential().never();
+
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn rehash_swallows_persistence_failures() {
+        let mut hasher = MockHasherRepository::new();
+        hasher.expect_needs_rehash().return_const(true);
+        hasher
+            .expect_hash_password()
+            .returning(|_| Box::pin(async { Ok(argon2id_hash()) }));
+        let mut credentials = MockCredentialRepository::new();
+        credentials
+            .expect_update_password_credential()
+            .times(1)
+            .returning(|_, _, _| Box::pin(async { Err(CredentialError::UpdateCredentialError) }));
+
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+        )
+        .await;
     }
 }

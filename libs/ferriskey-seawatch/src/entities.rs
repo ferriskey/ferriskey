@@ -26,6 +26,9 @@ pub enum SecurityEventType {
     #[serde(rename = "password_reset_completed")]
     PasswordResetCompleted,
 
+    #[serde(rename = "password_imported")]
+    PasswordImported,
+
     #[serde(rename = "user_created")]
     UserCreated,
 
@@ -112,6 +115,7 @@ impl SecurityEventType {
             "password_reset" => Self::PasswordReset,
             "password_reset_requested" => Self::PasswordResetRequested,
             "password_reset_completed" => Self::PasswordResetCompleted,
+            "password_imported" => Self::PasswordImported,
             "user_created" => Self::UserCreated,
             "user_email_verified" => Self::UserEmailVerified,
             "user_deleted" => Self::UserDeleted,
@@ -147,6 +151,7 @@ impl Display for SecurityEventType {
             SecurityEventType::PasswordReset => write!(f, "password_reset"),
             SecurityEventType::PasswordResetRequested => write!(f, "password_reset_requested"),
             SecurityEventType::PasswordResetCompleted => write!(f, "password_reset_completed"),
+            SecurityEventType::PasswordImported => write!(f, "password_imported"),
             SecurityEventType::UserCreated => write!(f, "user_created"),
             SecurityEventType::UserEmailVerified => write!(f, "user_email_verified"),
             SecurityEventType::UserDeleted => write!(f, "user_deleted"),

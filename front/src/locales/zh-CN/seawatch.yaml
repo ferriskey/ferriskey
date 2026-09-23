@@ -23,6 +23,7 @@ event:
   password_reset: 密码已重置
   password_reset_requested: 已请求重置密码
   password_reset_completed: 密码重置已完成
+  password_imported: 已导入密码哈希
   user_created: 用户已创建
   user_email_verified: 邮箱地址已验证
   user_deleted: 用户已删除
