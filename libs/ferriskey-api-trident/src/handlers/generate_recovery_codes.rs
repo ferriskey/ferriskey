@@ -1,4 +1,7 @@
-use axum::{Extension, extract::State};
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     trident::ports::{GenerateRecoveryCodeInput, TridentService},
@@ -45,6 +48,7 @@ pub struct GenerateRecoveryCodesResponse {
 )]
 pub async fn generate_recovery_codes(
     State(state): State<AppState>,
+    Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
     ValidateJson(payload): ValidateJson<GenerateRecoveryCodesRequest>,
 ) -> Result<Response<GenerateRecoveryCodesResponse>, ApiError> {
@@ -53,6 +57,7 @@ pub async fn generate_recovery_codes(
         .generate_recovery_code(
             identity,
             GenerateRecoveryCodeInput {
+                realm_name,
                 amount: payload.amount,
                 format: payload.code_format,
             },

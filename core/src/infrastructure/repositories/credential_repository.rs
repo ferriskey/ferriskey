@@ -18,6 +18,8 @@ use crate::domain::{
         ports::CredentialRepository,
     },
     crypto::HashResult,
+    realm::entities::Scoped,
+    user::entities::User,
 };
 
 impl From<crate::entity::credentials::Model> for Credential {
@@ -173,9 +175,14 @@ impl CredentialRepository for PostgresCredentialRepository {
         Ok(credentials)
     }
 
-    async fn delete_by_id(&self, credential_id: uuid::Uuid) -> Result<(), CredentialError> {
+    async fn delete_by_id(
+        &self,
+        user: &Scoped<User>,
+        credential_id: uuid::Uuid,
+    ) -> Result<(), CredentialError> {
         let credential = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::Id.eq(credential_id))
+            .filter(crate::entity::credentials::Column::UserId.eq(user.get().id))
             .one(&self.db)
             .await
             .map_err(|_| CredentialError::DeleteCredentialError)?
@@ -322,11 +329,11 @@ impl CredentialRepository for PostgresCredentialRepository {
     async fn get_webauthn_credential_by_credential_id_and_user(
         &self,
         credential_id: &[u8],
-        user_id: uuid::Uuid,
+        user: &Scoped<User>,
     ) -> Result<Option<Credential>, CredentialError> {
         let credential = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::WebauthnCredentialId.eq(credential_id))
-            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(crate::entity::credentials::Column::UserId.eq(user.get().id))
             .one(&self.db)
             .await
             .map_err(|_| CredentialError::GetUserCredentialsError)?
@@ -337,12 +344,14 @@ impl CredentialRepository for PostgresCredentialRepository {
 
     async fn update_webauthn_credential(
         &self,
+        user: &Scoped<User>,
         auth_result: &AuthenticationResult,
     ) -> Result<bool, CredentialError> {
         let credential_id: &[u8] = auth_result.cred_id().as_slice();
 
         let credential_model = CredentialEntity::find()
             .filter(crate::entity::credentials::Column::WebauthnCredentialId.eq(credential_id))
+            .filter(crate::entity::credentials::Column::UserId.eq(user.get().id))
             .one(&self.db)
             .await
             .map_err(|_| CredentialError::GetUserCredentialsError)?

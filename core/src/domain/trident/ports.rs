@@ -58,6 +58,7 @@ pub struct WebAuthnPublicKeyRequestOptionsInput {
 pub struct WebAuthnPublicKeyRequestOptionsOutput(pub RequestChallengeResponse);
 
 pub struct WebAuthnPublicKeyAuthenticateInput {
+    pub realm_name: String,
     pub session_code: String,
     pub rp_info: WebAuthnRpInfo,
     pub credential: PublicKeyCredential,
@@ -113,6 +114,7 @@ pub struct UpdatePasswordInput {
 /// `OtpEnrollment` the server itself issued; taking it from the request body made the
 /// verification a tautology and let a caller enrol a secret of their choosing (FK-003).
 pub struct VerifyOtpInput {
+    pub realm_name: String,
     pub code: String,
     pub label: Option<String>,
 }
@@ -123,6 +125,7 @@ pub struct VerifyOtpOutput {
 }
 
 pub struct GenerateRecoveryCodeInput {
+    pub realm_name: String,
     pub amount: u8,
     pub format: String,
 }
