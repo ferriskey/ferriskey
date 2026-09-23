@@ -6,6 +6,7 @@ use sea_orm::{
 use tracing::error;
 use uuid::Uuid;
 
+use crate::domain::realm::entities::{Scoped, Unscoped};
 use crate::domain::session::{
     entities::{SessionError, UserSession},
     ports::UserSessionRepository,
@@ -65,7 +66,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
         Ok(())
     }
 
-    async fn find_by_user_id(&self, user_id: &Uuid) -> Result<UserSession, SessionError> {
+    async fn find_by_user_id(&self, user_id: &Uuid) -> Result<Unscoped<UserSession>, SessionError> {
         let session = crate::entity::user_sessions::Entity::find()
             .filter(crate::entity::user_sessions::Column::UserId.eq(*user_id))
             .one(&self.db)
@@ -76,7 +77,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             })?
             .ok_or(SessionError::NotFound)?;
 
-        Ok(session.into())
+        Ok(Unscoped::new(session.into()))
     }
 
     async fn find_all_by_user_and_realm(
@@ -100,7 +101,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
     async fn find_by_sso_token_hash(
         &self,
         sso_token_hash: &str,
-    ) -> Result<Option<UserSession>, SessionError> {
+    ) -> Result<Option<Unscoped<UserSession>>, SessionError> {
         let session = crate::entity::user_sessions::Entity::find()
             .filter(crate::entity::user_sessions::Column::SsoTokenHash.eq(sso_token_hash))
             .one(&self.db)
@@ -110,10 +111,13 @@ impl UserSessionRepository for PostgresUserSessionRepository {
                 SessionError::NotFound
             })?;
 
-        Ok(session.map(UserSession::from))
+        Ok(session.map(|m| Unscoped::new(UserSession::from(m))))
     }
 
-    async fn find_by_id(&self, session_id: Uuid) -> Result<Option<UserSession>, SessionError> {
+    async fn find_by_id(
+        &self,
+        session_id: Uuid,
+    ) -> Result<Option<Unscoped<UserSession>>, SessionError> {
         let session = crate::entity::user_sessions::Entity::find()
             .filter(crate::entity::user_sessions::Column::Id.eq(session_id))
             .one(&self.db)
@@ -123,12 +127,13 @@ impl UserSessionRepository for PostgresUserSessionRepository {
                 SessionError::NotFound
             })?;
 
-        Ok(session.map(|m| m.into()))
+        Ok(session.map(|m| Unscoped::new(m.into())))
     }
 
-    async fn delete(&self, id: &Uuid) -> Result<(), SessionError> {
+    async fn delete(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
         crate::entity::user_sessions::Entity::delete_many()
-            .filter(crate::entity::user_sessions::Column::Id.eq(*id))
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.get().id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.get().realm_id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -173,13 +178,14 @@ impl UserSessionRepository for PostgresUserSessionRepository {
         Ok(result.rows_affected)
     }
 
-    async fn update_last_seen(&self, session_id: Uuid) -> Result<(), SessionError> {
+    async fn update_last_seen(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
         crate::entity::user_sessions::Entity::update_many()
             .col_expr(
                 crate::entity::user_sessions::Column::LastSeenAt,
                 Expr::value(Utc::now().naive_utc()),
             )
-            .filter(crate::entity::user_sessions::Column::Id.eq(session_id))
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.get().id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.get().realm_id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -192,7 +198,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
 
     async fn set_sso_token_hash(
         &self,
-        session_id: Uuid,
+        session: &Scoped<UserSession>,
         sso_token_hash: &str,
     ) -> Result<(), SessionError> {
         crate::entity::user_sessions::Entity::update_many()
@@ -200,7 +206,8 @@ impl UserSessionRepository for PostgresUserSessionRepository {
                 crate::entity::user_sessions::Column::SsoTokenHash,
                 Expr::value(sso_token_hash),
             )
-            .filter(crate::entity::user_sessions::Column::Id.eq(session_id))
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.get().id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.get().realm_id))
             .exec(&self.db)
             .await
             .map_err(|e| {

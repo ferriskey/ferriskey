@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use ferriskey_domain::{
     auth::Identity,
     common::app_errors::CoreError,
-    realm::{Realm, RealmId},
+    realm::{Realm, RealmId, scope::Unscoped},
 };
 use uuid::Uuid;
 
@@ -73,7 +73,7 @@ pub trait CompassFlowRepository: Send + Sync {
     fn get_flow_by_id(
         &self,
         flow_id: Uuid,
-    ) -> impl Future<Output = Result<Option<CompassFlow>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<CompassFlow>>, CoreError>> + Send;
 
     fn count_flows(
         &self,

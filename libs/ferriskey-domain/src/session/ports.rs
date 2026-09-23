@@ -3,13 +3,14 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
+use crate::realm::scope::{Scoped, Unscoped};
 use crate::session::entities::{SessionError, UserSession};
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait TokenRevocationPort: Send + Sync {
     fn revoke_session_tokens(
         &self,
-        session_id: Uuid,
+        session: &Scoped<UserSession>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn revoke_all_user_access(
@@ -61,7 +62,7 @@ pub trait UserSessionRepository: Send + Sync {
     fn find_by_user_id(
         &self,
         user_id: &Uuid,
-    ) -> impl Future<Output = Result<UserSession, SessionError>> + Send;
+    ) -> impl Future<Output = Result<Unscoped<UserSession>, SessionError>> + Send;
 
     fn find_all_by_user_and_realm(
         &self,
@@ -72,14 +73,17 @@ pub trait UserSessionRepository: Send + Sync {
     fn find_by_id(
         &self,
         session_id: Uuid,
-    ) -> impl Future<Output = Result<Option<UserSession>, SessionError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<UserSession>>, SessionError>> + Send;
 
     fn find_by_sso_token_hash(
         &self,
         sso_token_hash: &str,
-    ) -> impl Future<Output = Result<Option<UserSession>, SessionError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<UserSession>>, SessionError>> + Send;
 
-    fn delete(&self, id: &Uuid) -> impl Future<Output = Result<(), SessionError>> + Send;
+    fn delete(
+        &self,
+        session: &Scoped<UserSession>,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send;
 
     fn delete_all_by_user(
         &self,
@@ -96,12 +100,12 @@ pub trait UserSessionRepository: Send + Sync {
 
     fn update_last_seen(
         &self,
-        session_id: Uuid,
+        session: &Scoped<UserSession>,
     ) -> impl Future<Output = Result<(), SessionError>> + Send;
 
     fn set_sso_token_hash(
         &self,
-        session_id: Uuid,
+        session: &Scoped<UserSession>,
         sso_token_hash: &str,
     ) -> impl Future<Output = Result<(), SessionError>> + Send;
 }

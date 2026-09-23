@@ -2,6 +2,9 @@ use chrono::{DateTime, Duration, Utc};
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::realm::RealmId;
+use crate::realm::scope::RealmOwned;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SessionState {
     Active,
@@ -9,6 +12,7 @@ pub enum SessionState {
     Expired,
 }
 
+#[derive(Debug, Clone)]
 pub struct UserSession {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -64,6 +68,12 @@ impl UserSession {
         } else {
             SessionState::Active
         }
+    }
+}
+
+impl RealmOwned for UserSession {
+    fn realm_id(&self) -> RealmId {
+        RealmId::new(self.realm_id)
     }
 }
 

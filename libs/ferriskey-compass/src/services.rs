@@ -5,6 +5,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::{RealmScope, UnscopedOption};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 use uuid::Uuid;
 
@@ -68,22 +69,16 @@ where
         identity: Identity,
         input: FetchFlowsInput,
     ) -> Result<Vec<CompassFlow>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_flows(&identity, &realm).await,
+            self.policy.can_view_flows(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         let flows = self
             .flow_repository
-            .get_flows(realm_id, input.filter)
+            .get_flows(scope.id(), input.filter)
             .await?;
 
         Ok(flows)
@@ -95,15 +90,10 @@ where
         realm_name: String,
         flow_id: Uuid,
     ) -> Result<CompassFlow, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_flows(&identity, &realm).await,
+            self.policy.can_view_flows(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -111,11 +101,9 @@ where
             .flow_repository
             .get_flow_by_id(flow_id)
             .await?
-            .ok_or(CoreError::NotFound)?;
-
-        if flow.realm_id != realm.id {
-            return Err(CoreError::NotFound);
-        }
+            .in_realm(&scope)?
+            .ok_or(CoreError::NotFound)?
+            .into_inner();
 
         let steps = self.step_repository.get_steps_for_flow(flow_id).await?;
         flow.steps = steps;
@@ -128,20 +116,14 @@ where
         identity: Identity,
         realm_name: String,
     ) -> Result<FlowStats, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_flows(&identity, &realm).await,
+            self.policy.can_view_flows(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
-        let stats = self.flow_repository.get_stats(realm_id).await?;
+        let stats = self.flow_repository.get_stats(scope.id()).await?;
 
         Ok(stats)
     }
@@ -152,22 +134,16 @@ where
         realm_name: String,
         filter: DailyActivityStatsFilter,
     ) -> Result<Vec<DailyActivityStats>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_flows(&identity, &realm).await,
+            self.policy.can_view_flows(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         let stats = self
             .flow_repository
-            .get_daily_activity_stats(realm_id, filter)
+            .get_daily_activity_stats(scope.id(), filter)
             .await?;
 
         Ok(stats)

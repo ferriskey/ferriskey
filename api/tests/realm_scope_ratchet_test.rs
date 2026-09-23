@@ -13,8 +13,6 @@ mod tests {
         "libs/ferriskey-aegis/src/services/client_scope_service.rs",
         "libs/ferriskey-aegis/src/services/protocol_mapper_service.rs",
         "libs/ferriskey-aegis/src/services/scope_mapping_service.rs",
-        "libs/ferriskey-compass/src/services.rs",
-        "libs/ferriskey-domain/src/session/services.rs",
         "libs/ferriskey-mail/src/email_template/services.rs",
         "libs/ferriskey-mail/src/email_verification/services.rs",
         "libs/ferriskey-portal-layouts/src/services.rs",
@@ -28,8 +26,6 @@ mod tests {
         "core/src/domain/authentication/services.rs",
         "core/src/domain/saml/services.rs",
         "core/src/domain/trident/services.rs",
-        "libs/ferriskey-compass/src/services.rs",
-        "libs/ferriskey-domain/src/session/services.rs",
     ];
 
     const SANCTIONED: &[&str] = &[

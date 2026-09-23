@@ -63,7 +63,7 @@ use crate::domain::{
         ports::{AccessTokenRepository, RefreshTokenRepository, RotateOutcome},
     },
     realm::{
-        entities::{RealmId, RealmScope, RealmSetting, Unscoped},
+        entities::{RealmId, RealmScope, RealmSetting, Scoped, Unscoped, UnscopedOption},
         ports::RealmRepository,
     },
     role::entities::Role,
@@ -209,6 +209,7 @@ fn validate_token_refresh_request(
 fn validate_session_binding(
     claimed_sid: Option<Uuid>,
     session: Option<&UserSession>,
+    realm_id: RealmId,
     now: DateTime<Utc>,
 ) -> Result<(), CoreError> {
     let Some(sid) = claimed_sid else {
@@ -219,6 +220,16 @@ fn validate_session_binding(
         warn!(session_id = %sid, "Rejecting token: the session it names no longer exists");
         return Err(CoreError::SessionRevoked);
     };
+
+    if session.realm_id != Uuid::from(realm_id) {
+        warn!(
+            session_id = %sid,
+            session_realm_id = %session.realm_id,
+            token_realm_id = %Uuid::from(realm_id),
+            "Rejecting token: the session it names belongs to another realm"
+        );
+        return Err(CoreError::SessionRevoked);
+    }
 
     if session.expires_at < now {
         warn!(session_id = %sid, "Rejecting token: the session it names has expired");
@@ -1503,8 +1514,22 @@ where
         let session_id = auth_session.user_session_id?;
 
         match self.user_session_repository.find_by_id(session_id).await {
-            Ok(Some(session)) if !session.is_expired() => Some(session),
-            Ok(_) => None,
+            Ok(Some(session)) => {
+                let session = session.across_realms();
+
+                if session.realm_id != Uuid::from(auth_session.realm_id) {
+                    warn!(
+                        session_id = %session_id,
+                        session_realm_id = %session.realm_id,
+                        auth_session_realm_id = %Uuid::from(auth_session.realm_id),
+                        "Refusing the session bound to an auth session of another realm, opening a new one"
+                    );
+                    return None;
+                }
+
+                (!session.is_expired()).then_some(session)
+            }
+            Ok(None) => None,
             Err(e) => {
                 warn!(
                     session_id = %session_id,
@@ -1604,10 +1629,12 @@ where
 
     async fn revoke_session_cascade(
         &self,
-        session_id: Uuid,
+        session: &Scoped<UserSession>,
         realm_id: RealmId,
         user_id: Uuid,
     ) -> Result<(), CoreError> {
+        let session_id = session.get().id;
+
         let (access_revoked, refresh_revoked) = tokio::try_join!(
             self.access_token_repository
                 .revoke_by_session_id(session_id),
@@ -1623,7 +1650,7 @@ where
             CoreError::InternalServerError
         })?;
 
-        if let Err(e) = self.user_session_repository.delete(&session_id).await {
+        if let Err(e) = self.user_session_repository.delete(session).await {
             warn!(
                 session_id = %session_id,
                 error = ?e,
@@ -1806,11 +1833,17 @@ where
                 .map_err(|e| {
                     warn!(session_id = %sid, error = ?e, "Failed to load the session backing a token");
                     CoreError::InternalServerError
-                })?,
+                })?
+                .map(Unscoped::across_realms),
             None => None,
         };
 
-        validate_session_binding(token_data.claims.sid, session.as_ref(), Utc::now())?;
+        validate_session_binding(
+            token_data.claims.sid,
+            session.as_ref(),
+            realm_id,
+            Utc::now(),
+        )?;
 
         // Enforce immediate access token revocation when a persisted token has been marked revoked.
         if token_data.claims.typ == ClaimsTyp::Bearer {
@@ -2803,34 +2836,18 @@ where
         let authorization_code = generate_random_string();
 
         let (sso_session, sso_cookie) = match sso_session {
-            SsoSessionBinding::Resume { session_id, cookie } => {
-                let session = self
-                    .user_session_repository
-                    .find_by_id(session_id)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?
-                    .ok_or(CoreError::SessionNotFound)?;
-
-                (session, cookie)
-            }
-            SsoSessionBinding::Adopt { session_id } => {
-                let session = self
-                    .user_session_repository
-                    .find_by_id(session_id)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?
-                    .ok_or(CoreError::SessionNotFound)?;
-
+            SsoSessionBinding::Resume { session, cookie } => (session.into_inner(), cookie),
+            SsoSessionBinding::Adopt { session } => {
                 let cookie = generate_random_token();
                 self.user_session_repository
-                    .set_sso_token_hash(session.id, &sso_token_hash(&cookie))
+                    .set_sso_token_hash(&session, &sso_token_hash(&cookie))
                     .await
                     .map_err(|e| {
-                        warn!(session_id = %session.id, error = ?e, "Failed to issue an SSO secret");
+                        warn!(session_id = %session.get().id, error = ?e, "Failed to issue an SSO secret");
                         CoreError::InternalServerError
                     })?;
 
-                (session, cookie)
+                (session.into_inner(), cookie)
             }
             SsoSessionBinding::Open => {
                 let lifetimes = self
@@ -3216,10 +3233,12 @@ This is a server error that should be investigated. Do not forward back this mes
     async fn handle_sso_session(
         &self,
         cookie: String,
-        realm_id: RealmId,
+        scope: RealmScope,
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let realm_id = scope.id();
+
         let session = self
             .user_session_repository
             .find_by_sso_token_hash(&sso_token_hash(&cookie))
@@ -3228,26 +3247,18 @@ This is a server error that should be investigated. Do not forward back this mes
                 warn!(error = ?e, "Failed to load an SSO session");
                 CoreError::InternalServerError
             })?
+            .in_realm(&scope)?
             .ok_or(CoreError::SessionNotFound)?;
 
-        let user_session_id = session.id;
+        let user_session_id = session.get().id;
 
-        if session.realm_id != Uuid::from(realm_id) {
-            warn!(
-                session_id = %user_session_id,
-                realm_id = %Uuid::from(realm_id),
-                "Refusing an SSO session that belongs to another realm"
-            );
-            return Err(CoreError::InvalidSession);
-        }
-
-        if session.is_expired() {
+        if session.get().is_expired() {
             return Err(CoreError::SessionExpired);
         }
 
         let user = self
             .user_repository
-            .get_by_id(session.user_id)
+            .get_by_id(session.get().user_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .across_realms();
@@ -3304,10 +3315,10 @@ This is a server error that should be investigated. Do not forward back this mes
 
         if let Err(e) = self
             .user_session_repository
-            .update_last_seen(session.id)
+            .update_last_seen(&session)
             .await
         {
-            warn!(session_id = %session.id, error = ?e, "Failed to slide the SSO session last_seen_at");
+            warn!(session_id = %user_session_id, error = ?e, "Failed to slide the SSO session last_seen_at");
         }
 
         self.security_event_repository
@@ -3319,7 +3330,7 @@ This is a server error that should be investigated. Do not forward back this mes
                     user.id,
                 )
                 .with_actor(user.id, ActorType::User)
-                .with_target("session".to_string(), session.id, None)
+                .with_target("session".to_string(), user_session_id, None)
                 .with_details(serde_json::json!({ "method": "sso_session" })),
             )
             .await
@@ -3330,10 +3341,7 @@ This is a server error that should be investigated. Do not forward back this mes
             user.id,
             session_code,
             auth_session,
-            SsoSessionBinding::Resume {
-                session_id: session.id,
-                cookie,
-            },
+            SsoSessionBinding::Resume { session, cookie },
         )
         .await
     }
@@ -3341,10 +3349,12 @@ This is a server error that should be investigated. Do not forward back this mes
     async fn handle_token_refresh(
         &self,
         token: String,
-        realm_id: RealmId,
+        scope: RealmScope,
         auth_session: AuthSession,
         session_code: Uuid,
     ) -> Result<AuthenticateOutput, CoreError> {
+        let realm_id = scope.id();
+
         let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
         let token_fingerprint = token_hash.chars().take(12).collect::<String>();
         let token_segments = token.split('.').count();
@@ -3458,7 +3468,20 @@ This is a server error that should be investigated. Do not forward back this mes
         }
 
         let binding = match claims.sid {
-            Some(sid) => SsoSessionBinding::Adopt { session_id: sid },
+            Some(sid) => {
+                let session = self
+                    .user_session_repository
+                    .find_by_id(sid)
+                    .await
+                    .map_err(|e| {
+                        warn!(session_id = %sid, error = ?e, "Failed to load the session a token names");
+                        CoreError::InternalServerError
+                    })?
+                    .in_realm(&scope)?
+                    .ok_or(CoreError::SessionNotFound)?;
+
+                SsoSessionBinding::Adopt { session }
+            }
             None => SsoSessionBinding::Open,
         };
 
@@ -4043,12 +4066,22 @@ where
 
         match input.auth_method {
             AuthenticationMethod::ExistingToken { token } => {
-                self.handle_token_refresh(token, realm.id, auth_session, input.session_code)
-                    .await
+                self.handle_token_refresh(
+                    token,
+                    RealmScope::from_realm(realm),
+                    auth_session,
+                    input.session_code,
+                )
+                .await
             }
             AuthenticationMethod::SsoSession { cookie } => {
-                self.handle_sso_session(cookie, realm.id, auth_session, input.session_code)
-                    .await
+                self.handle_sso_session(
+                    cookie,
+                    RealmScope::from_realm(realm),
+                    auth_session,
+                    input.session_code,
+                )
+                .await
             }
             AuthenticationMethod::UserCredentials { username, password } => {
                 let params = CredentialsAuthParams {
@@ -4497,8 +4530,20 @@ where
                 .as_deref()
                 .and_then(|sid| Uuid::parse_str(sid).ok())
         {
-            self.revoke_session_cascade(session_id, realm.id, claims.sub)
-                .await?;
+            let session = self
+                .user_session_repository
+                .find_by_id(session_id)
+                .await
+                .map_err(|e| {
+                    warn!(session_id = %session_id, error = ?e, "Failed to load the session a logout names");
+                    CoreError::InternalServerError
+                })?
+                .in_realm(&RealmScope::from_realm(realm.clone()))?;
+
+            if let Some(session) = session {
+                self.revoke_session_cascade(&session, realm.id, claims.sub)
+                    .await?;
+            }
         }
 
         if let Some(post_logout_redirect_uri) = input.post_logout_redirect_uri {
@@ -5631,7 +5676,12 @@ mod tests {
 
         assert!(
             matches!(
-                validate_session_binding(Some(Uuid::new_v4()), None, now),
+                validate_session_binding(
+                    Some(Uuid::new_v4()),
+                    None,
+                    RealmId::new(Uuid::new_v4()),
+                    now
+                ),
                 Err(CoreError::SessionRevoked)
             ),
             "a token naming a session that no longer exists must not validate"
@@ -5645,7 +5695,12 @@ mod tests {
 
         assert!(
             matches!(
-                validate_session_binding(Some(session.id), Some(&session), now),
+                validate_session_binding(
+                    Some(session.id),
+                    Some(&session),
+                    RealmId::new(session.realm_id),
+                    now
+                ),
                 Err(CoreError::SessionRevoked)
             ),
             "a token naming an expired session must not validate"
@@ -5677,7 +5732,7 @@ mod tests {
     #[test]
     fn token_without_a_sid_is_still_accepted() {
         assert!(
-            validate_session_binding(None, None, Utc::now()).is_ok(),
+            validate_session_binding(None, None, RealmId::new(Uuid::new_v4()), Utc::now()).is_ok(),
             "a token that never claimed a session must keep working"
         );
     }
@@ -5688,7 +5743,13 @@ mod tests {
         let session = user_session(now + Duration::hours(1));
 
         assert!(
-            validate_session_binding(Some(session.id), Some(&session), now).is_ok(),
+            validate_session_binding(
+                Some(session.id),
+                Some(&session),
+                RealmId::new(session.realm_id),
+                now
+            )
+            .is_ok(),
             "the normal path must not regress"
         );
     }
@@ -5698,7 +5759,34 @@ mod tests {
         let now = Utc::now();
         let session = user_session(now);
 
-        assert!(validate_session_binding(Some(session.id), Some(&session), now).is_ok());
+        assert!(
+            validate_session_binding(
+                Some(session.id),
+                Some(&session),
+                RealmId::new(session.realm_id),
+                now
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn token_rejected_when_its_session_belongs_to_another_realm() {
+        let now = Utc::now();
+        let session = user_session(now + Duration::hours(1));
+
+        assert!(
+            matches!(
+                validate_session_binding(
+                    Some(session.id),
+                    Some(&session),
+                    RealmId::new(Uuid::new_v4()),
+                    now
+                ),
+                Err(CoreError::SessionRevoked)
+            ),
+            "a token naming a live session of another realm must not validate"
+        );
     }
 
     use super::{
