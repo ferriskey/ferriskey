@@ -336,7 +336,7 @@ pub struct OAuth2ErrorResponse {
     pub error_description: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct ValidationErrorResponse {
     pub errors: Vec<ValidationError>,
 }

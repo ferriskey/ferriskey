@@ -3,7 +3,9 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
+use ferriskey_api_core::api_entities::api_error::{
+    ApiError, ApiErrorResponse, ValidateJson, ValidationErrorResponse,
+};
 use ferriskey_api_core::api_entities::response::Response;
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
@@ -38,12 +40,12 @@ pub struct ImportPasswordCredentialResponse {
     ),
     responses(
         (status = 201, description = "Password hash imported", body = ImportPasswordCredentialResponse),
-        (status = 400, description = "Invalid request body", body = ApiErrorResponse),
-        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 400, description = "Malformed request body", body = ApiErrorResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
-        (status = 404, description = "User not found", body = ApiErrorResponse),
+        (status = 404, description = "Realm or user not found", body = ApiErrorResponse),
         (status = 409, description = "User already has a password credential", body = ApiErrorResponse),
-        (status = 422, description = "Unsupported or malformed password hash", body = ApiErrorResponse),
+        (status = 422, description = "Invalid request field, or unsupported or malformed password hash", body = ValidationErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
