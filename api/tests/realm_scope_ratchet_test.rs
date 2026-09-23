@@ -7,7 +7,6 @@ mod tests {
         "core/src/application/services.rs",
         "core/src/domain/authentication/services.rs",
         "core/src/domain/common/services.rs",
-        "core/src/domain/realm/services.rs",
     ];
 
     const MANUAL_COMPARISON: &[&str] = &[
