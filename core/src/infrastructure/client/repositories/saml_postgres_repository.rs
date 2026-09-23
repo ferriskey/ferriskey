@@ -5,13 +5,14 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::domain::client::{
+    entities::Client,
     entities::saml::{
         ClientSamlConfig, SamlAttributeMapper, SamlAttributeMapperDefinition, SamlConfigSettings,
     },
     ports::ClientSamlRepository,
 };
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::{RealmId, Unscoped};
+use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
 use crate::entity::{
     client_saml_attribute_mappers::{
         ActiveModel as AttributeMapperActiveModel, Column as AttributeMapperColumn,
@@ -190,16 +191,24 @@ impl crate::domain::saml::ports::SamlServiceProviderRepository for PostgresClien
 
     async fn get_by_client_id(
         &self,
-        client_id: Uuid,
+        client: &Scoped<Client>,
     ) -> Result<Option<ClientSamlConfig>, CoreError> {
-        self.read_config_by_client_id(client_id).await
+        let client = client.get();
+
+        SamlConfigEntity::find_by_id(client.id)
+            .filter(SamlConfigColumn::RealmId.eq(Uuid::from(client.realm_id)))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .map(ClientSamlConfig::try_from)
+            .transpose()
     }
 
     async fn get_attribute_mappers(
         &self,
-        client_id: Uuid,
+        client: &Scoped<Client>,
     ) -> Result<Vec<SamlAttributeMapper>, CoreError> {
-        ClientSamlRepository::get_attribute_mappers_by_client_id(self, client_id).await
+        ClientSamlRepository::get_attribute_mappers_by_client_id(self, client.get().id).await
     }
 }
 

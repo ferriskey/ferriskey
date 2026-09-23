@@ -150,6 +150,9 @@ jobs:
       - name: run cross-realm observability isolation integration tests
         run: cargo test -p ferriskey-api --test observability_cross_realm_test -- --ignored
 
+      - name: run cross-realm saml isolation integration tests
+        run: cargo test -p ferriskey-api --test saml_cross_realm_test -- --ignored
+
       - name: run seawatch integration tests
         run: cargo test -p ferriskey-api --test seawatch_test -- --ignored
 

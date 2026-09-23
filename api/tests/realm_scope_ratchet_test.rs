@@ -8,7 +8,6 @@ mod tests {
         "core/src/domain/authentication/services.rs",
         "core/src/domain/common/services.rs",
         "core/src/domain/realm/services.rs",
-        "core/src/domain/saml/services.rs",
         "core/src/domain/trident/services.rs",
     ];
 
