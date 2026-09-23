@@ -368,13 +368,15 @@ where
     async fn pending_auth_step_for(
         &self,
         user_id: Uuid,
+        scope: &RealmScope,
         actions_satisfied_by_path: &[RequiredAction],
     ) -> Result<Option<PendingAuthStep>, CoreError> {
         let user = self
             .user_repository
             .get_by_id(user_id)
             .await?
-            .across_realms();
+            .in_realm(scope)?
+            .into_inner();
 
         let credentials = self
             .credential_repository
@@ -413,10 +415,11 @@ where
         &self,
         auth_session: &AuthSession,
         user_id: Uuid,
+        scope: &RealmScope,
         actions_satisfied_by_path: &[RequiredAction],
     ) -> Result<String, CoreError> {
         let completion = self
-            .issue_auth_completion(auth_session, user_id, actions_satisfied_by_path)
+            .issue_auth_completion(auth_session, user_id, scope, actions_satisfied_by_path)
             .await?;
 
         login_url_from(completion)
@@ -426,10 +429,11 @@ where
         &self,
         auth_session: &AuthSession,
         user_id: Uuid,
+        scope: &RealmScope,
         actions_satisfied_by_path: &[RequiredAction],
     ) -> Result<AuthCompletion, CoreError> {
         if let Some(step) = self
-            .pending_auth_step_for(user_id, actions_satisfied_by_path)
+            .pending_auth_step_for(user_id, scope, actions_satisfied_by_path)
             .await?
         {
             warn!(
@@ -650,18 +654,18 @@ where
 
         let user_code = decode_string(input.code, format)?;
 
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
             .map_err(|_| CoreError::SessionNotFound)?;
 
-        let realm = self
-            .realm_repository
-            .get_by_id(auth_session.realm_id)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-        let scope = RealmScope::from_realm(realm);
+        let auth_session = Unscoped::new(auth_session)
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
 
         let user = self
             .user_repository
@@ -894,10 +898,17 @@ where
         identity: Identity,
         input: WebAuthnPublicKeyRequestOptionsInput,
     ) -> Result<WebAuthnPublicKeyRequestOptionsOutput, CoreError> {
-        let user = match identity {
-            Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("is not user".to_string())),
-        };
+        if !matches!(identity, Identity::User(_)) {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
 
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
@@ -906,7 +917,7 @@ where
 
         let creds = self
             .credential_repository
-            .get_webauthn_public_key_credentials(user.id)
+            .get_webauthn_public_key_credentials(user.get().id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -965,6 +976,11 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        let auth_session = Unscoped::new(auth_session)
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
         let webauthn = build_webauthn_client(input.rp_info)?;
 
         let auth_result = match auth_session.webauthn_challenge {
@@ -993,7 +1009,7 @@ where
         }
 
         let login_url = self
-            .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &[])
+            .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &scope, &[])
             .await?;
 
         Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
@@ -1008,17 +1024,13 @@ where
 
         let webauthn = build_webauthn_client(input.rp_info)?;
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         if let Some(username) = input.username {
             // Non-discoverable: we know the user, fetch their passkeys
             let user = self
                 .user_repository
-                .get_by_username(username, realm.id)
+                .get_by_username(username, scope.id())
                 .await
                 .map_err(|_| CoreError::WebAuthnChallengeFailed)?;
 
@@ -1080,7 +1092,7 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let mut auth_session = self
+        let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
@@ -1088,12 +1100,12 @@ where
 
         let webauthn = build_webauthn_client(input.rp_info)?;
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-        let scope = RealmScope::from_realm(realm);
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let mut auth_session = Unscoped::new(auth_session)
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
 
         let webauthn_challenge = auth_session.webauthn_challenge.take();
         let (auth_result, user) = match webauthn_challenge {
@@ -1172,7 +1184,7 @@ where
         }
 
         let login_url = self
-            .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &[])
+            .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &scope, &[])
             .await?;
 
         Ok(PasskeyAuthenticateOutput { login_url })
@@ -1319,16 +1331,24 @@ where
         identity: Identity,
         input: UpdatePasswordInput,
     ) -> Result<(), CoreError> {
-        let user = match identity {
-            Identity::User(user) => user,
-            _ => return Err(CoreError::Forbidden("is not user".to_string())),
-        };
+        if !matches!(identity, Identity::User(_)) {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let scoped_user = self
+            .user_repository
+            .get_by_id(identity.id())
+            .await?
+            .in_realm(&scope)?;
+        let user = scoped_user.get();
 
         let policy = self
             .password_policy_repository
-            .find_by_realm_id(user.realm_id.into())
+            .find_by_realm_id(scope.id().into())
             .await?
-            .unwrap_or_else(|| PasswordPolicy::default(user.realm_id.into()));
+            .unwrap_or_else(|| PasswordPolicy::default(scope.id().into()));
 
         let email_local_buf = user
             .email
@@ -1373,7 +1393,7 @@ where
             .map_err(|_| CoreError::InternalServerError)?;
 
         self.token_revocation
-            .revoke_all_user_access(user.id, user.realm_id.into())
+            .revoke_all_user_access(user.id, scope.id().into())
             .await?;
 
         Ok(())
@@ -1503,12 +1523,8 @@ where
     }
 
     async fn generate_magic_link(&self, input: MagicLinkInput) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm();
 
         let settings = self
             .realm_repository
@@ -1584,7 +1600,7 @@ where
 
                 let html_body = self
                     .render_email_template(
-                        &RealmScope::from_realm(realm.clone()),
+                        &scope,
                         tid,
                         &user,
                         &[
@@ -1733,14 +1749,17 @@ where
             .inspect_err(|_| error!("Session not found for code: {}", session_code))
             .map_err(|_| CoreError::SessionNotFound)?;
 
-        if magic_link.realm_id != Uuid::from(auth_session.realm_id) {
-            warn!(
-                "Magic link realm_id {} does not match auth session realm_id {}",
-                magic_link.realm_id,
-                Uuid::from(auth_session.realm_id)
-            );
-            return Err(CoreError::InvalidMagicLink);
-        }
+        let scope = RealmScope::from_realm(
+            self.realm_repository
+                .get_by_id(auth_session.realm_id)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?,
+        );
+
+        let magic_link = Unscoped::new(magic_link)
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidMagicLink)?
+            .into_inner();
 
         if magic_link.is_expired() {
             warn!("Magic link has expired");
@@ -1779,6 +1798,7 @@ where
             .store_auth_code_and_generate_login_url(
                 &auth_session,
                 magic_link.user_id,
+                &scope,
                 &[RequiredAction::VerifyEmail],
             )
             .await
@@ -1800,12 +1820,8 @@ where
         &self,
         input: RequestPasswordResetInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm();
 
         let settings = self
             .realm_repository
@@ -1901,7 +1917,7 @@ where
 
                 let html_body = self
                     .render_email_template(
-                        &RealmScope::from_realm(realm.clone()),
+                        &scope,
                         tid,
                         &user,
                         &[
@@ -2078,18 +2094,26 @@ where
             .await?
             .unwrap_or_else(|| PasswordPolicy::default(prt.realm_id));
 
+        let scope = RealmScope::from_realm(
+            self.realm_repository
+                .get_by_id(prt.realm_id.into())
+                .await?
+                .ok_or(CoreError::InvalidRealm)?,
+        );
+
         // Look up user context for the common-password check (username/email match).
         let target_user = self
             .user_repository
             .get_by_id(prt.user_id)
             .await
             .ok()
-            .map(Unscoped::across_realms);
+            .in_realm(&scope)?;
 
         let (username_buf, email_local_buf);
         let (username_ref, email_local_ref) = if let Some(ref u) = target_user {
-            username_buf = u.username.clone();
+            username_buf = u.get().username.clone();
             email_local_buf = u
+                .get()
                 .email
                 .as_deref()
                 .and_then(|e| e.split('@').next())
@@ -2181,7 +2205,7 @@ where
             {
                 Ok(auth_session) if Uuid::from(auth_session.realm_id) == realm_id => {
                     match self
-                        .store_auth_code_and_generate_login_url(&auth_session, user_id, &[])
+                        .store_auth_code_and_generate_login_url(&auth_session, user_id, &scope, &[])
                         .await
                     {
                         Ok(url) => Some(url),
@@ -2676,7 +2700,7 @@ mod tests {
         let user = create_test_user_with_email(&realm, "user@example.com");
         let user_id = user.id;
 
-        let mut builder = TridentTestBuilder::new();
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
         Arc::get_mut(&mut builder.password_policy_repo)
             .unwrap()
@@ -2743,6 +2767,65 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn update_password_refuses_a_realm_name_the_subject_does_not_belong_to() {
+        let realm = create_test_realm_with_name("test-realm");
+        let neighbour = create_test_realm_with_name("neighbour-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        let mut builder = TridentTestBuilder::new();
+
+        let resolved = neighbour.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .withf(|name| name == "neighbour-realm")
+            .returning(move |_| {
+                let realm = resolved.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+
+        let owner = user.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let user = owner.clone();
+                Box::pin(async move { Ok(Unscoped::new(user)) })
+            });
+
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .never()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never()
+            .returning(|_, _, _, _, _| {
+                Box::pin(async { Err(CredentialError::CreateCredentialError) })
+            });
+
+        let service = builder.with_user_access_revoked(0).build();
+
+        let result = service
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "neighbour-realm".to_string(),
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::NotFound)),
+            "the realm name on the input must be read and refused when the subject belongs to              another realm, and the matching realm name is accepted by              update_password_revokes_all_user_tokens: {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn complete_password_reset_valid_token_succeeds() {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
@@ -2759,6 +2842,15 @@ mod tests {
             auth_session_code: None,
         };
         let prt_user_id = prt.user_id;
+
+        let resolved = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = resolved.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
 
         let prt_clone = prt.clone();
         Arc::get_mut(&mut builder.prt_repo)
@@ -3700,6 +3792,15 @@ mod tests {
         let magic_link = magic_link_for(user.id, Uuid::from(realm.id), session_code);
         let token_id = magic_link.magic_token_id;
 
+        let resolved = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = resolved.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
         Arc::get_mut(&mut builder.magic_link_repo)
             .unwrap()
             .expect_get_by_token_id()
@@ -3903,6 +4004,15 @@ mod tests {
             auth_session_code: Some(session_code),
         };
 
+        let resolved = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let r = resolved.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+
         Arc::get_mut(&mut builder.prt_repo)
             .unwrap()
             .expect_get_by_token_id()
@@ -4078,7 +4188,12 @@ mod tests {
 
         let service = builder.build();
         let result = service
-            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
             .await;
 
         assert!(
@@ -4106,7 +4221,12 @@ mod tests {
 
         let service = builder.build();
         let result = service
-            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
             .await;
 
         assert!(
@@ -4133,7 +4253,12 @@ mod tests {
 
         let service = builder.build();
         let login_url = service
-            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
             .await
             .expect("an absent state must not block the authorization code");
 
@@ -4169,7 +4294,12 @@ mod tests {
 
         let service = builder.build();
         let login_url = service
-            .store_auth_code_and_generate_login_url(&session, user_id, &[])
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
             .await
             .expect("a user owing nothing must get an authorization code");
 
@@ -4405,6 +4535,91 @@ mod tests {
         assert!(
             matches!(error, CoreError::WebAuthnChallengeFailed),
             "the claimed user handle must be rejected as a failed challenge: {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn passkey_authenticate_refuses_an_authentication_session_of_another_realm() {
+        let url_realm = create_test_realm_with_name("passkey-realm");
+        let session_realm = create_test_realm_with_name("neighbour-passkey-realm");
+        let owner = create_test_user_with_email(&url_realm, "owner@example.com");
+
+        let PasskeyAssertionFixture {
+            session_code,
+            session,
+            credential_id,
+            credential,
+            assertion,
+            ..
+        } = passkey_assertion_fixture(&session_realm, owner.id);
+
+        let mut builder = TridentTestBuilder::new();
+
+        let resolved = url_realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let realm = resolved.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+
+        let foreign_session = session.clone();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = foreign_session.clone();
+                Box::pin(async move { Ok(s) })
+            });
+
+        let owner_id = owner.id;
+        let expected_credential_id = credential_id.clone();
+        let stored = stored_passkey_credential(owner_id, credential);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_webauthn_credential_by_credential_id_and_user()
+            .withf(move |credential_id, user| {
+                credential_id == expected_credential_id.as_slice() && user.get().id == owner_id
+            })
+            .returning(move |_, _| {
+                let c = stored.clone();
+                Box::pin(async move { Ok(Some(c)) })
+            });
+
+        expect_pending_step_lookups(
+            &mut builder,
+            owner.clone(),
+            Vec::new(),
+            create_test_realm_setting(url_realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let service = builder.build();
+
+        let result = service
+            .passkey_authenticate(PasskeyAuthenticateInput {
+                realm_name: url_realm.name.clone(),
+                session_code: session_code.to_string(),
+                rp_info: passkey_rp_info(),
+                credential: assertion,
+            })
+            .await;
+
+        let error = match result {
+            Ok(output) => panic!(
+                "a validly signed assertion must not complete an authentication session of \
+                 another realm, got {}",
+                output.login_url
+            ),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(error, CoreError::SessionNotFound),
+            "the session must be refused for belonging to another realm, and the same assertion \
+             on a session of the url realm is accepted by \
+             passkey_authenticate_issues_the_code_for_the_owner_of_the_signing_passkey: {error:?}"
         );
     }
 

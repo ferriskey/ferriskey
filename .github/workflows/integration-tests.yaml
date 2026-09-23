@@ -153,6 +153,9 @@ jobs:
       - name: run cross-realm saml isolation integration tests
         run: cargo test -p ferriskey-api --test saml_cross_realm_test -- --ignored
 
+      - name: run cross-realm trident isolation integration tests
+        run: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored
+
       - name: run seawatch integration tests
         run: cargo test -p ferriskey-api --test seawatch_test -- --ignored
 

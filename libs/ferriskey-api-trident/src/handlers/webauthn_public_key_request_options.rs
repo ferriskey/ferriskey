@@ -1,4 +1,7 @@
-use axum::{Extension, extract::State};
+use axum::{
+    Extension,
+    extract::{Path, State},
+};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
@@ -58,6 +61,7 @@ impl PartialSchema for RequestOptionsResponse {
     )
 )]
 pub async fn webauthn_public_key_request_options(
+    Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
@@ -75,6 +79,7 @@ pub async fn webauthn_public_key_request_options(
         .webauthn_public_key_request_options(
             identity,
             WebAuthnPublicKeyRequestOptionsInput {
+                realm_name,
                 session_code,
                 rp_info,
             },
