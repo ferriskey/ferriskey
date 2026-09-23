@@ -191,8 +191,7 @@ where
         let roles = self
             .user_role_repository
             .get_user_roles(user.get().id)
-            .await
-            .unwrap_or_default();
+            .await?;
 
         match refusal_for_removal(factors, removal, settings.as_ref(), &roles) {
             None => Ok(()),
@@ -1015,6 +1014,43 @@ mod tests {
             .await;
 
         assert!(matches!(refused, Err(CoreError::MfaFactorRequired)));
+    }
+
+    #[tokio::test]
+    async fn a_role_lookup_failure_refuses_the_removal_rather_than_assuming_no_roles() {
+        let (realm, user, identity) = actors();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting_elevation(&user, realm.id);
+        harness.holding_credentials(vec![
+            credential_of(user.id, CredentialType::Password),
+            credential_of(user.id, CredentialType::Otp),
+        ]);
+        harness
+            .realms
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let settings = RealmSetting::new(realm.id, None);
+                Box::pin(async move { Ok(Some(settings)) })
+            });
+        harness
+            .roles
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async move { Err(CoreError::Database("down".into())) }));
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .disable_own_otp(
+                identity,
+                DisableOwnOtpInput {
+                    realm_name: "acme".into(),
+                    elevation_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::Database(_))));
     }
 
     #[tokio::test]
