@@ -5,9 +5,6 @@ mod tests {
 
     const MANUAL_RESOLUTION: &[&str] = &[
         "core/src/application/services.rs",
-        "core/src/domain/abyss/broker_services.rs",
-        "core/src/domain/abyss/federation/services.rs",
-        "core/src/domain/abyss/identity_provider_services.rs",
         "core/src/domain/authentication/services.rs",
         "core/src/domain/common/services.rs",
         "core/src/domain/realm/services.rs",
@@ -28,7 +25,6 @@ mod tests {
 
     const MANUAL_COMPARISON: &[&str] = &[
         "core/src/application/services.rs",
-        "core/src/domain/abyss/federation/services.rs",
         "core/src/domain/authentication/services.rs",
         "core/src/domain/saml/services.rs",
         "core/src/domain/trident/services.rs",

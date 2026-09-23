@@ -138,6 +138,9 @@ jobs:
       - name: run cross-realm maintenance whitelist isolation integration tests
         run: cargo test -p ferriskey-api --test maintenance_cross_realm_test -- --ignored
 
+      - name: run cross-realm abyss isolation integration tests
+        run: cargo test -p ferriskey-api --test abyss_cross_realm_test -- --ignored
+
       # Every test in this file shares one realm, and the CORS origin cache
       # (RealmOriginCache) is keyed by realm name alone — running them
       # concurrently races on that shared cache entry. --test-threads=1

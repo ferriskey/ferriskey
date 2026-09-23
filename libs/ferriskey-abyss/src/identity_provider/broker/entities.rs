@@ -4,6 +4,7 @@ use uuid::{NoContext, Timestamp, Uuid};
 
 use crate::identity_provider::IdentityProviderId;
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 
 /// Broker authentication session - tracks OAuth state during SSO flow
 ///
@@ -103,6 +104,12 @@ impl BrokerAuthSession {
     /// Checks if this session has expired
     pub fn is_expired(&self) -> bool {
         Utc::now() > self.expires_at
+    }
+}
+
+impl RealmOwned for BrokerAuthSession {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 

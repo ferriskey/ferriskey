@@ -24,7 +24,7 @@ use crate::domain::authentication::value_objects::CodeChallengeMethod;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::client::redirect_uri_matching::redirect_uri_matches_any;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::RealmScope;
+use crate::domain::realm::entities::{RealmScope, Scoped, UnscopedOption};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
@@ -211,7 +211,7 @@ where
     async fn find_or_create_user(
         &self,
         scope: &RealmScope,
-        idp: &IdentityProvider,
+        idp: &Scoped<IdentityProvider>,
         user_info: &BrokeredUserInfo,
         access_token: Option<&str>,
     ) -> Result<(User, bool), CoreError> {
@@ -220,7 +220,7 @@ where
         // 1. Check if user is already linked to this IdP
         if let Some(link) = self
             .link_repository
-            .get_by_provider_and_external_id(idp.id, &user_info.subject)
+            .get_by_provider_and_external_id(idp, &user_info.subject)
             .await?
         {
             // get_by_id returns Result<User>, not Result<Option<User>>
@@ -234,11 +234,11 @@ where
                 .into_inner();
 
             // Update token if store_token is enabled
-            if idp.store_token
+            if idp.get().store_token
                 && let Some(token) = access_token
             {
                 self.link_repository
-                    .update_token(link.id, Some(token.to_string()))
+                    .update_token(idp, link.id, Some(token.to_string()))
                     .await?;
             }
 
@@ -246,7 +246,7 @@ where
         }
 
         // 2. If link_only mode, try to find user by email
-        if idp.link_only {
+        if idp.get().link_only {
             if let Some(email) = &user_info.email
                 && user_info.email_verified.unwrap_or(false)
                 && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
@@ -261,7 +261,7 @@ where
         }
 
         // 3. Try to find by email if trust_email is enabled
-        if idp.trust_email
+        if idp.get().trust_email
             && let Some(email) = &user_info.email
             && user_info.email_verified.unwrap_or(false)
             && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
@@ -273,7 +273,7 @@ where
         }
 
         // 4. Create new user
-        let username = user_info.get_username(&idp.alias);
+        let username = user_info.get_username(&idp.get().alias);
 
         let user = self
             .user_repository
@@ -284,7 +284,7 @@ where
                 firstname: user_info.given_name.clone(),
                 lastname: user_info.family_name.clone(),
                 email: user_info.email.clone(),
-                email_verified: user_info.email_verified.unwrap_or(false) && idp.trust_email,
+                email_verified: user_info.email_verified.unwrap_or(false) && idp.get().trust_email,
                 enabled: true,
             })
             .await?;
@@ -300,11 +300,11 @@ where
     async fn create_idp_link(
         &self,
         user: &User,
-        idp: &IdentityProvider,
+        idp: &Scoped<IdentityProvider>,
         user_info: &BrokeredUserInfo,
         access_token: Option<&str>,
     ) -> Result<IdentityProviderLink, CoreError> {
-        let token = if idp.store_token {
+        let token = if idp.get().store_token {
             access_token.map(|t| t.to_string())
         } else {
             None
@@ -312,7 +312,7 @@ where
 
         let request = CreateIdentityProviderLinkRequest {
             user_id: user.id,
-            identity_provider_id: idp.id.into(),
+            identity_provider_id: idp.get().id.into(),
             identity_provider_user_id: user_info.subject.clone(),
             identity_provider_username: user_info
                 .preferred_username
@@ -454,18 +454,14 @@ where
         &self,
         input: BrokerLoginInput,
     ) -> Result<BrokerLoginOutput, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         let client = self
             .client_repository
-            .get_by_client_id(input.client_id.clone(), realm.id)
+            .get_by_client_id(input.client_id.clone(), scope.id())
             .await
             .map_err(|_| CoreError::ClientNotFound)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(&scope)?
             .into_inner();
 
         self.validate_redirect_uri(client.id, &input.redirect_uri)
@@ -474,7 +470,7 @@ where
         // 3. Get identity provider by alias
         let idp = self
             .identity_provider_repository
-            .get_identity_provider_by_realm_and_alias(realm.id, &input.alias)
+            .get_identity_provider_by_realm_and_alias(scope.id(), &input.alias)
             .await?
             .ok_or(CoreError::ProviderNotFound)?;
 
@@ -519,7 +515,7 @@ where
 
         // 7. Create broker session
         let request = CreateBrokerAuthSessionRequest {
-            realm_id: realm.id.into(),
+            realm_id: scope.id().into(),
             identity_provider_id: idp.id.into(),
             client_id: client.id,
             redirect_uri: input.redirect_uri.clone(),
@@ -567,28 +563,32 @@ where
         &self,
         input: BrokerCallbackInput,
     ) -> Result<BrokerCallbackOutput, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
         // 1. Handle IdP errors - redirect to client with error
         if let Some(error) = &input.error {
             let broker_session = self
                 .broker_session_repository
                 .get_by_broker_state(&input.state)
                 .await?
+                .in_realm(&scope)
+                .map_err(|_| CoreError::BrokerSessionNotFound)?
                 .ok_or(CoreError::BrokerSessionNotFound)?;
 
             let error_desc = input.error_description.as_deref().unwrap_or("");
-            let mut redirect_url = broker_session.redirect_uri.clone();
+            let mut redirect_url = broker_session.get().redirect_uri.clone();
             redirect_url.push_str(&format!(
                 "?error={}&error_description={}",
                 urlencoding::encode(error),
                 urlencoding::encode(error_desc)
             ));
-            if let Some(state) = &broker_session.state {
+            if let Some(state) = &broker_session.get().state {
                 redirect_url.push_str(&format!("&state={}", urlencoding::encode(state)));
             }
 
             // Clean up the broker session
             self.broker_session_repository
-                .delete(broker_session.id)
+                .delete(&broker_session)
                 .await?;
 
             return Err(CoreError::IdpAuthenticationFailed(format!(
@@ -608,37 +608,38 @@ where
             .broker_session_repository
             .get_by_broker_state(&input.state)
             .await?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::BrokerSessionNotFound)?
             .ok_or(CoreError::BrokerSessionNotFound)?;
 
+        let session = broker_session.get();
+
         // 4. Check expiration
-        if broker_session.is_expired() {
+        if session.is_expired() {
             self.broker_session_repository
-                .delete(broker_session.id)
+                .delete(&broker_session)
                 .await?;
             return Err(CoreError::BrokerSessionExpired);
         }
 
         // 5. Resolve realm and IdP
-        let realm = self
-            .realm_repository
-            .get_by_id(broker_session.realm_id)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let realm = scope.realm().clone();
 
         let idp = self
             .identity_provider_repository
-            .get_identity_provider_by_id(broker_session.identity_provider_id.into())
+            .get_identity_provider_by_id(session.identity_provider_id.into())
             .await?
-            .ok_or(CoreError::ProviderNotFound)?;
+            .ok_or(CoreError::ProviderNotFound)?
+            .in_realm(&scope)?;
 
         let client = self
             .client_repository
-            .get_by_id(broker_session.realm_id, broker_session.client_id)
+            .get_by_id(scope.id(), session.client_id)
             .await?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(&scope)?
             .into_inner();
 
-        let oauth_config: OAuthProviderConfig = idp.config.clone().try_into()?;
+        let oauth_config: OAuthProviderConfig = idp.get().config.clone().try_into()?;
 
         // Start compass flow for broker authentication
         let flow_id = self
@@ -646,7 +647,7 @@ where
             .start_flow(
                 &realm,
                 Some(client.client_id.clone()),
-                format!("broker_{}", idp.alias),
+                format!("broker_{}", idp.get().alias),
                 None,
                 None,
             )
@@ -665,7 +666,9 @@ where
         // 6. Exchange authorization code for tokens (IdP callback)
         let callback_url = format!(
             "{}/realms/{}/broker/{}/endpoint",
-            input.base_url, realm.name, idp.alias
+            input.base_url,
+            scope.name(),
+            idp.get().alias
         );
 
         // Only the IdP's own error fields. The callback also carries `code` and
@@ -692,7 +695,7 @@ where
                 &callback_url,
                 &oauth_config.client_id,
                 &oauth_config.client_secret,
-                broker_session.code_verifier.as_deref(),
+                session.code_verifier.as_deref(),
             )
             .await
         {
@@ -727,21 +730,12 @@ where
 
         // 7. Extract user info from tokens
         let user_info = self
-            .extract_user_info(
-                &oauth_config,
-                &token_response,
-                broker_session.nonce.as_deref(),
-            )
+            .extract_user_info(&oauth_config, &token_response, session.nonce.as_deref())
             .await?;
 
         // 8. Find or create user
         let (user, is_new_user) = self
-            .find_or_create_user(
-                &RealmScope::from_realm(realm.clone()),
-                &idp,
-                &user_info,
-                Some(&token_response.access_token),
-            )
+            .find_or_create_user(&scope, &idp, &user_info, Some(&token_response.access_token))
             .await?;
 
         if !user.enabled {
@@ -752,7 +746,7 @@ where
         // Set compass_flow_id so authorization_code() records TokenExchange + complete_flow
         let authorization_code = Self::generate_random_string(32);
 
-        if let Some(auth_session_id) = broker_session.auth_session_id {
+        if let Some(auth_session_id) = session.auth_session_id {
             self.auth_session_repository
                 .update_user_id(auth_session_id, user.id)
                 .await?;
@@ -765,7 +759,7 @@ where
                     .await?;
             }
         } else {
-            let challenge_method = broker_session
+            let challenge_method = session
                 .code_challenge_method
                 .as_deref()
                 .map(|method| {
@@ -777,21 +771,21 @@ where
                 .transpose()?;
 
             let auth_session = AuthSession::new(AuthSessionParams {
-                realm_id: realm.id,
-                client_id: broker_session.client_id,
+                realm_id: scope.id(),
+                client_id: session.client_id,
                 protocol: AuthProtocol::OpenIdConnect,
-                redirect_uri: broker_session.redirect_uri.clone(),
-                response_type: Some(broker_session.response_type.clone()),
-                scope: Some(broker_session.scope.clone()),
-                state: broker_session.state.clone(),
-                nonce: broker_session.nonce.clone(),
+                redirect_uri: session.redirect_uri.clone(),
+                response_type: Some(session.response_type.clone()),
+                scope: Some(session.scope.clone()),
+                state: session.state.clone(),
+                nonce: session.nonce.clone(),
                 user_id: Some(user.id),
                 code: Some(authorization_code.clone()),
                 authenticated: false,
                 webauthn_challenge: None,
                 webauthn_challenge_issued_at: None,
                 compass_flow_id: flow_id.as_ref().map(|id| id.0),
-                code_challenge: broker_session.code_challenge.clone(),
+                code_challenge: session.code_challenge.clone(),
                 code_challenge_method: challenge_method,
             });
             self.auth_session_repository.create(&auth_session).await?;
@@ -799,16 +793,16 @@ where
 
         // 10. Clean up broker session
         self.broker_session_repository
-            .delete(broker_session.id)
+            .delete(&broker_session)
             .await?;
 
         // 11. Build redirect URL back to client
-        let mut redirect_url = broker_session.redirect_uri.clone();
+        let mut redirect_url = session.redirect_uri.clone();
         redirect_url.push_str(&format!(
             "?code={}",
             urlencoding::encode(&authorization_code)
         ));
-        if let Some(state) = &broker_session.state {
+        if let Some(state) = &session.state {
             redirect_url.push_str(&format!("&state={}", urlencoding::encode(state)));
         }
 

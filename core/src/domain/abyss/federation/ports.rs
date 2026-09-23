@@ -7,7 +7,7 @@ use super::value_objects::{
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::Realm;
+use crate::domain::realm::entities::{Realm, Scoped, Unscoped};
 
 pub trait FederationRepository: Send + Sync {
     // Provider CRUD
@@ -18,13 +18,16 @@ pub trait FederationRepository: Send + Sync {
     fn get_by_id(
         &self,
         id: Uuid,
-    ) -> impl Future<Output = Result<Option<FederationProvider>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<FederationProvider>>, CoreError>> + Send;
     fn update(
         &self,
-        id: Uuid,
+        provider: &Scoped<FederationProvider>,
         request: UpdateProviderRequest,
     ) -> impl Future<Output = Result<FederationProvider, CoreError>> + Send;
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete(
+        &self,
+        provider: &Scoped<FederationProvider>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn list_by_realm(
         &self,
         realm_id: Uuid,
@@ -37,12 +40,12 @@ pub trait FederationRepository: Send + Sync {
     ) -> impl Future<Output = Result<FederationMapping, CoreError>> + Send;
     fn get_mapping(
         &self,
-        provider_id: Uuid,
+        provider: &Scoped<FederationProvider>,
         external_id: &str,
     ) -> impl Future<Output = Result<Option<FederationMapping>, CoreError>> + Send;
     fn list_mappings_by_provider(
         &self,
-        provider_id: Uuid,
+        provider: &Scoped<FederationProvider>,
     ) -> impl Future<Output = Result<Vec<FederationMapping>, CoreError>> + Send;
     fn get_mapping_by_user_id(
         &self,
@@ -50,9 +53,14 @@ pub trait FederationRepository: Send + Sync {
     ) -> impl Future<Output = Result<Option<FederationMapping>, CoreError>> + Send;
     fn update_mapping(
         &self,
+        provider: &Scoped<FederationProvider>,
         mapping: FederationMapping,
     ) -> impl Future<Output = Result<FederationMapping, CoreError>> + Send;
-    fn delete_mapping(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete_mapping(
+        &self,
+        provider: &Scoped<FederationProvider>,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
 pub trait FederationPolicy: Send + Sync {

@@ -12,6 +12,7 @@ use crate::domain::abyss::federation::value_objects::{
     CreateProviderRequest, UpdateProviderRequest,
 };
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::realm::entities::{Scoped, Unscoped};
 use crate::entity::{user_federation_mappings, user_federation_providers};
 
 #[derive(Clone, Debug)]
@@ -144,7 +145,7 @@ impl FederationRepository for FederationRepositoryImpl {
         model.try_into()
     }
 
-    async fn get_by_id(&self, id: Uuid) -> Result<Option<FederationProvider>, CoreError> {
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<Unscoped<FederationProvider>>, CoreError> {
         let model = user_federation_providers::Entity::find_by_id(id)
             .one(&self.db)
             .await
@@ -153,17 +154,17 @@ impl FederationRepository for FederationRepositoryImpl {
             })?;
 
         match model {
-            Some(m) => Ok(Some(m.try_into()?)),
+            Some(m) => Ok(Some(Unscoped::new(m.try_into()?))),
             None => Ok(None),
         }
     }
 
     async fn update(
         &self,
-        id: Uuid,
+        provider: &Scoped<FederationProvider>,
         request: UpdateProviderRequest,
     ) -> Result<FederationProvider, CoreError> {
-        let model = user_federation_providers::Entity::find_by_id(id)
+        let model = user_federation_providers::Entity::find_by_id(provider.get().id)
             .one(&self.db)
             .await
             .map_err(|e| CoreError::Database(format!("Failed to find federation provider: {}", e)))?
@@ -206,8 +207,8 @@ impl FederationRepository for FederationRepositoryImpl {
         updated_model.try_into()
     }
 
-    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
-        user_federation_providers::Entity::delete_by_id(id)
+    async fn delete(&self, provider: &Scoped<FederationProvider>) -> Result<(), CoreError> {
+        user_federation_providers::Entity::delete_by_id(provider.get().id)
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -244,13 +245,13 @@ impl FederationRepository for FederationRepositoryImpl {
 
     async fn get_mapping(
         &self,
-        provider_id: Uuid,
+        provider: &Scoped<FederationProvider>,
         external_id: &str,
     ) -> Result<Option<FederationMapping>, CoreError> {
         let model = user_federation_mappings::Entity::find()
             .filter(
                 user_federation_mappings::Column::ProviderId
-                    .eq(provider_id)
+                    .eq(provider.get().id)
                     .and(user_federation_mappings::Column::ExternalId.eq(external_id)),
             )
             .one(&self.db)
@@ -265,10 +266,10 @@ impl FederationRepository for FederationRepositoryImpl {
 
     async fn list_mappings_by_provider(
         &self,
-        provider_id: Uuid,
+        provider: &Scoped<FederationProvider>,
     ) -> Result<Vec<FederationMapping>, CoreError> {
         let models = user_federation_mappings::Entity::find()
-            .filter(user_federation_mappings::Column::ProviderId.eq(provider_id))
+            .filter(user_federation_mappings::Column::ProviderId.eq(provider.get().id))
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -301,9 +302,12 @@ impl FederationRepository for FederationRepositoryImpl {
 
     async fn update_mapping(
         &self,
+        provider: &Scoped<FederationProvider>,
         mapping: FederationMapping,
     ) -> Result<FederationMapping, CoreError> {
-        let model = user_federation_mappings::Entity::find_by_id(mapping.id)
+        let model = user_federation_mappings::Entity::find()
+            .filter(user_federation_mappings::Column::Id.eq(mapping.id))
+            .filter(user_federation_mappings::Column::ProviderId.eq(provider.get().id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -328,8 +332,14 @@ impl FederationRepository for FederationRepositoryImpl {
         updated_model.try_into()
     }
 
-    async fn delete_mapping(&self, id: Uuid) -> Result<(), CoreError> {
-        user_federation_mappings::Entity::delete_by_id(id)
+    async fn delete_mapping(
+        &self,
+        provider: &Scoped<FederationProvider>,
+        id: Uuid,
+    ) -> Result<(), CoreError> {
+        user_federation_mappings::Entity::delete_many()
+            .filter(user_federation_mappings::Column::Id.eq(id))
+            .filter(user_federation_mappings::Column::ProviderId.eq(provider.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {

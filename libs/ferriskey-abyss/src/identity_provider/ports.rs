@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::{
@@ -29,7 +30,7 @@ pub trait IdentityProviderRepository: Send + Sync {
     fn get_identity_provider_by_id(
         &self,
         id: Uuid,
-    ) -> impl Future<Output = Result<Option<IdentityProvider>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<IdentityProvider>>, CoreError>> + Send;
 
     /// Retrieves an identity provider by realm and alias
     fn get_identity_provider_by_realm_and_alias(
@@ -48,14 +49,14 @@ pub trait IdentityProviderRepository: Send + Sync {
     /// Updates an existing identity provider
     fn update_identity_provider(
         &self,
-        id: Uuid,
+        provider: &Scoped<IdentityProvider>,
         request: UpdateIdentityProviderRequest,
     ) -> impl Future<Output = Result<IdentityProvider, CoreError>> + Send;
 
     /// Deletes an identity provider by ID
     fn delete_identity_provider(
         &self,
-        id: Uuid,
+        provider: &Scoped<IdentityProvider>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     /// Checks if an alias already exists in a realm

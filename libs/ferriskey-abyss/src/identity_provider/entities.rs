@@ -8,6 +8,7 @@ use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 
 /// Unique identifier for an Identity Provider
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
@@ -183,6 +184,12 @@ impl IdentityProvider {
     pub fn update_config(&mut self, config: IdentityProviderConfig) {
         self.config = config;
         self.updated_at = Utc::now();
+    }
+}
+
+impl RealmOwned for IdentityProvider {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
     }
 }
 

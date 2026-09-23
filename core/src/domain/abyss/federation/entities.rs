@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::realm::entities::{RealmId, RealmOwned};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum FederationType {
     Ldap,
@@ -76,6 +78,12 @@ pub struct FederationProvider {
     pub sync_settings: serde_json::Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmOwned for FederationProvider {
+    fn realm_id(&self) -> RealmId {
+        RealmId::from(self.realm_id)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

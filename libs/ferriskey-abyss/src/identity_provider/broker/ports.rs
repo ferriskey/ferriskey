@@ -2,8 +2,10 @@ use std::future::Future;
 
 use uuid::Uuid;
 
-use crate::identity_provider::IdentityProviderId;
+use crate::identity_provider::IdentityProvider;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::user::entities::User;
 
 use super::entities::{BrokerAuthSession, IdentityProviderLink};
 use super::value_objects::{
@@ -24,16 +26,19 @@ pub trait BrokerAuthSessionRepository: Send + Sync {
     fn get_by_broker_state(
         &self,
         broker_state: &str,
-    ) -> impl Future<Output = Result<Option<BrokerAuthSession>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<BrokerAuthSession>>, CoreError>> + Send;
 
     /// Retrieves a broker auth session by ID
     fn get_by_id(
         &self,
         id: Uuid,
-    ) -> impl Future<Output = Result<Option<BrokerAuthSession>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<BrokerAuthSession>>, CoreError>> + Send;
 
     /// Deletes a broker auth session by ID
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete(
+        &self,
+        session: &Scoped<BrokerAuthSession>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     /// Deletes expired broker auth sessions (cleanup)
     fn delete_expired(&self) -> impl Future<Output = Result<u64, CoreError>> + Send;
@@ -50,37 +55,42 @@ pub trait IdentityProviderLinkRepository: Send + Sync {
     /// Retrieves a link by identity provider and external user ID
     fn get_by_provider_and_external_id(
         &self,
-        identity_provider_id: IdentityProviderId,
+        identity_provider: &Scoped<IdentityProvider>,
         external_user_id: &str,
     ) -> impl Future<Output = Result<Option<IdentityProviderLink>, CoreError>> + Send;
 
     /// Retrieves all links for a user
     fn get_by_user_id(
         &self,
-        user_id: Uuid,
+        user: &Scoped<User>,
     ) -> impl Future<Output = Result<Vec<IdentityProviderLink>, CoreError>> + Send;
 
     /// Retrieves a link by user ID and identity provider ID
     fn get_by_user_and_provider(
         &self,
-        user_id: Uuid,
-        identity_provider_id: IdentityProviderId,
+        user: &Scoped<User>,
+        identity_provider: &Scoped<IdentityProvider>,
     ) -> impl Future<Output = Result<Option<IdentityProviderLink>, CoreError>> + Send;
 
     /// Updates the stored token for a link
     fn update_token(
         &self,
+        identity_provider: &Scoped<IdentityProvider>,
         id: Uuid,
         token: Option<String>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     /// Deletes a link by ID
-    fn delete(&self, id: Uuid) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn delete(
+        &self,
+        user: &Scoped<User>,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     /// Deletes all links for a user
     fn delete_by_user_id(
         &self,
-        user_id: Uuid,
+        user: &Scoped<User>,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 

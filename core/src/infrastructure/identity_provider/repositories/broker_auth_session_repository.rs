@@ -10,6 +10,7 @@ use crate::domain::abyss::identity_provider::broker::{
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
+use crate::domain::realm::entities::{Scoped, Unscoped};
 use crate::entity::broker_auth_sessions::{ActiveModel, Column, Entity as BrokerAuthSessionEntity};
 
 /// PostgreSQL implementation of the BrokerAuthSessionRepository trait
@@ -64,7 +65,7 @@ impl BrokerAuthSessionRepository for PostgresBrokerAuthSessionRepository {
     async fn get_by_broker_state(
         &self,
         broker_state: &str,
-    ) -> Result<Option<BrokerAuthSession>, CoreError> {
+    ) -> Result<Option<Unscoped<BrokerAuthSession>>, CoreError> {
         let session = BrokerAuthSessionEntity::find()
             .filter(Column::BrokerState.eq(broker_state))
             .one(&self.db)
@@ -73,13 +74,14 @@ impl BrokerAuthSessionRepository for PostgresBrokerAuthSessionRepository {
                 tracing::error!("Failed to get broker auth session by state: {}", e);
                 CoreError::InternalServerError
             })?
-            .map(BrokerAuthSession::from);
+            .map(BrokerAuthSession::from)
+            .map(Unscoped::new);
 
         Ok(session)
     }
 
     #[instrument(skip(self), fields(session_id = %id))]
-    async fn get_by_id(&self, id: Uuid) -> Result<Option<BrokerAuthSession>, CoreError> {
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<Unscoped<BrokerAuthSession>>, CoreError> {
         let session = BrokerAuthSessionEntity::find()
             .filter(Column::Id.eq(id))
             .one(&self.db)
@@ -88,15 +90,16 @@ impl BrokerAuthSessionRepository for PostgresBrokerAuthSessionRepository {
                 tracing::error!("Failed to get broker auth session by id: {}", e);
                 CoreError::InternalServerError
             })?
-            .map(BrokerAuthSession::from);
+            .map(BrokerAuthSession::from)
+            .map(Unscoped::new);
 
         Ok(session)
     }
 
-    #[instrument(skip(self), fields(session_id = %id))]
-    async fn delete(&self, id: Uuid) -> Result<(), CoreError> {
+    #[instrument(skip(self), fields(session_id = %session.get().id))]
+    async fn delete(&self, session: &Scoped<BrokerAuthSession>) -> Result<(), CoreError> {
         BrokerAuthSessionEntity::delete_many()
-            .filter(Column::Id.eq(id))
+            .filter(Column::Id.eq(session.get().id))
             .exec(&self.db)
             .await
             .map_err(|e| {
