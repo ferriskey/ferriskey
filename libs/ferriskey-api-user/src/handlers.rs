@@ -11,6 +11,7 @@ pub mod get_user_attributes;
 pub mod get_user_permissions;
 pub mod get_user_roles;
 pub mod get_users;
+pub mod import_password_credential;
 pub mod list_user_organizations;
 pub mod list_user_sessions;
 pub mod reset_password;

@@ -76,7 +76,7 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
-            salt: Set(Some(hash_result.salt)),
+            salt: Set(Some(hash_result.salt).filter(|salt| !salt.is_empty())),
             credential_type: Set(credential_type),
             user_id: Set(user_id),
             user_label: Set(Some(label)),
@@ -568,6 +568,42 @@ mod tests {
         assert!(matches!(
             after.credential_data,
             CredentialData::Hash { hash_iterations: 5, ref algorithm } if algorithm == "argon2id"
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn create_credential_stores_an_empty_salt_as_null() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+
+        fixture
+            .repository
+            .create_credential(
+                user_id,
+                "password".to_string(),
+                HashResult::new(
+                    "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy".to_string(),
+                    String::new(),
+                    10,
+                    "bcrypt".to_string(),
+                ),
+                String::new(),
+                false,
+            )
+            .await
+            .expect("create bcrypt credential");
+
+        let credential = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("bcrypt credential");
+
+        assert_eq!(credential.salt, None);
+        assert!(matches!(
+            credential.credential_data,
+            CredentialData::Hash { hash_iterations: 10, ref algorithm } if algorithm == "bcrypt"
         ));
     }
 

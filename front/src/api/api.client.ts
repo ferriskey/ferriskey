@@ -635,6 +635,7 @@ export namespace Schemas {
     | "password_reset"
     | "password_reset_requested"
     | "password_reset_completed"
+    | "password_imported"
     | "user_created"
     | "user_email_verified"
     | "user_deleted"

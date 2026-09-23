@@ -21,6 +21,7 @@ use super::handlers::{
     get_user_permissions::{__path_get_user_permissions, get_user_permissions},
     get_user_roles::{__path_get_user_roles, get_user_roles},
     get_users::{__path_get_users, get_users},
+    import_password_credential::{__path_import_password_credential, import_password_credential},
     list_user_organizations::{__path_list_user_organizations, list_user_organizations},
     list_user_sessions::{__path_list_user_sessions, list_user_sessions},
     reset_password::{__path_reset_password, reset_password},
@@ -47,6 +48,7 @@ use super::handlers::{
     bulk_delete_user,
     delete_user,
     reset_password,
+    import_password_credential,
     get_user_credentials,
     delete_user_credential,
     unassign_role,
@@ -132,6 +134,13 @@ pub fn user_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             put(reset_password),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/users/{{user_id}}/credentials/import",
+                state.args.server.root_path
+            ),
+            post(import_password_credential),
         )
         .route(
             &format!(

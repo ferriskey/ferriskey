@@ -14,8 +14,8 @@ use crate::role::permission::Permissions;
 use crate::user::commands::{
     AssignRoleInput, BulkDeleteUsersInput, CreateUserInput, DeleteUserAttributeInput,
     GetOwnProfileInput, GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
-    ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput,
-    UpdateOwnProfileInput, UpdateUserInput,
+    ImportPasswordCredentialInput, ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput,
+    UpdateOwnLocaleInput, UpdateOwnProfileInput, UpdateUserInput,
 };
 use crate::user::entities::{RequiredAction, RequiredActionError, User, UserAttribute};
 use crate::user::value_objects::{CreateUserRequest, UpdateUserRequest};
@@ -37,6 +37,11 @@ pub trait UserService: Send + Sync {
         &self,
         identity: Identity,
         input: ResetPasswordInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    fn import_password_credential(
+        &self,
+        identity: Identity,
+        input: ImportPasswordCredentialInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
     fn get_users(
         &self,

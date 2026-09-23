@@ -94,6 +94,47 @@ impl HasherRepository for Argon2HasherRepository {
         algorithm != Algorithm::Argon2id.as_str()
     }
 
+    fn validate_hash(
+        &self,
+        algorithm: &str,
+        secret_data: &str,
+        hash_iterations: u32,
+    ) -> Result<(), SecurityError> {
+        let expected = match algorithm {
+            "argon2id" => Algorithm::Argon2id,
+            "argon2i" => Algorithm::Argon2i,
+            "argon2d" => Algorithm::Argon2d,
+            other => {
+                return Err(SecurityError::UnsupportedHash(format!(
+                    "unsupported algorithm `{other}`"
+                )));
+            }
+        };
+
+        let parsed = PasswordHash::new(secret_data).map_err(|_| {
+            SecurityError::UnsupportedHash("secret_data is not a PHC argon2 string".to_string())
+        })?;
+
+        if parsed.algorithm != expected.ident() {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "secret_data is not an {algorithm} hash"
+            )));
+        }
+
+        let params = Params::try_from(&parsed).map_err(|_| {
+            SecurityError::UnsupportedHash("secret_data has invalid argon2 parameters".to_string())
+        })?;
+
+        if params.t_cost() != hash_iterations {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "hash_iterations {hash_iterations} does not match the hash cost {}",
+                params.t_cost()
+            )));
+        }
+
+        Ok(())
+    }
+
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
         self.hash_password(token).await
     }
@@ -213,6 +254,50 @@ mod tests {
         assert!(!hasher.needs_rehash("argon2id"));
         assert!(hasher.needs_rehash("argon2i"));
         assert!(hasher.needs_rehash("bcrypt"));
+    }
+
+    #[tokio::test]
+    async fn validate_hash_accepts_its_own_argon2id_output() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+
+        let result = hasher.validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations);
+
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn validate_hash_rejects_mismatched_iterations() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+
+        let result = hasher.validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations + 1);
+
+        assert!(matches!(result, Err(SecurityError::UnsupportedHash(_))));
+    }
+
+    #[tokio::test]
+    async fn validate_hash_rejects_an_algorithm_label_that_contradicts_the_hash() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+
+        let result = hasher.validate_hash("argon2i", &hash.hash, hash.hash_iterations);
+
+        assert!(matches!(result, Err(SecurityError::UnsupportedHash(_))));
+    }
+
+    #[test]
+    fn validate_hash_rejects_non_phc_strings_and_unknown_algorithms() {
+        let hasher = Argon2HasherRepository::new();
+
+        assert!(matches!(
+            hasher.validate_hash("argon2id", "not-a-hash", 5),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
+        assert!(matches!(
+            hasher.validate_hash("md5", "5f4dcc3b5aa765d61d8327deb882cf99", 1),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
     }
 
     #[tokio::test]

@@ -7,9 +7,10 @@ use crate::{
         user::{
             entities::{
                 AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
-                GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, ResetPasswordInput,
-                SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput,
-                UpdateOwnProfileInput, UpdateUserInput, User, UserAttribute,
+                GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
+                ImportPasswordCredentialInput, ResetPasswordInput, SetUserAttributesInput,
+                UnassignRoleInput, UpdateOwnLocaleInput, UpdateOwnProfileInput, UpdateUserInput,
+                User, UserAttribute,
             },
             ports::UserService,
         },
@@ -94,6 +95,16 @@ impl UserService for ApplicationService {
         input: ResetPasswordInput,
     ) -> Result<(), CoreError> {
         self.user_service.reset_password(identity, input).await
+    }
+
+    async fn import_password_credential(
+        &self,
+        identity: Identity,
+        input: ImportPasswordCredentialInput,
+    ) -> Result<(), CoreError> {
+        self.user_service
+            .import_password_credential(identity, input)
+            .await
     }
 
     async fn unassign_role(

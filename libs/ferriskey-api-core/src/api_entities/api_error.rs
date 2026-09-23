@@ -293,6 +293,9 @@ impl From<JwtError> for ApiError {
                 "Realm key not found",
                 "realm_key_not_found",
             )),
+            JwtError::UnsupportedHash(e) => {
+                Self::validation_error("secret_data", "invalid_password_hash", e)
+            }
         }
     }
 }

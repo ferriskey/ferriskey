@@ -334,6 +334,12 @@ impl From<CoreError> for ApiError {
                     None => Self::validation_error("password", reason, details),
                 }
             }
+            CoreError::InvalidPasswordHash(details) => {
+                Self::validation_error("secret_data", reason, details)
+            }
+            CoreError::PasswordCredentialAlreadyExists => {
+                Self::Conflict("User already has a password credential".into())
+            }
             // PKCE errors (RFC 7636) → OAuth2 invalid_request / invalid_grant
             CoreError::PkceRequired => Self::OAuthError {
                 error: "invalid_request".into(),
@@ -587,6 +593,42 @@ mod tests {
                         "field": "password",
                         "code": "password_policy_violation",
                         "message": "not json",
+                    },
+                ]
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn an_existing_password_on_import_is_a_conflict() {
+        let response = ApiError::from(CoreError::PasswordCredentialAlreadyExists).into_response();
+        assert_eq!(response.status(), axum::http::StatusCode::CONFLICT);
+
+        let body = body_of(CoreError::PasswordCredentialAlreadyExists).await;
+        assert_eq!(body["reason"], json!("password_credential_already_exists"));
+    }
+
+    #[tokio::test]
+    async fn an_unsupported_imported_hash_points_at_secret_data() {
+        let response =
+            ApiError::from(CoreError::InvalidPasswordHash("bad".to_string())).into_response();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY
+        );
+
+        let body = body_of(CoreError::InvalidPasswordHash(
+            "bcrypt cost 3 is outside 4..=31".to_string(),
+        ))
+        .await;
+        assert_eq!(
+            body,
+            json!({
+                "errors": [
+                    {
+                        "field": "secret_data",
+                        "code": "invalid_password_hash",
+                        "message": "bcrypt cost 3 is outside 4..=31",
                     },
                 ]
             })

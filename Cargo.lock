@@ -1577,6 +1577,7 @@ dependencies = [
  "axum-test",
  "base32",
  "base64 0.22.1",
+ "bcrypt",
  "chrono",
  "clap",
  "dotenv",

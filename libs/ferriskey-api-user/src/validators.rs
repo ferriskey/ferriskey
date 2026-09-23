@@ -17,6 +17,25 @@ pub struct ResetPasswordValidator {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct ImportPasswordCredentialValidator {
+    #[validate(length(min = 1, message = "algorithm is required"))]
+    #[serde(default)]
+    pub algorithm: String,
+
+    #[validate(length(min = 1, message = "secret_data is required"))]
+    #[serde(default)]
+    pub secret_data: String,
+
+    pub hash_iterations: u32,
+
+    #[serde(default)]
+    pub salt: Option<String>,
+
+    #[serde(default)]
+    pub temporary: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CreateUserValidator {
     #[validate(length(min = 1, message = "username is required"))]
     #[serde(default)]

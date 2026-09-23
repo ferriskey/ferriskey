@@ -1,4 +1,6 @@
-use bcrypt::BcryptError;
+use std::str::FromStr;
+
+use bcrypt::{BcryptError, HashParts};
 use tokio::task;
 use tracing::instrument;
 
@@ -8,6 +10,8 @@ use crate::domain::crypto::{HashResult, HasherRepository};
 use crate::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
 
 const BCRYPT_ALGORITHM: &str = "bcrypt";
+const BCRYPT_PREFIXES: [&str; 3] = ["$2a$", "$2b$", "$2y$"];
+const BCRYPT_COSTS: std::ops::RangeInclusive<u32> = 4..=31;
 
 #[derive(Debug, Clone, Default)]
 pub struct PasswordHasherRepository {
@@ -34,6 +38,36 @@ impl PasswordHasherRepository {
         })
         .await
         .map_err(|e| SecurityError::HashingError(format!("bcrypt verify task join error: {e}")))?
+    }
+
+    fn validate_bcrypt(secret_data: &str, hash_iterations: u32) -> Result<(), SecurityError> {
+        if !BCRYPT_PREFIXES
+            .iter()
+            .any(|prefix| secret_data.starts_with(prefix))
+        {
+            return Err(SecurityError::UnsupportedHash(
+                "secret_data must start with $2a$, $2b$ or $2y$".to_string(),
+            ));
+        }
+
+        let parts = HashParts::from_str(secret_data)
+            .map_err(|e| SecurityError::UnsupportedHash(e.to_string()))?;
+
+        if !BCRYPT_COSTS.contains(&parts.get_cost()) {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "bcrypt cost {} is outside 4..=31",
+                parts.get_cost()
+            )));
+        }
+
+        if parts.get_cost() != hash_iterations {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "hash_iterations {hash_iterations} does not match the hash cost {}",
+                parts.get_cost()
+            )));
+        }
+
+        Ok(())
     }
 }
 
@@ -68,6 +102,20 @@ impl HasherRepository for PasswordHasherRepository {
 
     fn needs_rehash(&self, algorithm: &str) -> bool {
         self.argon2.needs_rehash(algorithm)
+    }
+
+    fn validate_hash(
+        &self,
+        algorithm: &str,
+        secret_data: &str,
+        hash_iterations: u32,
+    ) -> Result<(), SecurityError> {
+        if algorithm == BCRYPT_ALGORITHM {
+            return Self::validate_bcrypt(secret_data, hash_iterations);
+        }
+
+        self.argon2
+            .validate_hash(algorithm, secret_data, hash_iterations)
     }
 
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
@@ -190,5 +238,65 @@ mod tests {
         let hasher = PasswordHasherRepository::new();
 
         assert!(hasher.needs_rehash(BCRYPT_ALGORITHM));
+    }
+
+    #[test]
+    fn validates_every_supported_bcrypt_prefix() {
+        let hasher = PasswordHasherRepository::new();
+
+        for version in [Version::TwoA, Version::TwoB, Version::TwoY] {
+            let hash = bcrypt_hash(PASSWORD, version);
+            let result = hasher.validate_hash(BCRYPT_ALGORITHM, &hash, 4);
+            assert!(result.is_ok(), "{hash}: {result:?}");
+        }
+    }
+
+    #[test]
+    fn refuses_the_2x_bcrypt_variant() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoX);
+
+        assert!(matches!(
+            hasher.validate_hash(BCRYPT_ALGORITHM, &hash, 4),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
+    }
+
+    #[test]
+    fn refuses_a_bcrypt_cost_that_disagrees_with_hash_iterations() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoB);
+
+        assert!(matches!(
+            hasher.validate_hash(BCRYPT_ALGORITHM, &hash, 10),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
+    }
+
+    #[test]
+    fn refuses_a_truncated_bcrypt_hash() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoB);
+
+        assert!(matches!(
+            hasher.validate_hash(BCRYPT_ALGORITHM, &hash[..59], 4),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn delegates_argon2_validation() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = hasher.hash_password(PASSWORD).await.expect("argon2 hash");
+
+        assert!(
+            hasher
+                .validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations)
+                .is_ok()
+        );
+        assert!(matches!(
+            hasher.validate_hash("pbkdf2-sha256", &hash.hash, hash.hash_iterations),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
     }
 }

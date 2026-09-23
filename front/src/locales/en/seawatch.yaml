@@ -16,6 +16,7 @@ event:
   password_reset: Password reset
   password_reset_requested: Password reset requested
   password_reset_completed: Password reset completed
+  password_imported: Password hash imported
   user_created: User created
   user_email_verified: Email address verified
   user_deleted: User deleted
