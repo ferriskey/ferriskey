@@ -11,6 +11,7 @@ mod tests {
     use crate::domain::abyss::identity_provider::IdentityProviderPolicy;
     use crate::domain::authentication::value_objects::Identity;
     use crate::domain::client::ports::MockClientRepository;
+    use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::common::policies::FerriskeyPolicy;
     use crate::domain::realm::entities::{Realm, RealmId, Unscoped};
     use crate::domain::role::entities::Role;
@@ -261,8 +262,7 @@ mod tests {
             .can_view_identity_provider(&identity, &provider_realm)
             .await;
 
-        assert!(result.is_ok());
-        assert!(!result.unwrap());
+        assert!(matches!(result, Err(CoreError::NotFound)));
     }
 
     // ---- FK-006: master reaching another realm ------------------------------

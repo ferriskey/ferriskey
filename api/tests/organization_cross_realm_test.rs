@@ -822,18 +822,6 @@ mod tests {
             .unwrap_or_default()
     }
 
-    /// A cross-realm request must be refused, and refused as an authorization failure
-    /// rather than by accident (a 404 from a missing object would prove nothing).
-    fn assert_forbidden(response: &TestResponse, what: &str) {
-        assert_eq!(
-            response.status_code(),
-            403,
-            "{what}: expected 403, got {} with body {}",
-            response.status_code(),
-            response.text()
-        );
-    }
-
     fn assert_not_found(response: &TestResponse, what: &str) {
         assert_eq!(
             response.status_code(),
@@ -876,7 +864,7 @@ mod tests {
                 }))
                 .await;
 
-            assert_forbidden(&response, "alice creating an organization in tenant-b");
+            assert_not_found(&response, "alice creating an organization in tenant-b");
 
             // The status code is the cheap half. This is the half that matters: nothing
             // may have landed in the victim realm.
@@ -907,7 +895,7 @@ mod tests {
                 .await;
 
             let body = response.text();
-            assert_forbidden(&response, "alice listing the organizations of tenant-b");
+            assert_not_found(&response, "alice listing the organizations of tenant-b");
             assert_body_free_of(
                 &body,
                 &[VICTIM_ORG_NAME, VICTIM_ORG_ALIAS, &ctx().victim_org_id],
@@ -934,7 +922,7 @@ mod tests {
                 .await;
 
             let body = response.text();
-            assert_forbidden(
+            assert_not_found(
                 &response,
                 "alice listing the organization memberships of a tenant-b user",
             );
@@ -965,7 +953,7 @@ mod tests {
                 .json(&json!({ "name": hostile_group }))
                 .await;
 
-            assert_forbidden(
+            assert_not_found(
                 &response,
                 "alice creating a group in a tenant-b organization",
             );
@@ -1000,7 +988,7 @@ mod tests {
                 .await;
 
             let body = response.text();
-            assert_forbidden(
+            assert_not_found(
                 &response,
                 "alice listing the groups of a tenant-b organization",
             );

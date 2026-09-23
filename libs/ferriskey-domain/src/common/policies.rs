@@ -44,6 +44,7 @@ pub fn ensure_policy(
     match result_has_permission {
         Ok(true) => Ok(()),
         Ok(false) => Err(CoreError::Forbidden(error_message.to_string())),
+        Err(CoreError::NotFound) => Err(CoreError::NotFound),
         Err(_) => Err(CoreError::Forbidden(error_message.to_string())),
     }
 }
@@ -161,11 +162,11 @@ where
             .as_ref()
             .ok_or(CoreError::Forbidden("user has no realm".to_string()))?;
 
-        let mut permissions: HashSet<Permissions> = HashSet::new();
-
         if !self.can_access_realm(user_realm, target_realm) {
-            return Ok(permissions);
+            return Err(CoreError::NotFound);
         }
+
+        let mut permissions: HashSet<Permissions> = HashSet::new();
 
         if user_realm.name == "master" {
             let mirror_client_id = format!("{}-realm", target_realm.name);

@@ -559,8 +559,8 @@ mod tests {
                 .await;
             assert_eq!(
                 listing.status_code(),
-                403,
-                "listing another tenant's federation providers must be refused: {}",
+                404,
+                "listing another tenant's federation providers must read as absent: {}",
                 listing.text()
             );
 
@@ -573,7 +573,7 @@ mod tests {
                 .await;
             assert_eq!(
                 test_connection.status_code(),
-                403,
+                404,
                 "authorization must be decided before the provider is looked up, so a stranger learns nothing about which ids exist: {}",
                 test_connection.text()
             );
@@ -587,8 +587,8 @@ mod tests {
                 .await;
             assert_eq!(
                 sync.status_code(),
-                403,
-                "triggering a directory sync on another tenant's provider must be refused: {}",
+                404,
+                "triggering a directory sync on another tenant's provider must read as absent: {}",
                 sync.text()
             );
         });

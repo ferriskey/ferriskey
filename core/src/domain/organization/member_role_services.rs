@@ -606,7 +606,7 @@ mod tests {
             )
             .await;
 
-        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+        assert!(matches!(result, Err(CoreError::NotFound)));
     }
 
     #[tokio::test]
