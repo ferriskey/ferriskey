@@ -2154,6 +2154,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "thiserror 2.0.20",
+ "tracing",
  "utoipa",
  "uuid",
  "x509-parser 0.18.0",

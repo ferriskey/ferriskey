@@ -3,9 +3,9 @@ use std::sync::Arc;
 use chrono::{Duration, Utc};
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::credential::entities::{Credential, CredentialType};
+use ferriskey_domain::credential::entities::{Credential, CredentialData, CredentialType};
 use ferriskey_domain::credential::ports::CredentialRepository;
-use ferriskey_domain::elevation::entities::{Elevated, ElevationId};
+use ferriskey_domain::elevation::entities::{Elevated, ElevationId, ElevationProofKind};
 use ferriskey_domain::elevation::ports::ElevationRepository;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped};
@@ -17,7 +17,7 @@ use ferriskey_password_policy::entity::PasswordPolicy;
 use ferriskey_password_policy::repository::PasswordPolicyRepository;
 use ferriskey_password_policy::service::violations_to_core_error;
 use ferriskey_password_policy::validator;
-use ferriskey_security::crypto::password_check::verify_user_password;
+use ferriskey_security::crypto::password_check::{has_local_password, verify_user_password};
 use ferriskey_security::crypto::ports::HasherRepository;
 use ferriskey_trident::entities::TotpSecret;
 use ferriskey_trident::factor_removal::{
@@ -134,6 +134,22 @@ where
             .await?
             .in_realm(&scope)?;
 
+        if !user.get().enabled {
+            return Err(CoreError::UserDisabled);
+        }
+
+        if user
+            .get()
+            .locked_until
+            .is_some_and(|until| until > Utc::now())
+        {
+            warn!(
+                user_id = %user.get().id,
+                "Refused an account security operation: the account is locked"
+            );
+            return Err(CoreError::AccountLocked);
+        }
+
         Ok((scope, user))
     }
 
@@ -141,14 +157,18 @@ where
         &self,
         scope: &RealmScope,
         caller: Uuid,
+        session_id: Uuid,
         elevation_id: Uuid,
     ) -> Result<Elevated, CoreError> {
         ferriskey_domain::elevation::claim(
             self.elevation_repository.as_ref(),
             scope,
-            caller,
-            ElevationId::new(elevation_id),
-            Utc::now(),
+            ferriskey_domain::elevation::Claim {
+                caller,
+                session_id,
+                elevation_id: ElevationId::new(elevation_id),
+                now: Utc::now(),
+            },
         )
         .await
     }
@@ -164,9 +184,10 @@ where
         let credentials = self.credentials_of(user_id).await?;
 
         Ok(AccountFactors {
-            has_password: credentials
-                .iter()
-                .any(|c| c.credential_type == CredentialType::Password),
+            has_password: credentials.iter().any(|c| {
+                c.credential_type == CredentialType::Password
+                    && matches!(c.credential_data, CredentialData::Hash { .. })
+            }),
             passkey_count: credentials
                 .iter()
                 .filter(|c| c.credential_type == CredentialType::WebAuthnPublicKeyCredential)
@@ -174,7 +195,10 @@ where
             has_otp: credentials
                 .iter()
                 .any(|c| c.credential_type == CredentialType::Otp),
-            federated_identity_count: 0,
+            federated_identity_count: credentials
+                .iter()
+                .filter(|c| matches!(c.credential_data, CredentialData::Federated { .. }))
+                .count(),
         })
     }
 
@@ -245,20 +269,34 @@ where
         let (scope, user) = self.caller(&identity, &input.realm_name).await?;
         let user_id = user.get().id;
 
-        let accepted = match &input.proof {
+        let (accepted, kind) = match &input.proof {
             ElevationProof::Password(password) => {
-                verify_user_password(
-                    self.credential_repository.as_ref(),
-                    self.hasher_repository.as_ref(),
-                    user_id,
-                    password,
+                if !has_local_password(self.credential_repository.as_ref(), user_id).await? {
+                    warn!(
+                        user_id = %user_id,
+                        "Refused an elevation request: the account has no local password"
+                    );
+                    return Err(CoreError::NoLocalPassword);
+                }
+
+                (
+                    verify_user_password(
+                        self.credential_repository.as_ref(),
+                        self.hasher_repository.as_ref(),
+                        user_id,
+                        password,
+                    )
+                    .await?,
+                    ElevationProofKind::Password,
                 )
-                .await?
             }
-            ElevationProof::Otp(code) => match self.otp_secret_of(user_id).await? {
-                Some(secret) => verify(&secret, code)?,
-                None => false,
-            },
+            ElevationProof::Otp(code) => (
+                match self.otp_secret_of(user_id).await? {
+                    Some(secret) => verify(&secret, code)?,
+                    None => false,
+                },
+                ElevationProofKind::Otp,
+            ),
         };
 
         if !accepted {
@@ -271,6 +309,8 @@ where
             .start(
                 user_id,
                 scope.id(),
+                input.session_id,
+                kind,
                 Utc::now() + Duration::minutes(ELEVATION_TTL_MINUTES),
             )
             .await?;
@@ -290,10 +330,18 @@ where
         let user_id = user.get().id;
 
         let elevated = self
-            .claim_elevation(&scope, user_id, input.elevation_id)
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
         let target = elevated.user_id();
+
+        if !has_local_password(self.credential_repository.as_ref(), target).await? {
+            warn!(
+                user_id = %target,
+                "Refused a password change: the account has no local password"
+            );
+            return Err(CoreError::NoLocalPassword);
+        }
 
         let current_is_valid = verify_user_password(
             self.credential_repository.as_ref(),
@@ -345,14 +393,21 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        self.user_required_action_repository
+        self.other_sessions_revocation
+            .revoke_all_sessions_except(&user, Some(elevated.session_id()))
+            .await?;
+
+        if let Err(e) = self.elevation_repository.clear_for_user(target).await {
+            warn!(user_id = %target, "Failed to drop outstanding elevations after a password change: {e:?}");
+        }
+
+        if let Err(e) = self
+            .user_required_action_repository
             .remove_required_action(target, RequiredAction::UpdatePassword)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        self.other_sessions_revocation
-            .revoke_all_sessions_except(&user, input.keep_session_id)
-            .await?;
+        {
+            warn!(user_id = %target, "Failed to remove the UpdatePassword required action: {e:?}");
+        }
 
         Ok(())
     }
@@ -366,7 +421,7 @@ where
         let user_id = user.get().id;
 
         let elevated = self
-            .claim_elevation(&scope, user_id, input.elevation_id)
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
         let target = elevated.user_id();
@@ -398,35 +453,40 @@ where
         identity: Identity,
         input: ConfirmOwnOtpEnrollmentInput,
     ) -> Result<(), CoreError> {
-        let (_, user) = self.caller(&identity, &input.realm_name).await?;
+        let (scope, user) = self.caller(&identity, &input.realm_name).await?;
         let user_id = user.get().id;
+
+        let elevated = self
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
+            .await?;
+
+        let target = elevated.primary()?.user_id();
 
         let enrollment = self
             .otp_enrollment_repository
-            .consume_enrollment(user_id, Utc::now())
+            .consume_enrollment(target, Utc::now())
             .await?
             .ok_or_else(|| {
-                warn!(user_id = %user_id, "Refused an OTP confirmation: no live enrolment to claim");
+                warn!(user_id = %target, "Refused an OTP confirmation: no live enrolment to claim");
                 CoreError::TotpVerificationFailed("no pending OTP enrollment for this user".into())
             })?;
 
         let secret = TotpSecret::from_base32(&enrollment.secret);
 
         if !verify(&secret, &input.code)? {
-            warn!(user_id = %user_id, "Refused an OTP confirmation: invalid code");
+            warn!(user_id = %target, "Refused an OTP confirmation: invalid code");
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".into(),
             ));
         }
 
-        for credential in self.credentials_of(user_id).await? {
-            if credential.credential_type == CredentialType::Otp {
-                self.credential_repository
-                    .delete_by_id(&user, credential.id)
-                    .await
-                    .map_err(|_| CoreError::DeleteCredentialError)?;
-            }
-        }
+        let superseded = self
+            .credentials_of(target)
+            .await?
+            .into_iter()
+            .filter(|credential| credential.credential_type == CredentialType::Otp)
+            .map(|credential| credential.id)
+            .collect::<Vec<Uuid>>();
 
         let credential_data = serde_json::json!({
             "subType": "totp",
@@ -436,9 +496,12 @@ where
             "algorithm": "HmacSha256",
         });
 
+        // The new authenticator is written before the old ones are dropped: a failure
+        // here leaves the account with a second factor that still works, rather than
+        // with none at all.
         self.credential_repository
             .create_custom_credential(
-                user_id,
+                target,
                 CredentialType::Otp.to_string(),
                 enrollment.secret,
                 input.label,
@@ -447,10 +510,23 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        self.user_required_action_repository
-            .remove_required_action(user_id, RequiredAction::ConfigureOtp)
+        for credential_id in superseded {
+            if let Err(e) = self
+                .credential_repository
+                .delete_by_id(&user, credential_id)
+                .await
+            {
+                warn!(user_id = %target, "Failed to drop a superseded OTP credential: {e:?}");
+            }
+        }
+
+        if let Err(e) = self
+            .user_required_action_repository
+            .remove_required_action(target, RequiredAction::ConfigureOtp)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        {
+            warn!(user_id = %target, "Failed to remove the ConfigureOtp required action: {e:?}");
+        }
 
         Ok(())
     }
@@ -464,10 +540,10 @@ where
         let user_id = user.get().id;
 
         let elevated = self
-            .claim_elevation(&scope, user_id, input.elevation_id)
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
-        let target = elevated.user_id();
+        let target = elevated.primary()?.user_id();
 
         self.refuse_lockout(&scope, &user, FactorRemoval::Otp)
             .await?;
@@ -518,7 +594,7 @@ where
         let user_id = user.get().id;
 
         let elevated = self
-            .claim_elevation(&scope, user_id, input.elevation_id)
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
         let target = elevated.user_id();
@@ -560,15 +636,21 @@ where
         identity: Identity,
         input: ConfirmOwnPasskeyRegistrationInput,
     ) -> Result<(), CoreError> {
-        let (_, user) = self.caller(&identity, &input.realm_name).await?;
+        let (scope, user) = self.caller(&identity, &input.realm_name).await?;
         let user_id = user.get().id;
+
+        let elevated = self
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
+            .await?;
+
+        let target = elevated.user_id();
 
         let registration = self
             .passkey_registration_repository
-            .consume(user_id, Utc::now())
+            .consume(target, Utc::now())
             .await?
             .ok_or_else(|| {
-                warn!(user_id = %user_id, "Refused a passkey confirmation: no live registration to claim");
+                warn!(user_id = %target, "Refused a passkey confirmation: no live registration to claim");
                 CoreError::WebAuthnMissingChallenge
             })?;
 
@@ -577,19 +659,22 @@ where
         let passkey = webauthn
             .finish_passkey_registration(&input.credential, &registration)
             .map_err(|e| {
-                warn!(user_id = %user_id, "Refused a passkey confirmation: {e:?}");
+                warn!(user_id = %target, "Refused a passkey confirmation: {e:?}");
                 CoreError::WebAuthnChallengeFailed
             })?;
 
         self.credential_repository
-            .create_webauthn_credential(user_id, passkey)
+            .create_webauthn_credential(target, passkey)
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        let _ = self
+        if let Err(e) = self
             .user_required_action_repository
-            .remove_required_action(user_id, RequiredAction::ConfigurePasskey)
-            .await;
+            .remove_required_action(target, RequiredAction::ConfigurePasskey)
+            .await
+        {
+            warn!(user_id = %target, "Failed to remove the ConfigurePasskey required action: {e:?}");
+        }
 
         Ok(())
     }
@@ -603,10 +688,10 @@ where
         let user_id = user.get().id;
 
         let elevated = self
-            .claim_elevation(&scope, user_id, input.elevation_id)
+            .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
-        let target = elevated.user_id();
+        let target = elevated.primary()?.user_id();
 
         let passkey = self
             .credentials_of(target)
@@ -648,7 +733,9 @@ mod tests {
     use crate::domain::credential::ports::MockCredentialRepository;
     use crate::domain::password_policy::repository::MockPasswordPolicyRepository;
     use crate::domain::realm::ports::MockRealmRepository;
-    use crate::domain::trident::ports::{MockOtpEnrollmentRepository, OtpEnrollment};
+    use crate::domain::trident::ports::{
+        MockOtpEnrollmentRepository, OtpEnrollment, WebAuthnRpInfo,
+    };
     use crate::domain::user::ports::{
         MockUserRepository, MockUserRequiredActionRepository, MockUserRoleRepository,
     };
@@ -673,6 +760,8 @@ mod tests {
         MockUserRequiredActionRepository,
         MockPasskeyRegistrationRepository,
     >;
+
+    const SECRET: &str = "JBSWY3DPEHPK3PXP";
 
     struct Harness {
         credentials: MockCredentialRepository,
@@ -728,35 +817,51 @@ mod tests {
                 Box::pin(async move { Ok(Some(realm)) })
             });
 
+            let wanted = user.id;
             let returned = user.clone();
-            self.users.expect_get_by_id().returning(move |_| {
-                let user = returned.clone();
-                Box::pin(async move { Ok(Unscoped::new(user)) })
-            });
+            self.users
+                .expect_get_by_id()
+                .withf(move |id| *id == wanted)
+                .returning(move |_| {
+                    let user = returned.clone();
+                    Box::pin(async move { Ok(Unscoped::new(user)) })
+                });
         }
 
-        fn granting_elevation(&mut self, user: &User, realm_id: RealmId) {
+        fn granting(
+            &mut self,
+            user: &User,
+            realm_id: RealmId,
+            session: Uuid,
+            proof: ElevationProofKind,
+        ) {
             let user_id = user.id;
-            self.elevations.expect_consume().returning(move |_, _| {
-                let elevation = Elevation {
-                    id: ElevationId::new(Uuid::now_v7()),
-                    user_id,
-                    realm_id,
-                    expires_at: Utc::now() + Duration::minutes(5),
-                };
-                Box::pin(async move { Ok(Some(Unscoped::new(elevation))) })
-            });
+            self.elevations
+                .expect_find_live()
+                .withf(move |_, caller, _| *caller == user_id)
+                .returning(move |_, _, _| {
+                    let elevation = Elevation {
+                        id: ElevationId::new(Uuid::now_v7()),
+                        user_id,
+                        realm_id,
+                        session_id: session,
+                        proof,
+                        expires_at: Utc::now() + Duration::minutes(5),
+                    };
+                    Box::pin(async move { Ok(Some(Unscoped::new(elevation))) })
+                });
         }
 
         fn refusing_elevation(&mut self) {
             self.elevations
-                .expect_consume()
-                .returning(|_, _| Box::pin(async move { Ok(None) }));
+                .expect_find_live()
+                .returning(|_, _, _| Box::pin(async move { Ok(None) }));
         }
 
-        fn with_password_credential(&mut self, user_id: Uuid, accepted: bool) {
+        fn with_password(&mut self, user_id: Uuid, accepted: bool) {
             self.credentials
                 .expect_get_password_credential()
+                .withf(move |id| *id == user_id)
                 .returning(move |_| Box::pin(async move { Ok(password_credential(user_id)) }));
 
             self.hasher
@@ -764,16 +869,17 @@ mod tests {
                 .returning(move |_, _, _, _, _| Box::pin(async move { Ok(accepted) }));
         }
 
-        fn holding_credentials(&mut self, credentials: Vec<Credential>) {
+        fn holding(&mut self, user_id: Uuid, credentials: Vec<Credential>) {
             self.credentials
                 .expect_get_credentials_by_user_id()
+                .withf(move |id| *id == user_id)
                 .returning(move |_| {
                     let credentials = credentials.clone();
                     Box::pin(async move { Ok(credentials) })
                 });
         }
 
-        fn with_realm_settings(&mut self, realm_id: RealmId, require_mfa: bool) {
+        fn with_settings(&mut self, realm_id: RealmId, require_mfa: bool) {
             self.realms.expect_get_realm_settings().returning(move |_| {
                 let mut settings = RealmSetting::new(realm_id, None);
                 settings.require_mfa = require_mfa;
@@ -812,6 +918,13 @@ mod tests {
         }
     }
 
+    fn otp_credential(user_id: Uuid) -> Credential {
+        Credential {
+            secret_data: SECRET.to_string(),
+            ..credential_of(user_id, CredentialType::Otp)
+        }
+    }
+
     fn actors() -> (Realm, User, Identity) {
         let realm = create_test_realm_with_name("acme");
         let user =
@@ -821,25 +934,37 @@ mod tests {
         (realm, user, identity)
     }
 
+    fn rp_info() -> WebAuthnRpInfo {
+        WebAuthnRpInfo {
+            rp_id: "localhost".into(),
+            allowed_origin: "http://localhost".into(),
+        }
+    }
+
+    fn change_password(session: Uuid, current: &str) -> ChangeOwnPasswordInput {
+        ChangeOwnPasswordInput {
+            realm_name: "acme".into(),
+            session_id: session,
+            elevation_id: Uuid::now_v7(),
+            current_password: current.into(),
+            new_password: "NewPassw0rd!x".into(),
+        }
+    }
+
+    // ── the elevation gate ───────────────────────────────────────────────
+
     #[tokio::test]
     async fn changing_the_password_without_a_live_elevation_is_refused() {
         let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
         harness.refusing_elevation();
+        harness.credentials.expect_create_credential().never();
 
         let refused = harness
             .build()
-            .change_own_password(
-                identity,
-                ChangeOwnPasswordInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    current_password: "old".into(),
-                    new_password: "NewPassw0rd!x".into(),
-                    keep_session_id: None,
-                },
-            )
+            .change_own_password(identity, change_password(session, "old"))
             .await;
 
         assert!(matches!(refused, Err(CoreError::ElevationRequired)));
@@ -848,376 +973,131 @@ mod tests {
     #[tokio::test]
     async fn an_elevation_minted_in_another_realm_cannot_change_the_password() {
         let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, RealmId::new(Uuid::now_v7()));
+        harness.granting(
+            &user,
+            RealmId::new(Uuid::now_v7()),
+            session,
+            ElevationProofKind::Password,
+        );
 
         let refused = harness
             .build()
-            .change_own_password(
-                identity,
-                ChangeOwnPasswordInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    current_password: "old".into(),
-                    new_password: "NewPassw0rd!x".into(),
-                    keep_session_id: None,
-                },
-            )
+            .change_own_password(identity, change_password(session, "old"))
             .await;
 
         assert!(matches!(refused, Err(CoreError::NotFound)));
     }
 
     #[tokio::test]
-    async fn a_wrong_current_password_is_refused_before_anything_is_written() {
+    async fn an_elevation_minted_for_another_session_cannot_change_the_password() {
         let (realm, user, identity) = actors();
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, realm.id);
-        harness.with_password_credential(user.id, false);
-        harness
-            .credentials
-            .expect_delete_password_credential()
-            .never();
+        harness.granting(
+            &user,
+            realm.id,
+            Uuid::now_v7(),
+            ElevationProofKind::Password,
+        );
         harness.credentials.expect_create_credential().never();
 
         let refused = harness
             .build()
-            .change_own_password(
-                identity,
-                ChangeOwnPasswordInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    current_password: "wrong".into(),
-                    new_password: "NewPassw0rd!x".into(),
-                    keep_session_id: None,
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
-    }
-
-    #[tokio::test]
-    async fn a_successful_password_change_spares_the_caller_own_session() {
-        let (realm, user, identity) = actors();
-        let kept = Uuid::now_v7();
-
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, realm.id);
-        harness.with_password_credential(user.id, true);
-
-        harness
-            .policies
-            .expect_find_by_realm_id()
-            .returning(|_| Box::pin(async move { Ok(None) }));
-        harness
-            .credentials
-            .expect_delete_password_credential()
-            .times(1)
-            .returning(|_| Box::pin(async move { Ok(()) }));
-        harness.hasher.expect_hash_password().returning(|_| {
-            Box::pin(async move {
-                Ok(HashResult::new(
-                    "hash".into(),
-                    "salt".into(),
-                    1,
-                    "argon2".into(),
-                ))
-            })
-        });
-        let created_for = user.id;
-        harness
-            .credentials
-            .expect_create_credential()
-            .times(1)
-            .returning(move |_, _, _, _, _| {
-                Box::pin(async move { Ok(password_credential(created_for)) })
-            });
-        harness
-            .required_actions
-            .expect_remove_required_action()
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
-        harness
-            .sessions
-            .expect_revoke_all_sessions_except()
-            .withf(move |_, keep| *keep == Some(kept))
-            .times(1)
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
-
-        let changed = harness
-            .build()
-            .change_own_password(
-                identity,
-                ChangeOwnPasswordInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    current_password: "old".into(),
-                    new_password: "NewPassw0rd!x".into(),
-                    keep_session_id: Some(kept),
-                },
-            )
-            .await;
-
-        assert!(
-            changed.is_ok(),
-            "expected the change to go through: {changed:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn an_elevation_request_with_a_wrong_password_mints_nothing() {
-        let (realm, user, identity) = actors();
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.with_password_credential(user.id, false);
-        harness.elevations.expect_start().never();
-
-        let refused = harness
-            .build()
-            .request_elevation(
-                identity,
-                RequestElevationInput {
-                    realm_name: "acme".into(),
-                    proof: ElevationProof::Password("wrong".into()),
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
-    }
-
-    #[tokio::test]
-    async fn disabling_the_last_second_factor_under_mfa_enforcement_is_refused() {
-        let (realm, user, identity) = actors();
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, realm.id);
-        harness.holding_credentials(vec![
-            credential_of(user.id, CredentialType::Password),
-            credential_of(user.id, CredentialType::Otp),
-        ]);
-        harness.with_realm_settings(realm.id, true);
-        harness.credentials.expect_delete_by_id().never();
-
-        let refused = harness
-            .build()
-            .disable_own_otp(
-                identity,
-                DisableOwnOtpInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::MfaFactorRequired)));
-    }
-
-    #[tokio::test]
-    async fn a_role_lookup_failure_refuses_the_removal_rather_than_assuming_no_roles() {
-        let (realm, user, identity) = actors();
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, realm.id);
-        harness.holding_credentials(vec![
-            credential_of(user.id, CredentialType::Password),
-            credential_of(user.id, CredentialType::Otp),
-        ]);
-        harness
-            .realms
-            .expect_get_realm_settings()
-            .returning(move |_| {
-                let settings = RealmSetting::new(realm.id, None);
-                Box::pin(async move { Ok(Some(settings)) })
-            });
-        harness
-            .roles
-            .expect_get_user_roles()
-            .returning(|_| Box::pin(async move { Err(CoreError::Database("down".into())) }));
-        harness.credentials.expect_delete_by_id().never();
-
-        let refused = harness
-            .build()
-            .disable_own_otp(
-                identity,
-                DisableOwnOtpInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::Database(_))));
-    }
-
-    #[tokio::test]
-    async fn deleting_the_only_passkey_of_a_passwordless_account_is_refused() {
-        let (realm, user, identity) = actors();
-        let passkey = credential_of(user.id, CredentialType::WebAuthnPublicKeyCredential);
-        let target = passkey.id;
-
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, realm.id);
-        harness.holding_credentials(vec![passkey]);
-        harness.with_realm_settings(realm.id, false);
-        harness.credentials.expect_delete_by_id().never();
-
-        let refused = harness
-            .build()
-            .delete_own_passkey(
-                identity,
-                DeleteOwnPasskeyInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    credential_id: target,
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::LastSignInMeans)));
-    }
-
-    #[tokio::test]
-    async fn a_credential_that_is_not_a_passkey_cannot_be_deleted_through_the_passkey_route() {
-        let (realm, user, identity) = actors();
-        let otp = credential_of(user.id, CredentialType::Otp);
-        let target = otp.id;
-
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.granting_elevation(&user, realm.id);
-        harness.holding_credentials(vec![credential_of(user.id, CredentialType::Password), otp]);
-        harness.credentials.expect_delete_by_id().never();
-
-        let refused = harness
-            .build()
-            .delete_own_passkey(
-                identity,
-                DeleteOwnPasskeyInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    credential_id: target,
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::NotFound)));
-    }
-
-    #[tokio::test]
-    async fn confirming_an_otp_without_a_live_enrolment_is_refused() {
-        let (realm, user, identity) = actors();
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness
-            .enrollments
-            .expect_consume_enrollment()
-            .returning(|_, _| Box::pin(async move { Ok(None) }));
-        harness
-            .credentials
-            .expect_create_custom_credential()
-            .never();
-
-        let refused = harness
-            .build()
-            .confirm_own_otp_enrollment(
-                identity,
-                ConfirmOwnOtpEnrollmentInput {
-                    realm_name: "acme".into(),
-                    code: "123456".into(),
-                    label: None,
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::TotpVerificationFailed(_))));
-    }
-
-    #[tokio::test]
-    async fn an_otp_confirmation_never_reads_the_secret_from_the_caller() {
-        let (realm, user, identity) = actors();
-        let secret = ferriskey_trident::entities::TotpSecret::from_base32("JBSWY3DPEHPK3PXP");
-
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-
-        let stored = secret.base32_encoded().to_string();
-        harness
-            .enrollments
-            .expect_consume_enrollment()
-            .returning(move |user_id, _| {
-                let enrollment = OtpEnrollment {
-                    id: Uuid::now_v7(),
-                    user_id,
-                    secret: stored.clone(),
-                    expires_at: Utc::now() + Duration::minutes(5),
-                    created_at: Utc::now(),
-                };
-                Box::pin(async move { Ok(Some(enrollment)) })
-            });
-        harness
-            .credentials
-            .expect_create_custom_credential()
-            .never();
-
-        let refused = harness
-            .build()
-            .confirm_own_otp_enrollment(
-                identity,
-                ConfirmOwnOtpEnrollmentInput {
-                    realm_name: "acme".into(),
-                    code: "000000".into(),
-                    label: None,
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::TotpVerificationFailed(_))));
-    }
-
-    fn rp_info() -> crate::domain::trident::ports::WebAuthnRpInfo {
-        crate::domain::trident::ports::WebAuthnRpInfo {
-            rp_id: "localhost".into(),
-            allowed_origin: "http://localhost".into(),
-        }
-    }
-
-    #[tokio::test]
-    async fn starting_a_passkey_registration_without_a_live_elevation_is_refused() {
-        let (realm, user, identity) = actors();
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.refusing_elevation();
-        harness.passkey_registrations.expect_start().never();
-
-        let refused = harness
-            .build()
-            .start_own_passkey_registration(
-                identity,
-                StartOwnPasskeyRegistrationInput {
-                    realm_name: "acme".into(),
-                    elevation_id: Uuid::now_v7(),
-                    rp_info: rp_info(),
-                },
-            )
+            .change_own_password(identity, change_password(Uuid::now_v7(), "old"))
             .await;
 
         assert!(matches!(refused, Err(CoreError::ElevationRequired)));
     }
 
     #[tokio::test]
-    async fn confirming_a_passkey_without_a_live_registration_is_refused() {
+    async fn an_otp_proof_cannot_disable_the_otp_it_proved() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .disable_own_otp(
+                identity,
+                DisableOwnOtpInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_cannot_delete_a_passkey() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .delete_own_passkey(
+                identity,
+                DeleteOwnPasskeyInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    credential_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_cannot_replace_the_authenticator() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.enrollments.expect_consume_enrollment().never();
+        harness
+            .credentials
+            .expect_create_custom_credential()
+            .never();
+
+        let refused = harness
+            .build()
+            .confirm_own_otp_enrollment(
+                identity,
+                ConfirmOwnOtpEnrollmentInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    code: "123456".into(),
+                    label: None,
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn confirming_a_passkey_without_a_live_elevation_is_refused() {
         let (realm, user, identity) = actors();
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
-        harness
-            .passkey_registrations
-            .expect_consume()
-            .returning(|_, _| Box::pin(async move { Ok(None) }));
+        harness.refusing_elevation();
+        harness.passkey_registrations.expect_consume().never();
         harness
             .credentials
             .expect_create_webauthn_credential()
@@ -1229,25 +1109,29 @@ mod tests {
                 identity,
                 ConfirmOwnPasskeyRegistrationInput {
                     realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    elevation_id: Uuid::now_v7(),
                     rp_info: rp_info(),
-                    credential: serde_json::from_value(serde_json::json!({
-                        "id": "AAAA",
-                        "rawId": "AAAA",
-                        "response": {
-                            "attestationObject": "AAAA",
-                            "clientDataJSON": "AAAA"
-                        },
-                        "type": "public-key",
-                        "extensions": {}
-                    }))
-                    .expect("a syntactically valid registration payload"),
-                    label: None,
+                    credential: registration_payload(),
                 },
             )
             .await;
 
-        assert!(matches!(refused, Err(CoreError::WebAuthnMissingChallenge)));
+        assert!(matches!(refused, Err(CoreError::ElevationRequired)));
     }
+
+    fn registration_payload() -> webauthn_rs::prelude::RegisterPublicKeyCredential {
+        serde_json::from_value(serde_json::json!({
+            "id": "AAAA",
+            "rawId": "AAAA",
+            "response": { "attestationObject": "AAAA", "clientDataJSON": "AAAA" },
+            "type": "public-key",
+            "extensions": {}
+        }))
+        .expect("a syntactically valid registration payload")
+    }
+
+    // ── the caller gate ──────────────────────────────────────────────────
 
     #[tokio::test]
     async fn a_service_account_is_refused_everywhere() {
@@ -1268,5 +1152,782 @@ mod tests {
             .await;
 
         assert!(matches!(refused, Err(CoreError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn a_locked_account_cannot_reach_the_account_security_surface() {
+        let (realm, mut user, _) = actors();
+        user.locked_until = Some(Utc::now() + Duration::minutes(10));
+        let identity = Identity::User(user.clone());
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.credentials.expect_get_password_credential().never();
+
+        let refused = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    proof: ElevationProof::Password("hunter2".into()),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::AccountLocked)));
+    }
+
+    #[tokio::test]
+    async fn a_disabled_account_cannot_reach_the_account_security_surface() {
+        let realm = create_test_realm_with_name("acme");
+        let user = create_test_user_with_params_and_realm(
+            &realm,
+            "alice",
+            "alice@acme.test".into(),
+            false,
+        );
+        let identity = Identity::User(user.clone());
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+
+        let refused = harness
+            .build()
+            .list_own_credentials(
+                identity,
+                ListOwnCredentialsInput {
+                    realm_name: "acme".into(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::UserDisabled)));
+    }
+
+    // ── request_elevation ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn an_elevation_request_with_a_wrong_password_mints_nothing() {
+        let (realm, user, identity) = actors();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.with_password(user.id, false);
+        harness.elevations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    proof: ElevationProof::Password("wrong".into()),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn an_accepted_password_mints_a_primary_proof_for_the_caller_and_session() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let expected_user = user.id;
+        let expected_realm = realm.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.with_password(user.id, true);
+        harness
+            .elevations
+            .expect_start()
+            .withf(move |user_id, realm_id, session_id, proof, expires_at| {
+                *user_id == expected_user
+                    && *realm_id == expected_realm
+                    && *session_id == session
+                    && *proof == ElevationProofKind::Password
+                    && *expires_at > Utc::now()
+            })
+            .times(1)
+            .returning(move |user_id, realm_id, session_id, proof, expires_at| {
+                let elevation = Elevation {
+                    id: ElevationId::new(Uuid::now_v7()),
+                    user_id,
+                    realm_id,
+                    session_id,
+                    proof,
+                    expires_at,
+                };
+                Box::pin(async move { Ok(elevation) })
+            });
+
+        let minted = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    proof: ElevationProof::Password("hunter2".into()),
+                },
+            )
+            .await
+            .expect("an accepted password must mint an elevation");
+
+        assert!(minted.expires_at > Utc::now());
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_is_refused_when_the_account_has_no_authenticator() {
+        let (realm, user, identity) = actors();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.holding(
+            user.id,
+            vec![credential_of(user.id, CredentialType::Password)],
+        );
+        harness.elevations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    proof: ElevationProof::Otp("123456".into()),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn a_federated_account_is_told_it_has_no_local_password_rather_than_given_a_500() {
+        let (realm, user, identity) = actors();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness
+            .credentials
+            .expect_get_password_credential()
+            .returning(move |id| {
+                let marker = Credential {
+                    salt: None,
+                    credential_data: CredentialData::Federated {
+                        provider_id: "ldap".into(),
+                        provider_type: "ldap".into(),
+                    },
+                    ..password_credential(id)
+                };
+                Box::pin(async move { Ok(marker) })
+            });
+        harness.elevations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    proof: ElevationProof::Password("directory-secret".into()),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::NoLocalPassword)));
+    }
+
+    // ── change_own_password ──────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn a_wrong_current_password_is_refused_before_anything_is_written() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.with_password(user.id, false);
+        harness
+            .credentials
+            .expect_delete_password_credential()
+            .never();
+        harness.credentials.expect_create_credential().never();
+        harness.sessions.expect_revoke_all_sessions_except().never();
+
+        let refused = harness
+            .build()
+            .change_own_password(identity, change_password(session, "wrong"))
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn a_successful_password_change_writes_for_the_caller_and_spares_their_session() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let expected = user.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.with_password(user.id, true);
+
+        harness
+            .policies
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async move { Ok(None) }));
+        harness
+            .credentials
+            .expect_delete_password_credential()
+            .withf(move |id| *id == expected)
+            .times(1)
+            .returning(|_| Box::pin(async move { Ok(()) }));
+        harness.hasher.expect_hash_password().returning(|_| {
+            Box::pin(async move {
+                Ok(HashResult::new(
+                    "hash".into(),
+                    "salt".into(),
+                    1,
+                    "argon2".into(),
+                ))
+            })
+        });
+        harness
+            .credentials
+            .expect_create_credential()
+            .withf(move |id, kind, _, _, temporary| {
+                *id == expected && kind == "password" && !*temporary
+            })
+            .times(1)
+            .returning(move |_, _, _, _, _| {
+                Box::pin(async move { Ok(password_credential(expected)) })
+            });
+        harness
+            .sessions
+            .expect_revoke_all_sessions_except()
+            .withf(move |user, keep| user.get().id == expected && *keep == Some(session))
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+        harness
+            .elevations
+            .expect_clear_for_user()
+            .withf(move |id| *id == expected)
+            .times(1)
+            .returning(|_| Box::pin(async move { Ok(1) }));
+        harness
+            .required_actions
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+
+        let changed = harness
+            .build()
+            .change_own_password(identity, change_password(session, "old"))
+            .await;
+
+        assert!(
+            changed.is_ok(),
+            "expected the change to go through: {changed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_new_password_that_violates_the_realm_policy_is_refused() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.with_password(user.id, true);
+        harness
+            .policies
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async move { Ok(None) }));
+        harness
+            .credentials
+            .expect_delete_password_credential()
+            .never();
+        harness.credentials.expect_create_credential().never();
+
+        let mut input = change_password(session, "old");
+        input.new_password = "a".into();
+
+        let refused = harness.build().change_own_password(identity, input).await;
+
+        assert!(matches!(
+            refused,
+            Err(CoreError::PasswordPolicyViolation(_))
+        ));
+    }
+
+    // ── otp ──────────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn confirming_an_otp_without_a_live_enrolment_is_refused() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness
+            .enrollments
+            .expect_consume_enrollment()
+            .returning(|_, _| Box::pin(async move { Ok(None) }));
+        harness
+            .credentials
+            .expect_create_custom_credential()
+            .never();
+
+        let refused = harness
+            .build()
+            .confirm_own_otp_enrollment(
+                identity,
+                ConfirmOwnOtpEnrollmentInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    code: "123456".into(),
+                    label: None,
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::TotpVerificationFailed(_))));
+    }
+
+    #[tokio::test]
+    async fn a_code_that_does_not_match_the_enrolment_is_refused_and_writes_nothing() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness
+            .enrollments
+            .expect_consume_enrollment()
+            .returning(move |user_id, _| {
+                let enrollment = OtpEnrollment {
+                    id: Uuid::now_v7(),
+                    user_id,
+                    secret: SECRET.to_string(),
+                    expires_at: Utc::now() + Duration::minutes(5),
+                    created_at: Utc::now(),
+                };
+                Box::pin(async move { Ok(Some(enrollment)) })
+            });
+        harness
+            .credentials
+            .expect_create_custom_credential()
+            .never();
+        harness.credentials.expect_delete_by_id().never();
+
+        let live = verify(&TotpSecret::from_base32(SECRET), "000000").unwrap_or(false);
+
+        let refused = harness
+            .build()
+            .confirm_own_otp_enrollment(
+                identity,
+                ConfirmOwnOtpEnrollmentInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    code: "000000".into(),
+                    label: None,
+                },
+            )
+            .await;
+
+        if live {
+            assert!(refused.is_ok(), "000000 happened to be the live code");
+        } else {
+            assert!(matches!(refused, Err(CoreError::TotpVerificationFailed(_))));
+        }
+    }
+
+    #[tokio::test]
+    async fn disabling_the_last_second_factor_under_mfa_enforcement_is_refused() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![
+                credential_of(user.id, CredentialType::Password),
+                otp_credential(user.id),
+            ],
+        );
+        harness.with_settings(realm.id, true);
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .disable_own_otp(
+                identity,
+                DisableOwnOtpInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::MfaFactorRequired)));
+    }
+
+    #[tokio::test]
+    async fn a_role_lookup_failure_refuses_the_removal_rather_than_assuming_no_roles() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![
+                credential_of(user.id, CredentialType::Password),
+                otp_credential(user.id),
+            ],
+        );
+        harness
+            .realms
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let settings = RealmSetting::new(realm.id, None);
+                Box::pin(async move { Ok(Some(settings)) })
+            });
+        harness
+            .roles
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async move { Err(CoreError::Database("down".into())) }));
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .disable_own_otp(
+                identity,
+                DisableOwnOtpInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::Database(_))));
+    }
+
+    #[tokio::test]
+    async fn disabling_otp_drops_the_caller_own_authenticator() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let otp = otp_credential(user.id);
+        let doomed = otp.id;
+        let owner = user.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![credential_of(user.id, CredentialType::Password), otp],
+        );
+        harness.with_settings(realm.id, false);
+        harness
+            .credentials
+            .expect_delete_by_id()
+            .withf(move |user, id| user.get().id == owner && *id == doomed)
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+        harness
+            .enrollments
+            .expect_clear_enrollments()
+            .returning(|_| Box::pin(async move { Ok(0) }));
+
+        let disabled = harness
+            .build()
+            .disable_own_otp(
+                identity,
+                DisableOwnOtpInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(
+            disabled.is_ok(),
+            "expected the removal to go through: {disabled:?}"
+        );
+    }
+
+    // ── passkeys ─────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn deleting_the_only_passkey_of_a_passwordless_account_is_refused() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let passkey = credential_of(user.id, CredentialType::WebAuthnPublicKeyCredential);
+        let target = passkey.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(user.id, vec![passkey]);
+        harness.with_settings(realm.id, false);
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .delete_own_passkey(
+                identity,
+                DeleteOwnPasskeyInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    credential_id: target,
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::LastSignInMeans)));
+    }
+
+    #[tokio::test]
+    async fn a_credential_that_is_not_a_passkey_cannot_be_deleted_through_the_passkey_route() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let otp = otp_credential(user.id);
+        let target = otp.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![credential_of(user.id, CredentialType::Password), otp],
+        );
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .delete_own_passkey(
+                identity,
+                DeleteOwnPasskeyInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    credential_id: target,
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn a_passkey_of_another_account_is_not_deletable_through_this_route() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![credential_of(user.id, CredentialType::Password)],
+        );
+        harness.credentials.expect_delete_by_id().never();
+
+        let refused = harness
+            .build()
+            .delete_own_passkey(
+                identity,
+                DeleteOwnPasskeyInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    credential_id: Uuid::now_v7(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn deleting_a_passkey_is_allowed_while_a_password_remains() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let passkey = credential_of(user.id, CredentialType::WebAuthnPublicKeyCredential);
+        let doomed = passkey.id;
+        let owner = user.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![credential_of(user.id, CredentialType::Password), passkey],
+        );
+        harness.with_settings(realm.id, false);
+        harness
+            .credentials
+            .expect_delete_by_id()
+            .withf(move |user, id| user.get().id == owner && *id == doomed)
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+
+        let deleted = harness
+            .build()
+            .delete_own_passkey(
+                identity,
+                DeleteOwnPasskeyInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    credential_id: doomed,
+                },
+            )
+            .await;
+
+        assert!(
+            deleted.is_ok(),
+            "expected the removal to go through: {deleted:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn starting_a_passkey_registration_without_a_live_elevation_is_refused() {
+        let (realm, user, identity) = actors();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.refusing_elevation();
+        harness.passkey_registrations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .start_own_passkey_registration(
+                identity,
+                StartOwnPasskeyRegistrationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    elevation_id: Uuid::now_v7(),
+                    rp_info: rp_info(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::ElevationRequired)));
+    }
+
+    #[tokio::test]
+    async fn confirming_a_passkey_without_a_live_registration_is_refused() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness
+            .passkey_registrations
+            .expect_consume()
+            .returning(|_, _| Box::pin(async move { Ok(None) }));
+        harness
+            .credentials
+            .expect_create_webauthn_credential()
+            .never();
+
+        let refused = harness
+            .build()
+            .confirm_own_passkey_registration(
+                identity,
+                ConfirmOwnPasskeyRegistrationInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    rp_info: rp_info(),
+                    credential: registration_payload(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::WebAuthnMissingChallenge)));
+    }
+
+    #[tokio::test]
+    async fn starting_a_passkey_registration_records_a_challenge_for_the_caller() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let owner = user.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.holding(
+            user.id,
+            vec![credential_of(user.id, CredentialType::Password)],
+        );
+        harness
+            .passkey_registrations
+            .expect_start()
+            .withf(move |user_id, _, expires_at| *user_id == owner && *expires_at > Utc::now())
+            .times(1)
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
+
+        let started = harness
+            .build()
+            .start_own_passkey_registration(
+                identity,
+                StartOwnPasskeyRegistrationInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    rp_info: rp_info(),
+                },
+            )
+            .await;
+
+        assert!(started.is_ok(), "expected a challenge: {:?}", started.err());
+    }
+
+    // ── list_own_credentials ─────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn listing_credentials_never_hands_back_secret_material() {
+        let (realm, user, identity) = actors();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.holding(
+            user.id,
+            vec![
+                credential_of(user.id, CredentialType::Password),
+                otp_credential(user.id),
+            ],
+        );
+
+        let listed = harness
+            .build()
+            .list_own_credentials(
+                identity,
+                ListOwnCredentialsInput {
+                    realm_name: "acme".into(),
+                },
+            )
+            .await
+            .expect("the caller must be able to list their own credentials");
+
+        assert_eq!(listed.len(), 2);
+        let rendered = format!("{listed:?}");
+        assert!(
+            !rendered.contains(SECRET) && !rendered.contains("hashed"),
+            "secret material leaked into the listing: {rendered}"
+        );
     }
 }

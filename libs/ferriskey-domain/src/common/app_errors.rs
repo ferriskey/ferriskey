@@ -133,6 +133,12 @@ pub enum CoreError {
     #[error("This operation requires a fresh re-authentication")]
     ElevationRequired,
 
+    #[error("This operation requires re-authenticating with a primary credential")]
+    PrimaryProofRequired,
+
+    #[error("This account signs in through an external directory and has no local password")]
+    NoLocalPassword,
+
     #[error("Removing this credential would leave the account with no way to sign in")]
     LastSignInMeans,
 
@@ -429,6 +435,8 @@ impl CoreError {
             CoreError::RealmKeyNotFound => "realm_key_not_found",
             CoreError::InvalidToken => "invalid_token",
             CoreError::ElevationRequired => "elevation_required",
+            CoreError::PrimaryProofRequired => "primary_proof_required",
+            CoreError::NoLocalPassword => "no_local_password",
             CoreError::LastSignInMeans => "last_sign_in_means",
             CoreError::MfaFactorRequired => "mfa_factor_required",
             CoreError::ExpiredToken => "expired_token",

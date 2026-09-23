@@ -34,6 +34,14 @@ impl From<CoreError> for ApiError {
                 "This operation requires a fresh re-authentication",
                 reason,
             )),
+            CoreError::PrimaryProofRequired => Self::Forbidden(ApiErrorBody::new(
+                "This operation requires re-authenticating with a primary credential",
+                reason,
+            )),
+            CoreError::NoLocalPassword => Self::Conflict(ApiErrorBody::new(
+                "This account signs in through an external directory and has no local password",
+                reason,
+            )),
             CoreError::LastSignInMeans => Self::Conflict(ApiErrorBody::new(
                 "Removing this credential would leave the account with no way to sign in",
                 reason,

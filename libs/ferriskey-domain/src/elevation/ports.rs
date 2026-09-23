@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::common::app_errors::CoreError;
-use crate::elevation::entities::{Elevation, ElevationId};
+use crate::elevation::entities::{Elevation, ElevationId, ElevationProofKind};
 use crate::realm::RealmId;
 use crate::realm::scope::Unscoped;
 
@@ -12,12 +12,15 @@ pub trait ElevationRepository: Send + Sync {
         &self,
         user_id: Uuid,
         realm_id: RealmId,
+        session_id: Uuid,
+        proof: ElevationProofKind,
         expires_at: DateTime<Utc>,
     ) -> impl Future<Output = Result<Elevation, CoreError>> + Send;
 
-    fn consume(
+    fn find_live(
         &self,
         id: ElevationId,
+        user_id: Uuid,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Option<Unscoped<Elevation>>, CoreError>> + Send;
 

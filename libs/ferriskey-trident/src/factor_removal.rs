@@ -156,6 +156,19 @@ mod tests {
     }
 
     #[test]
+    fn removing_the_only_otp_of_an_account_with_nothing_else_is_refused_as_lockout() {
+        let account = AccountFactors {
+            has_otp: true,
+            ..factors()
+        };
+
+        assert_eq!(
+            refusal_for_removal(account, FactorRemoval::Otp, None, &[]),
+            Some(RemovalRefusal::LastSignInMeans)
+        );
+    }
+
+    #[test]
     fn removing_otp_is_allowed_when_the_realm_does_not_require_mfa() {
         let account = AccountFactors {
             has_password: true,
