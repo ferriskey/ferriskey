@@ -10,6 +10,7 @@ use tracing::{error, warn};
 use uuid::Uuid;
 
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::Unscoped;
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::webhook::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
@@ -51,6 +52,20 @@ pub struct PostgresWebhookDeliveryRepository {
 impl PostgresWebhookDeliveryRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
+    }
+
+    async fn load(
+        &self,
+        realm_id: RealmId,
+        id: WebhookDeliveryId,
+    ) -> Result<WebhookDelivery, CoreError> {
+        WebhookDeliveryEntity::find_by_id(id.as_uuid())
+            .filter(WebhookDeliveryColumn::RealmId.eq::<Uuid>(realm_id.into()))
+            .one(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::WebhookDeliveryNotFound)
+            .and_then(WebhookDelivery::try_from)
     }
 }
 
@@ -215,18 +230,12 @@ impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
         &self,
         realm_id: RealmId,
         id: WebhookDeliveryId,
-    ) -> Result<WebhookDelivery, CoreError> {
-        WebhookDeliveryEntity::find_by_id(id.as_uuid())
-            .filter(WebhookDeliveryColumn::RealmId.eq::<Uuid>(realm_id.into()))
-            .one(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .ok_or(CoreError::WebhookDeliveryNotFound)
-            .and_then(WebhookDelivery::try_from)
+    ) -> Result<Unscoped<WebhookDelivery>, CoreError> {
+        self.load(realm_id, id).await.map(Unscoped::new)
     }
 
     async fn requeue(&self, realm_id: RealmId, id: WebhookDeliveryId) -> Result<(), CoreError> {
-        let mut delivery = self.get(realm_id, id).await?;
+        let mut delivery = self.load(realm_id, id).await?;
 
         if !delivery.status.is_terminal() {
             return Err(CoreError::WebhookDeliveryNotReplayable);
@@ -314,6 +323,7 @@ impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::realm::entities::{Realm, RealmScope};
     use crate::domain::webhook::entities::webhook_delivery::DeliveryErrorCode;
     use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
     use crate::infrastructure::seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository;
@@ -395,6 +405,12 @@ mod tests {
             webhook_b,
             pool,
         }
+    }
+
+    fn scope_of(realm_id: RealmId) -> RealmScope {
+        let mut realm = Realm::new("fixture".to_string());
+        realm.id = realm_id;
+        RealmScope::from_realm(realm)
     }
 
     fn sample(realm_id: RealmId, webhook_id: Uuid) -> WebhookDelivery {
@@ -695,7 +711,10 @@ mod tests {
             .repository
             .get(fixture.realm_a, ids[0])
             .await
-            .expect("reload delivery");
+            .expect("reload delivery")
+            .in_realm(&scope_of(fixture.realm_a))
+            .expect("the reloaded delivery belongs to the realm it was read through")
+            .into_inner();
 
         assert_eq!(stored.status, DeliveryStatus::Failed);
         assert_eq!(stored.attempt_count, 1);
@@ -736,7 +755,10 @@ mod tests {
             .repository
             .get(fixture.realm_a, ids[0])
             .await
-            .expect("reload delivery");
+            .expect("reload delivery")
+            .in_realm(&scope_of(fixture.realm_a))
+            .expect("the reloaded delivery belongs to the realm it was read through")
+            .into_inner();
 
         assert_eq!(stored.status, DeliveryStatus::Pending);
         assert_eq!(stored.attempt_count, 0);
@@ -851,7 +873,10 @@ mod tests {
             .repository
             .get(fixture.realm_a, ids[0])
             .await
-            .expect("reload delivery");
+            .expect("reload delivery")
+            .in_realm(&scope_of(fixture.realm_a))
+            .expect("the reloaded delivery belongs to the realm it was read through")
+            .into_inner();
 
         assert_eq!(stored.status, DeliveryStatus::Pending);
         assert_eq!(stored.attempt_count, 1);
@@ -886,7 +911,10 @@ mod tests {
             .repository
             .get(fixture.realm_a, ids[0])
             .await
-            .expect("reload delivery");
+            .expect("reload delivery")
+            .in_realm(&scope_of(fixture.realm_a))
+            .expect("the reloaded delivery belongs to the realm it was read through")
+            .into_inner();
 
         assert_eq!(stored.status, DeliveryStatus::Failed);
         assert_eq!(stored.next_attempt_at, None);

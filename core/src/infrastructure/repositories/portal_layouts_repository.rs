@@ -10,6 +10,7 @@ use crate::{
     domain::{
         common::{entities::app_errors::CoreError, generate_uuid_v7},
         portal_layouts::{entities::PortalLayout, ports::PortalLayoutsRepository},
+        realm::entities::{Scoped, Unscoped},
     },
     entity::portal_layouts::{ActiveModel, Column, Entity, Model},
 };
@@ -58,7 +59,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
         &self,
         realm_id: Uuid,
         layout_id: Uuid,
-    ) -> Result<Option<PortalLayout>, CoreError> {
+    ) -> Result<Option<Unscoped<PortalLayout>>, CoreError> {
         let model = Entity::find_by_id(layout_id)
             .filter(Column::RealmId.eq(realm_id))
             .one(&self.db)
@@ -68,7 +69,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(PortalLayout::from))
+        Ok(model.map(|model| Unscoped::new(PortalLayout::from(model))))
     }
 
     async fn get_default(&self, realm_id: Uuid) -> Result<Option<PortalLayout>, CoreError> {
@@ -116,13 +117,12 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
 
     async fn update(
         &self,
-        realm_id: Uuid,
-        layout_id: Uuid,
+        layout: &Scoped<PortalLayout>,
         name: String,
         tree: serde_json::Value,
     ) -> Result<PortalLayout, CoreError> {
-        let existing = Entity::find_by_id(layout_id)
-            .filter(Column::RealmId.eq(realm_id))
+        let existing = Entity::find_by_id(layout.get().id)
+            .filter(Column::RealmId.eq::<Uuid>(layout.get().realm_id.into()))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -144,11 +144,10 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
         Ok(updated.into())
     }
 
-    async fn set_default(
-        &self,
-        realm_id: Uuid,
-        layout_id: Uuid,
-    ) -> Result<PortalLayout, CoreError> {
+    async fn set_default(&self, layout: &Scoped<PortalLayout>) -> Result<PortalLayout, CoreError> {
+        let realm_id: Uuid = layout.get().realm_id.into();
+        let layout_id = layout.get().id;
+
         let txn = self.db.begin().await.map_err(|e| {
             error!("failed to begin set_default transaction: {e}");
             CoreError::InternalServerError
@@ -197,10 +196,10 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
         Ok(updated.into())
     }
 
-    async fn delete(&self, realm_id: Uuid, layout_id: Uuid) -> Result<(), CoreError> {
+    async fn delete(&self, layout: &Scoped<PortalLayout>) -> Result<(), CoreError> {
         let result = Entity::delete_many()
-            .filter(Column::Id.eq(layout_id))
-            .filter(Column::RealmId.eq(realm_id))
+            .filter(Column::Id.eq(layout.get().id))
+            .filter(Column::RealmId.eq::<Uuid>(layout.get().realm_id.into()))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -215,12 +214,12 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
         Ok(())
     }
 
-    async fn is_used_by_themes(&self, realm_id: Uuid, layout_id: Uuid) -> Result<bool, CoreError> {
+    async fn is_used_by_themes(&self, layout: &Scoped<PortalLayout>) -> Result<bool, CoreError> {
         use crate::entity::portal_themes;
 
         let count = portal_themes::Entity::find()
-            .filter(portal_themes::Column::RealmId.eq(realm_id))
-            .filter(portal_themes::Column::LayoutId.eq(layout_id))
+            .filter(portal_themes::Column::RealmId.eq::<Uuid>(layout.get().realm_id.into()))
+            .filter(portal_themes::Column::LayoutId.eq(layout.get().id))
             .count(&self.db)
             .await
             .map_err(|e| {

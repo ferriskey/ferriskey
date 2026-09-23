@@ -13,7 +13,7 @@ use crate::email_template::ports::{EmailTemplateRepository, TemplateRenderer};
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::email::EmailPort;
 use ferriskey_domain::realm::ports::{RealmRepository, SmtpConfigRepository};
-use ferriskey_domain::realm::scope::RealmScope;
+use ferriskey_domain::realm::scope::{RealmScope, UnscopedOption};
 use ferriskey_domain::user::entities::{RequiredAction, RequiredActionError};
 use ferriskey_domain::user::ports::{UserRepository, UserRequiredActionRepository};
 use ferriskey_seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType};
@@ -133,18 +133,21 @@ where
 
     async fn render_email_template(
         &self,
-        realm_id: Uuid,
+        scope: &RealmScope,
         template_id: Uuid,
         user: &ferriskey_domain::user::entities::User,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
         let template = self
             .email_template_repository
-            .get_by_id(realm_id, template_id)
+            .get_by_id(scope.id().into(), template_id)
             .await?
+            .in_realm(scope)?
             .ok_or(CoreError::EmailTemplateNotFound)?;
 
-        let html = self.template_renderer.render_to_html(&template.mjml)?;
+        let html = self
+            .template_renderer
+            .render_to_html(&template.get().mjml)?;
 
         let mut variables = HashMap::new();
         variables.insert(
@@ -187,17 +190,14 @@ where
         realm_name: String,
         base_url: String,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let user = self
             .user_repository
             .get_by_id(user_id)
             .await?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?
+            .in_realm(&scope)?
             .into_inner();
         let user_email = user.email.as_deref().ok_or(CoreError::InvalidUser)?;
 
@@ -256,7 +256,7 @@ where
 
         let html_body = self
             .render_email_template(
-                realm.id.into(),
+                &scope,
                 template_id,
                 &user,
                 &[
@@ -307,16 +307,14 @@ where
     ) -> Result<VerifyEmailResult, CoreError> {
         let token_hash = generate_token_hash(&token);
 
-        let realm = self
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let realm = scope.realm().clone();
 
         let token_record = self
             .email_verification_token_repository
-            .find_valid_by_hash(&token_hash, realm.id.into())
-            .await?;
+            .find_valid_by_hash(&token_hash, scope.id().into())
+            .await?
+            .in_realm(&scope)?;
 
         // If no valid token found, check if it was already used (idempotency)
         let token_record = match token_record {
@@ -325,15 +323,16 @@ where
                 // Check if token exists but was already used
                 if let Some(used_token) = self
                     .email_verification_token_repository
-                    .find_by_hash(&token_hash, realm.id.into())
+                    .find_by_hash(&token_hash, scope.id().into())
                     .await?
+                    .in_realm(&scope)?
                 {
                     // Token was found but already used - check if user's email is verified
                     let user = self
                         .user_repository
-                        .get_by_id(used_token.user_id)
+                        .get_by_id(used_token.get().user_id)
                         .await?
-                        .in_realm(&RealmScope::from_realm(realm.clone()))?
+                        .in_realm(&scope)?
                         .into_inner();
                     if user.email_verified {
                         // Email already verified, return success (idempotent)
@@ -351,7 +350,7 @@ where
             }
         };
 
-        if !token_record.is_valid() {
+        if !token_record.get().is_valid() {
             return Err(CoreError::InvalidOrExpiredToken);
         }
 
@@ -359,9 +358,9 @@ where
         // if the user update fails.
         let user = self
             .user_repository
-            .get_by_id(token_record.user_id)
+            .get_by_id(token_record.get().user_id)
             .await?
-            .in_realm(&RealmScope::from_realm(realm.clone()))?;
+            .in_realm(&scope)?;
 
         let updated_user = self
             .user_repository
@@ -383,7 +382,7 @@ where
         // NotFound is OK - it means the action wasn't there in the first place
         if let Err(e) = self
             .user_required_action_repository
-            .remove_required_action(token_record.user_id, RequiredAction::VerifyEmail)
+            .remove_required_action(token_record.get().user_id, RequiredAction::VerifyEmail)
             .await
             && !matches!(e, RequiredActionError::NotFound)
         {
@@ -395,7 +394,7 @@ where
         // we can check that the token was already used and the email is verified.
         if let Err(e) = self
             .email_verification_token_repository
-            .mark_used(token_record.id)
+            .mark_used(&token_record)
             .await
         {
             warn!("Failed to mark verification token as used: {}", e);
@@ -435,7 +434,7 @@ where
         }
 
         Ok(VerifyEmailResult {
-            user_id: token_record.user_id,
+            user_id: token_record.get().user_id,
             verified: true,
         })
     }
@@ -612,7 +611,7 @@ mod tests {
         let mut evrt = MockEmailVerificationTokenRepository::new();
         let tc = token_record.clone();
         evrt.expect_find_valid_by_hash()
-            .return_once(move |_, _| Box::pin(async move { Ok(Some(tc)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(Unscoped::new(tc))) }));
         evrt.expect_mark_used()
             .return_once(|_| Box::pin(async move { Ok(()) }));
         evrt.expect_delete_by_user_id()
@@ -731,7 +730,7 @@ mod tests {
             .return_once(move |_, _| Box::pin(async move { Ok(None) }));
         let et = expired_token.clone();
         evrt.expect_find_by_hash()
-            .return_once(move |_, _| Box::pin(async move { Ok(Some(et)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(Unscoped::new(et))) }));
 
         let unverified = user.clone();
         let mut user_repo = MockUserRepository::new();
@@ -790,7 +789,7 @@ mod tests {
             .return_once(move |_, _| Box::pin(async move { Ok(None) }));
         let ut = used_token.clone();
         evrt.expect_find_by_hash()
-            .return_once(move |_, _| Box::pin(async move { Ok(Some(ut)) }));
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(Unscoped::new(ut))) }));
 
         let mut verified_user = user.clone();
         verified_user.email_verified = true;
@@ -904,7 +903,7 @@ mod tests {
         let mut et_repo = MockEmailTemplateRepository::new();
         et_repo.expect_get_by_id().returning(move |_, _| {
             let t = template_clone.clone();
-            Box::pin(async move { Ok(Some(t)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
         });
 
         let mut smtp_repo = MockSmtpConfigRepository::new();
@@ -1092,7 +1091,7 @@ mod tests {
         let mut et_repo = MockEmailTemplateRepository::new();
         et_repo.expect_get_by_id().returning(move |_, _| {
             let t = template_clone.clone();
-            Box::pin(async move { Ok(Some(t)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
         });
 
         let mut smtp_repo = MockSmtpConfigRepository::new();
@@ -1186,7 +1185,7 @@ mod tests {
         let mut et_repo = MockEmailTemplateRepository::new();
         et_repo.expect_get_by_id().returning(move |_, _| {
             let t = template_clone.clone();
-            Box::pin(async move { Ok(Some(t)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
         });
 
         let mut smtp_repo = MockSmtpConfigRepository::new();
@@ -1268,7 +1267,7 @@ mod tests {
         let mut et_repo = MockEmailTemplateRepository::new();
         et_repo.expect_get_by_id().returning(move |_, _| {
             let t = template_clone.clone();
-            Box::pin(async move { Ok(Some(t)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
         });
 
         let mut smtp_repo = MockSmtpConfigRepository::new();

@@ -3,7 +3,7 @@ use sea_orm::{
     ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
     TransactionTrait,
 };
-use tracing::error;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -13,6 +13,7 @@ use crate::{
             entities::{PortalPageType, PortalTheme, PortalThemeConfig, PortalThemePages},
             ports::PortalThemeRepository,
         },
+        realm::entities::{Scoped, Unscoped},
     },
     entity::portal_themes::{ActiveModel, Column, Entity, Model},
 };
@@ -25,6 +26,51 @@ pub struct PostgresPortalThemeRepository {
 impl PostgresPortalThemeRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
+    }
+
+    async fn load(&self, realm_id: Uuid, theme_id: Uuid) -> Result<Option<PortalTheme>, CoreError> {
+        let model = Entity::find_by_id(theme_id)
+            .filter(Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("failed to fetch portal theme: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        model.map(model_to_domain).transpose()
+    }
+
+    async fn require_layout_of_realm(
+        &self,
+        realm_id: Uuid,
+        layout_id: Option<Uuid>,
+    ) -> Result<(), CoreError> {
+        use crate::entity::portal_layouts as pl;
+
+        let Some(layout_id) = layout_id else {
+            return Ok(());
+        };
+
+        let owned = pl::Entity::find_by_id(layout_id)
+            .filter(pl::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("failed to fetch the layout a portal theme names: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        if owned.is_none() {
+            warn!(
+                %layout_id,
+                %realm_id,
+                "Refused to bind a portal theme to a layout outside its realm"
+            );
+            return Err(CoreError::NotFound);
+        }
+
+        Ok(())
     }
 }
 
@@ -151,17 +197,10 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
         &self,
         realm_id: Uuid,
         theme_id: Uuid,
-    ) -> Result<Option<PortalTheme>, CoreError> {
-        let model = Entity::find_by_id(theme_id)
-            .filter(Column::RealmId.eq(realm_id))
-            .one(&self.db)
+    ) -> Result<Option<Unscoped<PortalTheme>>, CoreError> {
+        self.load(realm_id, theme_id)
             .await
-            .map_err(|e| {
-                error!("failed to fetch portal theme: {e}");
-                CoreError::InternalServerError
-            })?;
-
-        model.map(model_to_domain).transpose()
+            .map(|theme| theme.map(Unscoped::new))
     }
 
     async fn create(
@@ -171,6 +210,8 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
         layout_id: Option<Uuid>,
         config: PortalThemeConfig,
     ) -> Result<PortalTheme, CoreError> {
+        self.require_layout_of_realm(realm_id, layout_id).await?;
+
         let now = Utc::now().naive_utc();
         let model = ActiveModel {
             id: Set(generate_uuid_v7()),
@@ -196,13 +237,15 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
 
     async fn update_metadata(
         &self,
-        realm_id: Uuid,
-        theme_id: Uuid,
+        theme: &Scoped<PortalTheme>,
         name: String,
         layout_id: Option<Uuid>,
         config: PortalThemeConfig,
     ) -> Result<PortalTheme, CoreError> {
-        let existing = Entity::find_by_id(theme_id)
+        let realm_id: Uuid = theme.get().realm_id.into();
+        self.require_layout_of_realm(realm_id, layout_id).await?;
+
+        let existing = Entity::find_by_id(theme.get().id)
             .filter(Column::RealmId.eq(realm_id))
             .one(&self.db)
             .await
@@ -228,11 +271,12 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
 
     async fn update_page(
         &self,
-        realm_id: Uuid,
-        theme_id: Uuid,
+        theme: &Scoped<PortalTheme>,
         page_type: PortalPageType,
         tree: serde_json::Value,
     ) -> Result<PortalTheme, CoreError> {
+        let realm_id: Uuid = theme.get().realm_id.into();
+        let theme_id = theme.get().id;
         let existing = Entity::find_by_id(theme_id)
             .filter(Column::RealmId.eq(realm_id))
             .one(&self.db)
@@ -258,12 +302,14 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
                 CoreError::InternalServerError
             })?;
 
-        self.get_by_id(realm_id, theme_id)
+        self.load(realm_id, theme_id)
             .await?
             .ok_or(CoreError::NotFound)
     }
 
-    async fn activate(&self, realm_id: Uuid, theme_id: Uuid) -> Result<(), CoreError> {
+    async fn activate(&self, theme: &Scoped<PortalTheme>) -> Result<(), CoreError> {
+        let realm_id: Uuid = theme.get().realm_id.into();
+        let theme_id = theme.get().id;
         let txn = self.db.begin().await.map_err(|e| {
             error!("failed to begin activate transaction: {e}");
             CoreError::InternalServerError
@@ -289,10 +335,10 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
         Ok(())
     }
 
-    async fn delete(&self, realm_id: Uuid, theme_id: Uuid) -> Result<(), CoreError> {
+    async fn delete(&self, theme: &Scoped<PortalTheme>) -> Result<(), CoreError> {
         let result = Entity::delete_many()
-            .filter(Column::Id.eq(theme_id))
-            .filter(Column::RealmId.eq(realm_id))
+            .filter(Column::Id.eq(theme.get().id))
+            .filter(Column::RealmId.eq::<Uuid>(theme.get().realm_id.into()))
             .exec(&self.db)
             .await
             .map_err(|e| {

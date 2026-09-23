@@ -6,6 +6,7 @@ use crate::{
     domain::{
         common::{entities::app_errors::CoreError, generate_timestamp},
         email_template::{entities::EmailTemplate, ports::EmailTemplateRepository},
+        realm::entities::{Scoped, Unscoped},
     },
     entity::email_templates::{
         ActiveModel as EmailTemplateActiveModel, Column as EmailTemplateColumn,
@@ -41,12 +42,12 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
         &self,
         realm_id: Uuid,
         template_id: Uuid,
-    ) -> Result<Option<EmailTemplate>, CoreError> {
+    ) -> Result<Option<Unscoped<EmailTemplate>>, CoreError> {
         EmailTemplateEntity::find_by_id(template_id)
             .filter(EmailTemplateColumn::RealmId.eq(realm_id))
             .one(&self.db)
             .await
-            .map(|model| model.map(EmailTemplate::from))
+            .map(|model| model.map(|model| Unscoped::new(EmailTemplate::from(model))))
             .map_err(|e| {
                 error!("Failed to get email template: {}", e);
                 CoreError::InternalServerError
@@ -87,14 +88,13 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
 
     async fn update(
         &self,
-        realm_id: Uuid,
-        template_id: Uuid,
+        template: &Scoped<EmailTemplate>,
         name: String,
         structure: serde_json::Value,
         mjml: String,
     ) -> Result<EmailTemplate, CoreError> {
-        let existing = EmailTemplateEntity::find_by_id(template_id)
-            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
+        let existing = EmailTemplateEntity::find_by_id(template.get().id)
+            .filter(EmailTemplateColumn::RealmId.eq(template.get().realm_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -119,10 +119,10 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
             })
     }
 
-    async fn delete(&self, realm_id: Uuid, template_id: Uuid) -> Result<(), CoreError> {
+    async fn delete(&self, template: &Scoped<EmailTemplate>) -> Result<(), CoreError> {
         EmailTemplateEntity::delete_many()
-            .filter(EmailTemplateColumn::Id.eq(template_id))
-            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
+            .filter(EmailTemplateColumn::Id.eq(template.get().id))
+            .filter(EmailTemplateColumn::RealmId.eq(template.get().realm_id))
             .exec(&self.db)
             .await
             .map(|_| ())

@@ -10,12 +10,6 @@ mod tests {
         "core/src/domain/realm/services.rs",
         "core/src/domain/saml/services.rs",
         "core/src/domain/trident/services.rs",
-        "libs/ferriskey-mail/src/email_template/services.rs",
-        "libs/ferriskey-mail/src/email_verification/services.rs",
-        "libs/ferriskey-portal-layouts/src/services.rs",
-        "libs/ferriskey-portal-theme/src/services.rs",
-        "libs/ferriskey-seawatch/src/services.rs",
-        "libs/ferriskey-webhook/src/services.rs",
     ];
 
     const MANUAL_COMPARISON: &[&str] = &[

@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::scope::Unscoped;
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use crate::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
@@ -180,7 +181,7 @@ pub trait WebhookDeliveryRepository: Send + Sync {
         &self,
         realm_id: RealmId,
         id: WebhookDeliveryId,
-    ) -> impl Future<Output = Result<WebhookDelivery, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Unscoped<WebhookDelivery>, CoreError>> + Send;
 
     fn requeue(
         &self,

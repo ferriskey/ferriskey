@@ -6,6 +6,7 @@ use crate::entities::{PortalPageType, PortalTheme, PortalThemeConfig};
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::Realm;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
 
 pub trait PortalThemeService: Send + Sync {
     // ---------- Legacy single-theme-per-realm API (still wired to the old
@@ -100,7 +101,7 @@ pub trait PortalThemeRepository: Send + Sync {
         &self,
         realm_id: Uuid,
         theme_id: Uuid,
-    ) -> impl Future<Output = Result<Option<PortalTheme>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Option<Unscoped<PortalTheme>>, CoreError>> + Send;
 
     fn create(
         &self,
@@ -112,8 +113,7 @@ pub trait PortalThemeRepository: Send + Sync {
 
     fn update_metadata(
         &self,
-        realm_id: Uuid,
-        theme_id: Uuid,
+        theme: &Scoped<PortalTheme>,
         name: String,
         layout_id: Option<Uuid>,
         config: PortalThemeConfig,
@@ -121,22 +121,19 @@ pub trait PortalThemeRepository: Send + Sync {
 
     fn update_page(
         &self,
-        realm_id: Uuid,
-        theme_id: Uuid,
+        theme: &Scoped<PortalTheme>,
         page_type: PortalPageType,
         tree: serde_json::Value,
     ) -> impl Future<Output = Result<PortalTheme, CoreError>> + Send;
 
     fn activate(
         &self,
-        realm_id: Uuid,
-        theme_id: Uuid,
+        theme: &Scoped<PortalTheme>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn delete(
         &self,
-        realm_id: Uuid,
-        theme_id: Uuid,
+        theme: &Scoped<PortalTheme>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn get_active(

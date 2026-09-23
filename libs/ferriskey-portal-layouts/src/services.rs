@@ -10,6 +10,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, UnscopedOption};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 #[derive(Clone, Debug)]
@@ -60,18 +61,18 @@ where
         identity: Identity,
         input: ListLayoutsInput,
     ) -> Result<Vec<PortalLayout>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_layouts(&identity, &realm).await,
+            self.policy
+                .can_manage_layouts(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        self.layouts_repository.list_by_realm(realm.id.into()).await
+        self.layouts_repository
+            .list_by_realm(scope.id().into())
+            .await
     }
 
     async fn get_layout(
@@ -79,20 +80,20 @@ where
         identity: Identity,
         input: GetLayoutInput,
     ) -> Result<PortalLayout, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_layouts(&identity, &realm).await,
+            self.policy
+                .can_manage_layouts(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         self.layouts_repository
-            .get_by_id(realm.id.into(), input.layout_id)
+            .get_by_id(scope.id().into(), input.layout_id)
             .await?
+            .in_realm(&scope)?
+            .map(Scoped::into_inner)
             .ok_or(CoreError::NotFound)
     }
 
@@ -101,18 +102,16 @@ where
         identity: Identity,
         input: CreateLayoutInput,
     ) -> Result<PortalLayout, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_layouts(&identity, &realm).await,
+            self.policy
+                .can_manage_layouts(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        let realm_uuid: uuid::Uuid = realm.id.into();
+        let realm_uuid: uuid::Uuid = scope.id().into();
         let existing_default = self.layouts_repository.get_default(realm_uuid).await?;
         let make_default = existing_default.is_none();
 
@@ -126,19 +125,24 @@ where
         identity: Identity,
         input: UpdateLayoutInput,
     ) -> Result<PortalLayout, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_layouts(&identity, &realm).await,
+            self.policy
+                .can_manage_layouts(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
+        let layout = self
+            .layouts_repository
+            .get_by_id(scope.id().into(), input.layout_id)
+            .await?
+            .in_realm(&scope)?
+            .ok_or(CoreError::NotFound)?;
+
         self.layouts_repository
-            .update(realm.id.into(), input.layout_id, input.name, input.tree)
+            .update(&layout, input.name, input.tree)
             .await
     }
 
@@ -147,20 +151,23 @@ where
         identity: Identity,
         input: GetLayoutInput,
     ) -> Result<PortalLayout, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_layouts(&identity, &realm).await,
+            self.policy
+                .can_manage_layouts(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        self.layouts_repository
-            .set_default(realm.id.into(), input.layout_id)
-            .await
+        let layout = self
+            .layouts_repository
+            .get_by_id(scope.id().into(), input.layout_id)
+            .await?
+            .in_realm(&scope)?
+            .ok_or(CoreError::NotFound)?;
+
+        self.layouts_repository.set_default(&layout).await
     }
 
     async fn delete_layout(
@@ -168,67 +175,53 @@ where
         identity: Identity,
         input: GetLayoutInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_manage_layouts(&identity, &realm).await,
+            self.policy
+                .can_manage_layouts(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
-        let realm_uuid: uuid::Uuid = realm.id.into();
         let layout = self
             .layouts_repository
-            .get_by_id(realm_uuid, input.layout_id)
+            .get_by_id(scope.id().into(), input.layout_id)
             .await?
+            .in_realm(&scope)?
             .ok_or(CoreError::NotFound)?;
 
-        if layout.is_default {
+        if layout.get().is_default {
             return Err(CoreError::PortalLayoutDefault);
         }
 
-        if self
-            .layouts_repository
-            .is_used_by_themes(realm_uuid, input.layout_id)
-            .await?
-        {
+        if self.layouts_repository.is_used_by_themes(&layout).await? {
             return Err(CoreError::PortalLayoutInUse);
         }
 
-        self.layouts_repository
-            .delete(realm_uuid, input.layout_id)
-            .await
+        self.layouts_repository.delete(&layout).await
     }
 
     async fn get_public_default_layout(
         &self,
         input: ListLayoutsInput,
     ) -> Result<Option<PortalLayout>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        self.layouts_repository.get_default(realm.id.into()).await
+        self.layouts_repository.get_default(scope.id().into()).await
     }
 
     async fn get_public_layout(
         &self,
         input: GetLayoutInput,
     ) -> Result<Option<PortalLayout>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         self.layouts_repository
-            .get_by_id(realm.id.into(), input.layout_id)
-            .await
+            .get_by_id(scope.id().into(), input.layout_id)
+            .await?
+            .in_realm(&scope)
+            .map(|layout| layout.map(Scoped::into_inner))
     }
 
     async fn import_layout(
@@ -589,11 +582,24 @@ mod tests {
 
         let mut layouts_repo = MockPortalLayoutsRepository::new();
         let realm_for_repo = realm.clone();
+        let realm_for_lookup = realm.clone();
+        layouts_repo.expect_get_by_id().returning(move |_, id| {
+            let stored = PortalLayout {
+                id,
+                realm_id: realm_for_lookup.id,
+                name: "Before".to_string(),
+                tree: serde_json::json!([]),
+                is_default: false,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            Box::pin(async move { Ok(Some(Unscoped::new(stored))) })
+        });
         layouts_repo
             .expect_update()
-            .returning(move |_realm_id, id, name, tree| {
+            .returning(move |layout, name, tree| {
                 let layout = PortalLayout {
-                    id,
+                    id: layout.get().id,
                     realm_id: realm_for_repo.id,
                     name,
                     tree,
@@ -638,7 +644,7 @@ mod tests {
         let layout_clone = layout.clone();
         layouts_repo.expect_get_by_id().returning(move |_, _| {
             let l = layout_clone.clone();
-            Box::pin(async move { Ok(Some(l)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(l))) })
         });
 
         let service = build_service(
@@ -671,11 +677,11 @@ mod tests {
         let layout_clone = layout.clone();
         layouts_repo.expect_get_by_id().returning(move |_, _| {
             let l = layout_clone.clone();
-            Box::pin(async move { Ok(Some(l)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(l))) })
         });
         layouts_repo
             .expect_is_used_by_themes()
-            .returning(|_, _| Box::pin(async { Ok(true) }));
+            .returning(|_| Box::pin(async { Ok(true) }));
 
         let service = build_service(
             realm_repo_returning(realm.clone()),
@@ -707,14 +713,14 @@ mod tests {
         let layout_clone = layout.clone();
         layouts_repo.expect_get_by_id().returning(move |_, _| {
             let l = layout_clone.clone();
-            Box::pin(async move { Ok(Some(l)) })
+            Box::pin(async move { Ok(Some(Unscoped::new(l))) })
         });
         layouts_repo
             .expect_is_used_by_themes()
-            .returning(|_, _| Box::pin(async { Ok(false) }));
+            .returning(|_| Box::pin(async { Ok(false) }));
         layouts_repo
             .expect_delete()
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .returning(|_| Box::pin(async { Ok(()) }));
 
         let service = build_service(
             realm_repo_returning(realm.clone()),
@@ -769,20 +775,32 @@ mod tests {
 
         let mut layouts_repo = MockPortalLayoutsRepository::new();
         let realm_for_repo = realm.clone();
-        layouts_repo
-            .expect_set_default()
-            .returning(move |_realm_id, id| {
-                let layout = PortalLayout {
-                    id,
-                    realm_id: realm_for_repo.id,
-                    name: "L".to_string(),
-                    tree: serde_json::json!([]),
-                    is_default: true,
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                };
-                Box::pin(async move { Ok(layout) })
-            });
+        let realm_for_lookup = realm.clone();
+        layouts_repo.expect_get_by_id().returning(move |_, id| {
+            let stored = PortalLayout {
+                id,
+                realm_id: realm_for_lookup.id,
+                name: "L".to_string(),
+                tree: serde_json::json!([]),
+                is_default: false,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            Box::pin(async move { Ok(Some(Unscoped::new(stored))) })
+        });
+        layouts_repo.expect_set_default().returning(move |layout| {
+            let id = layout.get().id;
+            let layout = PortalLayout {
+                id,
+                realm_id: realm_for_repo.id,
+                name: "L".to_string(),
+                tree: serde_json::json!([]),
+                is_default: true,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            };
+            Box::pin(async move { Ok(layout) })
+        });
 
         let service = build_service(
             realm_repo_returning(realm.clone()),

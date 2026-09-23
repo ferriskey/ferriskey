@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::scope::Unscoped;
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::SecurityEvent;
@@ -43,7 +44,10 @@ pub trait SecurityEventRepository: Send + Sync {
         filter: SecurityEventFilter,
     ) -> impl Future<Output = Result<Vec<SecurityEvent>, CoreError>> + Send;
 
-    fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<SecurityEvent, CoreError>> + Send;
+    fn get_by_id(
+        &self,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Unscoped<SecurityEvent>, CoreError>> + Send;
 
     fn count_events(
         &self,

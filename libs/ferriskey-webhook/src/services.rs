@@ -5,6 +5,7 @@ use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
 use ferriskey_domain::realm::ports::RealmRepository;
+use ferriskey_domain::realm::scope::RealmScope;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 
 use crate::endpoint::{PrivateEndpoints, reject_reserved_headers, validate_endpoint};
@@ -78,16 +79,11 @@ where
         identity: Identity,
         input: GetWebhooksInput,
     ) -> Result<Vec<Webhook>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
         ensure_policy(
-            self.policy.can_view_webhook(&identity, &realm).await,
+            self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -104,16 +100,11 @@ where
         identity: Identity,
         input: GetWebhookSubscribersInput,
     ) -> Result<Vec<Webhook>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
         ensure_policy(
-            self.policy.can_view_webhook(&identity, &realm).await,
+            self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -130,16 +121,11 @@ where
         identity: Identity,
         input: GetWebhookInput,
     ) -> Result<Option<Webhook>, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
         ensure_policy(
-            self.policy.can_view_webhook(&identity, &realm).await,
+            self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
@@ -168,17 +154,14 @@ where
         identity: Identity,
         input: CreateWebhookInput,
     ) -> Result<Webhook, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
 
         ensure_policy(
-            self.policy.can_create_webhook(&identity, &realm).await,
+            self.policy
+                .can_create_webhook(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
@@ -222,17 +205,14 @@ where
         identity: Identity,
         input: UpdateWebhookInput,
     ) -> Result<Webhook, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
 
         ensure_policy(
-            self.policy.can_update_webhook(&identity, &realm).await,
+            self.policy
+                .can_update_webhook(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
@@ -286,17 +266,14 @@ where
         identity: Identity,
         input: DeleteWebhookInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let realm_id = realm.id;
+        let realm_id = scope.id();
 
         ensure_policy(
-            self.policy.can_delete_webhook(&identity, &realm).await,
+            self.policy
+                .can_delete_webhook(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
@@ -329,20 +306,15 @@ where
         identity: Identity,
         input: GetWebhookDeliveriesInput,
     ) -> Result<DeliveryPage, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_webhook(&identity, &realm).await,
+            self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         self.webhook_delivery_repository
-            .list_by_webhook(realm.id, input.webhook_id, input.filter)
+            .list_by_webhook(scope.id(), input.webhook_id, input.filter)
             .await
     }
 
@@ -351,22 +323,19 @@ where
         identity: Identity,
         input: GetWebhookDeliveryInput,
     ) -> Result<WebhookDelivery, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_webhook(&identity, &realm).await,
+            self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
         let delivery = self
             .webhook_delivery_repository
-            .get(realm.id, input.delivery_id)
-            .await?;
+            .get(scope.id(), input.delivery_id)
+            .await?
+            .in_realm(&scope)?
+            .into_inner();
 
         if delivery.webhook_id != input.webhook_id {
             return Err(CoreError::WebhookDeliveryNotFound);
@@ -380,29 +349,27 @@ where
         identity: Identity,
         input: RetryWebhookDeliveryInput,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_webhook(&identity, &realm).await,
+            self.policy
+                .can_update_webhook(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         let delivery = self
             .webhook_delivery_repository
-            .get(realm.id, input.delivery_id)
-            .await?;
+            .get(scope.id(), input.delivery_id)
+            .await?
+            .in_realm(&scope)?;
 
-        if delivery.webhook_id != input.webhook_id {
+        if delivery.get().webhook_id != input.webhook_id {
             return Err(CoreError::WebhookDeliveryNotFound);
         }
 
         self.webhook_delivery_repository
-            .requeue(realm.id, input.delivery_id)
+            .requeue(scope.id(), delivery.get().id)
             .await
     }
 
@@ -411,20 +378,17 @@ where
         identity: Identity,
         input: RotateWebhookSecretInput,
     ) -> Result<String, CoreError> {
-        let realm = self
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| CoreError::InvalidRealm)?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
         ensure_policy(
-            self.policy.can_update_webhook(&identity, &realm).await,
+            self.policy
+                .can_update_webhook(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 
         self.webhook_repository
-            .rotate_secret(realm.id, input.webhook_id)
+            .rotate_secret(scope.id(), input.webhook_id)
             .await
     }
 }

@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmOwned;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -14,6 +15,12 @@ pub struct PortalTheme {
     pub pages: PortalThemePages,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RealmOwned for PortalTheme {
+    fn realm_id(&self) -> RealmId {
+        self.realm_id
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]

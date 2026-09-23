@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    sea_query::Expr,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -12,6 +13,8 @@ use crate::{
             entities::EmailVerificationToken,
             ports::{CreateEmailVerificationTokenInput, EmailVerificationTokenRepository},
         },
+        realm::entities::{Scoped, Unscoped},
+        user::entities::User,
     },
     entity::email_verification_tokens::{
         ActiveModel as EvtActiveModel, Column as EvtColumn, Entity as EvtEntity, Model as EvtModel,
@@ -75,7 +78,7 @@ impl EmailVerificationTokenRepository for PostgresEmailVerificationTokenReposito
         &self,
         token_hash: &str,
         realm_id: Uuid,
-    ) -> Result<Option<EmailVerificationToken>, CoreError> {
+    ) -> Result<Option<Unscoped<EmailVerificationToken>>, CoreError> {
         let now = Utc::now().fixed_offset();
         let model = EvtEntity::find()
             .filter(EvtColumn::TokenHash.eq(token_hash))
@@ -89,14 +92,14 @@ impl EmailVerificationTokenRepository for PostgresEmailVerificationTokenReposito
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(EmailVerificationToken::from))
+        Ok(model.map(|model| Unscoped::new(EmailVerificationToken::from(model))))
     }
 
     async fn find_by_hash(
         &self,
         token_hash: &str,
         realm_id: Uuid,
-    ) -> Result<Option<EmailVerificationToken>, CoreError> {
+    ) -> Result<Option<Unscoped<EmailVerificationToken>>, CoreError> {
         let model = EvtEntity::find()
             .filter(EvtColumn::TokenHash.eq(token_hash))
             .filter(EvtColumn::RealmId.eq(realm_id))
@@ -107,17 +110,17 @@ impl EmailVerificationTokenRepository for PostgresEmailVerificationTokenReposito
                 CoreError::InternalServerError
             })?;
 
-        Ok(model.map(EmailVerificationToken::from))
+        Ok(model.map(|model| Unscoped::new(EmailVerificationToken::from(model))))
     }
 
-    async fn mark_used(&self, id: Uuid) -> Result<(), CoreError> {
-        let active_model = EvtActiveModel {
-            id: Set(id),
-            used_at: Set(Some(Utc::now().fixed_offset())),
-            ..Default::default()
-        };
-
-        EvtEntity::update(active_model)
+    async fn mark_used(&self, token: &Scoped<EmailVerificationToken>) -> Result<(), CoreError> {
+        EvtEntity::update_many()
+            .col_expr(
+                EvtColumn::UsedAt,
+                Expr::value(Some(Utc::now().fixed_offset())),
+            )
+            .filter(EvtColumn::Id.eq(token.get().id))
+            .filter(EvtColumn::RealmId.eq(token.get().realm_id))
             .exec(&self.db)
             .await
             .map_err(|e| {
@@ -128,9 +131,10 @@ impl EmailVerificationTokenRepository for PostgresEmailVerificationTokenReposito
         Ok(())
     }
 
-    async fn delete_by_user_id(&self, user_id: Uuid) -> Result<u64, CoreError> {
+    async fn delete_by_user_id(&self, user: &Scoped<User>) -> Result<u64, CoreError> {
         let result = EvtEntity::delete_many()
-            .filter(EvtColumn::UserId.eq(user_id))
+            .filter(EvtColumn::UserId.eq(user.get().id))
+            .filter(EvtColumn::RealmId.eq::<Uuid>(user.get().realm_id.into()))
             .exec(&self.db)
             .await
             .map_err(|e| {

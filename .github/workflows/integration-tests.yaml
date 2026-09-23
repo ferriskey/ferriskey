@@ -147,6 +147,12 @@ jobs:
       - name: run cross-realm client scope isolation integration tests
         run: cargo test -p ferriskey-api --test scope_cross_realm_test -- --ignored
 
+      - name: run cross-realm observability isolation integration tests
+        run: cargo test -p ferriskey-api --test observability_cross_realm_test -- --ignored
+
+      - name: run seawatch integration tests
+        run: cargo test -p ferriskey-api --test seawatch_test -- --ignored
+
       # Every test in this file shares one realm, and the CORS origin cache
       # (RealmOriginCache) is keyed by realm name alone — running them
       # concurrently races on that shared cache entry. --test-threads=1

@@ -4,6 +4,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::user::entities::User;
 
 use super::entities::EmailVerificationToken;
 
@@ -26,7 +28,9 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
         &self,
         token_hash: &str,
         realm_id: Uuid,
-    ) -> impl std::future::Future<Output = Result<Option<EmailVerificationToken>, CoreError>> + Send;
+    ) -> impl std::future::Future<
+        Output = Result<Option<Unscoped<EmailVerificationToken>>, CoreError>,
+    > + Send;
 
     /// Find a token by hash, regardless of whether it's been used or expired.
     /// Used for idempotency checks when a token was already processed.
@@ -34,16 +38,18 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
         &self,
         token_hash: &str,
         realm_id: Uuid,
-    ) -> impl std::future::Future<Output = Result<Option<EmailVerificationToken>, CoreError>> + Send;
+    ) -> impl std::future::Future<
+        Output = Result<Option<Unscoped<EmailVerificationToken>>, CoreError>,
+    > + Send;
 
     fn mark_used(
         &self,
-        id: Uuid,
+        token: &Scoped<EmailVerificationToken>,
     ) -> impl std::future::Future<Output = Result<(), CoreError>> + Send;
 
     fn delete_by_user_id(
         &self,
-        user_id: Uuid,
+        user: &Scoped<User>,
     ) -> impl std::future::Future<Output = Result<u64, CoreError>> + Send;
 }
 
