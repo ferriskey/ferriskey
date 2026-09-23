@@ -40,8 +40,8 @@ impl AccountFactors {
         self.has_password || self.passkey_count > 0 || self.federated_identity_count > 0
     }
 
-    fn keeps_a_second_factor(&self) -> bool {
-        self.has_otp || self.passkey_count > 0
+    fn keeps_the_factor_mfa_enforcement_accepts(&self) -> bool {
+        self.has_otp
     }
 }
 
@@ -57,7 +57,10 @@ pub fn refusal_for_removal(
         return Some(RemovalRefusal::LastSignInMeans);
     }
 
-    if user_requires_mfa(settings, roles) && !remaining.keeps_a_second_factor() {
+    if user_requires_mfa(settings, roles)
+        && factors.keeps_the_factor_mfa_enforcement_accepts()
+        && !remaining.keeps_the_factor_mfa_enforcement_accepts()
+    {
         return Some(RemovalRefusal::MfaRequired);
     }
 
@@ -216,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn removing_otp_is_allowed_under_mfa_enforcement_while_a_passkey_remains() {
+    fn a_remaining_passkey_does_not_excuse_removing_otp_under_mfa_enforcement() {
         let account = AccountFactors {
             has_password: true,
             passkey_count: 1,
@@ -226,12 +229,27 @@ mod tests {
 
         assert_eq!(
             refusal_for_removal(account, FactorRemoval::Otp, Some(&settings(true)), &[]),
+            Some(RemovalRefusal::MfaRequired)
+        );
+    }
+
+    #[test]
+    fn removing_a_passkey_under_mfa_enforcement_is_allowed_while_otp_remains() {
+        let account = AccountFactors {
+            has_password: true,
+            passkey_count: 1,
+            has_otp: true,
+            ..factors()
+        };
+
+        assert_eq!(
+            refusal_for_removal(account, FactorRemoval::Passkey, Some(&settings(true)), &[]),
             None
         );
     }
 
     #[test]
-    fn removing_the_last_passkey_under_mfa_enforcement_is_refused_for_mfa_not_for_lockout() {
+    fn removing_a_passkey_is_not_refused_for_mfa_when_the_account_never_satisfied_mfa() {
         let account = AccountFactors {
             has_password: true,
             passkey_count: 1,
@@ -240,7 +258,7 @@ mod tests {
 
         assert_eq!(
             refusal_for_removal(account, FactorRemoval::Passkey, Some(&settings(true)), &[]),
-            Some(RemovalRefusal::MfaRequired)
+            None
         );
     }
 

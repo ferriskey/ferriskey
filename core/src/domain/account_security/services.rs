@@ -496,9 +496,6 @@ where
             "algorithm": "HmacSha256",
         });
 
-        // The new authenticator is written before the old ones are dropped: a failure
-        // here leaves the account with a second factor that still works, rather than
-        // with none at all.
         self.credential_repository
             .create_custom_credential(
                 target,
@@ -951,8 +948,6 @@ mod tests {
         }
     }
 
-    // ── the elevation gate ───────────────────────────────────────────────
-
     #[tokio::test]
     async fn changing_the_password_without_a_live_elevation_is_refused() {
         let (realm, user, identity) = actors();
@@ -1131,8 +1126,6 @@ mod tests {
         .expect("a syntactically valid registration payload")
     }
 
-    // ── the caller gate ──────────────────────────────────────────────────
-
     #[tokio::test]
     async fn a_service_account_is_refused_everywhere() {
         let realm = create_test_realm_with_name("acme");
@@ -1205,8 +1198,6 @@ mod tests {
 
         assert!(matches!(refused, Err(CoreError::UserDisabled)));
     }
-
-    // ── request_elevation ────────────────────────────────────────────────
 
     #[tokio::test]
     async fn an_elevation_request_with_a_wrong_password_mints_nothing() {
@@ -1342,8 +1333,6 @@ mod tests {
         assert!(matches!(refused, Err(CoreError::NoLocalPassword)));
     }
 
-    // ── change_own_password ──────────────────────────────────────────────
-
     #[tokio::test]
     async fn a_wrong_current_password_is_refused_before_anything_is_written() {
         let (realm, user, identity) = actors();
@@ -1464,8 +1453,6 @@ mod tests {
             Err(CoreError::PasswordPolicyViolation(_))
         ));
     }
-
-    // ── otp ──────────────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn confirming_an_otp_without_a_live_enrolment_is_refused() {
@@ -1667,8 +1654,6 @@ mod tests {
             "expected the removal to go through: {disabled:?}"
         );
     }
-
-    // ── passkeys ─────────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn deleting_the_only_passkey_of_a_passwordless_account_is_refused() {
@@ -1896,8 +1881,6 @@ mod tests {
 
         assert!(started.is_ok(), "expected a challenge: {:?}", started.err());
     }
-
-    // ── list_own_credentials ─────────────────────────────────────────────
 
     #[tokio::test]
     async fn listing_credentials_never_hands_back_secret_material() {
