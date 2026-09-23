@@ -11,7 +11,7 @@ use crate::infrastructure::repositories::argon2_hasher::Argon2HasherRepository;
 
 const BCRYPT_ALGORITHM: &str = "bcrypt";
 const BCRYPT_PREFIXES: [&str; 3] = ["$2a$", "$2b$", "$2y$"];
-const BCRYPT_COSTS: std::ops::RangeInclusive<u32> = 4..=31;
+const BCRYPT_COSTS: std::ops::RangeInclusive<u32> = 4..=14;
 
 #[derive(Debug, Clone, Default)]
 pub struct PasswordHasherRepository {
@@ -55,8 +55,10 @@ impl PasswordHasherRepository {
 
         if !BCRYPT_COSTS.contains(&parts.get_cost()) {
             return Err(SecurityError::UnsupportedHash(format!(
-                "bcrypt cost {} is outside 4..=31",
-                parts.get_cost()
+                "bcrypt cost {} is outside {}..={}",
+                parts.get_cost(),
+                BCRYPT_COSTS.start(),
+                BCRYPT_COSTS.end()
             )));
         }
 
@@ -298,5 +300,24 @@ mod tests {
             hasher.validate_hash("pbkdf2-sha256", &hash.hash, hash.hash_iterations),
             Err(SecurityError::UnsupportedHash(_))
         ));
+    }
+
+    #[test]
+    fn refuses_a_bcrypt_cost_above_the_operational_ceiling() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoB).replacen("$04$", "$15$", 1);
+
+        assert!(matches!(
+            hasher.validate_hash(BCRYPT_ALGORITHM, &hash, 15),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
+    }
+
+    #[test]
+    fn accepts_the_highest_allowed_bcrypt_cost() {
+        let hasher = PasswordHasherRepository::new();
+        let hash = bcrypt_hash(PASSWORD, Version::TwoB).replacen("$04$", "$14$", 1);
+
+        assert!(hasher.validate_hash(BCRYPT_ALGORITHM, &hash, 14).is_ok());
     }
 }

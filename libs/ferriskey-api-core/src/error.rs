@@ -618,7 +618,7 @@ mod tests {
         );
 
         let body = body_of(CoreError::InvalidPasswordHash(
-            "bcrypt cost 3 is outside 4..=31".to_string(),
+            "bcrypt cost 3 is outside 4..=14".to_string(),
         ))
         .await;
         assert_eq!(
@@ -628,7 +628,7 @@ mod tests {
                     {
                         "field": "secret_data",
                         "code": "invalid_password_hash",
-                        "message": "bcrypt cost 3 is outside 4..=31",
+                        "message": "bcrypt cost 3 is outside 4..=14",
                     },
                 ]
             })

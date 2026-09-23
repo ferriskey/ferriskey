@@ -9,6 +9,10 @@ use ferriskey_security::SecurityError;
 
 use crate::domain::crypto::{HashResult, HasherRepository};
 
+const MAX_IMPORTED_M_COST: u32 = 262_144;
+const MAX_IMPORTED_T_COST: u32 = 16;
+const MAX_IMPORTED_P_COST: u32 = 8;
+
 #[derive(Debug, Clone)]
 pub struct Argon2HasherRepository {}
 
@@ -129,6 +133,18 @@ impl HasherRepository for Argon2HasherRepository {
             return Err(SecurityError::UnsupportedHash(format!(
                 "hash_iterations {hash_iterations} does not match the hash cost {}",
                 params.t_cost()
+            )));
+        }
+
+        if params.m_cost() > MAX_IMPORTED_M_COST
+            || params.t_cost() > MAX_IMPORTED_T_COST
+            || params.p_cost() > MAX_IMPORTED_P_COST
+        {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "argon2 parameters m={},t={},p={} exceed m={MAX_IMPORTED_M_COST},t={MAX_IMPORTED_T_COST},p={MAX_IMPORTED_P_COST}",
+                params.m_cost(),
+                params.t_cost(),
+                params.p_cost()
             )));
         }
 
@@ -284,6 +300,32 @@ mod tests {
         let result = hasher.validate_hash("argon2i", &hash.hash, hash.hash_iterations);
 
         assert!(matches!(result, Err(SecurityError::UnsupportedHash(_))));
+    }
+
+    #[tokio::test]
+    async fn validate_hash_rejects_parameters_above_the_operational_ceilings() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+        let own = "m=7168,t=5,p=1";
+        assert!(hash.hash.contains(own), "{}", hash.hash);
+
+        for (params, iterations) in [
+            ("m=262145,t=5,p=1", 5),
+            ("m=7168,t=17,p=1", 17),
+            ("m=7168,t=5,p=9", 5),
+        ] {
+            let inflated = hash.hash.replacen(own, params, 1);
+            assert!(
+                matches!(
+                    hasher.validate_hash("argon2id", &inflated, iterations),
+                    Err(SecurityError::UnsupportedHash(_))
+                ),
+                "{params} should be rejected"
+            );
+        }
+
+        let ceiling = hash.hash.replacen(own, "m=262144,t=16,p=8", 1);
+        assert!(hasher.validate_hash("argon2id", &ceiling, 16).is_ok());
     }
 
     #[test]
