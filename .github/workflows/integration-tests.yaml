@@ -159,6 +159,9 @@ jobs:
       - name: run cross-realm realm administration isolation integration tests
         run: cargo test -p ferriskey-api --test realm_cross_realm_test -- --ignored
 
+      - name: run cross-realm openid connect isolation integration tests
+        run: cargo test -p ferriskey-api --test oidc_cross_realm_test -- --ignored
+
       - name: run seawatch integration tests
         run: cargo test -p ferriskey-api --test seawatch_test -- --ignored
 

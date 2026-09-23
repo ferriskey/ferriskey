@@ -57,10 +57,7 @@ use crate::{
         },
         portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
-        realm::{
-            ports::RealmRepository,
-            services::{MailServiceImpl, RealmServiceImpl},
-        },
+        realm::services::{MailServiceImpl, RealmServiceImpl},
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
         seawatch::{
@@ -547,16 +544,12 @@ impl ApplicationService {
         realm_name: String,
     ) -> Result<PasswordPolicy, CoreError> {
         // Get realm by name
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), &realm_name).await?;
 
         // Authorization is handled inside the service
         self.password_policy_service
-            .get_policy(identity, &realm)
+            .get_policy(identity, scope.realm())
             .await
     }
 
@@ -567,16 +560,12 @@ impl ApplicationService {
         update: UpdatePasswordPolicy,
     ) -> Result<PasswordPolicy, CoreError> {
         // Get realm by name
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), &realm_name).await?;
 
         // Authorization is handled inside the service
         self.password_policy_service
-            .update_policy(identity, &realm, update)
+            .update_policy(identity, scope.realm(), update)
             .await
     }
 
@@ -596,17 +585,13 @@ impl ApplicationService {
         username: Option<&str>,
         email: Option<&str>,
     ) -> Result<(), CoreError> {
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), &realm_name).await?;
 
         let email_local = email.and_then(|value| value.split('@').next());
 
         self.password_policy_service
-            .enforce_for_identity(realm.id.into(), password, username, email_local)
+            .enforce_for_identity(scope.id().into(), password, username, email_local)
             .await
     }
 
@@ -614,14 +599,10 @@ impl ApplicationService {
         &self,
         realm_name: String,
     ) -> Result<PasswordPolicy, CoreError> {
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), &realm_name).await?;
         self.password_policy_service
-            .get_policy_public(realm.id.into())
+            .get_policy_public(scope.id().into())
             .await
     }
 
@@ -646,18 +627,16 @@ impl ApplicationService {
             )
             .await?;
 
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&request.realm_name)
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
+        let scope = RealmScope::resolve(
+            self.realm_service.realm_repository.as_ref(),
+            &request.realm_name,
+        )
+        .await?;
 
         self.auth_service
             .evaluate_client_scopes(EvaluateClientScopesInput {
                 base_url: request.base_url,
-                realm_id: realm.id,
-                realm_name: realm.name,
+                realm: scope,
                 client_uuid: client.id,
                 client_id: client.client_id,
                 user_id: request.user_id,
@@ -678,21 +657,20 @@ impl ApplicationService {
     ) -> Result<InitiateDeviceFlowOutput, DeviceFlowError> {
         // An unresolvable realm/client at the device authorization endpoint
         // is `invalid_client`, matching the token endpoint's behaviour.
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .ok_or(DeviceFlowError::InvalidClient)?;
+        let realm_scope = RealmScope::resolve(
+            self.realm_service.realm_repository.as_ref(),
+            &input.realm_name,
+        )
+        .await
+        .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let client = self
             .client_service
             .client_repository
-            .get_by_client_id(input.client_id, realm.id)
+            .get_by_client_id(input.client_id, realm_scope.id())
             .await
             .map_err(|_| DeviceFlowError::InvalidClient)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .in_realm(&realm_scope)
             .map_err(|_| DeviceFlowError::InvalidClient)?
             .into_inner();
 
@@ -708,11 +686,11 @@ impl ApplicationService {
             .await
             .map_err(|_| DeviceFlowError::InvalidScope)?;
 
-        let verification_uri = format!("{base_url}/realms/{}/device", realm.name);
+        let verification_uri = format!("{base_url}/realms/{}/device", realm_scope.name());
 
         self.device_flow_service
             .initiate(InitiateDeviceFlowParams {
-                realm_id: realm.id,
+                realm_id: realm_scope.id(),
                 client_id: client.id,
                 scope: Some(scope),
                 oauth_device_code_grant_enabled: client.oauth_device_code_grant_enabled,
@@ -738,21 +716,20 @@ impl ApplicationService {
             .ok_or(DeviceFlowError::InvalidDeviceCode)?;
 
         // An unresolvable realm/client at the token endpoint is `invalid_client`.
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(&input.realm_name)
-            .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .ok_or(DeviceFlowError::InvalidClient)?;
+        let realm_scope = RealmScope::resolve(
+            self.realm_service.realm_repository.as_ref(),
+            &input.realm_name,
+        )
+        .await
+        .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let client = self
             .client_service
             .client_repository
-            .get_by_client_id(input.client_id, realm.id)
+            .get_by_client_id(input.client_id, realm_scope.id())
             .await
             .map_err(|_| DeviceFlowError::InvalidClient)?
-            .in_realm(&RealmScope::from_realm(realm.clone()))
+            .in_realm(&realm_scope)
             .map_err(|_| DeviceFlowError::InvalidClient)?
             .into_inner();
 
@@ -845,19 +822,15 @@ impl ApplicationService {
         realm_name: &str,
         user_realm_id: RealmId,
     ) -> Result<RealmScope, DeviceFlowError> {
-        let realm = self
-            .realm_service
-            .realm_repository
-            .get_by_name(realm_name)
+        let scope = RealmScope::resolve(self.realm_service.realm_repository.as_ref(), realm_name)
             .await
-            .map_err(|_| DeviceFlowError::Forbidden)?
-            .ok_or(DeviceFlowError::Forbidden)?;
+            .map_err(|_| DeviceFlowError::Forbidden)?;
 
-        if user_realm_id != realm.id {
+        if user_realm_id != scope.id() {
             return Err(DeviceFlowError::Forbidden);
         }
 
-        Ok(RealmScope::from_realm(realm))
+        Ok(scope)
     }
 
     /// Verification page: mark the device session identified by `user_code`

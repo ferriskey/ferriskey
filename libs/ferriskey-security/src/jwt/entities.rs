@@ -5,6 +5,7 @@ use base64::{
     prelude::{BASE64_STANDARD, BASE64_URL_SAFE_NO_PAD},
 };
 use chrono::{DateTime, Datelike, Utc};
+use ferriskey_domain::realm::{RealmId, scope::RealmOwned};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use rcgen::{
     CertificateParams, DistinguishedName, DnType, KeyPair as CertificateKeyPair, KeyUsagePurpose,
@@ -330,6 +331,12 @@ pub struct AccessToken {
     pub expires_at: Option<DateTime<Utc>>,
     pub claims: serde_json::Value,
     pub created_at: DateTime<Utc>,
+}
+
+impl RealmOwned for AccessToken {
+    fn realm_id(&self) -> RealmId {
+        RealmId::new(self.realm_id)
+    }
 }
 
 impl AccessToken {
