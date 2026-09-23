@@ -370,6 +370,46 @@ mod tests {
             .await
     }
 
+    async fn passkey_request_options(
+        server: &TestServer,
+        url_realm: &str,
+        session_code: &str,
+        username: Option<&str>,
+    ) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/login-actions/passkey-request-options",
+                url_realm
+            ))
+            .add_header(
+                "Cookie",
+                HeaderValue::from_str(&format!("FERRISKEY_SESSION={session_code}")).unwrap(),
+            )
+            .json(&json!({ "username": username }))
+            .await
+    }
+
+    async fn webauthn_create_options(
+        server: &TestServer,
+        url_realm: &str,
+        step_token: &str,
+        session_code: &str,
+    ) -> TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/login-actions/webauthn-public-key-create-options",
+                url_realm
+            ))
+            .add_header(
+                "Cookie",
+                HeaderValue::from_str(&format!(
+                    "FERRISKEY_LOGIN_ACTION={step_token}; FERRISKEY_SESSION={session_code}"
+                ))
+                .unwrap(),
+            )
+            .await
+    }
+
     async fn generate_recovery_codes(server: &TestServer, token: &str) -> TestResponse {
         server
             .post(&format!(
@@ -989,6 +1029,154 @@ mod tests {
             assert!(
                 password_is_accepted(&server, &refused_user, FIRST_PASSWORD).await,
                 "the refused update destroyed the existing password"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn planting_a_webauthn_challenge_on_another_realms_session_is_refused() {
+        rt().block_on(async {
+            grant_passkey_to_admin().await;
+
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let (_own_session, challenge) = planted_challenge(&server, &token).await;
+            let foreign_session = seed_neighbour_session(&challenge).await;
+            let foreign_session = foreign_session.to_string();
+
+            let refused =
+                webauthn_request_options(&server, realm(), &token, &foreign_session).await;
+
+            assert_refusal(
+                &refused,
+                404,
+                "session_not_found",
+                "issuing a webauthn challenge onto an authentication session of another realm",
+            );
+            assert!(
+                !refused.text().contains("allowCredentials"),
+                "the refused call still handed back a challenge: {}",
+                refused.text()
+            );
+            assert_eq!(
+                stored_challenge(&foreign_session).await.as_deref(),
+                Some(challenge.as_str()),
+                "the refused call overwrote the pending challenge of the neighbour realm's \
+                 authentication session"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn planting_a_passkey_challenge_on_another_realms_session_is_refused() {
+        rt().block_on(async {
+            grant_passkey_to_admin().await;
+
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let (_own_session, challenge) = planted_challenge(&server, &token).await;
+            let foreign_session = seed_neighbour_session(&challenge).await;
+            let foreign_session = foreign_session.to_string();
+
+            let authorize = start_authorization(&server).await;
+            let witness_session = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+            let accepted =
+                passkey_request_options(&server, realm(), &witness_session, Some("admin")).await;
+            let accepted_body = accepted.text();
+            assert_eq!(
+                accepted.status_code(),
+                200,
+                "this route takes no token, so it must succeed on a session of the url realm, \
+                 otherwise the refusal below proves nothing: {} {accepted_body}",
+                accepted.status_code()
+            );
+            assert!(
+                accepted_body.contains("challenge"),
+                "the accepted call returned no challenge: {accepted_body}"
+            );
+            assert!(
+                stored_challenge(&witness_session).await.is_some(),
+                "the accepted call did not reach the database, so the refusal below is not \
+                 evidence of scoping"
+            );
+
+            let refused =
+                passkey_request_options(&server, realm(), &foreign_session, Some("admin")).await;
+
+            assert_refusal(
+                &refused,
+                404,
+                "session_not_found",
+                "issuing a passkey challenge onto an authentication session of another realm, \
+                 with no token at all",
+            );
+            assert_eq!(
+                stored_challenge(&foreign_session).await.as_deref(),
+                Some(challenge.as_str()),
+                "a tokenless caller overwrote the pending challenge of the neighbour realm's \
+                 authentication session"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn planting_an_enrolment_challenge_on_another_realms_session_is_refused() {
+        rt().block_on(async {
+            grant_passkey_to_admin().await;
+
+            let server = make_server();
+            let token = get_admin_token(&server).await;
+            let (_own_session, challenge) = planted_challenge(&server, &token).await;
+            let foreign_session = seed_neighbour_session(&challenge).await;
+            let foreign_session = foreign_session.to_string();
+
+            let enroller = seed_user_owing_a_password_update(&server, "enrolment").await;
+
+            let authorize = start_authorization(&server).await;
+            let witness_session = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+            let witness_token = step_token_for(&server, &enroller, FIRST_PASSWORD).await;
+            let accepted =
+                webauthn_create_options(&server, realm(), &witness_token, &witness_session).await;
+            let accepted_body = accepted.text();
+            assert_eq!(
+                accepted.status_code(),
+                200,
+                "an enrolment challenge must still be issued on a session of the subject's own \
+                 realm, otherwise the refusal below proves nothing: {} {accepted_body}",
+                accepted.status_code()
+            );
+            assert!(
+                accepted_body.contains("challenge"),
+                "the accepted call returned no challenge: {accepted_body}"
+            );
+            assert!(
+                stored_challenge(&witness_session)
+                    .await
+                    .is_some_and(|stored| stored.contains("Registration")),
+                "the accepted call did not store a registration challenge, so the refusal below \
+                 is not evidence of scoping"
+            );
+
+            let refused_token = step_token_for(&server, &enroller, FIRST_PASSWORD).await;
+            let refused =
+                webauthn_create_options(&server, realm(), &refused_token, &foreign_session).await;
+
+            assert_refusal(
+                &refused,
+                404,
+                "session_not_found",
+                "issuing an enrolment challenge onto an authentication session of another realm",
+            );
+            assert_eq!(
+                stored_challenge(&foreign_session).await.as_deref(),
+                Some(challenge.as_str()),
+                "the refused enrolment overwrote the pending challenge of the neighbour realm's \
+                 authentication session"
             );
         });
     }

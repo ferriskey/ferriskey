@@ -763,6 +763,22 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
+        let scope = RealmScope::from_realm(
+            self.realm_repository
+                .get_by_id(user.realm_id)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?,
+        );
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
         let webauthn = build_webauthn_client(input.rp_info)?;
 
         let credentials = self
@@ -802,7 +818,7 @@ where
 
         let _ = self
             .auth_session_repository
-            .save_webauthn_challenge(session_code, WebAuthnChallenge::Registration(pr))
+            .save_webauthn_challenge(auth_session.id, WebAuthnChallenge::Registration(pr))
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -921,6 +937,15 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
         let webauthn = build_webauthn_client(input.rp_info)?;
 
         let creds = self
@@ -951,7 +976,7 @@ where
 
         let _ = self
             .auth_session_repository
-            .save_webauthn_challenge(session_code, WebAuthnChallenge::Authentication(pa))
+            .save_webauthn_challenge(auth_session.id, WebAuthnChallenge::Authentication(pa))
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -1032,6 +1057,15 @@ where
 
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
         if let Some(username) = input.username {
             // Non-discoverable: we know the user, fetch their passkeys
             let user = self
@@ -1067,7 +1101,7 @@ where
             })?;
 
             self.auth_session_repository
-                .save_webauthn_challenge(session_code, WebAuthnChallenge::Authentication(pa))
+                .save_webauthn_challenge(auth_session.id, WebAuthnChallenge::Authentication(pa))
                 .await
                 .map_err(|_| CoreError::InternalServerError)?;
 
@@ -1081,7 +1115,7 @@ where
 
             self.auth_session_repository
                 .save_webauthn_challenge(
-                    session_code,
+                    auth_session.id,
                     WebAuthnChallenge::DiscoverableAuthentication(da),
                 )
                 .await
@@ -4703,6 +4737,263 @@ mod tests {
                 .starts_with("https://app.example/callback?code="),
             "the owner must be redirected with an authorization code: {}",
             output.login_url
+        );
+    }
+
+    fn expect_one_enrolled_passkey(builder: &mut TridentTestBuilder, user_id: Uuid, label: &[u8]) {
+        let credential = webauthn_credential_for(label, &passkey_signing_key());
+        let stored = stored_passkey_credential(user_id, credential);
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_webauthn_public_key_credentials()
+            .returning(move |_| {
+                let credentials = vec![stored.clone()];
+                Box::pin(async move { Ok(credentials) })
+            });
+    }
+
+    fn expect_session_of(builder: &mut TridentTestBuilder, realm: &Realm, session_code: Uuid) {
+        let session = auth_session_with_challenge_issued_at(realm, session_code, None);
+
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let session = session.clone();
+                Box::pin(async move { Ok(Unscoped::new(session)) })
+            });
+    }
+
+    #[tokio::test]
+    async fn webauthn_request_options_refuses_an_authentication_session_of_another_realm() {
+        let url_realm = create_test_realm_with_name("webauthn-options-realm");
+        let session_realm = create_test_realm_with_name("neighbour-webauthn-options-realm");
+        let caller = create_test_user_with_email(&url_realm, "caller@example.com");
+        let session_code = Uuid::new_v4();
+
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&url_realm, &caller);
+        expect_one_enrolled_passkey(&mut builder, caller.id, b"request-options-credential");
+        expect_session_of(&mut builder, &session_realm, session_code);
+
+        let service = builder.build();
+
+        let result = service
+            .webauthn_public_key_request_options(
+                Identity::User(caller),
+                WebAuthnPublicKeyRequestOptionsInput {
+                    realm_name: url_realm.name.clone(),
+                    session_code: session_code.to_string(),
+                    rp_info: passkey_rp_info(),
+                },
+            )
+            .await;
+
+        let error = match result {
+            Ok(_) => {
+                panic!("a challenge was issued through an authentication session of another realm")
+            }
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(error, CoreError::SessionNotFound),
+            "the challenge must not be issued for an authentication session of another realm, \
+             and the auth session mock carries no save expectation so reaching the write fails \
+             this test at the write itself: {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn webauthn_request_options_issues_the_challenge_on_a_session_of_the_url_realm() {
+        let realm = create_test_realm_with_name("webauthn-options-realm");
+        let caller = create_test_user_with_email(&realm, "caller@example.com");
+        let session_code = Uuid::new_v4();
+
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &caller);
+        expect_one_enrolled_passkey(&mut builder, caller.id, b"request-options-credential");
+        expect_session_of(&mut builder, &realm, session_code);
+
+        let saved = auth_session_with_challenge_issued_at(&realm, session_code, None);
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_save_webauthn_challenge()
+            .withf(move |code, challenge| {
+                *code == session_code && matches!(challenge, WebAuthnChallenge::Authentication(_))
+            })
+            .times(1)
+            .returning(move |_, _| {
+                let session = saved.clone();
+                Box::pin(async move { Ok(session) })
+            });
+
+        let service = builder.build();
+
+        let output = service
+            .webauthn_public_key_request_options(
+                Identity::User(caller),
+                WebAuthnPublicKeyRequestOptionsInput {
+                    realm_name: realm.name.clone(),
+                    session_code: session_code.to_string(),
+                    rp_info: passkey_rp_info(),
+                },
+            )
+            .await
+            .expect("a session of the url realm must still receive its challenge");
+
+        assert!(
+            output
+                .0
+                .public_key
+                .allow_credentials
+                .iter()
+                .any(|credential| !credential.id.is_empty()),
+            "the accepted call must list the enrolled passkey, otherwise the refusal above \
+             would be satisfied by an empty challenge"
+        );
+    }
+
+    #[tokio::test]
+    async fn passkey_request_options_refuses_an_authentication_session_of_another_realm() {
+        let url_realm = create_test_realm_with_name("passkey-options-realm");
+        let session_realm = create_test_realm_with_name("neighbour-passkey-options-realm");
+        let caller = create_test_user_with_email(&url_realm, "caller@example.com");
+        let session_code = Uuid::new_v4();
+
+        let mut builder = TridentTestBuilder::new();
+
+        let resolved = url_realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let realm = resolved.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+
+        let named = caller.clone();
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_username()
+            .returning(move |_, _| {
+                let user = named.clone();
+                Box::pin(async move { Ok(user) })
+            });
+
+        expect_one_enrolled_passkey(&mut builder, caller.id, b"passkey-options-credential");
+        expect_session_of(&mut builder, &session_realm, session_code);
+
+        let service = builder.build();
+
+        let result = service
+            .passkey_request_options(PasskeyRequestOptionsInput {
+                realm_name: url_realm.name.clone(),
+                session_code: session_code.to_string(),
+                username: Some(caller.username.clone()),
+                rp_info: passkey_rp_info(),
+            })
+            .await;
+
+        let error = match result {
+            Ok(_) => panic!("a tokenless call planted a challenge on another realm's session"),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(error, CoreError::SessionNotFound),
+            "this route takes no token at all, so an authentication session of another realm \
+             must be refused before the challenge is written: {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn discoverable_passkey_request_options_refuses_a_session_of_another_realm() {
+        let url_realm = create_test_realm_with_name("passkey-options-realm");
+        let session_realm = create_test_realm_with_name("neighbour-passkey-options-realm");
+        let session_code = Uuid::new_v4();
+
+        let mut builder = TridentTestBuilder::new();
+
+        let resolved = url_realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let realm = resolved.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+
+        expect_session_of(&mut builder, &session_realm, session_code);
+
+        let service = builder.build();
+
+        let result = service
+            .passkey_request_options(PasskeyRequestOptionsInput {
+                realm_name: url_realm.name.clone(),
+                session_code: session_code.to_string(),
+                username: None,
+                rp_info: passkey_rp_info(),
+            })
+            .await;
+
+        let error = match result {
+            Ok(_) => panic!("a discoverable challenge landed on another realm's session"),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(error, CoreError::SessionNotFound),
+            "the discoverable branch names no user at all, so the session realm is the only \
+             thing standing between an anonymous caller and a neighbour's session: {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn webauthn_create_options_refuses_an_authentication_session_of_another_realm() {
+        let owner_realm = create_test_realm_with_name("webauthn-create-options-realm");
+        let session_realm = create_test_realm_with_name("neighbour-webauthn-create-realm");
+        let caller = create_test_user_with_email(&owner_realm, "caller@example.com");
+        let session_code = Uuid::new_v4();
+
+        let mut builder = TridentTestBuilder::new();
+
+        let owning = owner_realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let realm = owning.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_webauthn_public_key_credentials()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+
+        expect_session_of(&mut builder, &session_realm, session_code);
+
+        let service = builder.build();
+
+        let result = service
+            .webauthn_public_key_create_options(
+                Identity::User(caller),
+                WebAuthnPublicKeyCreateOptionsInput {
+                    session_code: session_code.to_string(),
+                    rp_info: passkey_rp_info(),
+                },
+            )
+            .await;
+
+        let error = match result {
+            Ok(_) => panic!("an enrolment challenge landed on another realm's session"),
+            Err(error) => error,
+        };
+
+        assert!(
+            matches!(error, CoreError::SessionNotFound),
+            "this route reads no realm from its url, so the subject's own realm is what the \
+             session must belong to: {error:?}"
         );
     }
 }
