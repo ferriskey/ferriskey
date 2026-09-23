@@ -8,7 +8,6 @@ mod tests {
     const MANUAL_COMPARISON: &[&str] = &[
         "core/src/application/services.rs",
         "core/src/domain/authentication/services.rs",
-        "core/src/domain/saml/services.rs",
     ];
 
     const SANCTIONED: &[&str] = &[

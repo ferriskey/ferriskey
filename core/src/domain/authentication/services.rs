@@ -2102,7 +2102,7 @@ where
 
         // The code itself is a secret: never log it, since log exposure is one of
         // the ways it gets into an attacker's hands in the first place.
-        let auth_session = self
+        let scoped_session = self
             .auth_session_repository
             .get_by_code(code.clone())
             .await
@@ -2111,7 +2111,10 @@ where
 
                 CoreError::MissingAuthorizationCode
             })?
-            .ok_or(CoreError::InvalidAuthorizationCode)?;
+            .ok_or(CoreError::InvalidAuthorizationCode)?
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::InvalidAuthorizationCode)?;
+        let auth_session = scoped_session.get();
 
         if auth_session.authenticated {
             warn!(
@@ -2122,7 +2125,7 @@ where
         }
 
         validate_authorization_code_request(
-            &auth_session,
+            auth_session,
             &client,
             params.realm.id(),
             params.redirect_uri.as_deref(),
@@ -2194,10 +2197,7 @@ where
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
         // and refresh.
-        let user_session = match self
-            .resume_bound_session(&auth_session, &params.realm)
-            .await
-        {
+        let user_session = match self.resume_bound_session(auth_session, &params.realm).await {
             Some(session) => session,
             None => {
                 self.create_user_session(user.id, params.realm.id(), lifetimes.refresh_token)
@@ -2264,7 +2264,7 @@ where
         );
 
         self.auth_session_repository
-            .update_authenticated(auth_session.id, true)
+            .update_authenticated(&scoped_session, true)
             .await
             .map_err(|e| {
                 warn!("Failed to mark auth session as authenticated: {:?}", e);
@@ -3133,7 +3133,10 @@ This is a server error that should be investigated. Do not forward back this mes
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
-            .map_err(|_| CoreError::SessionNotFound)?;
+            .map_err(|_| CoreError::SessionNotFound)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
 
         let iss = format!("{}/realms/{}", base_url, scope.name());
 
@@ -3964,13 +3967,18 @@ where
 
         let user = self.user_repository.get_by_id(input.claims.sub).await?;
 
-        let user = match input.realm_name.as_deref() {
+        let scope = match input.realm_name.as_deref() {
             Some(realm_name) => {
-                let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
-                user.in_realm(&scope)
-                    .map_err(|_| CoreError::InvalidToken)?
-                    .into_inner()
+                Some(RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?)
             }
+            None => None,
+        };
+
+        let user = match scope.as_ref() {
+            Some(scope) => user
+                .in_realm(scope)
+                .map_err(|_| CoreError::InvalidToken)?
+                .into_inner(),
             None => user.across_realms(),
         };
 
@@ -3987,6 +3995,14 @@ where
             .get_by_session_code(session_id)
             .await
             .map_err(|_| CoreError::InvalidToken)?;
+
+        let auth_session = match scope.as_ref() {
+            Some(scope) => auth_session
+                .in_realm(scope)
+                .map_err(|_| CoreError::InvalidToken)?
+                .into_inner(),
+            None => auth_session.across_realms(),
+        };
 
         if auth_session.user_id.is_some_and(|owner| owner != user.id) {
             return Err(CoreError::InvalidToken);
@@ -4038,23 +4054,18 @@ where
                 CoreError::SessionNotFound
             })?;
 
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let auth_session = auth_session
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidSession)?
+            .into_inner();
+
         if auth_session.expires_at < Utc::now() {
             return Err(CoreError::SessionExpired);
         }
 
         if auth_session.user_id.is_some() && auth_session.authenticated {
-            return Err(CoreError::InvalidSession);
-        }
-
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
-
-        if auth_session.realm_id != scope.id() {
-            warn!(
-                auth_session_id = %auth_session.id,
-                session_realm = ?auth_session.realm_id,
-                request_realm = ?scope.id(),
-                "Refusing a login: the authorization request was opened in another realm"
-            );
             return Err(CoreError::InvalidSession);
         }
 
@@ -4238,17 +4249,18 @@ where
         // finalizing the auth session and returning the redirect URL back to
         // the original client, mirroring the behavior of the login handler.
         if let Some(session_code) = input.session_code
-            && let Ok(auth_session) = self
+            && let Ok(unscoped_session) = self
                 .auth_session_repository
                 .get_by_session_code(session_code)
                 .await
-            && auth_session_can_resume(&auth_session, realm.id, Utc::now())
+            && let Ok(scoped_session) = unscoped_session.in_realm(&scope)
+            && auth_session_can_resume(scoped_session.get(), realm.id, Utc::now())
         {
             let output = self
                 .finalize_authentication(
                     user.id,
                     session_code,
-                    auth_session,
+                    scoped_session.into_inner(),
                     SsoSessionBinding::Open,
                     &scope,
                 )

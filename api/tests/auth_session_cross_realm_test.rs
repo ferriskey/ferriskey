@@ -14,7 +14,9 @@ mod tests {
             DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
         },
     };
+    use hmac::{Hmac, Mac};
     use serde_json::{Value, json};
+    use sha1::Sha1;
     use sqlx::{Executor, PgPool};
     use uuid::Uuid;
 
@@ -26,6 +28,8 @@ mod tests {
     const S256_VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     const ALICE_PASSWORD: &str = "Al1ce-Tenant-Adm!";
     const BOB_PASSWORD: &str = "B0b-Tenant-Adm!";
+    const CAROL_PASSWORD: &str = "C4rol-Tenant-Adm!";
+    const CAROL_OTP_SECRET: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
     fn env_or(key: &str, default: &str) -> String {
         env::var(key).unwrap_or_else(|_| default.to_string())
@@ -45,6 +49,8 @@ mod tests {
         alice_username: String,
         alice_id: String,
         bob_username: String,
+        carol_username: String,
+        carol_id: String,
         pool: PgPool,
     }
 
@@ -161,6 +167,11 @@ mod tests {
         let bob_id = create_user(&server, &admin_token, &tenant_b, &bob_username).await;
         set_password(&server, &admin_token, &tenant_b, &bob_id, BOB_PASSWORD).await;
 
+        let carol_username = format!("carol-{}", &suffix[..8]);
+        let carol_id = create_user(&server, &admin_token, &tenant_a, &carol_username).await;
+        set_password(&server, &admin_token, &tenant_a, &carol_id, CAROL_PASSWORD).await;
+        enrol_otp(&pool, &carol_id).await;
+
         SharedContext {
             app: std::sync::Mutex::new(app),
             tenant_a,
@@ -168,8 +179,24 @@ mod tests {
             alice_username,
             alice_id,
             bob_username,
+            carol_username,
+            carol_id,
             pool,
         }
+    }
+
+    async fn enrol_otp(pool: &PgPool, user_id: &str) {
+        sqlx::query(
+            "INSERT INTO credentials (id, credential_type, user_id, secret_data, \
+             credential_data, user_label) \
+             VALUES ($1, 'otp', $2, $3, '{}'::jsonb, 'test-authenticator')",
+        )
+        .bind(Uuid::new_v4())
+        .bind(Uuid::parse_str(user_id).expect("the created user carries a uuid"))
+        .bind(CAROL_OTP_SECRET)
+        .execute(pool)
+        .await
+        .expect("enrol an otp credential");
     }
 
     fn make_server() -> TestServer {
@@ -199,6 +226,14 @@ mod tests {
 
     fn alice_id() -> Uuid {
         Uuid::parse_str(shared_ctx().alice_id.as_str()).expect("alice carries a uuid")
+    }
+
+    fn carol_username() -> &'static str {
+        shared_ctx().carol_username.as_str()
+    }
+
+    fn carol_id() -> Uuid {
+        Uuid::parse_str(shared_ctx().carol_id.as_str()).expect("carol carries a uuid")
     }
 
     fn auth_header(token: &str) -> HeaderValue {
@@ -453,6 +488,169 @@ mod tests {
             assert!(
                 body["access_token"].is_null(),
                 "no token may be minted for a foreign identity: {body}"
+            );
+        });
+    }
+    fn totp_code_for(secret_base32: &str) -> String {
+        let secret = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret_base32)
+            .expect("the enrolled secret decodes as base32");
+
+        let counter = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time after the unix epoch")
+            .as_secs()
+            / 30;
+
+        let mut mac = Hmac::<Sha1>::new_from_slice(&secret).expect("hmac accepts any key length");
+        mac.update(&counter.to_be_bytes());
+        let digest = mac.finalize().into_bytes();
+
+        let offset = (digest[19] & 0x0f) as usize;
+        let truncated = ((digest[offset] as u32 & 0x7f) << 24)
+            | ((digest[offset + 1] as u32) << 16)
+            | ((digest[offset + 2] as u32) << 8)
+            | (digest[offset + 3] as u32);
+
+        format!("{:06}", truncated % 1_000_000)
+    }
+
+    fn session_id_of(authorize: &TestResponse) -> Uuid {
+        Uuid::parse_str(authorize.cookie("FERRISKEY_SESSION").value())
+            .expect("the session cookie carries a uuid")
+    }
+
+    async fn auth_session_row(id: Uuid) -> (Option<Uuid>, Option<String>) {
+        sqlx::query_as::<_, (Option<Uuid>, Option<String>)>(
+            "SELECT user_id, code FROM auth_sessions WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_one(&shared_ctx().pool)
+        .await
+        .expect("the authorization request row is readable")
+    }
+
+    async fn step_token_for_otp(server: &TestServer, realm: &str) -> (Uuid, String) {
+        let authorize = start_console_authorization(server, realm).await;
+        let session_id = session_id_of(&authorize);
+
+        let login = server
+            .post(&format!("/realms/{}/login-actions/authenticate", realm))
+            .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+            .add_query_param("client_id", CONSOLE_CLIENT_ID)
+            .json(&json!({ "username": carol_username(), "password": CAROL_PASSWORD }))
+            .await;
+
+        assert_eq!(
+            login.status_code(),
+            200,
+            "the password step of an otp login must succeed: {}",
+            login.text()
+        );
+
+        let step_token = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
+        assert!(
+            !step_token.is_empty(),
+            "an otp login must hand back a step token: {}",
+            login.text()
+        );
+
+        (session_id, step_token)
+    }
+
+    async fn post_challenge_otp(
+        server: &TestServer,
+        realm: &str,
+        session_id: Uuid,
+        step_token: &str,
+    ) -> TestResponse {
+        let cookies =
+            format!("FERRISKEY_SESSION={session_id}; FERRISKEY_LOGIN_ACTION={step_token}");
+
+        server
+            .post(&format!("/realms/{}/login-actions/challenge-otp", realm))
+            .add_header(
+                "Cookie",
+                HeaderValue::from_str(&cookies).expect("a valid cookie header"),
+            )
+            .json(&json!({ "code": totp_code_for(CAROL_OTP_SECRET) }))
+            .await
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test auth_session_cross_realm_test -- --ignored"]
+    fn an_otp_challenge_completes_the_authorization_request_it_was_opened_for() {
+        rt().block_on(async {
+            let server = make_server();
+            let (session_id, step_token) = step_token_for_otp(&server, tenant_a()).await;
+
+            let accepted = post_challenge_otp(&server, tenant_a(), session_id, &step_token).await;
+
+            assert_eq!(
+                accepted.status_code(),
+                200,
+                "the nominal otp challenge must keep working: {}",
+                accepted.text()
+            );
+
+            let body: Value = accepted.json();
+            let url = body["url"].as_str().unwrap_or_else(|| {
+                panic!("a spent otp challenge must carry a redirect url: {body}")
+            });
+            assert!(
+                url.contains("code="),
+                "the redirect must carry an authorization code: {url}"
+            );
+
+            let (owner, code) = auth_session_row(session_id).await;
+            assert_eq!(
+                owner,
+                Some(carol_id()),
+                "the nominal challenge must have bound the account to its own request"
+            );
+            assert!(
+                code.is_some(),
+                "the nominal challenge must have stamped an authorization code"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test auth_session_cross_realm_test -- --ignored"]
+    fn an_otp_challenge_cannot_spend_an_authorization_request_of_another_realm() {
+        rt().block_on(async {
+            let server = make_server();
+            let (_own_session, step_token) = step_token_for_otp(&server, tenant_a()).await;
+
+            let foreign = start_console_authorization(&server, tenant_b()).await;
+            let foreign_session = session_id_of(&foreign);
+
+            let before = auth_session_row(foreign_session).await;
+            assert_eq!(
+                before,
+                (None, None),
+                "the tenant-b request must start out unbound, or the survival check below proves nothing"
+            );
+
+            let refused =
+                post_challenge_otp(&server, tenant_a(), foreign_session, &step_token).await;
+
+            assert_ne!(
+                refused.status_code(),
+                200,
+                "an otp challenge must not spend an authorization request opened in another realm: {}",
+                refused.text()
+            );
+            assert!(
+                !refused.text().contains("code="),
+                "no authorization code may be handed back: {}",
+                refused.text()
+            );
+
+            let after = auth_session_row(foreign_session).await;
+            assert_eq!(
+                after,
+                (None, None),
+                "the refused challenge must have left the tenant-b request untouched"
             );
         });
     }

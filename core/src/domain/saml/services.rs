@@ -17,7 +17,7 @@ use crate::domain::client::entities::Client;
 use crate::domain::client::entities::saml::SpEntityId;
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::RealmScope;
+use crate::domain::realm::entities::{RealmScope, Scoped};
 use crate::domain::realm::ports::RealmRepository;
 use crate::domain::saml::entities::{
     AssertionBlueprint, FinishSsoInput, SamlAssertionDelivery, SamlSsoError, StartSsoInput,
@@ -181,14 +181,16 @@ where
     async fn issue_assertion(
         &self,
         scope: &RealmScope,
-        auth_session: AuthSession,
+        scoped_session: Scoped<AuthSession>,
         input: &FinishSsoInput,
     ) -> Result<SamlAssertionDelivery, CoreError> {
+        let auth_session = scoped_session.get();
+
         if Utc::now() >= auth_session.expires_at {
             return Err(CoreError::SessionExpired);
         }
 
-        let in_response_to = recorded_authn_request_id(&auth_session)?;
+        let in_response_to = recorded_authn_request_id(auth_session)?;
         let user_id = auth_session
             .user_id
             .ok_or(CoreError::InvalidAuthorizationCode)?;
@@ -268,7 +270,7 @@ where
         })?;
 
         self.auth_session_repository
-            .update_authenticated(auth_session.id, true)
+            .update_authenticated(&scoped_session, true)
             .await
             .map_err(|reason| {
                 error!(
@@ -296,7 +298,7 @@ where
         Ok(SamlAssertionDelivery {
             acs_url: config.acs_url,
             signed_response,
-            relay_state: auth_session.state,
+            relay_state: auth_session.state.clone(),
         })
     }
 }
@@ -513,12 +515,15 @@ where
 
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let auth_session = self
+        let scoped_session = self
             .auth_session_repository
             .get_by_code(input.authorization_code.clone())
             .await
             .map_err(|_| CoreError::MissingAuthorizationCode)?
-            .ok_or(CoreError::InvalidAuthorizationCode)?;
+            .ok_or(CoreError::InvalidAuthorizationCode)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidAuthorizationCode)?;
+        let auth_session = scoped_session.get();
 
         if auth_session.protocol != AuthProtocol::Saml {
             warn!(
@@ -528,16 +533,6 @@ where
             );
 
             return Err(SamlSsoError::NotASamlAuthentication.into());
-        }
-
-        if auth_session.realm_id != scope.id() {
-            warn!(
-                session_realm = ?auth_session.realm_id,
-                request_realm = ?scope.id(),
-                "rejecting a saml continuation: the code was issued for a different realm"
-            );
-
-            return Err(CoreError::InvalidAuthorizationCode);
         }
 
         if auth_session.authenticated {
@@ -552,7 +547,7 @@ where
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let user_id = auth_session.user_id;
 
-        let delivery = self.issue_assertion(&scope, auth_session, &input).await;
+        let delivery = self.issue_assertion(&scope, scoped_session, &input).await;
 
         let duration = elapsed_since(started_at);
 
@@ -1371,10 +1366,11 @@ pub(crate) mod tests {
         }
 
         fn expecting_consumption(mut self) -> Self {
+            let expected = self.session.id;
             self.harness
                 .auth_session_repository
                 .expect_update_authenticated()
-                .with(eq(self.session.id), eq(true))
+                .withf(move |session, authenticated| session.get().id == expected && *authenticated)
                 .times(1)
                 .returning(|_, _| Box::pin(async move { Ok(()) }));
 
@@ -1394,7 +1390,7 @@ pub(crate) mod tests {
                 .expect_get_by_code()
                 .returning(move |_| {
                     let session = session.clone();
-                    Box::pin(async move { Ok(Some(session)) })
+                    Box::pin(async move { Ok(Some(Unscoped::new(session))) })
                 });
 
             let user = self.user.clone();
