@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next'
+import { useAccountTabs } from './use-account-tabs'
 import { Input } from '@/components/ui/input'
 import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, FieldRow, IconTile, PageShell, PageTabs, Pill, Section } from '@/components/kit'
 import { UserRound } from 'lucide-react'
-import { useLocation, useParams } from 'react-router'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { ACCOUNT_URL, RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
@@ -48,15 +47,8 @@ export default function PageAccount({
   onSave,
 }: PageAccountProps) {
   const { t } = useTranslation('account')
-  const { realm_name } = useParams<RouterParams>()
-  const { pathname } = useLocation()
 
-  const base = ACCOUNT_URL(realm_name)
-  const tabs = [
-    { key: 'overview', label: t('tabs.overview'), href: base },
-    { key: 'sessions', label: t('tabs.sessions'), href: `${base}/sessions` },
-  ]
-  const tab = pathname.endsWith('/sessions') ? 'sessions' : 'overview'
+  const { tabs, tab } = useAccountTabs()
 
   if (isLoading) {
     return (

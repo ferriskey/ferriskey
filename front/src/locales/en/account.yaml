@@ -1,5 +1,6 @@
 tabs:
   overview: Personal info
+  security: Security
   sessions: Sessions
 
 unavailable:
@@ -60,3 +61,64 @@ sessions:
 validation:
   username_required: Username is required
   email_invalid: Invalid email address
+
+reauth:
+  title: Confirm it is you
+  description: Enter your password, or a code from your authenticator, to continue.
+  # Shown when the operation touches a credential, where a code alone is not enough.
+  description_password: Enter your password to continue. This operation changes how you sign in, so a code from your authenticator is not enough on its own.
+  password_label: Password
+  otp_label: Authenticator code
+  switch_to_otp: Use a code from my authenticator instead
+  switch_to_password: Use my password instead
+  cancel: Cancel
+  submit: Confirm
+
+security:
+  pills:
+    otp_on: authenticator on
+    otp_off: no authenticator
+    passkeys_one: '{{count}} passkey'
+    passkeys_other: '{{count}} passkeys'
+  password:
+    title: Password
+    description: Changing it signs you out everywhere else. This device stays signed in.
+    current_label: Current password
+    new_label: New password
+    confirm_label: Confirm new password
+    submit: Change password
+    mismatch: The two new passwords do not match.
+    required: Fill in your current password and the new one.
+    toast: Your password was changed
+    federated_title: Your password lives elsewhere
+    # "directory" rather than "LDAP": the person reading this did not choose the integration.
+    federated_description: You sign in through your organisation's directory, so your password is managed there and cannot be changed here.
+  otp:
+    title: Authenticator app
+    description: A six-digit code from an app on your phone, asked for after your password.
+    enable: Set up an authenticator
+    disable: Remove
+    enabled: An authenticator is set up for this account.
+    disabled: No authenticator is set up for this account.
+    scan_hint: Scan this with your authenticator app, then type the code it shows.
+    code_label: Code from the app
+    confirm: Turn it on
+    cancel: Cancel
+    toast_enabled: Your authenticator is set up
+    toast_disabled: Your authenticator was removed
+  passkeys:
+    title: Passkeys
+    description: Sign in with your fingerprint, face or a security key, instead of a password.
+    add: Add a passkey
+    unnamed: Unnamed passkey
+    added: Added {{date}}
+    remove: Remove this passkey
+    empty_title: No passkeys yet
+    empty_description: Add one to sign in without typing your password.
+    unsupported_title: This browser cannot use passkeys
+    unsupported_description: Open this page in a browser that supports WebAuthn to add one.
+    confirm:
+      title: Remove this passkey?
+      description: '{{name}} will no longer sign you in. You cannot undo this.'
+    toast_added: Your passkey was added
+    toast_removed: Your passkey was removed

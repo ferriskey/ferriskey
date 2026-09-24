@@ -1,12 +1,11 @@
 import { LogOut, Monitor, UserRound } from 'lucide-react'
-import { useLocation, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useAccountTabs } from './use-account-tabs'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert.ts'
 import { Button, DetailHeader, IconTile, PageShell, PageTabs, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { ACCOUNT_URL, RouterParams } from '@/routes/router'
 import { formatDate, formatDateTime } from '@/utils/format-date'
 import { Schemas } from '@/api/api.client'
 
@@ -29,16 +28,9 @@ export default function PageAccountSessions({
   onRevoke,
 }: PageAccountSessionsProps) {
   const { t } = useTranslation('account')
-  const { realm_name } = useParams<RouterParams>()
-  const { pathname } = useLocation()
   const { confirm, ask, close } = useConfirmDeleteAlert()
 
-  const base = ACCOUNT_URL(realm_name)
-  const tabs = [
-    { key: 'overview', label: t('tabs.overview'), href: base },
-    { key: 'sessions', label: t('tabs.sessions'), href: `${base}/sessions` },
-  ]
-  const tab = pathname.endsWith('/sessions') ? 'sessions' : 'overview'
+  const { tabs, tab } = useAccountTabs()
 
   const deviceName = (session: UserSessionDto) => session.user_agent ?? t('sessions.this_device')
 
