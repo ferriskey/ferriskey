@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ferriskey_security::SecurityError;
+use ferriskey_security::crypto::password_check::{
+    rehash_password_if_needed, verify_password_hash, verify_user_password,
+};
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -468,53 +470,6 @@ fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallenge
             .as_bytes()
             .ct_eq(code_challenge.as_bytes())
             .into(),
-    }
-}
-
-async fn verify_password_hash<H: HasherRepository>(
-    hasher: &H,
-    secret_data: &str,
-    salt: Option<&str>,
-    hash_iterations: u32,
-    algorithm: &str,
-    password: &str,
-) -> Result<bool, SecurityError> {
-    hasher
-        .verify_password(
-            password,
-            secret_data,
-            hash_iterations,
-            algorithm,
-            salt.unwrap_or_default(),
-        )
-        .await
-}
-
-async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialRepository>(
-    hasher: &H,
-    credential_repository: &CR,
-    user_id: Uuid,
-    verified_secret_data: &str,
-    password: &str,
-    algorithm: &str,
-) {
-    if !hasher.needs_rehash(algorithm) {
-        return;
-    }
-
-    let hash_result = match hasher.hash_password(password).await {
-        Ok(hash_result) => hash_result,
-        Err(e) => {
-            warn!(%user_id, from = %algorithm, "password rehash failed: {e}");
-            return;
-        }
-    };
-
-    if let Err(e) = credential_repository
-        .update_password_credential(user_id, verified_secret_data, hash_result)
-        .await
-    {
-        warn!(%user_id, from = %algorithm, "password rehash not persisted: {e:?}");
     }
 }
 
@@ -1907,50 +1862,13 @@ where
     }
 
     async fn verify_password(&self, user_id: Uuid, password: String) -> Result<bool, CoreError> {
-        let credential = self
-            .credential_repository
-            .get_password_credential(user_id)
-            .instrument(info_span!("auth.verify_password.credential_fetch"))
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let CredentialData::Hash {
-            hash_iterations,
-            algorithm,
-        } = credential.credential_data
-        else {
-            return Err(CoreError::InternalServerError);
-        };
-
-        let is_valid = verify_password_hash(
+        verify_user_password(
+            self.credential_repository.as_ref(),
             self.hasher_repository.as_ref(),
-            &credential.secret_data,
-            credential.salt.as_deref(),
-            hash_iterations,
-            &algorithm,
+            user_id,
             &password,
         )
-        .instrument(info_span!(
-            "auth.verify_password.hasher_verify",
-            hash_algorithm = %algorithm,
-            hash_iterations
-        ))
         .await
-        .map_err(|_| CoreError::InternalServerError)?;
-
-        if is_valid {
-            rehash_password_if_needed(
-                self.hasher_repository.as_ref(),
-                self.credential_repository.as_ref(),
-                user_id,
-                &credential.secret_data,
-                &password,
-                &algorithm,
-            )
-            .await;
-        }
-
-        Ok(is_valid)
     }
 
     async fn refuse_login_identifier_collision(
@@ -6016,10 +5934,12 @@ mod tests {
 #[cfg(test)]
 mod password_hash_tests {
     use ferriskey_security::SecurityError;
+    use ferriskey_security::crypto::password_check::{
+        rehash_password_if_needed, verify_password_hash,
+    };
     use mockall::predicate::eq;
     use uuid::Uuid;
 
-    use super::{rehash_password_if_needed, verify_password_hash};
     use crate::domain::credential::entities::CredentialError;
     use crate::domain::credential::ports::MockCredentialRepository;
     use crate::domain::crypto::{HashResult, MockHasherRepository};

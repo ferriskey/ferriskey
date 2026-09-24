@@ -105,7 +105,7 @@ fn login_url_from(completion: AuthCompletion) -> Result<String, CoreError> {
     })
 }
 
-fn generate_secret() -> Result<TotpSecret, CoreError> {
+pub(crate) fn generate_secret() -> Result<TotpSecret, CoreError> {
     let mut bytes = [0u8; 20];
     rand::thread_rng()
         .try_fill_bytes(&mut bytes)
@@ -116,7 +116,7 @@ fn generate_secret() -> Result<TotpSecret, CoreError> {
     Ok(TotpSecret::from_base32(&base32))
 }
 
-fn generate_otpauth_uri(issuer: &str, user_email: &str, secret: &TotpSecret) -> String {
+pub(crate) fn generate_otpauth_uri(issuer: &str, user_email: &str, secret: &TotpSecret) -> String {
     let encoded_secret = secret.base32_encoded();
 
     let issuer_encoded = urlencoding::encode(issuer);
@@ -147,7 +147,7 @@ fn generate_totp_code(secret: &[u8], counter: u64, digits: u32) -> Result<u32, C
     Ok(code % 10u32.pow(digits))
 }
 
-fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
+pub(crate) fn verify(secret: &TotpSecret, code: &str) -> Result<bool, CoreError> {
     let Ok(expected_code) = code.parse::<u32>() else {
         error!("failed to parse code: {}", code);
         return Ok(false);
@@ -193,7 +193,7 @@ fn decode_string(code: String, format: RecoveryCodeFormat) -> Result<MfaRecovery
     }
 }
 
-fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError> {
+pub(crate) fn build_webauthn_client(rp_info: WebAuthnRpInfo) -> Result<Webauthn, CoreError> {
     let rp_url = Url::parse(&rp_info.allowed_origin).map_err(|e| {
         error!("Failed to parse server_host as URL: {e}");
         CoreError::InternalServerError

@@ -30,6 +30,26 @@ impl From<CoreError> for ApiError {
                 ).into())
             }
             CoreError::Forbidden(msg) => Self::Forbidden(msg.into()),
+            CoreError::ElevationRequired => Self::Forbidden(ApiErrorBody::new(
+                "This operation requires a fresh re-authentication",
+                reason,
+            )),
+            CoreError::PrimaryProofRequired => Self::Forbidden(ApiErrorBody::new(
+                "This operation requires re-authenticating with a primary credential",
+                reason,
+            )),
+            CoreError::NoLocalPassword => Self::Conflict(ApiErrorBody::new(
+                "This account signs in through an external directory and has no local password",
+                reason,
+            )),
+            CoreError::LastSignInMeans => Self::Conflict(ApiErrorBody::new(
+                "Removing this credential would leave the account with no way to sign in",
+                reason,
+            )),
+            CoreError::MfaFactorRequired => Self::Conflict(ApiErrorBody::new(
+                "Removing this credential would leave the account without the second factor this realm requires",
+                reason,
+            )),
             CoreError::InternalServerError => {
                         Self::InternalServerError("Internal server error".into())
                     }
