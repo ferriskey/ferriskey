@@ -6,12 +6,14 @@ use crate::auth::Identity;
 use crate::client::{
     commands::{
         CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
-        CreateRoleInput, CreateSamlAttributeMapperInput, CreateWebOriginInput, DeleteClientInput,
-        DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput, DeleteSamlAttributeMapperInput,
+        CreateRoleInput, CreateSamlAttributeMapperInput, CreateTokenExchangePolicyInput,
+        CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
+        DeleteRedirectUriInput, DeleteSamlAttributeMapperInput, DeleteTokenExchangePolicyInput,
         DeleteWebOriginInput, GetClientInput, GetClientRolesInput, GetClientSamlConfigInput,
         GetClientsInput, GetPostLogoutRedirectUrisInput, GetRedirectUrisInput,
-        GetSamlAttributeMappersInput, GetWebOriginsInput, SetClientSamlConfigInput,
-        UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+        GetSamlAttributeMappersInput, GetTokenExchangePoliciesInput, GetWebOriginsInput,
+        SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
+        UpdateRedirectUriInput,
     },
     entities::{
         Client,
@@ -20,6 +22,7 @@ use crate::client::{
             ClientSamlConfig, SamlAttributeMapper, SamlAttributeMapperDefinition,
             SamlConfigSettings,
         },
+        token_exchange_policy::{TokenExchangePolicy, TokenExchangePolicyDefinition},
         web_origin::{Origin, WebOrigin, WebOriginValue},
     },
     value_objects::{CreateClientRequest, UpdateClientRequest},
@@ -309,4 +312,51 @@ pub trait WebOriginResolver: Send + Sync {
         &self,
         realm_name: String,
     ) -> impl Future<Output = Result<HashSet<Origin>, CoreError>> + Send;
+}
+
+pub trait TokenExchangePolicyService: Send + Sync {
+    fn create_token_exchange_policy(
+        &self,
+        identity: Identity,
+        input: CreateTokenExchangePolicyInput,
+    ) -> impl Future<Output = Result<TokenExchangePolicy, CoreError>> + Send;
+
+    fn get_token_exchange_policies(
+        &self,
+        identity: Identity,
+        input: GetTokenExchangePoliciesInput,
+    ) -> impl Future<Output = Result<Vec<TokenExchangePolicy>, CoreError>> + Send;
+
+    fn delete_token_exchange_policy(
+        &self,
+        identity: Identity,
+        input: DeleteTokenExchangePolicyInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait TokenExchangePolicyRepository: Send + Sync {
+    fn create(
+        &self,
+        realm_id: RealmId,
+        client_id: Uuid,
+        definition: TokenExchangePolicyDefinition,
+    ) -> impl Future<Output = Result<TokenExchangePolicy, CoreError>> + Send;
+
+    fn list_by_client(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<TokenExchangePolicy>, CoreError>> + Send;
+
+    fn find_for_target(
+        &self,
+        client_id: Uuid,
+        target_audience: String,
+    ) -> impl Future<Output = Result<Option<Unscoped<TokenExchangePolicy>>, CoreError>> + Send;
+
+    fn delete(
+        &self,
+        client_id: Uuid,
+        id: Uuid,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
