@@ -8,7 +8,6 @@
 use std::collections::HashSet;
 
 use crate::auth::Identity;
-use crate::client::entities::Client;
 use crate::common::app_errors::CoreError;
 use crate::realm::Realm;
 use crate::role::permission::Permissions;
@@ -23,18 +22,12 @@ pub trait Policy: Send + Sync {
         &self,
         user: &User,
     ) -> impl Future<Output = Result<HashSet<Permissions>, CoreError>> + Send;
-    fn get_client_specific_permissions(
-        &self,
-        user: &User,
-        client: &Client,
-    ) -> impl Future<Output = Result<HashSet<Permissions>, CoreError>> + Send;
     fn get_permission_for_target_realm(
         &self,
         user: &User,
         target_realm: &Realm,
     ) -> impl Future<Output = Result<HashSet<Permissions>, CoreError>> + Send;
     fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool;
-    fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool;
 }
 
 /// A well-formed question whose answer is "no" is a 403. A question the

@@ -2,14 +2,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use ferriskey_domain::auth::Identity;
-use ferriskey_domain::client::entities::Client;
 use ferriskey_domain::client::ports::{ClientPolicy, ClientRepository};
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::policies::Policy;
 use ferriskey_domain::realm::Realm;
 use ferriskey_domain::realm::ports::RealmPolicy;
 use ferriskey_domain::realm::scope::RealmScope;
-use ferriskey_domain::role::entities::Role;
 use ferriskey_domain::role::permission::Permissions;
 use ferriskey_domain::role::ports::RolePolicy;
 use ferriskey_domain::user::entities::User;
@@ -50,22 +48,6 @@ where
             user_role_repository,
         }
     }
-
-    /// Check if the user can manage users in the target realm
-    ///
-    /// # Arguments
-    /// * `permissions` - List of permissions the user has
-    /// # Returns
-    /// * `true` - User has permission to manage users
-    /// * `false` - User does not have sufficient permissions
-    #[inline]
-    #[allow(dead_code)]
-    fn has_user_management_permissions(permissions: &HashSet<Permissions>) -> bool {
-        Permissions::has_one_of_permissions(
-            permissions,
-            &[Permissions::ManageUsers, Permissions::ManageRealm],
-        )
-    }
 }
 
 impl<U, C, UR> Policy for FerriskeyPolicy<U, C, UR>
@@ -87,41 +69,6 @@ where
                 Ok(service_account.across_realms())
             }
         }
-    }
-
-    async fn get_client_specific_permissions(
-        &self,
-        user: &User,
-        client: &Client,
-    ) -> Result<HashSet<Permissions>, CoreError> {
-        let roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .await
-            .map_err(|_| CoreError::Forbidden("user not found".to_string()))?;
-
-        let client_roles = roles
-            .into_iter()
-            .filter(|role| role.client_id == Some(client.id))
-            .collect::<Vec<Role>>();
-
-        let mut permissions: HashSet<Permissions> = HashSet::new();
-
-        for role in client_roles {
-            let role_permissions: HashSet<Permissions> = role
-                .permissions
-                .iter()
-                .filter_map(|p| Permissions::from_name(p))
-                .collect();
-
-            let permissions_as_vec: Vec<Permissions> = role_permissions.into_iter().collect();
-            let permissions_bits = Permissions::to_bitfield(&permissions_as_vec);
-            let validated_permissions = Permissions::from_bitfield(permissions_bits);
-
-            permissions.extend(validated_permissions);
-        }
-
-        Ok(permissions)
     }
 
     async fn get_permission_for_target_realm(
@@ -222,10 +169,6 @@ where
 
     fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
         user_realm.name == target_realm.name || user_realm.name == "master"
-    }
-
-    fn is_cross_realm_access(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
-        user_realm.name == "master" && user_realm.name != target_realm.name
     }
 }
 
@@ -601,9 +544,11 @@ where
 mod tests {
     use super::*;
     use chrono::Utc;
+    use ferriskey_domain::client::entities::Client;
     use ferriskey_domain::client::ports::MockClientRepository;
     use ferriskey_domain::realm::RealmId;
     use ferriskey_domain::realm::scope::Unscoped;
+    use ferriskey_domain::role::entities::Role;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
     use uuid::Uuid;
 

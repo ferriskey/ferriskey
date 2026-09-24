@@ -205,7 +205,6 @@ where
 mod tests {
     use super::*;
     use crate::auth::Identity;
-    use crate::client::entities::Client;
     use crate::realm::ports::MockRealmRepository;
     use crate::realm::scope::Unscoped;
     use crate::realm::{Realm, RealmId};
@@ -234,14 +233,6 @@ mod tests {
             Ok(HashSet::new())
         }
 
-        async fn get_client_specific_permissions(
-            &self,
-            _user: &User,
-            _client: &Client,
-        ) -> Result<HashSet<Permissions>, CoreError> {
-            Ok(HashSet::new())
-        }
-
         async fn get_permission_for_target_realm(
             &self,
             _user: &User,
@@ -252,10 +243,6 @@ mod tests {
 
         fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
             user_realm.id == target_realm.id
-        }
-
-        fn is_cross_realm_access(&self, _user_realm: &Realm, _target_realm: &Realm) -> bool {
-            false
         }
     }
 
