@@ -76,6 +76,10 @@ use crate::{
     infrastructure::migrate::repository::PostgresMigrationRepository,
     infrastructure::{
         abyss::federation::repository::FederationRepositoryImpl,
+        account_security::repositories::{
+            elevation_repository::PostgresElevationRepository,
+            passkey_registration_repository::PostgresPasskeyRegistrationRepository,
+        },
         aegis::repositories::{
             client_scope_postgres_repository::PostgresClientScopeRepository,
             protocol_mapper_postgres_repository::PostgresProtocolMapperRepository,
@@ -192,6 +196,14 @@ type AuthSessionRepo = PostgresAuthSessionRepository;
 type HasherRepo = PasswordHasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type OtpEnrollmentRepo = PostgresOtpEnrollmentRepository;
+type ElevationRepo = PostgresElevationRepository;
+type PasskeyRegistrationRepo = PostgresPasskeyRegistrationRepository;
+type ApplicationOtherSessionsRevocation =
+    crate::application::other_sessions_revocation::OtherSessionsRevocationAdapter<
+        AccessTokenRepo,
+        RefreshTokenRepo,
+        UserSessionRepo,
+    >;
 type UserAttributeRepo = PostgresUserAttributeRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
@@ -281,6 +293,21 @@ type ApplicationTridentService = TridentServiceImpl<
     UserRoleRepo,
     ApplicationTokenRevocation,
 >;
+
+type ApplicationAccountSecurityService =
+    crate::domain::account_security::services::AccountSecurityServiceImpl<
+        CredentialRepo,
+        HasherRepo,
+        UserRepo,
+        RealmRepo,
+        PasswordPolicyRepo,
+        OtpEnrollmentRepo,
+        UserRoleRepo,
+        ElevationRepo,
+        ApplicationOtherSessionsRevocation,
+        UserRequiredActionRepo,
+        PasskeyRegistrationRepo,
+    >;
 
 type MaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::maintenance_whitelist_repository::PostgresMaintenanceWhitelistRepository;
 type RealmMaintenanceWhitelistRepo = crate::infrastructure::maintenance::repositories::realm_maintenance_whitelist_repository::PostgresRealmMaintenanceWhitelistRepository;
@@ -390,6 +417,7 @@ pub struct ApplicationService {
         WebhookRepo,
     >,
     pub(crate) trident_service: ApplicationTridentService,
+    pub(crate) account_security_service: ApplicationAccountSecurityService,
     pub(crate) user_service: ApplicationUserService,
     pub(crate) health_service: HealthServiceImpl<HealthCheckRepo>,
     pub(crate) webhook_service: WebhookServiceImpl<

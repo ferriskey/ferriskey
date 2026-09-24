@@ -39,11 +39,16 @@ pub trait CredentialRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Credential, CredentialError>> + Send;
 
+    /// `temporary` is written, not preserved: a rehash must carry the current value
+    /// through, while a self-service change must clear it. Leaving the column alone
+    /// would keep an admin-set temporary password temporary after the user replaced
+    /// it, and the login flow would ask them to change it again, forever.
     fn update_password_credential(
         &self,
         user_id: Uuid,
         expected_secret_data: &str,
         hash_result: HashResult,
+        temporary: bool,
     ) -> impl Future<Output = Result<(), CredentialError>> + Send;
 
     fn has_password_credential(

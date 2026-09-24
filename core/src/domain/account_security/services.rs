@@ -37,6 +37,7 @@ use crate::domain::account_security::entities::{
 use crate::domain::account_security::ports::{
     AccountSecurityService, OtherSessionsRevocationPort, PasskeyRegistrationRepository,
 };
+use crate::domain::authentication::services::lockout_compute_locked_until;
 use crate::domain::trident::ports::OtpEnrollmentRepository;
 use crate::domain::trident::services::{
     build_webauthn_client, generate_otpauth_uri, generate_secret, verify,
@@ -46,6 +47,7 @@ pub const ELEVATION_TTL_MINUTES: i64 = 5;
 pub const OTP_ENROLLMENT_TTL_MINUTES: i64 = 10;
 pub const PASSKEY_REGISTRATION_TTL_MINUTES: i64 = 5;
 
+#[derive(Clone, Debug)]
 pub struct AccountSecurityServiceImpl<CR, H, UR, RR, PPR, OER, URR, ER, OSR, URA, PRR>
 where
     CR: CredentialRepository,
@@ -171,6 +173,36 @@ where
             },
         )
         .await
+    }
+
+    async fn record_failed_proof(&self, scope: &RealmScope, user: &Scoped<User>) {
+        let settings = match self.realm_repository.get_realm_settings(scope.id()).await {
+            Ok(settings) => settings,
+            Err(e) => {
+                warn!(user_id = %user.get().id, "Failed to read the lockout policy: {e:?}");
+                return;
+            }
+        };
+
+        let Some(settings) = settings else {
+            return;
+        };
+
+        let attempts = user.get().failed_login_attempts + 1;
+        let locked_until = lockout_compute_locked_until(
+            attempts,
+            settings.lockout_threshold,
+            settings.lockout_duration_seconds,
+            Utc::now(),
+        );
+
+        if let Err(e) = self
+            .user_repository
+            .increment_failed_login_attempts(user.get().id, locked_until)
+            .await
+        {
+            warn!(user_id = %user.get().id, "Failed to record a failed elevation proof: {e:?}");
+        }
     }
 
     async fn credentials_of(&self, user_id: Uuid) -> Result<Vec<Credential>, CoreError> {
@@ -300,8 +332,17 @@ where
         };
 
         if !accepted {
+            self.record_failed_proof(&scope, &user).await;
             warn!(user_id = %user_id, "Refused an elevation request: the proof did not check out");
             return Err(CoreError::InvalidPassword);
+        }
+
+        if let Err(e) = self
+            .user_repository
+            .reset_failed_login_attempts(user_id)
+            .await
+        {
+            warn!(user_id = %user_id, "Failed to reset the failed-attempt counter: {e:?}");
         }
 
         let elevation = self
@@ -383,18 +424,19 @@ where
             .await
             .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
 
-        self.credential_repository
-            .delete_password_credential(target)
+        let current = self
+            .credential_repository
+            .get_password_credential(target)
             .await
-            .map_err(|_| CoreError::DeleteCredentialError)?;
+            .map_err(|_| CoreError::GetPasswordCredentialError)?;
 
         self.credential_repository
-            .create_credential(target, "password".into(), hash_result, "".into(), false)
+            .update_password_credential(target, &current.secret_data, hash_result, false)
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
         self.other_sessions_revocation
-            .revoke_all_sessions_except(&user, Some(elevated.session_id()))
+            .revoke_all_sessions_except(&scope, &user, Some(elevated.session_id()))
             .await?;
 
         if let Err(e) = self.elevation_repository.clear_for_user(target).await {
@@ -866,6 +908,19 @@ mod tests {
                 .returning(move |_, _, _, _, _| Box::pin(async move { Ok(accepted) }));
 
             self.hasher.expect_needs_rehash().returning(|_| false);
+
+            self.users
+                .expect_reset_failed_login_attempts()
+                .returning(|_| Box::pin(async move { Ok(()) }));
+        }
+
+        fn counting_failures(&mut self, realm_id: RealmId, threshold: i32) {
+            self.realms.expect_get_realm_settings().returning(move |_| {
+                let mut settings = RealmSetting::new(realm_id, None);
+                settings.lockout_threshold = threshold;
+                settings.lockout_duration_seconds = 900;
+                Box::pin(async move { Ok(Some(settings)) })
+            });
         }
 
         fn holding(&mut self, user_id: Uuid, credentials: Vec<Credential>) {
@@ -957,7 +1012,10 @@ mod tests {
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
         harness.refusing_elevation();
-        harness.credentials.expect_create_credential().never();
+        harness
+            .credentials
+            .expect_update_password_credential()
+            .never();
 
         let refused = harness
             .build()
@@ -999,7 +1057,10 @@ mod tests {
             Uuid::now_v7(),
             ElevationProofKind::Password,
         );
-        harness.credentials.expect_create_credential().never();
+        harness
+            .credentials
+            .expect_update_password_credential()
+            .never();
 
         let refused = harness
             .build()
@@ -1207,7 +1268,78 @@ mod tests {
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
         harness.with_password(user.id, false);
+        harness.counting_failures(realm.id, 10);
+        harness
+            .users
+            .expect_increment_failed_login_attempts()
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
         harness.elevations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    proof: ElevationProof::Password("wrong".into()),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn a_wrong_proof_at_the_threshold_locks_the_account() {
+        let realm = create_test_realm_with_name("acme");
+        let mut user =
+            create_test_user_with_params_and_realm(&realm, "alice", "alice@acme.test".into(), true);
+        user.failed_login_attempts = 9;
+        let identity = Identity::User(user.clone());
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.with_password(user.id, false);
+        harness.counting_failures(realm.id, 10);
+        harness
+            .users
+            .expect_increment_failed_login_attempts()
+            .withf(|_, locked_until| locked_until.is_some())
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+        harness.elevations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: Uuid::now_v7(),
+                    proof: ElevationProof::Password("wrong".into()),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn a_wrong_proof_below_the_threshold_counts_without_locking() {
+        let (realm, user, identity) = actors();
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.with_password(user.id, false);
+        harness.counting_failures(realm.id, 10);
+        harness
+            .users
+            .expect_increment_failed_login_attempts()
+            .withf(|_, locked_until| locked_until.is_none())
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
 
         let refused = harness
             .build()
@@ -1282,6 +1414,12 @@ mod tests {
             user.id,
             vec![credential_of(user.id, CredentialType::Password)],
         );
+        harness.counting_failures(realm.id, 10);
+        harness
+            .users
+            .expect_increment_failed_login_attempts()
+            .times(1)
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
         harness.elevations.expect_start().never();
 
         let refused = harness
@@ -1344,7 +1482,11 @@ mod tests {
             .credentials
             .expect_update_password_credential()
             .times(1)
-            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
+        harness
+            .users
+            .expect_reset_failed_login_attempts()
+            .returning(|_| Box::pin(async move { Ok(()) }));
         harness
             .elevations
             .expect_start()
@@ -1385,6 +1527,7 @@ mod tests {
         let (realm, user, identity) = actors();
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
+        harness.counting_failures(realm.id, 10);
         harness
             .credentials
             .expect_get_password_credential()
@@ -1426,9 +1569,8 @@ mod tests {
         harness.with_password(user.id, false);
         harness
             .credentials
-            .expect_delete_password_credential()
+            .expect_update_password_credential()
             .never();
-        harness.credentials.expect_create_credential().never();
         harness.sessions.expect_revoke_all_sessions_except().never();
 
         let refused = harness
@@ -1456,10 +1598,10 @@ mod tests {
             .returning(|_| Box::pin(async move { Ok(None) }));
         harness
             .credentials
-            .expect_delete_password_credential()
-            .withf(move |id| *id == expected)
+            .expect_update_password_credential()
+            .withf(move |id, _, _, temporary| *id == expected && !*temporary)
             .times(1)
-            .returning(|_| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
         harness.hasher.expect_hash_password().returning(|_| {
             Box::pin(async move {
                 Ok(HashResult::new(
@@ -1471,21 +1613,11 @@ mod tests {
             })
         });
         harness
-            .credentials
-            .expect_create_credential()
-            .withf(move |id, kind, _, _, temporary| {
-                *id == expected && kind == "password" && !*temporary
-            })
-            .times(1)
-            .returning(move |_, _, _, _, _| {
-                Box::pin(async move { Ok(password_credential(expected)) })
-            });
-        harness
             .sessions
             .expect_revoke_all_sessions_except()
-            .withf(move |user, keep| user.get().id == expected && *keep == Some(session))
+            .withf(move |_, user, keep| user.get().id == expected && *keep == Some(session))
             .times(1)
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
         harness
             .elevations
             .expect_clear_for_user()
@@ -1529,9 +1661,8 @@ mod tests {
         });
         harness
             .credentials
-            .expect_delete_password_credential()
+            .expect_update_password_credential()
             .never();
-        harness.credentials.expect_create_credential().never();
 
         let refused = harness
             .build()
@@ -1539,6 +1670,77 @@ mod tests {
             .await;
 
         assert!(matches!(refused, Err(CoreError::HashPasswordError(_))));
+    }
+
+    #[tokio::test]
+    async fn a_password_change_clears_the_temporary_flag_the_admin_set() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness
+            .credentials
+            .expect_get_password_credential()
+            .returning(move |id| {
+                let temporary = Credential {
+                    temporary: true,
+                    ..password_credential(id)
+                };
+                Box::pin(async move { Ok(temporary) })
+            });
+        harness
+            .hasher
+            .expect_verify_password()
+            .returning(|_, _, _, _, _| Box::pin(async move { Ok(true) }));
+        harness.hasher.expect_needs_rehash().returning(|_| false);
+        harness
+            .users
+            .expect_reset_failed_login_attempts()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+        harness
+            .policies
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async move { Ok(None) }));
+        harness.hasher.expect_hash_password().returning(|_| {
+            Box::pin(async move {
+                Ok(HashResult::new(
+                    "hash".into(),
+                    "salt".into(),
+                    1,
+                    "argon2".into(),
+                ))
+            })
+        });
+        harness
+            .credentials
+            .expect_update_password_credential()
+            .withf(|_, _, _, temporary| !*temporary)
+            .times(1)
+            .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
+        harness
+            .sessions
+            .expect_revoke_all_sessions_except()
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
+        harness
+            .elevations
+            .expect_clear_for_user()
+            .returning(|_| Box::pin(async move { Ok(1) }));
+        harness
+            .required_actions
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+
+        let changed = harness
+            .build()
+            .change_own_password(identity, change_password(session, "temporary-one"))
+            .await;
+
+        assert!(
+            changed.is_ok(),
+            "expected the change to go through: {changed:?}"
+        );
     }
 
     #[tokio::test]
@@ -1555,9 +1757,8 @@ mod tests {
             .returning(|_| Box::pin(async move { Ok(None) }));
         harness
             .credentials
-            .expect_delete_password_credential()
+            .expect_update_password_credential()
             .never();
-        harness.credentials.expect_create_credential().never();
 
         let mut input = change_password(session, "old");
         input.new_password = "a".into();

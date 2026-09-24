@@ -132,6 +132,7 @@ use crate::{
 pub mod services;
 
 pub mod abyss;
+pub mod account_security;
 pub mod aegis;
 pub mod auth;
 pub mod broker;
@@ -145,6 +146,7 @@ pub mod mail;
 pub mod maintenance;
 pub mod migrate;
 pub mod organization;
+pub mod other_sessions_revocation;
 pub mod portal_layouts;
 pub mod portal_theme;
 pub mod realm;
@@ -215,6 +217,23 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             access_token.clone(),
             refresh_token.clone(),
             user_session.clone(),
+        ),
+    );
+    let other_sessions_revocation = Arc::new(
+        crate::application::other_sessions_revocation::OtherSessionsRevocationAdapter::new(
+            access_token.clone(),
+            refresh_token.clone(),
+            user_session.clone(),
+        ),
+    );
+    let elevation = Arc::new(
+        crate::infrastructure::account_security::repositories::elevation_repository::PostgresElevationRepository::new(
+            postgres.get_db(),
+        ),
+    );
+    let passkey_registration = Arc::new(
+        crate::infrastructure::account_security::repositories::passkey_registration_repository::PostgresPasskeyRegistrationRepository::new(
+            postgres.get_db(),
         ),
     );
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
@@ -447,6 +466,20 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             token_revocation.clone(),
             flow_recorder.clone(),
         ),
+        account_security_service:
+            crate::domain::account_security::services::AccountSecurityServiceImpl::new(
+                credential.clone(),
+                hasher.clone(),
+                user.clone(),
+                realm.clone(),
+                password_policy.clone(),
+                otp_enrollment.clone(),
+                user_role.clone(),
+                elevation.clone(),
+                other_sessions_revocation.clone(),
+                user_required_action.clone(),
+                passkey_registration.clone(),
+            ),
         user_service: UserServiceImpl::new(
             realm.clone(),
             user.clone(),

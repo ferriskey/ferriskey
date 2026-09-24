@@ -33,6 +33,7 @@ pub async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialReposi
     verified_secret_data: &str,
     password: &str,
     algorithm: &str,
+    temporary: bool,
 ) {
     if !hasher.needs_rehash(algorithm) {
         return;
@@ -47,7 +48,7 @@ pub async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialReposi
     };
 
     if let Err(e) = credential_repository
-        .update_password_credential(user_id, verified_secret_data, hash_result)
+        .update_password_credential(user_id, verified_secret_data, hash_result, temporary)
         .await
     {
         warn!(%user_id, from = %algorithm, "password rehash not persisted: {e:?}");
@@ -69,6 +70,8 @@ where
         .instrument(info_span!("auth.verify_password.credential_fetch"))
         .await
         .map_err(|_| CoreError::InternalServerError)?;
+
+    let temporary = credential.temporary;
 
     let CredentialData::Hash {
         hash_iterations,
@@ -102,6 +105,7 @@ where
             &credential.secret_data,
             password,
             &algorithm,
+            temporary,
         )
         .await;
     }

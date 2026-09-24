@@ -3,6 +3,7 @@
 pub mod prelude;
 
 pub mod access_tokens;
+pub mod account_elevations;
 pub mod auth_sessions;
 pub mod broker_auth_sessions;
 pub mod client_maintenance_whitelist;
@@ -36,6 +37,7 @@ pub mod organization_member_roles;
 pub mod organization_members;
 pub mod organizations;
 pub mod otp_enrollments;
+pub mod passkey_registrations;
 pub mod password_policy;
 pub mod password_reset_tokens;
 pub mod portal_layouts;
