@@ -438,7 +438,7 @@ mod tests {
         let service = build_service_with_roles(
             realm_repo_returning(realm_id),
             admin_user_repo(admin),
-            admin_role_repo(realm_id, "manage_users"),
+            admin_role_repo(realm_id, "manage_organizations"),
             role_repo_returning(role),
             org_repo,
             member_repo,
@@ -482,7 +482,7 @@ mod tests {
         let service = build_service(
             realm_repo_returning(realm_id),
             admin_user_repo(admin),
-            admin_role_repo(realm_id, "manage_users"),
+            admin_role_repo(realm_id, "manage_organizations"),
             org_repo,
             member_repo,
             MockOrganizationMemberRoleRepository::new(),
@@ -520,7 +520,7 @@ mod tests {
         let service = build_service(
             realm_repo_returning(realm_id),
             admin_user_repo(admin),
-            admin_role_repo(realm_id, "view_users"), // lacks manage rights
+            admin_role_repo(realm_id, "view_organizations"), // lacks manage rights
             org_repo,
             MockOrganizationMemberRepository::new(),
             MockOrganizationMemberRoleRepository::new(),
@@ -588,7 +588,7 @@ mod tests {
         let service = build_service(
             realm_repo_returning(victim_realm_id),
             admin_user_repo(attacker),
-            admin_role_repo(attacker_realm_id, "manage_users"),
+            admin_role_repo(attacker_realm_id, "manage_organizations"),
             org_repo,
             member_repo,
             member_role_repo,
@@ -643,7 +643,7 @@ mod tests {
         let service = build_service_with_roles(
             realm_repo_returning(realm_id),
             admin_user_repo(admin),
-            admin_role_repo(realm_id, "manage_users"),
+            admin_role_repo(realm_id, "manage_organizations"),
             role_repo_returning(foreign_role),
             org_repo,
             member_repo,

@@ -1538,6 +1538,7 @@ name = "ferriskey-abyss"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "maskass",
  "mockall 0.14.0",
@@ -1553,6 +1554,7 @@ name = "ferriskey-aegis"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
@@ -1944,6 +1946,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-authz"
+version = "0.8.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "mockall 0.14.0",
+ "serde",
+ "thiserror 2.0.20",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-client"
 version = "0.1.0"
 dependencies = [
@@ -1961,6 +1976,7 @@ name = "ferriskey-compass"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
@@ -1983,6 +1999,7 @@ dependencies = [
  "enum-display",
  "ferriskey-abyss",
  "ferriskey-aegis",
+ "ferriskey-authz",
  "ferriskey-compass",
  "ferriskey-domain",
  "ferriskey-mail",
@@ -2052,6 +2069,7 @@ name = "ferriskey-mail"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "ferriskey-seawatch",
  "ferriskey-webhook",
@@ -2107,6 +2125,7 @@ name = "ferriskey-organization"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
@@ -2122,6 +2141,7 @@ name = "ferriskey-password-policy"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
@@ -2135,6 +2155,7 @@ name = "ferriskey-portal-layouts"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
@@ -2149,6 +2170,7 @@ name = "ferriskey-portal-theme"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
@@ -2176,6 +2198,7 @@ name = "ferriskey-seawatch"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "hex",
  "hmac",
@@ -2226,6 +2249,7 @@ name = "ferriskey-webhook"
 version = "0.8.0"
 dependencies = [
  "chrono",
+ "ferriskey-authz",
  "ferriskey-domain",
  "hex",
  "hmac",

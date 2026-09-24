@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped};
 use ferriskey_domain::role::entities::Role;
@@ -838,7 +839,7 @@ mod tests {
     async fn create_group_denies_actor_from_another_realm() {
         let victim_realm_id = RealmId::new(Uuid::new_v4());
         let (identity, realm_repo, user_role_repo) =
-            cross_realm_actor(victim_realm_id, "manage_users");
+            cross_realm_actor(victim_realm_id, "manage_organizations");
         let org = make_org(victim_realm_id);
         let org_id = org.id;
 
@@ -881,7 +882,7 @@ mod tests {
     async fn list_groups_denies_actor_from_another_realm() {
         let victim_realm_id = RealmId::new(Uuid::new_v4());
         let (identity, realm_repo, user_role_repo) =
-            cross_realm_actor(victim_realm_id, "view_users");
+            cross_realm_actor(victim_realm_id, "view_organizations");
         let org = make_org(victim_realm_id);
         let org_id = org.id;
 
@@ -926,7 +927,7 @@ mod tests {
         let victim_user_id = victim_user.id;
 
         let (identity, realm_repo, user_role_repo) =
-            cross_realm_actor(victim_realm_id, "manage_users");
+            cross_realm_actor(victim_realm_id, "manage_organizations");
         let org = make_org(victim_realm_id);
         let org_id = org.id;
         let group = make_group(org_id);
@@ -999,7 +1000,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 
@@ -1057,7 +1058,7 @@ mod tests {
 
         let mut user_role_repo = MockUserRoleRepository::new();
         user_role_repo.expect_get_user_roles().returning(move |_| {
-            let role = make_role_with_permission(realm_id, "manage_users");
+            let role = make_role_with_permission(realm_id, "manage_organizations");
             Box::pin(async move { Ok(vec![role]) })
         });
 

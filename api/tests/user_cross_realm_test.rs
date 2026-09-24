@@ -216,10 +216,8 @@ mod tests {
             &admin_token,
             &tenant_a,
             &format!("tenant-a-user-admin-{}", &suffix[..8]),
-            // `can_update_user` / `can_delete_user` accept ManageUsers;
-            // `can_view_user` accepts ViewUsers (or ManageRealm) but *not*
-            // ManageUsers, so both names are needed to exercise every route.
-            &["manage_users", "view_users", "view_roles", "view_clients"],
+            // ManageUsers covers every user route, reads included.
+            &["manage_users", "view_roles", "view_clients"],
         )
         .await;
         assign_role(&server, &admin_token, &tenant_a, &alice_id, &role_id).await;

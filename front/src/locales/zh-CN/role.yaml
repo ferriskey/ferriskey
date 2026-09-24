@@ -158,6 +158,7 @@ permissions:
     client_scopes: 客户端作用域
     webhooks: Webhook
     email_templates: 邮件模板
+    organizations: 组织
   # Keyed by the permission name the API grants. Translate the label and the description, never the key.
   entries:
     manage_users:
@@ -241,3 +242,9 @@ permissions:
     view_email_templates:
       label: 查看邮件模板
       description: 读取此域发送的邮件。
+    manage_organizations:
+      label: 管理组织
+      description: 创建、编辑和删除组织，并管理其成员。
+    view_organizations:
+      label: 查看组织
+      description: 读取组织及其成员。

@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::RealmScope;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
@@ -84,7 +85,9 @@ where
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_events(&identity, scope.realm()).await,
+            self.policy
+                .can_export_events(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 

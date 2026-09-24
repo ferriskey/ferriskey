@@ -7,10 +7,11 @@ use crate::email_template::ports::{
     GetEmailTemplatesInput, ImportEmailTemplateInput, RenderEmailTemplateInput, TemplateRenderer,
     UpdateEmailTemplateInput,
 };
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped, UnscopedOption};
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
