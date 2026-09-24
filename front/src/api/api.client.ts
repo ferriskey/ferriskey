@@ -1,5 +1,6 @@
 export namespace Schemas {
   // <Schemas>
+  export type AccountPublicKeyCredentialCreationOptionsJSON = Record<string, unknown>;
   export type AcsUrl = string;
   export type ActivateThemeResponse = { message: string };
   export type ThemeShadow = "none" | "small" | "large";
@@ -82,7 +83,7 @@ export namespace Schemas {
   };
   export type AddRealmWhitelistEntryResponse = { data: RealmMaintenanceWhitelistEntry };
   export type AddWhitelistEntryValidator = Partial<{ role_id: string | null; user_id: string | null }>;
-  export type ValidationError = { field: string; message: string };
+  export type ValidationError = { code: string; field: string; message: string };
   export type ApiError =
     | { InternalServerError: string }
     | { UnProcessableEntity: Array<ValidationError> }
@@ -93,7 +94,7 @@ export namespace Schemas {
     | { Conflict: string }
     | { ServiceUnavailable: string }
     | { OAuthError: { error: string; error_description: string } };
-  export type ApiErrorResponse = { code: string; message: string; status: number };
+  export type ApiErrorResponse = { code: string; message: string; reason: string; status: number };
   export type AssignGroupRoleValidator = { role_id: string };
   export type AssignMemberRoleValidator = { role_id: string };
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string };
@@ -116,6 +117,12 @@ export namespace Schemas {
   export type ChallengeOtpRequest = Partial<{ code: string }>;
   export type RequiredAction = "configure_otp" | "verify_email" | "update_password" | "configure_passkey";
   export type ChallengeOtpResponse = Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
+  export type ChangeOwnPasswordResponse = { message: string };
+  export type ChangeOwnPasswordValidator = {
+    current_password?: string | undefined;
+    elevation_id: string;
+    new_password?: string | undefined;
+  };
   export type ClientType = "confidential" | "public" | "system";
   export type MaintenanceSessionStrategy = "terminate" | "expire";
   export type Masked_String = string;
@@ -234,6 +241,14 @@ export namespace Schemas {
     token_type: string;
   };
   export type CompletePasswordResetResponse = JwtToken & Partial<{ login_url: string | null }>;
+  export type ConfirmOtpEnrollmentResponse = { message: string };
+  export type ConfirmOwnOtpEnrollmentValidator = {
+    code?: string | undefined;
+    elevation_id: string;
+    label?: (string | null) | undefined;
+  };
+  export type ConfirmOwnPasskeyRegistrationValidator = { credential: Record<string, unknown>; elevation_id: string };
+  export type ConfirmPasskeyResponse = { message: string };
   export type CreateClientScopeValidator = Partial<{
     description: string | null;
     is_default: boolean;
@@ -368,6 +383,7 @@ export namespace Schemas {
   export type RealmSetting = {
     access_token_lifetime: number;
     compass_enabled: boolean;
+    default_locale: string;
     default_signing_algorithm?: (string | null) | undefined;
     edit_username_enabled: boolean;
     email_verification_enabled: boolean;
@@ -389,6 +405,7 @@ export namespace Schemas {
     require_mfa: boolean;
     reset_password_template_id?: (string | null) | undefined;
     seawatch_pii_mode: string;
+    supported_locales: Array<string>;
     temporary_token_lifetime: number;
     updated_at: string;
     user_registration_enabled: boolean;
@@ -415,6 +432,7 @@ export namespace Schemas {
     firstname?: (string | null) | undefined;
     id: string;
     lastname?: (string | null) | undefined;
+    locale?: (string | null) | undefined;
     locked_until?: (string | null) | undefined;
     realm?: (null | Realm) | undefined;
     realm_id: RealmId;
@@ -528,6 +546,7 @@ export namespace Schemas {
   export type DeleteEmailTemplateResponse = { message: string };
   export type DeleteIdentityProviderLinkResponse = { count: number };
   export type DeleteIdentityProviderResponse = { count: number };
+  export type DeletePasskeyResponse = { message: string };
   export type DeletePortalLayoutResponse = { message: string };
   export type DeleteProtocolMapperResponse = { message: string };
   export type DeleteProviderResponse = { message: string };
@@ -563,6 +582,9 @@ export namespace Schemas {
   export type DeviceVerifyAction = "approve" | "deny";
   export type DeviceVerifyRequest = { action: DeviceVerifyAction; user_code: string };
   export type DeviceVerifyResponse = { status: string };
+  export type DisableOtpResponse = { message: string };
+  export type ElevationOnlyValidator = { elevation_id: string };
+  export type ElevationResponse = { elevation_id: string; expires_at: string };
   export type EmailTemplateExportFormat = "json" | "mjml";
   export type EvaluatedMapper = { config: unknown; mapper_type: string; name: string };
   export type EvaluatedRoles = { client_roles: Record<string, Array<string>>; realm_roles: Array<string> };
@@ -609,6 +631,7 @@ export namespace Schemas {
   export type GetFlowsResponse = { data: Array<CompassFlow> };
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string;
+    code_challenge_methods_supported: Array<string>;
     end_session_endpoint: string;
     grant_types_supported: Array<string>;
     id_token_signing_alg_values_supported: Array<string>;
@@ -620,7 +643,6 @@ export namespace Schemas {
     subject_types_supported: Array<string>;
     token_endpoint: string;
     token_endpoint_auth_methods_supported: Array<string>;
-    code_challenge_methods_supported: Array<string>;
     userinfo_endpoint: string;
   };
   export type GetPortalLayoutResponse = { data: PortalLayout };
@@ -761,6 +783,14 @@ export namespace Schemas {
     tree?: unknown | undefined;
     version?: (number | null) | undefined;
   };
+  export type ImportPasswordCredentialResponse = { message: string; realm_name: string; user_id: string };
+  export type ImportPasswordCredentialValidator = {
+    algorithm?: string | undefined;
+    hash_iterations: number;
+    salt?: (string | null) | undefined;
+    secret_data?: string | undefined;
+    temporary?: boolean | undefined;
+  };
   export type ImportPortalLayoutResponse = { data: PortalLayout };
   export type ImportPortalLayoutValidator = {
     ferriskey?: (string | null) | undefined;
@@ -851,6 +881,13 @@ export namespace Schemas {
   }>;
   export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
   export type OtpVerifyRequest = { code: string; label: string };
+  export type OwnCredentialDto = {
+    created_at: string;
+    credential_type: string;
+    id: string;
+    label?: (string | null) | undefined;
+  };
+  export type OwnCredentialsResponse = { data: Array<OwnCredentialDto> };
   export type OwnProfileResponse = { data: User };
   export type PortalPageType =
     | "login"
@@ -936,6 +973,7 @@ export namespace Schemas {
     require_uppercase: boolean;
   };
   export type RealmLoginSetting = {
+    default_locale: string;
     display_name?: (string | null) | undefined;
     email_verification_enabled: boolean;
     forgot_password_enabled: boolean;
@@ -946,6 +984,7 @@ export namespace Schemas {
     name: string;
     passkey_enabled: boolean;
     remember_me_enabled: boolean;
+    supported_locales: Array<string>;
     theme: PortalThemeConfig;
     user_registration_enabled: boolean;
   };
@@ -971,6 +1010,7 @@ export namespace Schemas {
     | { data: PendingActionResponse; status: "pending_action" };
   export type RemoveClientWhitelistEntryResponse = { message: string };
   export type RemoveRealmWhitelistEntryResponse = { message: string };
+  export type RequestElevationValidator = Partial<{ otp_code: string | null; password: string | null }>;
   export type ResendVerificationEmailResponse = { message: string };
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string };
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
@@ -1034,6 +1074,8 @@ export namespace Schemas {
     updated_at: string;
     username: string;
   };
+  export type StartOtpEnrollmentResponse = { otpauth_uri: string; secret: string };
+  export type StartOwnOtpEnrollmentValidator = { elevation_id: string };
   export type SyncUsersResponse = {
     completed_at?: (string | null) | undefined;
     created: number;
@@ -1134,6 +1176,8 @@ export namespace Schemas {
     name: string | null;
     redirect_url: string | null;
   }>;
+  export type UpdateOwnLocaleResponse = { data: User };
+  export type UpdateOwnLocaleValidator = Partial<{ locale: string | null }>;
   export type UpdateOwnProfileResponse = { data: User };
   export type UpdateOwnProfileValidator = Partial<{
     email: string | null;
@@ -1178,6 +1222,7 @@ export namespace Schemas {
   export type UpdateRealmSettingValidator = Partial<{
     access_token_lifetime: number | null;
     compass_enabled: boolean | null;
+    default_locale: string | null;
     default_signing_algorithm: string | null;
     edit_username_enabled: boolean | null;
     email_verification_enabled: boolean | null;
@@ -1198,6 +1243,7 @@ export namespace Schemas {
     reset_password_template_id: string | null;
     seawatch_pii_mode: string | null;
     seawatch_pseudo_key: string | null;
+    supported_locales: Array<string> | null;
     temporary_token_lifetime: number | null;
     user_registration_enabled: boolean | null;
     webhook_retry_base_delay_ms: number | null;
@@ -1269,6 +1315,7 @@ export namespace Schemas {
   export type UserResponse = { data: User };
   export type UsersResponse = { data: Array<User> };
   export type ValidatePublicKeyResponse = Record<string, unknown>;
+  export type ValidationErrorResponse = { errors: Array<ValidationError> };
   export type VerifyEmailRequest = { token: string };
   export type VerifyEmailResult = { user_id: string; verified: boolean };
   export type VerifyOtpResponse = { message: string };
@@ -1386,6 +1433,7 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -3857,6 +3905,24 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type put_Update_me_locale = {
+    method: "PUT";
+    path: "/realms/{realm_name}/users/@me/locale";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.UpdateOwnLocaleValidator;
+    };
+    responses: {
+      200: Schemas.UpdateOwnLocaleResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_user_realms = {
     method: "GET";
     path: "/realms/{realm_name}/users/@me/realms";
@@ -3916,6 +3982,151 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_List_own_credentials = {
+    method: "GET";
+    path: "/realms/{realm_name}/users/me/credentials";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: { 200: Schemas.OwnCredentialsResponse; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
+  };
+  export type put_Confirm_own_otp_enrollment = {
+    method: "PUT";
+    path: "/realms/{realm_name}/users/me/mfa/otp";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ConfirmOwnOtpEnrollmentValidator;
+    };
+    responses: {
+      200: Schemas.ConfirmOtpEnrollmentResponse;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Start_own_otp_enrollment = {
+    method: "POST";
+    path: "/realms/{realm_name}/users/me/mfa/otp";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.StartOwnOtpEnrollmentValidator;
+    };
+    responses: {
+      200: Schemas.StartOtpEnrollmentResponse;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Disable_own_otp = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/users/me/mfa/otp";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ElevationOnlyValidator;
+    };
+    responses: {
+      200: Schemas.DisableOtpResponse;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Confirm_own_passkey_registration = {
+    method: "POST";
+    path: "/realms/{realm_name}/users/me/passkeys";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ConfirmOwnPasskeyRegistrationValidator;
+    };
+    responses: {
+      200: Schemas.ConfirmPasskeyResponse;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Start_own_passkey_registration = {
+    method: "POST";
+    path: "/realms/{realm_name}/users/me/passkeys/options";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ElevationOnlyValidator;
+    };
+    responses: {
+      200: Schemas.AccountPublicKeyCredentialCreationOptionsJSON;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_own_passkey = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/users/me/passkeys/{credential_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; credential_id: string };
+
+      body: Schemas.ElevationOnlyValidator;
+    };
+    responses: {
+      200: Schemas.DeletePasskeyResponse;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Change_own_password = {
+    method: "PUT";
+    path: "/realms/{realm_name}/users/me/password";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ChangeOwnPasswordValidator;
+    };
+    responses: {
+      200: Schemas.ChangeOwnPasswordResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Request_elevation = {
+    method: "POST";
+    path: "/realms/{realm_name}/users/me/reauthenticate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.RequestElevationValidator;
+    };
+    responses: {
+      200: Schemas.ElevationResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -4027,6 +4238,26 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type post_Import_password_credential = {
+    method: "POST";
+    path: "/realms/{realm_name}/users/{user_id}/credentials/import";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; user_id: string };
+
+      body: Schemas.ImportPasswordCredentialValidator;
+    };
+    responses: {
+      201: Schemas.ImportPasswordCredentialResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      422: Schemas.ValidationErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type delete_Delete_user_credential = {
     method: "DELETE";
     path: "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}";
@@ -4129,6 +4360,7 @@ export namespace Endpoints {
       200: Schemas.GetUserRolesResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -4465,6 +4697,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users": Endpoints.get_Get_users;
     "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
     "/realms/{realm_name}/users/me": Endpoints.get_Get_own_profile;
+    "/realms/{realm_name}/users/me/credentials": Endpoints.get_List_own_credentials;
     "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
     "/realms/{realm_name}/users/{user_id}/attributes": Endpoints.get_Get_user_attributes;
     "/realms/{realm_name}/users/{user_id}/credentials": Endpoints.get_Get_user_credentials;
@@ -4537,6 +4770,11 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/roles": Endpoints.post_Create_realm_role;
     "/realms/{realm_name}/settings/maintenance/whitelist": Endpoints.post_Add_realm_whitelist_entry;
     "/realms/{realm_name}/users": Endpoints.post_Create_user;
+    "/realms/{realm_name}/users/me/mfa/otp": Endpoints.post_Start_own_otp_enrollment;
+    "/realms/{realm_name}/users/me/passkeys": Endpoints.post_Confirm_own_passkey_registration;
+    "/realms/{realm_name}/users/me/passkeys/options": Endpoints.post_Start_own_passkey_registration;
+    "/realms/{realm_name}/users/me/reauthenticate": Endpoints.post_Request_elevation;
+    "/realms/{realm_name}/users/{user_id}/credentials/import": Endpoints.post_Import_password_credential;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
     "/realms/{realm_name}/users/{user_id}/unlock": Endpoints.post_Unlock_user;
     "/realms/{realm_name}/webhooks": Endpoints.post_Create_webhook;
@@ -4567,7 +4805,10 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal/themes/{theme_id}/pages/{page_type}": Endpoints.put_Update_theme_page;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
     "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
+    "/realms/{realm_name}/users/@me/locale": Endpoints.put_Update_me_locale;
     "/realms/{realm_name}/users/me": Endpoints.put_Update_own_profile;
+    "/realms/{realm_name}/users/me/mfa/otp": Endpoints.put_Confirm_own_otp_enrollment;
+    "/realms/{realm_name}/users/me/password": Endpoints.put_Change_own_password;
     "/realms/{realm_name}/users/{user_id}": Endpoints.put_Update_user;
     "/realms/{realm_name}/users/{user_id}/attributes": Endpoints.put_Set_user_attributes;
     "/realms/{realm_name}/users/{user_id}/reset-password": Endpoints.put_Reset_password;
@@ -4602,6 +4843,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/settings/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_realm_whitelist_entry;
     "/realms/{realm_name}/smtp-config": Endpoints.delete_Delete_smtp_config;
     "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
+    "/realms/{realm_name}/users/me/mfa/otp": Endpoints.delete_Disable_own_otp;
+    "/realms/{realm_name}/users/me/passkeys/{credential_id}": Endpoints.delete_Delete_own_passkey;
     "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;
     "/realms/{realm_name}/users/{user_id}/attributes/{key}": Endpoints.delete_Delete_user_attribute;
     "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}": Endpoints.delete_Delete_user_credential;

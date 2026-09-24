@@ -8,6 +8,7 @@
 # catalogue have no counterpart here on purpose.
 tabs:
   overview: 个人资料
+  security: 安全
   sessions: 会话
 unavailable:
   title: 无法显示个人资料
@@ -69,3 +70,61 @@ sessions:
 validation:
   username_required: 请输入用户名
   email_invalid: 邮箱地址无效
+
+reauth:
+  title: 确认是您本人
+  description: 请输入密码，或输入验证器应用中的验证码以继续。
+  description_password: 请输入密码以继续。此操作会更改您的登录方式，仅凭验证器验证码不足以完成。
+  password_label: 密码
+  otp_label: 验证器验证码
+  switch_to_otp: 改用验证器应用中的验证码
+  switch_to_password: 改用密码
+  cancel: 取消
+  submit: 确认
+
+security:
+  pills:
+    otp_on: 已启用验证器
+    otp_off: 未启用验证器
+    passkeys_other: '{{count}} 个通行密钥'
+  password:
+    title: 密码
+    description: 修改密码会让其他所有设备退出登录，当前设备保持登录。
+    current_label: 当前密码
+    new_label: 新密码
+    confirm_label: 确认新密码
+    submit: 修改密码
+    mismatch: 两次输入的新密码不一致。
+    required: 请填写当前密码和新密码。
+    toast: 密码已修改
+    federated_title: 您的密码由别处管理
+    federated_description: 您通过所在组织的目录登录，密码在那里管理，无法在此修改。
+  otp:
+    title: 验证器应用
+    description: 手机应用生成的六位验证码，在输入密码后使用。
+    enable: 设置验证器
+    disable: 移除
+    enabled: 此账户已设置验证器。
+    disabled: 此账户尚未设置验证器。
+    scan_hint: 请用验证器应用扫描此二维码，然后输入应用显示的验证码。
+    code_label: 应用中的验证码
+    confirm: 启用
+    cancel: 取消
+    toast_enabled: 验证器已设置
+    toast_disabled: 验证器已移除
+  passkeys:
+    title: 通行密钥
+    description: 使用指纹、面容或安全密钥登录，无需输入密码。
+    add: 添加通行密钥
+    unnamed: 未命名的通行密钥
+    added: 添加于 {{date}}
+    remove: 移除此通行密钥
+    empty_title: 尚无通行密钥
+    empty_description: 添加一个，即可免密码登录。
+    unsupported_title: 此浏览器不支持通行密钥
+    unsupported_description: 请在支持 WebAuthn 的浏览器中打开此页面以添加。
+    confirm:
+      title: 移除此通行密钥？
+      description: '{{name}} 将无法再用于登录。此操作无法撤销。'
+    toast_added: 通行密钥已添加
+    toast_removed: 通行密钥已移除
