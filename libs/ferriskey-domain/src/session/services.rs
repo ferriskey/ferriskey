@@ -205,18 +205,46 @@ where
 mod tests {
     use super::*;
     use crate::auth::Identity;
-    use crate::client::ports::MockClientRepository;
-    use crate::common::policies::FerriskeyPolicy;
     use crate::realm::ports::MockRealmRepository;
     use crate::realm::scope::Unscoped;
     use crate::realm::{Realm, RealmId};
+    use crate::role::permission::Permissions;
     use crate::session::ports::{MockTokenRevocationPort, MockUserSessionRepository};
     use crate::user::entities::User;
-    use crate::user::ports::{MockUserRepository, MockUserRoleRepository};
+    use std::collections::HashSet;
     use uuid::Uuid;
 
-    type TestPolicy =
-        FerriskeyPolicy<MockUserRepository, MockClientRepository, MockUserRoleRepository>;
+    /// The engine lives in `ferriskey-authz`, which the kernel cannot depend
+    /// on; these tests only need the caller resolved from its identity.
+    struct TestPolicy;
+
+    impl Policy for TestPolicy {
+        async fn get_user_from_identity(&self, identity: &Identity) -> Result<User, CoreError> {
+            match identity {
+                Identity::User(user) => Ok(user.clone()),
+                Identity::Client(_) => Err(CoreError::Forbidden("no service account".to_string())),
+            }
+        }
+
+        async fn get_user_permissions(
+            &self,
+            _user: &User,
+        ) -> Result<HashSet<Permissions>, CoreError> {
+            Ok(HashSet::new())
+        }
+
+        async fn get_permission_for_target_realm(
+            &self,
+            _user: &User,
+            _target_realm: &Realm,
+        ) -> Result<HashSet<Permissions>, CoreError> {
+            Ok(HashSet::new())
+        }
+
+        fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
+            user_realm.id == target_realm.id
+        }
+    }
 
     type TestManagementService = UserSessionManagementServiceImpl<
         MockRealmRepository,
@@ -263,16 +291,10 @@ mod tests {
         session_repo: MockUserSessionRepository,
         revoker: MockTokenRevocationPort,
     ) -> TestManagementService {
-        let policy = FerriskeyPolicy::new(
-            Arc::new(MockUserRepository::new()),
-            Arc::new(MockClientRepository::new()),
-            Arc::new(MockUserRoleRepository::new()),
-        );
-
         UserSessionManagementServiceImpl::new(
             Arc::new(realm_repo),
             Arc::new(session_repo),
-            Arc::new(policy),
+            Arc::new(TestPolicy),
             Arc::new(revoker),
         )
     }

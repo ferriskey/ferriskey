@@ -1,4 +1,5 @@
 import {
+  Building2,
   Eye,
   KeyRound,
   LayoutGrid,
@@ -95,6 +96,11 @@ export const permissionCatalogue: readonly PermissionGroup[] = [
     key: 'email_templates',
     icon: Mail,
     permissions: [Permissions.ManageEmailTemplates, Permissions.ViewEmailTemplates],
+  },
+  {
+    key: 'organizations',
+    icon: Building2,
+    permissions: [Permissions.ManageOrganizations, Permissions.ViewOrganizations],
   },
 ] as const
 

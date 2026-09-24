@@ -1,7 +1,8 @@
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::{FerriskeyPolicy, Policy};
+use ferriskey_domain::common::policies::Policy;
 use ferriskey_domain::realm::Realm;
 use ferriskey_domain::role::permission::Permissions;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
@@ -27,7 +28,10 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageIdentityProviders,
+            ],
         ))
     }
 
@@ -44,7 +48,11 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ViewRealm],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageIdentityProviders,
+                Permissions::ViewIdentityProviders,
+            ],
         ))
     }
 
@@ -61,7 +69,10 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageIdentityProviders,
+            ],
         ))
     }
 

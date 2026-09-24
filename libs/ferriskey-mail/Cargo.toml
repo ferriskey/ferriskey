@@ -5,6 +5,7 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
+ferriskey-authz = { path = "../ferriskey-authz" }
 ferriskey-domain = { path = "../ferriskey-domain" }
 ferriskey-seawatch = { path = "../ferriskey-seawatch" }
 ferriskey-webhook = { path = "../ferriskey-webhook" }

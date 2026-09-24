@@ -68,6 +68,18 @@ pub trait RolePolicy: Send + Sync {
         identity: &Identity,
         target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    /// Whether the subject may put `permissions` on a role in `target_realm`.
+    ///
+    /// Separate from `can_create_role` / `can_update_role`: those decide
+    /// whether roles may be edited at all, this one bounds *what* they may
+    /// grant. Without it, `ManageRoles` alone escalates to `ManageRealm` by
+    /// granting it to a role the subject already holds.
+    fn can_grant_permissions(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+        permissions: &[String],
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]

@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::{FerriskeyPolicy, ensure_policy};
+use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::Realm;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 

@@ -227,8 +227,8 @@ mod tests {
         let alice_id = create_user(&server, &admin_token, TENANT_A, "alice").await;
         set_password(&server, &admin_token, TENANT_A, &alice_id, ALICE_PASSWORD).await;
 
-        // `manage_realm`, `manage_users` and `view_users` are the three permissions
-        // `OrganizationPolicy` accepts. Granting all three inside `tenant-a` makes the
+        // `manage_realm`, `manage_organizations` and `view_organizations` are the three
+        // permissions `OrganizationPolicy` accepts. Granting all three inside `tenant-a` makes the
         // denial below unambiguous: alice is denied because of *where* she is asking,
         // never because she is under-privileged.
         let role_id = create_role(
@@ -236,7 +236,7 @@ mod tests {
             &admin_token,
             TENANT_A,
             "tenant-a-org-admin",
-            &["manage_realm", "manage_users", "view_users"],
+            &["manage_realm", "manage_organizations", "view_organizations"],
         )
         .await;
         assign_role(&server, &admin_token, TENANT_A, &alice_id, &role_id).await;

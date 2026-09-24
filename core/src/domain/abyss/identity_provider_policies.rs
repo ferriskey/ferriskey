@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_can_view_identity_provider_with_view_realm_permission() {
+    async fn test_can_view_identity_provider_with_view_identity_providers_permission() {
         let realm = create_test_realm("test");
         let user = create_test_user_with_realm(&realm);
         let identity = Identity::User(user.clone());
@@ -141,7 +141,7 @@ mod tests {
         let client_repo = MockClientRepository::new();
         let mut user_role_repo = MockUserRoleRepository::new();
 
-        let role = create_role_with_permission(realm.id, Permissions::ViewRealm);
+        let role = create_role_with_permission(realm.id, Permissions::ViewIdentityProviders);
         user_role_repo.expect_get_user_roles().returning(move |_| {
             let r = role.clone();
             Box::pin(async move { Ok(vec![r]) })
@@ -269,8 +269,8 @@ mod tests {
     //
     // These two are the case the previous suite claimed to cover and did not. Its
     // `test_master_realm_can_access_other_realms` built the target realm with
-    // `name: user_realm.name.clone()`, which forced `is_cross_realm_access` to false,
-    // so `get_client_specific_permissions` was never called and its mock was never
+    // `name: user_realm.name.clone()`, which made the access look same-realm, so the
+    // `<target>-realm` client lookup was never reached and its mock was never
     // consulted. The assertion passed through the unscoped union instead — the very
     // branch the fix removes. Each test below sets `.times(1)` on the client lookup
     // so that regression cannot pass silently again.

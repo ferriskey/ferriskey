@@ -1,0 +1,17 @@
+[package]
+name = "ferriskey-authz"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-domain = { path = "../ferriskey-domain" }
+serde = { workspace = true }
+thiserror = "2.0.12"
+uuid = { workspace = true }
+
+[dev-dependencies]
+ferriskey-domain = { path = "../ferriskey-domain", features = ["mock"] }
+chrono = { workspace = true }
+mockall = "0.14.0"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }

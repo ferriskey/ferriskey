@@ -17,10 +17,10 @@ use std::sync::Arc;
 use chrono::Utc;
 use uuid::Uuid;
 
+use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
 use ferriskey_domain::client::ports::MockClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::common::policies::FerriskeyPolicy;
 use ferriskey_domain::realm::ports::MockRealmRepository;
 use ferriskey_domain::realm::scope::Unscoped;
 use ferriskey_domain::realm::{Realm, RealmId};
