@@ -12,6 +12,7 @@ export const catalogedEventTypes: Record<SecurityEventType, true> = {
   password_reset: true,
   password_reset_requested: true,
   password_reset_completed: true,
+  password_imported: true,
   user_created: true,
   user_email_verified: true,
   user_deleted: true,
@@ -19,6 +20,8 @@ export const catalogedEventTypes: Record<SecurityEventType, true> = {
   role_unassigned: true,
   role_created: true,
   role_removed: true,
+  role_updated: true,
+  role_permission_updated: true,
   client_created: true,
   client_deleted: true,
   client_secret_rotated: true,
@@ -52,6 +55,7 @@ const credentialEvents: SecurityEventType[] = [
   'password_reset',
   'password_reset_requested',
   'password_reset_completed',
+  'password_imported',
   'user_email_verified',
 ]
 
@@ -62,6 +66,8 @@ const administrationEvents: SecurityEventType[] = [
   'role_unassigned',
   'role_created',
   'role_removed',
+  'role_updated',
+  'role_permission_updated',
   'client_created',
   'client_deleted',
   'client_secret_rotated',

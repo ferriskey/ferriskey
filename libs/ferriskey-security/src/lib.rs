@@ -31,4 +31,7 @@ pub enum SecurityError {
 
     #[error("Expired token")]
     ExpiredToken,
+
+    #[error("Unsupported password hash: {0}")]
+    UnsupportedHash(String),
 }

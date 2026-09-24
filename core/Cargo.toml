@@ -59,6 +59,7 @@ futures = "0.3.31"
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation", "conditional-ui"] }
 ldap3 = "0.12.1"
 subtle = "2.6.1"
+bcrypt = "0.19.3"
 
 [dev-dependencies]
 mockall = "0.13.1"

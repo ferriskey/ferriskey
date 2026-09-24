@@ -864,6 +864,8 @@ mod tests {
             self.hasher
                 .expect_verify_password()
                 .returning(move |_, _, _, _, _| Box::pin(async move { Ok(accepted) }));
+
+            self.hasher.expect_needs_rehash().returning(|_| false);
         }
 
         fn holding(&mut self, user_id: Uuid, credentials: Vec<Credential>) {
@@ -1295,6 +1297,87 @@ mod tests {
             .await;
 
         assert!(matches!(refused, Err(CoreError::InvalidPassword)));
+    }
+
+    #[tokio::test]
+    async fn a_bcrypt_credential_carries_no_separate_salt_and_is_still_usable() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let expected = user.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness
+            .credentials
+            .expect_get_password_credential()
+            .returning(move |id| {
+                let legacy = Credential {
+                    salt: None,
+                    secret_data: "$2a$10$abcdefghijklmnopqrstuv".into(),
+                    credential_data: CredentialData::Hash {
+                        hash_iterations: 10,
+                        algorithm: "bcrypt".into(),
+                    },
+                    ..password_credential(id)
+                };
+                Box::pin(async move { Ok(legacy) })
+            });
+        harness
+            .hasher
+            .expect_verify_password()
+            .returning(|_, _, _, _, _| Box::pin(async move { Ok(true) }));
+        harness
+            .hasher
+            .expect_needs_rehash()
+            .returning(|algorithm| algorithm == "bcrypt");
+        harness.hasher.expect_hash_password().returning(|_| {
+            Box::pin(async move {
+                Ok(HashResult::new(
+                    "argon".into(),
+                    "salt".into(),
+                    1,
+                    "argon2id".into(),
+                ))
+            })
+        });
+        harness
+            .credentials
+            .expect_update_password_credential()
+            .times(1)
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
+        harness
+            .elevations
+            .expect_start()
+            .withf(move |user_id, _, _, _, _| *user_id == expected)
+            .times(1)
+            .returning(move |user_id, realm_id, session_id, proof, expires_at| {
+                let elevation = Elevation {
+                    id: ElevationId::new(Uuid::now_v7()),
+                    user_id,
+                    realm_id,
+                    session_id,
+                    proof,
+                    expires_at,
+                };
+                Box::pin(async move { Ok(elevation) })
+            });
+
+        let minted = harness
+            .build()
+            .request_elevation(
+                identity,
+                RequestElevationInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    proof: ElevationProof::Password("hunter2".into()),
+                },
+            )
+            .await;
+
+        assert!(
+            minted.is_ok(),
+            "a bcrypt credential must still elevate: {minted:?}"
+        );
     }
 
     #[tokio::test]

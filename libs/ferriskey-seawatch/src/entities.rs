@@ -26,6 +26,9 @@ pub enum SecurityEventType {
     #[serde(rename = "password_reset_completed")]
     PasswordResetCompleted,
 
+    #[serde(rename = "password_imported")]
+    PasswordImported,
+
     #[serde(rename = "user_created")]
     UserCreated,
 
@@ -46,6 +49,12 @@ pub enum SecurityEventType {
 
     #[serde(rename = "role_removed")]
     RoleRemoved,
+
+    #[serde(rename = "role_updated")]
+    RoleUpdated,
+
+    #[serde(rename = "role_permission_updated")]
+    RolePermissionUpdated,
 
     #[serde(rename = "client_created")]
     ClientCreated,
@@ -106,6 +115,7 @@ impl SecurityEventType {
             "password_reset" => Self::PasswordReset,
             "password_reset_requested" => Self::PasswordResetRequested,
             "password_reset_completed" => Self::PasswordResetCompleted,
+            "password_imported" => Self::PasswordImported,
             "user_created" => Self::UserCreated,
             "user_email_verified" => Self::UserEmailVerified,
             "user_deleted" => Self::UserDeleted,
@@ -113,6 +123,8 @@ impl SecurityEventType {
             "role_unassigned" => Self::RoleUnassigned,
             "role_created" => Self::RoleCreated,
             "role_removed" => Self::RoleRemoved,
+            "role_updated" => Self::RoleUpdated,
+            "role_permission_updated" => Self::RolePermissionUpdated,
             "client_created" => Self::ClientCreated,
             "client_deleted" => Self::ClientDeleted,
             "client_secret_rotated" => Self::ClientSecretRotated,
@@ -139,6 +151,7 @@ impl Display for SecurityEventType {
             SecurityEventType::PasswordReset => write!(f, "password_reset"),
             SecurityEventType::PasswordResetRequested => write!(f, "password_reset_requested"),
             SecurityEventType::PasswordResetCompleted => write!(f, "password_reset_completed"),
+            SecurityEventType::PasswordImported => write!(f, "password_imported"),
             SecurityEventType::UserCreated => write!(f, "user_created"),
             SecurityEventType::UserEmailVerified => write!(f, "user_email_verified"),
             SecurityEventType::UserDeleted => write!(f, "user_deleted"),
@@ -146,6 +159,8 @@ impl Display for SecurityEventType {
             SecurityEventType::RoleUnassigned => write!(f, "role_unassigned"),
             SecurityEventType::RoleCreated => write!(f, "role_created"),
             SecurityEventType::RoleRemoved => write!(f, "role_removed"),
+            SecurityEventType::RoleUpdated => write!(f, "role_updated"),
+            SecurityEventType::RolePermissionUpdated => write!(f, "role_permission_updated"),
             SecurityEventType::ClientCreated => write!(f, "client_created"),
             SecurityEventType::ClientDeleted => write!(f, "client_deleted"),
             SecurityEventType::ClientSecretRotated => write!(f, "client_secret_rotated"),

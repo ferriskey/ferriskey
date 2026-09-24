@@ -96,7 +96,6 @@ use crate::{
         },
         repositories::{
             access_token_repository::PostgresAccessTokenRepository,
-            argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             device_auth_repository::PostgresDeviceAuthRepository,
@@ -104,6 +103,7 @@ use crate::{
             keystore_repository::PostgresKeyStoreRepository,
             login_action_token_repository::PostgresLoginActionTokenRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_hasher::PasswordHasherRepository,
             password_policy_repository::PostgresPasswordPolicyRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             portal_layouts_repository::PostgresPortalLayoutsRepository,
@@ -179,7 +179,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let client = Arc::new(PostgresClientRepository::new(postgres.get_db()));
     let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
     let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
-    let hasher = Arc::new(Argon2HasherRepository::new());
+    let hasher = Arc::new(PasswordHasherRepository::new());
     let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
     let device_auth = Arc::new(PostgresDeviceAuthRepository::new(postgres.get_db()));
     let login_action_token = Arc::new(PostgresLoginActionTokenRepository::new(postgres.get_db()));

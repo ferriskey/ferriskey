@@ -9,6 +9,10 @@ use ferriskey_security::SecurityError;
 
 use crate::domain::crypto::{HashResult, HasherRepository};
 
+const MAX_IMPORTED_M_COST: u32 = 262_144;
+const MAX_IMPORTED_T_COST: u32 = 16;
+const MAX_IMPORTED_P_COST: u32 = 8;
+
 #[derive(Debug, Clone)]
 pub struct Argon2HasherRepository {}
 
@@ -88,6 +92,63 @@ impl HasherRepository for Argon2HasherRepository {
         })??;
 
         Ok(is_valid)
+    }
+
+    fn needs_rehash(&self, algorithm: &str) -> bool {
+        algorithm != Algorithm::Argon2id.as_str()
+    }
+
+    fn validate_hash(
+        &self,
+        algorithm: &str,
+        secret_data: &str,
+        hash_iterations: u32,
+    ) -> Result<(), SecurityError> {
+        let expected = match algorithm {
+            "argon2id" => Algorithm::Argon2id,
+            "argon2i" => Algorithm::Argon2i,
+            "argon2d" => Algorithm::Argon2d,
+            other => {
+                return Err(SecurityError::UnsupportedHash(format!(
+                    "unsupported algorithm `{other}`"
+                )));
+            }
+        };
+
+        let parsed = PasswordHash::new(secret_data).map_err(|_| {
+            SecurityError::UnsupportedHash("secret_data is not a PHC argon2 string".to_string())
+        })?;
+
+        if parsed.algorithm != expected.ident() {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "secret_data is not an {algorithm} hash"
+            )));
+        }
+
+        let params = Params::try_from(&parsed).map_err(|_| {
+            SecurityError::UnsupportedHash("secret_data has invalid argon2 parameters".to_string())
+        })?;
+
+        if params.t_cost() != hash_iterations {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "hash_iterations {hash_iterations} does not match the hash cost {}",
+                params.t_cost()
+            )));
+        }
+
+        if params.m_cost() > MAX_IMPORTED_M_COST
+            || params.t_cost() > MAX_IMPORTED_T_COST
+            || params.p_cost() > MAX_IMPORTED_P_COST
+        {
+            return Err(SecurityError::UnsupportedHash(format!(
+                "argon2 parameters m={},t={},p={} exceed m={MAX_IMPORTED_M_COST},t={MAX_IMPORTED_T_COST},p={MAX_IMPORTED_P_COST}",
+                params.m_cost(),
+                params.t_cost(),
+                params.p_cost()
+            )));
+        }
+
+        Ok(())
     }
 
     async fn hash_magic_token(&self, token: &str) -> Result<HashResult, SecurityError> {
@@ -200,6 +261,85 @@ mod tests {
             result.is_err(),
             "Verification should fail with an invalid hash"
         );
+    }
+
+    #[test]
+    fn test_needs_rehash_only_for_non_argon2id() {
+        let hasher = Argon2HasherRepository::new();
+
+        assert!(!hasher.needs_rehash("argon2id"));
+        assert!(hasher.needs_rehash("argon2i"));
+        assert!(hasher.needs_rehash("bcrypt"));
+    }
+
+    #[tokio::test]
+    async fn validate_hash_accepts_its_own_argon2id_output() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+
+        let result = hasher.validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations);
+
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn validate_hash_rejects_mismatched_iterations() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+
+        let result = hasher.validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations + 1);
+
+        assert!(matches!(result, Err(SecurityError::UnsupportedHash(_))));
+    }
+
+    #[tokio::test]
+    async fn validate_hash_rejects_an_algorithm_label_that_contradicts_the_hash() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+
+        let result = hasher.validate_hash("argon2i", &hash.hash, hash.hash_iterations);
+
+        assert!(matches!(result, Err(SecurityError::UnsupportedHash(_))));
+    }
+
+    #[tokio::test]
+    async fn validate_hash_rejects_parameters_above_the_operational_ceilings() {
+        let hasher = Argon2HasherRepository::new();
+        let hash = hasher.hash_password("my_password").await.unwrap();
+        let own = "m=7168,t=5,p=1";
+        assert!(hash.hash.contains(own), "{}", hash.hash);
+
+        for (params, iterations) in [
+            ("m=262145,t=5,p=1", 5),
+            ("m=7168,t=17,p=1", 17),
+            ("m=7168,t=5,p=9", 5),
+        ] {
+            let inflated = hash.hash.replacen(own, params, 1);
+            assert!(
+                matches!(
+                    hasher.validate_hash("argon2id", &inflated, iterations),
+                    Err(SecurityError::UnsupportedHash(_))
+                ),
+                "{params} should be rejected"
+            );
+        }
+
+        let ceiling = hash.hash.replacen(own, "m=262144,t=16,p=8", 1);
+        assert!(hasher.validate_hash("argon2id", &ceiling, 16).is_ok());
+    }
+
+    #[test]
+    fn validate_hash_rejects_non_phc_strings_and_unknown_algorithms() {
+        let hasher = Argon2HasherRepository::new();
+
+        assert!(matches!(
+            hasher.validate_hash("argon2id", "not-a-hash", 5),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
+        assert!(matches!(
+            hasher.validate_hash("md5", "5f4dcc3b5aa765d61d8327deb882cf99", 1),
+            Err(SecurityError::UnsupportedHash(_))
+        ));
     }
 
     #[tokio::test]

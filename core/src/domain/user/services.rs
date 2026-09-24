@@ -12,7 +12,7 @@ use crate::domain::{
         policies::{FerriskeyPolicy, Policy, ensure_policy},
     },
     credential::ports::CredentialRepository,
-    crypto::HasherRepository,
+    crypto::{HashResult, HasherRepository},
     password_policy::{
         entity::PasswordPolicy, repository::PasswordPolicyRepository,
         service::violations_to_core_error, validator,
@@ -30,9 +30,10 @@ use crate::domain::{
     user::{
         entities::{
             AssignRoleInput, CreateUserInput, DeleteUserAttributeInput, GetOwnProfileInput,
-            GetUserAttributesInput, GetUserInput, GetUserPermissionsInput, RequiredAction,
-            ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput,
-            UpdateOwnProfileInput, UpdateUserInput, User, UserAttribute,
+            GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
+            ImportPasswordCredentialInput, RequiredAction, ResetPasswordInput,
+            SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput, UpdateOwnProfileInput,
+            UpdateUserInput, User, UserAttribute,
         },
         ports::{
             UserAttributeRepository, UserPolicy, UserRepository, UserRequiredActionRepository,
@@ -350,6 +351,96 @@ where
             })?;
 
         // @TODO: webhook call action
+
+        Ok(())
+    }
+
+    async fn import_password_credential(
+        &self,
+        identity: Identity,
+        input: ImportPasswordCredentialInput,
+    ) -> Result<(), CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
+
+        ensure_policy(
+            self.policy.can_update_user(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        self.user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&scope)?;
+
+        self.hasher_repository
+            .validate_hash(&input.algorithm, &input.secret_data, input.hash_iterations)
+            .map_err(|e| {
+                warn!(
+                    "import_password_credential: rejected hash for user {}: {e}",
+                    input.user_id
+                );
+                CoreError::InvalidPasswordHash(e.to_string())
+            })?;
+
+        let has_password = self
+            .credential_repository
+            .has_password_credential(input.user_id)
+            .await
+            .map_err(|e| {
+                error!(
+                    "import_password_credential: failed to check password credential for user {}: {e:?}",
+                    input.user_id
+                );
+                CoreError::GetPasswordCredentialError
+            })?;
+
+        if has_password {
+            return Err(CoreError::PasswordCredentialAlreadyExists);
+        }
+
+        let hash_result = HashResult::new(
+            input.secret_data,
+            input.salt.unwrap_or_default(),
+            input.hash_iterations,
+            input.algorithm,
+        );
+
+        self.credential_repository
+            .create_credential(
+                input.user_id,
+                "password".into(),
+                hash_result,
+                "".into(),
+                input.temporary,
+            )
+            .await
+            .map_err(|e| {
+                error!(
+                    "import_password_credential: failed to create password credential for user {}: {e:?}",
+                    input.user_id
+                );
+                CoreError::CreateCredentialError
+            })?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::PasswordImported,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("user".to_string(), input.user_id, None),
+            )
+            .await
+            .map_err(|e| {
+                error!(
+                    "import_password_credential: failed to store security event for user {}: {e:?}",
+                    input.user_id
+                );
+                e
+            })?;
 
         Ok(())
     }
@@ -1763,6 +1854,250 @@ mod tests {
                     role_id: foreign_role.id,
                 },
             )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    const IMPORTED_BCRYPT_HASH: &str =
+        "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+    fn import_input(user_id: uuid::Uuid) -> ImportPasswordCredentialInput {
+        ImportPasswordCredentialInput {
+            realm_name: "test-realm".to_string(),
+            user_id,
+            algorithm: "bcrypt".to_string(),
+            secret_data: IMPORTED_BCRYPT_HASH.to_string(),
+            hash_iterations: 10,
+            salt: None,
+            temporary: false,
+        }
+    }
+
+    fn import_fixture() -> (Realm, Identity, uuid::Uuid, User) {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+        let target = create_test_user_with_params_and_realm(
+            &realm,
+            "imported",
+            "imported@example.com".to_string(),
+            true,
+        );
+        (realm, identity, admin_id, target)
+    }
+
+    fn with_hash_validation(
+        mut builder: UserServiceTestBuilder,
+        outcome: Result<(), ferriskey_security::SecurityError>,
+    ) -> UserServiceTestBuilder {
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_validate_hash()
+            .withf(|algorithm, secret_data, hash_iterations| {
+                algorithm == "bcrypt"
+                    && secret_data == IMPORTED_BCRYPT_HASH
+                    && *hash_iterations == 10
+            })
+            .times(1)
+            .return_once(move |_, _, _| outcome);
+        builder
+    }
+
+    fn with_existing_password(
+        mut builder: UserServiceTestBuilder,
+        exists: bool,
+    ) -> UserServiceTestBuilder {
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_has_password_credential()
+            .times(1)
+            .returning(move |_| Box::pin(async move { Ok(exists) }));
+        builder
+    }
+
+    #[tokio::test]
+    async fn import_password_credential_stores_the_hash_verbatim() {
+        let (realm, identity, admin_id, target) = import_fixture();
+        let target_id = target.id;
+
+        let builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
+            .with_target_user(target);
+        let builder = with_hash_validation(builder, Ok(()));
+        let mut builder = with_existing_password(builder, false);
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .withf(move |user_id, credential_type, hash_result, _, temporary| {
+                *user_id == target_id
+                    && credential_type == "password"
+                    && hash_result.hash == IMPORTED_BCRYPT_HASH
+                    && hash_result.salt.is_empty()
+                    && hash_result.hash_iterations == 10
+                    && hash_result.algorithm == "bcrypt"
+                    && !*temporary
+            })
+            .times(1)
+            .returning(move |_, _, _, _, _| {
+                let credential = crate::domain::credential::entities::Credential {
+                    id: uuid::Uuid::new_v4(),
+                    salt: None,
+                    credential_type: crate::domain::credential::entities::CredentialType::Password,
+                    user_id: target_id,
+                    user_label: None,
+                    secret_data: IMPORTED_BCRYPT_HASH.to_string(),
+                    credential_data: crate::domain::credential::entities::CredentialData::new_hash(
+                        10,
+                        "bcrypt".to_string(),
+                    ),
+                    temporary: false,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(credential) })
+            });
+
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .withf(move |event| {
+                event.event_type == SecurityEventType::PasswordImported
+                    && event.target_id == Some(target_id)
+            })
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let result = builder
+            .build()
+            .import_password_credential(identity, import_input(target_id))
+            .await;
+
+        assert!(result.is_ok(), "import should succeed: {result:?}");
+    }
+
+    #[tokio::test]
+    async fn import_password_credential_conflicts_with_an_existing_password() {
+        let (realm, identity, admin_id, target) = import_fixture();
+        let target_id = target.id;
+
+        let builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
+            .with_target_user(target);
+        let builder = with_hash_validation(builder, Ok(()));
+        let mut builder = with_existing_password(builder, true);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never();
+        Arc::get_mut(&mut builder.security_event_repo)
+            .unwrap()
+            .expect_store_event()
+            .never();
+
+        let result = builder
+            .build()
+            .import_password_credential(identity, import_input(target_id))
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(CoreError::PasswordCredentialAlreadyExists)
+        ));
+    }
+
+    #[tokio::test]
+    async fn import_password_credential_rejects_an_unsupported_hash() {
+        let (realm, identity, admin_id, target) = import_fixture();
+        let target_id = target.id;
+
+        let builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
+            .with_target_user(target);
+        let mut builder = with_hash_validation(
+            builder,
+            Err(ferriskey_security::SecurityError::UnsupportedHash(
+                "bad".to_string(),
+            )),
+        );
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_has_password_credential()
+            .never();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never();
+
+        let result = builder
+            .build()
+            .import_password_credential(identity, import_input(target_id))
+            .await;
+
+        assert!(matches!(result, Err(CoreError::InvalidPasswordHash(_))));
+    }
+
+    #[tokio::test]
+    async fn import_password_credential_requires_manage_users() {
+        let (realm, identity, admin_id, target) = import_fixture();
+        let mut role = create_admin_role(&realm);
+        role.permissions.clear();
+
+        let mut builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![role]);
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_validate_hash()
+            .never();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never();
+
+        let result = builder
+            .build()
+            .import_password_credential(identity, import_input(target.id))
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn import_password_credential_refuses_a_user_from_another_realm() {
+        let (realm, identity, admin_id, _) = import_fixture();
+        let other_realm = create_test_realm_with_name("tenant-b");
+        let foreign = create_test_user_with_params_and_realm(
+            &other_realm,
+            "foreign",
+            "foreign@tenant-b.example".to_string(),
+            true,
+        );
+
+        let mut builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
+            .with_target_user(foreign.clone());
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_validate_hash()
+            .never();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never();
+
+        let result = builder
+            .build()
+            .import_password_credential(identity, import_input(foreign.id))
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));

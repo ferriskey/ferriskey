@@ -94,6 +94,7 @@ mod tests {
         SecurityEventType::PasswordReset,
         SecurityEventType::PasswordResetRequested,
         SecurityEventType::PasswordResetCompleted,
+        SecurityEventType::PasswordImported,
         SecurityEventType::UserCreated,
         SecurityEventType::UserEmailVerified,
         SecurityEventType::UserDeleted,
@@ -101,6 +102,8 @@ mod tests {
         SecurityEventType::RoleUnassigned,
         SecurityEventType::RoleCreated,
         SecurityEventType::RoleRemoved,
+        SecurityEventType::RoleUpdated,
+        SecurityEventType::RolePermissionUpdated,
         SecurityEventType::ClientCreated,
         SecurityEventType::ClientDeleted,
         SecurityEventType::ClientSecretRotated,
@@ -152,6 +155,7 @@ mod tests {
                 | SecurityEventType::PasswordReset
                 | SecurityEventType::PasswordResetRequested
                 | SecurityEventType::PasswordResetCompleted
+                | SecurityEventType::PasswordImported
                 | SecurityEventType::UserCreated
                 | SecurityEventType::UserEmailVerified
                 | SecurityEventType::UserDeleted
@@ -159,6 +163,8 @@ mod tests {
                 | SecurityEventType::RoleUnassigned
                 | SecurityEventType::RoleCreated
                 | SecurityEventType::RoleRemoved
+                | SecurityEventType::RoleUpdated
+                | SecurityEventType::RolePermissionUpdated
                 | SecurityEventType::ClientCreated
                 | SecurityEventType::ClientDeleted
                 | SecurityEventType::ClientSecretRotated

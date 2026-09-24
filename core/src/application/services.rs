@@ -116,7 +116,6 @@ use crate::{
         },
         repositories::{
             access_token_repository::PostgresAccessTokenRepository,
-            argon2_hasher::Argon2HasherRepository,
             auth_session_repository::PostgresAuthSessionRepository,
             credential_repository::PostgresCredentialRepository,
             device_auth_repository::PostgresDeviceAuthRepository,
@@ -124,6 +123,7 @@ use crate::{
             keystore_repository::PostgresKeyStoreRepository,
             login_action_token_repository::PostgresLoginActionTokenRepository,
             magic_link_repository::PostgresMagicLinkRepository,
+            password_hasher::PasswordHasherRepository,
             password_reset_token_repository::PostgresPasswordResetTokenRepository,
             portal_layouts_repository::PostgresPortalLayoutsRepository,
             portal_theme_repository::PostgresPortalThemeRepository,
@@ -187,9 +187,9 @@ type ApplicationClientService = ClientServiceImpl<
 >;
 type RoleRepo = PostgresRoleRepository;
 type HealthCheckRepo = PostgresHealthCheckRepository;
-type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, Argon2HasherRepository>;
+type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, PasswordHasherRepository>;
 type AuthSessionRepo = PostgresAuthSessionRepository;
-type HasherRepo = Argon2HasherRepository;
+type HasherRepo = PasswordHasherRepository;
 type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
 type OtpEnrollmentRepo = PostgresOtpEnrollmentRepository;
 type UserAttributeRepo = PostgresUserAttributeRepository;

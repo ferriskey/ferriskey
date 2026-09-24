@@ -5,7 +5,7 @@ use crate::{
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    IntoActiveModel, ModelTrait, QueryFilter,
+    IntoActiveModel, ModelTrait, QueryFilter, sea_query::Expr,
 };
 use serde_json::Value;
 use tracing::error;
@@ -76,7 +76,7 @@ impl CredentialRepository for PostgresCredentialRepository {
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),
-            salt: Set(Some(hash_result.salt)),
+            salt: Set(Some(hash_result.salt).filter(|salt| !salt.is_empty())),
             credential_type: Set(credential_type),
             user_id: Set(user_id),
             user_label: Set(Some(label)),
@@ -118,6 +118,60 @@ impl CredentialRepository for PostgresCredentialRepository {
         let credential = credential.ok_or(CredentialError::GetPasswordCredentialError)?;
 
         Ok(credential)
+    }
+
+    async fn update_password_credential(
+        &self,
+        user_id: uuid::Uuid,
+        expected_secret_data: &str,
+        hash_result: HashResult,
+    ) -> Result<(), CredentialError> {
+        let (now, _) = generate_timestamp();
+
+        let credential_data = serde_json::to_value(CredentialData::new_hash(
+            hash_result.hash_iterations,
+            hash_result.algorithm,
+        ))
+        .map_err(|e| {
+            error!("Error serializing credential_data for user {user_id}: {e:?}");
+            CredentialError::UpdateCredentialError
+        })?;
+
+        let result = CredentialEntity::update_many()
+            .col_expr(
+                crate::entity::credentials::Column::SecretData,
+                Expr::value(hash_result.hash),
+            )
+            .col_expr(
+                crate::entity::credentials::Column::Salt,
+                Expr::value(hash_result.salt),
+            )
+            .col_expr(
+                crate::entity::credentials::Column::CredentialData,
+                Expr::value(credential_data),
+            )
+            .col_expr(
+                crate::entity::credentials::Column::UpdatedAt,
+                Expr::value(now.naive_utc()),
+            )
+            .filter(crate::entity::credentials::Column::UserId.eq(user_id))
+            .filter(
+                crate::entity::credentials::Column::CredentialType
+                    .eq(CredentialType::Password.as_str()),
+            )
+            .filter(crate::entity::credentials::Column::SecretData.eq(expected_secret_data))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error updating password credential for user {user_id}: {e:?}");
+                CredentialError::UpdateCredentialError
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(CredentialError::UpdateCredentialError);
+        }
+
+        Ok(())
     }
 
     async fn has_password_credential(&self, user_id: uuid::Uuid) -> Result<bool, CredentialError> {
@@ -386,5 +440,218 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::UpdateCredentialError)?;
 
         Ok(update_res)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::Database as SeaOrmDatabase;
+    use sqlx::Executor as _;
+    use uuid::Uuid;
+
+    struct Fixture {
+        repository: PostgresCredentialRepository,
+        pool: sqlx::PgPool,
+    }
+
+    async fn setup() -> Fixture {
+        let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
+
+        let schema = format!("credential_repository_test_{}", Uuid::new_v4().simple());
+
+        let admin_pool = sqlx::PgPool::connect(&base_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .await
+            .expect("create test schema");
+
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let db = SeaOrmDatabase::connect(&schema_url)
+            .await
+            .expect("sea-orm connect");
+
+        Fixture {
+            repository: PostgresCredentialRepository::new(db),
+            pool,
+        }
+    }
+
+    async fn insert_user(pool: &sqlx::PgPool) -> Uuid {
+        let realm_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(realm_id)
+        .bind(format!("realm-{}", realm_id.simple()))
+        .execute(pool)
+        .await
+        .expect("insert realm");
+
+        let user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, firstname, lastname, email) \
+             VALUES ($1, $2, 'imported', '', '', 'imported@example.com')",
+        )
+        .bind(user_id)
+        .bind(realm_id)
+        .execute(pool)
+        .await
+        .expect("insert user");
+
+        user_id
+    }
+
+    async fn insert_bcrypt_password(pool: &sqlx::PgPool, user_id: Uuid, temporary: bool) {
+        sqlx::query(
+            "INSERT INTO credentials \
+             (id, salt, credential_type, user_id, secret_data, credential_data, temporary) \
+             VALUES ($1, NULL, 'password', $2, '$2a$10$legacy', $3, $4)",
+        )
+        .bind(Uuid::new_v4())
+        .bind(user_id)
+        .bind(serde_json::json!({ "hash_iterations": 10, "algorithm": "bcrypt" }))
+        .bind(temporary)
+        .execute(pool)
+        .await
+        .expect("insert bcrypt credential");
+    }
+
+    fn argon2id_hash() -> HashResult {
+        HashResult::new(
+            "$argon2id$v=19$m=7168,t=5,p=1$new".to_string(),
+            "new_salt".to_string(),
+            5,
+            "argon2id".to_string(),
+        )
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_password_credential_replaces_the_hash_in_place() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        insert_bcrypt_password(&fixture.pool, user_id, true).await;
+        let before = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("bcrypt credential");
+
+        fixture
+            .repository
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .await
+            .expect("update password credential");
+
+        let after = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("argon2id credential");
+
+        assert_eq!(after.id, before.id);
+        assert_eq!(after.secret_data, "$argon2id$v=19$m=7168,t=5,p=1$new");
+        assert_eq!(after.salt.as_deref(), Some("new_salt"));
+        assert!(after.temporary);
+        assert!(matches!(
+            after.credential_data,
+            CredentialData::Hash { hash_iterations: 5, ref algorithm } if algorithm == "argon2id"
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn create_credential_stores_an_empty_salt_as_null() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+
+        fixture
+            .repository
+            .create_credential(
+                user_id,
+                "password".to_string(),
+                HashResult::new(
+                    "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy".to_string(),
+                    String::new(),
+                    10,
+                    "bcrypt".to_string(),
+                ),
+                String::new(),
+                false,
+            )
+            .await
+            .expect("create bcrypt credential");
+
+        let credential = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("bcrypt credential");
+
+        assert_eq!(credential.salt, None);
+        assert!(matches!(
+            credential.credential_data,
+            CredentialData::Hash { hash_iterations: 10, ref algorithm } if algorithm == "bcrypt"
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_password_credential_keeps_a_hash_changed_since_verification() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        insert_bcrypt_password(&fixture.pool, user_id, false).await;
+        sqlx::query("UPDATE credentials SET secret_data = '$argon2id$reset' WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&fixture.pool)
+            .await
+            .expect("simulate a concurrent reset");
+
+        let result = fixture
+            .repository
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(CredentialError::UpdateCredentialError)
+        ));
+        let credential = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("password credential");
+        assert_eq!(credential.secret_data, "$argon2id$reset");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_password_credential_fails_without_a_password_credential() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+
+        let result = fixture
+            .repository
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(CredentialError::UpdateCredentialError)
+        ));
     }
 }

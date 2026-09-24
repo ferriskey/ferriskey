@@ -23,6 +23,7 @@ event:
   password_reset: 密码已重置
   password_reset_requested: 已请求重置密码
   password_reset_completed: 密码重置已完成
+  password_imported: 已导入密码哈希
   user_created: 用户已创建
   user_email_verified: 邮箱地址已验证
   user_deleted: 用户已删除
@@ -30,6 +31,8 @@ event:
   role_unassigned: 角色已解除分配
   role_created: 角色已创建
   role_removed: 角色已移除
+  role_updated: 角色已更新
+  role_permission_updated: 角色权限已更新
   client_created: 客户端已创建
   client_deleted: 客户端已删除
   client_secret_rotated: 客户端密钥已轮换
