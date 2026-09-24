@@ -65,6 +65,12 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidWebOrigin(detail) => {
                 Self::BadRequest(CoreError::InvalidWebOrigin(detail).to_string().into())
             }
+            CoreError::InvalidTokenExchangePolicy(detail) => Self::BadRequest(
+                CoreError::InvalidTokenExchangePolicy(detail).to_string().into(),
+            ),
+            CoreError::TokenExchangePolicyAlreadyExists => Self::Conflict(
+                CoreError::TokenExchangePolicyAlreadyExists.to_string().into(),
+            ),
             CoreError::SamlConfigNotFound => {
                 Self::NotFound("No SAML configuration is registered for this client".into())
             }

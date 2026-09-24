@@ -94,6 +94,19 @@ pub struct CreateWebOriginValidator {
     pub value: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct CreateTokenExchangePolicyValidator {
+    #[validate(length(min = 1, message = "target_audience is required"))]
+    #[serde(default)]
+    pub target_audience: String,
+    #[serde(default)]
+    pub allowed_scopes: Option<Vec<String>>,
+    #[serde(default)]
+    pub allow_impersonation: bool,
+    #[serde(default)]
+    pub allow_delegation: bool,
+}
+
 fn assertions_are_signed_by_default() -> bool {
     true
 }

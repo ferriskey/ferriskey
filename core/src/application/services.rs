@@ -36,6 +36,7 @@ use crate::{
             entities::GetClientInput,
             ports::{ClientRepository, ClientService},
             services::ClientServiceImpl,
+            token_exchange_policy_services::TokenExchangePolicyServiceImpl,
         },
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
@@ -90,6 +91,7 @@ use crate::{
             post_logout_redirect_uri_postgres_repository::PostgresPostLogoutRedirectUriRepository,
             redirect_uri_postgres_repository::PostgresRedirectUriRepository,
             saml_postgres_repository::PostgresClientSamlRepository,
+            token_exchange_policy_postgres_repository::PostgresTokenExchangePolicyRepository,
             web_origin_postgres_repository::PostgresWebOriginRepository,
         },
         compass::repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
@@ -162,6 +164,7 @@ type WebhookDeliveryRepo = PostgresWebhookDeliveryRepository;
 type RedirectUriRepo = PostgresRedirectUriRepository;
 type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type WebOriginRepo = PostgresWebOriginRepository;
+type TokenExchangePolicyRepo = PostgresTokenExchangePolicyRepository;
 type ClientSamlRepo = PostgresClientSamlRepository;
 
 type ApplicationSamlService = SamlServiceImpl<
@@ -188,6 +191,14 @@ type ApplicationClientService = ClientServiceImpl<
     SecurityEventRepo,
     ClientScopeRepo,
     ScopeMappingRepo,
+>;
+
+type ApplicationTokenExchangePolicyService = TokenExchangePolicyServiceImpl<
+    RealmRepo,
+    UserRepo,
+    ClientRepo,
+    UserRoleRepo,
+    TokenExchangePolicyRepo,
 >;
 type RoleRepo = PostgresRoleRepository;
 type HealthCheckRepo = PostgresHealthCheckRepository;
@@ -391,6 +402,7 @@ pub struct ApplicationService {
     pub(crate) credential_service:
         CredentialServiceImpl<RealmRepo, UserRepo, CredentialRepo, PolicyImpl>,
     pub(crate) client_service: ApplicationClientService,
+    pub(crate) token_exchange_policy_service: ApplicationTokenExchangePolicyService,
     pub(crate) saml_service: ApplicationSamlService,
     pub(crate) realm_service: RealmServiceImpl<
         RealmRepo,

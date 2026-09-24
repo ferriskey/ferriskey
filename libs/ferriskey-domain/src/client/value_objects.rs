@@ -73,6 +73,14 @@ pub struct CreateWebOriginRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateTokenExchangePolicyRequest {
+    pub target_audience: String,
+    pub allowed_scopes: Option<Vec<String>>,
+    pub allow_impersonation: bool,
+    pub allow_delegation: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetClientSamlConfigRequest {
     pub sp_entity_id: String,
     pub acs_url: String,

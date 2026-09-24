@@ -40,6 +40,12 @@ pub enum CoreError {
     #[error("Invalid web origin: {0}")]
     InvalidWebOrigin(String),
 
+    #[error("Invalid token exchange policy: {0}")]
+    InvalidTokenExchangePolicy(String),
+
+    #[error("A token exchange policy already targets this audience for this client")]
+    TokenExchangePolicyAlreadyExists,
+
     #[error("No SAML configuration is registered for this client")]
     SamlConfigNotFound,
 
@@ -410,6 +416,8 @@ impl CoreError {
             CoreError::InvalidRedirectUri => "invalid_redirect_uri",
             CoreError::WebOriginNotFound => "web_origin_not_found",
             CoreError::InvalidWebOrigin(_) => "invalid_web_origin",
+            CoreError::InvalidTokenExchangePolicy(_) => "invalid_token_exchange_policy",
+            CoreError::TokenExchangePolicyAlreadyExists => "token_exchange_policy_already_exists",
             CoreError::SamlConfigNotFound => "saml_config_not_found",
             CoreError::InvalidSamlConfig(_) => "invalid_saml_config",
             CoreError::SamlAttributeMapperNotFound => "saml_attribute_mapper_not_found",
@@ -575,6 +583,14 @@ mod tests {
             (
                 CoreError::InvalidWebOrigin(payload.clone()),
                 "invalid_web_origin",
+            ),
+            (
+                CoreError::InvalidTokenExchangePolicy(payload.clone()),
+                "invalid_token_exchange_policy",
+            ),
+            (
+                CoreError::TokenExchangePolicyAlreadyExists,
+                "token_exchange_policy_already_exists",
             ),
             (CoreError::SamlConfigNotFound, "saml_config_not_found"),
             (
@@ -873,7 +889,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 122);
+        assert_eq!(every_variant_with_expected_reason().len(), 124);
     }
 
     #[test]
