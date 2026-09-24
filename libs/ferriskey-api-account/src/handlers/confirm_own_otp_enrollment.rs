@@ -39,8 +39,10 @@ pub struct ConfirmOtpEnrollmentResponse {
     ),
     responses(
         (status = 200, description = "Authenticator enrolled", body = ConfirmOtpEnrollmentResponse),
-        (status = 400, description = "Invalid request data, or the code does not match the pending enrolment", body = ApiErrorResponse),
-        (status = 403, description = "No live elevation, or the elevation was not proved with a password", body = ApiErrorResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "The code does not match the pending enrolment, there is none, or the account is locked", body = ApiErrorResponse),
+        (status = 403, description = "No live elevation for this caller and session, or the elevation was not proved with a password", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]

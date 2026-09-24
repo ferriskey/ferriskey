@@ -40,7 +40,9 @@ pub struct DisableOtpResponse {
     responses(
         (status = 200, description = "Authenticator removed", body = DisableOtpResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
-        (status = 403, description = "No live elevation, or the elevation was not proved with a password", body = ApiErrorResponse),
+        (status = 401, description = "The account is locked or disabled", body = ApiErrorResponse),
+        (status = 403, description = "No live elevation for this caller and session, or the elevation was not proved with a password", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
         (status = 409, description = "The removal would lock the account out or break its MFA requirement", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )

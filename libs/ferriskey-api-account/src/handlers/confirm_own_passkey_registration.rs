@@ -39,9 +39,10 @@ pub struct ConfirmPasskeyResponse {
     ),
     responses(
         (status = 200, description = "Passkey registered", body = ConfirmPasskeyResponse),
-        (status = 400, description = "Invalid request data, or the challenge could not be verified", body = ApiErrorResponse),
-        (status = 403, description = "No live elevation for this caller and session", body = ApiErrorResponse),
-        (status = 404, description = "No live registration challenge to answer", body = ApiErrorResponse),
+        (status = 400, description = "Invalid request data, or no live registration challenge to answer", body = ApiErrorResponse),
+        (status = 401, description = "The challenge could not be verified, or the account is locked", body = ApiErrorResponse),
+        (status = 403, description = "No live elevation for this caller and session, or the elevation was not proved with a password", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]

@@ -42,7 +42,9 @@ pub struct StartOtpEnrollmentResponse {
     responses(
         (status = 200, description = "Enrolment started", body = StartOtpEnrollmentResponse),
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
-        (status = 403, description = "No live elevation for this caller and session", body = ApiErrorResponse),
+        (status = 401, description = "The account is locked or disabled", body = ApiErrorResponse),
+        (status = 403, description = "No live elevation for this caller and session, or the elevation was not proved with a password", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]

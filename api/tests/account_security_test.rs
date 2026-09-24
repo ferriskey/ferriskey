@@ -517,6 +517,59 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test account_security_test -- --ignored"]
+    fn an_elevation_minted_in_one_session_does_not_unlock_another_session_of_the_same_user() {
+        let srv = server();
+        let realm = realm();
+        rt().block_on(async {
+            let admin = admin_token(&srv, &realm).await;
+            let user = create_test_user_and_login(&srv, &realm, &admin).await;
+
+            let second = request_token(&srv, &realm, &user.username, INITIAL_PASSWORD).await;
+            assert_eq!(
+                second.status_code(),
+                200,
+                "the second sign-in must succeed: {}",
+                second.text()
+            );
+            let second: Value = second.json();
+            let second_token = second["access_token"]
+                .as_str()
+                .expect("the second session must carry an access token")
+                .to_string();
+
+            let elevation_id = elevate(&srv, &realm, &user.token, INITIAL_PASSWORD).await;
+
+            let refused = change_password(
+                &srv,
+                &realm,
+                &second_token,
+                &elevation_id,
+                INITIAL_PASSWORD,
+                ROTATED_PASSWORD,
+            )
+            .await;
+
+            assert_eq!(
+                refused.status_code(),
+                403,
+                "an elevation bound to another session must not authorise this one: {}",
+                refused.text()
+            );
+            let body: Value = refused.json();
+            assert_eq!(body["reason"], json!("elevation_required"), "{body}");
+
+            let unchanged = request_token(&srv, &realm, &user.username, INITIAL_PASSWORD).await;
+            assert_eq!(
+                unchanged.status_code(),
+                200,
+                "the refused change must have left the password in place: {}",
+                unchanged.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test account_security_test -- --ignored"]
     fn a_reauthentication_with_the_wrong_password_mints_no_elevation() {
         let srv = server();
         let realm = realm();

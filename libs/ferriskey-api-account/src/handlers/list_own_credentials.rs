@@ -41,7 +41,9 @@ pub struct OwnCredentialsResponse {
     ),
     responses(
         (status = 200, description = "Credentials listed", body = OwnCredentialsResponse),
+        (status = 401, description = "The account is locked or disabled", body = ApiErrorResponse),
         (status = 403, description = "The caller is not a regular user", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]

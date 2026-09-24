@@ -39,10 +39,12 @@ pub struct ChangeOwnPasswordResponse {
     ),
     responses(
         (status = 200, description = "Password changed", body = ChangeOwnPasswordResponse),
-        (status = 400, description = "Invalid request data, or the new password violates the realm policy", body = ApiErrorResponse),
-        (status = 401, description = "The current password did not check out", body = ApiErrorResponse),
+        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
+        (status = 401, description = "The current password did not check out, or the account is locked", body = ApiErrorResponse),
         (status = 403, description = "No live elevation for this caller and session", body = ApiErrorResponse),
-        (status = 409, description = "The account signs in through an external directory", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
+        (status = 409, description = "The account signs in through an external directory and has no local password", body = ApiErrorResponse),
+        (status = 422, description = "The new password violates the realm password policy", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]

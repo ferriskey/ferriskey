@@ -42,10 +42,11 @@ pub struct ElevationResponse {
     ),
     responses(
         (status = 200, description = "Elevation granted", body = ElevationResponse),
-        (status = 400, description = "Invalid request data", body = ApiErrorResponse),
-        (status = 401, description = "The proof did not check out, or the token carries no session", body = ApiErrorResponse),
+        (status = 400, description = "Invalid request data, or not exactly one of password and otp_code", body = ApiErrorResponse),
+        (status = 401, description = "The proof did not check out, the account is locked, or the token carries no session", body = ApiErrorResponse),
         (status = 403, description = "The caller is not a regular user", body = ApiErrorResponse),
-        (status = 409, description = "The account signs in through an external directory", body = ApiErrorResponse),
+        (status = 404, description = "No such realm", body = ApiErrorResponse),
+        (status = 409, description = "The account signs in through an external directory and has no local password", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
 )]
