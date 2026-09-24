@@ -37,7 +37,12 @@ export function useElevation(realm: string): ElevationState {
   const [requiresPassword, setRequiresPassword] = useState(false)
 
   const elevation = useRef<LiveElevation | null>(null)
-  const pending = useRef<ElevatedAction | null>(null)
+  type Settlement = { ok: true } | { ok: false; error: unknown }
+
+  const pending = useRef<{
+    action: ElevatedAction
+    settle: (outcome: Settlement) => void
+  } | null>(null)
 
   const usable = useCallback((needsPassword: boolean) => {
     const live = elevation.current
@@ -71,10 +76,17 @@ export function useElevation(realm: string): ElevationState {
 
       if (live && (await attempt(action, live.id))) return
 
-      pending.current = action
-      setRequiresPassword(needsPassword)
-      setError(undefined)
-      setIsOpen(true)
+      return new Promise<void>((resolve, reject) => {
+        pending.current?.settle({ ok: true })
+        pending.current = {
+          action,
+          settle: (outcome) => (outcome.ok ? resolve() : reject(outcome.error)),
+        }
+
+        setRequiresPassword(needsPassword)
+        setError(undefined)
+        setIsOpen(true)
+      })
     },
     [attempt, usable]
   )
@@ -84,37 +96,48 @@ export function useElevation(realm: string): ElevationState {
       setIsSubmitting(true)
       setError(undefined)
 
+      let granted
       try {
-        const granted = await requestElevation({
+        granted = await requestElevation({
           path: { realm_name: realm },
           body:
             'password' in proof ? { password: proof.password } : { otp_code: proof.otpCode },
         })
-
-        elevation.current = {
-          id: granted.elevation_id,
-          expiresAt: new Date(granted.expires_at).getTime(),
-          provedWithPassword: 'password' in proof,
-        }
-
-        const action = pending.current
-        pending.current = null
-        setIsOpen(false)
-
-        if (action) await action(granted.elevation_id)
       } catch (caught) {
         setError(apiErrorMessage(caught))
-      } finally {
         setIsSubmitting(false)
+        return
+      }
+
+      elevation.current = {
+        id: granted.elevation_id,
+        expiresAt: new Date(granted.expires_at).getTime(),
+        provedWithPassword: 'password' in proof,
+      }
+
+      const waiting = pending.current
+      pending.current = null
+      setIsOpen(false)
+      setIsSubmitting(false)
+
+      if (!waiting) return
+
+      try {
+        await waiting.action(granted.elevation_id)
+        waiting.settle({ ok: true })
+      } catch (caught) {
+        waiting.settle({ ok: false, error: caught })
       }
     },
     [realm, requestElevation]
   )
 
   const cancel = useCallback(() => {
+    const waiting = pending.current
     pending.current = null
     setError(undefined)
     setIsOpen(false)
+    waiting?.settle({ ok: true })
   }, [])
 
   const forget = useCallback(() => {
