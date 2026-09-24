@@ -248,7 +248,11 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ViewUsers],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageUsers,
+                Permissions::ViewUsers,
+            ],
         );
 
         Ok(has_permission)
@@ -533,7 +537,11 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ViewClients],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageClients,
+                Permissions::ViewClients,
+            ],
         );
 
         Ok(has_permission)
