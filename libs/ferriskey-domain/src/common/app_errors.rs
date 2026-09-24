@@ -16,6 +16,9 @@ pub enum CoreError {
     #[error("Username already exists in this realm")]
     UsernameAlreadyExists,
 
+    #[error("A user already exists with this id")]
+    UserIdAlreadyExists,
+
     #[error("Invalid resource")]
     Invalid,
 
@@ -402,6 +405,7 @@ impl CoreError {
             CoreError::AlreadyExists => "already_exists",
             CoreError::EmailAlreadyExists => "email_already_exists",
             CoreError::UsernameAlreadyExists => "username_already_exists",
+            CoreError::UserIdAlreadyExists => "user_id_already_exists",
             CoreError::Invalid => "invalid",
             CoreError::InvalidRequiredAction(_) => "invalid_required_action",
             CoreError::Forbidden(_) => "forbidden",

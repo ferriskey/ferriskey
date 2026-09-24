@@ -36,7 +36,11 @@ pub struct ImportPasswordCredentialValidator {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CreateUserValidator {
+    #[serde(default)]
+    pub id: Option<Uuid>,
+
     #[validate(length(min = 1, message = "username is required"))]
     #[serde(default)]
     pub username: String,
@@ -79,4 +83,38 @@ pub struct UpdateUserValidator {
 
     #[serde(default)]
     pub required_actions: Option<Vec<String>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CreateUserValidator;
+
+    #[test]
+    fn create_user_defaults_the_id_to_none() {
+        let payload: CreateUserValidator =
+            serde_json::from_str(r#"{"username":"alice"}"#).expect("payload deserializes");
+
+        assert_eq!(payload.id, None);
+    }
+
+    #[test]
+    fn create_user_accepts_a_supplied_id() {
+        let payload: CreateUserValidator = serde_json::from_str(
+            r#"{"username":"alice","id":"0196a0d5-6ba6-7c1e-8f0a-3d4b5c6d7e8f"}"#,
+        )
+        .expect("payload deserializes");
+
+        assert_eq!(
+            payload.id.map(|id| id.to_string()),
+            Some("0196a0d5-6ba6-7c1e-8f0a-3d4b5c6d7e8f".to_string())
+        );
+    }
+
+    #[test]
+    fn create_user_refuses_an_unknown_field() {
+        let result: Result<CreateUserValidator, _> =
+            serde_json::from_str(r#"{"username":"alice","enabled":true}"#);
+
+        assert!(result.is_err());
+    }
 }

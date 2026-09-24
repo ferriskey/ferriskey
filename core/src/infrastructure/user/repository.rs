@@ -67,6 +67,7 @@ impl PostgresUserRepository {
 impl UserRepository for PostgresUserRepository {
     async fn create_user(&self, dto: CreateUserRequest) -> Result<User, CoreError> {
         let user = User::new(UserConfig {
+            id: dto.id,
             client_id: dto.client_id,
             email: dto.email,
             email_verified: dto.email_verified,

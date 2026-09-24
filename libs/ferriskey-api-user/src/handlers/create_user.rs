@@ -37,6 +37,7 @@ pub struct CreateUserResponse {
         (status = 400, description = "Invalid request data", body = ApiErrorResponse),
         (status = 401, description = "Realm not found", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 409, description = "A user already exists with this id", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
@@ -51,6 +52,7 @@ pub async fn create_user(
         .create_user(
             identity,
             CreateUserInput {
+                id: payload.id,
                 realm_name,
                 username: payload.username,
                 firstname: payload.firstname,

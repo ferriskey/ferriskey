@@ -52,6 +52,7 @@ pub struct BulkDeleteUsersInput {
 }
 
 pub struct CreateUserInput {
+    pub id: Option<Uuid>,
     pub realm_name: String,
     pub username: String,
     pub firstname: Option<String>,

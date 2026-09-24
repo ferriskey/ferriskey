@@ -105,9 +105,44 @@ mod tests {
         user.locked_until = Some(Utc::now() - Duration::seconds(1));
         assert!(!user.is_locked(Utc::now()));
     }
+
+    fn make_config() -> UserConfig {
+        UserConfig {
+            id: None,
+            realm_id: crate::realm::RealmId::default(),
+            client_id: None,
+            username: "test".to_string(),
+            firstname: None,
+            lastname: None,
+            email: None,
+            email_verified: false,
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn new_generates_a_time_ordered_id_when_none_is_supplied() {
+        let user = User::new(make_config());
+
+        assert_eq!(user.id.get_version_num(), 7);
+    }
+
+    #[test]
+    fn new_keeps_a_supplied_id() {
+        let supplied = uuid::Uuid::new_v4();
+
+        let user = User::new(UserConfig {
+            id: Some(supplied),
+            ..make_config()
+        });
+
+        assert_eq!(user.id, supplied);
+        assert_eq!(user.id.get_version_num(), 4);
+    }
 }
 
 pub struct UserConfig {
+    pub id: Option<Uuid>,
     pub realm_id: RealmId,
     pub client_id: Option<Uuid>,
     pub username: String,
@@ -184,7 +219,7 @@ pub enum RequiredActionError {
 impl User {
     pub fn new(user_config: UserConfig) -> Self {
         let now = Utc::now();
-        let id = generate_uuid_v7();
+        let id = user_config.id.unwrap_or_else(generate_uuid_v7);
 
         Self {
             id,

@@ -278,6 +278,7 @@ where
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
+                id: None,
                 realm_id,
                 client_id: None,
                 username,

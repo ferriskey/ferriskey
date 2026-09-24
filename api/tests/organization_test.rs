@@ -521,16 +521,16 @@ mod tests {
             .json(&json!({
                 "username": username,
                 "email": format!("{}@test.local", username),
-                "enabled": true
             }))
             .await;
         assert_eq!(
             response.status_code(),
-            201,
-            "failed to create user {username}"
+            200,
+            "failed to create user {username}: {}",
+            response.text()
         );
         let body: Value = response.json();
-        body["id"].as_str().expect("user id").to_string()
+        body["data"]["id"].as_str().expect("user id").to_string()
     }
 
     #[tokio::test]

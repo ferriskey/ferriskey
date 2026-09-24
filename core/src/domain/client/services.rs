@@ -212,6 +212,7 @@ where
 
             self.user_repository
                 .create_user(CreateUserRequest {
+                    id: None,
                     realm_id,
                     client_id: Some(client.id),
                     username: service_account_username,

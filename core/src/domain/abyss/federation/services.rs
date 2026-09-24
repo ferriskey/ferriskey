@@ -565,6 +565,7 @@ where
             None => {
                 // New user - create both user and mapping
                 let create_request = CreateUserRequest {
+                    id: None,
                     realm_id: provider.get().realm_id.into(),
                     username: ldap_user.username.clone(),
                     email: ldap_user.email.clone(),
@@ -699,6 +700,7 @@ where
                         info!("Creating new user '{}' from LDAP", ldap_user.username);
 
                         let create_request = CreateUserRequest {
+                            id: None,
                             realm_id: provider.get().realm_id.into(),
                             username: ldap_user.username.clone(),
                             email: ldap_user.email.clone(),

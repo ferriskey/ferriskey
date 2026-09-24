@@ -97,6 +97,9 @@ jobs:
       - name: run password import integration tests
         run: cargo test -p ferriskey-api --test password_import_test -- --ignored
 
+      - name: run caller-supplied user id integration tests
+        run: cargo test -p ferriskey-api --test supplied_user_id_test -- --ignored
+
       - name: run session management integration tests
         run: cargo test -p ferriskey-api --test session_management_test -- --ignored
 

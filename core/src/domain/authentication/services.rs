@@ -4115,6 +4115,7 @@ where
         let user = self
             .user_repository
             .create_user(CreateUserRequest {
+                id: None,
                 client_id: None,
                 email: Some(email),
                 email_verified: false,
