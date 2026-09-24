@@ -28,7 +28,10 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageIdentityProviders,
+            ],
         ))
     }
 
@@ -45,7 +48,11 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ViewRealm],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageIdentityProviders,
+                Permissions::ViewIdentityProviders,
+            ],
         ))
     }
 
@@ -62,7 +69,10 @@ where
 
         Ok(Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm],
+            &[
+                Permissions::ManageRealm,
+                Permissions::ManageIdentityProviders,
+            ],
         ))
     }
 

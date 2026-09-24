@@ -150,6 +150,23 @@ impl Permissions {
             .any(|required_permission| permissions.contains(required_permission))
     }
 
+    /// Whether a subject holding `held` may put `requested` on a role.
+    ///
+    /// A subject grants only what it holds itself, so editing roles never
+    /// widens its own authority. `ManageRealm` implies every permission and
+    /// may grant anything. A name that decodes to no permission is refused:
+    /// it grants nothing today, but would silently start granting if that
+    /// name were ever given meaning.
+    pub fn can_grant(held: &HashSet<Permissions>, requested: &[String]) -> bool {
+        if held.contains(&Self::ManageRealm) {
+            return true;
+        }
+
+        requested
+            .iter()
+            .all(|name| Self::from_name(name).is_some_and(|permission| held.contains(&permission)))
+    }
+
     pub fn to_bitfield(permissions: &[Permissions]) -> u64 {
         permissions
             .iter()
@@ -233,6 +250,32 @@ mod tests {
                 "{permission:?} is missing from `ALL`, so its bit decodes to nothing",
             );
         }
+    }
+
+    #[test]
+    fn grants_only_what_is_held() {
+        let held = HashSet::from([Permissions::ManageRoles, Permissions::ViewUsers]);
+
+        assert!(Permissions::can_grant(&held, &["view_users".to_string()]));
+        assert!(Permissions::can_grant(&held, &[]));
+        assert!(!Permissions::can_grant(
+            &held,
+            &["view_users".to_string(), "manage_realm".to_string()]
+        ));
+        assert!(!Permissions::can_grant(
+            &held,
+            &["not_a_permission".to_string()]
+        ));
+    }
+
+    #[test]
+    fn manage_realm_grants_anything() {
+        let held = HashSet::from([Permissions::ManageRealm]);
+
+        assert!(Permissions::can_grant(
+            &held,
+            &["manage_users".to_string(), "manage_realm".to_string()]
+        ));
     }
 
     #[test]

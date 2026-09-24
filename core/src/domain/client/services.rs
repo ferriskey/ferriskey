@@ -620,6 +620,16 @@ where
             self.policy.can_create_role(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        if !self
+            .policy
+            .can_grant_permissions(&identity, &realm, &input.permissions)
+            .await?
+        {
+            return Err(CoreError::Forbidden(
+                "cannot grant a permission you do not hold".to_string(),
+            ));
+        }
         self.client_repository
             .get_by_id(scope.id(), input.client_id)
             .await

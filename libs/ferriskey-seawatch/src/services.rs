@@ -85,7 +85,9 @@ where
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
-            self.policy.can_view_events(&identity, scope.realm()).await,
+            self.policy
+                .can_export_events(&identity, scope.realm())
+                .await,
             "insufficient permissions",
         )?;
 

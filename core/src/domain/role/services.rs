@@ -111,6 +111,16 @@ where
             "insufficient permissions",
         )?;
 
+        if !self
+            .policy
+            .can_grant_permissions(&identity, &realm, &input.permissions)
+            .await?
+        {
+            return Err(CoreError::Forbidden(
+                "cannot grant a permission you do not hold".to_string(),
+            ));
+        }
+
         let role = self
             .role_repository
             .create(CreateRoleRequest {
@@ -295,6 +305,16 @@ where
             "insufficient permissions",
         )?;
 
+        if !self
+            .policy
+            .can_grant_permissions(&identity, &realm, &permissions)
+            .await?
+        {
+            return Err(CoreError::Forbidden(
+                "cannot grant a permission you do not hold".to_string(),
+            ));
+        }
+
         let scoped = self.load_role_in_realm(role_id, &scope).await?;
 
         let role = self
@@ -432,8 +452,10 @@ mod tests {
                 .unwrap()
                 .expect_get_user_roles()
                 .with(eq(user_id))
-                .times(1)
-                .return_once(move |_| Box::pin(async move { Ok(roles) }));
+                .returning(move |_| {
+                    let roles = roles.clone();
+                    Box::pin(async move { Ok(roles) })
+                });
             self
         }
 
@@ -846,7 +868,7 @@ mod tests {
         let admin_role = create_test_role_with_params(
             principal_realm.id,
             "principal-manager",
-            vec![Permissions::ManageUsers.name()],
+            vec![Permissions::ManageRoles.name()],
             None,
         );
 
@@ -944,5 +966,119 @@ mod tests {
 
         let returned = assert_success(result);
         assert_eq!(returned.permissions, vec![Permissions::ManageUsers.name()]);
+    }
+
+    #[tokio::test]
+    async fn test_manage_users_reads_roles_but_cannot_create_them() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let identity = Identity::User(user.clone());
+        let user_admin = create_test_role_with_params(
+            realm.id,
+            "user-admin",
+            vec![Permissions::ManageUsers.name()],
+            None,
+        );
+
+        // No `with_successful_role_create`: the mock panics if creation is reached.
+        let service = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_user_roles(user.id, vec![user_admin])
+            .build();
+
+        let result = service
+            .create_role(
+                identity,
+                CreateRoleInput {
+                    realm_name: realm.name,
+                    name: "anything".to_string(),
+                    description: None,
+                    permissions: vec![],
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "manage_users must no longer edit roles, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_manage_roles_cannot_grant_a_permission_it_does_not_hold() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let identity = Identity::User(user.clone());
+        let role = create_test_role(realm.id);
+        let role_admin = create_test_role_with_params(
+            realm.id,
+            "role-admin",
+            vec![Permissions::ManageRoles.name()],
+            None,
+        );
+
+        // The guard runs before the role is even loaded: no lookup, no write.
+        let service = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_user_roles(user.id, vec![role_admin])
+            .build();
+
+        let result = service
+            .update_role_permissions(
+                identity,
+                realm.name.clone(),
+                role.id,
+                vec![Permissions::ManageRealm.name()],
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "granting manage_realm without holding it is an escalation, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_manage_roles_grants_what_it_holds() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let identity = Identity::User(user.clone());
+        let role = create_test_role(realm.id);
+        let role_admin = create_test_role_with_params(
+            realm.id,
+            "role-admin",
+            vec![
+                Permissions::ManageRoles.name(),
+                Permissions::ViewUsers.name(),
+            ],
+            None,
+        );
+        let updated = create_test_role_with_params(
+            realm.id,
+            "test-role",
+            vec![Permissions::ViewUsers.name()],
+            None,
+        );
+
+        let service = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_user_roles(user.id, vec![role_admin])
+            .with_successful_role_lookup(role.id, role.clone())
+            .with_successful_role_permissions_update(role.id, updated.clone())
+            .with_security_event_store()
+            .with_role_webhook_notify()
+            .build();
+
+        let result = service
+            .update_role_permissions(
+                identity,
+                realm.name.clone(),
+                role.id,
+                vec![Permissions::ViewUsers.name()],
+            )
+            .await;
+
+        let returned = assert_success(result);
+        assert_eq!(returned.permissions, vec![Permissions::ViewUsers.name()]);
     }
 }

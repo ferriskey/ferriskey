@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_can_view_identity_provider_with_view_realm_permission() {
+    async fn test_can_view_identity_provider_with_view_identity_providers_permission() {
         let realm = create_test_realm("test");
         let user = create_test_user_with_realm(&realm);
         let identity = Identity::User(user.clone());
@@ -141,7 +141,7 @@ mod tests {
         let client_repo = MockClientRepository::new();
         let mut user_role_repo = MockUserRoleRepository::new();
 
-        let role = create_role_with_permission(realm.id, Permissions::ViewRealm);
+        let role = create_role_with_permission(realm.id, Permissions::ViewIdentityProviders);
         user_role_repo.expect_get_user_roles().returning(move |_| {
             let r = role.clone();
             Box::pin(async move { Ok(vec![r]) })

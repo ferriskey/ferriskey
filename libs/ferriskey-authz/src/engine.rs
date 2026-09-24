@@ -327,10 +327,8 @@ where
             .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
-        let has_permission = Permissions::has_one_of_permissions(
-            &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageRealm],
-        );
+        let has_permission =
+            Permissions::has_one_of_permissions(&permissions, &[Permissions::ManageRealm]);
 
         Ok(has_permission)
     }
@@ -346,10 +344,8 @@ where
             .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
-        let has_permission = Permissions::has_one_of_permissions(
-            &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageRealm],
-        );
+        let has_permission =
+            Permissions::has_one_of_permissions(&permissions, &[Permissions::ManageRealm]);
 
         Ok(has_permission)
     }
@@ -365,10 +361,8 @@ where
             .get_permission_for_target_realm(&user, target_realm)
             .await?;
 
-        let has_permission = Permissions::has_one_of_permissions(
-            &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageRealm],
-        );
+        let has_permission =
+            Permissions::has_one_of_permissions(&permissions, &[Permissions::ManageRealm]);
 
         Ok(has_permission)
     }
@@ -393,7 +387,7 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[Permissions::ManageRealm, Permissions::ManageRoles],
         );
 
         Ok(has_permission)
@@ -412,7 +406,7 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[Permissions::ManageRealm, Permissions::ManageRoles],
         );
 
         Ok(has_permission)
@@ -431,7 +425,7 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions,
-            &[Permissions::ManageRealm, Permissions::ManageUsers],
+            &[Permissions::ManageRealm, Permissions::ManageRoles],
         );
 
         Ok(has_permission)
@@ -450,14 +444,32 @@ where
 
         let has_permission = Permissions::has_one_of_permissions(
             &permissions,
+            // User administrators read roles to assign them, without being
+            // allowed to change what a role grants.
             &[
                 Permissions::ManageRealm,
+                Permissions::ManageRoles,
                 Permissions::ManageUsers,
                 Permissions::ViewRoles,
             ],
         );
 
         Ok(has_permission)
+    }
+
+    async fn can_grant_permissions(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+        permissions: &[String],
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(identity).await?;
+
+        let held = self
+            .get_permission_for_target_realm(&user, target_realm)
+            .await?;
+
+        Ok(Permissions::can_grant(&held, permissions))
     }
 }
 
