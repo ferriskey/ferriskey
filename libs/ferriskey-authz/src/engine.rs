@@ -64,7 +64,15 @@ where
                     .user_repository
                     .get_by_client_id(client.id)
                     .await
-                    .map_err(|e| CoreError::Forbidden(e.to_string()))?;
+                    .map_err(|error| match error {
+                        // A client without a service account holds no authority:
+                        // that is a denial. Anything else is a failure to decide
+                        // and propagates, per `ensure_policy`.
+                        CoreError::NotFound => {
+                            CoreError::Forbidden("client has no service account".to_string())
+                        }
+                        other => other,
+                    })?;
 
                 Ok(service_account.across_realms())
             }
@@ -104,11 +112,7 @@ where
 
             let targets_own_realm = user_realm.name == target_realm.name;
 
-            let roles = self
-                .user_role_repository
-                .get_user_roles(user.id)
-                .await
-                .map_err(|_| CoreError::Forbidden("user not found".to_string()))?;
+            let roles = self.user_role_repository.get_user_roles(user.id).await?;
 
             for role in roles {
                 let role_grants_on_target = match role.client_id {
@@ -142,11 +146,7 @@ where
     }
 
     async fn get_user_permissions(&self, user: &User) -> Result<HashSet<Permissions>, CoreError> {
-        let roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .await
-            .map_err(|_| CoreError::Forbidden("user not found".to_string()))?;
+        let roles = self.user_role_repository.get_user_roles(user.id).await?;
 
         let mut permissions: HashSet<Permissions> = HashSet::new();
 
@@ -629,6 +629,29 @@ mod tests {
             Arc::new(client_repo),
             Arc::new(user_role_repo),
         )
+    }
+
+    #[tokio::test]
+    async fn a_failing_role_lookup_propagates_instead_of_denying() {
+        // A database outage is not a "no": reporting it as Forbidden would hide
+        // it behind a legitimate-looking denial.
+        let realm = make_realm("tenant-a");
+        let user = make_user(&realm);
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .times(1)
+            .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+        let policy = build_policy(user_role_repo, MockClientRepository::new());
+
+        let result = policy.get_permission_for_target_realm(&user, &realm).await;
+
+        assert!(
+            matches!(result, Err(CoreError::InternalServerError)),
+            "a repository failure must propagate unchanged, got {result:?}"
+        );
     }
 
     #[tokio::test]
