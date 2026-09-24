@@ -1,0 +1,19 @@
+[package]
+name = "ferriskey-api-account"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-api-core = { path = "../ferriskey-api-core" }
+ferriskey-core = { path = "../../core" }
+axum = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+validator = { workspace = true }
+webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation", "conditional-ui"] }

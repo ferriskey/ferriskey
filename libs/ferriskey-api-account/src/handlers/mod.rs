@@ -1,0 +1,12 @@
+pub mod change_own_password;
+pub mod confirm_own_otp_enrollment;
+pub mod confirm_own_passkey_registration;
+pub mod delete_own_passkey;
+pub mod disable_own_otp;
+pub mod get_own_profile;
+pub mod list_own_credentials;
+pub mod request_elevation;
+pub mod start_own_otp_enrollment;
+pub mod start_own_passkey_registration;
+pub mod update_me_locale;
+pub mod update_own_profile;

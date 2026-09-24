@@ -1,4 +1,5 @@
 use ferriskey_api_abyss::AbyssApiDoc;
+use ferriskey_api_account::router::AccountApiDoc;
 use ferriskey_api_aegis::router::AegisApiDoc;
 use ferriskey_api_authentication::router::AuthenticationApiDoc;
 use ferriskey_api_broker::BrokerApiDoc;
@@ -27,6 +28,7 @@ use utoipa::OpenApi;
     nest(
         (path = "/realms", api = RealmApiDoc),
         (path = "/realms/{realm_name}/clients", api = ClientApiDoc),
+        (path = "/realms/{realm_name}/users", api = AccountApiDoc),
         (path = "/realms/{realm_name}/users", api = UserApiDoc),
         (path = "/realms/{realm_name}", api = AuthenticationApiDoc),
         (path = "/realms/{realm_name}", api = SamlApiDoc),
