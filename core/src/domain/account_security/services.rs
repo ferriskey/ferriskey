@@ -377,16 +377,16 @@ where
         )
         .map_err(violations_to_core_error)?;
 
-        self.credential_repository
-            .delete_password_credential(target)
-            .await
-            .map_err(|_| CoreError::DeleteCredentialError)?;
-
         let hash_result = self
             .hasher_repository
             .hash_password(&input.new_password)
             .await
             .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+
+        self.credential_repository
+            .delete_password_credential(target)
+            .await
+            .map_err(|_| CoreError::DeleteCredentialError)?;
 
         self.credential_repository
             .create_credential(target, "password".into(), hash_result, "".into(), false)
@@ -1506,6 +1506,39 @@ mod tests {
             changed.is_ok(),
             "expected the change to go through: {changed:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn a_hashing_failure_leaves_the_current_password_in_place() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Password);
+        harness.with_password(user.id, true);
+        harness
+            .policies
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async move { Ok(None) }));
+        harness.hasher.expect_hash_password().returning(|_| {
+            Box::pin(async move {
+                Err(ferriskey_security::SecurityError::HashingError(
+                    "boom".into(),
+                ))
+            })
+        });
+        harness
+            .credentials
+            .expect_delete_password_credential()
+            .never();
+        harness.credentials.expect_create_credential().never();
+
+        let refused = harness
+            .build()
+            .change_own_password(identity, change_password(session, "old"))
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::HashPasswordError(_))));
     }
 
     #[tokio::test]
