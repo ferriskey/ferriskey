@@ -207,7 +207,8 @@ mod tests {
                AND NOT EXISTS (
                  SELECT 1 FROM credentials c
                  WHERE c.user_id = u.id AND c.credential_type = 'otp'
-               )",
+               )
+             ON CONFLICT DO NOTHING",
         )
         .bind(Uuid::new_v4())
         .bind(VICTIM_OTP_SECRET)
