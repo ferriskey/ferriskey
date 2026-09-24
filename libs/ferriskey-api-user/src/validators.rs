@@ -55,28 +55,6 @@ pub struct CreateUserValidator {
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
-pub struct UpdateOwnProfileValidator {
-    #[serde(default)]
-    #[validate(length(min = 1, message = "username cannot be empty"))]
-    pub username: Option<String>,
-
-    #[serde(default)]
-    pub firstname: Option<String>,
-
-    #[serde(default)]
-    pub lastname: Option<String>,
-
-    #[serde(default)]
-    #[validate(email(message = "email must be a valid email"))]
-    pub email: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
-pub struct UpdateOwnLocaleValidator {
-    pub locale: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct BulkDeleteUserValidator {
     #[serde(default)]
     pub ids: Vec<Uuid>,

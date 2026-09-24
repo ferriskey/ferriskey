@@ -466,7 +466,7 @@ where
             .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
-        let target = elevated.user_id();
+        let target = elevated.primary()?.user_id();
 
         let secret = generate_secret()?;
         let otpauth_uri = generate_otpauth_uri(
@@ -636,7 +636,7 @@ where
             .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
-        let target = elevated.user_id();
+        let target = elevated.primary()?.user_id();
 
         let webauthn = build_webauthn_client(input.rp_info)?;
 
@@ -682,7 +682,7 @@ where
             .claim_elevation(&scope, user_id, input.session_id, input.elevation_id)
             .await?;
 
-        let target = elevated.user_id();
+        let target = elevated.primary()?.user_id();
 
         let registration = self
             .passkey_registration_repository
@@ -1092,6 +1092,140 @@ mod tests {
             .await;
 
         assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_cannot_add_a_passkey() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.passkey_registrations.expect_start().never();
+
+        let refused = harness
+            .build()
+            .start_own_passkey_registration(
+                identity,
+                StartOwnPasskeyRegistrationInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    rp_info: rp_info(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_cannot_confirm_a_passkey() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.passkey_registrations.expect_consume().never();
+        harness
+            .credentials
+            .expect_create_webauthn_credential()
+            .never();
+
+        let refused = harness
+            .build()
+            .confirm_own_passkey_registration(
+                identity,
+                ConfirmOwnPasskeyRegistrationInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    rp_info: rp_info(),
+                    credential: registration_payload(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_cannot_even_start_an_enrolment_it_could_not_confirm() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.enrollments.expect_start_enrollment().never();
+
+        let refused = harness
+            .build()
+            .start_own_otp_enrollment(
+                identity,
+                StartOwnOtpEnrollmentInput {
+                    realm_name: "acme".into(),
+                    session_id: session,
+                    elevation_id: Uuid::now_v7(),
+                    issuer: "https://acme.test".into(),
+                },
+            )
+            .await;
+
+        assert!(matches!(refused, Err(CoreError::PrimaryProofRequired)));
+    }
+
+    #[tokio::test]
+    async fn an_otp_proof_still_changes_the_password_because_the_body_carries_the_primary_proof() {
+        let (realm, user, identity) = actors();
+        let session = Uuid::now_v7();
+        let expected = user.id;
+
+        let mut harness = Harness::new();
+        harness.resolving(&realm, &user);
+        harness.granting(&user, realm.id, session, ElevationProofKind::Otp);
+        harness.with_password(user.id, true);
+        harness
+            .policies
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async move { Ok(None) }));
+        harness.hasher.expect_hash_password().returning(|_| {
+            Box::pin(async move {
+                Ok(HashResult::new(
+                    "hash".into(),
+                    "salt".into(),
+                    1,
+                    "argon2".into(),
+                ))
+            })
+        });
+        harness
+            .credentials
+            .expect_update_password_credential()
+            .withf(move |id, _, _, temporary| *id == expected && !*temporary)
+            .times(1)
+            .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
+        harness
+            .sessions
+            .expect_revoke_all_sessions_except()
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
+        harness
+            .elevations
+            .expect_clear_for_user()
+            .returning(|_| Box::pin(async move { Ok(1) }));
+        harness
+            .required_actions
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async move { Ok(()) }));
+
+        let changed = harness
+            .build()
+            .change_own_password(identity, change_password(session, "old"))
+            .await;
+
+        assert!(
+            changed.is_ok(),
+            "expected the change to go through: {changed:?}"
+        );
     }
 
     #[tokio::test]

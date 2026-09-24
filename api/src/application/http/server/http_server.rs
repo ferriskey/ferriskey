@@ -5,6 +5,7 @@ use crate::application::http::server::app_state::AppState;
 use crate::application::http::server::openapi::ApiDoc;
 use crate::args::Args;
 use ferriskey_api_abyss::routes::abyss_routes;
+use ferriskey_api_account::router::account_routes;
 use ferriskey_api_aegis::router::aegis_routes;
 use ferriskey_api_authentication::router::authentication_routes;
 use ferriskey_api_broker::router::broker_routes;
@@ -147,6 +148,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .route(&format!("{}/config", root_path), get(get_config))
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))
+        .merge(account_routes(state.clone()))
         .merge(user_routes(state.clone()))
         .merge(authentication_routes(state.clone(), &root_path))
         .merge(role_routes(state.clone()))

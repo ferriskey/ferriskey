@@ -181,6 +181,13 @@ jobs:
       - name: run self-service account profile integration tests
         run: cargo test -p ferriskey-api --test me_profile_test -- --ignored
 
+      # Self-service account security (#1482): elevation is required and is
+      # bound to one account and one session, a refused re-authentication mints
+      # nothing, a password change rotates the credential without signing the
+      # caller out, and the credential listing hands back no secret material.
+      - name: run self-service account security integration tests
+        run: cargo test -p ferriskey-api --test account_security_test -- --ignored
+
       # First ferriskey-core suite wired into CI. The repository tests of `core`
       # read DATABASE_URL (a different dialect from the DATABASE_* variables the
       # api suites use) and create one throwaway schema per test, so they are
