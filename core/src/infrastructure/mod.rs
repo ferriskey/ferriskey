@@ -1,4 +1,5 @@
 pub mod abyss;
+pub mod account_security;
 pub mod aegis;
 pub mod client;
 pub mod common;

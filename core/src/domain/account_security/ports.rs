@@ -1,6 +1,6 @@
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::scope::Scoped;
+use ferriskey_domain::realm::scope::{RealmScope, Scoped};
 use ferriskey_domain::user::entities::User;
 use uuid::Uuid;
 
@@ -91,6 +91,7 @@ pub trait PasskeyRegistrationRepository: Send + Sync {
 pub trait OtherSessionsRevocationPort: Send + Sync {
     fn revoke_all_sessions_except(
         &self,
+        scope: &RealmScope,
         user: &Scoped<User>,
         keep_session_id: Option<Uuid>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;

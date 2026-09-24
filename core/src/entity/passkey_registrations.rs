@@ -7,40 +7,28 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "credentials"
+        "passkey_registrations"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
     pub id: Uuid,
-    pub salt: Option<String>,
-    pub credential_type: String,
     pub user_id: Uuid,
-    pub user_label: Option<String>,
-    pub secret_data: String,
-    pub credential_data: Json,
+    pub state: Json,
+    pub expires_at: DateTime,
+    pub consumed_at: Option<DateTime>,
     pub created_at: DateTime,
-    pub updated_at: DateTime,
-    pub temporary: Option<bool>,
-    pub webauthn_credential_id: Option<Vec<u8>>,
-    pub last_used_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
-    Salt,
-    CredentialType,
     UserId,
-    UserLabel,
-    SecretData,
-    CredentialData,
+    State,
+    ExpiresAt,
+    ConsumedAt,
     CreatedAt,
-    UpdatedAt,
-    Temporary,
-    WebauthnCredentialId,
-    LastUsedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -65,17 +53,11 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::Salt => ColumnType::String(StringLen::N(255u32)).def().null(),
-            Self::CredentialType => ColumnType::String(StringLen::N(255u32)).def(),
             Self::UserId => ColumnType::Uuid.def(),
-            Self::UserLabel => ColumnType::String(StringLen::N(255u32)).def().null(),
-            Self::SecretData => ColumnType::Text.def(),
-            Self::CredentialData => ColumnType::JsonBinary.def(),
+            Self::State => ColumnType::JsonBinary.def(),
+            Self::ExpiresAt => ColumnType::DateTime.def(),
+            Self::ConsumedAt => ColumnType::DateTime.def().null(),
             Self::CreatedAt => ColumnType::DateTime.def(),
-            Self::UpdatedAt => ColumnType::DateTime.def(),
-            Self::Temporary => ColumnType::Boolean.def().null(),
-            Self::WebauthnCredentialId => ColumnType::VarBinary(StringLen::None).def().null(),
-            Self::LastUsedAt => ColumnType::DateTime.def().null(),
         }
     }
 }

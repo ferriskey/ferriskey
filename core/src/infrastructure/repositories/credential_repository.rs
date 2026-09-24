@@ -93,6 +93,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(temporary)), // Assuming credentials are not temporary by default
             webauthn_credential_id: Set(None),
+            last_used_at: Set(None),
         };
 
         let t = payload.insert(&self.db).await.map_err(|e| {
@@ -125,6 +126,7 @@ impl CredentialRepository for PostgresCredentialRepository {
         user_id: uuid::Uuid,
         expected_secret_data: &str,
         hash_result: HashResult,
+        temporary: bool,
     ) -> Result<(), CredentialError> {
         let (now, _) = generate_timestamp();
 
@@ -149,6 +151,10 @@ impl CredentialRepository for PostgresCredentialRepository {
             .col_expr(
                 crate::entity::credentials::Column::CredentialData,
                 Expr::value(credential_data),
+            )
+            .col_expr(
+                crate::entity::credentials::Column::Temporary,
+                Expr::value(temporary),
             )
             .col_expr(
                 crate::entity::credentials::Column::UpdatedAt,
@@ -272,6 +278,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)), // Assuming custom credentials are not temporary
             webauthn_credential_id: Set(None),
+            last_used_at: Set(None),
         };
 
         let model = payload
@@ -315,6 +322,7 @@ impl CredentialRepository for PostgresCredentialRepository {
                 updated_at: Set(now.naive_utc()),
                 temporary: Set(Some(false)),
                 webauthn_credential_id: Set(None),
+                last_used_at: Set(None),
             });
 
         let _ = CredentialEntity::insert_many(models)
@@ -350,6 +358,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             updated_at: Set(now.naive_utc()),
             temporary: Set(Some(false)),
             webauthn_credential_id: Set(Some(credential_id)),
+            last_used_at: Set(None),
         };
 
         let model = payload
@@ -553,7 +562,7 @@ mod tests {
 
         fixture
             .repository
-            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), true)
             .await
             .expect("update password credential");
 
@@ -611,6 +620,28 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_password_credential_writes_the_temporary_flag_it_is_given() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        insert_bcrypt_password(&fixture.pool, user_id, true).await;
+
+        fixture
+            .repository
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), false)
+            .await
+            .expect("update password credential");
+
+        let after = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("argon2id credential");
+
+        assert!(!after.temporary);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn update_password_credential_keeps_a_hash_changed_since_verification() {
         let fixture = setup().await;
         let user_id = insert_user(&fixture.pool).await;
@@ -623,7 +654,7 @@ mod tests {
 
         let result = fixture
             .repository
-            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), false)
             .await;
 
         assert!(matches!(
@@ -646,7 +677,7 @@ mod tests {
 
         let result = fixture
             .repository
-            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash())
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), false)
             .await;
 
         assert!(matches!(

@@ -7,40 +7,30 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "credentials"
+        "account_elevations"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel, Eq)]
 pub struct Model {
     pub id: Uuid,
-    pub salt: Option<String>,
-    pub credential_type: String,
     pub user_id: Uuid,
-    pub user_label: Option<String>,
-    pub secret_data: String,
-    pub credential_data: Json,
+    pub realm_id: Uuid,
+    pub session_id: Uuid,
+    pub proof: String,
+    pub expires_at: DateTime,
     pub created_at: DateTime,
-    pub updated_at: DateTime,
-    pub temporary: Option<bool>,
-    pub webauthn_credential_id: Option<Vec<u8>>,
-    pub last_used_at: Option<DateTime>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
-    Salt,
-    CredentialType,
     UserId,
-    UserLabel,
-    SecretData,
-    CredentialData,
+    RealmId,
+    SessionId,
+    Proof,
+    ExpiresAt,
     CreatedAt,
-    UpdatedAt,
-    Temporary,
-    WebauthnCredentialId,
-    LastUsedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -57,6 +47,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    Realms,
     Users,
 }
 
@@ -65,17 +56,12 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Uuid.def(),
-            Self::Salt => ColumnType::String(StringLen::N(255u32)).def().null(),
-            Self::CredentialType => ColumnType::String(StringLen::N(255u32)).def(),
             Self::UserId => ColumnType::Uuid.def(),
-            Self::UserLabel => ColumnType::String(StringLen::N(255u32)).def().null(),
-            Self::SecretData => ColumnType::Text.def(),
-            Self::CredentialData => ColumnType::JsonBinary.def(),
+            Self::RealmId => ColumnType::Uuid.def(),
+            Self::SessionId => ColumnType::Uuid.def(),
+            Self::Proof => ColumnType::String(StringLen::N(16u32)).def(),
+            Self::ExpiresAt => ColumnType::DateTime.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
-            Self::UpdatedAt => ColumnType::DateTime.def(),
-            Self::Temporary => ColumnType::Boolean.def().null(),
-            Self::WebauthnCredentialId => ColumnType::VarBinary(StringLen::None).def().null(),
-            Self::LastUsedAt => ColumnType::DateTime.def().null(),
         }
     }
 }
@@ -83,11 +69,21 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::Realms => Entity::belongs_to(super::realms::Entity)
+                .from(Column::RealmId)
+                .to(super::realms::Column::Id)
+                .into(),
             Self::Users => Entity::belongs_to(super::users::Entity)
                 .from(Column::UserId)
                 .to(super::users::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::realms::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Realms.def()
     }
 }
 

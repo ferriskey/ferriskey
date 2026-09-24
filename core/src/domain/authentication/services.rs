@@ -98,7 +98,7 @@ pub(crate) fn sso_token_hash(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
 
-fn lockout_compute_locked_until(
+pub(crate) fn lockout_compute_locked_until(
     new_attempts: i32,
     threshold: i32,
     duration_seconds: i32,
@@ -3080,6 +3080,7 @@ This is a server error that should be investigated. Do not forward back this mes
                         &credential.secret_data,
                         &password,
                         algorithm,
+                        credential.temporary,
                     )
                     .await;
                 }
@@ -6018,6 +6019,7 @@ mod password_hash_tests {
             LEGACY_HASH,
             "secret",
             "argon2id",
+            false,
         )
         .await;
     }
@@ -6038,14 +6040,15 @@ mod password_hash_tests {
         let mut credentials = MockCredentialRepository::new();
         credentials
             .expect_update_password_credential()
-            .withf(move |id, expected, hash_result| {
+            .withf(move |id, expected, hash_result, temporary| {
                 *id == user_id
                     && expected == LEGACY_HASH
                     && hash_result.hash == "$argon2id$new"
                     && hash_result.algorithm == "argon2id"
+                    && !*temporary
             })
             .times(1)
-            .returning(|_, _, _| Box::pin(async { Ok(()) }));
+            .returning(|_, _, _, _| Box::pin(async { Ok(()) }));
 
         rehash_password_if_needed(
             &hasher,
@@ -6054,6 +6057,33 @@ mod password_hash_tests {
             LEGACY_HASH,
             "secret",
             "bcrypt",
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn rehash_carries_the_temporary_flag_through_untouched() {
+        let mut hasher = MockHasherRepository::new();
+        hasher.expect_needs_rehash().return_const(true);
+        hasher
+            .expect_hash_password()
+            .returning(|_| Box::pin(async { Ok(argon2id_hash()) }));
+        let mut credentials = MockCredentialRepository::new();
+        credentials
+            .expect_update_password_credential()
+            .withf(|_, _, _, temporary| *temporary)
+            .times(1)
+            .returning(|_, _, _, _| Box::pin(async { Ok(()) }));
+
+        rehash_password_if_needed(
+            &hasher,
+            &credentials,
+            Uuid::new_v4(),
+            LEGACY_HASH,
+            "secret",
+            "bcrypt",
+            true,
         )
         .await;
     }
@@ -6075,6 +6105,7 @@ mod password_hash_tests {
             LEGACY_HASH,
             "secret",
             "bcrypt",
+            false,
         )
         .await;
     }
@@ -6090,7 +6121,9 @@ mod password_hash_tests {
         credentials
             .expect_update_password_credential()
             .times(1)
-            .returning(|_, _, _| Box::pin(async { Err(CredentialError::UpdateCredentialError) }));
+            .returning(|_, _, _, _| {
+                Box::pin(async { Err(CredentialError::UpdateCredentialError) })
+            });
 
         rehash_password_if_needed(
             &hasher,
@@ -6099,6 +6132,7 @@ mod password_hash_tests {
             LEGACY_HASH,
             "secret",
             "bcrypt",
+            false,
         )
         .await;
     }
