@@ -75,6 +75,20 @@ where
     }
 
     async fn revoke_all_user_access(&self, user_id: Uuid, realm_id: Uuid) -> Result<(), CoreError> {
+        // Sessions go first: while one survives, its SSO cookie can mint fresh
+        // tokens at `/auth` right after the revocation below. Tokens are
+        // revoked by user, not through the session rows, so deleting the rows
+        // first loses nothing, and a failure here still revokes the tokens
+        // before reporting it.
+        let sessions_deleted = self
+            .session_repository
+            .delete_all_by_user(user_id, realm_id)
+            .await
+            .map_err(|e| {
+                warn!("failed to delete the sessions of user {user_id} in realm {realm_id}: {e:?}");
+                CoreError::InternalServerError
+            });
+
         let refresh_revoked = self
             .refresh_token_repository
             .revoke_all_for_user(user_id)
@@ -93,19 +107,11 @@ where
                 CoreError::InternalServerError
             })?;
 
-        tracing::debug!(
-            "user {user_id} access revoked: {refresh_revoked} refresh token(s), {access_revoked} access token(s)"
-        );
+        let sessions_deleted = sessions_deleted?;
 
-        if let Err(e) = self
-            .session_repository
-            .delete_all_by_user(user_id, realm_id)
-            .await
-        {
-            warn!(
-                "tokens for user {user_id} are revoked but their sessions in realm {realm_id} could not be deleted: {e:?}"
-            );
-        }
+        tracing::debug!(
+            "user {user_id} access revoked: {sessions_deleted} session(s), {refresh_revoked} refresh token(s), {access_revoked} access token(s)"
+        );
 
         Ok(())
     }
@@ -117,6 +123,7 @@ mod tests {
     use chrono::Duration;
     use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
     use ferriskey_domain::realm::{Realm, RealmId};
+    use ferriskey_domain::session::entities::SessionError;
     use ferriskey_domain::session::ports::MockUserSessionRepository;
     use ferriskey_security::jwt::ports::{MockAccessTokenRepository, MockRefreshTokenRepository};
 
@@ -173,33 +180,50 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn revoke_all_user_access_revokes_tokens_and_drops_sessions() {
+    async fn revoke_all_user_access_drops_sessions_before_revoking_tokens() {
         let user_id = Uuid::new_v4();
         let realm_id = Uuid::new_v4();
-        let sessions = [
-            make_session(user_id, realm_id),
-            make_session(user_id, realm_id),
-        ];
+        let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
 
-        let mut access = MockAccessTokenRepository::new();
-        access
-            .expect_revoke_all_for_user()
-            .with(mockall::predicate::eq(user_id))
+        let mut session_repo = MockUserSessionRepository::new();
+        let log = calls.clone();
+        session_repo
+            .expect_delete_all_by_user()
+            .with(
+                mockall::predicate::eq(user_id),
+                mockall::predicate::eq(realm_id),
+            )
             .times(1)
-            .return_once(|_| Box::pin(async { Ok(3) }));
+            .return_once(move |_, _| {
+                log.lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .push("sessions");
+                Box::pin(async { Ok(2) })
+            });
 
         let mut refresh = MockRefreshTokenRepository::new();
+        let log = calls.clone();
         refresh
             .expect_revoke_all_for_user()
             .with(mockall::predicate::eq(user_id))
             .times(1)
-            .return_once(|_| Box::pin(async { Ok(2) }));
+            .return_once(move |_| {
+                log.lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .push("refresh");
+                Box::pin(async { Ok(2) })
+            });
 
-        let mut session_repo = MockUserSessionRepository::new();
-        session_repo
-            .expect_delete_all_by_user()
+        let mut access = MockAccessTokenRepository::new();
+        let log = calls.clone();
+        access
+            .expect_revoke_all_for_user()
+            .with(mockall::predicate::eq(user_id))
             .times(1)
-            .return_once(move |_, _| Box::pin(async move { Ok(sessions.len() as u64) }));
+            .return_once(move |_| {
+                log.lock().unwrap_or_else(|p| p.into_inner()).push("access");
+                Box::pin(async { Ok(3) })
+            });
 
         let adapter = TokenRevocationAdapter::new(
             Arc::new(access),
@@ -213,12 +237,60 @@ mod tests {
                 .await
                 .is_ok()
         );
+        assert_eq!(
+            *calls.lock().unwrap_or_else(|p| p.into_inner()),
+            ["sessions", "refresh", "access"],
+            "sessions must be gone before any token is revoked"
+        );
+    }
+
+    #[tokio::test]
+    async fn revoke_all_user_access_still_revokes_tokens_when_sessions_survive() {
+        let user_id = Uuid::new_v4();
+        let realm_id = Uuid::new_v4();
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_delete_all_by_user()
+            .times(1)
+            .return_once(|_, _| Box::pin(async { Err(SessionError::DeleteError) }));
+
+        let mut refresh = MockRefreshTokenRepository::new();
+        refresh
+            .expect_revoke_all_for_user()
+            .times(1)
+            .return_once(|_| Box::pin(async { Ok(1) }));
+
+        let mut access = MockAccessTokenRepository::new();
+        access
+            .expect_revoke_all_for_user()
+            .times(1)
+            .return_once(|_| Box::pin(async { Ok(1) }));
+
+        let adapter = TokenRevocationAdapter::new(
+            Arc::new(access),
+            Arc::new(refresh),
+            Arc::new(session_repo),
+        );
+
+        assert!(
+            adapter
+                .revoke_all_user_access(user_id, realm_id)
+                .await
+                .is_err(),
+            "a surviving session keeps its SSO cookie alive, so it must not report success"
+        );
     }
 
     #[tokio::test]
     async fn revoke_all_user_access_propagates_token_store_failure() {
         let user_id = Uuid::new_v4();
         let realm_id = Uuid::new_v4();
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_delete_all_by_user()
+            .return_once(|_, _| Box::pin(async { Ok(0) }));
 
         let mut refresh = MockRefreshTokenRepository::new();
         refresh.expect_revoke_all_for_user().return_once(|_| {
@@ -237,7 +309,7 @@ mod tests {
         let adapter = TokenRevocationAdapter::new(
             Arc::new(access),
             Arc::new(refresh),
-            Arc::new(MockUserSessionRepository::new()),
+            Arc::new(session_repo),
         );
 
         assert!(

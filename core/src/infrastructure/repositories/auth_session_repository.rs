@@ -395,7 +395,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         session_code: Uuid,
         user_session_id: Uuid,
     ) -> Result<(), AuthenticationError> {
-        crate::entity::auth_sessions::Entity::update_many()
+        let result = crate::entity::auth_sessions::Entity::update_many()
             .col_expr(
                 crate::entity::auth_sessions::Column::UserSessionId,
                 Expr::value(user_session_id),
@@ -407,6 +407,12 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 error!("Error binding auth session to a user session: {:?}", e);
                 AuthenticationError::Invalid
             })?;
+
+        // An unbound auth session makes the code exchange open a second
+        // session instead of joining this one, so a miss is an error.
+        if result.rows_affected == 0 {
+            return Err(AuthenticationError::NotFound);
+        }
 
         Ok(())
     }
@@ -616,5 +622,20 @@ mod tests {
         );
         assert_eq!(updated.code, Some("fresh-code-with-user".into()));
         assert_eq!(updated.user_id, Some(user_id));
+    }
+
+    /// Binding an auth session that no longer exists must not report success,
+    /// otherwise the code exchange silently opens a second SSO session.
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn bind_user_session_fails_when_the_auth_session_is_gone() {
+        let (repo, _realm_id, _client_id) = setup().await;
+
+        let result = repo.bind_user_session(Uuid::new_v4(), Uuid::new_v4()).await;
+
+        assert!(
+            matches!(result, Err(AuthenticationError::NotFound)),
+            "binding an unknown auth session must fail, got {result:?}"
+        );
     }
 }

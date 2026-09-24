@@ -108,4 +108,11 @@ pub trait UserSessionRepository: Send + Sync {
         session: &Scoped<UserSession>,
         sso_token_hash: &str,
     ) -> impl Future<Output = Result<(), SessionError>> + Send;
+
+    /// Detach the SSO cookie from the session, so it can no longer resume the
+    /// session at `/auth` while the row itself is kept.
+    fn clear_sso_token_hash(
+        &self,
+        session: &Scoped<UserSession>,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send;
 }
