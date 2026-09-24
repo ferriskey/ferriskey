@@ -668,9 +668,18 @@ where
             "insufficient permissions",
         )?;
 
+        if let Some(id) = input.id {
+            match self.user_repository.get_by_id(id).await {
+                Ok(_) => return Err(CoreError::UserIdAlreadyExists),
+                Err(CoreError::NotFound) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
         let mut user = self
             .user_repository
             .create_user(CreateUserRequest {
+                id: input.id,
                 client_id: None,
                 realm_id,
                 username: input.username,
@@ -1167,6 +1176,61 @@ mod tests {
             self
         }
 
+        fn with_create_user_expecting_id(
+            mut self,
+            expected_id: Option<uuid::Uuid>,
+            created_user: User,
+        ) -> Self {
+            Arc::get_mut(&mut self.user_repo)
+                .unwrap()
+                .expect_create_user()
+                .withf(move |request: &CreateUserRequest| request.id == expected_id)
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(created_user) }));
+            Arc::get_mut(&mut self.security_event_repo)
+                .unwrap()
+                .expect_store_event()
+                .times(1)
+                .return_once(|_| Box::pin(async move { Ok(()) }));
+            self
+        }
+
+        fn with_no_user_created(mut self) -> Self {
+            Arc::get_mut(&mut self.user_repo)
+                .unwrap()
+                .expect_create_user()
+                .never();
+            self
+        }
+
+        fn with_id_available(mut self, id: uuid::Uuid) -> Self {
+            Arc::get_mut(&mut self.user_repo)
+                .unwrap()
+                .expect_get_by_id()
+                .with(mockall::predicate::eq(id))
+                .times(1)
+                .return_once(|_| Box::pin(async move { Err(CoreError::NotFound) }));
+            self
+        }
+
+        fn with_id_taken(mut self, user: User) -> Self {
+            Arc::get_mut(&mut self.user_repo)
+                .unwrap()
+                .expect_get_by_id()
+                .with(mockall::predicate::eq(user.id))
+                .times(1)
+                .return_once(move |_| Box::pin(async move { Ok(Unscoped::new(user)) }));
+            self
+        }
+
+        fn with_no_id_lookup(mut self) -> Self {
+            Arc::get_mut(&mut self.user_repo)
+                .unwrap()
+                .expect_get_by_id()
+                .never();
+            self
+        }
+
         fn with_create_user_email_exists(mut self) -> Self {
             Arc::get_mut(&mut self.user_repo)
                 .unwrap()
@@ -1328,6 +1392,7 @@ mod tests {
             .build();
 
         let input = CreateUserInput {
+            id: None,
             realm_name: "test-realm".to_string(),
             username: "new_user".to_string(),
             firstname: Some("New".to_string()),
@@ -1368,6 +1433,7 @@ mod tests {
             .build();
 
         let input = CreateUserInput {
+            id: None,
             realm_name: "test-realm".to_string(),
             username: "new_user".to_string(),
             firstname: Some("New".to_string()),
@@ -1381,6 +1447,118 @@ mod tests {
         assert!(result.is_ok());
         let created_user = result.unwrap();
         assert_eq!(created_user.email, Some("unique@example.com".to_string()));
+    }
+
+    fn create_user_input(id: Option<uuid::Uuid>) -> CreateUserInput {
+        CreateUserInput {
+            id,
+            realm_name: "test-realm".to_string(),
+            username: "imported_user".to_string(),
+            firstname: Some("Imported".to_string()),
+            lastname: Some("User".to_string()),
+            email: Some("imported@example.com".to_string()),
+            email_verified: Some(false),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_user_forwards_a_supplied_id_to_the_repository() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+
+        let user_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let supplied = uuid::Uuid::new_v4();
+        let new_user = create_test_user_with_params_and_realm(
+            &realm,
+            "imported_user",
+            "imported@example.com".to_string(),
+            true,
+        );
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(user_id, vec![admin_role])
+            .with_id_available(supplied)
+            .with_create_user_expecting_id(Some(supplied), new_user.clone())
+            .with_webhook_notify()
+            .build();
+
+        let result = service
+            .create_user(identity, create_user_input(Some(supplied)))
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_user_with_a_taken_id_fails_without_inserting() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+
+        let user_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let existing = create_test_user_with_params_and_realm(
+            &realm,
+            "already_there",
+            "already@example.com".to_string(),
+            true,
+        );
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(user_id, vec![admin_role])
+            .with_id_taken(existing.clone())
+            .with_no_user_created()
+            .build();
+
+        let result = service
+            .create_user(identity, create_user_input(Some(existing.id)))
+            .await;
+
+        assert!(matches!(
+            result.unwrap_err(),
+            CoreError::UserIdAlreadyExists
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_user_without_an_id_does_not_look_for_a_collision() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_role = create_admin_role(&realm);
+
+        let user_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let new_user = create_test_user_with_params_and_realm(
+            &realm,
+            "imported_user",
+            "imported@example.com".to_string(),
+            true,
+        );
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm.clone())
+            .with_user_permissions(user_id, vec![admin_role])
+            .with_no_id_lookup()
+            .with_create_user_expecting_id(None, new_user.clone())
+            .with_webhook_notify()
+            .build();
+
+        let result = service.create_user(identity, create_user_input(None)).await;
+
+        assert!(result.is_ok());
     }
 
     #[tokio::test]

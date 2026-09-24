@@ -761,6 +761,7 @@ mod tests {
             .realm_service
             .user_repository
             .create_user(CreateUserRequest {
+                id: None,
                 realm_id: realm.id,
                 client_id: None,
                 username: "test-user".to_string(),

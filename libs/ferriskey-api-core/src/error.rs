@@ -21,6 +21,9 @@ impl From<CoreError> for ApiError {
             CoreError::UsernameAlreadyExists => {
                 Self::BadRequest("Username already exists in this realm".into())
             }
+            CoreError::UserIdAlreadyExists => {
+                Self::Conflict("A user already exists with this id".into())
+            }
             CoreError::Invalid => Self::BadRequest("Invalid resource".into()),
             CoreError::InvalidRequiredAction(action) => {
                 let allowed = RequiredAction::allowed_values().join(", ");
@@ -527,6 +530,21 @@ mod tests {
                 "status": 400,
                 "reason": "email_already_exists",
                 "message": "Email already exists in this realm",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn maps_a_taken_user_id_to_conflict() {
+        let body = body_of(CoreError::UserIdAlreadyExists).await;
+
+        assert_eq!(
+            body,
+            json!({
+                "code": "E_CONFLICT",
+                "status": 409,
+                "reason": "user_id_already_exists",
+                "message": "A user already exists with this id",
             })
         );
     }

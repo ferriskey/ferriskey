@@ -329,6 +329,7 @@ where
                 let user = self
                     .user_repository
                     .create_user(CreateUserRequest {
+                        id: None,
                         email: Some(config.admin_email.clone()),
                         email_verified: true,
                         enabled: true,

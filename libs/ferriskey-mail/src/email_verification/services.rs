@@ -494,6 +494,7 @@ mod tests {
 
     fn test_user(realm: &Realm) -> User {
         User::new(UserConfig {
+            id: None,
             realm_id: realm.id,
             client_id: None,
             username: "testuser".to_string(),
