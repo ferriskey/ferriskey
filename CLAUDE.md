@@ -30,8 +30,8 @@ cargo test
 cargo test -p ferriskey-core
 cargo test -p ferriskey-api
 
-# Run integration tests (requires test database)
-cargo test --test it
+# Run one integration suite (requires PostgreSQL; every such test is #[ignore]d)
+cargo test -p ferriskey-api --test <feature>_test -- --ignored
 
 # Check code (faster than build)
 cargo check
@@ -115,31 +115,40 @@ Each domain module contains:
 - Infrastructure implements ports
 - `ApplicationService` in `application/mod.rs` composes everything via dependency injection
 
-### API Layer (`api/src/application/http/`)
+### API Layer (`libs/ferriskey-api-*`)
 
-Built with Axum. Each feature mirrors a domain module:
+Built with Axum. Each feature is its own crate (#1157); `api/` is a thin binary that composes them.
 
 ```
-http/
-├── server/              # HTTP setup, routing, middleware
-│   ├── http_server.rs  # Main router composition
-│   ├── app_state.rs    # Application state (contains services)
-│   └── openapi.rs      # Swagger/ReDoc/Scalar
-├── authentication/      # Auth endpoints
-├── user/
-├── client/
-├── realm/
-├── role/
-├── trident/            # MFA endpoints
-├── seawatch/           # Security events
-└── webhook/
+api/src/application/http/server/
+├── http_server.rs      # merges every feature router
+├── app_state.rs        # application state (contains services)
+└── openapi.rs          # aggregates every feature's ApiDoc, Swagger/ReDoc/Scalar
+
+libs/
+├── ferriskey-api-core/         # shared: AppState, ApiError, auth middleware, extractors
+├── ferriskey-api-account/      # self-service account (/users/me)
+├── ferriskey-api-authentication/
+├── ferriskey-api-user/
+├── ferriskey-api-client/
+├── ferriskey-api-realm/
+├── ferriskey-api-trident/      # MFA
+├── ferriskey-api-seawatch/     # security events
+└── …                           # one per feature, see the workspace members in Cargo.toml
 ```
 
-**Handler Pattern:**
-- Each feature has `router.rs` (routes), `handlers/` (endpoint logic), `validators.rs`, `errors.rs`
-- Handlers extract `State<AppState>` to access domain services
-- Errors convert: `CoreError` → `ApiError` (see `api/src/application/http/errors/error.rs`)
-- OpenAPI docs via `utoipa` attributes on handlers
+**Crate pattern:** each exposes `<feature>_routes(state: AppState) -> Router<AppState>` and a
+`<Feature>ApiDoc` (utoipa `#[derive(OpenApi)]`), laid out as `src/router.rs`, `src/handlers/`,
+`src/validators.rs`, `src/errors.rs`.
+
+**Adding a feature crate** takes three registration points: workspace members in the root
+`Cargo.toml`, a `.merge(...)` in `http_server.rs`, and a `nest(...)` in `openapi.rs`.
+
+**Handler pattern:**
+- Handlers take `State<AppState>` for the services and `Extension<Identity>` for the caller
+- Errors convert: `CoreError` → `ApiError` (`libs/ferriskey-api-core/src/error.rs`) — that match is
+  exhaustive, so a new `CoreError` variant does not compile until it is mapped
+- OpenAPI docs via `utoipa` attributes on handlers; paths are relative to the crate's `nest` prefix
 
 ### Frontend (`front/`)
 
@@ -183,10 +192,19 @@ DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrat
 cargo install sea-orm-cli
 
 # Generate from database
+# --expanded-format is REQUIRED: without it sea-orm-cli emits the compact
+# DeriveEntityModel layout, while every entity in this repo is the expanded one.
+# Generate into a throwaway database and directory, then copy only the new files:
+# regenerating in place rewrites entities that have accumulated hand edits.
 sea-orm-cli generate entity \
-  --database-url postgres://ferriskey:ferriskey@localhost:5432/ferriskey \
-  --output-dir src/entity
+  --expanded-format \
+  --max-connections 1 \
+  --database-url postgres://ferriskey:ferriskey@localhost:5432/<throwaway-db> \
+  --output-dir /tmp/entitygen
 ```
+
+`mod.rs` and `prelude.rs` are edited by hand afterwards — the generated ones do not match
+what the repo declares.
 
 ## Testing Strategy
 
@@ -196,21 +214,33 @@ sea-orm-cli generate entity \
 - Infrastructure tests validate implementations (e.g., Argon2, recovery codes)
 
 **Integration Tests:**
-- Located in `api/tests/it/`
-- Use `test-context` crate for test lifecycle
-- `postgres_context.rs` helper for database setup
-- `axum-test` for HTTP endpoint testing
+- One standalone file per feature: `api/tests/<feature>_test.rs`. There is no `api/tests/it/`.
+- They need a running PostgreSQL, so every test is `#[ignore]`d and does not block `cargo test`.
+- Each suite provisions its own schema and acts through its own dedicated user, so suites stay
+  parallel-safe.
+- Build the router **once** per suite behind a `OnceLock<SharedContext>`. Building it per test
+  panics with `Failed to set global recorder`: the Prometheus recorder is global to the process.
+- `axum-test` drives the HTTP endpoints.
+- A new suite must be added to `.github/workflows/integration-tests.yaml` — a suite that exists and
+  never runs reads as coverage it does not provide.
 
-**Run specific test:**
+**Run tests:**
 ```bash
-# Single test function
-cargo test test_name
+# unit tests, the whole workspace
+cargo test --workspace --lib
 
-# All tests in a file
-cargo test --test it
+# one integration suite (needs PostgreSQL)
+cargo test -p ferriskey-api --test <feature>_test -- --ignored
 
-# With output
+# with output
 cargo test -- --nocapture
+```
+
+**Before pushing**, run what CI runs — `pre-commit` fails on formatting before it ever lints:
+```bash
+cargo fmt --all -- --check
+cargo clippy --all --all-targets --exclude ferriskey-client -- -D warnings
+cargo check --all-targets
 ```
 
 ## Key Domain Concepts
@@ -314,8 +344,8 @@ GitHub Actions workflows in `.github/workflows/`:
 - **Never edit** `core/src/entity/` files manually - they're generated from migrations
 - **Async everywhere** - Use `tokio::test` for async tests, `.await` on all DB/HTTP calls
 - **Type safety** - Leverage Rust's type system; prefer compile-time errors over runtime
-- **No unwrap()** - Current refactor (branch 623-remove-unwrap-in-codebase) eliminates `.unwrap()` calls
-- **Cookie handling** - Uses `axum-extra` for cookie management (see recent commit 1fc8d81)
+- **No unwrap()** - `.unwrap()`/`.expect()` belong in tests and provably-infallible cases only
+- **Cookie handling** - Uses `axum-extra` for cookie management
 - **Default credentials** - admin/admin for local development (change in production)
 
 ## Useful Links
