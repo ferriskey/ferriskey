@@ -35,6 +35,7 @@ pub struct Model {
     pub maintenance_reason: Option<String>,
     pub maintenance_session_strategy: Option<String>,
     pub require_pkce: Option<bool>,
+    pub token_exchange_enabled: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -61,6 +62,7 @@ pub enum Column {
     MaintenanceReason,
     MaintenanceSessionStrategy,
     RequirePkce,
+    TokenExchangeEnabled,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -120,6 +122,7 @@ impl ColumnTrait for Column {
                 ColumnType::String(StringLen::N(50u32)).def().null()
             }
             Self::RequirePkce => ColumnType::Boolean.def().null(),
+            Self::TokenExchangeEnabled => ColumnType::Boolean.def(),
         }
     }
 }

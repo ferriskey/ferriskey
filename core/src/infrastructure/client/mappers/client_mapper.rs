@@ -37,6 +37,7 @@ impl From<Model> for Client {
             direct_access_grants_enabled: model.direct_access_grants_enabled.unwrap_or(false),
             oauth_device_code_grant_enabled: model.oauth_device_code_grant_enabled.unwrap_or(false),
             require_pkce: model.require_pkce.unwrap_or(false),
+            token_exchange_enabled: model.token_exchange_enabled,
             client_type: model
                 .client_type
                 .parse::<ClientType>()

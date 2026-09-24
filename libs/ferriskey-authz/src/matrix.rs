@@ -176,7 +176,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 260,
+        line: 261,
     },
     AuthzRow {
         service_fn: "create_post_logout_redirect_uri",
@@ -186,7 +186,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 299,
+        line: 300,
     },
     AuthzRow {
         service_fn: "create_web_origin",
@@ -196,7 +196,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 338,
+        line: 339,
     },
     AuthzRow {
         service_fn: "get_web_origins",
@@ -210,7 +210,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 377,
+        line: 378,
     },
     AuthzRow {
         service_fn: "delete_web_origin",
@@ -220,7 +220,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 401,
+        line: 402,
     },
     AuthzRow {
         service_fn: "get_client_saml_config",
@@ -234,7 +234,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 437,
+        line: 438,
     },
     AuthzRow {
         service_fn: "set_client_saml_config",
@@ -244,7 +244,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 464,
+        line: 465,
     },
     AuthzRow {
         service_fn: "create_saml_attribute_mapper",
@@ -254,7 +254,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 513,
+        line: 514,
     },
     AuthzRow {
         service_fn: "get_saml_attribute_mappers",
@@ -268,7 +268,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 558,
+        line: 559,
     },
     AuthzRow {
         service_fn: "delete_saml_attribute_mapper",
@@ -278,7 +278,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 582,
+        line: 583,
     },
     AuthzRow {
         service_fn: "create_role",
@@ -288,7 +288,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageRoles],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 619,
+        line: 620,
     },
     AuthzRow {
         service_fn: "delete_client",
@@ -298,7 +298,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 684,
+        line: 685,
     },
     AuthzRow {
         service_fn: "delete_redirect_uri",
@@ -308,7 +308,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 733,
+        line: 734,
     },
     AuthzRow {
         service_fn: "delete_post_logout_redirect_uri",
@@ -318,7 +318,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 771,
+        line: 772,
     },
     AuthzRow {
         service_fn: "get_client_by_id",
@@ -332,7 +332,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 808,
+        line: 809,
     },
     AuthzRow {
         service_fn: "reveal_client_secret",
@@ -342,7 +342,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 829,
+        line: 830,
     },
     AuthzRow {
         service_fn: "get_client_roles",
@@ -356,7 +356,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 864,
+        line: 865,
     },
     AuthzRow {
         service_fn: "get_clients",
@@ -370,7 +370,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 889,
+        line: 890,
     },
     AuthzRow {
         service_fn: "get_redirect_uris",
@@ -384,7 +384,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 908,
+        line: 909,
     },
     AuthzRow {
         service_fn: "get_post_logout_redirect_uris",
@@ -398,7 +398,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 932,
+        line: 933,
     },
     AuthzRow {
         service_fn: "update_client",
@@ -408,7 +408,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 957,
+        line: 958,
     },
     AuthzRow {
         service_fn: "update_redirect_uri",
@@ -418,7 +418,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 998,
+        line: 999,
     },
     AuthzRow {
         service_fn: "update_post_logout_redirect_uri",
@@ -428,7 +428,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClients],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 1037,
+        line: 1038,
     },
     AuthzRow {
         service_fn: "toggle_maintenance",
