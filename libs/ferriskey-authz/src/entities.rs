@@ -46,7 +46,6 @@ impl std::fmt::Display for EntityType {
     }
 }
 
-/// A typed reference to something the engine can reason about.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EntityRef {
     pub ty: EntityType,
@@ -113,7 +112,6 @@ impl std::fmt::Display for ActionId {
     }
 }
 
-/// An attribute value carried by an entity or a request context.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AttrValue {
@@ -219,7 +217,6 @@ impl RequestContext {
     }
 }
 
-/// One authorization question.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AccessRequest {
     pub subject: EntityRef,
@@ -295,9 +292,6 @@ pub struct GroupNode {
 }
 
 /// Everything about a principal an engine needs, resolved once per request.
-///
-/// Loaded by the auth middleware, which already holds the `User` and `Client`,
-/// so a decision costs no further database round-trip.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PrincipalSlice {
     pub principal: EntityRef,
@@ -332,7 +326,6 @@ pub struct PolicySource {
     pub source: String,
 }
 
-/// The full policy set of a realm, at a given version.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PolicyBundle {
     pub realm_id: Uuid,

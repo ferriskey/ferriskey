@@ -227,7 +227,6 @@ type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 type UserSessionRepo = PostgresUserSessionRepository;
 
-/// The concrete authorization engine every policy-aware service is wired to.
 type PolicyImpl =
     crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>;
 

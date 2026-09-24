@@ -1936,7 +1936,6 @@ mod tests {
         assert!(matches!(result, Err(CoreError::NotFound)));
     }
 
-    /// A role of `realm` granting exactly `permissions`.
     fn role_granting(
         realm: &Realm,
         permissions: &[Permissions],
@@ -1949,8 +1948,6 @@ mod tests {
 
     #[tokio::test]
     async fn assign_role_refuses_a_role_granting_more_than_the_caller_holds() {
-        // A user administrator holding only ManageUsers assigns itself a role that
-        // carries ManageRealm: the textbook escalation.
         let realm = create_test_realm_with_name("tenant-a");
         let identity = create_test_user_identity_with_realm(&realm);
         let admin = match &identity {

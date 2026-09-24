@@ -8,10 +8,6 @@
 //! `XxxPolicy` traits live in their own crate's `ports.rs`, and the `Policy`
 //! trait plus `ensure_policy` stay in `ferriskey_domain::common::policies`.
 //! Only the implementation lives here.
-//!
-//! [`entities`] is shaped after the OpenID AuthZEN Authorization API 1.0
-//! request model (subject / action / resource / context) so the HTTP facade
-//! and any future engine share one vocabulary.
 
 pub mod actions;
 pub mod entities;

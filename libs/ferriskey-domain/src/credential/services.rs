@@ -11,10 +11,8 @@ use crate::realm::ports::RealmRepository;
 use crate::realm::scope::RealmScope;
 use crate::user::ports::{UserPolicy, UserRepository};
 
-/// Generic over the policy rather than bound to a concrete engine, mirroring
-/// `UserSessionManagementServiceImpl`. The kernel states which contract it
-/// needs; the engine satisfying it lives in `ferriskey-authz`, which depends on
-/// the kernel — so naming it here would close a cycle.
+/// Generic over the policy: the engine lives in `ferriskey-authz`, which
+/// depends on this crate, so naming it here would close a cycle.
 #[derive(Clone, Debug)]
 pub struct CredentialServiceImpl<R, U, CR, P>
 where

@@ -15,7 +15,6 @@ use std::path::{Path, PathBuf};
 
 use ferriskey_authz::matrix::AUTHZ_MATRIX;
 
-/// Directories holding authorization-guarded services.
 const SCAN_DIRS: [&str; 3] = ["core/src", "libs", "api/src"];
 
 fn repo_root() -> PathBuf {

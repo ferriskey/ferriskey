@@ -34,8 +34,6 @@ pub trait Policy: Send + Sync {
 /// engine couldn't answer — a database read failing, a realm that doesn't
 /// resolve — is not the same thing and must not be reported as one: it
 /// propagates as its own `CoreError`, whatever HTTP status that maps to.
-/// Collapsing both into `Forbidden` would hide infrastructure failures
-/// behind an authorization error, indistinguishable from a legitimate deny.
 pub fn ensure_policy(
     result_has_permission: Result<bool, CoreError>,
     error_message: &str,

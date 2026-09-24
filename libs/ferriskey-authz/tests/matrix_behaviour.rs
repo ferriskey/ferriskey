@@ -86,7 +86,6 @@ fn user_in(realm: &Realm) -> User {
     }
 }
 
-/// A role carrying `permissions`, attached to `client_id` when client-scoped.
 fn role_with(realm_id: RealmId, client_id: Option<Uuid>, permissions: &[Permissions]) -> Role {
     Role {
         id: Uuid::new_v4(),

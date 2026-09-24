@@ -633,8 +633,6 @@ mod tests {
 
     #[tokio::test]
     async fn a_failing_role_lookup_propagates_instead_of_denying() {
-        // A database outage is not a "no": reporting it as Forbidden would hide
-        // it behind a legitimate-looking denial.
         let realm = make_realm("tenant-a");
         let user = make_user(&realm);
 
