@@ -562,7 +562,7 @@ mod tests {
 
         fixture
             .repository
-            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), false)
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), true)
             .await
             .expect("update password credential");
 
@@ -616,6 +616,28 @@ mod tests {
             credential.credential_data,
             CredentialData::Hash { hash_iterations: 10, ref algorithm } if algorithm == "bcrypt"
         ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn update_password_credential_writes_the_temporary_flag_it_is_given() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        insert_bcrypt_password(&fixture.pool, user_id, true).await;
+
+        fixture
+            .repository
+            .update_password_credential(user_id, "$2a$10$legacy", argon2id_hash(), false)
+            .await
+            .expect("update password credential");
+
+        let after = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("argon2id credential");
+
+        assert!(!after.temporary);
     }
 
     #[tokio::test]
