@@ -560,6 +560,18 @@ where
             .in_realm(&scope)?;
         let role = self.load_role_in_realm(input.role_id, &scope).await?;
 
+        // Holding a role is holding its permissions: assigning one is granting
+        // them, so the same bound applies as when editing a role.
+        if !self
+            .policy
+            .can_grant_permissions(&identity, &realm, &role.permissions)
+            .await?
+        {
+            return Err(CoreError::Forbidden(
+                "cannot assign a role granting permissions you do not hold".to_string(),
+            ));
+        }
+
         self.user_role_repository
             .assign_role(input.user_id, input.role_id)
             .await
@@ -1134,8 +1146,10 @@ mod tests {
                 .unwrap()
                 .expect_get_user_roles()
                 .with(mockall::predicate::eq(user_id))
-                .times(1)
-                .return_once(move |_| Box::pin(async move { Ok(roles) }));
+                .returning(move |_| {
+                    let roles = roles.clone();
+                    Box::pin(async move { Ok(roles) })
+                });
             self
         }
 
@@ -1212,6 +1226,33 @@ mod tests {
                 .with(mockall::predicate::eq(user.id))
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(Unscoped::new(user)) }));
+            self
+        }
+
+        fn with_role_assignment_success(
+            mut self,
+            user_id: uuid::Uuid,
+            role_id: uuid::Uuid,
+        ) -> Self {
+            Arc::get_mut(&mut self.user_role_repo)
+                .unwrap()
+                .expect_assign_role()
+                .with(
+                    mockall::predicate::eq(user_id),
+                    mockall::predicate::eq(role_id),
+                )
+                .times(1)
+                .return_once(|_, _| Box::pin(async move { Ok(()) }));
+            Arc::get_mut(&mut self.security_event_repo)
+                .unwrap()
+                .expect_store_event()
+                .times(1)
+                .return_once(|_| Box::pin(async move { Ok(()) }));
+            Arc::get_mut(&mut self.webhook_repo)
+                .unwrap()
+                .expect_notify::<crate::domain::role::entities::Role>()
+                .times(1)
+                .return_once(|_, _| Box::pin(async move { Ok(()) }));
             self
         }
 
@@ -1893,6 +1934,95 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    /// A role of `realm` granting exactly `permissions`.
+    fn role_granting(
+        realm: &Realm,
+        permissions: &[Permissions],
+    ) -> crate::domain::role::entities::Role {
+        let mut role = create_admin_role(realm);
+        role.name = "granted".to_string();
+        role.permissions = permissions.iter().map(|p| p.name()).collect();
+        role
+    }
+
+    #[tokio::test]
+    async fn assign_role_refuses_a_role_granting_more_than_the_caller_holds() {
+        // A user administrator holding only ManageUsers assigns itself a role that
+        // carries ManageRealm: the textbook escalation.
+        let realm = create_test_realm_with_name("tenant-a");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin = match &identity {
+            Identity::User(u) => u.clone(),
+            _ => panic!("Expected user identity"),
+        };
+        let realm_admin_role = role_granting(&realm, &[Permissions::ManageRealm]);
+
+        // No `with_role_assignment_success`: the mock panics if the write is reached.
+        let service = UserServiceTestBuilder::new()
+            .with_realm("tenant-a".to_string(), realm.clone())
+            .with_user_permissions(admin.id, vec![create_admin_role(&realm)])
+            .with_target_user(admin.clone())
+            .with_role(realm_admin_role.clone())
+            .build();
+
+        let result = service
+            .assign_role(
+                identity,
+                AssignRoleInput {
+                    realm_name: "tenant-a".to_string(),
+                    user_id: admin.id,
+                    role_id: realm_admin_role.id,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "assigning a role above the caller's own permissions must be refused, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn assign_role_accepts_a_role_within_the_callers_permissions() {
+        let realm = create_test_realm_with_name("tenant-a");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let admin_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+        let target = create_test_user_with_params_and_realm(
+            &realm,
+            "member",
+            "member@tenant-a.example".to_string(),
+            true,
+        );
+        let reader_role = role_granting(&realm, &[Permissions::ManageUsers]);
+
+        let service = UserServiceTestBuilder::new()
+            .with_realm("tenant-a".to_string(), realm.clone())
+            .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
+            .with_target_user(target.clone())
+            .with_role(reader_role.clone())
+            .with_role_assignment_success(target.id, reader_role.id)
+            .build();
+
+        let result = service
+            .assign_role(
+                identity,
+                AssignRoleInput {
+                    realm_name: "tenant-a".to_string(),
+                    user_id: target.id,
+                    role_id: reader_role.id,
+                },
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "assigning a role within held permissions must succeed: {result:?}"
+        );
     }
 
     const IMPORTED_BCRYPT_HASH: &str =
