@@ -59,6 +59,7 @@ mod tests {
             client_type: ClientType::Public,
             direct_access_grants_enabled: None,
             oauth_device_code_grant_enabled: None,
+            token_exchange_enabled: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,
             id_token_lifetime: None,
