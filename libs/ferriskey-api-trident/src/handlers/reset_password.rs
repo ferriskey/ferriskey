@@ -1,9 +1,8 @@
 use axum::{
     extract::{Path, State},
-    http::{HeaderValue, StatusCode, header::SET_COOKIE},
+    http::StatusCode,
     response::IntoResponse,
 };
-use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::{
     authentication::{
         entities::JwtToken, ports::AuthService, value_objects::GenerateTokensForUserInput,
@@ -24,8 +23,6 @@ use ferriskey_api_core::{
     sso_cookie,
     url::FullUrl,
 };
-
-const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct ResetPasswordRequest {
@@ -135,22 +132,9 @@ pub async fn reset_password_with_token(
         })
         .await?;
 
-    let mut identity_cookie = Cookie::build((IDENTITY_COOKIE, token.access_token().to_string()))
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax);
-
-    if is_secure {
-        identity_cookie = identity_cookie.secure(true);
-    }
-
-    let cookie_value = HeaderValue::from_str(&identity_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
-
     // A reset completed inside an OAuth flow opened an SSO session with the
-    // code it minted; hand it to this browser alongside the legacy cookie.
-    let mut headers = sso_cookie::headers(result.sso_session, is_secure)?;
-    headers.append(SET_COOKIE, cookie_value);
+    // code it minted; hand it to this browser.
+    let headers = sso_cookie::headers(result.sso_session, is_secure)?;
 
     Ok((
         StatusCode::OK,

@@ -817,4 +817,71 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn the_token_endpoint_hands_out_no_cookie() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+
+            let token = exchange_survey_code(&server, &code).await;
+
+            assert_eq!(token.status_code(), 200, "{}", token.text());
+            assert!(
+                token.headers().get("set-cookie").is_none(),
+                "a token response must not carry a bearer token in a cookie: {:?}",
+                token.headers().get_all("set-cookie")
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_legacy_identity_cookie_no_longer_signs_in() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+            let token = exchange_survey_code(&server, &code).await;
+            let access_token = token.json::<serde_json::Value>()["access_token"]
+                .as_str()
+                .expect("an access token")
+                .to_string();
+
+            let survey = server
+                .get(&format!("/realms/{}/protocol/openid-connect/auth", realm()))
+                .add_query_param("response_type", "code")
+                .add_query_param("client_id", SURVEY_CLIENT_ID)
+                .add_query_param("redirect_uri", SURVEY_REDIRECT_URI)
+                .add_query_param("scope", "openid")
+                .add_query_param("state", "survey-state")
+                .add_header(
+                    "Cookie",
+                    axum::http::HeaderValue::from_str(&format!(
+                        "FERRISKEY_IDENTITY={access_token}"
+                    ))
+                    .expect("cookie header"),
+                )
+                .await;
+            let location = location_of(&survey);
+
+            assert!(
+                location.starts_with(WEBAPP_URL),
+                "a valid access token in the old cookie must not sign anyone in: {location}"
+            );
+            assert!(
+                survey
+                    .headers()
+                    .get_all("set-cookie")
+                    .iter()
+                    .filter_map(|v| v.to_str().ok())
+                    .any(|v| v.starts_with("FERRISKEY_IDENTITY=") && v.contains("Max-Age=0")),
+                "the old cookie must be cleared from the browser"
+            );
+        });
+    }
 }

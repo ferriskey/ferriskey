@@ -89,7 +89,7 @@ export default function PageDeviceVerifyFeature() {
 
       // 401: backend tells us to log in and come back. Stash the current URL
       // so the callback returns the user to the verification page once the
-      // identity cookie is set, then kick off the standard OAuth login flow.
+      // SSO session cookie is set, then kick off the standard OAuth login flow.
       if (error.status === 401) {
         if (redirectingToLogin.current) return
         redirectingToLogin.current = true
