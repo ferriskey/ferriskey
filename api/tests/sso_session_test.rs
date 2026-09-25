@@ -23,6 +23,8 @@ mod tests {
     const SURVEY_CLIENT_ID: &str = "survey-app";
     const SURVEY_REDIRECT_URI: &str = "https://survey.example.com/oidc/callback";
     const S256_CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+    const OTP_USERNAME: &str = "otp-user";
+    const OTP_SECRET: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
     fn env_or(key: &str, default: &str) -> String {
         env::var(key).unwrap_or_else(|_| default.to_string())
@@ -135,6 +137,7 @@ mod tests {
             .expect("initialize application");
 
         seed_survey_client(&pool, &realm_name).await;
+        seed_otp_user(&pool).await;
 
         let args = Arc::new(Args::default());
         let state = AppState::new(args, service);
@@ -173,6 +176,76 @@ mod tests {
         .execute(pool)
         .await
         .expect("insert survey redirect uri");
+    }
+
+    /// A second account signing in with a password and an OTP. It is cloned
+    /// from `admin` (same password) so the suite needs no user API, and kept
+    /// apart so the OTP never gets in the way of the tests signing in as admin.
+    async fn seed_otp_user(pool: &PgPool) {
+        let otp_user_id = Uuid::new_v4();
+        let mut tx = pool.begin().await.expect("begin seeding the otp user");
+
+        for statement in [
+            "CREATE TEMP TABLE otp_user ON COMMIT DROP AS \
+             SELECT * FROM users WHERE username = 'admin'",
+            "UPDATE otp_user SET id = $1, username = 'otp-user', email = 'otp@test.local'",
+            "INSERT INTO users SELECT * FROM otp_user",
+            "CREATE TEMP TABLE otp_password ON COMMIT DROP AS \
+             SELECT c.* FROM credentials c JOIN users u ON u.id = c.user_id \
+             WHERE u.username = 'admin' AND c.credential_type = 'password'",
+            "UPDATE otp_password SET id = gen_random_uuid(), user_id = $1",
+            "INSERT INTO credentials SELECT * FROM otp_password",
+        ] {
+            let query = sqlx::query(statement);
+            let query = if statement.contains("$1") {
+                query.bind(otp_user_id)
+            } else {
+                query
+            };
+            query
+                .execute(&mut *tx)
+                .await
+                .unwrap_or_else(|e| panic!("seed the otp user ({statement}): {e}"));
+        }
+
+        sqlx::query(
+            "INSERT INTO credentials (id, credential_type, user_id, secret_data, \
+             credential_data, user_label) \
+             VALUES ($1, 'otp', $2, $3, '{}'::jsonb, 'test-authenticator')",
+        )
+        .bind(Uuid::new_v4())
+        .bind(otp_user_id)
+        .bind(OTP_SECRET)
+        .execute(&mut *tx)
+        .await
+        .expect("enrol the otp user's authenticator");
+
+        tx.commit().await.expect("commit the otp user");
+    }
+
+    fn totp_code_for(secret_base32: &str) -> String {
+        use hmac::{Hmac, Mac};
+        use sha1::Sha1;
+
+        let secret = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret_base32)
+            .expect("the enrolled secret decodes as base32");
+        let counter = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time after the unix epoch")
+            .as_secs()
+            / 30;
+
+        let mut mac = Hmac::<Sha1>::new_from_slice(&secret).expect("hmac accepts any key length");
+        mac.update(&counter.to_be_bytes());
+        let digest = mac.finalize().into_bytes();
+
+        let offset = (digest[19] & 0x0f) as usize;
+        let truncated = ((digest[offset] as u32 & 0x7f) << 24)
+            | ((digest[offset + 1] as u32) << 16)
+            | ((digest[offset + 2] as u32) << 8)
+            | (digest[offset + 3] as u32);
+
+        format!("{:06}", truncated % 1_000_000)
     }
 
     fn make_server() -> TestServer {
@@ -645,6 +718,103 @@ mod tests {
                 token.text()
             );
             assert_eq!(token.json::<serde_json::Value>()["error"], "invalid_grant");
+        });
+    }
+
+    async fn count_otp_user_sessions() -> i64 {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM user_sessions s \
+             JOIN users u ON u.id = s.user_id WHERE u.username = $1",
+        )
+        .bind(OTP_USERNAME)
+        .fetch_one(&shared_ctx().pool)
+        .await
+        .expect("count otp user sessions")
+    }
+
+    fn sso_cookie_of(response: &axum_test::TestResponse) -> Option<String> {
+        response
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find_map(|v| v.strip_prefix("FERRISKEY_SSO="))
+            .and_then(|v| v.split(';').next())
+            .filter(|v| !v.is_empty())
+            .map(str::to_string)
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn an_otp_login_hands_out_the_session_cookie() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+            let authorize = start_console_authorization(&server).await;
+            let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+            let password_step = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SEEDED_CLIENT_ID)
+                .json(&json!({ "username": OTP_USERNAME, "password": "admin" }))
+                .await;
+            assert_eq!(
+                password_step.status_code(),
+                200,
+                "the password step must succeed: {}",
+                password_step.text()
+            );
+            assert_eq!(
+                sso_cookie_of(&password_step),
+                None,
+                "a password alone must not open the SSO session while an OTP is due"
+            );
+            let step_token = password_step
+                .cookie("FERRISKEY_LOGIN_ACTION")
+                .value()
+                .to_string();
+
+            let otp_step = server
+                .post(&format!("/realms/{}/login-actions/challenge-otp", realm()))
+                .add_header(
+                    "Cookie",
+                    axum::http::HeaderValue::from_str(&format!(
+                        "FERRISKEY_SESSION={session_code}; FERRISKEY_LOGIN_ACTION={step_token}"
+                    ))
+                    .expect("cookie header"),
+                )
+                .json(&json!({ "code": totp_code_for(OTP_SECRET) }))
+                .await;
+            assert_eq!(
+                otp_step.status_code(),
+                200,
+                "the otp step must succeed: {}",
+                otp_step.text()
+            );
+            let sso = sso_cookie_of(&otp_step)
+                .expect("completing the login with an OTP must hand out the SSO cookie");
+            let sessions_after_login = count_otp_user_sessions().await;
+
+            let survey = start_survey_authorization(&server, Some(&sso)).await;
+            let location = location_of(&survey);
+            assert!(
+                location.starts_with(SURVEY_REDIRECT_URI),
+                "the second application must sign in from the OTP login's session: {location}"
+            );
+
+            let token = exchange_survey_code(&server, &code_of(&location)).await;
+            assert_eq!(
+                token.status_code(),
+                200,
+                "the exchange must succeed: {}",
+                token.text()
+            );
+            assert_eq!(
+                count_otp_user_sessions().await,
+                sessions_after_login,
+                "one sign-in, one session: the exchange must join the OTP login's session"
+            );
         });
     }
 }

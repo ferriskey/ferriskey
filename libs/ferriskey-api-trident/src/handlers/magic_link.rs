@@ -20,6 +20,8 @@ use ferriskey_api_core::{
     },
     app_state::AppState,
     authentication::{AuthenticateResponse, AuthenticationStatus},
+    sso_cookie,
+    url::FullUrl,
 };
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
@@ -109,11 +111,12 @@ pub async fn send_magic_link(
 )]
 pub async fn verify_magic_link(
     State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
     Query(query): Query<VerifyMagicLinkQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     debug!("Verifying magic link for token_id: {}", query.token_id);
 
-    let login_url = state
+    let verified = state
         .service
         .verify_magic_link(VerifyMagicLinkInput {
             magic_token_id: query.token_id,
@@ -126,7 +129,7 @@ pub async fn verify_magic_link(
     // Return success with redirect URL
     let response = AuthenticateResponse {
         status: AuthenticationStatus::Success,
-        url: Some(login_url),
+        url: Some(verified.login_url),
         required_actions: None,
         email: None,
         message: Some("Magic link authentication successful".to_string()),
@@ -134,6 +137,7 @@ pub async fn verify_magic_link(
 
     Ok((
         StatusCode::OK,
+        sso_cookie::headers(Some(verified.sso_session), base_url.starts_with("https"))?,
         [(header::REFERRER_POLICY, "no-referrer")],
         axum::Json(response),
     )

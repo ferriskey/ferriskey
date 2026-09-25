@@ -1,4 +1,4 @@
-use axum::{Extension, extract::State};
+use axum::{Extension, extract::State, response::IntoResponse};
 use axum_cookie::CookieManager;
 use ferriskey_api_core::{
     api_entities::{
@@ -6,6 +6,8 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    sso_cookie,
+    url::FullUrl,
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{ChallengeOtpInput, TridentService};
@@ -49,9 +51,10 @@ pub struct ChallengeOtpResponse {
 pub async fn challenge_otp(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
+    FullUrl(_, base_url): FullUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ChallengeOtpRequest>,
-) -> Result<Response<ChallengeOtpResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let session_code = cookie
         .get("FERRISKEY_SESSION")
         .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))? // Ou un type d'erreur 401/403
@@ -75,5 +78,8 @@ pub async fn challenge_otp(
         required_actions: result.required_actions,
     };
 
-    Ok(Response::OK(response))
+    Ok((
+        sso_cookie::headers(result.sso_session, base_url.starts_with("https"))?,
+        Response::OK(response),
+    ))
 }

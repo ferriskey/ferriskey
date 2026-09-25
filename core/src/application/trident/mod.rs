@@ -9,11 +9,12 @@ use crate::{
             GenerateRecoveryCodeOutput, MagicLinkInput, PasskeyAuthenticateInput,
             PasskeyAuthenticateOutput, PasskeyRequestOptionsInput, RequestPasswordResetInput,
             SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
-            VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput, VerifyResetTokenInput,
-            WebAuthnPublicKeyAuthenticateInput, WebAuthnPublicKeyAuthenticateOutput,
-            WebAuthnPublicKeyCreateOptionsInput, WebAuthnPublicKeyCreateOptionsOutput,
-            WebAuthnPublicKeyRequestOptionsInput, WebAuthnPublicKeyRequestOptionsOutput,
-            WebAuthnValidatePublicKeyInput, WebAuthnValidatePublicKeyOutput,
+            VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput, VerifyOtpOutput,
+            VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
+            WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
+            WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
+            WebAuthnPublicKeyRequestOptionsOutput, WebAuthnValidatePublicKeyInput,
+            WebAuthnValidatePublicKeyOutput,
         },
     },
 };
@@ -129,7 +130,10 @@ impl TridentService for ApplicationService {
         self.trident_service.generate_magic_link(input).await
     }
 
-    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
+    async fn verify_magic_link(
+        &self,
+        input: VerifyMagicLinkInput,
+    ) -> Result<VerifyMagicLinkOutput, CoreError> {
         self.trident_service.verify_magic_link(input).await
     }
 

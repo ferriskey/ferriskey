@@ -153,6 +153,7 @@ pub mod realm;
 pub mod role;
 pub mod saml;
 pub mod seawatch;
+pub mod sso_session;
 pub mod token_revocation;
 pub mod trident;
 pub mod user;
@@ -238,6 +239,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     );
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
+    let sso_session = Arc::new(crate::application::sso_session::SsoSessionAdapter::new(
+        user_session.clone(),
+        security_event.clone(),
+        realm.clone(),
+        client.clone(),
+    ));
     let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
     let federation = Arc::new(FederationRepositoryImpl::new(postgres.get_db()));
     let broker_auth_session = Arc::new(PostgresBrokerAuthSessionRepository::new(postgres.get_db()));
@@ -464,6 +471,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             otp_enrollment.clone(),
             user_role.clone(),
             token_revocation.clone(),
+            sso_session.clone(),
             flow_recorder.clone(),
         ),
         account_security_service:
