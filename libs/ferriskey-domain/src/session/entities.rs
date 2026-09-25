@@ -24,6 +24,10 @@ pub struct UserSession {
     pub last_seen_at: Option<DateTime<Utc>>,
     pub soft_expiry_duration: Option<Duration>,
     pub sso_token_hash: Option<String>,
+    /// Whether the SSO cookie outlives the browser ("remember me").
+    pub persistent: bool,
+    /// When the user last authenticated interactively in this session.
+    pub authenticated_at: DateTime<Utc>,
 }
 
 impl UserSession {
@@ -35,19 +39,28 @@ impl UserSession {
         session_duration: Duration,
         soft_expiry_duration: Option<Duration>,
     ) -> Self {
-        let expires_at = Utc::now() + session_duration;
+        let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
             user_id,
             realm_id,
             user_agent,
             ip_address,
-            created_at: Utc::now(),
-            expires_at,
+            created_at: now,
+            expires_at: now + session_duration,
             last_seen_at: None,
             soft_expiry_duration,
             sso_token_hash: None,
+            persistent: false,
+            authenticated_at: now,
         }
+    }
+
+    /// The `Max-Age` of the SSO cookie, in seconds: the remaining lifetime of a
+    /// persistent session, or `None` for a cookie that dies with the browser.
+    pub fn cookie_max_age(&self) -> Option<i64> {
+        self.persistent
+            .then(|| (self.expires_at - Utc::now()).num_seconds().max(0))
     }
 
     pub fn is_expired(&self) -> bool {

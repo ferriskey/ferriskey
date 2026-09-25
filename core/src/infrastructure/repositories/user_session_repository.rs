@@ -29,6 +29,8 @@ impl From<crate::entity::user_sessions::Model> for UserSession {
             last_seen_at,
             soft_expiry_duration: None,
             sso_token_hash: model.sso_token_hash,
+            persistent: model.persistent,
+            authenticated_at: model.authenticated_at.with_timezone(&Utc),
         }
     }
 }
@@ -56,6 +58,8 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             expires_at: Set(session.expires_at.naive_utc()),
             last_seen_at: Set(session.last_seen_at.map(|dt| dt.naive_utc())),
             sso_token_hash: Set(session.sso_token_hash.clone()),
+            persistent: Set(session.persistent),
+            authenticated_at: Set(session.authenticated_at.fixed_offset()),
         };
 
         model.insert(&self.db).await.map_err(|e| {

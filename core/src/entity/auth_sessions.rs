@@ -33,6 +33,7 @@ pub struct Model {
     pub code_challenge_method: Option<String>,
     pub protocol: String,
     pub user_session_id: Option<Uuid>,
+    pub remember_me: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -57,6 +58,7 @@ pub enum Column {
     CodeChallengeMethod,
     Protocol,
     UserSessionId,
+    RememberMe,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -89,7 +91,6 @@ impl ColumnTrait for Column {
             Self::RealmId => ColumnType::Uuid.def(),
             Self::ClientId => ColumnType::Uuid.def(),
             Self::RedirectUri => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::Protocol => ColumnType::String(StringLen::N(32u32)).def(),
             Self::ResponseType => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::Scope => ColumnType::String(StringLen::N(255u32)).def().null(),
             Self::State => ColumnType::Text.def().null(),
@@ -107,7 +108,9 @@ impl ColumnTrait for Column {
             Self::CompassFlowId => ColumnType::Uuid.def().null(),
             Self::CodeChallenge => ColumnType::Text.def().null(),
             Self::CodeChallengeMethod => ColumnType::String(StringLen::N(10u32)).def().null(),
+            Self::Protocol => ColumnType::String(StringLen::N(32u32)).def(),
             Self::UserSessionId => ColumnType::Uuid.def().null(),
+            Self::RememberMe => ColumnType::Boolean.def(),
         }
     }
 }

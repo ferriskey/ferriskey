@@ -445,6 +445,29 @@ where
         Ok((login_url_from(completion)?, sso_session))
     }
 
+    /// Record the "remember me" choice made alongside a first factor that
+    /// completes the login on its own (passkey).
+    async fn record_remember_me(
+        &self,
+        auth_session: &mut AuthSession,
+        remember_me: bool,
+    ) -> Result<(), CoreError> {
+        if auth_session.remember_me == remember_me {
+            return Ok(());
+        }
+
+        self.auth_session_repository
+            .set_remember_me(auth_session.id, remember_me)
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, "Failed to record the remember-me choice");
+                CoreError::InternalServerError
+            })?;
+        auth_session.remember_me = remember_me;
+
+        Ok(())
+    }
+
     /// End a login: open the SSO session it completes into, stamp the
     /// authorization code, and bind the two so the code exchange joins that
     /// session instead of opening another one.
@@ -456,7 +479,12 @@ where
     ) -> Result<(AuthCompletion, OpenedSsoSession), CoreError> {
         let sso_session = self
             .sso_session
-            .open_for_login(scope, user_id, auth_session.client_id)
+            .open_for_login(
+                scope,
+                user_id,
+                auth_session.client_id,
+                auth_session.remember_me,
+            )
             .await?;
 
         let authorization_code = generate_random_string();
@@ -1253,6 +1281,9 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
+        self.record_remember_me(&mut auth_session, input.remember_me)
+            .await?;
+
         let (login_url, sso_session) = self
             .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &scope, &[])
             .await?;
@@ -1657,6 +1688,17 @@ where
                 auth_session_code,
             )
             .await?;
+
+        // Best effort: the link still logs the user in, only without being
+        // remembered, so a failure here must not stop the email.
+        if let Some(session_code) = auth_session_code
+            && let Err(e) = self
+                .auth_session_repository
+                .set_remember_me(session_code, input.remember_me)
+                .await
+        {
+            warn!(error = ?e, "Failed to record the remember-me choice for a magic link");
+        }
 
         let template_id = realm
             .settings
@@ -3689,6 +3731,7 @@ mod tests {
             code_challenge: None,
             code_challenge_method: None,
             user_session_id: None,
+            remember_me: false,
         }
     }
 
@@ -3881,14 +3924,14 @@ mod tests {
         Arc::get_mut(&mut builder.sso_session)
             .unwrap()
             .expect_open_for_login()
-            .withf(move |_, _, client| *client == client_id)
+            .withf(move |_, _, client, _| *client == client_id)
             .times(1)
-            .returning(move |_, _, _| {
+            .returning(move |_, _, _, _| {
                 Box::pin(async move {
                     Ok(OpenedSsoSession {
                         session_id: sso_session_id,
                         cookie: TEST_SSO_COOKIE.to_string(),
-                        max_age_secs: 3600,
+                        max_age_secs: Some(3600),
                     })
                 })
             });
@@ -4392,7 +4435,7 @@ mod tests {
             .unwrap()
             .expect_open_for_login()
             .times(1)
-            .returning(|_, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
+            .returning(|_, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
             .expect_update_code_and_user_id()
@@ -4700,6 +4743,7 @@ mod tests {
                 session_code: session_code.to_string(),
                 rp_info: passkey_rp_info(),
                 credential: assertion,
+                remember_me: false,
             })
             .await;
 
@@ -4782,6 +4826,7 @@ mod tests {
                 session_code: session_code.to_string(),
                 rp_info: passkey_rp_info(),
                 credential: assertion,
+                remember_me: false,
             })
             .await;
 
@@ -4846,6 +4891,7 @@ mod tests {
                 session_code: session_code.to_string(),
                 rp_info: passkey_rp_info(),
                 credential: assertion,
+                remember_me: false,
             })
             .await
             .expect("the owner of the signing passkey must complete authentication");

@@ -81,6 +81,7 @@ pub struct PasskeyAuthenticateInput {
     pub session_code: String,
     pub rp_info: WebAuthnRpInfo,
     pub credential: PublicKeyCredential,
+    pub remember_me: bool,
 }
 
 pub struct PasskeyAuthenticateOutput {
@@ -157,6 +158,8 @@ pub struct MagicLinkInput {
     /// Session code from the FERRISKEY_SESSION cookie at send time,
     /// stored so verify can use the correct AuthSession without an OAuth redirect.
     pub session_code: Option<String>,
+    /// The "remember me" choice, applied when the link completes the login.
+    pub remember_me: bool,
 }
 
 pub struct VerifyMagicLinkInput {

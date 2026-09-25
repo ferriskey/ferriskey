@@ -1,6 +1,6 @@
 import { useGetLoginSettings } from '@/api/realm.api'
 import FloatingActionBar from '@/components/ui/floating-action-bar'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLoginForm } from '../hooks/use-login-form'
 import { useMagicLinkAuth } from '../hooks/use-magic-link-auth'
@@ -43,10 +43,16 @@ export default function PageLoginFeature() {
       getAuthParamsFromUrl,
     })
 
+  const getRememberMe = useCallback(
+    () => Boolean(loginSettings?.remember_me_enabled && form.getValues('remember_me')),
+    [form, loginSettings?.remember_me_enabled]
+  )
+
   const { onPasskeyLogin, isPasskeyLoading } = usePasskeyAuth({
     realm_name,
     enabled: Boolean(loginSettings?.passkey_enabled),
     isAuthInitiated,
+    getRememberMe,
   })
 
   const {
@@ -56,7 +62,7 @@ export default function PageLoginFeature() {
     onMagicLinkLogin,
     onMagicLinkBack,
     onMagicLinkSubmit,
-  } = useMagicLinkAuth({ realm_name })
+  } = useMagicLinkAuth({ realm_name, getRememberMe })
 
   const isRedirecting = !isAuthInitiated && !loginError && !sessionExpired
 

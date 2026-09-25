@@ -753,6 +753,7 @@ pub(crate) mod tests {
             code_challenge: None,
             code_challenge_method: None,
             user_session_id: None,
+            remember_me: false,
         }
     }
 

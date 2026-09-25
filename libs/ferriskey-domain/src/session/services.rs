@@ -507,6 +507,8 @@ mod tests {
             last_seen_at: None,
             soft_expiry_duration: None,
             sso_token_hash: None,
+            persistent: false,
+            authenticated_at: chrono::Utc::now(),
         }
     }
 
@@ -550,6 +552,29 @@ mod tests {
         assert!(!session.is_expired());
     }
 
+    #[test]
+    fn only_a_persistent_session_gives_its_cookie_a_max_age() {
+        let mut session = UserSession::new(
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            None,
+            None,
+            Duration::hours(1),
+            None,
+        );
+        assert_eq!(
+            session.cookie_max_age(),
+            None,
+            "a session nobody asked to remember must die with the browser"
+        );
+
+        session.persistent = true;
+        let max_age = session
+            .cookie_max_age()
+            .expect("a remembered session outlives the browser");
+        assert!((3590..=3600).contains(&max_age), "got {max_age}");
+    }
+
     #[tokio::test]
     async fn session_state_is_expired_when_past_expiry() {
         let user_id = Uuid::new_v4();
@@ -565,6 +590,8 @@ mod tests {
             last_seen_at: None,
             soft_expiry_duration: None,
             sso_token_hash: None,
+            persistent: false,
+            authenticated_at: chrono::Utc::now() - Duration::hours(2),
         };
         assert!(session.is_expired());
         assert_eq!(

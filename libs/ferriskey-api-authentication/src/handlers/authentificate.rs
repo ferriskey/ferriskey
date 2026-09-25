@@ -38,6 +38,11 @@ pub struct AuthenticateRequest {
     #[validate(length(min = 1, message = "password is required"))]
     #[serde(default)]
     pub password: Option<String>,
+
+    /// Keep the SSO session past the browser closing. Honoured only when the
+    /// realm enables "remember me".
+    #[serde(default)]
+    pub remember_me: bool,
 }
 
 #[utoipa::path(
@@ -102,6 +107,7 @@ pub async fn authenticate(
             base_url.clone(),
             username,
             password,
+            payload.remember_me,
         )
     };
     let result = state.service.authenticate(authenticate_params).await?;
@@ -134,7 +140,7 @@ pub async fn authenticate(
     let sso_session = result
         .sso_cookie
         .clone()
-        .zip(result.sso_session_max_age_secs);
+        .map(|secret| (secret, result.sso_session_max_age_secs));
     let response: AuthenticateResponse = result.into();
 
     let mut headers = HeaderMap::new();
