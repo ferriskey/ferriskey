@@ -310,6 +310,58 @@ where
     Err(CoreError::InvalidAuthorizationCode)
 }
 
+/// Revoke a session and every token minted against it.
+///
+/// The SSO secret goes first: while it resolves, `/auth` can mint tokens bound
+/// to the session that the token revocation below would miss, and a code
+/// exchange re-checking the session would see it alive. Once it is cut, a
+/// failure to delete the row leaves nothing usable behind.
+async fn revoke_session_and_its_tokens<S, A, R>(
+    sessions: &S,
+    access_tokens: &A,
+    refresh_tokens: &R,
+    session: &Scoped<UserSession>,
+) -> Result<(u64, u64), CoreError>
+where
+    S: UserSessionRepository,
+    A: AccessTokenRepository,
+    R: RefreshTokenRepository,
+{
+    let session_id = session.get().id;
+
+    sessions.clear_sso_token_hash(session).await.map_err(|e| {
+        warn!(
+            session_id = %session_id,
+            error = ?e,
+            "Failed to cut the SSO secret of a session being revoked"
+        );
+        CoreError::InternalServerError
+    })?;
+
+    let revoked = tokio::try_join!(
+        access_tokens.revoke_by_session_id(session_id),
+        refresh_tokens.revoke_by_session_id(session_id),
+    )
+    .map_err(|e| {
+        warn!(
+            session_id = %session_id,
+            error = ?e,
+            "Failed to revoke the tokens minted against a session"
+        );
+        CoreError::InternalServerError
+    })?;
+
+    if let Err(e) = sessions.delete(session).await {
+        warn!(
+            session_id = %session_id,
+            error = ?e,
+            "Tokens revoked but the session row could not be deleted"
+        );
+    }
+
+    Ok(revoked)
+}
+
 /// Translate a revoked-session rejection into the token endpoint's vocabulary.
 ///
 /// `verify_token` speaks in authentication terms (`SessionRevoked` -> 401) because
@@ -1706,28 +1758,13 @@ where
     ) -> Result<(), CoreError> {
         let session_id = session.get().id;
 
-        let (access_revoked, refresh_revoked) = tokio::try_join!(
-            self.access_token_repository
-                .revoke_by_session_id(session_id),
-            self.refresh_token_repository
-                .revoke_by_session_id(session_id),
+        let (access_revoked, refresh_revoked) = revoke_session_and_its_tokens(
+            self.user_session_repository.as_ref(),
+            self.access_token_repository.as_ref(),
+            self.refresh_token_repository.as_ref(),
+            session,
         )
-        .map_err(|e| {
-            warn!(
-                session_id = %session_id,
-                error = ?e,
-                "Failed to revoke the tokens minted against a session"
-            );
-            CoreError::InternalServerError
-        })?;
-
-        if let Err(e) = self.user_session_repository.delete(session).await {
-            warn!(
-                session_id = %session_id,
-                error = ?e,
-                "Tokens revoked but the session row could not be deleted"
-            );
-        }
+        .await?;
 
         info!(
             session_id = %session_id,
@@ -6245,12 +6282,15 @@ mod password_hash_tests {
 
 #[cfg(test)]
 mod bound_session_tests {
-    use super::{find_live_bound_session, revoke_tokens_unless_bound_session_survived};
+    use super::{
+        find_live_bound_session, revoke_session_and_its_tokens,
+        revoke_tokens_unless_bound_session_survived,
+    };
     use crate::domain::common::entities::app_errors::CoreError;
     use chrono::{Duration, Utc};
     use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
     use ferriskey_domain::realm::{Realm, RealmId};
-    use ferriskey_domain::session::entities::UserSession;
+    use ferriskey_domain::session::entities::{SessionError, UserSession};
     use ferriskey_domain::session::ports::MockUserSessionRepository;
     use ferriskey_security::jwt::ports::{MockAccessTokenRepository, MockRefreshTokenRepository};
     use uuid::Uuid;
@@ -6282,6 +6322,87 @@ mod bound_session_tests {
             .expect_find_by_id()
             .return_once(move |_| Box::pin(async move { Ok(session.map(Unscoped::new)) }));
         sessions
+    }
+
+    fn scoped(
+        session: UserSession,
+        realm_id: Uuid,
+    ) -> ferriskey_domain::realm::scope::Scoped<UserSession> {
+        Unscoped::new(session)
+            .in_realm(&scope(realm_id))
+            .expect("a session of the scoped realm must be accepted")
+    }
+
+    #[tokio::test]
+    async fn revoking_a_session_cuts_its_sso_secret_before_its_tokens() {
+        let realm_id = Uuid::new_v4();
+        let session = scoped(live_session(realm_id), realm_id);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let mut sessions = MockUserSessionRepository::new();
+        let log = calls.clone();
+        sessions
+            .expect_clear_sso_token_hash()
+            .times(1)
+            .return_once(move |_| {
+                log.lock().unwrap_or_else(|p| p.into_inner()).push("secret");
+                Box::pin(async { Ok(()) })
+            });
+        let log = calls.clone();
+        sessions.expect_delete().times(1).return_once(move |_| {
+            log.lock().unwrap_or_else(|p| p.into_inner()).push("row");
+            Box::pin(async { Ok(()) })
+        });
+
+        let mut access = MockAccessTokenRepository::new();
+        let log = calls.clone();
+        access
+            .expect_revoke_by_session_id()
+            .times(1)
+            .return_once(move |_| {
+                log.lock().unwrap_or_else(|p| p.into_inner()).push("tokens");
+                Box::pin(async { Ok(1) })
+            });
+        let mut refresh = MockRefreshTokenRepository::new();
+        let log = calls.clone();
+        refresh
+            .expect_revoke_by_session_id()
+            .times(1)
+            .return_once(move |_| {
+                log.lock().unwrap_or_else(|p| p.into_inner()).push("tokens");
+                Box::pin(async { Ok(1) })
+            });
+
+        let result = revoke_session_and_its_tokens(&sessions, &access, &refresh, &session).await;
+
+        assert_eq!(result.ok(), Some((1, 1)));
+        assert_eq!(
+            *calls.lock().unwrap_or_else(|p| p.into_inner()),
+            ["secret", "tokens", "tokens", "row"]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_session_whose_secret_cannot_be_cut_is_left_alone() {
+        let realm_id = Uuid::new_v4();
+        let session = scoped(live_session(realm_id), realm_id);
+
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_clear_sso_token_hash()
+            .return_once(|_| Box::pin(async { Err(SessionError::UpdateError) }));
+        sessions.expect_delete().never();
+        let mut access = MockAccessTokenRepository::new();
+        access.expect_revoke_by_session_id().never();
+        let mut refresh = MockRefreshTokenRepository::new();
+        refresh.expect_revoke_by_session_id().never();
+
+        let result = revoke_session_and_its_tokens(&sessions, &access, &refresh, &session).await;
+
+        assert!(
+            result.is_err(),
+            "a logout whose SSO cookie still resolves must not report success"
+        );
     }
 
     #[tokio::test]
