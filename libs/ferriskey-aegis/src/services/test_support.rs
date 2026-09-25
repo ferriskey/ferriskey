@@ -94,6 +94,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         service_account_enabled: false,
         direct_access_grants_enabled: false,
         oauth_device_code_grant_enabled: false,
+        token_exchange_enabled: false,
         require_pkce: false,
         client_type: ClientType::Confidential,
         name: "app".to_string(),

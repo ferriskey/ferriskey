@@ -37,6 +37,8 @@ pub struct CreateClientValidator {
     pub direct_access_grants_enabled: bool,
     #[serde(default)]
     pub oauth_device_code_grant_enabled: bool,
+    #[serde(default)]
+    pub token_exchange_enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -55,6 +57,9 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub oauth_device_code_grant_enabled: Option<bool>,
+
+    #[serde(default)]
+    pub token_exchange_enabled: Option<bool>,
 
     #[serde(default)]
     pub require_pkce: Option<bool>,
@@ -143,4 +148,38 @@ pub struct CreateSamlAttributeMapperValidator {
     #[validate(length(min = 1, message = "source is required"))]
     #[serde(default)]
     pub source: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_exchange_stays_off_when_a_create_payload_omits_it() {
+        let payload: CreateClientValidator = serde_json::from_value(serde_json::json!({
+            "name": "api",
+            "client_id": "api",
+            "client_type": "confidential",
+        }))
+        .expect("valid payload");
+
+        assert!(!payload.token_exchange_enabled);
+    }
+
+    #[test]
+    fn an_update_payload_can_turn_token_exchange_on() {
+        let payload: UpdateClientValidator =
+            serde_json::from_value(serde_json::json!({ "token_exchange_enabled": true }))
+                .expect("valid payload");
+
+        assert_eq!(payload.token_exchange_enabled, Some(true));
+    }
+
+    #[test]
+    fn an_update_payload_without_the_flag_leaves_it_untouched() {
+        let payload: UpdateClientValidator =
+            serde_json::from_value(serde_json::json!({})).expect("valid payload");
+
+        assert_eq!(payload.token_exchange_enabled, None);
+    }
 }

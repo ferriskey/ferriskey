@@ -60,6 +60,7 @@ pub async fn create_client(
                 service_account_enabled: payload.service_account_enabled,
                 direct_access_grants_enabled: payload.direct_access_grants_enabled,
                 oauth_device_code_grant_enabled: payload.oauth_device_code_grant_enabled,
+                token_exchange_enabled: payload.token_exchange_enabled,
             },
         )
         .await?;

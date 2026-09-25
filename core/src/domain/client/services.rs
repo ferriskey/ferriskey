@@ -187,6 +187,7 @@ where
                 service_account_enabled: input.service_account_enabled,
                 direct_access_grants_enabled: input.direct_access_grants_enabled,
                 oauth_device_code_grant_enabled: input.oauth_device_code_grant_enabled,
+                token_exchange_enabled: input.token_exchange_enabled,
                 client_type: input.client_type,
                 require_pkce: false,
             })
@@ -1093,5 +1094,262 @@ where
             .await?;
 
         Ok(resolve_allowed_origins(&sources))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::aegis::mocks::{
+        MockClientScopeMappingRepository, MockClientScopeRepository,
+    };
+    use crate::domain::{
+        client::{
+            entities::ClientConfig,
+            ports::{
+                MockClientRepository, MockClientSamlRepository,
+                MockPostLogoutRedirectUriRepository, MockRedirectUriRepository,
+                MockWebOriginRepository,
+            },
+            value_objects::UpdateClientRequest,
+        },
+        common::services::tests::{
+            create_test_realm_with_name, create_test_user_identity_with_realm,
+        },
+        realm::{
+            entities::{Realm, Unscoped},
+            ports::MockRealmRepository,
+        },
+        role::{entities::permission::Permissions, ports::MockRoleRepository},
+        seawatch::ports::MockSecurityEventRepository,
+        user::ports::{MockUserRepository, MockUserRoleRepository},
+        webhook::ports::MockWebhookRepository,
+    };
+    use ferriskey_domain::authentication::entities::AuthProtocol;
+    use ferriskey_domain::client::entities::ClientType;
+    use uuid::Uuid;
+
+    type TestClientService = ClientServiceImpl<
+        MockRealmRepository,
+        MockUserRepository,
+        MockClientRepository,
+        MockUserRoleRepository,
+        MockWebhookRepository,
+        MockRedirectUriRepository,
+        MockPostLogoutRedirectUriRepository,
+        MockWebOriginRepository,
+        MockClientSamlRepository,
+        MockRoleRepository,
+        MockSecurityEventRepository,
+        MockClientScopeRepository,
+        MockClientScopeMappingRepository,
+    >;
+
+    struct Mocks {
+        realm: MockRealmRepository,
+        client: MockClientRepository,
+        user_role: MockUserRoleRepository,
+        webhook: MockWebhookRepository,
+        security_event: MockSecurityEventRepository,
+        client_scope: MockClientScopeRepository,
+    }
+
+    impl Mocks {
+        fn for_admin_of(realm: &Realm, identity: &Identity) -> Self {
+            let mut realm_repo = MockRealmRepository::new();
+            let found = realm.clone();
+            realm_repo.expect_get_by_name().returning(move |_| {
+                let found = found.clone();
+                Box::pin(async move { Ok(Some(found)) })
+            });
+
+            let admin_role = Role {
+                id: Uuid::new_v4(),
+                name: "admin".to_string(),
+                description: None,
+                permissions: vec![Permissions::ManageClients.name()],
+                realm_id: realm.id,
+                client_id: None,
+                client: None,
+                require_mfa: false,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            };
+            let user_id = identity.id();
+            let mut user_role = MockUserRoleRepository::new();
+            user_role
+                .expect_get_user_roles()
+                .withf(move |id| *id == user_id)
+                .returning(move |_| {
+                    let roles = vec![admin_role.clone()];
+                    Box::pin(async move { Ok(roles) })
+                });
+
+            let mut webhook = MockWebhookRepository::new();
+            webhook
+                .expect_notify::<Client>()
+                .returning(|_, _| Box::pin(async { Ok(()) }));
+
+            Self {
+                realm: realm_repo,
+                client: MockClientRepository::new(),
+                user_role,
+                webhook,
+                security_event: MockSecurityEventRepository::new(),
+                client_scope: MockClientScopeRepository::new(),
+            }
+        }
+
+        fn build(self) -> TestClientService {
+            let user = Arc::new(MockUserRepository::new());
+            let client = Arc::new(self.client);
+            let user_role = Arc::new(self.user_role);
+            let policy = Arc::new(FerriskeyPolicy::new(
+                user.clone(),
+                client.clone(),
+                user_role,
+            ));
+
+            ClientServiceImpl::new(
+                Arc::new(self.realm),
+                user,
+                client,
+                Arc::new(self.webhook),
+                Arc::new(MockRedirectUriRepository::new()),
+                Arc::new(MockPostLogoutRedirectUriRepository::new()),
+                Arc::new(MockWebOriginRepository::new()),
+                Arc::new(MockClientSamlRepository::new()),
+                Arc::new(MockRoleRepository::new()),
+                Arc::new(self.security_event),
+                Arc::new(self.client_scope),
+                Arc::new(MockClientScopeMappingRepository::new()),
+                policy,
+            )
+        }
+    }
+
+    fn stored_client(realm: &Realm, token_exchange_enabled: bool) -> Client {
+        Client::new(ClientConfig {
+            realm_id: realm.id,
+            name: "api".to_string(),
+            client_id: "api".to_string(),
+            secret: None,
+            enabled: true,
+            protocol: AuthProtocol::OpenIdConnect,
+            public_client: false,
+            service_account_enabled: false,
+            client_type: ClientType::Confidential,
+            direct_access_grants_enabled: None,
+            oauth_device_code_grant_enabled: None,
+            token_exchange_enabled: Some(token_exchange_enabled),
+            access_token_lifetime: None,
+            refresh_token_lifetime: None,
+            id_token_lifetime: None,
+            temporary_token_lifetime: None,
+        })
+    }
+
+    #[tokio::test]
+    async fn a_new_client_does_not_allow_token_exchange_unless_asked() {
+        let realm = create_test_realm_with_name("acme");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let mut mocks = Mocks::for_admin_of(&realm, &identity);
+
+        let created_in = realm.clone();
+        mocks
+            .client
+            .expect_create_client()
+            .withf(|req| !req.token_exchange_enabled)
+            .times(1)
+            .returning(move |req| {
+                let client = stored_client(&created_in, req.token_exchange_enabled);
+                Box::pin(async move { Ok(client) })
+            });
+        mocks
+            .client_scope
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(vec![]) }));
+        mocks
+            .security_event
+            .expect_store_event()
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let client = mocks
+            .build()
+            .create_client(
+                identity,
+                CreateClientInput {
+                    realm_name: "acme".to_string(),
+                    name: "api".to_string(),
+                    client_id: "api".to_string(),
+                    client_type: ClientType::Confidential,
+                    service_account_enabled: false,
+                    public_client: false,
+                    protocol: AuthProtocol::OpenIdConnect,
+                    enabled: true,
+                    direct_access_grants_enabled: false,
+                    oauth_device_code_grant_enabled: false,
+                    token_exchange_enabled: false,
+                },
+            )
+            .await
+            .expect("client is created");
+
+        assert!(!client.token_exchange_enabled);
+    }
+
+    #[tokio::test]
+    async fn an_admin_can_turn_token_exchange_on_for_a_client() {
+        let realm = create_test_realm_with_name("acme");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let mut mocks = Mocks::for_admin_of(&realm, &identity);
+
+        let existing = stored_client(&realm, false);
+        let existing_id = existing.id;
+        mocks.client.expect_get_by_id().returning(move |_, _| {
+            let existing = existing.clone();
+            Box::pin(async move { Ok(Unscoped::new(existing)) })
+        });
+        let updated_in = realm.clone();
+        mocks
+            .client
+            .expect_update_client()
+            .withf(|_, data| data.token_exchange_enabled == Some(true))
+            .times(1)
+            .returning(move |_, data| {
+                let client =
+                    stored_client(&updated_in, data.token_exchange_enabled.unwrap_or_default());
+                Box::pin(async move { Ok(client) })
+            });
+
+        let client = mocks
+            .build()
+            .update_client(
+                identity,
+                UpdateClientInput {
+                    realm_name: "acme".to_string(),
+                    client_id: existing_id,
+                    payload: UpdateClientRequest {
+                        name: None,
+                        client_id: None,
+                        enabled: None,
+                        direct_access_grants_enabled: None,
+                        oauth_device_code_grant_enabled: None,
+                        token_exchange_enabled: Some(true),
+                        require_pkce: None,
+                        access_token_lifetime: None,
+                        refresh_token_lifetime: None,
+                        id_token_lifetime: None,
+                        temporary_token_lifetime: None,
+                        maintenance_enabled: None,
+                        maintenance_reason: None,
+                        maintenance_session_strategy: None,
+                    },
+                },
+            )
+            .await
+            .expect("client is updated");
+
+        assert!(client.token_exchange_enabled);
     }
 }

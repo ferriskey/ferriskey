@@ -153,6 +153,7 @@ where
             enabled: None,
             direct_access_grants_enabled: None,
             oauth_device_code_grant_enabled: None,
+            token_exchange_enabled: None,
             require_pkce: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,
