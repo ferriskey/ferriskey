@@ -75,6 +75,14 @@ where
             }
 
             let session_id = session.id;
+            let scoped = Unscoped::new(session).in_realm(scope)?;
+
+            // Cut the SSO secret first: while it resolves, `/auth` can mint
+            // tokens bound to this session that the revocation below would miss.
+            if let Err(e) = self.session_repository.clear_sso_token_hash(&scoped).await {
+                warn!(%user_id, %session_id, "failed to cut the SSO secret: {e:?}");
+                return Err(CoreError::InternalServerError);
+            }
 
             if let Err(e) = self
                 .refresh_token_repository
@@ -93,8 +101,6 @@ where
                 warn!(%user_id, %session_id, "failed to revoke access tokens: {e:?}");
                 return Err(CoreError::InternalServerError);
             }
-
-            let scoped = Unscoped::new(session).in_realm(scope)?;
 
             if let Err(e) = self.session_repository.delete(&scoped).await {
                 warn!(
@@ -117,7 +123,7 @@ mod tests {
     use super::*;
     use chrono::{Duration, Utc};
     use ferriskey_domain::realm::{Realm, RealmId};
-    use ferriskey_domain::session::entities::UserSession;
+    use ferriskey_domain::session::entities::{SessionError, UserSession};
     use ferriskey_domain::session::ports::MockUserSessionRepository;
     use ferriskey_security::jwt::ports::{MockAccessTokenRepository, MockRefreshTokenRepository};
     use std::sync::Mutex;
@@ -194,6 +200,18 @@ mod tests {
                 Box::pin(async move { Ok(all) })
             });
 
+        let cut = Arc::new(Mutex::new(Vec::new()));
+        let cut_recorder = Arc::clone(&cut);
+        sessions
+            .expect_clear_sso_token_hash()
+            .returning(move |session| {
+                cut_recorder
+                    .lock()
+                    .expect("the cut recorder must not be poisoned")
+                    .push(session.get().id);
+                Box::pin(async move { Ok(()) })
+            });
+
         let deleted = Arc::new(Mutex::new(Vec::new()));
         let recorder = Arc::clone(&deleted);
         sessions.expect_delete().returning(move |session| {
@@ -235,6 +253,55 @@ mod tests {
         assert_eq!(deleted.len(), 2);
         assert!(!deleted.contains(&kept_id));
         assert!(doomed.iter().all(|id| deleted.contains(id)));
+
+        let cut = cut
+            .lock()
+            .expect("the cut recorder must not be poisoned")
+            .clone();
+        assert_eq!(
+            cut, deleted,
+            "every dropped session must lose its SSO secret"
+        );
+    }
+
+    #[tokio::test]
+    async fn tokens_are_kept_when_the_sso_secret_cannot_be_cut() {
+        let user_id = Uuid::now_v7();
+        let realm_id = Uuid::now_v7();
+        let scope = scope_of(realm_id);
+        let user = scoped_user(user_id, realm_id, &scope);
+
+        let mut sessions = MockUserSessionRepository::new();
+        let all = vec![session(user_id, realm_id)];
+        sessions
+            .expect_find_all_by_user_and_realm()
+            .returning(move |_, _| {
+                let all = all.clone();
+                Box::pin(async move { Ok(all) })
+            });
+        sessions
+            .expect_clear_sso_token_hash()
+            .returning(|_| Box::pin(async { Err(SessionError::UpdateError) }));
+        sessions.expect_delete().never();
+
+        let mut access = MockAccessTokenRepository::new();
+        access.expect_revoke_by_session_id().never();
+        let mut refresh = MockRefreshTokenRepository::new();
+        refresh.expect_revoke_by_session_id().never();
+
+        let adapter = OtherSessionsRevocationAdapter::new(
+            Arc::new(access),
+            Arc::new(refresh),
+            Arc::new(sessions),
+        );
+
+        assert!(
+            adapter
+                .revoke_all_sessions_except(&scope, &user, None)
+                .await
+                .is_err(),
+            "a session whose SSO cookie still resolves must not be reported revoked"
+        );
     }
 
     #[tokio::test]
@@ -252,6 +319,10 @@ mod tests {
                 let all = all.clone();
                 Box::pin(async move { Ok(all) })
             });
+        sessions
+            .expect_clear_sso_token_hash()
+            .times(2)
+            .returning(|_| Box::pin(async { Ok(()) }));
         sessions
             .expect_delete()
             .times(2)
@@ -298,17 +369,14 @@ mod tests {
                 let foreign = foreign.clone();
                 Box::pin(async move { Ok(foreign) })
             });
+        sessions.expect_clear_sso_token_hash().never();
         sessions.expect_delete().never();
 
         let mut access = MockAccessTokenRepository::new();
-        access
-            .expect_revoke_by_session_id()
-            .returning(|_| Box::pin(async { Ok(1) }));
+        access.expect_revoke_by_session_id().never();
 
         let mut refresh = MockRefreshTokenRepository::new();
-        refresh
-            .expect_revoke_by_session_id()
-            .returning(|_| Box::pin(async { Ok(1) }));
+        refresh.expect_revoke_by_session_id().never();
 
         let adapter = OtherSessionsRevocationAdapter::new(
             Arc::new(access),

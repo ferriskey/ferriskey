@@ -188,6 +188,15 @@ where
             return Err(CoreError::SessionNotFound);
         }
 
+        // Cut the SSO cookie first: while it still resolves, `/auth` can mint
+        // tokens bound to this session that the revocation below would miss.
+        // The row stays until the tokens are gone so a failed cascade can be
+        // retried.
+        self.session_repository
+            .clear_sso_token_hash(&session)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
         self.token_revocation
             .revoke_session_tokens(&session)
             .await?;
@@ -314,20 +323,28 @@ mod tests {
             .expect_get_by_name()
             .return_once(move |_| Box::pin(async move { Ok(Some(realm_clone)) }));
 
+        let mut seq = mockall::Sequence::new();
         let mut session_repo = MockUserSessionRepository::new();
+        let mut revoker = MockTokenRevocationPort::new();
         session_repo
             .expect_find_by_id()
             .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(session))) }));
         session_repo
-            .expect_delete()
+            .expect_clear_sso_token_hash()
+            .withf(move |session| session.get().id == session_id)
             .times(1)
+            .in_sequence(&mut seq)
             .return_once(|_| Box::pin(async { Ok(()) }));
-
-        let mut revoker = MockTokenRevocationPort::new();
         revoker
             .expect_revoke_session_tokens()
             .withf(move |session| session.get().id == session_id)
             .times(1)
+            .in_sequence(&mut seq)
+            .return_once(|_| Box::pin(async { Ok(()) }));
+        session_repo
+            .expect_delete()
+            .times(1)
+            .in_sequence(&mut seq)
             .return_once(|_| Box::pin(async { Ok(()) }));
 
         let svc = build_service(realm_repo, session_repo, revoker);
@@ -363,6 +380,10 @@ mod tests {
         session_repo
             .expect_find_by_id()
             .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(session))) }));
+        session_repo
+            .expect_clear_sso_token_hash()
+            .times(1)
+            .return_once(|_| Box::pin(async { Ok(()) }));
         session_repo.expect_delete().never();
 
         let mut revoker = MockTokenRevocationPort::new();
@@ -389,6 +410,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn revoke_session_stops_when_the_sso_cookie_cannot_be_cut() {
+        let realm = make_realm("test-realm");
+        let realm_uuid: Uuid = realm.id.into();
+        let user = make_user(&realm);
+        let user_id = user.id;
+        let session = make_session(user_id, realm_uuid);
+        let session_id = session.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo
+            .expect_get_by_name()
+            .return_once(move |_| Box::pin(async move { Ok(Some(realm_clone)) }));
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_find_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(session))) }));
+        session_repo
+            .expect_clear_sso_token_hash()
+            .times(1)
+            .return_once(|_| Box::pin(async { Err(SessionError::UpdateError) }));
+        session_repo.expect_delete().never();
+
+        let mut revoker = MockTokenRevocationPort::new();
+        revoker.expect_revoke_session_tokens().never();
+
+        let svc = build_service(realm_repo, session_repo, revoker);
+
+        let result = svc
+            .revoke_session(
+                Identity::User(user),
+                "test-realm".to_string(),
+                user_id,
+                session_id,
+            )
+            .await;
+
+        assert!(
+            result.is_err(),
+            "a session whose SSO cookie still resolves must not be reported revoked"
+        );
+    }
+
+    #[tokio::test]
     async fn revoke_session_refuses_a_session_of_another_realm() {
         let realm = make_realm("test-realm");
         let user = make_user(&realm);
@@ -406,6 +472,7 @@ mod tests {
         session_repo
             .expect_find_by_id()
             .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(session))) }));
+        session_repo.expect_clear_sso_token_hash().never();
         session_repo.expect_delete().never();
 
         let mut revoker = MockTokenRevocationPort::new();

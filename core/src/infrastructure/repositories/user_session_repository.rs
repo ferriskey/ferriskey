@@ -217,4 +217,25 @@ impl UserSessionRepository for PostgresUserSessionRepository {
 
         Ok(())
     }
+
+    async fn clear_sso_token_hash(
+        &self,
+        session: &Scoped<UserSession>,
+    ) -> Result<(), SessionError> {
+        crate::entity::user_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::user_sessions::Column::SsoTokenHash,
+                Expr::value(Option::<String>::None),
+            )
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.get().id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.get().realm_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error clearing sso_token_hash for user session: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        Ok(())
+    }
 }
