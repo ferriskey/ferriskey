@@ -420,30 +420,33 @@ where
         CoreError::SessionCreateError
     })?;
 
-    events
-        .store_event(
-            SecurityEvent::new(
-                realm_id,
-                SecurityEventType::LoginSuccess,
-                EventStatus::Success,
-                user_id,
-            )
-            .with_actor(user_id, ActorType::User)
-            .with_target("session".to_string(), session.id, None),
+    // The session exists at this point, so an audit outage must not turn a
+    // completed login into a failure, as for the SSO resume path.
+    for event in [
+        SecurityEvent::new(
+            realm_id,
+            SecurityEventType::LoginSuccess,
+            EventStatus::Success,
+            user_id,
         )
-        .await?;
-
-    events
-        .store_event(
-            SecurityEvent::new(
-                realm_id,
-                SecurityEventType::SessionCreated,
-                EventStatus::Success,
-                user_id,
-            )
-            .with_target("session".to_string(), session.id, None),
+        .with_actor(user_id, ActorType::User)
+        .with_target("session".to_string(), session.id, None),
+        SecurityEvent::new(
+            realm_id,
+            SecurityEventType::SessionCreated,
+            EventStatus::Success,
+            user_id,
         )
-        .await?;
+        .with_target("session".to_string(), session.id, None),
+    ] {
+        if let Err(e) = events.store_event(event).await {
+            warn!(
+                session_id = %session.id,
+                error = %e,
+                "Failed to record a login in the audit log"
+            );
+        }
+    }
 
     Ok((session, sso_token))
 }
@@ -6301,10 +6304,11 @@ mod password_hash_tests {
 #[cfg(test)]
 mod bound_session_tests {
     use super::{
-        find_live_bound_session, revoke_session_and_its_tokens,
+        find_live_bound_session, open_user_session, revoke_session_and_its_tokens,
         revoke_tokens_unless_bound_session_survived,
     };
     use crate::domain::common::entities::app_errors::CoreError;
+    use crate::domain::seawatch::ports::MockSecurityEventRepository;
     use chrono::{Duration, Utc};
     use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
     use ferriskey_domain::realm::{Realm, RealmId};
@@ -6421,6 +6425,38 @@ mod bound_session_tests {
             result.is_err(),
             "a logout whose SSO cookie still resolves must not report success"
         );
+    }
+
+    #[tokio::test]
+    async fn an_audit_outage_does_not_fail_an_opened_session() {
+        let realm_id = Uuid::new_v4();
+
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_delete_expired_for_user()
+            .returning(|_, _, _| Box::pin(async { Ok(0) }));
+        sessions
+            .expect_create()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+
+        let mut events = MockSecurityEventRepository::new();
+        events
+            .expect_store_event()
+            .times(2)
+            .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+        let opened = open_user_session(
+            &sessions,
+            &events,
+            Uuid::new_v4(),
+            RealmId::new(realm_id),
+            3600,
+        )
+        .await;
+
+        let (session, cookie) = opened.expect("the session was created, so the login stands");
+        assert_eq!(session.sso_token_hash, Some(super::sso_token_hash(&cookie)));
     }
 
     #[tokio::test]
