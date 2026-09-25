@@ -5,19 +5,35 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use axum_cookie::CookieManager;
-use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::device_flow::DeviceVerificationPreview;
-use ferriskey_core::domain::authentication::entities::AuthorizeRequestInput;
 use ferriskey_core::domain::authentication::ports::AuthService;
-use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 use utoipa::ToSchema;
 
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::sso_cookie::SSO_SESSION_COOKIE;
+use ferriskey_core::domain::user::entities::User;
 
-const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
+/// The signed-in user behind the browser's `FERRISKEY_SSO` cookie, if any.
+async fn signed_in_user(
+    state: &AppState,
+    cookie: &CookieManager,
+    realm_name: &str,
+) -> Option<User> {
+    let sso_cookie = cookie
+        .get(SSO_SESSION_COOKIE)
+        .map(|c| c.value().trim().to_string())
+        .filter(|value| !value.is_empty())?;
+
+    state
+        .service
+        .resolve_sso_user(realm_name.to_string(), sso_cookie)
+        .await
+        .inspect_err(|error| warn!(error = ?error, "Device flow: SSO session refused"))
+        .ok()
+}
 
 #[derive(Debug, Deserialize)]
 pub struct DevicePageQuery {
@@ -56,7 +72,7 @@ pub struct DevicePreviewQuery {
     path = "/device/preview",
     tag = "auth",
     summary = "Device consent preview",
-    description = "Returns the client and the scopes a pending device session is asking for, so the verification page can show what is being approved (RFC 8628 §5.3). Requires the identity cookie and refuses codes belonging to another realm.",
+    description = "Returns the client and the scopes a pending device session is asking for, so the verification page can show what is being approved (RFC 8628 §5.3). Requires the `FERRISKEY_SSO` session cookie and refuses codes belonging to another realm.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_code" = String, Query, description = "The end-user code shown on the device"),
@@ -74,32 +90,9 @@ pub async fn device_preview(
     cookie: CookieManager,
     Query(query): Query<DevicePreviewQuery>,
 ) -> Result<Response, ApiError> {
-    let token = cookie
-        .get(IDENTITY_COOKIE)
-        .map(|c| c.value().to_string())
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| ApiError::Unauthorized("Authentication required".into()))?;
-
-    let claims = decode_jwt_claims(&token)
-        .ok_or_else(|| ApiError::Unauthorized("Invalid identity token".into()))?;
-
-    let output = state
-        .service
-        .authorize_request(AuthorizeRequestInput {
-            claims,
-            token,
-            realm_name: None,
-        })
+    let user = signed_in_user(&state, &cookie, &realm_name)
         .await
-        .map_err(|error| {
-            warn!(error = ?error, "Device preview: identity token rejected");
-            ApiError::Unauthorized("Invalid identity token".into())
-        })?;
-
-    let user = output
-        .identity
-        .as_user()
-        .ok_or_else(|| ApiError::Forbidden("Service accounts cannot approve devices".into()))?;
+        .ok_or_else(|| ApiError::Unauthorized("Authentication required".into()))?;
 
     let preview = state
         .service
@@ -147,7 +140,7 @@ pub async fn device_verification_page(
     path = "/device/verify",
     tag = "auth",
     summary = "Approve or deny a device authorization",
-    description = "Called from the verification page once the user is authenticated. Requires the `FERRISKEY_IDENTITY` cookie; when absent, responds 401 with a `redirect_uri` hint pointing back to the verification page so the front can route to login first.",
+    description = "Called from the verification page once the user is authenticated. Requires the `FERRISKEY_SSO` session cookie; when absent or no longer valid, responds 401 with a `redirect_uri` hint pointing back to the verification page so the front can route to login first.",
     request_body = DeviceVerifyRequest,
     params(
         ("realm_name" = String, Path, description = "Realm name"),
@@ -166,54 +159,24 @@ pub async fn device_verify(
     cookie: CookieManager,
     Json(payload): Json<DeviceVerifyRequest>,
 ) -> Result<Response, ApiError> {
-    // Require a non-empty identity cookie; otherwise hint the front to log in
-    // and come back to this verification page.
-    let token = cookie
-        .get(IDENTITY_COOKIE)
-        .map(|c| c.value().to_string())
-        .filter(|value| !value.trim().is_empty());
-
-    let token = match token {
-        Some(token) => token,
-        None => {
-            let redirect_uri = format!(
-                "/realms/{}/authentication/device?user_code={}",
-                realm_name,
-                urlencoding::encode(&payload.user_code)
-            );
-            return Ok((
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({
-                    "error": "login_required",
-                    "error_description": "Authentication required to approve this device.",
-                    "redirect_uri": redirect_uri,
-                })),
-            )
-                .into_response());
-        }
+    // Without a live SSO session, hint the front to log in and come back to
+    // this verification page.
+    let Some(user) = signed_in_user(&state, &cookie, &realm_name).await else {
+        let redirect_uri = format!(
+            "/realms/{}/authentication/device?user_code={}",
+            realm_name,
+            urlencoding::encode(&payload.user_code)
+        );
+        return Ok((
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "login_required",
+                "error_description": "Authentication required to approve this device.",
+                "redirect_uri": redirect_uri,
+            })),
+        )
+            .into_response());
     };
-
-    // Validate the identity token and resolve the acting user.
-    let claims = decode_jwt_claims(&token)
-        .ok_or_else(|| ApiError::Unauthorized("Invalid identity token".into()))?;
-
-    let output = state
-        .service
-        .authorize_request(AuthorizeRequestInput {
-            claims,
-            token,
-            realm_name: None,
-        })
-        .await
-        .map_err(|error| {
-            warn!(error = ?error, "Device verify: identity token rejected");
-            ApiError::Unauthorized("Invalid identity token".into())
-        })?;
-
-    let user = output
-        .identity
-        .as_user()
-        .ok_or_else(|| ApiError::Forbidden("Service accounts cannot approve devices".into()))?;
     let user_id = user.id;
 
     let status = match payload.action {
@@ -250,12 +213,4 @@ pub async fn device_verify(
         }),
     )
         .into_response())
-}
-
-/// Decode (without verifying) the claims segment of a JWT. Signature
-/// verification happens in `authorize_request`.
-fn decode_jwt_claims(token: &str) -> Option<JwtClaim> {
-    let payload = token.split('.').nth(1)?;
-    let decoded = general_purpose::URL_SAFE_NO_PAD.decode(payload).ok()?;
-    serde_json::from_slice(&decoded).ok()
 }

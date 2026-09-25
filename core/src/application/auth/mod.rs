@@ -16,6 +16,7 @@ use crate::{
         },
         common::entities::app_errors::CoreError,
         jwt::entities::JwkKey,
+        user::entities::User,
     },
 };
 
@@ -91,5 +92,13 @@ impl AuthService for ApplicationService {
         input: GenerateTokensForUserInput,
     ) -> Result<JwtToken, CoreError> {
         self.auth_service.generate_tokens_for_user(input).await
+    }
+
+    async fn resolve_sso_user(
+        &self,
+        realm_name: String,
+        cookie: String,
+    ) -> Result<User, CoreError> {
+        self.auth_service.resolve_sso_user(realm_name, cookie).await
     }
 }

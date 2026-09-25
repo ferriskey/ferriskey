@@ -4,10 +4,9 @@ use crate::validators::TokenRequestValidator;
 use axum::{
     Form,
     extract::{Path, State},
-    http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
-use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::ApiError;
 use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
 use ferriskey_api_core::app_state::AppState;
@@ -15,8 +14,6 @@ use ferriskey_api_core::url::FullUrl;
 use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 use tracing::{instrument, warn};
-
-const IDENTITY_COOKIE: &str = "FERRISKEY_IDENTITY";
 
 #[utoipa::path(
     post,
@@ -68,7 +65,6 @@ pub async fn exchange_token(
     let has_code = payload.code.is_some();
     let has_refresh_token = payload.refresh_token.is_some();
 
-    let is_secure = base_url.starts_with("https://");
     let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
     let exchange_input = ExchangeTokenInput {
@@ -117,21 +113,7 @@ pub async fn exchange_token(
         }
     };
 
-    let mut identity_cookie = Cookie::build((IDENTITY_COOKIE, token.access_token().to_string()))
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax);
-
-    if is_secure {
-        identity_cookie = identity_cookie.secure(true);
-    }
-
-    let cookie_value = HeaderValue::from_str(&identity_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
-
-    Ok((
-        StatusCode::OK,
-        [(SET_COOKIE, cookie_value)],
-        axum::Json(token),
-    ))
+    // No cookie: a bearer token in a response header lands in every proxy log
+    // that records headers, and the browser's SSO rides on `FERRISKEY_SSO`.
+    Ok((StatusCode::OK, axum::Json(token)))
 }

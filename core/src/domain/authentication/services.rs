@@ -73,7 +73,7 @@ use crate::domain::{
     seawatch::{ActorType, EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     session::{entities::UserSession, ports::UserSessionRepository},
     user::{
-        entities::{RequiredAction, UserAttribute},
+        entities::{RequiredAction, User, UserAttribute},
         ports::{
             UserAttributeRepository, UserRepository, UserRequiredActionRepository,
             UserRoleRepository,
@@ -3381,27 +3381,23 @@ This is a server error that should be investigated. Do not forward back this mes
         })
     }
 
-    async fn handle_sso_session(
+    /// The live SSO session a `FERRISKEY_SSO` cookie names in this realm, with
+    /// its user, refusing an expired session or a disabled account.
+    async fn load_sso_session_user(
         &self,
-        cookie: String,
-        scope: RealmScope,
-        auth_session: AuthSession,
-        session_code: Uuid,
-    ) -> Result<AuthenticateOutput, CoreError> {
-        let realm_id = scope.id();
-
+        cookie: &str,
+        scope: &RealmScope,
+    ) -> Result<(Scoped<UserSession>, User), CoreError> {
         let session = self
             .user_session_repository
-            .find_by_sso_token_hash(&sso_token_hash(&cookie))
+            .find_by_sso_token_hash(&sso_token_hash(cookie))
             .await
             .map_err(|e| {
                 warn!(error = ?e, "Failed to load an SSO session");
                 CoreError::InternalServerError
             })?
-            .in_realm(&scope)?
+            .in_realm(scope)?
             .ok_or(CoreError::SessionNotFound)?;
-
-        let user_session_id = session.get().id;
 
         if session.get().is_expired() {
             return Err(CoreError::SessionExpired);
@@ -3412,15 +3408,30 @@ This is a server error that should be investigated. Do not forward back this mes
             .get_by_id(session.get().user_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .in_realm(&scope)
+            .in_realm(scope)
             .map_err(|_| CoreError::SessionNotFound)?
             .into_inner();
 
         if !user.enabled {
-            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
+            self.record_login_failure(scope.id(), Some(user.id), "user_disabled")
                 .await;
             return Err(CoreError::UserDisabled);
         }
+
+        Ok((session, user))
+    }
+
+    async fn handle_sso_session(
+        &self,
+        cookie: String,
+        scope: RealmScope,
+        auth_session: AuthSession,
+        session_code: Uuid,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let realm_id = scope.id();
+
+        let (session, user) = self.load_sso_session_user(&cookie, &scope).await?;
+        let user_session_id = session.get().id;
 
         let client = self
             .client_repository
@@ -4737,6 +4748,17 @@ where
         }
 
         Ok(EndSessionOutput { redirect_uri: None })
+    }
+
+    async fn resolve_sso_user(
+        &self,
+        realm_name: String,
+        cookie: String,
+    ) -> Result<User, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+        let (_, user) = self.load_sso_session_user(&cookie, &scope).await?;
+
+        Ok(user)
     }
 
     async fn generate_tokens_for_user(

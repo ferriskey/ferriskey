@@ -348,41 +348,66 @@ mod tests {
             .await
     }
 
-    /// POST to the device verify endpoint (approve or deny).
-    /// The admin token is supplied via the FERRISKEY_IDENTITY cookie.
-    async fn verify(
-        server: &TestServer,
-        admin_token: &str,
-        user_code: &str,
-        action: &str,
-    ) -> TestResponse {
-        server
-            .post(&format!("/realms/{}/device/verify", realm()))
-            // The handler reads the identity from the FERRISKEY_IDENTITY cookie.
-            .add_header(
-                "Cookie",
-                HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
+    const S256_CHALLENGE: &str = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+
+    /// Sign in as admin through the browser login and return the
+    /// `FERRISKEY_SSO` cookie the verification page authenticates with.
+    async fn sign_in(server: &TestServer) -> String {
+        let authorize = server
+            .get(&format!("/realms/{}/protocol/openid-connect/auth", realm()))
+            .add_query_param("response_type", "code")
+            .add_query_param("client_id", "ferriskey-admin")
+            .add_query_param(
+                "redirect_uri",
+                format!(
+                    "http://localhost:5555/realms/{}/authentication/callback",
+                    realm()
+                )
+                .as_str(),
             )
-            .json(&json!({
-                "user_code": user_code,
-                "action": action
-            }))
-            .await
+            .add_query_param("scope", "openid")
+            .add_query_param("state", "st")
+            .add_query_param("code_challenge", S256_CHALLENGE)
+            .add_query_param("code_challenge_method", "S256")
+            .await;
+
+        let login = server
+            .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+            .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+            .add_query_param("client_id", "ferriskey-admin")
+            .json(&json!({ "username": "admin", "password": "admin" }))
+            .await;
+
+        assert_eq!(
+            login.status_code(),
+            200,
+            "admin login failed: {}",
+            login.text()
+        );
+
+        login.cookie("FERRISKEY_SSO").value().to_string()
+    }
+
+    fn sso_cookie_header(sso: &str) -> HeaderValue {
+        HeaderValue::from_str(&format!("FERRISKEY_SSO={sso}")).unwrap()
+    }
+
+    /// POST to the device verify endpoint (approve or deny), signed in through
+    /// the given `FERRISKEY_SSO` cookie.
+    async fn verify(server: &TestServer, sso: &str, user_code: &str, action: &str) -> TestResponse {
+        verify_in_realm(server, realm(), sso, user_code, action).await
     }
 
     async fn verify_in_realm(
         server: &TestServer,
         realm_name: &str,
-        admin_token: &str,
+        sso: &str,
         user_code: &str,
         action: &str,
     ) -> TestResponse {
         server
             .post(&format!("/realms/{}/device/verify", realm_name))
-            .add_header(
-                "Cookie",
-                HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
-            )
+            .add_header("Cookie", sso_cookie_header(sso))
             .json(&json!({
                 "user_code": user_code,
                 "action": action
@@ -416,7 +441,7 @@ mod tests {
             let device_code = init_body["device_code"].as_str().expect("device_code");
             let user_code = init_body["user_code"].as_str().expect("user_code");
 
-            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            let verify_resp = verify(&server, &sign_in(&server).await, user_code, "approve").await;
             assert_eq!(
                 verify_resp.status_code(),
                 200,
@@ -514,7 +539,7 @@ mod tests {
             let device_code = init_body["device_code"].as_str().expect("device_code");
             let user_code = init_body["user_code"].as_str().expect("user_code");
 
-            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            let verify_resp = verify(&server, &sign_in(&server).await, user_code, "approve").await;
             assert_eq!(
                 verify_resp.status_code(),
                 200,
@@ -548,12 +573,18 @@ mod tests {
 
             let other_realm = format!("other-{}", Uuid::new_v4().simple());
 
-            let resp =
-                verify_in_realm(&server, &other_realm, &admin_token, user_code, "approve").await;
+            let resp = verify_in_realm(
+                &server,
+                &other_realm,
+                &sign_in(&server).await,
+                user_code,
+                "approve",
+            )
+            .await;
             assert_eq!(
                 resp.status_code(),
-                403,
-                "approval must be refused when the caller does not belong to the realm in the path: {}",
+                401,
+                "a session of another realm must not sign the caller in on this realm's path: {}",
                 resp.text()
             );
 
@@ -631,10 +662,7 @@ mod tests {
             let resp = server
                 .get(&format!("/realms/{}/device/preview", realm()))
                 .add_query_param("user_code", user_code)
-                .add_header(
-                    "Cookie",
-                    HeaderValue::from_str(&format!("FERRISKEY_IDENTITY={admin_token}")).unwrap(),
-                )
+                .add_header("Cookie", sso_cookie_header(&sign_in(&server).await))
                 .await;
 
             assert_eq!(resp.status_code(), 200, "preview failed: {}", resp.text());
@@ -693,7 +721,7 @@ mod tests {
             let device_code = init_body["device_code"].as_str().expect("device_code");
             let user_code = init_body["user_code"].as_str().expect("user_code");
 
-            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            let verify_resp = verify(&server, &sign_in(&server).await, user_code, "approve").await;
             assert_eq!(
                 verify_resp.status_code(),
                 200,
@@ -779,7 +807,7 @@ mod tests {
             let device_code = init_body["device_code"].as_str().expect("device_code");
             let user_code = init_body["user_code"].as_str().expect("user_code");
 
-            let verify_resp = verify(&server, &admin_token, user_code, "approve").await;
+            let verify_resp = verify(&server, &sign_in(&server).await, user_code, "approve").await;
             assert_eq!(
                 verify_resp.status_code(),
                 200,
@@ -926,7 +954,7 @@ mod tests {
             let device_code = init_body["device_code"].as_str().expect("device_code");
             let user_code = init_body["user_code"].as_str().expect("user_code");
 
-            let deny_resp = verify(&server, &admin_token, user_code, "deny").await;
+            let deny_resp = verify(&server, &sign_in(&server).await, user_code, "deny").await;
             assert_eq!(
                 deny_resp.status_code(),
                 200,

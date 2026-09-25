@@ -186,7 +186,7 @@ pub async fn auth_handler(
                 realm_name.clone(),
                 params.client_id.clone(),
                 result.session.id,
-                flow_base_url.clone(),
+                flow_base_url,
                 sso_cookie,
             ))
             .await;
@@ -211,43 +211,11 @@ pub async fn auth_handler(
         }
     }
 
-    if let Some(identity_cookie) = cookie.get(IDENTITY_COOKIE)
-        && !identity_cookie.value().trim().is_empty()
-    {
-        let auth_result = state
-            .service
-            .authenticate(AuthenticateInput::with_existing_token(
-                realm_name.clone(),
-                params.client_id.clone(),
-                result.session.id,
-                flow_base_url,
-                identity_cookie.value().to_string(),
-            ))
-            .await;
-
-        match auth_result {
-            Ok(auth_result)
-                if auth_result.status == AuthenticationStepStatus::Success
-                    && auth_result.redirect_url.is_some() =>
-            {
-                return sso_success_response(auth_result, is_secure);
-            }
-            Ok(_) => {}
-            Err(e) => {
-                warn!(
-                    realm = %realm_name,
-                    client_id = %params.client_id,
-                    session_code = %result.session.id,
-                    error = ?e,
-                    "Automatic SSO with identity cookie failed, redirecting to login page"
-                );
-            }
-        }
-    }
-
     let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
     let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some();
+    // No longer honoured since the SSO session replaced it; cleared from the
+    // browsers that still carry it. Drop this after one release.
     let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
 
     if identity_cookie_is_stale || stale_sso_cookie {

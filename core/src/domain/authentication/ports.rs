@@ -20,6 +20,7 @@ use crate::domain::{
     },
     common::entities::app_errors::CoreError,
     jwt::entities::JwkKey,
+    user::entities::User,
 };
 
 // `GrantTypeService` now lives in `ferriskey-domain` (its signature touches only plain types).
@@ -161,6 +162,14 @@ pub trait AuthService: Send + Sync {
         &self,
         input: GenerateTokensForUserInput,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+
+    /// The user behind a `FERRISKEY_SSO` cookie in `realm_name`, for the
+    /// browser endpoints that act as the signed-in user outside a login flow.
+    fn resolve_sso_user(
+        &self,
+        realm_name: String,
+        cookie: String,
+    ) -> impl Future<Output = Result<User, CoreError>> + Send;
 }
 
 /// A strategy for handling different OAuth2 grant types during authentication.
