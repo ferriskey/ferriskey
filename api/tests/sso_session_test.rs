@@ -508,4 +508,143 @@ mod tests {
             );
         });
     }
+
+    fn code_of(location: &str) -> String {
+        location
+            .split_once('?')
+            .map(|(_, query)| query)
+            .unwrap_or_default()
+            .split('&')
+            .find_map(|pair| pair.strip_prefix("code="))
+            .expect("the redirect must carry an authorization code")
+            .to_string()
+    }
+
+    /// Sign in, then let the survey application obtain a code from the SSO
+    /// session, returning that code unexchanged.
+    async fn survey_code_from_sso(server: &TestServer) -> String {
+        let sso = sign_in(server).await;
+        let survey = start_survey_authorization(server, Some(&sso)).await;
+        let location = location_of(&survey);
+        assert!(
+            location.starts_with(SURVEY_REDIRECT_URI),
+            "pre-condition: SSO must succeed: {location}"
+        );
+        code_of(&location)
+    }
+
+    async fn exchange_survey_code(server: &TestServer, code: &str) -> axum_test::TestResponse {
+        server
+            .post(&format!(
+                "/realms/{}/protocol/openid-connect/token",
+                realm()
+            ))
+            .form(&[
+                ("grant_type", "authorization_code"),
+                ("client_id", SURVEY_CLIENT_ID),
+                ("client_secret", "survey-secret"),
+                ("code", code),
+                ("redirect_uri", SURVEY_REDIRECT_URI),
+            ])
+            .await
+    }
+
+    async fn bound_session_query(sql: &str, code: &str) {
+        let affected = sqlx::query(sql)
+            .bind(code)
+            .execute(&shared_ctx().pool)
+            .await
+            .expect("alter the session bound to the code")
+            .rows_affected();
+        assert_eq!(affected, 1, "the code must be bound to exactly one session");
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_code_bound_to_a_live_session_is_exchanged() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+            let before = count_admin_sessions().await;
+
+            let token = exchange_survey_code(&server, &code).await;
+
+            assert_eq!(
+                token.status_code(),
+                200,
+                "the exchange must succeed: {}",
+                token.text()
+            );
+            assert_eq!(
+                count_admin_sessions().await,
+                before,
+                "the exchange must join the SSO session, not open another"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_code_whose_session_was_revoked_is_refused() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+
+            bound_session_query(
+                "DELETE FROM user_sessions WHERE id = \
+                 (SELECT user_session_id FROM auth_sessions WHERE code = $1)",
+                &code,
+            )
+            .await;
+            let before = count_admin_sessions().await;
+
+            let token = exchange_survey_code(&server, &code).await;
+
+            assert_eq!(
+                token.status_code(),
+                400,
+                "a code outliving its session must not be redeemed: {}",
+                token.text()
+            );
+            assert_eq!(token.json::<serde_json::Value>()["error"], "invalid_grant");
+            assert_eq!(
+                count_admin_sessions().await,
+                before,
+                "a refused exchange must not open a fresh session"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_code_whose_session_is_being_revoked_is_refused() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+
+            // Revocation cuts the SSO secret before touching the tokens.
+            bound_session_query(
+                "UPDATE user_sessions SET sso_token_hash = NULL WHERE id = \
+                 (SELECT user_session_id FROM auth_sessions WHERE code = $1)",
+                &code,
+            )
+            .await;
+
+            let token = exchange_survey_code(&server, &code).await;
+
+            assert_eq!(
+                token.status_code(),
+                400,
+                "a session under revocation must not mint tokens: {}",
+                token.text()
+            );
+            assert_eq!(token.json::<serde_json::Value>()["error"], "invalid_grant");
+        });
+    }
 }

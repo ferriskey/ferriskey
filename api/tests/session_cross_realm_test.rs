@@ -44,7 +44,6 @@ mod tests {
         app: std::sync::Mutex<Router>,
         pool: PgPool,
         admin_token: String,
-        tenant_a_id: Uuid,
         alice_id: Uuid,
         victim_id: Uuid,
         tenant_a_revocable_session: Uuid,
@@ -193,7 +192,6 @@ mod tests {
             app: std::sync::Mutex::new(app),
             pool,
             admin_token,
-            tenant_a_id,
             alice_id,
             victim_id,
             tenant_a_revocable_session,
@@ -508,15 +506,6 @@ mod tests {
             .expect("repoint the auth session at a foreign session");
     }
 
-    async fn session_realm(session_id: Uuid) -> Option<Uuid> {
-        sqlx::query("SELECT realm_id FROM user_sessions WHERE id = $1")
-            .bind(session_id)
-            .fetch_optional(&ctx().pool)
-            .await
-            .expect("query user session realm")
-            .map(|row| row.get("realm_id"))
-    }
-
     async fn session_exists(session_id: Uuid) -> bool {
         sqlx::query("SELECT 1 AS present FROM user_sessions WHERE id = $1")
             .bind(session_id)
@@ -756,19 +745,30 @@ mod tests {
 
             let (tampered_auth_session, tampered_code) = authenticate_alice(&server).await;
             rebind_user_session(tampered_auth_session, ctx().tenant_b_bindable_session).await;
-            let tampered_sid = exchange_code(&server, &tampered_code).await;
 
-            assert_ne!(
-                tampered_sid,
-                ctx().tenant_b_bindable_session,
-                "a tenant-a grant minted a token on a tenant-b session"
-            );
+            let redirect_uri = console_callback(TENANT_A);
+            let tampered = server
+                .post(&format!(
+                    "/realms/{}/protocol/openid-connect/token",
+                    TENANT_A
+                ))
+                .form(&[
+                    ("grant_type", "authorization_code"),
+                    ("client_id", CONSOLE_CLIENT_ID),
+                    ("code", tampered_code.as_str()),
+                    ("redirect_uri", redirect_uri.as_str()),
+                    ("code_verifier", S256_VERIFIER),
+                ])
+                .await;
+
             assert_eq!(
-                session_realm(tampered_sid).await,
-                Some(ctx().tenant_a_id),
-                "the grant must open a fresh session in its own realm instead of adopting a \
-                 foreign one"
+                tampered.status_code(),
+                400,
+                "a tenant-a grant bound to a tenant-b session must be refused, neither adopting \
+                 the foreign session nor opening a fresh one: {}",
+                tampered.text()
             );
+            assert_eq!(tampered.json::<Value>()["error"], "invalid_grant");
         });
     }
 

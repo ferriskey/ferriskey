@@ -242,6 +242,74 @@ fn validate_session_binding(
     Ok(())
 }
 
+/// Load a session an authorization code is bound to, only if it is still alive:
+/// present, in the realm, not expired, and still carrying its SSO secret, which
+/// revocation clears first.
+async fn find_live_bound_session<S: UserSessionRepository>(
+    sessions: &S,
+    session_id: Uuid,
+    scope: &RealmScope,
+) -> Option<UserSession> {
+    let session = sessions
+        .find_by_id(session_id)
+        .await
+        .inspect_err(|e| {
+            warn!(session_id = %session_id, error = ?e, "Failed to load a bound SSO session");
+        })
+        .ok()??
+        .in_realm(scope)
+        .ok()?
+        .into_inner();
+
+    (!session.is_expired() && session.sso_token_hash.is_some()).then_some(session)
+}
+
+/// Re-read a bound session after tokens were persisted against it.
+///
+/// Revocation cuts the SSO secret (or deletes the row) before revoking the
+/// session's tokens. So if the session still looks alive here, any later
+/// revocation will catch the tokens just written; if it does not, the
+/// revocation may already have run past them, and they are revoked here.
+async fn revoke_tokens_unless_bound_session_survived<S, R, A>(
+    sessions: &S,
+    refresh_tokens: &R,
+    access_tokens: &A,
+    session_id: Uuid,
+    scope: &RealmScope,
+) -> Result<(), CoreError>
+where
+    S: UserSessionRepository,
+    R: RefreshTokenRepository,
+    A: AccessTokenRepository,
+{
+    if find_live_bound_session(sessions, session_id, scope)
+        .await
+        .is_some()
+    {
+        return Ok(());
+    }
+
+    warn!(
+        session_id = %session_id,
+        "SSO session revoked during a code exchange, revoking the tokens just issued"
+    );
+
+    let refresh = refresh_tokens.revoke_by_session_id(session_id).await;
+    let access = access_tokens.revoke_by_session_id(session_id).await;
+
+    if refresh.is_err() || access.is_err() {
+        error!(
+            session_id = %session_id,
+            refresh = ?refresh,
+            access = ?access,
+            "Failed to revoke tokens issued against a revoked SSO session"
+        );
+        return Err(CoreError::InternalServerError);
+    }
+
+    Err(CoreError::InvalidAuthorizationCode)
+}
+
 /// Translate a revoked-session rejection into the token endpoint's vocabulary.
 ///
 /// `verify_token` speaks in authentication terms (`SessionRevoked` -> 401) because
@@ -1514,27 +1582,32 @@ where
         Err(CoreError::ClientUnderMaintenance(reason))
     }
 
-    async fn resume_bound_session(
+    /// The SSO session an authorization code was minted against, if any.
+    ///
+    /// A code bound to a session may only be exchanged while that session is
+    /// alive: present, in the realm, not expired, and still carrying its SSO
+    /// secret, which revocation clears first. Falling back to a fresh session
+    /// here would let a code issued before a revocation mint tokens the
+    /// revocation never saw. Only an unbound code (`Ok(None)`) opens one.
+    async fn bound_session_for_exchange(
         &self,
         auth_session: &AuthSession,
         scope: &RealmScope,
-    ) -> Option<UserSession> {
-        let session_id = auth_session.user_session_id?;
+    ) -> Result<Option<UserSession>, CoreError> {
+        let Some(session_id) = auth_session.user_session_id else {
+            return Ok(None);
+        };
 
-        match self.user_session_repository.find_by_id(session_id).await {
-            Ok(Some(session)) => {
-                let session = session.in_realm(scope).ok()?.into_inner();
-
-                (!session.is_expired()).then_some(session)
-            }
-            Ok(None) => None,
-            Err(e) => {
+        match find_live_bound_session(self.user_session_repository.as_ref(), session_id, scope)
+            .await
+        {
+            Some(session) => Ok(Some(session)),
+            None => {
                 warn!(
                     session_id = %session_id,
-                    error = ?e,
-                    "Failed to load the session bound to an auth session, opening a new one"
+                    "Refusing an authorization code: its SSO session is gone, expired or revoked"
                 );
-                None
+                Err(CoreError::InvalidAuthorizationCode)
             }
         }
     }
@@ -2172,7 +2245,11 @@ where
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
         // and refresh.
-        let user_session = match self.resume_bound_session(auth_session, &params.realm).await {
+        let bound_session = self
+            .bound_session_for_exchange(auth_session, &params.realm)
+            .await?;
+        let is_bound = bound_session.is_some();
+        let user_session = match bound_session {
             Some(session) => session,
             None => {
                 self.create_user_session(user.id, params.realm.id(), lifetimes.refresh_token)
@@ -2190,7 +2267,7 @@ where
                 email_verified: user.email_verified,
                 firstname: user.firstname.clone().unwrap_or_default(),
                 lastname: user.lastname.clone().unwrap_or_default(),
-                realm: params.realm,
+                realm: params.realm.clone(),
                 user_id: user.id,
                 username: user.username.clone(),
                 scope: Some(final_scope.clone()),
@@ -2221,6 +2298,34 @@ where
                 );
                 e
             })?;
+
+        if is_bound {
+            revoke_tokens_unless_bound_session_survived(
+                self.user_session_repository.as_ref(),
+                self.refresh_token_repository.as_ref(),
+                self.access_token_repository.as_ref(),
+                user_session.id,
+                &params.realm,
+            )
+            .await
+            .inspect_err(|e| {
+                let duration = (Utc::now() - step_start).num_milliseconds();
+                self.flow_recorder.record_step(
+                    flow_id.clone(),
+                    FlowStepName::TokenExchange,
+                    StepStatus::Failure,
+                    Some(duration),
+                    Some(format!("{:?}", e)),
+                    None,
+                );
+                self.flow_recorder.complete_flow(
+                    flow_id.clone(),
+                    FlowStatus::Failure,
+                    duration,
+                    Some(user_id),
+                );
+            })?;
+        }
 
         let duration = (Utc::now() - step_start).num_milliseconds();
         self.flow_recorder.record_step(
@@ -6135,5 +6240,182 @@ mod password_hash_tests {
             false,
         )
         .await;
+    }
+}
+
+#[cfg(test)]
+mod bound_session_tests {
+    use super::{find_live_bound_session, revoke_tokens_unless_bound_session_survived};
+    use crate::domain::common::entities::app_errors::CoreError;
+    use chrono::{Duration, Utc};
+    use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
+    use ferriskey_domain::realm::{Realm, RealmId};
+    use ferriskey_domain::session::entities::UserSession;
+    use ferriskey_domain::session::ports::MockUserSessionRepository;
+    use ferriskey_security::jwt::ports::{MockAccessTokenRepository, MockRefreshTokenRepository};
+    use uuid::Uuid;
+
+    fn scope(realm_id: Uuid) -> RealmScope {
+        let mut realm = Realm::new("bound-session".to_string());
+        realm.id = RealmId::new(realm_id);
+        RealmScope::from_realm(realm)
+    }
+
+    fn live_session(realm_id: Uuid) -> UserSession {
+        UserSession {
+            id: Uuid::new_v4(),
+            user_id: Uuid::new_v4(),
+            realm_id,
+            user_agent: None,
+            ip_address: None,
+            created_at: Utc::now(),
+            expires_at: Utc::now() + Duration::hours(1),
+            last_seen_at: None,
+            soft_expiry_duration: None,
+            sso_token_hash: Some("hash".to_string()),
+        }
+    }
+
+    fn sessions_returning(session: Option<UserSession>) -> MockUserSessionRepository {
+        let mut sessions = MockUserSessionRepository::new();
+        sessions
+            .expect_find_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(session.map(Unscoped::new)) }));
+        sessions
+    }
+
+    #[tokio::test]
+    async fn a_live_session_is_accepted() {
+        let realm_id = Uuid::new_v4();
+        let session = live_session(realm_id);
+        let session_id = session.id;
+
+        let found = find_live_bound_session(
+            &sessions_returning(Some(session)),
+            session_id,
+            &scope(realm_id),
+        )
+        .await;
+
+        assert_eq!(found.map(|s| s.id), Some(session_id));
+    }
+
+    #[tokio::test]
+    async fn a_session_whose_sso_secret_was_cut_is_refused() {
+        let realm_id = Uuid::new_v4();
+        let mut session = live_session(realm_id);
+        session.sso_token_hash = None;
+        let session_id = session.id;
+
+        let found = find_live_bound_session(
+            &sessions_returning(Some(session)),
+            session_id,
+            &scope(realm_id),
+        )
+        .await;
+
+        assert!(found.is_none(), "revocation clears the secret first");
+    }
+
+    #[tokio::test]
+    async fn an_expired_or_foreign_or_missing_session_is_refused() {
+        let realm_id = Uuid::new_v4();
+
+        let mut expired = live_session(realm_id);
+        expired.expires_at = Utc::now() - Duration::minutes(1);
+        let foreign = live_session(Uuid::new_v4());
+
+        for session in [Some(expired), Some(foreign), None] {
+            let found = find_live_bound_session(
+                &sessions_returning(session),
+                Uuid::new_v4(),
+                &scope(realm_id),
+            )
+            .await;
+            assert!(found.is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn tokens_are_kept_when_the_session_survived() {
+        let realm_id = Uuid::new_v4();
+        let session = live_session(realm_id);
+        let session_id = session.id;
+
+        let mut refresh = MockRefreshTokenRepository::new();
+        refresh.expect_revoke_by_session_id().never();
+        let mut access = MockAccessTokenRepository::new();
+        access.expect_revoke_by_session_id().never();
+
+        let result = revoke_tokens_unless_bound_session_survived(
+            &sessions_returning(Some(session)),
+            &refresh,
+            &access,
+            session_id,
+            &scope(realm_id),
+        )
+        .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn tokens_are_revoked_when_the_session_was_revoked_meanwhile() {
+        let realm_id = Uuid::new_v4();
+        let session_id = Uuid::new_v4();
+
+        let mut refresh = MockRefreshTokenRepository::new();
+        refresh
+            .expect_revoke_by_session_id()
+            .with(mockall::predicate::eq(session_id))
+            .times(1)
+            .return_once(|_| Box::pin(async { Ok(1) }));
+        let mut access = MockAccessTokenRepository::new();
+        access
+            .expect_revoke_by_session_id()
+            .with(mockall::predicate::eq(session_id))
+            .times(1)
+            .return_once(|_| Box::pin(async { Ok(1) }));
+
+        let result = revoke_tokens_unless_bound_session_survived(
+            &sessions_returning(None),
+            &refresh,
+            &access,
+            session_id,
+            &scope(realm_id),
+        )
+        .await;
+
+        assert!(matches!(result, Err(CoreError::InvalidAuthorizationCode)));
+    }
+
+    #[tokio::test]
+    async fn a_failed_self_revocation_is_reported_as_an_internal_error() {
+        let realm_id = Uuid::new_v4();
+
+        let mut refresh = MockRefreshTokenRepository::new();
+        refresh.expect_revoke_by_session_id().return_once(|_| {
+            Box::pin(async {
+                Err(ferriskey_security::SecurityError::GenerationError(
+                    "boom".to_string(),
+                ))
+            })
+        });
+        let mut access = MockAccessTokenRepository::new();
+        access
+            .expect_revoke_by_session_id()
+            .times(1)
+            .return_once(|_| Box::pin(async { Ok(1) }));
+
+        let result = revoke_tokens_unless_bound_session_survived(
+            &sessions_returning(None),
+            &refresh,
+            &access,
+            Uuid::new_v4(),
+            &scope(realm_id),
+        )
+        .await;
+
+        assert!(matches!(result, Err(CoreError::InternalServerError)));
     }
 }
