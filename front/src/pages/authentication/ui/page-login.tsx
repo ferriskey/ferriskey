@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent } from '@/components/ui/card'
 import { Form, FormField } from '@/components/ui/form'
 import { UseFormReturn } from 'react-hook-form'
@@ -149,14 +150,31 @@ export default function PageLogin({
                               />
                             )}
                           />
-                          {loginSettings?.forgot_password_enabled && (
+                          {(loginSettings?.remember_me_enabled || loginSettings?.forgot_password_enabled) && (
                             <div className='flex items-center'>
+                              {loginSettings?.remember_me_enabled && (
+                                <FormField
+                                  control={form.control}
+                                  name='remember_me'
+                                  render={({ field }) => (
+                                    <label className='flex items-center gap-2 text-xs text-muted-foreground'>
+                                      <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={(checked) => field.onChange(checked === true)}
+                                      />
+                                      {t('login.remember_me')}
+                                    </label>
+                                  )}
+                                />
+                              )}
+                              {loginSettings?.forgot_password_enabled && (
                               <Link
                                 to={'../forgot-password'}
                                 className='ml-auto text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline'
                               >
                                 {t('login.forgot_password')}
                               </Link>
+                              )}
                             </div>
                           )}
                         </div>

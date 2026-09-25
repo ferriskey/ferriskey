@@ -21,6 +21,9 @@ import {
   DeviceVerifyShell,
 } from '../ui/page-device-verify'
 
+// Builder-authored pages have no "remember me" control yet.
+const neverRemember = () => false
+
 function parseTree(tree: unknown): BuilderNode[] {
   if (Array.isArray(tree)) {
     return tree as BuilderNode[]
@@ -194,6 +197,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     realm_name: realm,
     enabled: loginSettings?.passkey_enabled ?? false,
     isAuthInitiated: true,
+    getRememberMe: neverRemember,
   })
   const navigate = useNavigate()
 

@@ -64,6 +64,7 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             code_challenge: model.code_challenge,
             code_challenge_method,
             user_session_id: model.user_session_id,
+            remember_me: model.remember_me,
         })
     }
 }
@@ -107,6 +108,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             code_challenge: Set(session.code_challenge.clone()),
             code_challenge_method: Set(code_challenge_method),
             user_session_id: Set(session.user_session_id),
+            remember_me: Set(session.remember_me),
         };
 
         let t = model
@@ -410,6 +412,31 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         // An unbound auth session makes the code exchange open a second
         // session instead of joining this one, so a miss is an error.
+        if result.rows_affected == 0 {
+            return Err(AuthenticationError::NotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn set_remember_me(
+        &self,
+        session_code: Uuid,
+        remember_me: bool,
+    ) -> Result<(), AuthenticationError> {
+        let result = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::RememberMe,
+                Expr::value(remember_me),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error recording remember_me on an auth session: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
         if result.rows_affected == 0 {
             return Err(AuthenticationError::NotFound);
         }

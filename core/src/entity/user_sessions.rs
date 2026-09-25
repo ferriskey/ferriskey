@@ -22,6 +22,8 @@ pub struct Model {
     pub expires_at: DateTime,
     pub last_seen_at: Option<DateTime>,
     pub sso_token_hash: Option<String>,
+    pub persistent: bool,
+    pub authenticated_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -35,6 +37,8 @@ pub enum Column {
     ExpiresAt,
     LastSeenAt,
     SsoTokenHash,
+    Persistent,
+    AuthenticatedAt,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -72,6 +76,8 @@ impl ColumnTrait for Column {
                 .def()
                 .null()
                 .unique(),
+            Self::Persistent => ColumnType::Boolean.def(),
+            Self::AuthenticatedAt => ColumnType::TimestampWithTimeZone.def(),
         }
     }
 }

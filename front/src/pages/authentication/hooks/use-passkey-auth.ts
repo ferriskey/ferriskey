@@ -18,9 +18,11 @@ type Options = {
   realm_name: string | undefined
   enabled: boolean
   isAuthInitiated: boolean
+  /** Read when the passkey completes, since autofill starts before the user can tick it. */
+  getRememberMe: () => boolean
 }
 
-export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options) {
+export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated, getRememberMe }: Options) {
   const { t } = useTranslation(AUTH_NAMESPACE)
   const { mutateAsync: requestPasskeyOptionsAsync, mutate: requestPasskeyOptions } =
     usePasskeyRequestOptionsMutation()
@@ -61,6 +63,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options
         const result = await authenticatePasskeyAsync({
           realm: realm_name,
           data: assertion,
+          rememberMe: getRememberMe(),
         })
 
         if (result.login_url) {
@@ -85,6 +88,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options
     requestPasskeyOptionsAsync,
     authenticatePasskeyAsync,
     conditionalUIVersion,
+    getRememberMe,
   ])
 
   const onPasskeyLogin = useCallback(() => {
@@ -108,7 +112,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options
               response.publicKey as PublicKeyCredentialRequestOptionsJSON
             )
             authenticatePasskey(
-              { realm: realm_name, data: assertion },
+              { realm: realm_name, data: assertion, rememberMe: getRememberMe() },
               {
                 onSuccess: (result) => {
                   if (result.login_url) {
@@ -133,7 +137,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated }: Options
         },
       }
     )
-  }, [realm_name, requestPasskeyOptions, authenticatePasskey, t])
+  }, [realm_name, requestPasskeyOptions, authenticatePasskey, getRememberMe, t])
 
   return {
     onPasskeyLogin,

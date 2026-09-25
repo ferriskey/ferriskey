@@ -318,13 +318,18 @@ impl AuthenticateInput {
         base_url: String,
         username: String,
         password: String,
+        remember_me: bool,
     ) -> Self {
         Self {
             realm_name,
             client_id,
             session_code,
             base_url,
-            auth_method: AuthenticationMethod::UserCredentials { username, password },
+            auth_method: AuthenticationMethod::UserCredentials {
+                username,
+                password,
+                remember_me,
+            },
         }
     }
 
@@ -383,6 +388,7 @@ pub struct AuthenticateOutput {
     pub session_state: Option<String>,
     pub email: Option<String>,
     pub sso_cookie: Option<String>,
+    /// `Max-Age` of `sso_cookie`; `None` makes it a browser-session cookie.
     pub sso_session_max_age_secs: Option<i64>,
 }
 
@@ -392,7 +398,7 @@ impl AuthenticateOutput {
         authorization_code: String,
         completion: AuthCompletion,
         sso_cookie: String,
-        sso_session_max_age_secs: i64,
+        sso_session_max_age_secs: Option<i64>,
     ) -> Self {
         Self {
             user_id,
@@ -405,7 +411,7 @@ impl AuthenticateOutput {
             session_state: None,
             email: None,
             sso_cookie: Some(sso_cookie),
-            sso_session_max_age_secs: Some(sso_session_max_age_secs),
+            sso_session_max_age_secs,
         }
     }
 
@@ -458,6 +464,7 @@ pub struct CredentialsAuthParams {
     pub base_url: String,
     pub username: String,
     pub password: String,
+    pub remember_me: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -482,9 +489,17 @@ pub enum SsoSessionBinding {
 
 #[derive(Debug, Clone)]
 pub enum AuthenticationMethod {
-    UserCredentials { username: String, password: String },
-    ExistingToken { token: String },
-    SsoSession { cookie: String },
+    UserCredentials {
+        username: String,
+        password: String,
+        remember_me: bool,
+    },
+    ExistingToken {
+        token: String,
+    },
+    SsoSession {
+        cookie: String,
+    },
 }
 
 #[cfg(test)]

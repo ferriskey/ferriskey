@@ -14,6 +14,7 @@ login:
     email: Email
     username_or_email: Username or email
   password: Password
+  remember_me: Remember me
   forgot_password: Forgot your password?
   submit: Login
   # Divider between the password form and the other ways to sign in.

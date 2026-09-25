@@ -52,6 +52,9 @@ pub struct AuthSession {
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
     pub user_session_id: Option<Uuid>,
+    /// The "remember me" choice made on the login page, kept until the login
+    /// completes so the session it opens knows whether to persist.
+    pub remember_me: bool,
 }
 
 impl RealmOwned for AuthSession {
@@ -106,6 +109,7 @@ impl AuthSession {
             code_challenge: params.code_challenge,
             code_challenge_method: params.code_challenge_method,
             user_session_id: None,
+            remember_me: false,
         }
     }
 }

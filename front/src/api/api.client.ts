@@ -100,7 +100,7 @@ export namespace Schemas {
   export type AssignRoleResponse = { message: string; realm_name: string; user_id: string };
   export type AuthProtocol = "openid-connect" | "saml";
   export type AuthResponse = { url: string };
-  export type AuthenticateRequest = Partial<{ password: string | null; username: string | null }>;
+  export type AuthenticateRequest = Partial<{ password: string | null; remember_me: boolean; username: string | null }>;
   export type AuthenticationStatus = "Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed";
   export type AuthenticateResponse = {
     email?: (string | null) | undefined;
@@ -1038,7 +1038,7 @@ export namespace Schemas {
     updated_at: string;
   };
   export type SamlAuthnRequestParams = { RelayState?: (string | null) | undefined; SAMLRequest: string };
-  export type SendMagicLinkRequest = { email: string };
+  export type SendMagicLinkRequest = { email: string; remember_me?: boolean | undefined };
   export type SendMagicLinkResponse = { message: string };
   export type SetClientSamlConfigValidator = Partial<{
     acs_url: string;
@@ -2491,6 +2491,7 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/login-actions/passkey-authenticate";
     requestFormat: "json";
     parameters: {
+      query: Partial<{ remember_me: boolean }>;
       path: { realm_name: string };
 
       body: Schemas.PasskeyPublicKeyCredential;

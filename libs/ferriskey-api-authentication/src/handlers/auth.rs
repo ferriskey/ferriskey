@@ -61,13 +61,10 @@ fn sso_success_response(
         .status(StatusCode::FOUND)
         .header(LOCATION, &redirect_url);
 
-    if let Some((secret, max_age_secs)) = auth_result
-        .sso_cookie
-        .zip(auth_result.sso_session_max_age_secs)
-    {
+    if let Some(secret) = auth_result.sso_cookie {
         response = response.header(
             SET_COOKIE,
-            crate::sso_cookie::set(secret, max_age_secs, is_secure)?,
+            crate::sso_cookie::set(secret, auth_result.sso_session_max_age_secs, is_secure)?,
         );
     }
 

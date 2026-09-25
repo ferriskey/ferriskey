@@ -140,6 +140,8 @@ mod tests {
             last_seen_at: None,
             soft_expiry_duration: None,
             sso_token_hash: None,
+            persistent: false,
+            authenticated_at: chrono::Utc::now(),
         }
     }
 

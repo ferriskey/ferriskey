@@ -379,6 +379,7 @@ pub(crate) async fn open_user_session<S, E>(
     user_id: Uuid,
     realm_id: RealmId,
     session_lifetime_seconds: i64,
+    persistent: bool,
 ) -> Result<(UserSession, String), CoreError>
 where
     S: UserSessionRepository,
@@ -411,6 +412,7 @@ where
 
     let sso_token = generate_random_token();
     session.sso_token_hash = Some(sso_token_hash(&sso_token));
+    session.persistent = persistent;
 
     sessions.create(&session).await.map_err(|e| {
         warn!(
@@ -1122,6 +1124,15 @@ where
         Ok(TokenLifetimes::resolve(&realm_settings, &client))
     }
 
+    /// Whether the realm lets a login ask to be remembered past the browser.
+    async fn remember_me_allowed(&self, scope: &RealmScope) -> Result<bool, CoreError> {
+        Ok(self
+            .realm_repository
+            .get_realm_settings(scope.id())
+            .await?
+            .is_some_and(|settings| settings.remember_me_enabled))
+    }
+
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -1759,6 +1770,7 @@ where
         user_id: Uuid,
         realm_id: RealmId,
         session_lifetime_seconds: i64,
+        persistent: bool,
     ) -> Result<(UserSession, String), CoreError> {
         open_user_session(
             self.user_session_repository.as_ref(),
@@ -1766,6 +1778,7 @@ where
             user_id,
             realm_id,
             session_lifetime_seconds,
+            persistent,
         )
         .await
     }
@@ -2309,7 +2322,7 @@ where
         let user_session = match bound_session {
             Some(session) => session,
             None => {
-                self.create_user_session(user.id, params.realm.id(), lifetimes.refresh_token)
+                self.create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
                     .await?
                     .0
             }
@@ -2661,7 +2674,7 @@ where
             .await?;
 
         let (user_session, _) = self
-            .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token)
+            .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
             .await?;
 
         let (jwt, refresh_token, id_token) = self
@@ -2901,6 +2914,20 @@ where
             None,
         );
 
+        // Kept on the authorization request: the session may only open after
+        // an OTP challenge or a required action, several requests later.
+        let mut auth_session = auth_session;
+        if auth_session.remember_me != params.remember_me {
+            self.auth_session_repository
+                .set_remember_me(params.session_code, params.remember_me)
+                .await
+                .map_err(|e| {
+                    warn!(error = ?e, "Failed to record the remember-me choice");
+                    CoreError::InternalServerError
+                })?;
+            auth_session.remember_me = params.remember_me;
+        }
+
         self.determine_next_step(
             auth_result,
             params.session_code,
@@ -2997,14 +3024,16 @@ where
                 let lifetimes = self
                     .resolve_token_lifetimes(scope, auth_session.client_id)
                     .await?;
+                let persistent =
+                    auth_session.remember_me && self.remember_me_allowed(scope).await?;
 
-                self.create_user_session(user_id, scope.id(), lifetimes.refresh_token)
+                self.create_user_session(user_id, scope.id(), lifetimes.refresh_token, persistent)
                     .await?
             }
         };
 
         let sso_session_id = sso_session.id;
-        let sso_session_max_age_secs = (sso_session.expires_at - Utc::now()).num_seconds().max(0);
+        let sso_session_max_age_secs = sso_session.cookie_max_age();
 
         self.auth_session_repository
             .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
@@ -4236,7 +4265,11 @@ where
                 self.handle_sso_session(cookie, scope, auth_session, input.session_code)
                     .await
             }
-            AuthenticationMethod::UserCredentials { username, password } => {
+            AuthenticationMethod::UserCredentials {
+                username,
+                password,
+                remember_me,
+            } => {
                 let params = CredentialsAuthParams {
                     realm: scope,
                     client_id: input.client_id,
@@ -4244,6 +4277,7 @@ where
                     base_url: input.base_url,
                     username,
                     password,
+                    remember_me,
                 };
 
                 self.handle_user_credentials_authentication(params, auth_session)
@@ -4816,7 +4850,7 @@ where
         }
 
         let (user_session, _) = self
-            .create_user_session(user.id, realm_scope.id(), lifetimes.refresh_token)
+            .create_user_session(user.id, realm_scope.id(), lifetimes.refresh_token, false)
             .await?;
 
         if let Some(client_uuid) = input.client_id {
@@ -4993,6 +5027,7 @@ mod tests {
             code_challenge: None,
             code_challenge_method: None,
             user_session_id: None,
+            remember_me: false,
         }
     }
 
@@ -5850,6 +5885,8 @@ mod tests {
             last_seen_at: None,
             soft_expiry_duration: None,
             sso_token_hash: None,
+            persistent: false,
+            authenticated_at: chrono::Utc::now(),
         }
     }
 
@@ -6357,6 +6394,8 @@ mod bound_session_tests {
             last_seen_at: None,
             soft_expiry_duration: None,
             sso_token_hash: Some("hash".to_string()),
+            persistent: false,
+            authenticated_at: chrono::Utc::now(),
         }
     }
 
@@ -6474,6 +6513,7 @@ mod bound_session_tests {
             Uuid::new_v4(),
             RealmId::new(realm_id),
             3600,
+            false,
         )
         .await;
 
