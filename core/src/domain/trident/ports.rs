@@ -3,7 +3,7 @@ use ferriskey_trident::entities::{MagicLink, PasswordResetToken};
 use uuid::Uuid;
 
 use crate::domain::{
-    authentication::value_objects::Identity,
+    authentication::{ports::OpenedSsoSession, value_objects::Identity},
     common::entities::app_errors::CoreError,
     crypto::HashResult,
     trident::entities::{MfaRecoveryCode, TotpSecret},
@@ -66,6 +66,7 @@ pub struct WebAuthnPublicKeyAuthenticateInput {
 }
 pub struct WebAuthnPublicKeyAuthenticateOutput {
     pub login_url: String,
+    pub sso_session: OpenedSsoSession,
 }
 
 pub struct PasskeyRequestOptionsInput {
@@ -84,6 +85,7 @@ pub struct PasskeyAuthenticateInput {
 
 pub struct PasskeyAuthenticateOutput {
     pub login_url: String,
+    pub sso_session: OpenedSsoSession,
 }
 
 pub struct ChallengeOtpInput {
@@ -93,6 +95,7 @@ pub struct ChallengeOtpInput {
 
 pub struct ChallengeOtpOutput {
     pub login_url: Option<String>,
+    pub sso_session: Option<OpenedSsoSession>,
     pub required_actions: Vec<RequiredAction>,
     pub temporary_token: Option<String>,
 }
@@ -144,6 +147,7 @@ pub struct BurnRecoveryCodeInput {
 
 pub struct BurnRecoveryCodeOutput {
     pub login_url: String,
+    pub sso_session: OpenedSsoSession,
 }
 
 pub struct MagicLinkInput {
@@ -182,6 +186,14 @@ pub struct CompletePasswordResetOutput {
     /// login URL (containing an authorization code) the browser should be
     /// redirected to so the original client gets its callback.
     pub login_url: Option<String>,
+    /// The SSO session opened alongside `login_url`, for the browser's cookie.
+    pub sso_session: Option<OpenedSsoSession>,
+}
+
+#[derive(Debug)]
+pub struct VerifyMagicLinkOutput {
+    pub login_url: String,
+    pub sso_session: OpenedSsoSession,
 }
 
 pub struct VerifyResetTokenInput {
@@ -342,7 +354,7 @@ pub trait TridentService: Send + Sync {
     fn verify_magic_link(
         &self,
         input: VerifyMagicLinkInput,
-    ) -> impl Future<Output = Result<String, CoreError>> + Send;
+    ) -> impl Future<Output = Result<VerifyMagicLinkOutput, CoreError>> + Send;
 
     fn request_password_reset(
         &self,

@@ -21,7 +21,7 @@ use crate::{
     domain::{
         authentication::{
             entities::{AuthCompletion, AuthSession, WebAuthnChallenge},
-            ports::AuthSessionRepository,
+            ports::{AuthSessionRepository, OpenedSsoSession, SsoSessionPort},
             services::format_auth_completion,
             value_objects::Identity,
         },
@@ -62,8 +62,8 @@ use crate::{
                 PasskeyAuthenticateOutput, PasskeyRequestOptionsInput,
                 PasswordResetTokenRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
                 RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
-                UpdatePasswordInput, VerifyMagicLinkInput, VerifyOtpInput, VerifyOtpOutput,
-                VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
+                UpdatePasswordInput, VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput,
+                VerifyOtpOutput, VerifyResetTokenInput, WebAuthnPublicKeyAuthenticateInput,
                 WebAuthnPublicKeyAuthenticateOutput, WebAuthnPublicKeyCreateOptionsInput,
                 WebAuthnPublicKeyCreateOptionsOutput, WebAuthnPublicKeyRequestOptionsInput,
                 WebAuthnPublicKeyRequestOptionsOutput, WebAuthnRpInfo,
@@ -232,6 +232,7 @@ pub struct TridentServiceImpl<
     OER,
     URR,
     TRV,
+    SSO,
 > where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -252,6 +253,7 @@ pub struct TridentServiceImpl<
     OER: OtpEnrollmentRepository,
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
+    SSO: SsoSessionPort,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -272,10 +274,11 @@ pub struct TridentServiceImpl<
     pub(crate) otp_enrollment_repository: Arc<OER>,
     pub(crate) user_role_repository: Arc<URR>,
     pub(crate) token_revocation: Arc<TRV>,
+    pub(crate) sso_session: Arc<SSO>,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, SSO>
     TridentServiceImpl<
         CR,
         RC,
@@ -296,6 +299,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR
         OER,
         URR,
         TRV,
+        SSO,
     >
 where
     CR: CredentialRepository,
@@ -317,6 +321,7 @@ where
     OER: OtpEnrollmentRepository,
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
+    SSO: SsoSessionPort,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -339,6 +344,7 @@ where
         otp_enrollment_repository: Arc<OER>,
         user_role_repository: Arc<URR>,
         token_revocation: Arc<TRV>,
+        sso_session: Arc<SSO>,
         flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
@@ -361,6 +367,7 @@ where
             otp_enrollment_repository,
             user_role_repository,
             token_revocation,
+            sso_session,
             flow_recorder,
         }
     }
@@ -417,21 +424,7 @@ where
         user_id: Uuid,
         scope: &RealmScope,
         actions_satisfied_by_path: &[RequiredAction],
-    ) -> Result<String, CoreError> {
-        let completion = self
-            .issue_auth_completion(auth_session, user_id, scope, actions_satisfied_by_path)
-            .await?;
-
-        login_url_from(completion)
-    }
-
-    async fn issue_auth_completion(
-        &self,
-        auth_session: &AuthSession,
-        user_id: Uuid,
-        scope: &RealmScope,
-        actions_satisfied_by_path: &[RequiredAction],
-    ) -> Result<AuthCompletion, CoreError> {
+    ) -> Result<(String, OpenedSsoSession), CoreError> {
         if let Some(step) = self
             .pending_auth_step_for(user_id, scope, actions_satisfied_by_path)
             .await?
@@ -447,6 +440,25 @@ where
             ));
         }
 
+        let (completion, sso_session) = self.complete_login(auth_session, user_id, scope).await?;
+
+        Ok((login_url_from(completion)?, sso_session))
+    }
+
+    /// End a login: open the SSO session it completes into, stamp the
+    /// authorization code, and bind the two so the code exchange joins that
+    /// session instead of opening another one.
+    async fn complete_login(
+        &self,
+        auth_session: &AuthSession,
+        user_id: Uuid,
+        scope: &RealmScope,
+    ) -> Result<(AuthCompletion, OpenedSsoSession), CoreError> {
+        let sso_session = self
+            .sso_session
+            .open_for_login(scope, user_id, auth_session.client_id)
+            .await?;
+
         let authorization_code = generate_random_string();
 
         self.auth_session_repository
@@ -454,7 +466,23 @@ where
             .await
             .map_err(|_| CoreError::AuthorizationCodeStorageFailed)?;
 
-        format_auth_completion(auth_session, &authorization_code)
+        self.auth_session_repository
+            .bind_user_session(auth_session.id, sso_session.session_id)
+            .await
+            .map_err(|e| {
+                warn!(
+                    auth_session_id = %auth_session.id,
+                    sso_session_id = %sso_session.session_id,
+                    error = ?e,
+                    "failed to bind the auth session to its SSO session"
+                );
+                CoreError::AuthorizationCodeStorageFailed
+            })?;
+
+        Ok((
+            format_auth_completion(auth_session, &authorization_code)?,
+            sso_session,
+        ))
     }
 
     async fn render_email_template(
@@ -523,7 +551,7 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, SSO>
     TridentService
     for TridentServiceImpl<
         CR,
@@ -545,6 +573,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR
         OER,
         URR,
         TRV,
+        SSO,
     >
 where
     CR: CredentialRepository,
@@ -566,6 +595,7 @@ where
     OER: OtpEnrollmentRepository,
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
+    SSO: SsoSessionPort,
 {
     async fn generate_recovery_code(
         &self,
@@ -737,17 +767,14 @@ where
                 CoreError::InternalServerError
             })?;
 
-        let authorization_code = generate_random_string();
+        let (completion, sso_session) = self
+            .complete_login(&auth_session, user.get().id, &scope)
+            .await?;
 
-        self.auth_session_repository
-            .update_code_and_user_id(session_code, authorization_code.clone(), user.get().id)
-            .await
-            .map_err(|e| CoreError::TotpVerificationFailed(e.to_string()))?;
-
-        let login_url =
-            login_url_from(format_auth_completion(&auth_session, &authorization_code)?)?;
-
-        Ok(BurnRecoveryCodeOutput { login_url })
+        Ok(BurnRecoveryCodeOutput {
+            login_url: login_url_from(completion)?,
+            sso_session,
+        })
     }
 
     async fn webauthn_public_key_create_options(
@@ -1039,11 +1066,14 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        let login_url = self
+        let (login_url, sso_session) = self
             .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &scope, &[])
             .await?;
 
-        Ok(WebAuthnPublicKeyAuthenticateOutput { login_url })
+        Ok(WebAuthnPublicKeyAuthenticateOutput {
+            login_url,
+            sso_session,
+        })
     }
 
     async fn passkey_request_options(
@@ -1223,11 +1253,14 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
-        let login_url = self
+        let (login_url, sso_session) = self
             .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &scope, &[])
             .await?;
 
-        Ok(PasskeyAuthenticateOutput { login_url })
+        Ok(PasskeyAuthenticateOutput {
+            login_url,
+            sso_session,
+        })
     }
 
     async fn challenge_otp(
@@ -1313,20 +1346,14 @@ where
         if !required_actions.is_empty() {
             return Ok(ChallengeOtpOutput {
                 login_url: None,
+                sso_session: None,
                 required_actions,
                 temporary_token: None,
             });
         }
 
-        let authorization_code = generate_random_string();
-
-        self.auth_session_repository
-            .update_code_and_user_id(session_code, authorization_code.clone(), user.id)
-            .await
-            .map_err(|e| CoreError::TotpVerificationFailed(e.to_string()))?;
-
-        let login_url =
-            login_url_from(format_auth_completion(&auth_session, &authorization_code)?)?;
+        let (completion, sso_session) = self.complete_login(&auth_session, user.id, &scope).await?;
+        let login_url = login_url_from(completion)?;
 
         self.flow_recorder.record_step(
             flow_id,
@@ -1339,6 +1366,7 @@ where
 
         Ok(ChallengeOtpOutput {
             login_url: Some(login_url),
+            sso_session: Some(sso_session),
             required_actions: Vec::new(),
             temporary_token: None,
         })
@@ -1769,7 +1797,10 @@ where
         Ok(())
     }
 
-    async fn verify_magic_link(&self, input: VerifyMagicLinkInput) -> Result<String, CoreError> {
+    async fn verify_magic_link(
+        &self,
+        input: VerifyMagicLinkInput,
+    ) -> Result<VerifyMagicLinkOutput, CoreError> {
         let magic_link = self
             .magic_link_repository
             .get_by_token_id(input.magic_token_id)
@@ -1845,7 +1876,7 @@ where
         }
 
         // Generate authorization code and login URL
-        let login_url = self
+        let (login_url, sso_session) = self
             .store_auth_code_and_generate_login_url(
                 &auth_session,
                 magic_link.user_id,
@@ -1864,7 +1895,10 @@ where
             .await
             .inspect_err(|e| warn!("Failed to delete used magic link: {}", e));
 
-        Ok(login_url)
+        Ok(VerifyMagicLinkOutput {
+            login_url,
+            sso_session,
+        })
     }
 
     async fn request_password_reset(
@@ -2265,7 +2299,7 @@ where
                             )
                             .await
                         {
-                            Ok(url) => Some(url),
+                            Ok(completion) => Some(completion),
                             Err(e) => {
                                 warn!(
                                     "Failed to generate login URL after password reset, falling back to console: {}",
@@ -2287,10 +2321,13 @@ where
             None
         };
 
+        let (login_url, sso_session) = login_url.unzip();
+
         Ok(CompletePasswordResetOutput {
             user_id,
             realm_id,
             login_url,
+            sso_session,
         })
     }
 
@@ -2318,7 +2355,7 @@ mod tests {
     use crate::domain::{
         authentication::{
             entities::{AuthProtocol, AuthenticationError},
-            ports::MockAuthSessionRepository,
+            ports::{MockAuthSessionRepository, MockSsoSessionPort},
         },
         common::{email::MockEmailPort, services::tests::create_test_realm_with_name},
         credential::{entities::CredentialError, ports::MockCredentialRepository},
@@ -2389,6 +2426,7 @@ mod tests {
         MockOtpEnrollmentRepository,
         MockUserRoleRepository,
         MockTokenRevocationPort,
+        MockSsoSessionPort,
     >;
 
     /// `(user_id, secret, expires_at)` as handed to `start_enrollment`.
@@ -2414,6 +2452,7 @@ mod tests {
         otp_enrollment_repo: Arc<MockOtpEnrollmentRepository>,
         user_role_repo: Arc<MockUserRoleRepository>,
         token_revocation: Arc<MockTokenRevocationPort>,
+        sso_session: Arc<MockSsoSessionPort>,
     }
 
     impl TridentTestBuilder {
@@ -2438,6 +2477,7 @@ mod tests {
                 otp_enrollment_repo: Arc::new(MockOtpEnrollmentRepository::new()),
                 user_role_repo: Arc::new(MockUserRoleRepository::new()),
                 token_revocation: Arc::new(MockTokenRevocationPort::new()),
+                sso_session: Arc::new(MockSsoSessionPort::new()),
             }
         }
 
@@ -2493,6 +2533,7 @@ mod tests {
                 self.otp_enrollment_repo,
                 self.user_role_repo,
                 self.token_revocation,
+                self.sso_session,
                 FlowRecorder::disabled(),
             )
         }
@@ -3822,9 +3863,35 @@ mod tests {
             .expect_update_code_and_user_id()
             .never()
             .returning(|_, _, _| Box::pin(async { Err(AuthenticationError::NotFound) }));
+        Arc::get_mut(&mut builder.sso_session)
+            .unwrap()
+            .expect_open_for_login()
+            .never();
     }
 
+    const TEST_SSO_COOKIE: &str = "sso-cookie-secret";
+
+    /// A login that ends must mint a code, open an SSO session, and bind the
+    /// auth session to that very session.
     fn expect_authorization_code(builder: &mut TridentTestBuilder, session: AuthSession) {
+        let sso_session_id = Uuid::new_v4();
+        let auth_session_id = session.id;
+        let client_id = session.client_id;
+
+        Arc::get_mut(&mut builder.sso_session)
+            .unwrap()
+            .expect_open_for_login()
+            .withf(move |_, _, client| *client == client_id)
+            .times(1)
+            .returning(move |_, _, _| {
+                Box::pin(async move {
+                    Ok(OpenedSsoSession {
+                        session_id: sso_session_id,
+                        cookie: TEST_SSO_COOKIE.to_string(),
+                        max_age_secs: 3600,
+                    })
+                })
+            });
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
             .expect_update_code_and_user_id()
@@ -3833,6 +3900,12 @@ mod tests {
                 let s = session.clone();
                 Box::pin(async move { Ok(s) })
             });
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_bind_user_session()
+            .withf(move |auth, sso| *auth == auth_session_id && *sso == sso_session_id)
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
     }
 
     struct MagicLinkFixture {
@@ -3991,10 +4064,15 @@ mod tests {
             })
             .await;
 
-        let url = result.expect("clicking the link already proves mailbox control");
+        let output = result.expect("clicking the link already proves mailbox control");
         assert!(
-            url.contains("code="),
-            "expected an authorization code in {url}"
+            output.login_url.contains("code="),
+            "expected an authorization code in {}",
+            output.login_url
+        );
+        assert_eq!(
+            output.sso_session.cookie, TEST_SSO_COOKIE,
+            "the browser completing the login must get the SSO cookie"
         );
     }
 
@@ -4030,10 +4108,11 @@ mod tests {
             })
             .await;
 
-        let url = result.expect("a user owing no step must still be logged in");
+        let output = result.expect("a user owing no step must still be logged in");
         assert!(
-            url.contains("code="),
-            "expected an authorization code in {url}"
+            output.login_url.contains("code="),
+            "expected an authorization code in {}",
+            output.login_url
         );
     }
 
@@ -4296,6 +4375,46 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn no_code_is_minted_when_the_sso_session_cannot_be_opened() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let session = auth_session_without_state(&realm, Uuid::new_v4());
+
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        Arc::get_mut(&mut builder.sso_session)
+            .unwrap()
+            .expect_open_for_login()
+            .times(1)
+            .returning(|_, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_update_code_and_user_id()
+            .never();
+
+        let service = builder.build();
+        let result = service
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::SessionCreateError)),
+            "a login that cannot open its session must not hand out a code: {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn an_authorization_code_is_issued_when_the_session_carries_no_state() {
         let mut builder = TridentTestBuilder::new();
         let realm = create_test_realm_with_name("test-realm");
@@ -4312,7 +4431,7 @@ mod tests {
         expect_authorization_code(&mut builder, session.clone());
 
         let service = builder.build();
-        let login_url = service
+        let (login_url, _) = service
             .store_auth_code_and_generate_login_url(
                 &session,
                 user_id,
@@ -4353,7 +4472,7 @@ mod tests {
         expect_authorization_code(&mut builder, session.clone());
 
         let service = builder.build();
-        let login_url = service
+        let (login_url, _) = service
             .store_auth_code_and_generate_login_url(
                 &session,
                 user_id,

@@ -1,4 +1,7 @@
-use axum::extract::{Path, State};
+use axum::{
+    extract::{Path, State},
+    response::IntoResponse,
+};
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::trident::ports::{
     PasskeyAuthenticateInput, PublicKeyCredential, TridentService,
@@ -17,6 +20,8 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    sso_cookie,
+    url::FullUrl,
 };
 
 #[derive(Debug, Deserialize)]
@@ -71,9 +76,10 @@ pub struct PasskeyAuthenticateResponse {
 pub async fn passkey_authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<PasskeyAuthenticateRequest>,
-) -> Result<Response<PasskeyAuthenticateResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let session_code = cookie
         .get("FERRISKEY_SESSION")
         .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))?
@@ -93,8 +99,11 @@ pub async fn passkey_authenticate(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(PasskeyAuthenticateResponse {
-        login_url: output.login_url,
-        status: "Success".to_string(),
-    }))
+    Ok((
+        sso_cookie::headers(Some(output.sso_session), base_url.starts_with("https"))?,
+        Response::OK(PasskeyAuthenticateResponse {
+            login_url: output.login_url,
+            status: "Success".to_string(),
+        }),
+    ))
 }

@@ -1,6 +1,7 @@
 use axum::{
     Extension,
     extract::{Path, State},
+    response::IntoResponse,
 };
 use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
@@ -17,6 +18,8 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    sso_cookie,
+    url::FullUrl,
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -55,9 +58,10 @@ pub async fn burn_recovery_code(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
+    FullUrl(_, base_url): FullUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<BurnRecoveryCodeRequest>,
-) -> Result<Response<BurnRecoveryCodeResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let session_code = cookie
         .get("FERRISKEY_SESSION")
         .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))? // Ou un type d'erreur 401/403
@@ -78,7 +82,10 @@ pub async fn burn_recovery_code(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(BurnRecoveryCodeResponse {
-        login_url: result.login_url,
-    }))
+    Ok((
+        sso_cookie::headers(Some(result.sso_session), base_url.starts_with("https"))?,
+        Response::OK(BurnRecoveryCodeResponse {
+            login_url: result.login_url,
+        }),
+    ))
 }

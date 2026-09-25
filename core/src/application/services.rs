@@ -292,6 +292,14 @@ type ApplicationTridentService = TridentServiceImpl<
     OtpEnrollmentRepo,
     UserRoleRepo,
     ApplicationTokenRevocation,
+    ApplicationSsoSession,
+>;
+
+type ApplicationSsoSession = crate::application::sso_session::SsoSessionAdapter<
+    UserSessionRepo,
+    SecurityEventRepo,
+    RealmRepo,
+    ClientRepo,
 >;
 
 type ApplicationAccountSecurityService =

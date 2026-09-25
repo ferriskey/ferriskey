@@ -255,3 +255,36 @@ pub trait LoginActionTokenRepository: Send + Sync {
 
     fn consume(&self, jti: Uuid) -> impl Future<Output = Result<bool, AuthenticationError>> + Send;
 }
+
+/// An SSO session just opened for a login, with the secret for the browser's
+/// `FERRISKEY_SSO` cookie. Only its hash is stored.
+#[derive(Clone, PartialEq, Eq)]
+pub struct OpenedSsoSession {
+    pub session_id: Uuid,
+    pub cookie: String,
+    pub max_age_secs: i64,
+}
+
+/// The cookie is a bearer secret: keep it out of logs.
+impl std::fmt::Debug for OpenedSsoSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenedSsoSession")
+            .field("session_id", &self.session_id)
+            .field("cookie", &"<redacted>")
+            .field("max_age_secs", &self.max_age_secs)
+            .finish()
+    }
+}
+
+/// Opens the SSO session a login completes into, for the login steps that do
+/// not go through the authentication service (the MFA terminal steps).
+#[cfg_attr(test, mockall::automock)]
+pub trait SsoSessionPort: Send + Sync {
+    /// Open a session for `user_id`, with the lifetime `client_id` grants.
+    fn open_for_login(
+        &self,
+        scope: &RealmScope,
+        user_id: Uuid,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<OpenedSsoSession, CoreError>> + Send;
+}

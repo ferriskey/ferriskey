@@ -362,6 +362,92 @@ where
     Ok(revoked)
 }
 
+/// Open an SSO session for a user who just authenticated, and record the login
+/// in the audit trail. Returns the session with the cookie secret whose hash it
+/// stores.
+///
+/// The session is given the same lifetime as the refresh token, so that the
+/// window in which a user can keep renewing tokens is exactly the window in
+/// which their session is alive. A dedicated realm-level SSO session lifetime
+/// would be a better fit and is left for follow-up.
+///
+/// `user_agent` and `ip_address` are left unset: recording the browser's values
+/// means carrying them from the `/auth` request through `auth_sessions`.
+pub(crate) async fn open_user_session<S, E>(
+    sessions: &S,
+    events: &E,
+    user_id: Uuid,
+    realm_id: RealmId,
+    session_lifetime_seconds: i64,
+) -> Result<(UserSession, String), CoreError>
+where
+    S: UserSessionRepository,
+    E: SecurityEventRepository,
+{
+    // The lifetime comes from realm/client settings, so it is operator-supplied.
+    // `Duration::seconds` panics out of range — never let a bad setting take the
+    // token endpoint down.
+    let session_duration = Duration::try_seconds(session_lifetime_seconds).ok_or_else(|| {
+        warn!(
+            "Refusing to open a session: refresh token lifetime {} is out of range",
+            session_lifetime_seconds
+        );
+        CoreError::SessionCreateError
+    })?;
+
+    if let Err(e) = sessions
+        .delete_expired_for_user(user_id, realm_id.into(), Utc::now())
+        .await
+    {
+        warn!(
+            user_id = %user_id,
+            error = ?e,
+            "Failed to purge expired sessions before opening a new one"
+        );
+    }
+
+    let mut session =
+        UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
+
+    let sso_token = generate_random_token();
+    session.sso_token_hash = Some(sso_token_hash(&sso_token));
+
+    sessions.create(&session).await.map_err(|e| {
+        warn!(
+            "Failed to create user session for user {}: {:?}",
+            user_id, e
+        );
+        CoreError::SessionCreateError
+    })?;
+
+    events
+        .store_event(
+            SecurityEvent::new(
+                realm_id,
+                SecurityEventType::LoginSuccess,
+                EventStatus::Success,
+                user_id,
+            )
+            .with_actor(user_id, ActorType::User)
+            .with_target("session".to_string(), session.id, None),
+        )
+        .await?;
+
+    events
+        .store_event(
+            SecurityEvent::new(
+                realm_id,
+                SecurityEventType::SessionCreated,
+                EventStatus::Success,
+                user_id,
+            )
+            .with_target("session".to_string(), session.id, None),
+        )
+        .await?;
+
+    Ok((session, sso_token))
+}
+
 /// Translate a revoked-session rejection into the token endpoint's vocabulary.
 ///
 /// `verify_token` speaks in authentication terms (`SessionRevoked` -> 401) because
@@ -1664,90 +1750,21 @@ where
         }
     }
 
-    /// Open the SSO session a login is bound to, and record it in the audit trail.
-    ///
-    /// The session is given the same lifetime as the refresh token, so that the
-    /// window in which a user can keep renewing tokens is exactly the window in
-    /// which their session is alive. A dedicated realm-level SSO session lifetime
-    /// would be a better fit and is left for follow-up.
-    ///
-    /// `user_agent` and `ip_address` are left unset: the token endpoint is a
-    /// back-channel call made by the client application, so its transport metadata
-    /// describes the client rather than the user's browser. Recording the real
-    /// values means carrying them from the `/auth` request through `auth_sessions`.
+    /// Open the SSO session a login is bound to. See [`open_user_session`].
     async fn create_user_session(
         &self,
         user_id: Uuid,
         realm_id: RealmId,
         session_lifetime_seconds: i64,
     ) -> Result<(UserSession, String), CoreError> {
-        // The lifetime comes from realm/client settings, so it is operator-supplied.
-        // `Duration::seconds` panics out of range — never let a bad setting take the
-        // token endpoint down.
-        let session_duration =
-            Duration::try_seconds(session_lifetime_seconds).ok_or_else(|| {
-                warn!(
-                    "Refusing to open a session: refresh token lifetime {} is out of range",
-                    session_lifetime_seconds
-                );
-                CoreError::SessionCreateError
-            })?;
-
-        if let Err(e) = self
-            .user_session_repository
-            .delete_expired_for_user(user_id, realm_id.into(), Utc::now())
-            .await
-        {
-            warn!(
-                user_id = %user_id,
-                error = ?e,
-                "Failed to purge expired sessions before opening a new one"
-            );
-        }
-
-        let mut session =
-            UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
-
-        let sso_token = generate_random_token();
-        session.sso_token_hash = Some(sso_token_hash(&sso_token));
-
-        self.user_session_repository
-            .create(&session)
-            .await
-            .map_err(|e| {
-                warn!(
-                    "Failed to create user session for user {}: {:?}",
-                    user_id, e
-                );
-                CoreError::SessionCreateError
-            })?;
-
-        self.security_event_repository
-            .store_event(
-                SecurityEvent::new(
-                    realm_id,
-                    SecurityEventType::LoginSuccess,
-                    EventStatus::Success,
-                    user_id,
-                )
-                .with_actor(user_id, ActorType::User)
-                .with_target("session".to_string(), session.id, None),
-            )
-            .await?;
-
-        self.security_event_repository
-            .store_event(
-                SecurityEvent::new(
-                    realm_id,
-                    SecurityEventType::SessionCreated,
-                    EventStatus::Success,
-                    user_id,
-                )
-                .with_target("session".to_string(), session.id, None),
-            )
-            .await?;
-
-        Ok((session, sso_token))
+        open_user_session(
+            self.user_session_repository.as_ref(),
+            self.security_event_repository.as_ref(),
+            user_id,
+            realm_id,
+            session_lifetime_seconds,
+        )
+        .await
     }
 
     async fn revoke_session_cascade(
