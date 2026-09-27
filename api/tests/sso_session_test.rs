@@ -1041,4 +1041,221 @@ mod tests {
             );
         });
     }
+
+    async fn survey_authorize_with(
+        server: &TestServer,
+        sso_cookie: Option<&str>,
+        extra: &[(&str, &str)],
+    ) -> axum_test::TestResponse {
+        let mut request = server
+            .get(&format!("/realms/{}/protocol/openid-connect/auth", realm()))
+            .add_query_param("response_type", "code")
+            .add_query_param("client_id", SURVEY_CLIENT_ID)
+            .add_query_param("redirect_uri", SURVEY_REDIRECT_URI)
+            .add_query_param("scope", "openid")
+            .add_query_param("state", "survey-state");
+
+        for (key, value) in extra {
+            request = request.add_query_param(key, value);
+        }
+
+        if let Some(value) = sso_cookie {
+            request = request.add_header(
+                "Cookie",
+                axum::http::HeaderValue::from_str(&format!("FERRISKEY_SSO={value}"))
+                    .expect("cookie header"),
+            );
+        }
+
+        request.await
+    }
+
+    fn clears_the_sso_cookie(response: &axum_test::TestResponse) -> bool {
+        response
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .any(|v| v.starts_with("FERRISKEY_SSO=") && v.contains("Max-Age=0"))
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn prompt_none_answers_from_the_session() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let sso = sign_in(&server).await;
+
+            let survey = survey_authorize_with(&server, Some(&sso), &[("prompt", "none")]).await;
+            let location = location_of(&survey);
+
+            assert!(
+                location.starts_with(SURVEY_REDIRECT_URI) && location.contains("code="),
+                "a live session must answer prompt=none with a code: {location}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn prompt_none_without_a_session_hands_back_login_required() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+
+            let survey = survey_authorize_with(&server, None, &[("prompt", "none")]).await;
+
+            assert_eq!(
+                location_of(&survey),
+                format!("{SURVEY_REDIRECT_URI}?error=login_required&state=survey-state"),
+                "prompt=none must never show a login page"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn prompt_none_combined_with_another_value_is_an_invalid_request() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+
+            let survey = survey_authorize_with(&server, None, &[("prompt", "none login")]).await;
+
+            assert_eq!(
+                location_of(&survey),
+                format!("{SURVEY_REDIRECT_URI}?error=invalid_request&state=survey-state")
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn prompt_login_re_authenticates_into_the_same_session() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let old_sso = sign_in(&server).await;
+            let sessions_before = count_admin_sessions().await;
+
+            let survey =
+                survey_authorize_with(&server, Some(&old_sso), &[("prompt", "login")]).await;
+            let location = location_of(&survey);
+            assert!(
+                location.starts_with(WEBAPP_URL) && !location.contains("session_expired=1"),
+                "prompt=login must ask for the login again, without calling the session expired: {location}"
+            );
+            assert!(
+                !clears_the_sso_cookie(&survey),
+                "an abandoned re-login must not sign the other applications out"
+            );
+
+            let login = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(survey.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SURVEY_CLIENT_ID)
+                .json(&json!({ "username": "admin", "password": "admin" }))
+                .await;
+            assert_eq!(login.status_code(), 200, "{}", login.text());
+            let new_sso = login.cookie("FERRISKEY_SSO").value().to_string();
+
+            assert_eq!(
+                count_admin_sessions().await,
+                sessions_before,
+                "signing in again must re-authenticate the session, not open a second one"
+            );
+            assert_ne!(new_sso, old_sso, "the cookie secret must rotate");
+
+            let with_old = start_survey_authorization(&server, Some(&old_sso)).await;
+            assert!(
+                location_of(&with_old).starts_with(WEBAPP_URL),
+                "the secret replaced by the re-authentication must stop working"
+            );
+            let with_new = start_survey_authorization(&server, Some(&new_sso)).await;
+            assert!(
+                location_of(&with_new).starts_with(SURVEY_REDIRECT_URI),
+                "the rotated secret must sign in"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn max_age_asks_for_a_fresh_login_only_when_exceeded() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let sso = sign_in(&server).await;
+
+            sqlx::query(
+                "UPDATE user_sessions SET authenticated_at = NOW() - INTERVAL '1 hour' \
+                 WHERE user_id = (SELECT id FROM users WHERE username = 'admin')",
+            )
+            .execute(&shared_ctx().pool)
+            .await
+            .expect("age the admin sessions");
+
+            let recent_enough =
+                survey_authorize_with(&server, Some(&sso), &[("max_age", "7200")]).await;
+            assert!(
+                location_of(&recent_enough).starts_with(SURVEY_REDIRECT_URI),
+                "an authentication within max_age must still sign in"
+            );
+
+            let too_old = survey_authorize_with(&server, Some(&sso), &[("max_age", "60")]).await;
+            let location = location_of(&too_old);
+            assert!(
+                location.starts_with(WEBAPP_URL),
+                "an authentication older than max_age must ask for the login again: {location}"
+            );
+            assert!(
+                !clears_the_sso_cookie(&too_old),
+                "the session is still live and must stay usable elsewhere"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn the_id_token_carries_the_authentication_time() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+            let authenticated_at = sqlx::query_scalar::<_, i64>(
+                "SELECT FLOOR(EXTRACT(EPOCH FROM s.authenticated_at))::BIGINT FROM user_sessions s \
+                 JOIN auth_sessions a ON a.user_session_id = s.id WHERE a.code = $1",
+            )
+            .bind(&code)
+            .fetch_one(&shared_ctx().pool)
+            .await
+            .expect("read the bound session's authentication time");
+
+            let token = exchange_survey_code(&server, &code).await;
+            let id_token = token.json::<serde_json::Value>()["id_token"]
+                .as_str()
+                .expect("an id token")
+                .to_string();
+
+            use base64::Engine as _;
+            let payload = id_token.split('.').nth(1).expect("a JWT payload");
+            let claims: serde_json::Value = serde_json::from_slice(
+                &base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .decode(payload)
+                    .expect("base64url payload"),
+            )
+            .expect("JSON claims");
+
+            assert_eq!(
+                claims["auth_time"].as_i64(),
+                Some(authenticated_at),
+                "auth_time must be the session's last interactive authentication: {claims}"
+            );
+        });
+    }
 }

@@ -191,6 +191,9 @@ pub struct GenerateTokenInput {
     /// `sid` claim. `None` for flows that establish no SSO session, such as
     /// `client_credentials`.
     pub session_id: Option<Uuid>,
+    /// When the user last authenticated interactively, as a Unix timestamp:
+    /// the ID token's `auth_time`, which OIDC `max_age` relies on.
+    pub auth_time: Option<i64>,
 }
 
 /// Request received by the application layer for a client-scope evaluation. The application

@@ -34,6 +34,7 @@ pub struct Model {
     pub protocol: String,
     pub user_session_id: Option<Uuid>,
     pub remember_me: bool,
+    pub reauth_session_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -59,6 +60,7 @@ pub enum Column {
     Protocol,
     UserSessionId,
     RememberMe,
+    ReauthSessionId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -79,7 +81,8 @@ pub enum Relation {
     Clients,
     CompassFlows,
     Realms,
-    UserSessions,
+    UserSessions2,
+    UserSessions1,
     Users,
 }
 
@@ -111,6 +114,7 @@ impl ColumnTrait for Column {
             Self::Protocol => ColumnType::String(StringLen::N(32u32)).def(),
             Self::UserSessionId => ColumnType::Uuid.def().null(),
             Self::RememberMe => ColumnType::Boolean.def(),
+            Self::ReauthSessionId => ColumnType::Uuid.def().null(),
         }
     }
 }
@@ -133,7 +137,11 @@ impl RelationTrait for Relation {
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
                 .into(),
-            Self::UserSessions => Entity::belongs_to(super::user_sessions::Entity)
+            Self::UserSessions2 => Entity::belongs_to(super::user_sessions::Entity)
+                .from(Column::ReauthSessionId)
+                .to(super::user_sessions::Column::Id)
+                .into(),
+            Self::UserSessions1 => Entity::belongs_to(super::user_sessions::Entity)
                 .from(Column::UserSessionId)
                 .to(super::user_sessions::Column::Id)
                 .into(),
@@ -166,12 +174,6 @@ impl Related<super::compass_flows::Entity> for Entity {
 impl Related<super::realms::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Realms.def()
-    }
-}
-
-impl Related<super::user_sessions::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::UserSessions.def()
     }
 }
 

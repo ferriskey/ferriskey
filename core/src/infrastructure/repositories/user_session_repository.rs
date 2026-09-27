@@ -222,6 +222,42 @@ impl UserSessionRepository for PostgresUserSessionRepository {
         Ok(())
     }
 
+    async fn reauthenticate(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
+        let session = session.get();
+        let result = crate::entity::user_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::user_sessions::Column::SsoTokenHash,
+                Expr::value(session.sso_token_hash.clone()),
+            )
+            .col_expr(
+                crate::entity::user_sessions::Column::AuthenticatedAt,
+                Expr::value(session.authenticated_at.fixed_offset()),
+            )
+            .col_expr(
+                crate::entity::user_sessions::Column::ExpiresAt,
+                Expr::value(session.expires_at.naive_utc()),
+            )
+            .col_expr(
+                crate::entity::user_sessions::Column::Persistent,
+                Expr::value(session.persistent),
+            )
+            .filter(crate::entity::user_sessions::Column::Id.eq(session.id))
+            .filter(crate::entity::user_sessions::Column::RealmId.eq(session.realm_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error re-authenticating a user session: {:?}", e);
+                SessionError::UpdateError
+            })?;
+
+        // A row revoked meanwhile must not come back to life as a success.
+        if result.rows_affected == 0 {
+            return Err(SessionError::NotFound);
+        }
+
+        Ok(())
+    }
+
     async fn clear_sso_token_hash(
         &self,
         session: &Scoped<UserSession>,

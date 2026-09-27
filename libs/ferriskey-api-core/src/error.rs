@@ -153,6 +153,9 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidKey(msg) => Self::BadRequest(format!("Invalid key: {}", msg).into()),
             CoreError::SessionNotFound => Self::NotFound("Session not found".into()),
             CoreError::SessionExpired => Self::Unauthorized("Session expired".into()),
+            CoreError::ReauthenticationRequired => {
+                Self::Unauthorized("Re-authentication required".into())
+            }
             CoreError::InvalidSession => Self::Unauthorized("Invalid session".into()),
             CoreError::SessionCreateError => {
                         Self::InternalServerError("Failed to create session".into())

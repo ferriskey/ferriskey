@@ -4,7 +4,7 @@ use ferriskey_domain::token_lifetime::TokenLifetimes;
 use uuid::Uuid;
 
 use crate::domain::authentication::ports::{OpenedSsoSession, SsoSessionPort};
-use crate::domain::authentication::services::open_user_session;
+use crate::domain::authentication::services::open_or_reauthenticate_session;
 use crate::domain::client::ports::ClientRepository;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::realm::entities::RealmScope;
@@ -63,6 +63,7 @@ where
         user_id: Uuid,
         client_id: Uuid,
         remember_me: bool,
+        reauth_session_id: Option<Uuid>,
     ) -> Result<OpenedSsoSession, CoreError> {
         let realm_settings = self
             .realm_repository
@@ -81,11 +82,12 @@ where
 
         let lifetimes = TokenLifetimes::resolve(&realm_settings, &client);
 
-        let (session, cookie) = open_user_session(
+        let (session, cookie) = open_or_reauthenticate_session(
             self.session_repository.as_ref(),
             self.security_event_repository.as_ref(),
+            reauth_session_id,
             user_id,
-            scope.id(),
+            scope,
             lifetimes.refresh_token,
             remember_me && realm_settings.remember_me_enabled,
         )

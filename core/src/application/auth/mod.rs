@@ -94,6 +94,17 @@ impl AuthService for ApplicationService {
         self.auth_service.generate_tokens_for_user(input).await
     }
 
+    async fn remember_reauthentication(
+        &self,
+        realm_name: String,
+        session_code: uuid::Uuid,
+        cookie: String,
+    ) -> Result<bool, CoreError> {
+        self.auth_service
+            .remember_reauthentication(realm_name, session_code, cookie)
+            .await
+    }
+
     async fn resolve_sso_user(
         &self,
         realm_name: String,

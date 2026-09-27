@@ -754,6 +754,7 @@ pub(crate) mod tests {
             code_challenge_method: None,
             user_session_id: None,
             remember_me: false,
+            reauth_session_id: None,
         }
     }
 

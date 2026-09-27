@@ -96,6 +96,57 @@ pub struct AuthRequest {
     pub code_challenge: Option<String>,
     #[serde(default)]
     pub code_challenge_method: Option<CodeChallengeMethod>,
+    /// OIDC `prompt`: `none` answers from the SSO session or fails with
+    /// `login_required`, `login` always asks the user to authenticate again.
+    #[serde(default)]
+    pub prompt: Option<String>,
+    /// OIDC `max_age`, in seconds: an SSO session authenticated longer ago
+    /// than this asks the user to authenticate again.
+    #[serde(default)]
+    pub max_age: Option<i64>,
+}
+
+/// The OIDC `prompt` values FerrisKey acts on. `consent` and `select_account`
+/// are accepted and ignored: there is no consent screen or account picker.
+#[derive(Debug, Default, PartialEq, Eq)]
+struct Prompt {
+    none: bool,
+    login: bool,
+}
+
+impl Prompt {
+    /// `None` when `none` is combined with another value, which OIDC Core
+    /// §3.1.2.1 makes an `invalid_request`.
+    fn parse(prompt: Option<&str>) -> Option<Self> {
+        let values: Vec<&str> = prompt.unwrap_or_default().split_whitespace().collect();
+        let none = values.contains(&"none");
+
+        if none && values.len() > 1 {
+            return None;
+        }
+
+        Some(Self {
+            none,
+            login: values.contains(&"login"),
+        })
+    }
+}
+
+/// An authorization error handed back to the client on its (already
+/// validated) redirect URI, as RFC 6749 §4.1.2.1 describes.
+fn authorization_error_response(
+    redirect_uri: &str,
+    error: &str,
+    state: Option<&str>,
+) -> axum::response::Response {
+    let separator = if redirect_uri.contains('?') { '&' } else { '?' };
+    let mut location = format!("{redirect_uri}{separator}error={error}");
+
+    if let Some(state) = state {
+        location.push_str(&format!("&state={}", urlencoding::encode(state)));
+    }
+
+    (StatusCode::FOUND, [(LOCATION, location)]).into_response()
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema, PartialEq, Eq)]
@@ -171,12 +222,24 @@ pub async fn auth_handler(
     let is_secure = base_url.starts_with("https://");
     let flow_base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
+    let Some(prompt) = Prompt::parse(params.prompt.as_deref()) else {
+        return Ok(authorization_error_response(
+            &params.redirect_uri,
+            "invalid_request",
+            params.state.as_deref(),
+        ));
+    };
+    // `max_age=0` asks for a fresh authentication, like `prompt=login`.
+    let reauthenticate = prompt.login || params.max_age == Some(0);
+
     let sso_cookie = cookie
         .get(SSO_SESSION_COOKIE)
         .map(|c| c.value().trim().to_string())
         .filter(|value| !value.is_empty());
 
-    if let Some(sso_cookie) = sso_cookie {
+    let mut sso_refusal = None;
+
+    if let Some(sso_cookie) = sso_cookie.clone().filter(|_| !reauthenticate) {
         let auth_result = state
             .service
             .authenticate(AuthenticateInput::with_sso_session(
@@ -185,6 +248,7 @@ pub async fn auth_handler(
                 result.session.id,
                 flow_base_url,
                 sso_cookie,
+                params.max_age,
             ))
             .await;
 
@@ -204,13 +268,43 @@ pub async fn auth_handler(
                     error = ?e,
                     "SSO session refused, falling back to the login page"
                 );
+                sso_refusal = Some(e);
             }
         }
     }
 
+    // `prompt=none` never shows a login page: the client learns why instead.
+    if prompt.none {
+        let error = match sso_refusal {
+            Some(CoreError::Forbidden(_)) => "interaction_required",
+            _ => "login_required",
+        };
+
+        return Ok(authorization_error_response(
+            &params.redirect_uri,
+            error,
+            params.state.as_deref(),
+        ));
+    }
+
+    // A cookie still naming a live session (prompt=login, max_age exceeded, a
+    // step still due) is kept: the login re-authenticates into its session,
+    // and an abandoned login leaves the other applications signed in.
+    let keeps_live_session = match sso_cookie {
+        Some(sso_cookie) => state
+            .service
+            .remember_reauthentication(realm_name.clone(), result.session.id, sso_cookie)
+            .await
+            .unwrap_or_else(|e| {
+                warn!(error = ?e, "Failed to remember the session to re-authenticate into");
+                false
+            }),
+        None => false,
+    };
+
     let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
 
-    let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some();
+    let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some() && !keeps_live_session;
     // No longer honoured since the SSO session replaced it; cleared from the
     // browsers that still carry it. Drop this after one release.
     let identity_cookie_is_stale = cookie.get(IDENTITY_COOKIE).is_some();
@@ -273,7 +367,8 @@ pub async fn auth_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::{mark_session_expired, webapp_login_url};
+    use super::{Prompt, authorization_error_response, mark_session_expired, webapp_login_url};
+    use axum::http::{StatusCode, header::LOCATION};
 
     #[test]
     fn a_login_url_that_already_carries_parameters_gains_the_marker_as_another_one() {
@@ -325,6 +420,49 @@ mod tests {
         assert_eq!(
             full_url,
             "https://login.example.com/realms/demo/authentication/login?client_id=test-client"
+        );
+    }
+
+    #[test]
+    fn prompt_values_are_read_from_a_space_separated_list() {
+        assert_eq!(Prompt::parse(None), Some(Prompt::default()));
+        assert_eq!(
+            Prompt::parse(Some("none")),
+            Some(Prompt {
+                none: true,
+                login: false
+            })
+        );
+        assert_eq!(
+            Prompt::parse(Some("consent login")),
+            Some(Prompt {
+                none: false,
+                login: true
+            })
+        );
+    }
+
+    #[test]
+    fn prompt_none_cannot_be_combined_with_another_value() {
+        assert_eq!(Prompt::parse(Some("none login")), None);
+        assert_eq!(Prompt::parse(Some("consent none")), None);
+    }
+
+    #[test]
+    fn an_authorization_error_goes_back_to_the_client_with_its_state() {
+        let response = authorization_error_response(
+            "https://app.example/cb?tenant=acme",
+            "login_required",
+            Some("a b"),
+        );
+
+        assert_eq!(response.status(), StatusCode::FOUND);
+        assert_eq!(
+            response
+                .headers()
+                .get(LOCATION)
+                .and_then(|v| v.to_str().ok()),
+            Some("https://app.example/cb?tenant=acme&error=login_required&state=a%20b")
         );
     }
 }

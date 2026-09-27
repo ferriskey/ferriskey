@@ -484,6 +484,7 @@ where
                 user_id,
                 auth_session.client_id,
                 auth_session.remember_me,
+                auth_session.reauth_session_id,
             )
             .await?;
 
@@ -3850,6 +3851,7 @@ mod tests {
             code_challenge_method: None,
             user_session_id: None,
             remember_me: false,
+            reauth_session_id: None,
         }
     }
 
@@ -4042,9 +4044,9 @@ mod tests {
         Arc::get_mut(&mut builder.sso_session)
             .unwrap()
             .expect_open_for_login()
-            .withf(move |_, _, client, _| *client == client_id)
+            .withf(move |_, _, client, _, _| *client == client_id)
             .times(1)
-            .returning(move |_, _, _, _| {
+            .returning(move |_, _, _, _, _| {
                 Box::pin(async move {
                     Ok(OpenedSsoSession {
                         session_id: sso_session_id,
@@ -4553,7 +4555,7 @@ mod tests {
             .unwrap()
             .expect_open_for_login()
             .times(1)
-            .returning(|_, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
+            .returning(|_, _, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
             .expect_update_code_and_user_id()
