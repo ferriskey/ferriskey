@@ -162,6 +162,11 @@ pub enum CoreError {
     #[error("Session expired")]
     SessionExpired,
 
+    /// The session is live but older than the authentication the request
+    /// demands (OIDC `max_age`).
+    #[error("Re-authentication required")]
+    ReauthenticationRequired,
+
     #[error("Invalid session")]
     InvalidSession,
 
@@ -453,6 +458,7 @@ impl CoreError {
             CoreError::InvalidKey(_) => "invalid_key",
             CoreError::SessionNotFound => "session_not_found",
             CoreError::SessionExpired => "session_expired",
+            CoreError::ReauthenticationRequired => "reauthentication_required",
             CoreError::InvalidSession => "invalid_session",
             CoreError::SessionCreateError => "session_create_error",
             CoreError::SessionDeleteError => "session_delete_error",
@@ -656,6 +662,10 @@ mod tests {
             (CoreError::InvalidKey(payload.clone()), "invalid_key"),
             (CoreError::SessionNotFound, "session_not_found"),
             (CoreError::SessionExpired, "session_expired"),
+            (
+                CoreError::ReauthenticationRequired,
+                "reauthentication_required",
+            ),
             (CoreError::InvalidSession, "invalid_session"),
             (CoreError::SessionCreateError, "session_create_error"),
             (CoreError::SessionDeleteError, "session_delete_error"),
@@ -877,7 +887,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 122);
+        assert_eq!(every_variant_with_expected_reason().len(), 123);
     }
 
     #[test]

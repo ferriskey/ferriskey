@@ -355,13 +355,14 @@ impl AuthenticateInput {
         session_code: Uuid,
         base_url: String,
         cookie: String,
+        max_age: Option<i64>,
     ) -> Self {
         Self {
             realm_name,
             client_id,
             session_code,
             base_url,
-            auth_method: AuthenticationMethod::SsoSession { cookie },
+            auth_method: AuthenticationMethod::SsoSession { cookie, max_age },
         }
     }
 
@@ -497,8 +498,11 @@ pub enum AuthenticationMethod {
     ExistingToken {
         token: String,
     },
+    /// `max_age` is the OIDC parameter: refuse a session whose last
+    /// interactive authentication is older than that many seconds.
     SsoSession {
         cookie: String,
+        max_age: Option<i64>,
     },
 }
 

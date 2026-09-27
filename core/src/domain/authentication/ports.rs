@@ -111,6 +111,13 @@ pub trait AuthSessionRepository: Send + Sync {
         user_session_id: Uuid,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 
+    /// Remember the live SSO session a login should re-authenticate into.
+    fn set_reauth_session(
+        &self,
+        session_code: Uuid,
+        user_session_id: Uuid,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
     /// Record the "remember me" choice made at the first step of a login.
     fn set_remember_me(
         &self,
@@ -169,6 +176,17 @@ pub trait AuthService: Send + Sync {
         &self,
         input: GenerateTokensForUserInput,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+
+    /// When `/auth` sends a browser to the login page while its `FERRISKEY_SSO`
+    /// cookie still names a live session, remember that session on the
+    /// authorization request so the login re-authenticates into it. Returns
+    /// whether the cookie named a live session, so the caller keeps it.
+    fn remember_reauthentication(
+        &self,
+        realm_name: String,
+        session_code: Uuid,
+        cookie: String,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 
     /// The user behind a `FERRISKEY_SSO` cookie in `realm_name`, for the
     /// browser endpoints that act as the signed-in user outside a login flow.
@@ -299,11 +317,14 @@ impl std::fmt::Debug for OpenedSsoSession {
 pub trait SsoSessionPort: Send + Sync {
     /// Open a session for `user_id`, with the lifetime `client_id` grants,
     /// persistent when the user asked to be remembered and the realm allows it.
+    /// With `reauth_session_id`, re-authenticate into that session instead
+    /// when it is still live and belongs to the same user.
     fn open_for_login(
         &self,
         scope: &RealmScope,
         user_id: Uuid,
         client_id: Uuid,
         remember_me: bool,
+        reauth_session_id: Option<Uuid>,
     ) -> impl Future<Output = Result<OpenedSsoSession, CoreError>> + Send;
 }

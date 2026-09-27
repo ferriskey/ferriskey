@@ -109,6 +109,13 @@ pub trait UserSessionRepository: Send + Sync {
         sso_token_hash: &str,
     ) -> impl Future<Output = Result<(), SessionError>> + Send;
 
+    /// Record a fresh interactive authentication in an existing session: new
+    /// SSO secret, `authenticated_at`, lifetime and persistence.
+    fn reauthenticate(
+        &self,
+        session: &Scoped<UserSession>,
+    ) -> impl Future<Output = Result<(), SessionError>> + Send;
+
     /// Detach the SSO cookie from the session, so it can no longer resume the
     /// session at `/auth` while the row itself is kept.
     fn clear_sso_token_hash(

@@ -55,6 +55,9 @@ pub struct AuthSession {
     /// The "remember me" choice made on the login page, kept until the login
     /// completes so the session it opens knows whether to persist.
     pub remember_me: bool,
+    /// A live SSO session the browser still held when it was sent to the
+    /// login page; a login for the same user re-authenticates into it.
+    pub reauth_session_id: Option<Uuid>,
 }
 
 impl RealmOwned for AuthSession {
@@ -110,6 +113,7 @@ impl AuthSession {
             code_challenge_method: params.code_challenge_method,
             user_session_id: None,
             remember_me: false,
+            reauth_session_id: None,
         }
     }
 }
