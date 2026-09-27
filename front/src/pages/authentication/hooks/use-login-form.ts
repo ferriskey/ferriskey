@@ -30,6 +30,7 @@ export const authenticateSchema = z.object({
   password: z
     .string()
     .min(1, { error: () => translate(`${AUTH_NAMESPACE}:validation.password_required`) }),
+  remember_me: z.boolean(),
 })
 
 export type AuthenticateSchema = z.infer<typeof authenticateSchema>
@@ -54,7 +55,7 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
 
   const form = useForm<AuthenticateSchema>({
     resolver: zodResolver(authenticateSchema),
-    defaultValues: { username: '', password: '' },
+    defaultValues: { username: '', password: '', remember_me: false },
   })
 
   useEffect(() => {

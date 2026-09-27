@@ -6,12 +6,21 @@ use crate::api_entities::api_error::ApiError;
 
 pub const SSO_SESSION_COOKIE: &str = "FERRISKEY_SSO";
 
-pub fn set(secret: String, max_age_secs: i64, is_secure: bool) -> Result<HeaderValue, ApiError> {
+/// A `FERRISKEY_SSO` cookie. With no `max_age_secs` it is a browser-session
+/// cookie, dropped when the browser closes.
+pub fn set(
+    secret: String,
+    max_age_secs: Option<i64>,
+    is_secure: bool,
+) -> Result<HeaderValue, ApiError> {
     let mut cookie = Cookie::build((SSO_SESSION_COOKIE, secret))
         .path("/")
         .http_only(true)
-        .same_site(SameSite::Lax)
-        .max_age(time::Duration::seconds(max_age_secs.max(0)));
+        .same_site(SameSite::Lax);
+
+    if let Some(max_age_secs) = max_age_secs {
+        cookie = cookie.max_age(time::Duration::seconds(max_age_secs.max(0)));
+    }
 
     if is_secure {
         cookie = cookie.secure(true);

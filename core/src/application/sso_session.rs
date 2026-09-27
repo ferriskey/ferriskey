@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use chrono::Utc;
 use ferriskey_domain::token_lifetime::TokenLifetimes;
 use uuid::Uuid;
 
@@ -63,6 +62,7 @@ where
         scope: &RealmScope,
         user_id: Uuid,
         client_id: Uuid,
+        remember_me: bool,
     ) -> Result<OpenedSsoSession, CoreError> {
         let realm_settings = self
             .realm_repository
@@ -87,13 +87,14 @@ where
             user_id,
             scope.id(),
             lifetimes.refresh_token,
+            remember_me && realm_settings.remember_me_enabled,
         )
         .await?;
 
         Ok(OpenedSsoSession {
             session_id: session.id,
+            max_age_secs: session.cookie_max_age(),
             cookie,
-            max_age_secs: (session.expires_at - Utc::now()).num_seconds().max(0),
         })
     }
 }

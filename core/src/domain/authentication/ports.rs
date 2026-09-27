@@ -110,6 +110,13 @@ pub trait AuthSessionRepository: Send + Sync {
         session_code: Uuid,
         user_session_id: Uuid,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    /// Record the "remember me" choice made at the first step of a login.
+    fn set_remember_me(
+        &self,
+        session_code: Uuid,
+        remember_me: bool,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Send + Sync {
@@ -271,7 +278,8 @@ pub trait LoginActionTokenRepository: Send + Sync {
 pub struct OpenedSsoSession {
     pub session_id: Uuid,
     pub cookie: String,
-    pub max_age_secs: i64,
+    /// `None` for a cookie that dies with the browser.
+    pub max_age_secs: Option<i64>,
 }
 
 /// The cookie is a bearer secret: keep it out of logs.
@@ -289,11 +297,13 @@ impl std::fmt::Debug for OpenedSsoSession {
 /// not go through the authentication service (the MFA terminal steps).
 #[cfg_attr(test, mockall::automock)]
 pub trait SsoSessionPort: Send + Sync {
-    /// Open a session for `user_id`, with the lifetime `client_id` grants.
+    /// Open a session for `user_id`, with the lifetime `client_id` grants,
+    /// persistent when the user asked to be remembered and the realm allows it.
     fn open_for_login(
         &self,
         scope: &RealmScope,
         user_id: Uuid,
         client_id: Uuid,
+        remember_me: bool,
     ) -> impl Future<Output = Result<OpenedSsoSession, CoreError>> + Send;
 }

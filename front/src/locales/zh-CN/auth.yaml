@@ -26,6 +26,7 @@ login:
     email: 邮箱
     username_or_email: 用户名或邮箱
   password: 密码
+  remember_me: 记住我
   forgot_password: 忘记密码？
   submit: 登录
   # Divider between the password form and the other ways to sign in.

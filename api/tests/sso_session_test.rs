@@ -431,11 +431,6 @@ mod tests {
                 raw.contains("HttpOnly"),
                 "the cookie must be HttpOnly: {raw}"
             );
-            assert!(
-                raw.contains("Max-Age"),
-                "the cookie must outlive the browser window: {raw}"
-            );
-
             let value = login.cookie("FERRISKEY_SSO").value().to_string();
             assert_eq!(
                 value.split('.').count(),
@@ -881,6 +876,168 @@ mod tests {
                     .filter_map(|v| v.to_str().ok())
                     .any(|v| v.starts_with("FERRISKEY_IDENTITY=") && v.contains("Max-Age=0")),
                 "the old cookie must be cleared from the browser"
+            );
+        });
+    }
+
+    async fn set_remember_me_enabled(enabled: bool) {
+        sqlx::query(
+            "UPDATE realm_settings SET remember_me_enabled = $1 \
+             WHERE realm_id = (SELECT id FROM realms WHERE name = $2)",
+        )
+        .bind(enabled)
+        .bind(realm())
+        .execute(&shared_ctx().pool)
+        .await
+        .expect("toggle remember me on the realm");
+    }
+
+    /// The raw `Set-Cookie` line handing out `FERRISKEY_SSO`, if any.
+    fn sso_set_cookie(response: &axum_test::TestResponse) -> Option<String> {
+        response
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find(|v| v.starts_with("FERRISKEY_SSO=") && !v.starts_with("FERRISKEY_SSO=;"))
+            .map(str::to_string)
+    }
+
+    async fn sign_in_remembering(
+        server: &TestServer,
+        remember_me: bool,
+    ) -> axum_test::TestResponse {
+        let authorize = start_console_authorization(server).await;
+
+        let login = server
+            .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+            .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+            .add_query_param("client_id", SEEDED_CLIENT_ID)
+            .json(&json!({ "username": "admin", "password": "admin", "remember_me": remember_me }))
+            .await;
+
+        assert_eq!(
+            login.status_code(),
+            200,
+            "the login must succeed: {}",
+            login.text()
+        );
+        login
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn without_remember_me_the_cookie_dies_with_the_browser() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            set_remember_me_enabled(true).await;
+            let server = make_server();
+
+            let login = sign_in_remembering(&server, false).await;
+            set_remember_me_enabled(false).await;
+
+            let raw = sso_set_cookie(&login).expect("the login must hand out an SSO cookie");
+            assert!(
+                !raw.contains("Max-Age") && !raw.contains("Expires"),
+                "a login nobody asked to remember must get a browser-session cookie: {raw}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn remember_me_keeps_the_cookie_past_the_browser() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            set_remember_me_enabled(true).await;
+            let server = make_server();
+
+            let login = sign_in_remembering(&server, true).await;
+            let sso = login.cookie("FERRISKEY_SSO").value().to_string();
+            let survey = start_survey_authorization(&server, Some(&sso)).await;
+            set_remember_me_enabled(false).await;
+
+            let raw = sso_set_cookie(&login).expect("the login must hand out an SSO cookie");
+            assert!(
+                raw.contains("Max-Age"),
+                "a remembered login must outlive the browser: {raw}"
+            );
+
+            assert!(
+                location_of(&survey).starts_with(SURVEY_REDIRECT_URI),
+                "pre-condition: SSO must succeed"
+            );
+            let reissued =
+                sso_set_cookie(&survey).expect("SSO must re-issue the cookie to slide it");
+            assert!(
+                reissued.contains("Max-Age"),
+                "re-issuing the cookie must keep it persistent: {reissued}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_realm_without_remember_me_ignores_the_request() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            set_remember_me_enabled(false).await;
+            let server = make_server();
+
+            let login = sign_in_remembering(&server, true).await;
+
+            let raw = sso_set_cookie(&login).expect("the login must hand out an SSO cookie");
+            assert!(
+                !raw.contains("Max-Age"),
+                "a realm that does not offer remember me must not honour it: {raw}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn remember_me_survives_the_otp_step() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_remember_me_enabled(true).await;
+            let server = make_server();
+            let authorize = start_console_authorization(&server).await;
+            let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+            let password_step = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SEEDED_CLIENT_ID)
+                .json(
+                    &json!({ "username": OTP_USERNAME, "password": "admin", "remember_me": true }),
+                )
+                .await;
+            let step_token = password_step
+                .cookie("FERRISKEY_LOGIN_ACTION")
+                .value()
+                .to_string();
+
+            let otp_step = server
+                .post(&format!("/realms/{}/login-actions/challenge-otp", realm()))
+                .add_header(
+                    "Cookie",
+                    axum::http::HeaderValue::from_str(&format!(
+                        "FERRISKEY_SESSION={session_code}; FERRISKEY_LOGIN_ACTION={step_token}"
+                    ))
+                    .expect("cookie header"),
+                )
+                .json(&json!({ "code": totp_code_for(OTP_SECRET) }))
+                .await;
+            set_remember_me_enabled(false).await;
+
+            assert_eq!(otp_step.status_code(), 200, "{}", otp_step.text());
+            let raw = sso_set_cookie(&otp_step).expect("the otp step must hand out the cookie");
+            assert!(
+                raw.contains("Max-Age"),
+                "the choice made at the password step must reach the session the OTP opens: {raw}"
             );
         });
     }

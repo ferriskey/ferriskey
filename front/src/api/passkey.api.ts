@@ -21,9 +21,11 @@ export const usePasskeyAuthenticateMutation = () => {
     mutationFn: async ({
       realm,
       data,
-    }: BaseQuery & { data: Schemas.PasskeyPublicKeyCredential }) => {
+      rememberMe,
+    }: BaseQuery & { data: Schemas.PasskeyPublicKeyCredential; rememberMe?: boolean }) => {
       return window.tanstackApi.client.post('/realms/{realm_name}/login-actions/passkey-authenticate', {
         path: { realm_name: realm ?? 'master' },
+        query: { remember_me: rememberMe ?? false },
         body: data,
       } as never) as Promise<Schemas.PasskeyAuthenticateResponse>
     },

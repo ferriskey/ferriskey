@@ -28,6 +28,10 @@ use ferriskey_api_core::{
 pub struct SendMagicLinkRequest {
     #[validate(email)]
     pub email: String,
+    /// Keep the SSO session past the browser closing once the link is used.
+    /// Honoured only when the realm enables "remember me".
+    #[serde(default)]
+    pub remember_me: bool,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -80,6 +84,7 @@ pub async fn send_magic_link(
             email: payload.email.clone(),
             base_url,
             session_code,
+            remember_me: payload.remember_me,
         })
         .await?;
 

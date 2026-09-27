@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
 };
 use axum_cookie::CookieManager;
@@ -56,6 +56,16 @@ pub struct PasskeyAuthenticateResponse {
     status: String,
 }
 
+/// The body is the browser's assertion as is, so options travel in the query.
+#[derive(Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct PasskeyAuthenticateQuery {
+    /// Keep the SSO session past the browser closing. Honoured only when the
+    /// realm enables "remember me".
+    #[serde(default)]
+    pub remember_me: bool,
+}
+
 #[utoipa::path(
     post,
     path = "/login-actions/passkey-authenticate",
@@ -65,6 +75,7 @@ pub struct PasskeyAuthenticateResponse {
     request_body = PasskeyAuthenticateRequest,
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
+        PasskeyAuthenticateQuery,
     ),
     responses(
         (status = 200, description = "Passkey authentication successful", body = PasskeyAuthenticateResponse),
@@ -77,6 +88,7 @@ pub async fn passkey_authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    Query(query): Query<PasskeyAuthenticateQuery>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<PasskeyAuthenticateRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -95,6 +107,7 @@ pub async fn passkey_authenticate(
             session_code,
             rp_info,
             credential: payload.0,
+            remember_me: query.remember_me,
         })
         .await
         .map_err(ApiError::from)?;

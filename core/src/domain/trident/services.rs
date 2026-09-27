@@ -20,7 +20,7 @@ use webauthn_rs::prelude::*;
 use crate::{
     domain::{
         authentication::{
-            entities::{AuthCompletion, AuthSession, WebAuthnChallenge},
+            entities::{AuthCompletion, AuthSession, AuthenticationError, WebAuthnChallenge},
             ports::{AuthSessionRepository, OpenedSsoSession, SsoSessionPort},
             services::format_auth_completion,
             value_objects::Identity,
@@ -445,6 +445,29 @@ where
         Ok((login_url_from(completion)?, sso_session))
     }
 
+    /// Record the "remember me" choice made alongside a first factor that
+    /// completes the login on its own (passkey).
+    async fn record_remember_me(
+        &self,
+        auth_session: &mut AuthSession,
+        remember_me: bool,
+    ) -> Result<(), CoreError> {
+        if auth_session.remember_me == remember_me {
+            return Ok(());
+        }
+
+        self.auth_session_repository
+            .set_remember_me(auth_session.id, remember_me)
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, "Failed to record the remember-me choice");
+                CoreError::InternalServerError
+            })?;
+        auth_session.remember_me = remember_me;
+
+        Ok(())
+    }
+
     /// End a login: open the SSO session it completes into, stamp the
     /// authorization code, and bind the two so the code exchange joins that
     /// session instead of opening another one.
@@ -456,7 +479,12 @@ where
     ) -> Result<(AuthCompletion, OpenedSsoSession), CoreError> {
         let sso_session = self
             .sso_session
-            .open_for_login(scope, user_id, auth_session.client_id)
+            .open_for_login(
+                scope,
+                user_id,
+                auth_session.client_id,
+                auth_session.remember_me,
+            )
             .await?;
 
         let authorization_code = generate_random_string();
@@ -1253,6 +1281,9 @@ where
             return Err(CoreError::WebAuthnChallengeFailed);
         }
 
+        self.record_remember_me(&mut auth_session, input.remember_me)
+            .await?;
+
         let (login_url, sso_session) = self
             .store_auth_code_and_generate_login_url(&auth_session, user.get().id, &scope, &[])
             .await?;
@@ -1646,6 +1677,24 @@ where
             .session_code
             .as_deref()
             .and_then(|s| Uuid::parse_str(s).ok());
+
+        // Recorded before the link exists: a failed write could otherwise leave
+        // an earlier `true` in place, and the link would open a persistent
+        // session the user just declined. A vanished auth session holds no
+        // stale choice, and the link cannot complete it anyway.
+        if let Some(session_code) = auth_session_code {
+            match self
+                .auth_session_repository
+                .set_remember_me(session_code, input.remember_me)
+                .await
+            {
+                Ok(()) | Err(AuthenticationError::NotFound) => {}
+                Err(e) => {
+                    error!(error = ?e, "Failed to record the remember-me choice for a magic link");
+                    return Err(CoreError::InternalServerError);
+                }
+            }
+        }
 
         self.magic_link_repository
             .create_magic_link(
@@ -2555,6 +2604,117 @@ mod tests {
             email.to_string(),
             true,
         )
+    }
+
+    // ── generate_magic_link ─────────────────────────────────────────────
+
+    /// A builder that walks `generate_magic_link` up to recording the
+    /// remember-me choice on the auth session.
+    fn magic_link_send_builder() -> TridentTestBuilder {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let mut settings = create_test_realm_setting(realm.id, false);
+        settings.magic_link_enabled = true;
+        let user = create_test_user_with_email(&realm, "user@example.com");
+
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_name()
+            .returning(move |_| {
+                let r = realm.clone();
+                Box::pin(async move { Ok(Some(r)) })
+            });
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(move |_| {
+                let s = settings.clone();
+                Box::pin(async move { Ok(Some(s)) })
+            });
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_get_by_email()
+            .returning(move |_, _| {
+                let u = user.clone();
+                Box::pin(async move { Ok(Some(u)) })
+            });
+        Arc::get_mut(&mut builder.magic_link_repo)
+            .unwrap()
+            .expect_cleanup_expired()
+            .returning(|_| Box::pin(async { Ok(()) }));
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_magic_token()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(crate::domain::crypto::HashResult::new(
+                        "hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2id".to_string(),
+                    ))
+                })
+            });
+        builder
+    }
+
+    fn magic_link_input(session_code: Uuid) -> MagicLinkInput {
+        MagicLinkInput {
+            realm_name: "test-realm".to_string(),
+            email: "user@example.com".to_string(),
+            base_url: "https://auth.example".to_string(),
+            session_code: Some(session_code.to_string()),
+            remember_me: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn no_magic_link_is_created_when_the_remember_me_choice_cannot_be_recorded() {
+        let session_code = Uuid::new_v4();
+        let mut builder = magic_link_send_builder();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_set_remember_me()
+            .withf(move |code, remember| *code == session_code && !*remember)
+            .times(1)
+            .returning(|_, _| Box::pin(async { Err(AuthenticationError::Invalid) }));
+        Arc::get_mut(&mut builder.magic_link_repo)
+            .unwrap()
+            .expect_create_magic_link()
+            .never();
+
+        let result = builder
+            .build()
+            .generate_magic_link(magic_link_input(session_code))
+            .await;
+
+        assert!(
+            result.is_err(),
+            "a link that could carry a stale remember-me choice must not be sent"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_vanished_auth_session_does_not_block_the_magic_link() {
+        let session_code = Uuid::new_v4();
+        let mut builder = magic_link_send_builder();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_set_remember_me()
+            .withf(move |code, remember| *code == session_code && !*remember)
+            .times(1)
+            .returning(|_, _| Box::pin(async { Err(AuthenticationError::NotFound) }));
+        // Stop right after the link is stored: the email path is not under test.
+        Arc::get_mut(&mut builder.magic_link_repo)
+            .unwrap()
+            .expect_create_magic_link()
+            .times(1)
+            .returning(|_, _, _, _, _, _| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+        let _ = builder
+            .build()
+            .generate_magic_link(magic_link_input(session_code))
+            .await;
     }
 
     // ── request_password_reset ──────────────────────────────────────────
@@ -3689,6 +3849,7 @@ mod tests {
             code_challenge: None,
             code_challenge_method: None,
             user_session_id: None,
+            remember_me: false,
         }
     }
 
@@ -3881,14 +4042,14 @@ mod tests {
         Arc::get_mut(&mut builder.sso_session)
             .unwrap()
             .expect_open_for_login()
-            .withf(move |_, _, client| *client == client_id)
+            .withf(move |_, _, client, _| *client == client_id)
             .times(1)
-            .returning(move |_, _, _| {
+            .returning(move |_, _, _, _| {
                 Box::pin(async move {
                     Ok(OpenedSsoSession {
                         session_id: sso_session_id,
                         cookie: TEST_SSO_COOKIE.to_string(),
-                        max_age_secs: 3600,
+                        max_age_secs: Some(3600),
                     })
                 })
             });
@@ -4392,7 +4553,7 @@ mod tests {
             .unwrap()
             .expect_open_for_login()
             .times(1)
-            .returning(|_, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
+            .returning(|_, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
             .expect_update_code_and_user_id()
@@ -4700,6 +4861,7 @@ mod tests {
                 session_code: session_code.to_string(),
                 rp_info: passkey_rp_info(),
                 credential: assertion,
+                remember_me: false,
             })
             .await;
 
@@ -4782,6 +4944,7 @@ mod tests {
                 session_code: session_code.to_string(),
                 rp_info: passkey_rp_info(),
                 credential: assertion,
+                remember_me: false,
             })
             .await;
 
@@ -4846,6 +5009,7 @@ mod tests {
                 session_code: session_code.to_string(),
                 rp_info: passkey_rp_info(),
                 credential: assertion,
+                remember_me: false,
             })
             .await
             .expect("the owner of the signing passkey must complete authentication");
