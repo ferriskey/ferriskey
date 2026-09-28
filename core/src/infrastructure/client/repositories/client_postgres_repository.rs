@@ -57,6 +57,7 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_reason: Set(None),
             maintenance_session_strategy: Set(None),
             require_pkce: Set(Some(data.require_pkce)),
+            token_exchange_enabled: Set(data.token_exchange_enabled),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -177,6 +178,11 @@ impl ClientRepository for PostgresClientRepository {
         client.require_pkce = match data.require_pkce {
             Some(v) => Set(Some(v)),
             None => client.require_pkce,
+        };
+
+        client.token_exchange_enabled = match data.token_exchange_enabled {
+            Some(enabled) => Set(enabled),
+            None => client.token_exchange_enabled,
         };
 
         client.access_token_lifetime_secs = Set(data.access_token_lifetime.map(|v| v as i32));

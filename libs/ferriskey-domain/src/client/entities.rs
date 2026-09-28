@@ -94,6 +94,7 @@ pub struct Client {
     /// this disabled; only browserless devices (CLI, IoT, TVs) need it.
     pub oauth_device_code_grant_enabled: bool,
     pub require_pkce: bool,
+    pub token_exchange_enabled: bool,
     pub client_type: ClientType,
     pub name: String,
     pub redirect_uris: Option<Vec<redirect_uri::RedirectUri>>,
@@ -120,6 +121,7 @@ pub struct ClientConfig {
     pub client_type: ClientType,
     pub direct_access_grants_enabled: Option<bool>,
     pub oauth_device_code_grant_enabled: Option<bool>,
+    pub token_exchange_enabled: Option<bool>,
     pub access_token_lifetime: Option<i64>,
     pub refresh_token_lifetime: Option<i64>,
     pub id_token_lifetime: Option<i64>,
@@ -154,6 +156,7 @@ impl Client {
                 .oauth_device_code_grant_enabled
                 .unwrap_or_default(),
             require_pkce: false,
+            token_exchange_enabled: config.token_exchange_enabled.unwrap_or_default(),
             client_type: config.client_type,
             name: config.name,
             redirect_uris: None,
@@ -184,6 +187,7 @@ impl Client {
             direct_access_grants_enabled: false,
             oauth_device_code_grant_enabled: false,
             require_pkce: false,
+            token_exchange_enabled: false,
             client_type: ClientType::Confidential,
             name: format!("{client_id} Client"),
             redirect_uris: None,
@@ -223,11 +227,17 @@ mod tests {
             client_type: ClientType::Public,
             direct_access_grants_enabled: None,
             oauth_device_code_grant_enabled: None,
+            token_exchange_enabled: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,
             id_token_lifetime: None,
             temporary_token_lifetime: None,
         })
+    }
+
+    #[test]
+    fn a_new_client_does_not_allow_token_exchange_by_default() {
+        assert!(!client_speaking(AuthProtocol::OpenIdConnect).token_exchange_enabled);
     }
 
     #[test]
