@@ -84,7 +84,7 @@ mod tests {
         let db_user = env_or("DATABASE_USER", "ferriskey");
         let db_password = env_or("DATABASE_PASSWORD", "ferriskey");
 
-        let schema = format!("token_exchange_service_test_{}", Uuid::new_v4().simple());
+        let schema = format!("token_exchange_test_{}", Uuid::new_v4().simple());
 
         let admin_url = format!(
             "postgres://{}:{}@{}:{}/{}",
@@ -376,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn a_client_narrows_its_own_token_and_the_result_verifies() {
         rt().block_on(async {
             let server = make_server();
@@ -416,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn an_audience_needs_a_policy_and_is_capped_by_it() {
         rt().block_on(async {
             let server = make_server();
@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn a_client_without_the_flag_is_refused() {
         rt().block_on(async {
             let server = make_server();
@@ -461,7 +461,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn a_client_cannot_exchange_a_token_it_is_not_a_party_to() {
         rt().block_on(async {
             let server = make_server();
@@ -481,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn token_endpoint_answers_with_the_rfc8693_body_and_no_cookie() {
         rt().block_on(async {
             let server = make_server();
@@ -517,7 +517,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn token_endpoint_accepts_basic_client_authentication() {
         rt().block_on(async {
             let server = make_server();
@@ -546,7 +546,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn token_endpoint_refuses_a_bad_secret_with_a_401_challenge() {
         rt().block_on(async {
             let server = make_server();
@@ -571,7 +571,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn token_endpoint_errors_use_the_rfc6749_body() {
         rt().block_on(async {
             let server = make_server();
@@ -624,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
     fn the_openapi_document_describes_the_rfc8693_request_and_response() {
         rt().block_on(async {
             let server = make_server();
@@ -649,6 +649,199 @@ mod tests {
             assert!(variants.contains("JwtToken"), "{variants}");
             assert!(variants.contains("TokenExchangeOutput"), "{variants}");
             assert!(schemas.get("TokenExchangeOutput").is_some());
+        });
+    }
+
+    /// The full password-grant response of `client` for the test user: access,
+    /// refresh and ID tokens.
+    async fn password_grant(server: &TestServer, client: &TestClient) -> Value {
+        let response = server
+            .post(&token_path())
+            .form(&[
+                ("grant_type", "password"),
+                ("client_id", client.client_id.as_str()),
+                ("client_secret", client.secret.as_str()),
+                ("username", USERNAME),
+                ("password", PASSWORD),
+                ("scope", "openid profile email"),
+            ])
+            .await;
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        response.json()
+    }
+
+    async fn exchange_over_http(
+        server: &TestServer,
+        client: &TestClient,
+        subject_token: &str,
+    ) -> axum_test::TestResponse {
+        server
+            .post(&token_path())
+            .form(&[
+                ("grant_type", TOKEN_EXCHANGE_GRANT),
+                ("client_id", client.client_id.as_str()),
+                ("client_secret", client.secret.as_str()),
+                ("subject_token", subject_token),
+                ("subject_token_type", ACCESS_TOKEN_URN),
+            ])
+            .await
+    }
+
+    fn assert_oauth_error(response: &axum_test::TestResponse, status: u16, code: &str) {
+        assert_eq!(
+            response.status_code(),
+            status,
+            "{code}: {}",
+            response.text()
+        );
+        assert_eq!(response.json::<Value>()["error"], json!(code));
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn token_endpoint_refuses_a_public_client() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+
+            let master = master_token(&server).await;
+            let public_id = format!("spa-{}", Uuid::new_v4().simple());
+            let response = server
+                .post(&format!("/realms/{REALM}/clients"))
+                .add_header("Authorization", auth_header(&master))
+                .json(&json!({
+                    "client_id": public_id,
+                    "name": "spa",
+                    "client_type": "public",
+                    "protocol": "openid-connect",
+                    "public_client": true,
+                    "service_account_enabled": false,
+                    "direct_access_grants_enabled": false,
+                    "enabled": true,
+                    "oauth_device_code_grant_enabled": false,
+                    "token_exchange_enabled": true,
+                }))
+                .await;
+            assert_eq!(response.status_code(), 201, "{}", response.text());
+
+            let response = server
+                .post(&token_path())
+                .form(&[
+                    ("grant_type", TOKEN_EXCHANGE_GRANT),
+                    ("client_id", public_id.as_str()),
+                    ("subject_token", subject_token.as_str()),
+                    ("subject_token_type", ACCESS_TOKEN_URN),
+                ])
+                .await;
+
+            assert_oauth_error(&response, 401, "invalid_client");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn token_endpoint_refuses_an_unusable_subject_token() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let tokens = password_grant(&server, &gateway).await;
+            let refresh_token = tokens["refresh_token"].as_str().expect("refresh_token");
+
+            let revoked = password_grant(&server, &gateway).await;
+            let revoked_token = revoked["access_token"].as_str().expect("access_token");
+            let response = server
+                .post(&format!("/realms/{REALM}/protocol/openid-connect/revoke"))
+                .form(&[
+                    ("token", revoked_token),
+                    ("token_type_hint", "access_token"),
+                    ("client_id", gateway.client_id.as_str()),
+                    ("client_secret", gateway.secret.as_str()),
+                ])
+                .await;
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+
+            for (label, subject_token) in [
+                ("malformed", "not-a-jwt"),
+                ("refresh token", refresh_token),
+                ("revoked", revoked_token),
+            ] {
+                let response = exchange_over_http(&server, &gateway, subject_token).await;
+                assert_eq!(response.status_code(), 400, "{label}: {}", response.text());
+                assert_eq!(
+                    response.json::<Value>()["error"],
+                    json!("invalid_request"),
+                    "{label}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn token_endpoint_refuses_a_subject_token_of_another_realm() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            // Signed by the master realm key, not this realm's.
+            let foreign = master_token(&server).await;
+
+            let response = exchange_over_http(&server, &gateway, &foreign).await;
+
+            assert_oauth_error(&response, 400, "invalid_request");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn an_exchanged_token_dies_with_the_subject_session() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let tokens = password_grant(&server, &gateway).await;
+            let subject_token = tokens["access_token"].as_str().expect("access_token");
+            let id_token = tokens["id_token"].as_str().expect("id_token");
+
+            let response = exchange_over_http(&server, &gateway, subject_token).await;
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            let exchanged = response.json::<Value>()["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+
+            let introspect = || {
+                server
+                    .post(&format!(
+                        "/realms/{REALM}/protocol/openid-connect/token/introspect"
+                    ))
+                    .form(&[
+                        ("token", exchanged.as_str()),
+                        ("client_id", gateway.client_id.as_str()),
+                        ("client_secret", gateway.secret.as_str()),
+                    ])
+            };
+
+            let before = introspect().await;
+            assert_eq!(before.status_code(), 200, "{}", before.text());
+            assert_eq!(before.json::<Value>()["active"], json!(true));
+
+            let response = server
+                .post(&format!("/realms/{REALM}/protocol/openid-connect/logout"))
+                .form(&[("id_token_hint", id_token)])
+                .await;
+            assert!(
+                response.status_code().is_success() || response.status_code().is_redirection(),
+                "logout failed: {}",
+                response.text()
+            );
+
+            let after = introspect().await;
+            assert_eq!(after.status_code(), 200, "{}", after.text());
+            assert_eq!(
+                after.json::<Value>()["active"],
+                json!(false),
+                "the exchanged token shares the subject's sid and must die with it"
+            );
         });
     }
 }
