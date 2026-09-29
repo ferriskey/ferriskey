@@ -4,6 +4,17 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::domain::authentication::token_exchange::entities::TokenType;
+use crate::domain::realm::entities::RealmScope;
+
+/// Everything the exchange needs: the realm the token endpoint was called on,
+/// the credentials the client presented, and the RFC 8693 request itself.
+#[derive(Debug, Clone)]
+pub struct TokenExchangeParams {
+    pub realm: RealmScope,
+    pub client_id: String,
+    pub client_secret: Option<String>,
+    pub input: TokenExchangeInput,
+}
 
 /// Input for the token endpoint with
 /// `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`

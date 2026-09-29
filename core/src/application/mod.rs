@@ -18,6 +18,7 @@ use crate::{
             },
             mapper_engine::MapperEngine,
             services::AuthServiceImpl,
+            token_exchange::TokenExchangeServiceImpl,
         },
         client::{
             services::ClientServiceImpl,
@@ -381,6 +382,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         DeviceFlowConfig::default(),
     );
 
+    let token_exchange_service = TokenExchangeServiceImpl::new(
+        client.clone(),
+        user.clone(),
+        token_exchange_policy.clone(),
+        security_event.clone(),
+        Arc::new(auth_service.clone()),
+        flow_recorder.clone(),
+    );
+
     tokio::spawn(purge_expired_device_sessions_task(
         device_flow_service.clone(),
         DEVICE_SESSION_PURGE_PERIOD,
@@ -398,6 +408,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         ),
         auth_service,
         device_flow_service,
+        token_exchange_service,
         saml_service: SamlServiceImpl::new(
             realm.clone(),
             client.clone(),

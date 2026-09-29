@@ -59,6 +59,37 @@ pub enum TokenExchangeError {
     /// this authorization server (RFC 8693 §2.2.2 `unsupported_token_type`).
     #[error("unsupported_token_type")]
     UnsupportedTokenType,
+
+    /// The subject token is missing, malformed, expired, revoked or not an
+    /// access token (RFC 8693 §2.2.2 `invalid_request`).
+    #[error("invalid_request")]
+    InvalidRequest,
+
+    /// The client is unknown, public, or failed to authenticate
+    /// (RFC 6749 §5.2 `invalid_client`).
+    #[error("invalid_client")]
+    InvalidClient,
+
+    /// The client authenticated but may not exchange this token: the grant is
+    /// off for it, it is not a party of the subject token, or its delegation
+    /// policy refuses the exchange (RFC 6749 §5.2 `unauthorized_client`).
+    #[error("unauthorized_client")]
+    UnauthorizedClient,
+
+    /// The requested scope is wider than the subject token or the policy
+    /// ceiling allows (RFC 6749 §5.2 `invalid_scope`).
+    #[error("invalid_scope")]
+    InvalidScope,
+
+    /// The requested audience or resource is unknown or not allowed for this
+    /// client (RFC 8693 §2.2.2 `invalid_target`).
+    #[error("invalid_target")]
+    InvalidTarget,
+
+    /// An infrastructure failure while serving the exchange
+    /// (RFC 6749 §5.2 `server_error`). The detail is for logs only.
+    #[error("server_error")]
+    ServerError(String),
 }
 
 #[cfg(test)]
@@ -121,10 +152,26 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_token_type_displays_rfc8693_error_code() {
-        assert_eq!(
-            TokenExchangeError::UnsupportedTokenType.to_string(),
-            "unsupported_token_type"
-        );
+    fn errors_display_their_oauth_error_code() {
+        for (error, code) in [
+            (
+                TokenExchangeError::UnsupportedTokenType,
+                "unsupported_token_type",
+            ),
+            (TokenExchangeError::InvalidRequest, "invalid_request"),
+            (TokenExchangeError::InvalidClient, "invalid_client"),
+            (
+                TokenExchangeError::UnauthorizedClient,
+                "unauthorized_client",
+            ),
+            (TokenExchangeError::InvalidScope, "invalid_scope"),
+            (TokenExchangeError::InvalidTarget, "invalid_target"),
+            (
+                TokenExchangeError::ServerError("db down".to_string()),
+                "server_error",
+            ),
+        ] {
+            assert_eq!(error.to_string(), code);
+        }
     }
 }

@@ -2059,6 +2059,53 @@ where
         Ok((jwt, refresh_token, id_token))
     }
 
+    /// Verify a token this realm signed, for the RFC 8693 exchange. See
+    /// [`Self::verify_token`].
+    pub(crate) async fn verify_subject_token(
+        &self,
+        token: String,
+        realm_id: RealmId,
+    ) -> Result<JwtClaim, CoreError> {
+        self.verify_token(token, realm_id).await
+    }
+
+    /// Sign `claims` as a lone access token (no refresh or ID token) and
+    /// persist it so it can be introspected and revoked like any other.
+    pub(crate) async fn issue_access_token(
+        &self,
+        realm_id: RealmId,
+        claims: JwtClaim,
+    ) -> Result<Jwt, CoreError> {
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)?;
+
+        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_claims =
+            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
+        let access_token_expires_at = claims
+            .exp
+            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+
+        self.access_token_repository
+            .create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                realm_id,
+                access_token_expires_at,
+                access_token_claims,
+            )
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(jwt)
+    }
+
     #[instrument(skip(self, token))]
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
@@ -2986,8 +3033,9 @@ where
             GrantType::RefreshToken => self.refresh_token(params).await,
             // Device flow token exchange is not wired up yet (see #1020).
             GrantType::DeviceCode => Err(CoreError::InvalidRequest),
-            // RFC 8693 token exchange is dispatched here once the exchange
-            // service lands (see #1053/#1054); not wired up yet.
+            // RFC 8693 token exchange has its own service with its own errors
+            // (`ApplicationService::exchange_subject_token`); the token endpoint
+            // routes the grant there directly (#1054), never through here.
             GrantType::TokenExchange => Err(CoreError::InvalidRequest),
         }
     }
