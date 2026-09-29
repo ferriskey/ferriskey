@@ -649,6 +649,13 @@ mod tests {
             assert!(variants.contains("JwtToken"), "{variants}");
             assert!(variants.contains("TokenExchangeOutput"), "{variants}");
             assert!(schemas.get("TokenExchangeOutput").is_some());
+
+            let unauthorized = schemas["TokenUnauthorizedResponse"]["oneOf"].to_string();
+            assert!(unauthorized.contains("ApiErrorResponse"), "{unauthorized}");
+            assert!(
+                unauthorized.contains("OAuth2ErrorResponse"),
+                "{unauthorized}"
+            );
         });
     }
 

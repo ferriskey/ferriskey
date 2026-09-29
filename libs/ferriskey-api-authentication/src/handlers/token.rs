@@ -32,6 +32,17 @@ enum TokenResponse {
     Exchanged(TokenExchangeOutput),
 }
 
+/// The two 401 bodies of the token endpoint, for the OpenAPI document only:
+/// token exchange answers every 401 with the RFC 6749 §5.2 body
+/// (`invalid_client`), the other grants with the FerrisKey error body.
+#[derive(Serialize, ToSchema)]
+#[serde(untagged)]
+#[allow(dead_code)]
+enum TokenUnauthorizedResponse {
+    Api(ApiErrorResponse),
+    OAuth(OAuth2ErrorResponse),
+}
+
 #[utoipa::path(
     post,
     path = "/protocol/openid-connect/token",
@@ -45,7 +56,7 @@ enum TokenResponse {
     responses(
         (status = 200, body = TokenResponse),
         (status = 400, description = "RFC 6749 error (`invalid_request`, `invalid_scope`, `invalid_target`, `unauthorized_client`, ...)", body = OAuth2ErrorResponse),
-        (status = 401, description = "Realm not found, or `invalid_client` for token exchange", body = ApiErrorResponse),
+        (status = 401, description = "Realm not found or client authentication failed. Token exchange always answers with the RFC 6749 body (`invalid_client`).", body = TokenUnauthorizedResponse),
         (status = 404, description = "Client not found", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
