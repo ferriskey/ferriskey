@@ -851,4 +851,44 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn discovery_advertises_every_live_grant() {
+        rt().block_on(async {
+            let server = make_server();
+            let response = server
+                .get(&format!("/realms/{REALM}/.well-known/openid-configuration"))
+                .await;
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            let body: Value = response.json();
+
+            let grants: Vec<&str> = body["grant_types_supported"]
+                .as_array()
+                .expect("grant_types_supported is an array")
+                .iter()
+                .filter_map(Value::as_str)
+                .collect();
+            for grant in [
+                "authorization_code",
+                "refresh_token",
+                "client_credentials",
+                "password",
+                "urn:ietf:params:oauth:grant-type:device_code",
+                TOKEN_EXCHANGE_GRANT,
+            ] {
+                assert!(grants.contains(&grant), "{grant} missing from {grants:?}");
+            }
+
+            let device_endpoint = body["device_authorization_endpoint"]
+                .as_str()
+                .expect("device_authorization_endpoint is advertised");
+            assert!(
+                device_endpoint.ends_with(&format!(
+                    "/realms/{REALM}/protocol/openid-connect/auth/device"
+                )),
+                "{device_endpoint}"
+            );
+        });
+    }
 }

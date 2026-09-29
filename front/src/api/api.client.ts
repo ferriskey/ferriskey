@@ -633,6 +633,7 @@ export namespace Schemas {
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string;
     code_challenge_methods_supported: Array<string>;
+    device_authorization_endpoint: string;
     end_session_endpoint: string;
     grant_types_supported: Array<string>;
     id_token_signing_alg_values_supported: Array<string>;
