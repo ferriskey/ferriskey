@@ -2,4 +2,5 @@ pub mod client_postgres_repository;
 pub mod post_logout_redirect_uri_postgres_repository;
 pub mod redirect_uri_postgres_repository;
 pub mod saml_postgres_repository;
+pub mod token_exchange_policy_postgres_repository;
 pub mod web_origin_postgres_repository;

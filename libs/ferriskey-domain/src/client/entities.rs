@@ -14,6 +14,7 @@ use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
 pub mod redirect_uri;
 pub mod saml;
+pub mod token_exchange_policy;
 pub mod web_origin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]

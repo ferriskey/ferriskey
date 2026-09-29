@@ -14,6 +14,9 @@ use super::handlers::{
     create_saml_attribute_mapper::{
         __path_create_saml_attribute_mapper, create_saml_attribute_mapper,
     },
+    create_token_exchange_policy::{
+        __path_create_token_exchange_policy, create_token_exchange_policy,
+    },
     create_web_origin::{__path_create_web_origin, create_web_origin},
     delete_client::{__path_delete_client, delete_client},
     delete_post_logout_redirect_uri::{
@@ -22,6 +25,9 @@ use super::handlers::{
     delete_redirect_uri::{__path_delete_redirect_uri, delete_redirect_uri},
     delete_saml_attribute_mapper::{
         __path_delete_saml_attribute_mapper, delete_saml_attribute_mapper,
+    },
+    delete_token_exchange_policy::{
+        __path_delete_token_exchange_policy, delete_token_exchange_policy,
     },
     delete_web_origin::{__path_delete_web_origin, delete_web_origin},
     evaluate_scopes::{__path_evaluate_scopes, evaluate_scopes},
@@ -35,6 +41,9 @@ use super::handlers::{
     },
     get_redirect_uris::{__path_get_redirect_uris, get_redirect_uris},
     get_saml_attribute_mappers::{__path_get_saml_attribute_mappers, get_saml_attribute_mappers},
+    get_token_exchange_policies::{
+        __path_get_token_exchange_policies, get_token_exchange_policies,
+    },
     get_web_origins::{__path_get_web_origins, get_web_origins},
     set_client_saml_config::{__path_set_client_saml_config, set_client_saml_config},
     update_client::{__path_update_client, update_client},
@@ -69,6 +78,9 @@ use ferriskey_api_core::auth::auth;
         create_web_origin,
         get_web_origins,
         delete_web_origin,
+        create_token_exchange_policy,
+        get_token_exchange_policies,
+        delete_token_exchange_policy,
         get_client_saml_config,
         set_client_saml_config,
         create_saml_attribute_mapper,
@@ -223,6 +235,20 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             delete(delete_web_origin),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/token-exchange-policies",
+                state.args.server.root_path
+            ),
+            get(get_token_exchange_policies).post(create_token_exchange_policy),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/token-exchange-policies/{{policy_id}}",
+                state.args.server.root_path
+            ),
+            delete(delete_token_exchange_policy),
         )
         .route(
             &format!(
