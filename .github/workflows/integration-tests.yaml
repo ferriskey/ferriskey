@@ -203,3 +203,14 @@ jobs:
       # page-size rejection, replay conflict on a non-terminal delivery.
       - name: run webhook delivery API integration tests
         run: cargo test -p ferriskey-api --test webhook_delivery_api_test -- --ignored
+
+      # Token exchange delegation policies (#1064): admin CRUD, conflicts and
+      # realm isolation.
+      - name: run token exchange policy integration tests
+        run: cargo test -p ferriskey-api --test token_exchange_policy_test -- --ignored
+
+      # RFC 8693 exchange (#1053, #1062) against the real key store and access
+      # token table, called through the application service until #1054 routes
+      # the grant on the token endpoint.
+      - name: run token exchange service integration tests
+        run: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored

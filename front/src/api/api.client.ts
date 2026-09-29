@@ -206,7 +206,8 @@ export namespace Schemas {
     | "idp_callback"
     | "finalize"
     | "saml_authn_request"
-    | "saml_assertion";
+    | "saml_assertion"
+    | "subject_token_exchange";
   export type CompassFlowStep = {
     duration_ms?: (number | null) | undefined;
     error_code?: (string | null) | undefined;
@@ -680,6 +681,7 @@ export namespace Schemas {
     | "session_revoked"
     | "identity_provider_link_removed"
     | "webhook_delivery_exhausted"
+    | "token_exchanged"
     | "unknown";
   export type SecurityEventId = string;
   export type SecurityEvent = {

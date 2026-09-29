@@ -46,6 +46,7 @@ event:
   session_revoked: 会话已撤销
   webhook_delivery_exhausted: Webhook 投递已放弃
   identity_provider_link_removed: 身份提供商关联已移除
+  token_exchanged: 令牌已交换
   unknown: 无法识别的事件
 
 metrics:

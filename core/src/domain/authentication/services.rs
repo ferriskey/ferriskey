@@ -1294,8 +1294,25 @@ where
         &self,
         input: &GenerateTokenInput,
     ) -> Result<AssembledClaims, CoreError> {
+        self.assemble_token_claims_for(input, false).await
+    }
+
+    /// See [`Self::assemble_token_claims`]. With `only_token_scopes`, the
+    /// client's default scopes apply only when the token scope names them, so
+    /// a narrowed scope also narrows the mapped claims (RFC 8693 exchange).
+    async fn assemble_token_claims_for(
+        &self,
+        input: &GenerateTokenInput,
+        only_token_scopes: bool,
+    ) -> Result<AssembledClaims, CoreError> {
         let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
         let realm_audit = format!("{}-realm", input.realm.name());
+
+        let token_scope_names: HashSet<&str> = input
+            .scope
+            .as_deref()
+            .map(|s| s.split_whitespace().collect())
+            .unwrap_or_default();
 
         // Resolve protocol mappers from client scopes (default + requested optional)
         let mut applicable_scopes = self
@@ -1304,6 +1321,10 @@ where
             .await
             .unwrap_or_default();
 
+        if only_token_scopes {
+            applicable_scopes.retain(|scope| token_scope_names.contains(scope.name.as_str()));
+        }
+
         let optional_scopes = self
             .scope_mapping_repository
             .get_optional_scopes(input.client_uuid)
@@ -1311,12 +1332,6 @@ where
             .unwrap_or_default();
 
         // Include optional scopes whose names appear in the resolved token scope
-        let token_scope_names: HashSet<&str> = input
-            .scope
-            .as_deref()
-            .map(|s| s.split_whitespace().collect())
-            .unwrap_or_default();
-
         for scope in optional_scopes {
             if token_scope_names.contains(scope.name.as_str()) {
                 applicable_scopes.push(scope);
@@ -2057,6 +2072,90 @@ where
         }
 
         Ok((jwt, refresh_token, id_token))
+    }
+
+    /// Verify a token this realm signed, for the RFC 8693 exchange. See
+    /// [`Self::verify_token`].
+    pub(crate) async fn verify_subject_token(
+        &self,
+        token: String,
+        realm_id: RealmId,
+    ) -> Result<JwtClaim, CoreError> {
+        self.verify_token(token, realm_id).await
+    }
+
+    /// The claims `client`'s protocol mappers produce for `user`, restricted
+    /// to the scopes `scope` names, for the RFC 8693 exchange. Only the mapped
+    /// claims come back: the exchange keeps the subject token's `iss`, `sub`,
+    /// `sid` and lifetime, so nothing else of the assembled token is used.
+    pub(crate) async fn exchange_mapped_claims(
+        &self,
+        realm: &RealmScope,
+        user: &User,
+        client: &Client,
+        scope: Option<String>,
+    ) -> Result<HashMap<String, serde_json::Value>, CoreError> {
+        let input = GenerateTokenInput {
+            // Only feeds `iss`, which the exchange discards.
+            base_url: String::new(),
+            realm: realm.clone(),
+            user_id: user.id,
+            username: user.username.clone(),
+            firstname: user.firstname.clone().unwrap_or_default(),
+            lastname: user.lastname.clone().unwrap_or_default(),
+            email_verified: user.email_verified,
+            client_id: client.client_id.clone(),
+            client_uuid: client.id,
+            email: user.email.clone().unwrap_or_default(),
+            scope,
+            access_token_lifetime: 0,
+            refresh_token_lifetime: 0,
+            id_token_lifetime: 0,
+            nonce: None,
+            refresh_jti_override: None,
+            session_id: None,
+            auth_time: None,
+        };
+
+        let assembled = self.assemble_token_claims_for(&input, true).await?;
+        Ok(assembled.access_claims.additional_claims)
+    }
+
+    /// Sign `claims` as a lone access token (no refresh or ID token) and
+    /// persist it so it can be introspected and revoked like any other.
+    pub(crate) async fn issue_access_token(
+        &self,
+        realm_id: RealmId,
+        claims: JwtClaim,
+    ) -> Result<Jwt, CoreError> {
+        let jwt_key_pair = self
+            .keystore_repository
+            .get_or_generate_key(realm_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)?;
+
+        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_claims =
+            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
+        let access_token_expires_at = claims
+            .exp
+            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+
+        self.access_token_repository
+            .create(
+                access_token_hash,
+                Some(claims.jti),
+                claims.sub,
+                realm_id,
+                access_token_expires_at,
+                access_token_claims,
+            )
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(jwt)
     }
 
     #[instrument(skip(self, token))]
@@ -2986,8 +3085,9 @@ where
             GrantType::RefreshToken => self.refresh_token(params).await,
             // Device flow token exchange is not wired up yet (see #1020).
             GrantType::DeviceCode => Err(CoreError::InvalidRequest),
-            // RFC 8693 token exchange is dispatched here once the exchange
-            // service lands (see #1053/#1054); not wired up yet.
+            // RFC 8693 token exchange has its own service with its own errors
+            // (`ApplicationService::exchange_subject_token`); the token endpoint
+            // routes the grant there directly (#1054), never through here.
             GrantType::TokenExchange => Err(CoreError::InvalidRequest),
         }
     }

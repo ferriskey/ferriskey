@@ -139,6 +139,12 @@ pub enum FlowStepName {
 
     #[serde(rename = "saml_assertion")]
     SamlAssertion,
+
+    /// An RFC 8693 exchange: a subject token traded for a narrower one.
+    /// Distinct from `TokenExchange`, which is the token endpoint issuing
+    /// tokens for any grant.
+    #[serde(rename = "subject_token_exchange")]
+    SubjectTokenExchange,
 }
 
 impl Display for FlowStepName {
@@ -153,6 +159,7 @@ impl Display for FlowStepName {
             FlowStepName::Finalize => write!(f, "finalize"),
             FlowStepName::SamlAuthnRequest => write!(f, "saml_authn_request"),
             FlowStepName::SamlAssertion => write!(f, "saml_assertion"),
+            FlowStepName::SubjectTokenExchange => write!(f, "subject_token_exchange"),
         }
     }
 }

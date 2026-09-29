@@ -35,6 +35,7 @@ export const catalogedEventTypes: Record<SecurityEventType, true> = {
   session_revoked: true,
   webhook_delivery_exhausted: true,
   identity_provider_link_removed: true,
+  token_exchanged: true,
   unknown: true,
 }
 
@@ -49,6 +50,7 @@ const authenticationEvents: SecurityEventType[] = [
   'session_created',
   'session_revoked',
   'identity_provider_link_removed',
+  'token_exchanged',
 ]
 
 const credentialEvents: SecurityEventType[] = [

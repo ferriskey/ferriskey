@@ -63,6 +63,7 @@ impl From<compass_flow_steps::Model> for CompassFlowStep {
             "finalize" => FlowStepName::Finalize,
             "saml_authn_request" => FlowStepName::SamlAuthnRequest,
             "saml_assertion" => FlowStepName::SamlAssertion,
+            "subject_token_exchange" => FlowStepName::SubjectTokenExchange,
             _ => FlowStepName::Authorize,
         };
 
@@ -118,6 +119,7 @@ mod tests {
             FlowStepName::Finalize => "finalize",
             FlowStepName::SamlAuthnRequest => "saml_authn_request",
             FlowStepName::SamlAssertion => "saml_assertion",
+            FlowStepName::SubjectTokenExchange => "subject_token_exchange",
         }
     }
 
@@ -147,6 +149,7 @@ mod tests {
             FlowStepName::Finalize,
             FlowStepName::SamlAuthnRequest,
             FlowStepName::SamlAssertion,
+            FlowStepName::SubjectTokenExchange,
         ];
 
         for step_name in step_names {

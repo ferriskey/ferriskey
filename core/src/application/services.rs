@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ferriskey_compass::recorder::FlowRecorder;
@@ -5,7 +6,10 @@ use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
 use crate::domain::authentication::services::client_secret_matches;
+use crate::domain::client::entities::Client;
+use crate::domain::jwt::entities::{Jwt, JwtClaim};
 use crate::domain::realm::entities::{RealmId, RealmScope};
+use crate::domain::user::entities::User;
 
 use crate::{
     application::migrate::{build_runner, context::MigrationContext},
@@ -27,6 +31,10 @@ use crate::{
             entities::{ExchangeTokenInput, JwtToken},
             ports::AuthService,
             services::AuthServiceImpl,
+            token_exchange::{
+                SubjectTokenIssuer, TokenExchangeError, TokenExchangeInput, TokenExchangeOutput,
+                TokenExchangeParams, TokenExchangeService, TokenExchangeServiceImpl,
+            },
             value_objects::{
                 EvaluateClientScopesInput, EvaluateClientScopesRequest, EvaluateClientScopesResult,
                 GenerateTokensForUserInput, Identity,
@@ -403,6 +411,45 @@ impl DeviceTokenIssuer for ApplicationAuthService {
 type ApplicationDeviceFlowService =
     DeviceFlowServiceImpl<DeviceAuthRepo, WebhookRepo, ApplicationAuthService>;
 
+/// The auth service verifies subject tokens and signs exchanged ones, so the
+/// exchange reuses the realm keys and access token store every grant uses.
+impl SubjectTokenIssuer for ApplicationAuthService {
+    async fn verify_subject_token(
+        &self,
+        token: String,
+        realm_id: RealmId,
+    ) -> Result<JwtClaim, CoreError> {
+        AuthServiceImpl::verify_subject_token(self, token, realm_id).await
+    }
+
+    async fn mapped_claims(
+        &self,
+        realm: RealmScope,
+        user: User,
+        client: Client,
+        scope: Option<String>,
+    ) -> Result<HashMap<String, serde_json::Value>, CoreError> {
+        self.exchange_mapped_claims(&realm, &user, &client, scope)
+            .await
+    }
+
+    async fn issue_access_token(
+        &self,
+        realm_id: RealmId,
+        claims: JwtClaim,
+    ) -> Result<Jwt, CoreError> {
+        AuthServiceImpl::issue_access_token(self, realm_id, claims).await
+    }
+}
+
+type ApplicationTokenExchangeService = TokenExchangeServiceImpl<
+    ClientRepo,
+    UserRepo,
+    TokenExchangePolicyRepo,
+    SecurityEventRepo,
+    ApplicationAuthService,
+>;
+
 #[derive(Clone, Debug)]
 pub struct ApplicationService {
     pub(crate) security_event_service:
@@ -452,6 +499,7 @@ pub struct ApplicationService {
     pub(crate) maintenance_service: ApplicationMaintenanceService,
     pub(crate) auth_service: ApplicationAuthService,
     pub(crate) device_flow_service: ApplicationDeviceFlowService,
+    pub(crate) token_exchange_service: ApplicationTokenExchangeService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
@@ -795,6 +843,33 @@ impl ApplicationService {
                 device_code,
                 client_id: client.id,
                 base_url: input.base_url,
+            })
+            .await
+    }
+
+    /// Token endpoint for the token-exchange grant (RFC 8693 §2).
+    ///
+    /// Resolves the realm, then hands the request to the exchange service,
+    /// which authenticates the client itself. Errors stay [`TokenExchangeError`]
+    /// so the HTTP layer can render the OAuth error code verbatim.
+    pub async fn exchange_subject_token(
+        &self,
+        realm_name: String,
+        client_id: String,
+        client_secret: Option<String>,
+        input: TokenExchangeInput,
+    ) -> Result<TokenExchangeOutput, TokenExchangeError> {
+        // An unresolvable realm at the token endpoint is `invalid_client`.
+        let realm = RealmScope::resolve(self.realm_service.realm_repository.as_ref(), &realm_name)
+            .await
+            .map_err(|_| TokenExchangeError::InvalidClient)?;
+
+        self.token_exchange_service
+            .exchange(TokenExchangeParams {
+                realm,
+                client_id,
+                client_secret,
+                input,
             })
             .await
     }
