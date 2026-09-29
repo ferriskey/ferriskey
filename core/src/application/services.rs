@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ferriskey_compass::recorder::FlowRecorder;
@@ -5,8 +6,10 @@ use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
 use crate::domain::authentication::services::client_secret_matches;
+use crate::domain::client::entities::Client;
 use crate::domain::jwt::entities::{Jwt, JwtClaim};
 use crate::domain::realm::entities::{RealmId, RealmScope};
+use crate::domain::user::entities::User;
 
 use crate::{
     application::migrate::{build_runner, context::MigrationContext},
@@ -417,6 +420,17 @@ impl SubjectTokenIssuer for ApplicationAuthService {
         realm_id: RealmId,
     ) -> Result<JwtClaim, CoreError> {
         AuthServiceImpl::verify_subject_token(self, token, realm_id).await
+    }
+
+    async fn mapped_claims(
+        &self,
+        realm: RealmScope,
+        user: User,
+        client: Client,
+        scope: Option<String>,
+    ) -> Result<HashMap<String, serde_json::Value>, CoreError> {
+        self.exchange_mapped_claims(&realm, &user, &client, scope)
+            .await
     }
 
     async fn issue_access_token(

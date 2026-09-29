@@ -2,6 +2,7 @@
 //! it is a party to for a new one with a narrower scope and/or a specific
 //! audience, within the limits of its delegation policy.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -32,6 +33,7 @@ use crate::domain::realm::entities::{RealmScope, UnscopedOption};
 use crate::domain::seawatch::{
     EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
 };
+use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
 
 #[derive(Clone, Debug)]
@@ -113,14 +115,14 @@ where
         Ok(client)
     }
 
-    /// The subject token's claims, once it is proven to be a live access
-    /// token of this realm that `client` is a party to.
+    /// The subject token's claims and user, once the token is proven to be
+    /// a live access token of this realm that `client` is a party to.
     async fn verify_subject(
         &self,
         realm: &RealmScope,
         client: &Client,
         subject_token: String,
-    ) -> Result<JwtClaim, TokenExchangeError> {
+    ) -> Result<(JwtClaim, User), TokenExchangeError> {
         let claims = self
             .token_issuer
             .verify_subject_token(subject_token, realm.id())
@@ -159,10 +161,11 @@ where
             return Err(TokenExchangeError::InvalidRequest);
         }
 
-        Ok(claims)
+        Ok((claims, user))
     }
 
-    /// The delegation policy letting `client` target `audience`. There is no
+    /// The delegation policy letting `client` target `audience`, with the
+    /// target client itself. There is no
     /// `actor_token` yet, so every exchange with an audience acts as the
     /// subject and needs the policy to allow impersonation.
     async fn policy_for(
@@ -170,7 +173,7 @@ where
         realm: &RealmScope,
         client: &Client,
         audience: &str,
-    ) -> Result<TokenExchangePolicy, TokenExchangeError> {
+    ) -> Result<(TokenExchangePolicy, Client), TokenExchangeError> {
         let target = self
             .client_repository
             .get_by_client_id(audience.to_string(), realm.id())
@@ -198,7 +201,7 @@ where
             return Err(TokenExchangeError::UnauthorizedClient);
         }
 
-        Ok(policy)
+        Ok((policy, target))
     }
 
     async fn exchange_as(
@@ -217,7 +220,7 @@ where
             return Err(TokenExchangeError::InvalidTarget);
         }
 
-        let subject = self
+        let (subject, user) = self
             .verify_subject(&params.realm, client, input.subject_token)
             .await?;
         trace.subject = Some(subject.sub);
@@ -225,9 +228,12 @@ where
         let audience = input
             .audience
             .filter(|audience| !audience.trim().is_empty());
-        let policy = match audience.as_deref() {
-            Some(audience) => Some(self.policy_for(&params.realm, client, audience).await?),
-            None => None,
+        let (policy, target) = match audience.as_deref() {
+            Some(audience) => {
+                let (policy, target) = self.policy_for(&params.realm, client, audience).await?;
+                (Some(policy), Some(target))
+            }
+            None => (None, None),
         };
         trace.policy = policy.as_ref().map(|policy| policy.id);
 
@@ -247,8 +253,27 @@ where
             .ok_or_else(|| TokenExchangeError::ServerError("realm has no settings".into()))?;
         let lifetime = TokenLifetimes::resolve(settings, client).access_token;
 
+        // The token is shaped by the client that will consume it: the target
+        // when there is one, otherwise the requester narrowing its own token.
+        let mapper_client = target.unwrap_or_else(|| client.clone());
+        let mapped = self
+            .token_issuer
+            .mapped_claims(params.realm.clone(), user, mapper_client, scope.clone())
+            .await
+            .map_err(|err| TokenExchangeError::ServerError(err.to_string()))?;
+
         let now = Utc::now().timestamp();
-        let claims = exchanged_claims(&subject, client, audience, scope.clone(), now, lifetime);
+        let claims = exchanged_claims(
+            &subject,
+            ExchangedToken {
+                azp: client.client_id.clone(),
+                audience,
+                scope: scope.clone(),
+                mapped,
+            },
+            now,
+            lifetime,
+        );
         let exp = claims.exp.unwrap_or(now);
 
         let jwt = self
@@ -425,14 +450,23 @@ fn resolve_scope(
     Ok((!granted.is_empty()).then(|| granted.join(" ")))
 }
 
-/// The claims of the issued token: the subject's identity and session,
-/// re-issued to `client` with the narrowed scope and audience. The new token
-/// never outlives the subject token.
-fn exchanged_claims(
-    subject: &JwtClaim,
-    client: &Client,
+/// What the exchange decided for the issued token.
+struct ExchangedToken {
+    /// The requesting client, which holds the new token.
+    azp: String,
     audience: Option<String>,
     scope: Option<String>,
+    /// Claims from the consuming client's protocol mappers, for `scope` only.
+    mapped: HashMap<String, serde_json::Value>,
+}
+
+/// The claims of the issued token. `iss`, `sub` and `sid` come from the
+/// subject token and cannot change; the mapped claims are recomputed for the
+/// narrowed scope, so nothing the subject token carried outside it survives.
+/// The new token never outlives the subject token.
+fn exchanged_claims(
+    subject: &JwtClaim,
+    token: ExchangedToken,
     now: i64,
     lifetime: i64,
 ) -> JwtClaim {
@@ -440,8 +474,13 @@ fn exchanged_claims(
     claims.jti = generate_uuid_v7();
     claims.iat = now;
     claims.typ = ClaimsTyp::Bearer;
-    claims.azp = client.client_id.clone();
-    claims.scope = scope;
+    claims.azp = token.azp;
+    claims.scope = token.scope;
+    claims.additional_claims = token.mapped;
+    // Identity claims now reach tokens only through the mapped claims.
+    claims.preferred_username = None;
+    claims.email = None;
+    let audience = token.audience;
     claims.exp = Some(match subject.exp {
         Some(subject_exp) => subject_exp.min(now + lifetime),
         None => now + lifetime,
@@ -634,6 +673,18 @@ mod tests {
                 let subject = subject.clone();
                 Box::pin(async move { subject })
             });
+            // Stands in for the protocol mappers: says which client shaped the
+            // token and for which scope.
+            issuer
+                .expect_mapped_claims()
+                .returning(|_, user, client, scope| {
+                    let mapped = HashMap::from([
+                        ("mapped_for".to_string(), json!(client.client_id)),
+                        ("mapped_scope".to_string(), json!(scope)),
+                        ("mapped_user".to_string(), json!(user.id)),
+                    ]);
+                    Box::pin(async move { Ok(mapped) })
+                });
             let issued = self.issued.clone();
             issuer
                 .expect_issue_access_token()
@@ -706,7 +757,54 @@ mod tests {
         assert_eq!(issued.sid, subject.sid);
         assert_eq!(issued.sub, subject.sub);
         assert_ne!(issued.jti, subject.jti);
-        assert_eq!(issued.additional_claims, subject.additional_claims);
+        assert_eq!(issued.iss, subject.iss);
+    }
+
+    #[tokio::test]
+    async fn downscoping_remaps_the_claims_for_the_requester_and_the_narrowed_scope() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid profile email", 3600);
+        let harness = Harness::new(&realm, requester, subject);
+
+        harness
+            .build()
+            .exchange(params(&realm, input(Some("profile"), None)))
+            .await
+            .expect("exchange should succeed");
+
+        let issued = harness.issued();
+        assert_eq!(issued.additional_claims["mapped_for"], json!(REQUESTER));
+        assert_eq!(issued.additional_claims["mapped_scope"], json!("profile"));
+        assert_eq!(issued.additional_claims["mapped_user"], json!(user.id));
+        assert!(
+            !issued.additional_claims.contains_key("roles"),
+            "claims of the subject token must not be copied over"
+        );
+        assert_eq!(issued.email, None);
+        assert_eq!(issued.preferred_username, None);
+    }
+
+    #[tokio::test]
+    async fn an_audience_is_mapped_by_the_target_client() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid orders:read", 3600);
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(policy(&realm, &requester, None));
+
+        harness
+            .build()
+            .exchange(params(&realm, input(Some("orders:read"), Some(AUDIENCE))))
+            .await
+            .expect("exchange should succeed");
+
+        let issued = harness.issued();
+        assert_eq!(issued.additional_claims["mapped_for"], json!(AUDIENCE));
+        assert_eq!(
+            issued.additional_claims["mapped_scope"],
+            json!("orders:read")
+        );
+        assert_eq!(issued.azp, REQUESTER, "the requester still holds the token");
     }
 
     #[tokio::test]

@@ -394,6 +394,15 @@ mod tests {
             assert!(issued["exp"].as_i64() <= subject["exp"].as_i64());
             assert_ne!(issued["jti"], subject["jti"]);
 
+            // The protocol mappers run again for the narrowed scope: the email
+            // mapper belongs to the `email` scope, so its claim is gone.
+            assert_eq!(
+                subject["email"],
+                json!(format!("{USERNAME}@exchange.local"))
+            );
+            assert!(issued.get("email").is_none(), "{issued}");
+            assert_eq!(issued["preferred_username"], json!(USERNAME));
+
             // The issued token is signed with the realm key and persisted, so it
             // is itself a valid subject token.
             exchange(&gateway, &output.access_token, None, None)
