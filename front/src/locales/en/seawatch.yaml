@@ -39,6 +39,7 @@ event:
   session_revoked: Session revoked
   webhook_delivery_exhausted: Webhook delivery gave up
   identity_provider_link_removed: Identity provider link removed
+  token_exchanged: Token exchanged
   unknown: Unrecognised event
 
 metrics:

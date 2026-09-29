@@ -36,6 +36,9 @@ step:
   saml_assertion:
     label: SAML assertion
     description: The signed assertion was built and posted back to the service provider.
+  subject_token_exchange:
+    label: Subject token exchange
+    description: A client traded an existing access token for a narrower one (RFC 8693).
 
 # Rendered in a badge next to a progress bar, so keep them short. "ms" and "s" are the SI symbols.
 duration:

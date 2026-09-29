@@ -25,6 +25,7 @@ export const catalogedStepNames: Record<FlowStepName, true> = {
   finalize: true,
   saml_authn_request: true,
   saml_assertion: true,
+  subject_token_exchange: true,
 }
 
 export const flowStatusTone: Record<FlowStatus, PillTone> = {

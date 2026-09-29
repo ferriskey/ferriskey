@@ -95,6 +95,10 @@ pub enum SecurityEventType {
     #[serde(rename = "webhook_delivery_exhausted")]
     WebhookDeliveryExhausted,
 
+    /// A client swapped a subject token for a new access token (RFC 8693).
+    #[serde(rename = "token_exchanged")]
+    TokenExchanged,
+
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
     /// version. Never constructed by write-path code; the read path falls
@@ -138,6 +142,7 @@ impl SecurityEventType {
             "session_revoked" => Self::SessionRevoked,
             "identity_provider_link_removed" => Self::IdentityProviderLinkRemoved,
             "webhook_delivery_exhausted" => Self::WebhookDeliveryExhausted,
+            "token_exchanged" => Self::TokenExchanged,
             _ => Self::Unknown,
         }
     }
@@ -182,6 +187,7 @@ impl Display for SecurityEventType {
             SecurityEventType::WebhookDeliveryExhausted => {
                 write!(f, "webhook_delivery_exhausted")
             }
+            SecurityEventType::TokenExchanged => write!(f, "token_exchanged"),
             SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }

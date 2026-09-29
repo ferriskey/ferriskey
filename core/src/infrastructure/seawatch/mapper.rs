@@ -117,6 +117,7 @@ mod tests {
         SecurityEventType::SessionRevoked,
         SecurityEventType::IdentityProviderLinkRemoved,
         SecurityEventType::WebhookDeliveryExhausted,
+        SecurityEventType::TokenExchanged,
         SecurityEventType::Unknown,
     ];
 
@@ -178,6 +179,7 @@ mod tests {
                 | SecurityEventType::SessionRevoked
                 | SecurityEventType::IdentityProviderLinkRemoved
                 | SecurityEventType::WebhookDeliveryExhausted
+                | SecurityEventType::TokenExchanged
                 | SecurityEventType::Unknown => true,
             };
 
