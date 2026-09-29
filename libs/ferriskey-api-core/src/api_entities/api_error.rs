@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use axum::{
     Json,
     extract::{Form, FromRequest, Request, rejection::FormRejection},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::IntoResponse,
 };
 use ferriskey_core::domain::jwt::JwtError;
@@ -114,6 +114,12 @@ pub enum ApiError {
         error: Cow<'static, str>,
         error_description: Cow<'static, str>,
     },
+    /// RFC 6749 §5.2 OAuth2 error response for a failed client
+    /// authentication: HTTP 401 with a `WWW-Authenticate` challenge.
+    OAuthUnauthorized {
+        error: Cow<'static, str>,
+        error_description: Cow<'static, str>,
+    },
 }
 
 impl ApiError {
@@ -147,6 +153,13 @@ impl ApiError {
                 error,
                 error_description,
             } => Self::OAuthError {
+                error,
+                error_description,
+            },
+            Self::OAuthUnauthorized {
+                error,
+                error_description,
+            } => Self::OAuthUnauthorized {
                 error,
                 error_description,
             },
@@ -364,6 +377,20 @@ impl IntoResponse for ApiError {
                 )
                     .into_response();
             }
+            ApiError::OAuthUnauthorized {
+                error,
+                error_description,
+            } => {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    [(header::WWW_AUTHENTICATE, "Basic")],
+                    Json(OAuth2ErrorResponse {
+                        error: error.into(),
+                        error_description: error_description.into(),
+                    }),
+                )
+                    .into_response();
+            }
             ApiError::InternalServerError(body) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "E_INTERNAL_SERVER_ERROR",
@@ -487,6 +514,65 @@ mod tests {
                 "error": "invalid_grant",
                 "error_description": "code_verifier does not match code_challenge",
             })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_client_authentication_is_a_401_with_a_challenge() {
+        let response = ApiError::OAuthUnauthorized {
+            error: "invalid_client".into(),
+            error_description: "Client authentication failed.".into(),
+        }
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response.headers().get(header::WWW_AUTHENTICATE),
+            Some(&header::HeaderValue::from_static("Basic"))
+        );
+        assert_eq!(
+            serialized_error(response).await,
+            json!({
+                "error": "invalid_client",
+                "error_description": "Client authentication failed.",
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn token_exchange_errors_map_to_their_oauth_codes() {
+        use ferriskey_core::domain::authentication::token_exchange::TokenExchangeError;
+
+        for (error, code) in [
+            (TokenExchangeError::InvalidRequest, "invalid_request"),
+            (
+                TokenExchangeError::UnsupportedTokenType,
+                "unsupported_token_type",
+            ),
+            (
+                TokenExchangeError::UnauthorizedClient,
+                "unauthorized_client",
+            ),
+            (TokenExchangeError::InvalidScope, "invalid_scope"),
+            (TokenExchangeError::InvalidTarget, "invalid_target"),
+        ] {
+            let response = ApiError::from(error).into_response();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{code}");
+            assert_eq!(serialized_error(response).await["error"], json!(code));
+        }
+
+        let response = ApiError::from(TokenExchangeError::InvalidClient).into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let response =
+            ApiError::from(TokenExchangeError::ServerError("db down".into())).into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert!(
+            !serialized_error(response)
+                .await
+                .to_string()
+                .contains("db down"),
+            "the server-side detail stays in the logs"
         );
     }
 

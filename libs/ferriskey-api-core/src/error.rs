@@ -1,5 +1,6 @@
 use ferriskey_core::domain::{
-    authentication::device_flow::error::DeviceFlowError, common::entities::app_errors::CoreError,
+    authentication::device_flow::error::DeviceFlowError,
+    authentication::token_exchange::TokenExchangeError, common::entities::app_errors::CoreError,
     credential::entities::CredentialError, password_policy::error::PasswordPolicyViolation,
     portal_theme::validation::MissingBlocks, user::entities::RequiredAction,
 };
@@ -451,6 +452,48 @@ impl From<DeviceFlowError> for ApiError {
                 "token_issuance_failed",
             )),
             DeviceFlowError::Repository(_) => Self::InternalServerError(ApiErrorBody::new(
+                "Internal server error",
+                "internal_server_error",
+            )),
+        }
+    }
+}
+
+impl From<TokenExchangeError> for ApiError {
+    fn from(error: TokenExchangeError) -> Self {
+        // Token endpoint errors follow the RFC 6749 §5.2 shape. Only a failed
+        // client authentication is a 401; every other code is a 400.
+        let oauth = |code: &'static str, description: &'static str| Self::OAuthError {
+            error: code.into(),
+            error_description: description.into(),
+        };
+
+        match error {
+            TokenExchangeError::InvalidClient => Self::OAuthUnauthorized {
+                error: "invalid_client".into(),
+                error_description: "Client authentication failed.".into(),
+            },
+            TokenExchangeError::UnsupportedTokenType => oauth(
+                "unsupported_token_type",
+                "Only access tokens can be exchanged or requested.",
+            ),
+            TokenExchangeError::InvalidRequest => oauth(
+                "invalid_request",
+                "The subject token is missing, invalid, expired or revoked.",
+            ),
+            TokenExchangeError::UnauthorizedClient => oauth(
+                "unauthorized_client",
+                "The client is not allowed to exchange this token.",
+            ),
+            TokenExchangeError::InvalidScope => oauth(
+                "invalid_scope",
+                "The requested scope exceeds what the subject token or the policy allows.",
+            ),
+            TokenExchangeError::InvalidTarget => oauth(
+                "invalid_target",
+                "The requested audience or resource is not allowed for this client.",
+            ),
+            TokenExchangeError::ServerError(_) => Self::InternalServerError(ApiErrorBody::new(
                 "Internal server error",
                 "internal_server_error",
             )),

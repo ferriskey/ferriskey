@@ -1,6 +1,7 @@
 //! The RFC 8693 exchange against a real database: tokens are signed with the
-//! realm key, persisted, and verified again. The token endpoint does not route
-//! the grant yet (#1054), so the tests call the application service directly.
+//! realm key, persisted, and verified again. The service-level tests check the
+//! exchange rules with typed errors; the `token_endpoint_*` tests check the
+//! wire format of `POST .../protocol/openid-connect/token` (#1054).
 
 #[cfg(test)]
 mod tests {
@@ -8,7 +9,10 @@ mod tests {
 
     use axum::{Router, http::HeaderValue};
     use axum_test::TestServer;
-    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+    use base64::{
+        Engine,
+        engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+    };
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -467,6 +471,184 @@ mod tests {
 
             let refused = exchange(&intruder, &subject_token, None, None).await;
             assert_eq!(refused.err(), Some(TokenExchangeError::UnauthorizedClient));
+        });
+    }
+
+    const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
+
+    fn token_path() -> String {
+        format!("/realms/{REALM}/protocol/openid-connect/token")
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    fn token_endpoint_answers_with_the_rfc8693_body_and_no_cookie() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+
+            let response = server
+                .post(&token_path())
+                .form(&[
+                    ("grant_type", TOKEN_EXCHANGE_GRANT),
+                    ("client_id", gateway.client_id.as_str()),
+                    ("client_secret", gateway.secret.as_str()),
+                    ("subject_token", subject_token.as_str()),
+                    ("subject_token_type", ACCESS_TOKEN_URN),
+                    ("scope", "profile"),
+                ])
+                .await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            assert!(response.maybe_header("set-cookie").is_none());
+            assert_eq!(response.header("cache-control"), "no-store");
+
+            let body: Value = response.json();
+            assert_eq!(body["issued_token_type"], json!(ACCESS_TOKEN_URN));
+            assert_eq!(body["token_type"], json!("Bearer"));
+            assert_eq!(body["scope"], json!("profile"));
+            assert!(body["expires_in"].as_i64().is_some_and(|secs| secs > 0));
+            assert!(body.get("refresh_token").is_none());
+            assert!(body.get("id_token").is_none());
+            let issued = claims(body["access_token"].as_str().expect("access_token"));
+            assert_eq!(issued["azp"], json!(gateway.client_id));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    fn token_endpoint_accepts_basic_client_authentication() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+            let basic = format!(
+                "Basic {}",
+                STANDARD.encode(format!("{}:{}", gateway.client_id, gateway.secret))
+            );
+
+            let response = server
+                .post(&token_path())
+                .add_header(
+                    "Authorization",
+                    basic.parse::<HeaderValue>().expect("header"),
+                )
+                .form(&[
+                    ("grant_type", TOKEN_EXCHANGE_GRANT),
+                    ("subject_token", subject_token.as_str()),
+                    ("subject_token_type", ACCESS_TOKEN_URN),
+                ])
+                .await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    fn token_endpoint_refuses_a_bad_secret_with_a_401_challenge() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+
+            let response = server
+                .post(&token_path())
+                .form(&[
+                    ("grant_type", TOKEN_EXCHANGE_GRANT),
+                    ("client_id", gateway.client_id.as_str()),
+                    ("client_secret", "not-the-secret"),
+                    ("subject_token", subject_token.as_str()),
+                    ("subject_token_type", ACCESS_TOKEN_URN),
+                ])
+                .await;
+
+            assert_eq!(response.status_code(), 401, "{}", response.text());
+            assert_eq!(response.header("www-authenticate"), "Basic");
+            assert_eq!(response.json::<Value>()["error"], json!("invalid_client"));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    fn token_endpoint_errors_use_the_rfc6749_body() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+            let id_token_urn = "urn:ietf:params:oauth:token-type:id_token";
+
+            let cases: [(&[(&str, &str)], &str); 4] = [
+                (&[], "invalid_request"),
+                (
+                    &[
+                        ("subject_token", subject_token.as_str()),
+                        ("subject_token_type", id_token_urn),
+                    ],
+                    "unsupported_token_type",
+                ),
+                (
+                    &[
+                        ("subject_token", subject_token.as_str()),
+                        ("subject_token_type", ACCESS_TOKEN_URN),
+                        ("scope", "admin"),
+                    ],
+                    "invalid_scope",
+                ),
+                (
+                    &[
+                        ("subject_token", subject_token.as_str()),
+                        ("subject_token_type", ACCESS_TOKEN_URN),
+                        ("audience", "nobody"),
+                    ],
+                    "invalid_target",
+                ),
+            ];
+
+            for (extra, code) in cases {
+                let mut form = vec![
+                    ("grant_type", TOKEN_EXCHANGE_GRANT),
+                    ("client_id", gateway.client_id.as_str()),
+                    ("client_secret", gateway.secret.as_str()),
+                ];
+                form.extend_from_slice(extra);
+
+                let response = server.post(&token_path()).form(&form).await;
+                assert_eq!(response.status_code(), 400, "{code}: {}", response.text());
+                let body: Value = response.json();
+                assert_eq!(body["error"], json!(code));
+                assert!(body["error_description"].is_string());
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_service_test -- --ignored"]
+    fn the_openapi_document_describes_the_rfc8693_request_and_response() {
+        rt().block_on(async {
+            let server = make_server();
+            let doc: Value = server.get("/api-docs/openapi.json").await.json();
+            let schemas = &doc["components"]["schemas"];
+
+            let request = &schemas["TokenRequestValidator"]["properties"];
+            for field in [
+                "subject_token",
+                "subject_token_type",
+                "requested_token_type",
+                "audience",
+                "resource",
+            ] {
+                assert!(
+                    request.get(field).is_some(),
+                    "TokenRequestValidator lacks {field}"
+                );
+            }
+
+            let variants = schemas["TokenResponse"]["oneOf"].to_string();
+            assert!(variants.contains("JwtToken"), "{variants}");
+            assert!(variants.contains("TokenExchangeOutput"), "{variants}");
+            assert!(schemas.get("TokenExchangeOutput").is_some());
         });
     }
 }
