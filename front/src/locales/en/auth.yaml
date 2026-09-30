@@ -33,6 +33,8 @@ login:
 providers:
   separator: Or continue with
   continue_with: Continue with {{name}}
+  start_failed: Could not start the sign-in with {{name}}. Please try again.
+  start_failed_insecure: Could not start the sign-in with {{name}}. This page must be served over HTTPS.
 
 register:
   # Shown as the heading when the realm name is missing from the URL.
@@ -155,7 +157,7 @@ verify_email:
   resending: Sending...
   # The number never inflects — it is an abbreviated seconds countdown.
   resend_in: Resend in {{seconds}}s
-  missing_context: "Unable to resend email: missing authentication context"
+  missing_context: 'Unable to resend email: missing authentication context'
   sent: Verification email sent! Check your inbox.
   resend_failed: Failed to resend verification email
 
@@ -227,7 +229,7 @@ password:
     lowercase: At least one lowercase letter
     number: At least one number
     special: At least one special character
-    special_detailed: "At least one special character (!@#$%^&*…)"
+    special_detailed: 'At least one special character (!@#$%^&*…)'
 
 # Messages the pages built in the realm's own theme get back from our submit
 # handlers. The pages themselves are authored by the administrator and are not

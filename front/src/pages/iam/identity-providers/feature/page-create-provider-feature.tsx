@@ -47,6 +47,7 @@ const EMPTY_VALUES: CreateProviderValues = {
   tokenUrl: '',
   userinfoUrl: '',
   scopes: [],
+  usePkce: true,
 }
 
 interface Draft extends CreateProviderValues {
@@ -66,6 +67,13 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+/**
+ * Hosts the identity provider creation wizard. The protocol and the chosen
+ * template live in the URL (`?protocol=` / `?provider=`) so a reload keeps
+ * the step; the draft resets whenever the template changes. On submit the
+ * form values are mapped to the broker config (`client_id`, `token_url`,
+ * `use_pkce`…) expected by the API.
+ */
 export default function PageCreateProviderFeature() {
   const identityProvidersBase = useIdentityProvidersBase()
   const { realm_name } = useParams<RouterParams>()
@@ -95,6 +103,7 @@ export default function PageCreateProviderFeature() {
         tokenUrl: template.token_url,
         userinfoUrl: template.userinfo_url ?? '',
         scopes: [...template.default_scopes],
+        usePkce: true,
       }
     : EMPTY_DRAFT
 
@@ -164,12 +173,13 @@ export default function PageCreateProviderFeature() {
   const handleSubmit = () => {
     if (!template || !parsed.success) return
 
-    const config: Record<string, string> = {
+    const config: Record<string, unknown> = {
       client_id: values.clientId,
       client_secret: values.clientSecret,
       authorization_url: values.authorizationUrl,
       token_url: values.tokenUrl,
       scopes: values.scopes.join(' '),
+      use_pkce: values.usePkce,
     }
 
     if (values.userinfoUrl) config.userinfo_url = values.userinfoUrl

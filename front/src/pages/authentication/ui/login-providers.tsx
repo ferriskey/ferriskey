@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
 } from '@/components/provider-icon'
 import { AUTH_NAMESPACE } from '../constants'
+import { buildProviderLoginUrl } from './login-providers-helpers'
 
 import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 
@@ -12,23 +14,12 @@ export type LoginProvidersProps = {
   providers: IdentityProviderPresentation[]
 }
 
-const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
-
-const buildProviderLoginUrl = (provider: IdentityProviderPresentation) => {
-  const base = window.apiUrl.endsWith('/') ? window.apiUrl : `${window.apiUrl}/`
-  const path = provider.login_url.replace(/^\//, '')
-  const url = new URL(isAbsoluteUrl(provider.login_url) ? provider.login_url : path, base)
-  const currentParams = new URLSearchParams(window.location.search)
-
-  currentParams.forEach((value, key) => {
-    if (!url.searchParams.has(key)) {
-      url.searchParams.set(key, value)
-    }
-  })
-
-  return url.toString()
-}
-
+/**
+ * "Or continue with" block of the login page: one button per identity
+ * provider enabled in the realm. A click resolves the broker URL through
+ * `buildProviderLoginUrl` and navigates to it; a failure (typically no
+ * `crypto.subtle` outside HTTPS) surfaces as a toast instead of a dead click.
+ */
 export function LoginProviders({ providers }: LoginProvidersProps) {
   const { t } = useTranslation(AUTH_NAMESPACE)
 
@@ -45,7 +36,6 @@ export function LoginProviders({ providers }: LoginProvidersProps) {
         {providers.map((provider) => {
           const iconKey = provider.icon?.toLowerCase()
           const iconSrc = iconKey && !isProviderIconKey(iconKey) ? provider.icon : undefined
-          const loginUrl = buildProviderLoginUrl(provider)
           return (
             <Button
               key={provider.id}
@@ -53,7 +43,26 @@ export function LoginProviders({ providers }: LoginProvidersProps) {
               variant='outline'
               className='h-10 w-full justify-start gap-2.5 border-input bg-card px-3 text-sm font-medium text-foreground shadow-none hover:bg-muted/40'
               onClick={() => {
-                window.location.href = loginUrl
+                void buildProviderLoginUrl({
+                  loginUrl: provider.login_url,
+                  apiUrl: window.apiUrl,
+                  currentSearch: window.location.search,
+                  origin: window.location.origin,
+                  pathname: window.location.pathname,
+                })
+                  .then((loginUrl) => {
+                    window.location.href = loginUrl
+                  })
+                  .catch((error: unknown) => {
+                    console.error(error)
+                    const name = provider.display_name
+                    // Only a non-secure context explains a missing crypto.subtle; storage can fail on HTTPS too.
+                    toast.error(
+                      window.isSecureContext
+                        ? t('providers.start_failed', { name })
+                        : t('providers.start_failed_insecure', { name })
+                    )
+                  })
               }}
             >
               <span className='flex h-5 w-5 items-center justify-center'>

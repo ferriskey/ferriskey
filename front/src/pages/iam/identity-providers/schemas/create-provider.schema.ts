@@ -21,6 +21,7 @@ export const createProviderSchema = z.object({
   authorizationUrl: z.string().url().optional().or(z.literal('')),
   tokenUrl: z.string().url().optional().or(z.literal('')),
   userinfoUrl: z.string().url().optional().or(z.literal('')),
+  usePkce: z.boolean().default(true),
   // SAML specific fields
   entityId: z.string().optional(),
   ssoUrl: z.string().url().optional().or(z.literal('')),

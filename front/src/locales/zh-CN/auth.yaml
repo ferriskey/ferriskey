@@ -50,6 +50,8 @@ login:
 providers:
   separator: 或使用以下方式继续
   continue_with: 使用 {{name}} 继续
+  start_failed: 无法开始使用 {{name}} 登录。请重试。
+  start_failed_insecure: 无法开始使用 {{name}} 登录。此页面必须通过 HTTPS 提供。
 
 register:
   # Shown as the heading when the realm name is missing from the URL.

@@ -25,6 +25,17 @@ function safePostLoginReturn(realm: string): string | null {
   }
 }
 
+/**
+ * Orchestrates the return to `/authentication/callback?code=…&state=…`:
+ *
+ *  1. Checks the returned `state` against the `oauth_state:*` marker left
+ *     by whoever started the flow (login page or identity provider button).
+ *  2. Exchanges the code with the PKCE verifier and the exact `redirect_uri`
+ *     stored for that state — both are single-use and consumed even when
+ *     validation fails.
+ *  3. Stores the tokens and redirects to the post-login destination, or back
+ *     to the login page with the error.
+ */
 export default function PageCallbackFeature() {
   const navigate = useNavigate()
   const { t } = useTranslation(AUTH_NAMESPACE)
@@ -60,6 +71,7 @@ export default function PageCallbackFeature() {
   useEffect(() => {
     if (callbackValidationError) {
       if (state) localStorage.removeItem(`oauth_state:${state}`)
+      takeOAuthFlow(state)
       document.cookie = 'FERRISKEY_SESSION=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;'
       navigate(buildLoginErrorRedirect(realm_name, t(`callback.${callbackValidationError}`)), {
         replace: true,
