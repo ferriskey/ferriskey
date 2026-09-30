@@ -16,6 +16,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub revocation_endpoint: String,
     pub end_session_endpoint: String,
     pub introspection_endpoint: String,
+    pub device_authorization_endpoint: String,
     pub userinfo_endpoint: String,
     pub jwks_uri: String,
     pub grant_types_supported: Vec<String>,
@@ -72,6 +73,7 @@ pub async fn get_openid_configuration(
         revocation_endpoint: format!("{issuer}/protocol/openid-connect/revoke"),
         end_session_endpoint: format!("{issuer}/protocol/openid-connect/logout"),
         introspection_endpoint: format!("{issuer}/protocol/openid-connect/token/introspect"),
+        device_authorization_endpoint: format!("{issuer}/protocol/openid-connect/auth/device"),
         userinfo_endpoint: format!("{issuer}/protocol/openid-connect/userinfo"),
         jwks_uri: format!("{issuer}/protocol/openid-connect/jwks.json"),
         grant_types_supported: vec![
@@ -79,6 +81,7 @@ pub async fn get_openid_configuration(
             "refresh_token".to_string(),
             "client_credentials".to_string(),
             "password".to_string(),
+            "urn:ietf:params:oauth:grant-type:device_code".to_string(),
             "urn:ietf:params:oauth:grant-type:token-exchange".to_string(),
         ],
         response_types_supported: vec![
