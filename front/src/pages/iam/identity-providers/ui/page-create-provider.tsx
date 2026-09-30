@@ -10,6 +10,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { ChipInput, FieldRow, PageShell, Pill, Section } from '@/components/kit'
+import { Switch } from '@/components/ui/switch'
 import ProviderIcon from '@/components/provider-icon'
 import {
   templateDescription,
@@ -30,6 +31,7 @@ export interface CreateProviderValues {
   tokenUrl: string
   userinfoUrl: string
   scopes: string[]
+  usePkce: boolean
 }
 
 export type CreateProviderErrors = Partial<Record<keyof CreateProviderValues, string>>
@@ -119,6 +121,12 @@ function Stepper({ current }: { current: number }) {
   )
 }
 
+/**
+ * Three-step "Add an identity provider" page: template picker, credentials
+ * and endpoints form (with the PKCE toggle), then a read-only review.
+ * Purely presentational — validation, step transitions and submission are
+ * owned by `PageCreateProviderFeature`.
+ */
 export default function PageCreateProvider({
   protocol,
   templates,
@@ -181,6 +189,10 @@ export default function PageCreateProvider({
     { key: 'create.token_url.label', value: values.tokenUrl },
     { key: 'create.userinfo_url.label', value: values.userinfoUrl || t('not_set') },
     { key: 'create.scopes.label', value: values.scopes.join(' ') || t('none') },
+    {
+      key: 'create.pkce.label',
+      value: values.usePkce ? t('create.pkce.enabled') : t('create.pkce.disabled'),
+    },
   ]
 
   return (
@@ -434,6 +446,25 @@ export default function PageCreateProvider({
                   placeholder={SCOPE_PLACEHOLDER}
                   emptyHint={t('create.scopes.empty_hint')}
                 />
+              </FieldRow>
+
+              <FieldRow
+                label={t('create.pkce.label')}
+                description={t('create.pkce.description')}
+              >
+                <div className='flex items-center gap-2.5'>
+                  <Switch
+                    id='create-provider-use-pkce'
+                    checked={values.usePkce}
+                    onCheckedChange={(usePkce) => onChange({ usePkce })}
+                  />
+                  <label
+                    htmlFor='create-provider-use-pkce'
+                    className='text-xs text-neutral-600 dark:text-neutral-400'
+                  >
+                    {values.usePkce ? t('create.pkce.enabled') : t('create.pkce.disabled')}
+                  </label>
+                </div>
               </FieldRow>
             </Section>
           </div>

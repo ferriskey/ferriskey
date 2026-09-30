@@ -194,6 +194,11 @@ create:
     label: 作用域
     description: 每次授权时都会请求。
     empty_hint: 未请求任何作用域，大多数提供商会拒绝不带作用域的授权请求。
+  pkce:
+    label: PKCE
+    description: 在授权请求中发送 code_challenge（S256），并在令牌交换时发送对应的验证器。仅当提供商拒绝这些额外参数时才关闭。
+    enabled: 已启用（S256）
+    disabled: 已禁用
   review:
     title: 确认
     description: 将在此域中创建的内容。
