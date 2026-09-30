@@ -308,12 +308,14 @@ mod tests {
         }
     }
 
+    /// Creates a policy letting `client` target `audience`, and returns its id.
     async fn create_policy(
         server: &TestServer,
         client: &TestClient,
         audience: &TestClient,
         allowed_scopes: &[&str],
-    ) {
+        allow_impersonation: bool,
+    ) -> String {
         let master = master_token(server).await;
         let response = server
             .post(&format!(
@@ -324,11 +326,15 @@ mod tests {
             .json(&json!({
                 "target_audience": audience.client_id,
                 "allowed_scopes": allowed_scopes,
-                "allow_impersonation": true,
+                "allow_impersonation": allow_impersonation,
                 "allow_delegation": false,
             }))
             .await;
         assert_eq!(response.status_code(), 201, "{}", response.text());
+        response.json::<Value>()["id"]
+            .as_str()
+            .expect("policy id")
+            .to_string()
     }
 
     async fn subject_token_for(server: &TestServer, client: &TestClient) -> String {
@@ -427,7 +433,7 @@ mod tests {
             let refused = exchange(&gateway, &subject_token, None, Some(&orders.client_id)).await;
             assert_eq!(refused.err(), Some(TokenExchangeError::InvalidTarget));
 
-            create_policy(&server, &gateway, &orders, &["profile"]).await;
+            create_policy(&server, &gateway, &orders, &["profile"], true).await;
 
             let output = exchange(&gateway, &subject_token, None, Some(&orders.client_id))
                 .await
@@ -889,6 +895,69 @@ mod tests {
                 )),
                 "{device_endpoint}"
             );
+        });
+    }
+
+    async fn exchange_for_audience(
+        server: &TestServer,
+        client: &TestClient,
+        subject_token: &str,
+        audience: &TestClient,
+    ) -> axum_test::TestResponse {
+        server
+            .post(&token_path())
+            .form(&[
+                ("grant_type", TOKEN_EXCHANGE_GRANT),
+                ("client_id", client.client_id.as_str()),
+                ("client_secret", client.secret.as_str()),
+                ("subject_token", subject_token),
+                ("subject_token_type", ACCESS_TOKEN_URN),
+                ("audience", audience.client_id.as_str()),
+            ])
+            .await
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn a_policy_without_impersonation_refuses_a_plain_exchange() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let orders = create_client(&server, "orders", false).await;
+            create_policy(&server, &gateway, &orders, &["profile"], false).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+
+            let response = exchange_for_audience(&server, &gateway, &subject_token, &orders).await;
+
+            assert_oauth_error(&response, 400, "unauthorized_client");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn deleting_the_policy_stops_the_next_exchange() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client(&server, "gateway", true).await;
+            let orders = create_client(&server, "orders", false).await;
+            let policy_id = create_policy(&server, &gateway, &orders, &["profile"], true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+
+            let allowed = exchange_for_audience(&server, &gateway, &subject_token, &orders).await;
+            assert_eq!(allowed.status_code(), 200, "{}", allowed.text());
+
+            let master = master_token(&server).await;
+            let deleted = server
+                .delete(&format!(
+                    "/realms/{REALM}/clients/{}/token-exchange-policies/{policy_id}",
+                    gateway.uuid
+                ))
+                .add_header("Authorization", auth_header(&master))
+                .await;
+            assert!(deleted.status_code().is_success(), "{}", deleted.text());
+
+            let refused = exchange_for_audience(&server, &gateway, &subject_token, &orders).await;
+            assert_oauth_error(&refused, 400, "invalid_target");
         });
     }
 }
