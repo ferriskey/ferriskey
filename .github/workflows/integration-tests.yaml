@@ -214,3 +214,9 @@ jobs:
       # format (200 body, 401 challenge, RFC 6749 error codes).
       - name: run token exchange integration tests
         run: cargo test -p ferriskey-api --test token_exchange_test -- --ignored
+
+      # OIDC Back-Channel Logout (#1400): a loopback relying party receives a
+      # logout token, verified against the realm JWKS, for every way a
+      # session ends.
+      - name: run back-channel logout integration tests
+        run: cargo test -p ferriskey-api --test backchannel_logout_test -- --ignored
