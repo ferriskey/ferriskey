@@ -1153,6 +1153,8 @@ export namespace Schemas {
     username?: (string | null) | undefined;
   };
   export type TokenRequestValidator = Partial<{
+    actor_token: string | null;
+    actor_token_type: string | null;
     audience: string | null;
     client_id: string | null;
     client_secret: string | null;
