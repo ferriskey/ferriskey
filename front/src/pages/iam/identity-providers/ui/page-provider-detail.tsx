@@ -1,11 +1,27 @@
-import { ArrowLeft, Power, PowerOff } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Power, PowerOff } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/components/ui/input-group'
 import { Switch } from '@/components/ui/switch'
 import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
-import { ChoiceCards, DetailHeader, FieldRow, PageShell, Pill, Section, StatusDot } from '@/components/kit'
+import {
+  ChipInput,
+  ChoiceCards,
+  DetailHeader,
+  FieldRow,
+  PageShell,
+  Pill,
+  Section,
+  StatusDot,
+} from '@/components/kit'
 import type { Choice } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
@@ -13,11 +29,15 @@ import { Schemas } from '@/api/api.client'
 import {
   humanizeConfigKey,
   isSecretKey,
-  providerConfig,
   providerName,
   providerStatus,
   providerTypeLabel,
 } from '../provider-status'
+import {
+  extraConfigEntries,
+  type ProviderDraft,
+  type ProviderDraftErrors,
+} from '../provider-update-body'
 import ProviderTile from './provider-tile'
 import ProviderStatusPill from './provider-status-pill'
 import CopyValue from './copy-value'
@@ -27,14 +47,12 @@ import IdentityProvider = Schemas.IdentityProviderResponse
 export interface PageProviderDetailProps {
   provider?: IdentityProvider
   isLoading: boolean
-  displayName: string
-  enabled: boolean
-  usePkce: boolean
+  draft: ProviderDraft
+  errors: ProviderDraftErrors
   callbackUrl: string
   dirtyCount: number
-  onDisplayNameChange: (value: string) => void
-  onEnabledChange: (value: boolean) => void
-  onUsePkceChange: (value: boolean) => void
+  canSave: boolean
+  onChange: (patch: Partial<ProviderDraft>) => void
   onBack: () => void
   onDiscard: () => void
   onSave: () => void
@@ -43,26 +61,27 @@ export interface PageProviderDetailProps {
 
 const SECRET_MASK = '\u2022'.repeat(8)
 
+const SCOPE_PLACEHOLDER = 'openid'
+
 const PROVIDER_STATE_ENABLED = 'enabled' as const
 const PROVIDER_STATE_DISABLED = 'disabled' as const
 
 export default function PageProviderDetail({
   provider,
   isLoading,
-  displayName,
-  enabled,
-  usePkce,
+  draft,
+  errors,
   callbackUrl,
   dirtyCount,
-  onDisplayNameChange,
-  onEnabledChange,
-  onUsePkceChange,
+  canSave,
+  onChange,
   onBack,
   onDiscard,
   onSave,
   onDelete,
 }: PageProviderDetailProps) {
   const { t } = useTranslation('identity-provider')
+  const [showSecret, setShowSecret] = useState(false)
 
   const enabledChoices: Choice<'enabled' | 'disabled'>[] = [
     {
@@ -118,8 +137,7 @@ export default function PageProviderDetail({
   }
 
   const status = providerStatus(provider)
-  const config = providerConfig(provider)
-  const configEntries = Object.entries(config)
+  const extraEntries = extraConfigEntries(provider.config)
 
   const metadataRows = [
     { key: 'detail.metadata.provider_id', value: provider.provider_id },
@@ -139,16 +157,16 @@ export default function PageProviderDetail({
         onBack={onBack}
         backLabel={t('detail.back')}
         icon={<ProviderTile providerId={provider.provider_id} size='md' />}
-        title={displayName || provider.alias}
+        title={draft.displayName || provider.alias}
         pills={
           <>
             <Pill mono>{provider.alias}</Pill>
             <Pill tone='violet' mono>
               {providerTypeLabel(provider.provider_id)}
             </Pill>
-            <Pill tone={enabled ? 'success' : 'neutral'}>
-              <StatusDot on={enabled} />
-              {enabled ? t('badge.enabled') : t('badge.disabled')}
+            <Pill tone={draft.enabled ? 'success' : 'neutral'}>
+              <StatusDot on={draft.enabled} />
+              {draft.enabled ? t('badge.enabled') : t('badge.disabled')}
             </Pill>
             <ProviderStatusPill health={status.health} label={status.label} />
           </>
@@ -198,8 +216,8 @@ export default function PageProviderDetail({
           >
             <Input
               id='provider-display-name'
-              value={displayName}
-              onChange={(e) => onDisplayNameChange(e.target.value)}
+              value={draft.displayName}
+              onChange={(e) => onChange({ displayName: e.target.value })}
               className='max-w-sm'
             />
           </FieldRow>
@@ -210,26 +228,10 @@ export default function PageProviderDetail({
           >
             <ChoiceCards
               label={t('detail.enabled.choices_label')}
-              value={enabled ? PROVIDER_STATE_ENABLED : PROVIDER_STATE_DISABLED}
-              onChange={(value) => onEnabledChange(value === PROVIDER_STATE_ENABLED)}
+              value={draft.enabled ? PROVIDER_STATE_ENABLED : PROVIDER_STATE_DISABLED}
+              onChange={(value) => onChange({ enabled: value === PROVIDER_STATE_ENABLED })}
               options={enabledChoices}
             />
-          </FieldRow>
-
-          <FieldRow label={t('detail.pkce.label')} description={t('detail.pkce.description')}>
-            <div className='flex items-center gap-2.5'>
-              <Switch
-                id='provider-use-pkce'
-                checked={usePkce}
-                onCheckedChange={onUsePkceChange}
-              />
-              <label
-                htmlFor='provider-use-pkce'
-                className='text-xs text-neutral-600 dark:text-neutral-400'
-              >
-                {usePkce ? t('detail.pkce.enabled') : t('detail.pkce.disabled')}
-              </label>
-            </div>
           </FieldRow>
 
           <FieldRow
@@ -244,44 +246,164 @@ export default function PageProviderDetail({
           </FieldRow>
         </Section>
 
-        <Section
-          title={t('detail.config.title')}
-          description={t('detail.config.description')}
-          contained={configEntries.length > 0}
-        >
-          {configEntries.length > 0 ? (
-            configEntries.map(([key, value]) => (
-                <div
-                  key={key}
-                  className='grid gap-x-8 gap-y-1 py-3 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
+        <Section title={t('detail.config.title')} description={t('detail.config.description')}>
+          <FieldRow
+            label={t('detail.client_id.label')}
+            description={t('detail.client_id.description')}
+            htmlFor='provider-client-id'
+          >
+            <Input
+              id='provider-client-id'
+              value={draft.clientId}
+              onChange={(e) => onChange({ clientId: e.target.value })}
+              className='max-w-sm'
+              aria-invalid={Boolean(errors.clientId)}
+            />
+            {errors.clientId && (
+              <p className='mt-1.5 text-xs text-fk-danger'>{t(errors.clientId)}</p>
+            )}
+          </FieldRow>
+
+          <FieldRow
+            label={t('detail.client_secret.label')}
+            description={t('detail.client_secret.description')}
+            htmlFor='provider-client-secret'
+          >
+            <InputGroup className='max-w-sm'>
+              <InputGroupInput
+                id='provider-client-secret'
+                type={showSecret ? 'text' : 'password'}
+                value={draft.clientSecret}
+                placeholder={SECRET_MASK}
+                onChange={(e) => onChange({ clientSecret: e.target.value })}
+                className='font-mono-ui'
+              />
+              <InputGroupAddon align='inline-end'>
+                <InputGroupButton
+                  size='icon-xs'
+                  aria-label={
+                    showSecret ? t('detail.client_secret.hide') : t('detail.client_secret.show')
+                  }
+                  onClick={() => setShowSecret((value) => !value)}
                 >
-                  <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
-                    {humanizeConfigKey(key)}
-                  </p>
-                  <div className='min-w-0'>
-                    {isSecretKey(key) ? (
-                      <span
-                        className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'
-                        title={t('detail.config.secret_title')}
-                      >
-                        {SECRET_MASK}
-                      </span>
-                    ) : (
-                      <span className='block break-all font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
-                        {value === null || value === undefined || value === ''
-                          ? t('not_set')
-                          : String(value)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-            ))
-          ) : (
-            <p className='rounded-sm border border-dashed border-fk-line px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400'>
-              {t('detail.config.empty')}
-            </p>
-          )}
+                  {showSecret ? <EyeOff /> : <Eye />}
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </FieldRow>
+
+          <FieldRow
+            label={t('detail.authorization_url.label')}
+            description={t('detail.authorization_url.description')}
+            htmlFor='provider-authorization-url'
+          >
+            <Input
+              id='provider-authorization-url'
+              value={draft.authorizationUrl}
+              onChange={(e) => onChange({ authorizationUrl: e.target.value })}
+              className='max-w-lg'
+              aria-invalid={Boolean(errors.authorizationUrl)}
+            />
+            {errors.authorizationUrl && (
+              <p className='mt-1.5 text-xs text-fk-danger'>{t(errors.authorizationUrl)}</p>
+            )}
+          </FieldRow>
+
+          <FieldRow
+            label={t('detail.token_url.label')}
+            description={t('detail.token_url.description')}
+            htmlFor='provider-token-url'
+          >
+            <Input
+              id='provider-token-url'
+              value={draft.tokenUrl}
+              onChange={(e) => onChange({ tokenUrl: e.target.value })}
+              className='max-w-lg'
+              aria-invalid={Boolean(errors.tokenUrl)}
+            />
+            {errors.tokenUrl && (
+              <p className='mt-1.5 text-xs text-fk-danger'>{t(errors.tokenUrl)}</p>
+            )}
+          </FieldRow>
+
+          <FieldRow
+            label={t('detail.userinfo_url.label')}
+            description={t('detail.userinfo_url.description')}
+            htmlFor='provider-userinfo-url'
+          >
+            <Input
+              id='provider-userinfo-url'
+              value={draft.userinfoUrl}
+              onChange={(e) => onChange({ userinfoUrl: e.target.value })}
+              placeholder={t('not_set')}
+              className='max-w-lg'
+              aria-invalid={Boolean(errors.userinfoUrl)}
+            />
+            {errors.userinfoUrl && (
+              <p className='mt-1.5 text-xs text-fk-danger'>{t(errors.userinfoUrl)}</p>
+            )}
+          </FieldRow>
+
+          <FieldRow label={t('detail.scopes.label')} description={t('detail.scopes.description')}>
+            <ChipInput
+              values={draft.scopes}
+              onChange={(scopes) => onChange({ scopes })}
+              placeholder={SCOPE_PLACEHOLDER}
+              emptyHint={t('detail.scopes.empty_hint')}
+            />
+          </FieldRow>
+
+          <FieldRow label={t('detail.pkce.label')} description={t('detail.pkce.description')}>
+            <div className='flex items-center gap-2.5'>
+              <Switch
+                id='provider-use-pkce'
+                checked={draft.usePkce}
+                onCheckedChange={(usePkce) => onChange({ usePkce })}
+              />
+              <label
+                htmlFor='provider-use-pkce'
+                className='text-xs text-neutral-600 dark:text-neutral-400'
+              >
+                {draft.usePkce ? t('detail.pkce.enabled') : t('detail.pkce.disabled')}
+              </label>
+            </div>
+          </FieldRow>
         </Section>
+
+        {extraEntries.length > 0 && (
+          <Section
+            title={t('detail.config.extra_title')}
+            description={t('detail.config.extra_description')}
+            contained
+          >
+            {extraEntries.map(([key, value]) => (
+              <div
+                key={key}
+                className='grid gap-x-8 gap-y-1 py-3 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]'
+              >
+                <p className='text-sm font-medium text-neutral-900 dark:text-neutral-100'>
+                  {humanizeConfigKey(key)}
+                </p>
+                <div className='min-w-0'>
+                  {isSecretKey(key) ? (
+                    <span
+                      className='font-mono-ui text-xs text-neutral-400 dark:text-neutral-500'
+                      title={t('detail.config.secret_title')}
+                    >
+                      {SECRET_MASK}
+                    </span>
+                  ) : (
+                    <span className='block break-all font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
+                      {value === null || value === undefined || value === ''
+                        ? t('not_set')
+                        : String(value)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </Section>
+        )}
 
         <Section title={t('detail.metadata.title')} description={t('detail.metadata.description')}>
           {metadataRows.map(({ key, value }) => (
@@ -318,7 +440,7 @@ export default function PageProviderDetail({
         description={t('detail.save.description')}
         onCancel={onDiscard}
         cancelLabel={t('detail.save.discard')}
-        actions={[{ label: t('detail.save.submit'), onClick: onSave }]}
+        actions={[{ label: t('detail.save.submit'), onClick: onSave, disabled: !canSave }]}
       />
     </PageShell>
   )

@@ -11,6 +11,8 @@ pub use entities::{
     UpdateIdentityProviderInput,
 };
 pub use ports::{IdentityProviderPolicy, IdentityProviderRepository, IdentityProviderService};
-pub use value_objects::{CreateIdentityProviderRequest, UpdateIdentityProviderRequest};
+pub use value_objects::{
+    CreateIdentityProviderRequest, IdentityProviderConfigPatch, UpdateIdentityProviderRequest,
+};
 
 pub mod policies;

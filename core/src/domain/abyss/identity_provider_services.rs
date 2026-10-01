@@ -322,7 +322,7 @@ where
             trust_email: input.trust_email,
             link_only: input.link_only,
             config: input.config,
-            use_pkce: input.use_pkce,
+            patch: input.patch,
         };
 
         self.identity_provider_repository
