@@ -14,6 +14,7 @@ import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import { updateClientSchema } from '@/pages/iam/client/schemas/update-client.schema'
 import { CLIENTS_URL } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
+import { apiErrorMessage, validationErrorsFrom } from '@/lib/api-error'
 import ClientSettingsTab, { type ClientSettingsDraft } from '../ui/client-settings-tab'
 
 import Client = Schemas.Client
@@ -35,6 +36,8 @@ const pristineDraft = (client: Client): Draft => ({
   refreshTokenLifetime: client.refresh_token_lifetime ?? null,
   idTokenLifetime: client.id_token_lifetime ?? null,
   temporaryTokenLifetime: client.temporary_token_lifetime ?? null,
+  backchannelLogoutUri: client.backchannel_logout_uri ?? '',
+  backchannelLogoutSessionRequired: client.backchannel_logout_session_required ?? true,
 })
 
 export interface ClientSettingsTabFeatureProps {
@@ -42,10 +45,7 @@ export interface ClientSettingsTabFeatureProps {
   realm: string
 }
 
-export default function ClientSettingsTabFeature({
-  client,
-  realm,
-}: ClientSettingsTabFeatureProps) {
+export default function ClientSettingsTabFeature({ client, realm }: ClientSettingsTabFeatureProps) {
   const navigate = useNavigate()
   const { t } = useTranslation('client')
 
@@ -72,13 +72,16 @@ export default function ClientSettingsTabFeature({
   const [redirectUriError, setRedirectUriError] = useState<string>()
   const [webOriginError, setWebOriginError] = useState<string>()
   const [postLogoutRedirectUriError, setPostLogoutRedirectUriError] = useState<string>()
+  const [serverBackchannelError, setServerBackchannelError] = useState<string>()
 
   if (draft.key !== client.id) setDraft(pristine)
 
   const current = draft.key === client.id ? draft : pristine
 
-  const onDraftChange = (patch: Partial<ClientSettingsDraft>) =>
+  const onDraftChange = (patch: Partial<ClientSettingsDraft>) => {
+    if ('backchannelLogoutUri' in patch) setServerBackchannelError(undefined)
     setDraft((d) => ({ ...d, ...patch }))
+  }
 
   const parsed = updateClientSchema.safeParse(current)
   const errors = parsed.success
@@ -86,6 +89,8 @@ export default function ClientSettingsTabFeature({
     : {
         clientId: parsed.error.issues.find((i) => i.path[0] === 'clientId')?.message,
         name: parsed.error.issues.find((i) => i.path[0] === 'name')?.message,
+        backchannelLogoutUri: parsed.error.issues.find((i) => i.path[0] === 'backchannelLogoutUri')
+          ?.message,
       }
 
   const dirtyKeys = (Object.keys(pristine) as (keyof Draft)[]).filter(
@@ -95,22 +100,38 @@ export default function ClientSettingsTabFeature({
   const save = () => {
     if (!parsed.success) return
 
-    updateClient({
-      body: {
-        client_id: current.clientId,
-        name: current.name,
-        enabled: current.enabled,
-        direct_access_grants_enabled: current.directAccessGrants,
-        oauth_device_code_grant_enabled: current.deviceCodeGrant,
-        token_exchange_enabled: current.tokenExchange,
-        require_pkce: current.requirePkce,
-        access_token_lifetime: current.accessTokenLifetime,
-        refresh_token_lifetime: current.refreshTokenLifetime,
-        id_token_lifetime: current.idTokenLifetime,
-        temporary_token_lifetime: current.temporaryTokenLifetime,
+    updateClient(
+      {
+        body: {
+          client_id: current.clientId,
+          name: current.name,
+          enabled: current.enabled,
+          direct_access_grants_enabled: current.directAccessGrants,
+          oauth_device_code_grant_enabled: current.deviceCodeGrant,
+          token_exchange_enabled: current.tokenExchange,
+          require_pkce: current.requirePkce,
+          access_token_lifetime: current.accessTokenLifetime,
+          refresh_token_lifetime: current.refreshTokenLifetime,
+          id_token_lifetime: current.idTokenLifetime,
+          temporary_token_lifetime: current.temporaryTokenLifetime,
+          ...(client.protocol === 'openid-connect' && {
+            backchannel_logout_uri: current.backchannelLogoutUri.trim() || null,
+            backchannel_logout_session_required: current.backchannelLogoutSessionRequired,
+          }),
+        },
+        path: { client_id: client.id, realm_name: realm },
       },
-      path: { client_id: client.id, realm_name: realm },
-    })
+      {
+        onSuccess: () => setServerBackchannelError(undefined),
+        onError: (error) => {
+          const fieldError = validationErrorsFrom(error).find(
+            (e) => e.field === 'backchannel_logout_uri'
+          )
+          if (fieldError) setServerBackchannelError(fieldError.message)
+          else toast.error(apiErrorMessage(error))
+        },
+      }
+    )
   }
 
   const handleDelete = async () => {
@@ -234,7 +255,10 @@ export default function ClientSettingsTabFeature({
     <ClientSettingsTab
       client={client}
       draft={current}
-      errors={errors}
+      errors={{
+        ...errors,
+        backchannelLogoutUri: errors.backchannelLogoutUri ?? serverBackchannelError,
+      }}
       dirtyCount={dirtyKeys.length}
       redirectUris={redirectUris.map((uri) => uri.value)}
       redirectUriError={redirectUriError}

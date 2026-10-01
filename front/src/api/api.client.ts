@@ -129,6 +129,8 @@ export namespace Schemas {
   export type Masked_String = string;
   export type Client = {
     access_token_lifetime?: (number | null) | undefined;
+    backchannel_logout_session_required: boolean;
+    backchannel_logout_uri?: (string | null) | undefined;
     client_id: string;
     client_type: ClientType;
     created_at: string;
@@ -642,6 +644,8 @@ export namespace Schemas {
   export type GetFlowsResponse = { data: Array<CompassFlow> };
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string;
+    backchannel_logout_session_supported: boolean;
+    backchannel_logout_supported: boolean;
     code_challenge_methods_supported: Array<string>;
     device_authorization_endpoint: string;
     end_session_endpoint: string;
@@ -1184,6 +1188,8 @@ export namespace Schemas {
   }>;
   export type UpdateClientValidator = Partial<{
     access_token_lifetime: number | null;
+    backchannel_logout_session_required: boolean | null;
+    backchannel_logout_uri: string | null;
     client_id: string | null;
     direct_access_grants_enabled: boolean | null;
     enabled: boolean | null;
