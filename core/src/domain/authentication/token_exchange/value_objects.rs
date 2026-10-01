@@ -38,6 +38,12 @@ pub struct TokenExchangeInput {
     pub resource: Option<String>,
     /// Requested scope; must be a subset of the subject token's scope.
     pub scope: Option<String>,
+    /// Token of the party acting on behalf of the subject (delegation).
+    #[serde(default)]
+    pub actor_token: Option<String>,
+    /// Token-type URN of `actor_token`; required with it, forbidden without.
+    #[serde(default)]
+    pub actor_token_type: Option<String>,
 }
 
 /// Output of a successful token exchange (RFC 8693 §2.2.1).

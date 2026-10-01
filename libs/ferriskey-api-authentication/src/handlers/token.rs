@@ -177,6 +177,8 @@ async fn exchange_subject_token(
         audience: payload.audience,
         resource: payload.resource,
         scope: payload.scope,
+        actor_token: payload.actor_token,
+        actor_token_type: payload.actor_token_type,
     };
 
     let output = state
