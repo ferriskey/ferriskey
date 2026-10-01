@@ -322,6 +322,7 @@ where
             trust_email: input.trust_email,
             link_only: input.link_only,
             config: input.config,
+            use_pkce: input.use_pkce,
         };
 
         self.identity_provider_repository

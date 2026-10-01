@@ -267,6 +267,11 @@ detail:
     off:
       label: 已禁用
       description: 在登录页面上隐藏；已关联的账户保持关联。
+  pkce:
+    label: PKCE
+    description: 在授权请求中发送 code_challenge（S256），并在令牌交换时发送对应的验证器。仅当提供商拒绝这些额外参数时才关闭。
+    enabled: 已启用（S256）
+    disabled: 已禁用
   redirect_uri_description: 在该提供商的 OAuth 应用中声明此 URL。
   config:
     title: 配置

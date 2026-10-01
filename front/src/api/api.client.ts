@@ -1213,6 +1213,7 @@ export namespace Schemas {
     post_broker_login_flow_alias: string | null;
     store_token: boolean | null;
     trust_email: boolean | null;
+    use_pkce: boolean | null;
   }>;
   export type UpdateOrganizationValidator = Partial<{
     alias: string | null;

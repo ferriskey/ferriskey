@@ -261,6 +261,11 @@ detail:
     off:
       label: Disabled
       description: Hidden from the login page; already linked accounts stay linked.
+  pkce:
+    label: PKCE
+    description: Sends a code_challenge (S256) on the authorization request and the matching verifier at token exchange. Turn it off only for a provider that rejects the extra parameters.
+    enabled: Enabled (S256)
+    disabled: Disabled
   redirect_uri_description: Declare this URL in the OAuth application of the provider.
   config:
     title: Configuration

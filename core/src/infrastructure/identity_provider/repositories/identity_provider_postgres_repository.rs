@@ -151,6 +151,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             })?
             .ok_or(CoreError::ProviderNotFound)?;
 
+        let resolved_config = request.resolve_config(&existing.config)?;
+
         let mut identity_provider: ActiveModel = existing.into();
 
         if let Some(enabled) = request.enabled {
@@ -179,7 +181,7 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         if let Some(link_only) = request.link_only {
             identity_provider.link_only = Set(link_only);
         }
-        if let Some(config) = request.config {
+        if let Some(config) = resolved_config {
             identity_provider.config = Set(config);
         }
 

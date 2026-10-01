@@ -2,6 +2,7 @@ import { ArrowLeft, Power, PowerOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { ChoiceCards, DetailHeader, FieldRow, PageShell, Pill, Section, StatusDot } from '@/components/kit'
@@ -28,10 +29,12 @@ export interface PageProviderDetailProps {
   isLoading: boolean
   displayName: string
   enabled: boolean
+  usePkce: boolean
   callbackUrl: string
   dirtyCount: number
   onDisplayNameChange: (value: string) => void
   onEnabledChange: (value: boolean) => void
+  onUsePkceChange: (value: boolean) => void
   onBack: () => void
   onDiscard: () => void
   onSave: () => void
@@ -48,10 +51,12 @@ export default function PageProviderDetail({
   isLoading,
   displayName,
   enabled,
+  usePkce,
   callbackUrl,
   dirtyCount,
   onDisplayNameChange,
   onEnabledChange,
+  onUsePkceChange,
   onBack,
   onDiscard,
   onSave,
@@ -209,6 +214,22 @@ export default function PageProviderDetail({
               onChange={(value) => onEnabledChange(value === PROVIDER_STATE_ENABLED)}
               options={enabledChoices}
             />
+          </FieldRow>
+
+          <FieldRow label={t('detail.pkce.label')} description={t('detail.pkce.description')}>
+            <div className='flex items-center gap-2.5'>
+              <Switch
+                id='provider-use-pkce'
+                checked={usePkce}
+                onCheckedChange={onUsePkceChange}
+              />
+              <label
+                htmlFor='provider-use-pkce'
+                className='text-xs text-neutral-600 dark:text-neutral-400'
+              >
+                {usePkce ? t('detail.pkce.enabled') : t('detail.pkce.disabled')}
+              </label>
+            </div>
           </FieldRow>
 
           <FieldRow
