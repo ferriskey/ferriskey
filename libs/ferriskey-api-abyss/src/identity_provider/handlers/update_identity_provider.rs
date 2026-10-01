@@ -61,6 +61,7 @@ pub async fn update_identity_provider(
                 trust_email: payload.trust_email,
                 link_only: payload.link_only,
                 config: payload.config,
+                use_pkce: payload.use_pkce,
             },
         )
         .await?;

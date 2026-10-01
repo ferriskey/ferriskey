@@ -70,6 +70,9 @@ pub struct UpdateIdentityProviderValidator {
 
     #[serde(default)]
     pub config: Option<serde_json::Value>,
+
+    #[serde(default)]
+    pub use_pkce: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]

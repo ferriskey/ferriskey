@@ -10,14 +10,18 @@ import {
 import PageProviderDetail from '../ui/page-provider-detail'
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 import { useIdentityProvidersBase } from '@/hooks/use-section-base'
+import {
+  buildProviderUpdateBody,
+  countProviderChanges,
+  storedUsePkce,
+  type ProviderDraft,
+} from '../provider-update-body'
 
-interface Draft {
+interface Draft extends ProviderDraft {
   key: string
-  displayName: string
-  enabled: boolean
 }
 
-const EMPTY_DRAFT: Draft = { key: '', displayName: '', enabled: true }
+const EMPTY_DRAFT: Draft = { key: '', displayName: '', enabled: true, usePkce: false }
 
 export default function PageProviderDetailFeature() {
   const { t } = useTranslation('identity-provider')
@@ -42,16 +46,16 @@ export default function PageProviderDetailFeature() {
         key: providerKey,
         displayName: provider.display_name ?? '',
         enabled: provider.enabled,
+        usePkce: storedUsePkce(provider.config),
       }
     : EMPTY_DRAFT
 
   if (provider && draft.key !== providerKey) setDraft(pristine)
 
-  const { displayName, enabled } = draft.key === providerKey ? draft : pristine
+  const { displayName, enabled, usePkce } = draft.key === providerKey ? draft : pristine
 
   const dirtyCount = provider
-    ? (displayName !== (provider.display_name ?? '') ? 1 : 0) +
-      (enabled !== provider.enabled ? 1 : 0)
+    ? countProviderChanges({ displayName, enabled, usePkce }, pristine)
     : 0
 
   const listUrl = identityProvidersBase
@@ -64,7 +68,7 @@ export default function PageProviderDetailFeature() {
     updateProvider(
       {
         path: { realm_name: realm, alias: providerAlias },
-        body: { display_name: displayName, enabled },
+        body: buildProviderUpdateBody({ displayName, enabled, usePkce }, pristine),
       },
       { onSuccess: () => toast.success(t('detail.update_success')) }
     )
@@ -94,10 +98,12 @@ export default function PageProviderDetailFeature() {
       isLoading={isLoading}
       displayName={displayName}
       enabled={enabled}
+      usePkce={usePkce}
       callbackUrl={callbackUrl}
       dirtyCount={dirtyCount}
       onDisplayNameChange={(value) => setDraft((d) => ({ ...d, displayName: value }))}
       onEnabledChange={(value) => setDraft((d) => ({ ...d, enabled: value }))}
+      onUsePkceChange={(value) => setDraft((d) => ({ ...d, usePkce: value }))}
       onBack={() => navigate(listUrl)}
       onDiscard={() => setDraft(pristine)}
       onSave={handleSave}

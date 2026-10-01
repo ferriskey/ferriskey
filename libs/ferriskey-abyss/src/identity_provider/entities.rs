@@ -222,6 +222,7 @@ pub struct UpdateIdentityProviderInput {
     pub trust_email: Option<bool>,
     pub link_only: Option<bool>,
     pub config: Option<JsonValue>,
+    pub use_pkce: Option<bool>,
 }
 
 /// Input for getting an identity provider

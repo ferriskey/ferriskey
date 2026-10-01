@@ -1153,6 +1153,8 @@ export namespace Schemas {
     username?: (string | null) | undefined;
   };
   export type TokenRequestValidator = Partial<{
+    actor_token: string | null;
+    actor_token_type: string | null;
     audience: string | null;
     client_id: string | null;
     client_secret: string | null;
@@ -1211,6 +1213,7 @@ export namespace Schemas {
     post_broker_login_flow_alias: string | null;
     store_token: boolean | null;
     trust_email: boolean | null;
+    use_pkce: boolean | null;
   }>;
   export type UpdateOrganizationValidator = Partial<{
     alias: string | null;
