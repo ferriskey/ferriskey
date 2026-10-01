@@ -96,6 +96,12 @@ pub struct Client {
     pub oauth_device_code_grant_enabled: bool,
     pub require_pkce: bool,
     pub token_exchange_enabled: bool,
+    /// Where FerrisKey POSTs a logout token when a session this client took
+    /// part in ends (OIDC Back-Channel Logout 1.0). `None` opts out.
+    pub backchannel_logout_uri: Option<String>,
+    /// Whether the client needs the `sid` claim in its logout tokens.
+    /// FerrisKey always sends it, so this only records what the client asked.
+    pub backchannel_logout_session_required: bool,
     pub client_type: ClientType,
     pub name: String,
     pub redirect_uris: Option<Vec<redirect_uri::RedirectUri>>,
@@ -158,6 +164,8 @@ impl Client {
                 .unwrap_or_default(),
             require_pkce: false,
             token_exchange_enabled: config.token_exchange_enabled.unwrap_or_default(),
+            backchannel_logout_uri: None,
+            backchannel_logout_session_required: true,
             client_type: config.client_type,
             name: config.name,
             redirect_uris: None,
@@ -189,6 +197,8 @@ impl Client {
             oauth_device_code_grant_enabled: false,
             require_pkce: false,
             token_exchange_enabled: false,
+            backchannel_logout_uri: None,
+            backchannel_logout_session_required: true,
             client_type: ClientType::Confidential,
             name: format!("{client_id} Client"),
             redirect_uris: None,

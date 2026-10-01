@@ -108,6 +108,8 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         maintenance_session_strategy: MaintenanceSessionStrategy::Expire,
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        backchannel_logout_uri: None,
+        backchannel_logout_session_required: true,
     }
 }
 

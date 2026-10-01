@@ -55,6 +55,8 @@ impl From<Model> for Client {
                 .unwrap_or_default(),
             created_at,
             updated_at,
+            backchannel_logout_uri: model.backchannel_logout_uri,
+            backchannel_logout_session_required: model.backchannel_logout_session_required,
         }
     }
 }

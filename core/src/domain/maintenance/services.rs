@@ -162,6 +162,8 @@ where
             maintenance_enabled: Some(request.enabled),
             maintenance_reason: Some(request.reason.clone()),
             maintenance_session_strategy: request.session_strategy.clone(),
+            backchannel_logout_uri: None,
+            backchannel_logout_session_required: None,
         };
 
         self.client_repository
