@@ -256,7 +256,10 @@ type GroupRoleRepo = PostgresGroupRoleRepository;
 type GroupAttributeRepo = PostgresGroupAttributeRepository;
 type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
-type UserSessionRepo = PostgresUserSessionRepository;
+type UserSessionRepo = crate::infrastructure::backchannel_logout::NotifyingUserSessionRepository<
+    PostgresUserSessionRepository,
+    crate::infrastructure::backchannel_logout::BackchannelLogoutDispatcher,
+>;
 
 type PolicyImpl =
     crate::domain::common::policies::FerriskeyPolicy<UserRepo, ClientRepo, UserRoleRepo>;

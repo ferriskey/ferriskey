@@ -197,6 +197,12 @@ where
             .await?
             .in_realm(&scope)?;
 
+        // Deleting the row cascades to the user's sessions without going
+        // through the session store; end them first so their clients are told.
+        self.token_revocation
+            .revoke_all_user_access(user.get().id, realm_id.into())
+            .await?;
+
         let count = self
             .user_repository
             .delete_user(&user)
@@ -621,6 +627,12 @@ where
             self.policy.can_delete_user(&identity, &realm).await,
             "insufficient permissions",
         )?;
+
+        for user_id in &input.ids {
+            self.token_revocation
+                .revoke_all_user_access(*user_id, realm_id.into())
+                .await?;
+        }
 
         let count = self
             .user_repository
