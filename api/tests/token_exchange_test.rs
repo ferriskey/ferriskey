@@ -276,6 +276,15 @@ mod tests {
     }
 
     async fn create_client(server: &TestServer, prefix: &str, token_exchange: bool) -> TestClient {
+        create_client_with(server, prefix, token_exchange, false).await
+    }
+
+    async fn create_client_with(
+        server: &TestServer,
+        prefix: &str,
+        token_exchange: bool,
+        service_account: bool,
+    ) -> TestClient {
         let master = master_token(server).await;
         let client_id = format!("{prefix}-{}", Uuid::new_v4().simple());
 
@@ -288,7 +297,7 @@ mod tests {
                 "client_type": "confidential",
                 "protocol": "openid-connect",
                 "public_client": false,
-                "service_account_enabled": false,
+                "service_account_enabled": service_account,
                 "direct_access_grants_enabled": true,
                 "enabled": true,
                 "oauth_device_code_grant_enabled": false,
@@ -315,6 +324,7 @@ mod tests {
         audience: &TestClient,
         allowed_scopes: &[&str],
         allow_impersonation: bool,
+        allow_delegation: bool,
     ) -> String {
         let master = master_token(server).await;
         let response = server
@@ -327,7 +337,7 @@ mod tests {
                 "target_audience": audience.client_id,
                 "allowed_scopes": allowed_scopes,
                 "allow_impersonation": allow_impersonation,
-                "allow_delegation": false,
+                "allow_delegation": allow_delegation,
             }))
             .await;
         assert_eq!(response.status_code(), 201, "{}", response.text());
@@ -368,6 +378,8 @@ mod tests {
                     audience: audience.map(str::to_string),
                     resource: None,
                     scope: scope.map(str::to_string),
+                    actor_token: None,
+                    actor_token_type: None,
                 },
             )
             .await
@@ -433,7 +445,7 @@ mod tests {
             let refused = exchange(&gateway, &subject_token, None, Some(&orders.client_id)).await;
             assert_eq!(refused.err(), Some(TokenExchangeError::InvalidTarget));
 
-            create_policy(&server, &gateway, &orders, &["profile"], true).await;
+            create_policy(&server, &gateway, &orders, &["profile"], true, false).await;
 
             let output = exchange(&gateway, &subject_token, None, Some(&orders.client_id))
                 .await
@@ -644,6 +656,8 @@ mod tests {
                 "requested_token_type",
                 "audience",
                 "resource",
+                "actor_token",
+                "actor_token_type",
             ] {
                 assert!(
                     request.get(field).is_some(),
@@ -924,7 +938,7 @@ mod tests {
             let server = make_server();
             let gateway = create_client(&server, "gateway", true).await;
             let orders = create_client(&server, "orders", false).await;
-            create_policy(&server, &gateway, &orders, &["profile"], false).await;
+            create_policy(&server, &gateway, &orders, &["profile"], false, false).await;
             let subject_token = subject_token_for(&server, &gateway).await;
 
             let response = exchange_for_audience(&server, &gateway, &subject_token, &orders).await;
@@ -940,7 +954,8 @@ mod tests {
             let server = make_server();
             let gateway = create_client(&server, "gateway", true).await;
             let orders = create_client(&server, "orders", false).await;
-            let policy_id = create_policy(&server, &gateway, &orders, &["profile"], true).await;
+            let policy_id =
+                create_policy(&server, &gateway, &orders, &["profile"], true, false).await;
             let subject_token = subject_token_for(&server, &gateway).await;
 
             let allowed = exchange_for_audience(&server, &gateway, &subject_token, &orders).await;
@@ -958,6 +973,148 @@ mod tests {
 
             let refused = exchange_for_audience(&server, &gateway, &subject_token, &orders).await;
             assert_oauth_error(&refused, 400, "invalid_target");
+        });
+    }
+
+    /// A `client_credentials` token of `client`: the client itself as actor.
+    async fn service_token(server: &TestServer, client: &TestClient) -> String {
+        let response = server
+            .post(&token_path())
+            .form(&[
+                ("grant_type", "client_credentials"),
+                ("client_id", client.client_id.as_str()),
+                ("client_secret", client.secret.as_str()),
+            ])
+            .await;
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        response.json::<Value>()["access_token"]
+            .as_str()
+            .expect("access_token")
+            .to_string()
+    }
+
+    async fn delegated_exchange(
+        server: &TestServer,
+        client: &TestClient,
+        subject_token: &str,
+        actor_token: &str,
+        audience: &TestClient,
+    ) -> axum_test::TestResponse {
+        server
+            .post(&token_path())
+            .form(&[
+                ("grant_type", TOKEN_EXCHANGE_GRANT),
+                ("client_id", client.client_id.as_str()),
+                ("client_secret", client.secret.as_str()),
+                ("subject_token", subject_token),
+                ("subject_token_type", ACCESS_TOKEN_URN),
+                ("actor_token", actor_token),
+                ("actor_token_type", ACCESS_TOKEN_URN),
+                ("audience", audience.client_id.as_str()),
+            ])
+            .await
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn a_delegated_exchange_carries_the_act_claim() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client_with(&server, "gateway", true, true).await;
+            let orders = create_client(&server, "orders", false).await;
+            create_policy(&server, &gateway, &orders, &["profile"], false, true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+            let actor_token = service_token(&server, &gateway).await;
+            let actor = claims(&actor_token);
+
+            let response =
+                delegated_exchange(&server, &gateway, &subject_token, &actor_token, &orders).await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            let issued = claims(
+                response.json::<Value>()["access_token"]
+                    .as_str()
+                    .expect("token"),
+            );
+            assert_eq!(issued["sub"], claims(&subject_token)["sub"]);
+            assert_eq!(
+                issued["act"],
+                json!({ "sub": actor["sub"], "client_id": gateway.client_id })
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn delegation_is_refused_without_allow_delegation() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client_with(&server, "gateway", true, true).await;
+            let orders = create_client(&server, "orders", false).await;
+            create_policy(&server, &gateway, &orders, &["profile"], true, false).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+            let actor_token = service_token(&server, &gateway).await;
+
+            let response =
+                delegated_exchange(&server, &gateway, &subject_token, &actor_token, &orders).await;
+
+            assert_oauth_error(&response, 400, "unauthorized_client");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn an_actor_token_of_another_client_is_refused() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client_with(&server, "gateway", true, true).await;
+            let other = create_client_with(&server, "other", false, true).await;
+            let orders = create_client(&server, "orders", false).await;
+            create_policy(&server, &gateway, &orders, &["profile"], false, true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+            let foreign_actor = service_token(&server, &other).await;
+
+            let response =
+                delegated_exchange(&server, &gateway, &subject_token, &foreign_actor, &orders)
+                    .await;
+
+            assert_oauth_error(&response, 400, "invalid_request");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_exchange_test -- --ignored"]
+    fn a_chained_delegation_nests_the_previous_act() {
+        rt().block_on(async {
+            let server = make_server();
+            let gateway = create_client_with(&server, "gateway", true, true).await;
+            let orders = create_client(&server, "orders", false).await;
+            create_policy(&server, &gateway, &orders, &["profile"], false, true).await;
+            let subject_token = subject_token_for(&server, &gateway).await;
+            let actor_token = service_token(&server, &gateway).await;
+            let actor_sub = claims(&actor_token)["sub"].clone();
+
+            let first =
+                delegated_exchange(&server, &gateway, &subject_token, &actor_token, &orders).await;
+            assert_eq!(first.status_code(), 200, "{}", first.text());
+            let first_token = first.json::<Value>()["access_token"]
+                .as_str()
+                .expect("token")
+                .to_string();
+
+            let second =
+                delegated_exchange(&server, &gateway, &first_token, &actor_token, &orders).await;
+            assert_eq!(second.status_code(), 200, "{}", second.text());
+            let issued = claims(
+                second.json::<Value>()["access_token"]
+                    .as_str()
+                    .expect("token"),
+            );
+
+            let link = json!({ "sub": actor_sub, "client_id": gateway.client_id });
+            let mut expected = link.clone();
+            expected["act"] = link;
+            assert_eq!(issued["act"], expected);
         });
     }
 }

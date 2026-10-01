@@ -58,6 +58,7 @@ where
 struct ExchangeTrace {
     client: Uuid,
     subject: Option<Uuid>,
+    actor: Option<Uuid>,
     policy: Option<Uuid>,
 }
 
@@ -164,15 +165,43 @@ where
         Ok((claims, user))
     }
 
+    /// The actor token's claims, once it is proven to be a live access token
+    /// of this realm issued to `client`: a client can only present itself, or
+    /// a user it holds a token for, as the actor.
+    async fn verify_actor(
+        &self,
+        realm: &RealmScope,
+        client: &Client,
+        actor_token: String,
+    ) -> Result<JwtClaim, TokenExchangeError> {
+        let claims = self
+            .token_issuer
+            .verify_subject_token(actor_token, realm.id())
+            .await
+            .map_err(|err| match err {
+                CoreError::InternalServerError => {
+                    TokenExchangeError::ServerError("could not verify the actor token".into())
+                }
+                _ => TokenExchangeError::InvalidRequest,
+            })?;
+
+        if claims.typ != ClaimsTyp::Bearer || claims.azp != client.client_id {
+            return Err(TokenExchangeError::InvalidRequest);
+        }
+
+        Ok(claims)
+    }
+
     /// The delegation policy letting `client` target `audience`, with the
-    /// target client itself. There is no
-    /// `actor_token` yet, so every exchange with an audience acts as the
-    /// subject and needs the policy to allow impersonation.
+    /// target client itself. A delegated exchange (with an actor) needs the
+    /// policy to allow delegation; a plain one acts as the subject and needs
+    /// it to allow impersonation.
     async fn policy_for(
         &self,
         realm: &RealmScope,
         client: &Client,
         audience: &str,
+        delegated: bool,
     ) -> Result<(TokenExchangePolicy, Client), TokenExchangeError> {
         let target = self
             .client_repository
@@ -197,7 +226,12 @@ where
             .ok_or(TokenExchangeError::InvalidTarget)?
             .into_inner();
 
-        if !policy.allow_impersonation {
+        let allowed = if delegated {
+            policy.allow_delegation
+        } else {
+            policy.allow_impersonation
+        };
+        if !allowed {
             return Err(TokenExchangeError::UnauthorizedClient);
         }
 
@@ -216,6 +250,17 @@ where
             TokenType::from_urn(requested)?.ensure_supported()?;
         }
 
+        // RFC 8693 §2.1: `actor_token_type` is required with `actor_token`
+        // and must not appear without it.
+        let actor_token = match (input.actor_token, input.actor_token_type.as_deref()) {
+            (Some(token), Some(urn)) => {
+                TokenType::from_urn(urn)?.ensure_supported()?;
+                Some(token)
+            }
+            (None, None) => None,
+            _ => return Err(TokenExchangeError::InvalidRequest),
+        };
+
         if input.resource.is_some() {
             return Err(TokenExchangeError::InvalidTarget);
         }
@@ -225,14 +270,25 @@ where
             .await?;
         trace.subject = Some(subject.sub);
 
+        let actor = match actor_token {
+            Some(token) => Some(self.verify_actor(&params.realm, client, token).await?),
+            None => None,
+        };
+        trace.actor = actor.as_ref().map(|actor| actor.sub);
+
         let audience = input
             .audience
             .filter(|audience| !audience.trim().is_empty());
         let (policy, target) = match audience.as_deref() {
             Some(audience) => {
-                let (policy, target) = self.policy_for(&params.realm, client, audience).await?;
+                let (policy, target) = self
+                    .policy_for(&params.realm, client, audience, actor.is_some())
+                    .await?;
                 (Some(policy), Some(target))
             }
+            // Delegation is only ever granted by a policy, and without an
+            // audience there is none to grant it.
+            None if actor.is_some() => return Err(TokenExchangeError::UnauthorizedClient),
             None => (None, None),
         };
         trace.policy = policy.as_ref().map(|policy| policy.id);
@@ -270,6 +326,7 @@ where
                 audience,
                 scope: scope.clone(),
                 mapped,
+                act: act_claim(&subject, actor.as_ref()),
             },
             now,
             lifetime,
@@ -321,6 +378,7 @@ where
             "client_id": params.client_id,
             "audience": params.input.audience,
             "policy_id": trace.policy,
+            "actor": trace.actor,
         });
         if let Err(err) = result {
             details["error_code"] = json!(err.to_string());
@@ -368,6 +426,7 @@ where
         let mut trace = ExchangeTrace {
             client: client.id,
             subject: None,
+            actor: None,
             policy: None,
         };
         let result = self.exchange_as(&client, params.clone(), &mut trace).await;
@@ -458,6 +517,27 @@ struct ExchangedToken {
     scope: Option<String>,
     /// Claims from the consuming client's protocol mappers, for `scope` only.
     mapped: HashMap<String, serde_json::Value>,
+    /// The RFC 8693 §4.1 `act` claim, when anyone acts for the subject.
+    act: Option<serde_json::Value>,
+}
+
+/// The `act` claim of the issued token (RFC 8693 §4.1). A new actor wraps
+/// any delegation already recorded on the subject token, so the chain reads
+/// from the current actor down to the first one. Without a new actor the
+/// existing chain is carried over untouched: an exchange never erases who
+/// acted before.
+fn act_claim(subject: &JwtClaim, actor: Option<&JwtClaim>) -> Option<serde_json::Value> {
+    let previous = subject.additional_claims.get("act").cloned();
+    match actor {
+        Some(actor) => {
+            let mut act = json!({ "sub": actor.sub, "client_id": actor.azp });
+            if let Some(previous) = previous {
+                act["act"] = previous;
+            }
+            Some(act)
+        }
+        None => previous,
+    }
 }
 
 /// The claims of the issued token. `iss`, `sub` and `sid` come from the
@@ -477,6 +557,9 @@ fn exchanged_claims(
     claims.azp = token.azp;
     claims.scope = token.scope;
     claims.additional_claims = token.mapped;
+    if let Some(act) = token.act {
+        claims.additional_claims.insert("act".to_string(), act);
+    }
     // Identity claims now reach tokens only through the mapped claims.
     claims.preferred_username = None;
     claims.email = None;
@@ -514,6 +597,7 @@ mod tests {
     const SECRET: &str = "s3cret";
     const REQUESTER: &str = "gateway";
     const AUDIENCE: &str = "orders-api";
+    const ACTOR_TOKEN: &str = "actor-token";
 
     type TestService = TokenExchangeServiceImpl<
         MockClientRepository,
@@ -584,6 +668,8 @@ mod tests {
             audience: audience.map(str::to_string),
             resource: None,
             scope: scope.map(str::to_string),
+            actor_token: None,
+            actor_token_type: None,
         }
     }
 
@@ -602,6 +688,7 @@ mod tests {
         clients: Vec<Client>,
         user: Option<User>,
         subject: Result<JwtClaim, CoreError>,
+        actor: Option<JwtClaim>,
         policy: Option<TokenExchangePolicy>,
         issued: Arc<Mutex<Option<JwtClaim>>>,
         events: Arc<Mutex<Vec<SecurityEvent>>>,
@@ -615,10 +702,16 @@ mod tests {
                 clients: vec![requester],
                 user: Some(user),
                 subject: Ok(subject),
+                actor: None,
                 policy: None,
                 issued: Arc::default(),
                 events: Arc::default(),
             }
+        }
+
+        fn with_actor(mut self, actor: JwtClaim) -> Self {
+            self.actor = Some(actor);
+            self
         }
 
         fn with_client(mut self, client: Client) -> Self {
@@ -669,10 +762,17 @@ mod tests {
 
             let mut issuer = MockSubjectTokenIssuer::new();
             let subject = self.subject.clone();
-            issuer.expect_verify_subject_token().returning(move |_, _| {
-                let subject = subject.clone();
-                Box::pin(async move { subject })
-            });
+            let actor = self.actor.clone();
+            issuer
+                .expect_verify_subject_token()
+                .returning(move |token, _| {
+                    let verified = match (token.as_str(), actor.clone()) {
+                        (ACTOR_TOKEN, Some(actor)) => Ok(actor),
+                        (ACTOR_TOKEN, None) => Err(CoreError::InvalidToken),
+                        _ => subject.clone(),
+                    };
+                    Box::pin(async move { verified })
+                });
             // Stands in for the protocol mappers: says which client shaped the
             // token and for which scope.
             issuer
@@ -1287,5 +1387,236 @@ mod tests {
             resolve_scope(Some("  "), Some("a"), None),
             Ok(Some("a".to_string()))
         );
+    }
+
+    fn delegated(audience: Option<&str>) -> TokenExchangeInput {
+        let mut request = input(None, audience);
+        request.actor_token = Some(ACTOR_TOKEN.to_string());
+        request.actor_token_type = Some(ACCESS_TOKEN_URN.to_string());
+        request
+    }
+
+    fn actor_claims(realm: &Realm, azp: &str) -> JwtClaim {
+        let actor = create_test_user_with_realm(realm);
+        let mut claims = subject_claims(&actor, azp, "openid", 3600);
+        claims.sub = Uuid::new_v4();
+        claims
+    }
+
+    fn delegating_policy(realm: &Realm, client: &Client) -> TokenExchangePolicy {
+        let mut policy = policy(realm, client, None);
+        policy.allow_impersonation = false;
+        policy.allow_delegation = true;
+        policy
+    }
+
+    #[tokio::test]
+    async fn a_delegated_exchange_names_the_actor() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let actor = actor_claims(&realm, REQUESTER);
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor.clone());
+
+        harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect("delegation is allowed by the policy");
+
+        let issued = harness.issued();
+        assert_eq!(issued.sub, user.id, "the subject stays the subject");
+        assert_eq!(
+            issued.additional_claims["act"],
+            json!({ "sub": actor.sub, "client_id": REQUESTER })
+        );
+    }
+
+    #[tokio::test]
+    async fn delegation_needs_the_policy_to_allow_it() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        // Impersonation on, delegation off.
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(policy(&realm, &requester, None))
+            .with_actor(actor_claims(&realm, REQUESTER));
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect_err("delegation must be allowed by the policy");
+
+        assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+        assert!(harness.nothing_issued());
+    }
+
+    #[tokio::test]
+    async fn a_delegating_policy_does_not_allow_impersonation() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester));
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, input(None, Some(AUDIENCE))))
+            .await
+            .expect_err("a plain exchange needs impersonation");
+
+        assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+    }
+
+    #[tokio::test]
+    async fn an_actor_token_issued_to_another_client_is_refused() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor_claims(&realm, "someone-else"));
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect_err("an actor token of another client must be refused");
+
+        assert_eq!(err, TokenExchangeError::InvalidRequest);
+    }
+
+    #[tokio::test]
+    async fn an_invalid_actor_token_is_refused() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        // No actor registered: the actor token fails verification.
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester));
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect_err("an invalid actor token must be refused");
+
+        assert_eq!(err, TokenExchangeError::InvalidRequest);
+    }
+
+    #[tokio::test]
+    async fn an_actor_without_an_audience_is_refused() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let harness =
+            Harness::new(&realm, requester, subject).with_actor(actor_claims(&realm, REQUESTER));
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, delegated(None)))
+            .await
+            .expect_err("delegation is only granted by a policy");
+
+        assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+    }
+
+    #[tokio::test]
+    async fn the_actor_token_and_its_type_come_together() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let harness =
+            Harness::new(&realm, requester, subject).with_actor(actor_claims(&realm, REQUESTER));
+
+        let mut token_only = delegated(Some(AUDIENCE));
+        token_only.actor_token_type = None;
+        let mut type_only = input(None, Some(AUDIENCE));
+        type_only.actor_token_type = Some(ACCESS_TOKEN_URN.to_string());
+        for request in [token_only, type_only] {
+            let err = harness
+                .build()
+                .exchange(params(&realm, request))
+                .await
+                .expect_err("actor_token and actor_token_type go together");
+            assert_eq!(err, TokenExchangeError::InvalidRequest);
+        }
+
+        let mut id_token_actor = delegated(Some(AUDIENCE));
+        id_token_actor.actor_token_type =
+            Some("urn:ietf:params:oauth:token-type:id_token".to_string());
+        let err = harness
+            .build()
+            .exchange(params(&realm, id_token_actor))
+            .await
+            .expect_err("only access tokens can act");
+        assert_eq!(err, TokenExchangeError::UnsupportedTokenType);
+    }
+
+    #[tokio::test]
+    async fn a_chained_delegation_nests_the_previous_actor() {
+        let (realm, requester, user) = standard();
+        let mut subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let first_actor = json!({ "sub": Uuid::new_v4(), "client_id": "frontend" });
+        subject
+            .additional_claims
+            .insert("act".to_string(), first_actor.clone());
+        let actor = actor_claims(&realm, REQUESTER);
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor.clone());
+
+        harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect("exchange should succeed");
+
+        assert_eq!(
+            harness.issued().additional_claims["act"],
+            json!({ "sub": actor.sub, "client_id": REQUESTER, "act": first_actor })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_plain_exchange_keeps_the_recorded_delegation() {
+        let (realm, requester, user) = standard();
+        let mut subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let previous = json!({ "sub": Uuid::new_v4(), "client_id": "frontend" });
+        subject
+            .additional_claims
+            .insert("act".to_string(), previous.clone());
+        let harness = Harness::new(&realm, requester, subject);
+
+        harness
+            .build()
+            .exchange(params(&realm, input(None, None)))
+            .await
+            .expect("exchange should succeed");
+
+        assert_eq!(harness.issued().additional_claims["act"], previous);
+    }
+
+    #[tokio::test]
+    async fn the_audit_trail_names_the_actor() {
+        let (realm, requester, user) = standard();
+        let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+        let actor = actor_claims(&realm, REQUESTER);
+        let harness = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor.clone());
+
+        harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect("exchange should succeed");
+
+        let events = harness.events();
+        let details = events[0].details.clone().expect("details");
+        assert_eq!(details["actor"], json!(actor.sub));
     }
 }
