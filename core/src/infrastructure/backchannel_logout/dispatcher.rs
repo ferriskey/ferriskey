@@ -44,8 +44,9 @@ impl BackchannelLogoutNotifier for BackchannelLogoutDispatcher {
             return;
         };
         for session in sessions {
+            let session_id = session.session_id;
             if sender.try_send(session).is_err() {
-                warn!(session_id = %session.session_id, "Back-channel logout queue full, dropping a session");
+                warn!(session_id = %session_id, "Back-channel logout queue full, dropping a session");
             }
         }
     }

@@ -608,4 +608,64 @@ mod tests {
             assert_eq!(body["backchannel_logout_session_supported"], json!(true));
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test backchannel_logout_test -- --ignored"]
+    fn deleting_a_user_notifies_its_clients() {
+        rt().block_on(async {
+            let server = make_server();
+            let rp = fake_relying_party().await;
+            let client = create_client(&server, Some(&rp.endpoint)).await;
+            let user = create_user(&server).await;
+            let tokens = sign_in(&server, &client, &user).await;
+            let sid =
+                payload(tokens["access_token"].as_str().expect("access_token"))["sid"].clone();
+
+            // Deleting the user cascades to its access tokens, which is where
+            // the clients of a session are read from.
+            let master = master_token(&server).await;
+            let response = server
+                .delete(&format!("/realms/{REALM}/users/{}", user.id))
+                .add_header("Authorization", auth_header(&master))
+                .await;
+            assert!(response.status_code().is_success(), "{}", response.text());
+
+            let received = rp.wait_for(1).await;
+            assert_eq!(received.len(), 1, "{received:?}");
+            assert_eq!(payload(&received[0])["sid"], sid);
+            assert_eq!(payload(&received[0])["sub"], json!(user.id));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test backchannel_logout_test -- --ignored"]
+    fn bulk_deleting_users_notifies_their_clients() {
+        rt().block_on(async {
+            let server = make_server();
+            let rp = fake_relying_party().await;
+            let client = create_client(&server, Some(&rp.endpoint)).await;
+            let first = create_user(&server).await;
+            let second = create_user(&server).await;
+            sign_in(&server, &client, &first).await;
+            sign_in(&server, &client, &second).await;
+
+            let master = master_token(&server).await;
+            let response = server
+                .delete(&format!("/realms/{REALM}/users/bulk"))
+                .add_header("Authorization", auth_header(&master))
+                .json(&json!({ "ids": [first.id, second.id] }))
+                .await;
+            assert!(response.status_code().is_success(), "{}", response.text());
+
+            let received = rp.wait_for(2).await;
+            let mut subjects: Vec<String> = received
+                .iter()
+                .map(|token| payload(token)["sub"].as_str().expect("sub").to_string())
+                .collect();
+            subjects.sort();
+            let mut expected = vec![first.id.clone(), second.id.clone()];
+            expected.sort();
+            assert_eq!(subjects, expected);
+        });
+    }
 }

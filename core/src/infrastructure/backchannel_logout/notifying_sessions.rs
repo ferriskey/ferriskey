@@ -3,7 +3,9 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::domain::authentication::backchannel_logout::{BackchannelLogoutNotifier, EndedSession};
+use crate::domain::authentication::backchannel_logout::{
+    BackchannelLogoutNotifier, EndedSession, SessionParticipantRepository,
+};
 use crate::domain::realm::entities::{Scoped, Unscoped};
 use crate::domain::session::{
     entities::{SessionError, UserSession},
@@ -16,37 +18,61 @@ use crate::domain::session::{
 /// `delete` or `delete_all_by_user`, so no caller can forget to notify.
 /// Purging expired sessions does not notify: an expired session already
 /// ended on its own.
+///
+/// The participants of a session are read here, before it is deleted, and
+/// travel with it: deleting a user cascades to its access tokens, so the
+/// worker could not read them back afterwards.
 #[derive(Debug, Clone)]
-pub struct NotifyingUserSessionRepository<R, N>
+pub struct NotifyingUserSessionRepository<R, P, N>
 where
     R: UserSessionRepository,
+    P: SessionParticipantRepository,
     N: BackchannelLogoutNotifier,
 {
     inner: Arc<R>,
+    participants: Arc<P>,
     notifier: N,
 }
 
-impl<R, N> NotifyingUserSessionRepository<R, N>
+impl<R, P, N> NotifyingUserSessionRepository<R, P, N>
 where
     R: UserSessionRepository,
+    P: SessionParticipantRepository,
     N: BackchannelLogoutNotifier,
 {
-    pub fn new(inner: Arc<R>, notifier: N) -> Self {
-        Self { inner, notifier }
+    pub fn new(inner: Arc<R>, participants: Arc<P>, notifier: N) -> Self {
+        Self {
+            inner,
+            participants,
+            notifier,
+        }
+    }
+
+    /// `session` with the clients that took part in it. A failed lookup
+    /// still reports the session, with no one to notify.
+    async fn ended(&self, session: &UserSession) -> EndedSession {
+        let participants = self
+            .participants
+            .participants(session.realm_id.into(), session.id)
+            .await
+            .unwrap_or_else(|err| {
+                tracing::warn!(session_id = %session.id, error = %err, "Could not list the clients of a session");
+                Vec::new()
+            });
+
+        EndedSession {
+            realm_id: session.realm_id.into(),
+            session_id: session.id,
+            user_id: session.user_id,
+            participants,
+        }
     }
 }
 
-fn ended(session: &UserSession) -> EndedSession {
-    EndedSession {
-        realm_id: session.realm_id.into(),
-        session_id: session.id,
-        user_id: session.user_id,
-    }
-}
-
-impl<R, N> UserSessionRepository for NotifyingUserSessionRepository<R, N>
+impl<R, P, N> UserSessionRepository for NotifyingUserSessionRepository<R, P, N>
 where
     R: UserSessionRepository,
+    P: SessionParticipantRepository,
     N: BackchannelLogoutNotifier,
 {
     async fn create(&self, session: &UserSession) -> Result<(), SessionError> {
@@ -82,21 +108,23 @@ where
     }
 
     async fn delete(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
+        let ended = self.ended(session.get()).await;
         self.inner.delete(session).await?;
-        self.notifier.sessions_ended(vec![ended(session.get())]);
+        self.notifier.sessions_ended(vec![ended]);
         Ok(())
     }
 
     async fn delete_all_by_user(&self, user_id: Uuid, realm_id: Uuid) -> Result<u64, SessionError> {
-        let live: Vec<EndedSession> = self
+        let sessions = self
             .inner
             .find_all_by_user_and_realm(user_id, realm_id)
             .await
-            .unwrap_or_default()
-            .iter()
-            .filter(|session| !session.is_expired())
-            .map(ended)
-            .collect();
+            .unwrap_or_default();
+
+        let mut live = Vec::new();
+        for session in sessions.iter().filter(|session| !session.is_expired()) {
+            live.push(self.ended(session).await);
+        }
 
         let deleted = self.inner.delete_all_by_user(user_id, realm_id).await?;
         self.notifier.sessions_ended(live);
@@ -145,9 +173,13 @@ mod tests {
     use chrono::Duration;
 
     use super::*;
+    use crate::domain::authentication::backchannel_logout::SessionParticipant;
+    use crate::domain::authentication::backchannel_logout::ports::MockSessionParticipantRepository;
     use crate::domain::common::services::tests::create_test_realm;
     use crate::domain::realm::entities::RealmScope;
     use crate::domain::session::ports::MockUserSessionRepository;
+
+    type CallLog = Arc<Mutex<Vec<&'static str>>>;
 
     #[derive(Default, Clone)]
     struct RecordingNotifier(Arc<Mutex<Vec<EndedSession>>>);
@@ -156,6 +188,24 @@ mod tests {
         fn sessions_ended(&self, sessions: Vec<EndedSession>) {
             self.0.lock().expect("notified lock").extend(sessions);
         }
+    }
+
+    fn orders() -> SessionParticipant {
+        SessionParticipant {
+            client_id: "orders".to_string(),
+            issuer: "https://sso.example.com/realms/home".to_string(),
+        }
+    }
+
+    /// Answers `orders` for every session and logs each call.
+    fn participants(log: &CallLog) -> Arc<MockSessionParticipantRepository> {
+        let mut participants = MockSessionParticipantRepository::new();
+        let log = log.clone();
+        participants.expect_participants().returning(move |_, _| {
+            log.lock().expect("log lock").push("participants");
+            Box::pin(async { Ok(vec![orders()]) })
+        });
+        Arc::new(participants)
     }
 
     fn user_session(user_id: Uuid, realm_id: Uuid, expires_in: Duration) -> UserSession {
@@ -173,14 +223,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deleting_a_session_reports_it() {
+    async fn deleting_a_session_reports_it_with_participants_read_first() {
         let session = user_session(Uuid::new_v4(), Uuid::new_v4(), Duration::hours(1));
+        let log = CallLog::default();
         let mut inner = MockUserSessionRepository::new();
-        inner
-            .expect_delete()
-            .returning(|_| Box::pin(async { Ok(()) }));
+        let delete_log = log.clone();
+        inner.expect_delete().returning(move |_| {
+            delete_log.lock().expect("log lock").push("delete");
+            Box::pin(async { Ok(()) })
+        });
         let notifier = RecordingNotifier::default();
-        let repository = NotifyingUserSessionRepository::new(Arc::new(inner), notifier.clone());
+        let repository = NotifyingUserSessionRepository::new(
+            Arc::new(inner),
+            participants(&log),
+            notifier.clone(),
+        );
 
         repository
             .delete(&scoped(session.clone()))
@@ -191,17 +248,28 @@ mod tests {
         assert_eq!(notified.len(), 1);
         assert_eq!(notified[0].session_id, session.id);
         assert_eq!(notified[0].user_id, session.user_id);
+        assert_eq!(notified[0].participants, vec![orders()]);
+        assert_eq!(
+            *log.lock().expect("log lock"),
+            vec!["participants", "delete"],
+            "the participants are read before the session and its tokens can go"
+        );
     }
 
     #[tokio::test]
     async fn a_failed_delete_reports_nothing() {
         let session = user_session(Uuid::new_v4(), Uuid::new_v4(), Duration::hours(1));
+        let log = CallLog::default();
         let mut inner = MockUserSessionRepository::new();
         inner
             .expect_delete()
             .returning(|_| Box::pin(async { Err(SessionError::NotFound) }));
         let notifier = RecordingNotifier::default();
-        let repository = NotifyingUserSessionRepository::new(Arc::new(inner), notifier.clone());
+        let repository = NotifyingUserSessionRepository::new(
+            Arc::new(inner),
+            participants(&log),
+            notifier.clone(),
+        );
 
         let _ = repository.delete(&scoped(session)).await;
 
@@ -214,6 +282,7 @@ mod tests {
         let live = user_session(user_id, realm_id, Duration::hours(1));
         let expired = user_session(user_id, realm_id, -Duration::hours(1));
         let listed = vec![live.clone(), expired];
+        let log = CallLog::default();
         let mut inner = MockUserSessionRepository::new();
         inner
             .expect_find_all_by_user_and_realm()
@@ -221,11 +290,17 @@ mod tests {
                 let listed = listed.clone();
                 Box::pin(async move { Ok(listed) })
             });
-        inner
-            .expect_delete_all_by_user()
-            .returning(|_, _| Box::pin(async { Ok(2) }));
+        let delete_log = log.clone();
+        inner.expect_delete_all_by_user().returning(move |_, _| {
+            delete_log.lock().expect("log lock").push("delete");
+            Box::pin(async { Ok(2) })
+        });
         let notifier = RecordingNotifier::default();
-        let repository = NotifyingUserSessionRepository::new(Arc::new(inner), notifier.clone());
+        let repository = NotifyingUserSessionRepository::new(
+            Arc::new(inner),
+            participants(&log),
+            notifier.clone(),
+        );
 
         let deleted = repository
             .delete_all_by_user(user_id, realm_id)
@@ -240,16 +315,26 @@ mod tests {
             "an expired session already ended on its own"
         );
         assert_eq!(notified[0].session_id, live.id);
+        assert_eq!(notified[0].participants, vec![orders()]);
+        assert_eq!(
+            *log.lock().expect("log lock"),
+            vec!["participants", "delete"]
+        );
     }
 
     #[tokio::test]
     async fn purging_expired_sessions_reports_nothing() {
+        let log = CallLog::default();
         let mut inner = MockUserSessionRepository::new();
         inner
             .expect_delete_expired_for_user()
             .returning(|_, _, _| Box::pin(async { Ok(3) }));
         let notifier = RecordingNotifier::default();
-        let repository = NotifyingUserSessionRepository::new(Arc::new(inner), notifier.clone());
+        let repository = NotifyingUserSessionRepository::new(
+            Arc::new(inner),
+            participants(&log),
+            notifier.clone(),
+        );
 
         repository
             .delete_expired_for_user(Uuid::new_v4(), Uuid::new_v4(), Utc::now())
@@ -257,5 +342,6 @@ mod tests {
             .expect("purge succeeds");
 
         assert!(notifier.0.lock().expect("notified lock").is_empty());
+        assert!(log.lock().expect("log lock").is_empty());
     }
 }

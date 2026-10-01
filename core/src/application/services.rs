@@ -258,6 +258,7 @@ type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 type UserSessionRepo = crate::infrastructure::backchannel_logout::NotifyingUserSessionRepository<
     PostgresUserSessionRepository,
+    crate::infrastructure::backchannel_logout::PostgresSessionParticipantRepository,
     crate::infrastructure::backchannel_logout::BackchannelLogoutDispatcher,
 >;
 

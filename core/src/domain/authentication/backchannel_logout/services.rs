@@ -8,42 +8,44 @@ use crate::domain::authentication::backchannel_logout::entities::{
     BackchannelLogoutConfig, DeliveryReport, EndedSession, LogoutTokenClaims, SessionParticipant,
 };
 use crate::domain::authentication::backchannel_logout::ports::{
-    BackchannelLogoutService, LogoutTokenSender, LogoutTokenSigner, SessionParticipantRepository,
+    BackchannelLogoutService, LogoutTokenSender, LogoutTokenSigner,
 };
 use crate::domain::client::entities::Client;
 use crate::domain::client::ports::ClientRepository;
+use crate::domain::realm::entities::RealmScope;
+use crate::domain::realm::ports::RealmRepository;
 
 #[derive(Clone, Debug)]
-pub struct BackchannelLogoutServiceImpl<P, C, G, S>
+pub struct BackchannelLogoutServiceImpl<R, C, G, S>
 where
-    P: SessionParticipantRepository,
+    R: RealmRepository,
     C: ClientRepository,
     G: LogoutTokenSigner,
     S: LogoutTokenSender,
 {
-    pub(crate) participants: Arc<P>,
+    pub(crate) realms: Arc<R>,
     pub(crate) clients: Arc<C>,
     pub(crate) signer: Arc<G>,
     pub(crate) sender: Arc<S>,
     pub(crate) config: BackchannelLogoutConfig,
 }
 
-impl<P, C, G, S> BackchannelLogoutServiceImpl<P, C, G, S>
+impl<R, C, G, S> BackchannelLogoutServiceImpl<R, C, G, S>
 where
-    P: SessionParticipantRepository,
+    R: RealmRepository,
     C: ClientRepository,
     G: LogoutTokenSigner,
     S: LogoutTokenSender,
 {
     pub fn new(
-        participants: Arc<P>,
+        realms: Arc<R>,
         clients: Arc<C>,
         signer: Arc<G>,
         sender: Arc<S>,
         config: BackchannelLogoutConfig,
     ) -> Self {
         Self {
-            participants,
+            realms,
             clients,
             signer,
             sender,
@@ -55,17 +57,19 @@ where
     /// of the session's realm that registered one.
     async fn endpoint_of(
         &self,
-        session: &EndedSession,
+        scope: &RealmScope,
         participant: &SessionParticipant,
     ) -> Option<(Client, String)> {
         let client = self
             .clients
-            .get_by_client_id(participant.client_id.clone(), session.realm_id)
+            .get_by_client_id(participant.client_id.clone(), scope.id())
             .await
             .ok()?
-            .across_realms();
+            .in_realm(scope)
+            .ok()?
+            .into_inner();
 
-        if client.realm_id != session.realm_id || !client.enabled {
+        if !client.enabled {
             return None;
         }
 
@@ -77,10 +81,11 @@ where
     /// whether the client acknowledged it.
     async fn notify(
         &self,
+        scope: &RealmScope,
         session: &EndedSession,
         participant: SessionParticipant,
     ) -> Option<bool> {
-        let (client, endpoint) = self.endpoint_of(session, &participant).await?;
+        let (client, endpoint) = self.endpoint_of(scope, &participant).await?;
 
         let claims = LogoutTokenClaims::new(
             &participant,
@@ -121,39 +126,37 @@ where
     }
 }
 
-impl<P, C, G, S> BackchannelLogoutService for BackchannelLogoutServiceImpl<P, C, G, S>
+impl<R, C, G, S> BackchannelLogoutService for BackchannelLogoutServiceImpl<R, C, G, S>
 where
-    P: SessionParticipantRepository,
+    R: RealmRepository,
     C: ClientRepository,
     G: LogoutTokenSigner,
     S: LogoutTokenSender,
 {
     async fn deliver(&self, session: EndedSession) -> DeliveryReport {
-        let participants = match self
-            .participants
-            .participants(session.realm_id, session.session_id)
-            .await
-        {
-            Ok(participants) => participants,
+        let scope = match self.realms.get_by_id(session.realm_id).await {
+            Ok(Some(realm)) => RealmScope::from_realm(realm),
+            Ok(None) => return DeliveryReport::default(),
             Err(err) => {
-                warn!(session_id = %session.session_id, error = %err, "Could not list the clients of an ended session");
+                warn!(session_id = %session.session_id, error = %err, "Could not load the realm of an ended session");
                 return DeliveryReport::default();
             }
         };
 
+        // One token per client and issuer: a client that got tokens under two
+        // realm URLs checks `iss` against the one it knows.
         let mut unique: Vec<SessionParticipant> = Vec::new();
-        for participant in participants {
-            if !unique
-                .iter()
-                .any(|seen| seen.client_id == participant.client_id)
-            {
+        for participant in session.participants.iter().cloned() {
+            if !unique.contains(&participant) {
                 unique.push(participant);
             }
         }
 
+        let scope = &scope;
+        let session = &session;
         let outcomes = join_all(unique.into_iter().map(|participant| {
             let client_id = participant.client_id.clone();
-            async move { (client_id, self.notify(&session, participant).await) }
+            async move { (client_id, self.notify(scope, session, participant).await) }
         }))
         .await;
 
@@ -181,16 +184,18 @@ mod tests {
         BACKCHANNEL_LOGOUT_EVENT, LogoutDeliveryError,
     };
     use crate::domain::authentication::backchannel_logout::ports::{
-        MockLogoutTokenSender, MockLogoutTokenSigner, MockSessionParticipantRepository,
+        MockLogoutTokenSender, MockLogoutTokenSigner,
     };
     use crate::domain::client::ports::MockClientRepository;
     use crate::domain::common::entities::app_errors::CoreError;
+    use crate::domain::common::services::tests::create_test_realm;
     use crate::domain::realm::entities::{RealmId, Unscoped};
+    use crate::domain::realm::ports::MockRealmRepository;
 
     const ISSUER: &str = "https://sso.example.com/realms/home";
 
     type TestService = BackchannelLogoutServiceImpl<
-        MockSessionParticipantRepository,
+        MockRealmRepository,
         MockClientRepository,
         MockLogoutTokenSigner,
         MockLogoutTokenSender,
@@ -201,6 +206,7 @@ mod tests {
             realm_id: RealmId::default(),
             session_id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            participants: Vec::new(),
         }
     }
 
@@ -251,11 +257,11 @@ mod tests {
         }
 
         fn build(&self) -> TestService {
-            let mut participants = MockSessionParticipantRepository::new();
-            let listed = self.participants.clone();
-            participants.expect_participants().returning(move |_, _| {
-                let listed = listed.clone();
-                Box::pin(async move { Ok(listed) })
+            let mut realms = MockRealmRepository::new();
+            realms.expect_get_by_id().returning(|realm_id| {
+                let mut realm = create_test_realm();
+                realm.id = realm_id;
+                Box::pin(async move { Ok(Some(realm)) })
             });
 
             let mut clients = MockClientRepository::new();
@@ -296,7 +302,7 @@ mod tests {
             });
 
             BackchannelLogoutServiceImpl::new(
-                Arc::new(participants),
+                Arc::new(realms),
                 Arc::new(clients),
                 Arc::new(signer),
                 Arc::new(sender),
@@ -305,6 +311,12 @@ mod tests {
                     token_lifetime: Duration::from_secs(120),
                 },
             )
+        }
+
+        /// `session` as the session store reports it: with its participants.
+        fn ended(&self, mut session: EndedSession) -> EndedSession {
+            session.participants = self.participants.clone();
+            session
         }
 
         fn attempts_to(&self, endpoint: &str) -> usize {
@@ -336,7 +348,7 @@ mod tests {
             ],
         );
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report.failed, Vec::<String>::new());
         let mut delivered = report.delivered.clone();
@@ -361,7 +373,7 @@ mod tests {
             )],
         );
 
-        harness.build().deliver(ended).await;
+        harness.build().deliver(harness.ended(ended.clone())).await;
 
         let signed = harness.signed.lock().expect("signed lock");
         assert_eq!(signed.len(), 1);
@@ -392,7 +404,7 @@ mod tests {
             ],
         );
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report.delivered, vec!["orders"]);
         assert!(report.failed.is_empty());
@@ -411,7 +423,7 @@ mod tests {
             )],
         );
 
-        harness.build().deliver(ended).await;
+        harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(harness.attempts_to("https://orders.example/logout"), 1);
     }
@@ -435,7 +447,7 @@ mod tests {
             vec![disabled, foreign],
         );
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report, DeliveryReport::default());
         assert!(harness.sent.lock().expect("sent lock").is_empty());
@@ -458,7 +470,7 @@ mod tests {
             ],
         );
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report.delivered, vec!["orders"]);
         assert_eq!(harness.attempts_to(endpoint), 3);
@@ -477,7 +489,7 @@ mod tests {
             vec![Err(LogoutDeliveryError::Transport("down".into()))],
         );
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report.failed, vec!["orders"]);
         assert_eq!(harness.attempts_to(endpoint), 3);
@@ -493,7 +505,7 @@ mod tests {
         )
         .answering(endpoint, vec![Err(LogoutDeliveryError::Rejected(400))]);
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report.failed, vec!["orders"]);
         assert_eq!(harness.attempts_to(endpoint), 1);
@@ -518,9 +530,40 @@ mod tests {
             vec![Err(LogoutDeliveryError::ForbiddenAddress)],
         );
 
-        let report = harness.build().deliver(ended).await;
+        let report = harness.build().deliver(harness.ended(ended.clone())).await;
 
         assert_eq!(report.delivered, vec!["orders"]);
         assert_eq!(report.failed, vec!["down"]);
+    }
+
+    #[tokio::test]
+    async fn a_client_seen_under_two_issuers_gets_a_token_for_each() {
+        let ended = session();
+        let endpoint = "https://orders.example/logout";
+        let mut other_host = participant("orders");
+        other_host.issuer = "https://sso.internal/realms/home".to_string();
+        let harness = Harness::new(
+            vec![participant("orders"), other_host],
+            vec![client(ended.realm_id, "orders", Some(endpoint))],
+        );
+
+        harness.build().deliver(harness.ended(ended.clone())).await;
+
+        let mut issuers: Vec<String> = harness
+            .signed
+            .lock()
+            .expect("signed lock")
+            .iter()
+            .map(|claims| claims.iss.clone())
+            .collect();
+        issuers.sort();
+        assert_eq!(
+            issuers,
+            vec![
+                "https://sso.example.com/realms/home",
+                "https://sso.internal/realms/home"
+            ]
+        );
+        assert_eq!(harness.attempts_to(endpoint), 2);
     }
 }

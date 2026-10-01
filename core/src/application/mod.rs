@@ -231,7 +231,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     // clients that took part in it (OIDC Back-Channel Logout).
     let backchannel_logout =
         BackchannelLogoutDispatcher::spawn(Arc::new(BackchannelLogoutServiceImpl::new(
-            Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
+            realm.clone(),
             client.clone(),
             Arc::new(KeystoreLogoutTokenSigner::new(keystore.clone())),
             Arc::new(HttpLogoutTokenSender::new(private_endpoints)),
@@ -239,6 +239,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         )));
     let user_session = Arc::new(NotifyingUserSessionRepository::new(
         Arc::new(PostgresUserSessionRepository::new(postgres.get_db())),
+        Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
         backchannel_logout,
     ));
     let token_revocation = Arc::new(

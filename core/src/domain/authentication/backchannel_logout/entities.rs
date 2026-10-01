@@ -16,12 +16,16 @@ pub const BACKCHANNEL_LOGOUT_EVENT: &str = "http://schemas.openid.net/event/back
 /// The JWT `typ` header of a logout token (§2.4).
 pub const LOGOUT_TOKEN_TYP: &str = "logout+jwt";
 
-/// A user session that just ended, for any reason but expiry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A user session that just ended, for any reason but expiry, with the
+/// clients that took part in it. The participants are read before the session
+/// is deleted: deleting a user cascades to its access tokens, so they cannot
+/// be read back once the worker picks the session up.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EndedSession {
     pub realm_id: RealmId,
     pub session_id: Uuid,
     pub user_id: Uuid,
+    pub participants: Vec<SessionParticipant>,
 }
 
 /// A client that received a token in a session, with the issuer that token
@@ -138,6 +142,7 @@ mod tests {
             realm_id: RealmId::default(),
             session_id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
+            participants: Vec::new(),
         };
         let participant = SessionParticipant {
             client_id: "orders".to_string(),
