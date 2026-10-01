@@ -194,6 +194,7 @@ detail:
     credentials: 凭据
     roles: 角色
     scopes: 客户端作用域
+    token_exchange: 令牌交换
     saml: SAML
     maintenance: 维护
 
@@ -223,6 +224,9 @@ settings:
     device_code_grant:
       label: OAuth 2.0 设备授权许可
       description: 允许无浏览器的客户端（命令行工具、物联网设备、电视）针对该客户端发起设备流程。除非该客户端确实需要，否则请保持关闭。
+    token_exchange:
+      label: OAuth 2.0 令牌交换
+      description: 允许此客户端将用户的令牌交换为面向另一个客户端的令牌（RFC 8693）。允许的受众由“令牌交换”标签页中的策略决定。
     pkce:
       # S256, plain and "code challenge" are PKCE wire values and parameter names (RFC 7636).
       label: 要求 PKCE
@@ -490,7 +494,53 @@ maintenance:
     title: 未保存的维护设置
     description: 保存维护原因和会话策略的更改。
 
+token_exchange:
+  title: '令牌交换策略（{{total}}）'
+  description: 每条策略允许此客户端将用户的令牌交换为面向领域内另一个客户端的令牌。
+  disabled_hint: 此客户端已关闭令牌交换。策略会保留，但在设置中启用之前不会生效。
+  add: 添加策略
+  error: 无法加载令牌交换策略。
+  empty:
+    label: 暂无令牌交换策略
+    hint: 没有策略时，此客户端无法为任何受众交换令牌。
+  list:
+    no_scope_cap: 无作用域上限
+    impersonation: 模拟
+    delegation: 委托
+    delete: '删除 {{name}} 的策略'
+  create:
+    title: 新建令牌交换策略
+    description: 选择此客户端可以获取令牌的目标客户端及方式。
+    audience:
+      label: 目标受众
+      description: 交换后的令牌所面向的客户端。
+      placeholder: 选择客户端
+    scopes:
+      label: 允许的作用域
+      description: 限制交换后令牌的作用域。留空表示不额外限制。
+      placeholder: 添加作用域
+      empty: 无作用域上限。
+    impersonation:
+      label: 允许模拟
+      description: 客户端可以在没有执行者的情况下以该用户身份行事。
+    delegation:
+      label: 允许委托
+      description: 客户端可以使用 actor_token 进行交换，令牌中将加入 act 声明。
+    cancel: 取消
+    submit: 创建策略
+    submitting: 创建中…
+  delete:
+    title: 删除此策略？
+    description: '此客户端将无法再为 {{name}} 交换令牌。'
+  toast:
+    created: 令牌交换策略已创建
+    conflict: 该目标受众已存在策略。
+    create_failed: 创建策略失败
+    deleted: 令牌交换策略已删除
+    delete_failed: 删除策略失败
+
 validation:
+  target_audience_required: 请选择目标受众
   client_id_required: 客户端 ID 为必填项
   name_required: 名称为必填项
   sp_entity_id_required: Entity ID 为必填项

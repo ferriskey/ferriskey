@@ -93,7 +93,8 @@ export namespace Schemas {
     | { BadRequest: string }
     | { Conflict: string }
     | { ServiceUnavailable: string }
-    | { OAuthError: { error: string; error_description: string } };
+    | { OAuthError: { error: string; error_description: string } }
+    | { OAuthUnauthorized: { error: string; error_description: string } };
   export type ApiErrorResponse = { code: string; message: string; reason: string; status: number };
   export type AssignGroupRoleValidator = { role_id: string };
   export type AssignMemberRoleValidator = { role_id: string };
@@ -149,6 +150,7 @@ export namespace Schemas {
     secret?: (null | Masked_String) | undefined;
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null) | undefined;
+    token_exchange_enabled: boolean;
     updated_at: string;
   };
   export type NameIdFormat =
@@ -266,6 +268,7 @@ export namespace Schemas {
     protocol?: AuthProtocol | undefined;
     public_client?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
+    token_exchange_enabled?: boolean | undefined;
   };
   export type EmailType = "reset_password" | "magic_link" | "email_verification";
   export type EmailTemplate = {
@@ -379,6 +382,12 @@ export namespace Schemas {
     layout_id?: (string | null) | undefined;
     name: string;
   };
+  export type CreateTokenExchangePolicyValidator = Partial<{
+    allow_delegation: boolean;
+    allow_impersonation: boolean;
+    allowed_scopes: Array<string> | null;
+    target_audience: string;
+  }>;
   export type LoginAlias = "username" | "email";
   export type LoginAliases = Array<LoginAlias>;
   export type RealmSetting = {
@@ -447,6 +456,7 @@ export namespace Schemas {
     email: string | null;
     email_verified: boolean | null;
     firstname: string | null;
+    id: string | null;
     lastname: string | null;
     username: string;
   }>;
@@ -882,6 +892,7 @@ export namespace Schemas {
     post_logout_redirect_uri: string | null;
     state: string | null;
   }>;
+  export type OAuth2ErrorResponse = { error: string; error_description: string };
   export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
   export type OtpVerifyRequest = { code: string; label: string };
   export type OwnCredentialDto = {
@@ -1104,6 +1115,28 @@ export namespace Schemas {
     reason?: (string | null) | undefined;
     session_strategy?: (null | MaintenanceSessionStrategy) | undefined;
   };
+  export type TokenType =
+    | "urn:ietf:params:oauth:token-type:access_token"
+    | "urn:ietf:params:oauth:token-type:id_token"
+    | "urn:ietf:params:oauth:token-type:jwt";
+  export type TokenExchangeOutput = {
+    access_token: string;
+    expires_in: number;
+    issued_token_type: TokenType;
+    scope?: (string | null) | undefined;
+    token_type: string;
+  };
+  export type TokenExchangePolicy = {
+    allow_delegation: boolean;
+    allow_impersonation: boolean;
+    allowed_scopes?: (Array<string> | null) | undefined;
+    client_id: string;
+    created_at: string;
+    id: string;
+    realm_id: RealmId;
+    target_audience: string;
+    updated_at: string;
+  };
   export type TokenIntrospectionResponse = {
     active: boolean;
     aud?: (string | null) | undefined;
@@ -1120,6 +1153,7 @@ export namespace Schemas {
     username?: (string | null) | undefined;
   };
   export type TokenRequestValidator = Partial<{
+    audience: string | null;
     client_id: string | null;
     client_secret: string | null;
     code: string | null;
@@ -1129,9 +1163,15 @@ export namespace Schemas {
     password: string | null;
     redirect_uri: string | null;
     refresh_token: string | null;
+    requested_token_type: string | null;
+    resource: string | null;
     scope: string | null;
+    subject_token: string | null;
+    subject_token_type: string | null;
     username: string | null;
   }>;
+  export type TokenResponse = JwtToken | TokenExchangeOutput;
+  export type TokenUnauthorizedResponse = ApiErrorResponse | OAuth2ErrorResponse;
   export type UnassignRoleResponse = { message: string; realm_name: string; user_id: string };
   export type UpdateClientResponse = { data: Client };
   export type UpdateClientScopeValidator = Partial<{
@@ -1151,6 +1191,7 @@ export namespace Schemas {
     refresh_token_lifetime: number | null;
     require_pkce: boolean | null;
     temporary_token_lifetime: number | null;
+    token_exchange_enabled: boolean | null;
   }>;
   export type UpdateEmailTemplateResponse = { data: EmailTemplate };
   export type UpdateEmailTemplateValidator = { name: string; structure: unknown };
@@ -1989,6 +2030,55 @@ export namespace Endpoints {
     responses: {
       201: Schemas.ClientSamlConfig;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type get_Get_token_exchange_policies = {
+    method: "GET";
+    path: "/realms/{realm_name}/clients/{client_id}/token-exchange-policies";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Array<Schemas.TokenExchangePolicy>;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Create_token_exchange_policy = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/token-exchange-policies";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.CreateTokenExchangePolicyValidator;
+    };
+    responses: {
+      201: Schemas.TokenExchangePolicy;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Delete_token_exchange_policy = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/clients/{client_id}/token-exchange-policies/{policy_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string; policy_id: string };
+    };
+    responses: {
+      200: unknown;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
@@ -3514,6 +3604,8 @@ export namespace Endpoints {
         nonce: string;
         code_challenge: string;
         code_challenge_method: "S256" | "PLAIN";
+        prompt: string;
+        max_age: number;
       }>;
       path: { realm_name: string };
     };
@@ -3623,8 +3715,9 @@ export namespace Endpoints {
       body: Schemas.TokenRequestValidator;
     };
     responses: {
-      200: Schemas.JwtToken;
-      401: Schemas.ApiErrorResponse;
+      200: Schemas.TokenResponse;
+      400: Schemas.OAuth2ErrorResponse;
+      401: Schemas.TokenUnauthorizedResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
@@ -3906,6 +3999,7 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      409: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -3996,7 +4090,13 @@ export namespace Endpoints {
     parameters: {
       path: { realm_name: string };
     };
-    responses: { 200: Schemas.OwnCredentialsResponse; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
+    responses: {
+      200: Schemas.OwnCredentialsResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
   };
   export type put_Confirm_own_otp_enrollment = {
     method: "PUT";
@@ -4010,7 +4110,9 @@ export namespace Endpoints {
     responses: {
       200: Schemas.ConfirmOtpEnrollmentResponse;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -4026,7 +4128,9 @@ export namespace Endpoints {
     responses: {
       200: Schemas.StartOtpEnrollmentResponse;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -4042,7 +4146,9 @@ export namespace Endpoints {
     responses: {
       200: Schemas.DisableOtpResponse;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       409: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
@@ -4059,6 +4165,7 @@ export namespace Endpoints {
     responses: {
       200: Schemas.ConfirmPasskeyResponse;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
@@ -4076,7 +4183,9 @@ export namespace Endpoints {
     responses: {
       200: Schemas.AccountPublicKeyCredentialCreationOptionsJSON;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -4092,6 +4201,7 @@ export namespace Endpoints {
     responses: {
       200: Schemas.DeletePasskeyResponse;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       409: Schemas.ApiErrorResponse;
@@ -4112,7 +4222,9 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       409: Schemas.ApiErrorResponse;
+      422: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
@@ -4130,6 +4242,7 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       409: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
@@ -4646,6 +4759,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.get_Get_client_roles;
     "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers": Endpoints.get_Get_saml_attribute_mappers;
     "/realms/{realm_name}/clients/{client_id}/saml-config": Endpoints.get_Get_client_saml_config;
+    "/realms/{realm_name}/clients/{client_id}/token-exchange-policies": Endpoints.get_Get_token_exchange_policies;
     "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.get_Get_web_origins;
     "/realms/{realm_name}/compass/v1/activity/daily": Endpoints.get_Get_daily_activity_stats;
     "/realms/{realm_name}/compass/v1/flows": Endpoints.get_Get_flows;
@@ -4727,6 +4841,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/roles": Endpoints.post_Create_client_role;
     "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers": Endpoints.post_Create_saml_attribute_mapper;
+    "/realms/{realm_name}/clients/{client_id}/token-exchange-policies": Endpoints.post_Create_token_exchange_policy;
     "/realms/{realm_name}/clients/{client_id}/web-origins": Endpoints.post_Create_web_origin;
     "/realms/{realm_name}/device/verify": Endpoints.post_Device_verify;
     "/realms/{realm_name}/email-templates": Endpoints.post_Create_template;
@@ -4829,6 +4944,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects/{uri_id}": Endpoints.delete_Delete_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects/{uri_id}": Endpoints.delete_Delete_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/saml-attribute-mappers/{mapper_id}": Endpoints.delete_Delete_saml_attribute_mapper;
+    "/realms/{realm_name}/clients/{client_id}/token-exchange-policies/{policy_id}": Endpoints.delete_Delete_token_exchange_policy;
     "/realms/{realm_name}/clients/{client_id}/web-origins/{web_origin_id}": Endpoints.delete_Delete_web_origin;
     "/realms/{realm_name}/email-templates/{template_id}": Endpoints.delete_Delete_template;
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.delete_Delete_provider;

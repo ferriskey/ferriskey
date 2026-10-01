@@ -22,6 +22,7 @@ export interface ClientSettingsDraft {
   enabled: boolean
   directAccessGrants: boolean
   deviceCodeGrant: boolean
+  tokenExchange: boolean
   requirePkce: boolean
   accessTokenLifetime: number | null
   refreshTokenLifetime: number | null
@@ -163,6 +164,16 @@ export default function ClientSettingsTab({
           <SwitchField
             checked={draft.deviceCodeGrant}
             onCheckedChange={(v) => onDraftChange({ deviceCodeGrant: v })}
+          />
+        </FieldRow>
+
+        <FieldRow
+          label={t('settings.capability.token_exchange.label')}
+          description={t('settings.capability.token_exchange.description')}
+        >
+          <SwitchField
+            checked={draft.tokenExchange}
+            onCheckedChange={(v) => onDraftChange({ tokenExchange: v })}
           />
         </FieldRow>
 
