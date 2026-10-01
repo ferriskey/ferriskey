@@ -183,6 +183,7 @@ detail:
     credentials: Credentials
     roles: Roles
     scopes: Client Scopes
+    token_exchange: Token exchange
     saml: SAML
     maintenance: Maintenance
 
@@ -212,6 +213,9 @@ settings:
     device_code_grant:
       label: OAuth 2.0 device authorization grant
       description: Lets browserless clients (CLI, IoT, TVs) initiate a device flow against this client. Disable unless this client really needs it.
+    token_exchange:
+      label: OAuth 2.0 token exchange
+      description: Lets this client exchange a user's token for a token aimed at another client (RFC 8693). Policies on the Token exchange tab decide which audiences are allowed.
     pkce:
       label: Require PKCE
       description: Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on.
@@ -472,7 +476,53 @@ maintenance:
     title: Unsaved maintenance settings
     description: Save the maintenance reason and session strategy changes.
 
+token_exchange:
+  title: 'Token exchange policies ({{total}})'
+  description: Each policy lets this client exchange a user's token for a token aimed at another client of the realm.
+  disabled_hint: Token exchange is turned off for this client. Policies are kept but have no effect until you enable it in the settings.
+  add: Add a policy
+  error: Could not load the token exchange policies.
+  empty:
+    label: No token exchange policy
+    hint: Without a policy this client cannot exchange tokens for any audience.
+  list:
+    no_scope_cap: No scope cap
+    impersonation: Impersonation
+    delegation: Delegation
+    delete: 'Delete the policy for {{name}}'
+  create:
+    title: New token exchange policy
+    description: Choose the client this client may obtain tokens for, and how.
+    audience:
+      label: Target audience
+      description: The client the exchanged token is issued for.
+      placeholder: Select a client
+    scopes:
+      label: Allowed scopes
+      description: Caps the scopes of the exchanged token. Leave empty for no extra cap.
+      placeholder: Add a scope
+      empty: No scope cap.
+    impersonation:
+      label: Allow impersonation
+      description: The client may act as the user without an actor.
+    delegation:
+      label: Allow delegation
+      description: The client may exchange with an actor_token, which adds an act claim to the token.
+    cancel: Cancel
+    submit: Create policy
+    submitting: Creating…
+  delete:
+    title: Delete this policy?
+    description: 'This client will no longer be able to exchange tokens for {{name}}.'
+  toast:
+    created: Token exchange policy created
+    conflict: A policy already exists for this target audience.
+    create_failed: Failed to create the policy
+    deleted: Token exchange policy deleted
+    delete_failed: Failed to delete the policy
+
 validation:
+  target_audience_required: Select the target audience
   client_id_required: The client ID is required
   name_required: The name is required
   sp_entity_id_required: Entity ID is required

@@ -12,6 +12,7 @@ import ClientCredentialsTabFeature from './client-credentials-tab-feature'
 import ClientRolesTabFeature from './client-roles-tab-feature'
 import ClientScopesTabFeature from './client-scopes-tab-feature'
 import ClientSamlTabFeature from './client-saml-tab-feature'
+import ClientTokenExchangeTabFeature from './client-token-exchange-tab-feature'
 import ClientMaintenanceTabFeature from './client-maintenance-tab-feature'
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 
@@ -33,6 +34,7 @@ export default function PageClientDetailFeature() {
       ...(hasSecret ? [{ key: 'credentials', label: t('detail.tabs.credentials') }] : []),
       { key: 'roles', label: t('detail.tabs.roles') },
       { key: 'scopes', label: t('detail.tabs.scopes') },
+      { key: 'token-exchange', label: t('detail.tabs.token_exchange') },
       ...(isSaml ? [{ key: 'saml', label: t('detail.tabs.saml') }] : []),
       { key: 'maintenance', label: t('detail.tabs.maintenance') },
     ],
@@ -58,6 +60,9 @@ export default function PageClientDetailFeature() {
       )}
       {client && tab === 'roles' && <ClientRolesTabFeature client={client} realm={realm} />}
       {client && tab === 'scopes' && <ClientScopesTabFeature client={client} realm={realm} />}
+      {client && tab === 'token-exchange' && (
+        <ClientTokenExchangeTabFeature client={client} realm={realm} />
+      )}
       {client && isSaml && tab === 'saml' && (
         <ClientSamlTabFeature client={client} realm={realm} />
       )}
