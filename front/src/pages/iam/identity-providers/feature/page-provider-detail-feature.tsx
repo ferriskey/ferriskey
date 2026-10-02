@@ -13,7 +13,8 @@ import { useIdentityProvidersBase } from '@/hooks/use-section-base'
 import {
   buildProviderUpdateBody,
   countProviderChanges,
-  storedUsePkce,
+  storedProviderDraft,
+  validateProviderDraft,
   type ProviderDraft,
 } from '../provider-update-body'
 
@@ -21,7 +22,18 @@ interface Draft extends ProviderDraft {
   key: string
 }
 
-const EMPTY_DRAFT: Draft = { key: '', displayName: '', enabled: true, usePkce: false }
+const EMPTY_DRAFT: Draft = {
+  key: '',
+  displayName: '',
+  enabled: true,
+  clientId: '',
+  clientSecret: '',
+  authorizationUrl: '',
+  tokenUrl: '',
+  userinfoUrl: '',
+  scopes: [],
+  usePkce: false,
+}
 
 export default function PageProviderDetailFeature() {
   const { t } = useTranslation('identity-provider')
@@ -42,35 +54,36 @@ export default function PageProviderDetailFeature() {
 
   const providerKey = provider?.alias ?? ''
   const pristine: Draft = provider
-    ? {
-        key: providerKey,
-        displayName: provider.display_name ?? '',
-        enabled: provider.enabled,
-        usePkce: storedUsePkce(provider.config),
-      }
+    ? { key: providerKey, ...storedProviderDraft(provider) }
     : EMPTY_DRAFT
 
   if (provider && draft.key !== providerKey) setDraft(pristine)
 
-  const { displayName, enabled, usePkce } = draft.key === providerKey ? draft : pristine
+  const values: Draft = draft.key === providerKey ? draft : pristine
 
-  const dirtyCount = provider
-    ? countProviderChanges({ displayName, enabled, usePkce }, pristine)
-    : 0
+  const errors = validateProviderDraft(values)
+  const dirtyCount = provider ? countProviderChanges(values, pristine) : 0
+  const canSave = dirtyCount > 0 && Object.keys(errors).length === 0
 
   const listUrl = identityProvidersBase
 
   const callbackUrl = `${window.apiUrl}/realms/${realm}/broker/${providerAlias}/endpoint`
 
   const handleSave = () => {
-    if (!provider) return
+    if (!provider || !canSave) return
 
     updateProvider(
       {
         path: { realm_name: realm, alias: providerAlias },
-        body: buildProviderUpdateBody({ displayName, enabled, usePkce }, pristine),
+        body: buildProviderUpdateBody(values, pristine),
       },
-      { onSuccess: () => toast.success(t('detail.update_success')) }
+      {
+        onSuccess: () => {
+          setDraft({ ...values, clientSecret: '' })
+          toast.success(t('detail.update_success'))
+        },
+        onError: () => toast.error(t('detail.update_error')),
+      }
     )
   }
 
@@ -89,21 +102,18 @@ export default function PageProviderDetailFeature() {
     )
   }
 
-
   useCrumbLabel(alias, provider?.display_name ?? provider?.alias)
 
   return (
     <PageProviderDetail
       provider={provider}
       isLoading={isLoading}
-      displayName={displayName}
-      enabled={enabled}
-      usePkce={usePkce}
+      draft={values}
+      errors={errors}
       callbackUrl={callbackUrl}
       dirtyCount={dirtyCount}
-      onDisplayNameChange={(value) => setDraft((d) => ({ ...d, displayName: value }))}
-      onEnabledChange={(value) => setDraft((d) => ({ ...d, enabled: value }))}
-      onUsePkceChange={(value) => setDraft((d) => ({ ...d, usePkce: value }))}
+      canSave={canSave}
+      onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
       onBack={() => navigate(listUrl)}
       onDiscard={() => setDraft(pristine)}
       onSave={handleSave}

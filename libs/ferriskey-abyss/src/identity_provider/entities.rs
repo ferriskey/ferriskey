@@ -10,6 +10,8 @@ use uuid::{NoContext, Timestamp, Uuid};
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
 
+use crate::identity_provider::value_objects::IdentityProviderConfigPatch;
+
 /// Unique identifier for an Identity Provider
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema)]
 pub struct IdentityProviderId(Uuid);
@@ -222,7 +224,7 @@ pub struct UpdateIdentityProviderInput {
     pub trust_email: Option<bool>,
     pub link_only: Option<bool>,
     pub config: Option<JsonValue>,
-    pub use_pkce: Option<bool>,
+    pub patch: IdentityProviderConfigPatch,
 }
 
 /// Input for getting an identity provider

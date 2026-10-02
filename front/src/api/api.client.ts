@@ -1205,15 +1205,21 @@ export namespace Schemas {
   export type UpdateIdentityProviderResponse = { data: IdentityProviderResponse };
   export type UpdateIdentityProviderValidator = Partial<{
     add_read_token_role_on_create: boolean | null;
+    authorization_url: string | null;
+    client_id: string | null;
+    client_secret: string | null;
     config: unknown;
     display_name: string | null;
     enabled: boolean | null;
     first_broker_login_flow_alias: string | null;
     link_only: boolean | null;
     post_broker_login_flow_alias: string | null;
+    scopes: string | null;
     store_token: boolean | null;
+    token_url: string | null;
     trust_email: boolean | null;
     use_pkce: boolean | null;
+    userinfo_url: string | null;
   }>;
   export type UpdateOrganizationValidator = Partial<{
     alias: string | null;

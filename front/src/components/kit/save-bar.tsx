@@ -9,6 +9,7 @@ export interface SaveBarAction {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   onClick: () => void
   icon?: ReactNode
+  disabled?: boolean
 }
 
 export interface SaveBarProps {
@@ -94,6 +95,7 @@ export default function SaveBar({
                     variant={action.variant ?? 'default'}
                     size='sm'
                     onClick={action.onClick}
+                    disabled={action.disabled}
                   >
                     {action.icon}
                     {action.label}

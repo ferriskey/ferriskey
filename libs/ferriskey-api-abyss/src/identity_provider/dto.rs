@@ -72,6 +72,24 @@ pub struct UpdateIdentityProviderValidator {
     pub config: Option<serde_json::Value>,
 
     #[serde(default)]
+    pub client_id: Option<String>,
+
+    #[serde(default)]
+    pub client_secret: Option<String>,
+
+    #[serde(default)]
+    pub authorization_url: Option<String>,
+
+    #[serde(default)]
+    pub token_url: Option<String>,
+
+    #[serde(default)]
+    pub userinfo_url: Option<String>,
+
+    #[serde(default)]
+    pub scopes: Option<String>,
+
+    #[serde(default)]
     pub use_pkce: Option<bool>,
 }
 

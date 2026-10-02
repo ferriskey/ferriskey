@@ -167,7 +167,7 @@ create:
     description: Identifier of the OAuth application created at {{provider}}.
   client_secret:
     label: Client Secret
-    description: Stored encrypted; it is never displayed again after creation.
+    description: Issued by the provider console. The API never returns it again once stored.
     show: Show the secret
     hide: Hide the secret
   endpoints:
@@ -261,6 +261,27 @@ detail:
     off:
       label: Disabled
       description: Hidden from the login page; already linked accounts stay linked.
+  client_id:
+    label: Client ID
+    description: Identifier of the OAuth application created at the provider.
+  client_secret:
+    label: Client Secret
+    description: Leave it empty to keep the stored secret. Anything typed here replaces it.
+    show: Show the secret
+    hide: Hide the secret
+  authorization_url:
+    label: Authorization URL
+    description: Where the user is sent to grant consent.
+  token_url:
+    label: Token URL
+    description: Where the authorization code is exchanged for a token.
+  userinfo_url:
+    label: Userinfo URL
+    description: Empty it to read the claims from the ID token only.
+  scopes:
+    label: Scopes
+    description: Requested at every authorization.
+    empty_hint: No scope requested — most providers reject an authorization request without one.
   pkce:
     label: PKCE
     description: Sends a code_challenge (S256) on the authorization request and the matching verifier at token exchange. Turn it off only for a provider that rejects the extra parameters.
@@ -269,9 +290,11 @@ detail:
   redirect_uri_description: Declare this URL in the OAuth application of the provider.
   config:
     title: Configuration
-    description: Protocol settings, as the API returns them. Secrets never leave the server in clear text.
+    description: Protocol settings used to broker a login. Secrets never leave the server in clear text.
     secret_title: The API never returns this value in clear text.
     empty: No configuration setting recorded — this provider cannot broker a login.
+    extra_title: Other settings
+    extra_description: Recorded on this provider but not exposed by the form, as the API returns them.
   metadata:
     title: Metadata
     description: System information, not editable.
@@ -291,6 +314,7 @@ detail:
     discard: Discard
     submit: Save changes
   update_success: Provider updated successfully
+  update_error: Failed to update provider
   delete_success: Provider deleted successfully
   delete_error: Failed to delete provider
 
@@ -301,3 +325,4 @@ validation:
   client_id_required: Client ID is required
   client_secret_required: Client Secret is required
   url_invalid: Must be a valid URL
+  url_required: This endpoint is required

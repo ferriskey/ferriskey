@@ -9,7 +9,8 @@ use ferriskey_api_core::api_entities::{
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::abyss::identity_provider::{
-    entities::UpdateIdentityProviderInput, ports::IdentityProviderService,
+    IdentityProviderConfigPatch, entities::UpdateIdentityProviderInput,
+    ports::IdentityProviderService,
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::Serialize;
@@ -61,7 +62,15 @@ pub async fn update_identity_provider(
                 trust_email: payload.trust_email,
                 link_only: payload.link_only,
                 config: payload.config,
-                use_pkce: payload.use_pkce,
+                patch: IdentityProviderConfigPatch {
+                    client_id: payload.client_id,
+                    client_secret: payload.client_secret,
+                    authorization_url: payload.authorization_url,
+                    token_url: payload.token_url,
+                    userinfo_url: payload.userinfo_url,
+                    scopes: payload.scopes,
+                    use_pkce: payload.use_pkce,
+                },
             },
         )
         .await?;

@@ -173,7 +173,7 @@ create:
     description: '在 {{provider}} 创建的 OAuth 应用的标识符。'
   client_secret:
     label: 客户端密钥
-    description: 以加密方式存储；创建后不会再次显示。
+    description: 由提供商控制台签发。一旦存储，API 不会再次返回。
     show: 显示密钥
     hide: 隐藏密钥
   endpoints:
@@ -267,6 +267,27 @@ detail:
     off:
       label: 已禁用
       description: 在登录页面上隐藏；已关联的账户保持关联。
+  client_id:
+    label: 客户端 ID
+    description: 在提供商处创建的 OAuth 应用的标识符。
+  client_secret:
+    label: 客户端密钥
+    description: 留空则保留已存储的密钥。在此输入的任何内容都会替换它。
+    show: 显示密钥
+    hide: 隐藏密钥
+  authorization_url:
+    label: 授权 URL
+    description: 用户被引导前往授予同意的地址。
+  token_url:
+    label: 令牌 URL
+    description: 用授权码交换令牌的地址。
+  userinfo_url:
+    label: Userinfo URL
+    description: 留空则仅从 ID 令牌读取声明。
+  scopes:
+    label: 作用域
+    description: 每次授权时都会请求。
+    empty_hint: 未请求任何作用域，大多数提供商会拒绝不带作用域的授权请求。
   pkce:
     label: PKCE
     description: 在授权请求中发送 code_challenge（S256），并在令牌交换时发送对应的验证器。仅当提供商拒绝这些额外参数时才关闭。
@@ -275,9 +296,11 @@ detail:
   redirect_uri_description: 在该提供商的 OAuth 应用中声明此 URL。
   config:
     title: 配置
-    description: 协议设置，按 API 返回的原样呈现。密钥绝不会以明文形式离开服务器。
+    description: 用于代理登录的协议设置。密钥绝不会以明文形式离开服务器。
     secret_title: API 绝不会以明文形式返回此值。
     empty: 未记录任何配置项，此提供商无法代理登录。
+    extra_title: 其他设置
+    extra_description: 记录在此提供商上但未由表单暴露，按 API 返回的原样呈现。
   metadata:
     title: 元数据
     description: 系统信息，不可编辑。
@@ -296,6 +319,7 @@ detail:
     discard: 放弃
     submit: 保存更改
   update_success: 提供商更新成功
+  update_error: 更新提供商失败
   delete_success: 提供商删除成功
   delete_error: 删除提供商失败
 
@@ -306,3 +330,4 @@ validation:
   client_id_required: 客户端 ID 为必填项
   client_secret_required: 客户端密钥为必填项
   url_invalid: 必须是有效的 URL
+  url_required: 此端点为必填项
