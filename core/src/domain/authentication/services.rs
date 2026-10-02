@@ -4136,8 +4136,8 @@ where
                 scope.realm(),
                 Some(input.client_id.clone()),
                 "authorization_code".to_string(),
-                None,
-                None,
+                input.ip_address.clone(),
+                input.user_agent.clone(),
             )
             .await;
 
@@ -4241,8 +4241,8 @@ where
                     scope.realm(),
                     Some(input.client_id.clone()),
                     grant_type.to_string(),
-                    None,
-                    None,
+                    input.ip_address.clone(),
+                    input.user_agent.clone(),
                 )
                 .await
         };

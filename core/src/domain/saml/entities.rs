@@ -79,6 +79,8 @@ pub struct StartSsoInput {
     pub authn_request: String,
     pub relay_state: Option<String>,
     pub public_base_url: String,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone)]

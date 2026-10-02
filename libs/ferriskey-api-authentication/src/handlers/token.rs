@@ -11,6 +11,7 @@ use ferriskey_api_core::api_entities::api_error::ApiError;
 use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
 use ferriskey_api_core::api_entities::api_error::OAuth2ErrorResponse;
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
 use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::token_exchange::{
@@ -62,7 +63,7 @@ enum TokenUnauthorizedResponse {
     )
 )]
 #[instrument(
-    skip(state, payload, headers),
+    skip(state, payload, headers, context),
     fields(
         realm_name = %realm_name,
         grant_type = ?payload.grant_type,
@@ -76,6 +77,7 @@ pub async fn exchange_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    context: RequestContext,
     headers: HeaderMap,
     Form(payload): Form<TokenRequestValidator>,
 ) -> Result<Response, ApiError> {
@@ -90,9 +92,17 @@ pub async fn exchange_token(
     // RFC 8693 has its own service and error codes; it never goes through
     // `exchange_token`, which would also open a second Compass flow.
     if payload.grant_type == GrantType::TokenExchange {
-        return exchange_subject_token(&state, realm_name, client_id, client_secret, payload)
-            .await
-            .map(IntoResponse::into_response);
+        return exchange_subject_token(
+            &state,
+            realm_name,
+            client_id,
+            client_secret,
+            payload,
+            context.ip_address,
+            context.user_agent,
+        )
+        .await
+        .map(IntoResponse::into_response);
     }
 
     let grant_type = payload.grant_type.clone();
@@ -118,6 +128,8 @@ pub async fn exchange_token(
         device_code: payload.device_code,
         code_verifier: payload.code_verifier,
         redirect_uri: payload.redirect_uri,
+        ip_address: context.ip_address,
+        user_agent: context.user_agent,
     };
 
     // The device_code grant is served by the device flow polling path so its
@@ -163,6 +175,8 @@ async fn exchange_subject_token(
     client_id: String,
     client_secret: Option<String>,
     payload: TokenRequestValidator,
+    ip_address: Option<String>,
+    user_agent: Option<String>,
 ) -> Result<impl IntoResponse, ApiError> {
     let (Some(subject_token), Some(subject_token_type)) =
         (payload.subject_token, payload.subject_token_type)
@@ -179,6 +193,8 @@ async fn exchange_subject_token(
         scope: payload.scope,
         actor_token: payload.actor_token,
         actor_token_type: payload.actor_token_type,
+        ip_address,
+        user_agent,
     };
 
     let output = state

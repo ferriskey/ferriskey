@@ -277,6 +277,8 @@ pub struct AuthInput {
     pub nonce: Option<String>,
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 pub struct ExchangeTokenInput {
@@ -296,6 +298,8 @@ pub struct ExchangeTokenInput {
     /// REQUIRED for the `authorization_code` grant (RFC 6749 §4.1.3): must be
     /// identical to the one sent in the authorization request.
     pub redirect_uri: Option<String>,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 pub struct AuthorizeRequestOutput {

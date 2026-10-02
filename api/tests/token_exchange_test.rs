@@ -380,6 +380,8 @@ mod tests {
                     scope: scope.map(str::to_string),
                     actor_token: None,
                     actor_token_type: None,
+                    ip_address: None,
+                    user_agent: None,
                 },
             )
             .await

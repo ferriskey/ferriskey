@@ -419,8 +419,8 @@ where
                 params.realm.realm(),
                 Some(params.client_id.clone()),
                 GrantType::TokenExchange.to_string(),
-                None,
-                None,
+                params.input.ip_address.clone(),
+                params.input.user_agent.clone(),
             )
             .await;
 
@@ -664,6 +664,8 @@ mod tests {
             scope: scope.map(str::to_string),
             actor_token: None,
             actor_token_type: None,
+            ip_address: None,
+            user_agent: None,
         }
     }
 
