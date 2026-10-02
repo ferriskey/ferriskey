@@ -229,4 +229,39 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
 
         Ok(count > 0)
     }
+
+    async fn is_active_theme_layout(
+        &self,
+        layout: &Scoped<PortalLayout>,
+    ) -> Result<bool, CoreError> {
+        use crate::entity::{portal_themes, realm_settings};
+
+        let realm_id: Uuid = layout.get().realm_id.into();
+
+        let settings = realm_settings::Entity::find()
+            .filter(realm_settings::Column::RealmId.eq(realm_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("failed to fetch realm_settings for the active portal theme: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        let Some(theme_id) = settings.and_then(|settings| settings.portal_theme_id) else {
+            return Ok(false);
+        };
+
+        let count = portal_themes::Entity::find()
+            .filter(portal_themes::Column::Id.eq(theme_id))
+            .filter(portal_themes::Column::RealmId.eq(realm_id))
+            .filter(portal_themes::Column::LayoutId.eq(layout.get().id))
+            .count(&self.db)
+            .await
+            .map_err(|e| {
+                error!("failed to check the active theme layout: {e}");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(count > 0)
+    }
 }
