@@ -340,7 +340,7 @@ roles:
 scopes:
   views:
     assigned: 已分配的作用域
-    evaluate: 评估
+    evaluate: 预览令牌
   assigned:
     title: 已分配的作用域（{{total}}）
     description: 该客户端允许请求的声明集合。
@@ -380,6 +380,10 @@ scopes:
   evaluate:
     title: 评估令牌
     description: 模拟为指定账户签发的令牌，并附带客户端将会请求的可选作用域。
+    account_none: 不指定账户（使用占位值）
+    active_scopes:
+      title: 生效的作用域（{{total}}）
+      description: 参与所预览令牌的作用域。
     account: 账户
     account_placeholder: 选择要评估的账户
     account_option: '{{username}} ({{email}})'

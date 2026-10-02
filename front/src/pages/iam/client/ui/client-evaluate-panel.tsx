@@ -14,7 +14,7 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import ClientScope = Schemas.ClientScope
-import EvaluateClientScopesResult = Schemas.EvaluateClientScopesResult
+import TokenPreviewResult = Schemas.TokenPreviewResult
 import User = Schemas.User
 
 export interface ClientEvaluatePanelProps {
@@ -24,11 +24,13 @@ export interface ClientEvaluatePanelProps {
   selectedOptional: string[]
   requestedScope: string
   isPending: boolean
-  result?: EvaluateClientScopesResult
+  result?: TokenPreviewResult
   onUserChange: (userId: string) => void
   onToggleOptional: (name: string) => void
   onEvaluate: () => void
 }
+
+const NO_USER = '__none__'
 
 function JsonPanel({ title, value }: { title: string; value: unknown }) {
   return (
@@ -69,11 +71,15 @@ export default function ClientEvaluatePanel({
             <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100' htmlFor='evaluate-user'>
               {t('scopes.evaluate.account')}
             </label>
-            <Select value={userId} onValueChange={onUserChange}>
+            <Select
+              value={userId || NO_USER}
+              onValueChange={(value) => onUserChange(value === NO_USER ? '' : value)}
+            >
               <SelectTrigger id='evaluate-user' className='w-full'>
                 <SelectValue placeholder={t('scopes.evaluate.account_placeholder')} />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NO_USER}>{t('scopes.evaluate.account_none')}</SelectItem>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.email
@@ -127,7 +133,7 @@ export default function ClientEvaluatePanel({
             </code>
           </div>
 
-          <Button disabled={!userId || isPending} onClick={onEvaluate}>
+          <Button disabled={isPending} onClick={onEvaluate}>
             <Play /> {isPending ? t('scopes.evaluate.running') : t('scopes.evaluate.run')}
           </Button>
         </div>
@@ -136,17 +142,36 @@ export default function ClientEvaluatePanel({
       {result && (
         <>
           <Section
-            title={t('scopes.evaluate.mappers.title', { total: result.effective_mappers.length })}
-            description={t('scopes.evaluate.mappers.description')}
-            contained={result.effective_mappers.length > 0}
+            title={t('scopes.evaluate.active_scopes.title', { total: result.active_scopes.length })}
+            description={t('scopes.evaluate.active_scopes.description')}
+            contained={false}
           >
-            {result.effective_mappers.length > 0 ? (
+            <div className='flex flex-wrap gap-1.5'>
+              {result.active_scopes.map((scope) => (
+                <Pill key={scope.name} tone={scope.type === 'Optional' ? 'info' : 'violet'} mono>
+                  {scope.name}
+                </Pill>
+              ))}
+              {result.active_scopes.length === 0 && (
+                <span className='text-xs text-neutral-400 dark:text-neutral-500'>
+                  {t('scopes.evaluate.roles.none')}
+                </span>
+              )}
+            </div>
+          </Section>
+
+          <Section
+            title={t('scopes.evaluate.mappers.title', { total: result.applied_mappers.length })}
+            description={t('scopes.evaluate.mappers.description')}
+            contained={result.applied_mappers.length > 0}
+          >
+            {result.applied_mappers.length > 0 ? (
               <ul className={tokens.surface.divider}>
-                {result.effective_mappers.map((mapper, i) => (
-                  <li key={`${mapper.name}-${i}`} className='py-2.5'>
-                    <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>{mapper.name}</p>
+                {result.applied_mappers.map((mapper, i) => (
+                  <li key={`${mapper.scope}-${mapper.mapper}-${i}`} className='py-2.5'>
+                    <p className='text-xs font-medium text-neutral-900 dark:text-neutral-100'>{mapper.mapper}</p>
                     <p className='font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
-                      {mapper.mapper_type}
+                      {mapper.type} · {mapper.scope}
                     </p>
                   </li>
                 ))}
@@ -159,52 +184,14 @@ export default function ClientEvaluatePanel({
           </Section>
 
           <Section
-            title={t('scopes.evaluate.roles.title')}
-            description={t('scopes.evaluate.roles.description')}
-          >
-            <div className='space-y-3 py-3'>
-              <div>
-                <p className='pb-1 text-[11px] uppercase tracking-wide text-neutral-500 dark:text-neutral-400'>
-                  {t('scopes.evaluate.roles.realm')}
-                </p>
-                <div className='flex flex-wrap gap-1.5'>
-                  {result.effective_roles.realm_roles.length > 0 ? (
-                    result.effective_roles.realm_roles.map((role) => (
-                      <Pill key={role} tone='violet' mono>
-                        {role}
-                      </Pill>
-                    ))
-                  ) : (
-                    <span className='text-xs text-neutral-400 dark:text-neutral-500'>
-                      {t('scopes.evaluate.roles.none')}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {Object.entries(result.effective_roles.client_roles).map(([client, roles]) => (
-                <div key={client}>
-                  <p className='pb-1 font-mono-ui text-[11px] text-neutral-500 dark:text-neutral-400'>{client}</p>
-                  <div className='flex flex-wrap gap-1.5'>
-                    {roles.map((role) => (
-                      <Pill key={`${client}-${role}`} tone='info' mono>
-                        {role}
-                      </Pill>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          <Section
             title={t('scopes.evaluate.claims.title')}
             description={t('scopes.evaluate.claims.description')}
             contained={false}
           >
             <div className='space-y-3'>
-              <JsonPanel title={t('scopes.evaluate.claims.access_token')} value={result.access_token} />
-              <JsonPanel title={t('scopes.evaluate.claims.id_token')} value={result.id_token} />
-              <JsonPanel title={t('scopes.evaluate.claims.userinfo')} value={result.userinfo} />
+              <JsonPanel title={t('scopes.evaluate.claims.access_token')} value={result.access_token_claims} />
+              <JsonPanel title={t('scopes.evaluate.claims.id_token')} value={result.id_token_claims} />
+              <JsonPanel title={t('scopes.evaluate.claims.userinfo')} value={result.userinfo_claims} />
             </div>
           </Section>
         </>

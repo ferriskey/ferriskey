@@ -326,7 +326,7 @@ roles:
 scopes:
   views:
     assigned: Assigned scopes
-    evaluate: Evaluate
+    evaluate: Preview tokens
   assigned:
     title: Assigned scopes ({{total}})
     description: Sets of claims this client is allowed to request.
@@ -360,25 +360,26 @@ scopes:
     submit: Assign scope
     submitting: Assigning…
   evaluate:
-    title: Evaluate tokens
-    description: Simulates the tokens issued for a given account, with the optional scopes the client would request.
+    title: Preview tokens
+    description: Previews the claims the client would receive, without signing or storing a token. Pick an account for real values, or none for placeholders.
     account: Account
-    account_placeholder: Select an account to evaluate
+    account_placeholder: No account (placeholder values)
+    account_none: No account (placeholder values)
+    active_scopes:
+      title: Active scopes ({{total}})
+      description: Scopes that contribute to the previewed tokens.
     account_option: '{{username}} ({{email}})'
     optional: Optional scopes requested
     scope_string: Scope string
     # Shown in place of the scope string when no scope is requested at all.
     scope_string_empty: —
-    run: Evaluate
-    running: Evaluating…
+    run: Preview
+    running: Previewing…
     mappers:
-      title: Effective protocol mappers ({{total}})
-      description: What the retained scope set produces.
+      title: Applied protocol mappers ({{total}})
+      description: What the retained scope set produces, with the scope each mapper comes from.
       empty: No protocol mappers apply for this scope set.
     roles:
-      title: Effective roles
-      description: Roles held by this account, as they will be written in the token.
-      realm: Realm roles
       none: none
     claims:
       title: Generated claims
