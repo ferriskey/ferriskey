@@ -753,6 +753,8 @@ pub mod tests {
             maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            backchannel_logout_uri: None,
+            backchannel_logout_session_required: true,
         };
 
         Identity::Client(client)

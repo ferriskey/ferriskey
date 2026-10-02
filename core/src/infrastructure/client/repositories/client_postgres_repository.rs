@@ -58,6 +58,8 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_session_strategy: Set(None),
             require_pkce: Set(Some(data.require_pkce)),
             token_exchange_enabled: Set(data.token_exchange_enabled),
+            backchannel_logout_uri: Set(None),
+            backchannel_logout_session_required: Set(true),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -183,6 +185,17 @@ impl ClientRepository for PostgresClientRepository {
         client.token_exchange_enabled = match data.token_exchange_enabled {
             Some(enabled) => Set(enabled),
             None => client.token_exchange_enabled,
+        };
+
+        client.backchannel_logout_uri = match data.backchannel_logout_uri {
+            Some(uri) => Set(uri),
+            None => client.backchannel_logout_uri,
+        };
+
+        client.backchannel_logout_session_required = match data.backchannel_logout_session_required
+        {
+            Some(required) => Set(required),
+            None => client.backchannel_logout_session_required,
         };
 
         client.access_token_lifetime_secs = Set(data.access_token_lifetime.map(|v| v as i32));

@@ -66,6 +66,7 @@ urlencoding = "2.1.3"
 opentelemetry-appender-tracing = "0.31.1"
 
 [dev-dependencies]
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
 test-context = "*"
 axum-test = "*"
 bcrypt = "0.19.3"

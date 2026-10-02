@@ -1344,6 +1344,8 @@ mod tests {
                         maintenance_enabled: None,
                         maintenance_reason: None,
                         maintenance_session_strategy: None,
+                        backchannel_logout_uri: None,
+                        backchannel_logout_session_required: None,
                     },
                 },
             )

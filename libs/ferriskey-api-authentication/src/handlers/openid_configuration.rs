@@ -25,6 +25,11 @@ pub struct GetOpenIdConfigurationResponse {
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
     pub code_challenge_methods_supported: Vec<String>,
+    /// OIDC Back-Channel Logout 1.0: clients may register a
+    /// `backchannel_logout_uri` to be told when a session ends.
+    pub backchannel_logout_supported: bool,
+    /// Logout tokens carry the `sid` of the session that ended.
+    pub backchannel_logout_session_supported: bool,
 }
 
 #[utoipa::path(
@@ -101,5 +106,7 @@ pub async fn get_openid_configuration(
             "client_secret_post".to_string(),
         ],
         code_challenge_methods_supported: vec!["S256".to_string()],
+        backchannel_logout_supported: true,
+        backchannel_logout_session_supported: true,
     }))
 }

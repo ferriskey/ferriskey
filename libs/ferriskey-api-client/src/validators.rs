@@ -75,6 +75,23 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub temporary_token_lifetime: Option<i64>,
+
+    /// OIDC Back-Channel Logout endpoint of the client. Absent keeps the
+    /// current value, `null` clears it.
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
+    #[schema(value_type = Option<String>)]
+    pub backchannel_logout_uri: Option<Option<String>>,
+
+    #[serde(default)]
+    pub backchannel_logout_session_required: Option<bool>,
+}
+
+fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

@@ -1607,6 +1607,7 @@ dependencies = [
  "ferriskey-core",
  "ferriskey-saml",
  "hmac",
+ "jsonwebtoken",
  "opentelemetry",
  "opentelemetry-appender-tracing",
  "opentelemetry-otlp",

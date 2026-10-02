@@ -36,6 +36,8 @@ pub struct Model {
     pub maintenance_session_strategy: Option<String>,
     pub require_pkce: Option<bool>,
     pub token_exchange_enabled: bool,
+    pub backchannel_logout_uri: Option<String>,
+    pub backchannel_logout_session_required: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -63,6 +65,8 @@ pub enum Column {
     MaintenanceSessionStrategy,
     RequirePkce,
     TokenExchangeEnabled,
+    BackchannelLogoutUri,
+    BackchannelLogoutSessionRequired,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -123,6 +127,8 @@ impl ColumnTrait for Column {
             }
             Self::RequirePkce => ColumnType::Boolean.def().null(),
             Self::TokenExchangeEnabled => ColumnType::Boolean.def(),
+            Self::BackchannelLogoutUri => ColumnType::Text.def().null(),
+            Self::BackchannelLogoutSessionRequired => ColumnType::Boolean.def(),
         }
     }
 }

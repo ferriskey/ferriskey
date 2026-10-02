@@ -3,6 +3,13 @@ use std::sync::Arc;
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
+use crate::domain::authentication::backchannel_logout::{
+    BackchannelLogoutConfig, BackchannelLogoutServiceImpl,
+};
+use crate::infrastructure::backchannel_logout::{
+    BackchannelLogoutDispatcher, HttpLogoutTokenSender, KeystoreLogoutTokenSigner,
+    NotifyingUserSessionRepository, PostgresSessionParticipantRepository,
+};
 use crate::{
     domain::{
         abyss::{
@@ -220,7 +227,21 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
     let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
-    let user_session = Arc::new(PostgresUserSessionRepository::new(postgres.get_db()));
+    // Every session deleted through this store sends a logout token to the
+    // clients that took part in it (OIDC Back-Channel Logout).
+    let backchannel_logout =
+        BackchannelLogoutDispatcher::spawn(Arc::new(BackchannelLogoutServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            Arc::new(KeystoreLogoutTokenSigner::new(keystore.clone())),
+            Arc::new(HttpLogoutTokenSender::new(private_endpoints)),
+            BackchannelLogoutConfig::default(),
+        )));
+    let user_session = Arc::new(NotifyingUserSessionRepository::new(
+        Arc::new(PostgresUserSessionRepository::new(postgres.get_db())),
+        Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
+        backchannel_logout,
+    ));
     let token_revocation = Arc::new(
         crate::application::token_revocation::TokenRevocationAdapter::new(
             access_token.clone(),

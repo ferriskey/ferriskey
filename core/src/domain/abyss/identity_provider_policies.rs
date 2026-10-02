@@ -101,6 +101,8 @@ mod tests {
             maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+            backchannel_logout_uri: None,
+            backchannel_logout_session_required: true,
         }
     }
 

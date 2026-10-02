@@ -1,6 +1,7 @@
 pub mod abyss;
 pub mod account_security;
 pub mod aegis;
+pub mod backchannel_logout;
 pub mod client;
 pub mod common;
 pub mod compass;
