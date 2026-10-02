@@ -9,7 +9,7 @@ use axum_cookie::CookieManager;
 
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::entities::{
-    AuthInput, AuthenticateInput, AuthenticationStepStatus,
+    AuthInput, AuthenticateInput, AuthenticateOutput, AuthenticationStepStatus,
 };
 use ferriskey_core::domain::authentication::ports::AuthService;
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
@@ -107,17 +107,14 @@ pub struct AuthRequest {
     pub max_age: Option<i64>,
 }
 
-/// The OIDC `prompt` values FerrisKey acts on. `consent` and `select_account`
-/// are accepted and ignored: there is no consent screen or account picker.
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Prompt {
     none: bool,
     login: bool,
+    consent: bool,
 }
 
 impl Prompt {
-    /// `None` when `none` is combined with another value, which OIDC Core
-    /// §3.1.2.1 makes an `invalid_request`.
     fn parse(prompt: Option<&str>) -> Option<Self> {
         let values: Vec<&str> = prompt.unwrap_or_default().split_whitespace().collect();
         let none = values.contains(&"none");
@@ -129,8 +126,31 @@ impl Prompt {
         Some(Self {
             none,
             login: values.contains(&"login"),
+            consent: values.contains(&"consent"),
         })
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum SsoFastPathOutcome {
+    Redirect,
+    ConsentRequired,
+    NotApplicable,
+}
+
+fn sso_fast_path_outcome(result: &AuthenticateOutput, prompt_none: bool) -> SsoFastPathOutcome {
+    let is_success =
+        result.status == AuthenticationStepStatus::Success && result.redirect_url.is_some();
+
+    if !is_success {
+        return SsoFastPathOutcome::NotApplicable;
+    }
+
+    if prompt_none && result.completion.is_none() {
+        return SsoFastPathOutcome::ConsentRequired;
+    }
+
+    SsoFastPathOutcome::Redirect
 }
 
 /// An authorization error handed back to the client on its (already
@@ -180,6 +200,14 @@ pub async fn auth_handler(
     cookie: CookieManager,
     Query(params): Query<AuthRequest>,
 ) -> Result<axum::response::Response, ApiError> {
+    let Some(prompt) = Prompt::parse(params.prompt.as_deref()) else {
+        return Ok(authorization_error_response(
+            &params.redirect_uri,
+            "invalid_request",
+            params.state.as_deref(),
+        ));
+    };
+
     let result = match state
         .service
         .auth(AuthInput {
@@ -194,6 +222,7 @@ pub async fn auth_handler(
             code_challenge_method: params.code_challenge_method.clone(),
             ip_address: context.ip_address,
             user_agent: context.user_agent,
+            prompt_consent: prompt.consent,
         })
         .await
     {
@@ -226,13 +255,6 @@ pub async fn auth_handler(
     let is_secure = base_url.starts_with("https://");
     let flow_base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
-    let Some(prompt) = Prompt::parse(params.prompt.as_deref()) else {
-        return Ok(authorization_error_response(
-            &params.redirect_uri,
-            "invalid_request",
-            params.state.as_deref(),
-        ));
-    };
     // `max_age=0` asks for a fresh authentication, like `prompt=login`.
     let reauthenticate = prompt.login || params.max_age == Some(0);
 
@@ -257,13 +279,19 @@ pub async fn auth_handler(
             .await;
 
         match auth_result {
-            Ok(auth_result)
-                if auth_result.status == AuthenticationStepStatus::Success
-                    && auth_result.redirect_url.is_some() =>
-            {
-                return sso_success_response(auth_result, is_secure);
-            }
-            Ok(_) => {}
+            Ok(auth_result) => match sso_fast_path_outcome(&auth_result, prompt.none) {
+                SsoFastPathOutcome::Redirect => {
+                    return sso_success_response(auth_result, is_secure);
+                }
+                SsoFastPathOutcome::ConsentRequired => {
+                    return Ok(authorization_error_response(
+                        &params.redirect_uri,
+                        "consent_required",
+                        params.state.as_deref(),
+                    ));
+                }
+                SsoFastPathOutcome::NotApplicable => {}
+            },
             Err(e) => {
                 warn!(
                     realm = %realm_name,
@@ -371,8 +399,31 @@ pub async fn auth_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::{Prompt, authorization_error_response, mark_session_expired, webapp_login_url};
+    use super::{
+        Prompt, SsoFastPathOutcome, authorization_error_response, mark_session_expired,
+        sso_fast_path_outcome, webapp_login_url,
+    };
     use axum::http::{StatusCode, header::LOCATION};
+    use ferriskey_core::domain::authentication::entities::{
+        AuthCompletion, AuthenticateOutput, AuthenticationStepStatus,
+    };
+    use uuid::Uuid;
+
+    fn output(status: AuthenticationStepStatus, redirect_url: Option<&str>) -> AuthenticateOutput {
+        AuthenticateOutput {
+            user_id: Uuid::new_v4(),
+            status,
+            authorization_code: None,
+            temporary_token: None,
+            required_actions: Vec::new(),
+            redirect_url: redirect_url.map(str::to_string),
+            completion: None,
+            session_state: None,
+            email: None,
+            sso_cookie: None,
+            sso_session_max_age_secs: None,
+        }
+    }
 
     #[test]
     fn a_login_url_that_already_carries_parameters_gains_the_marker_as_another_one() {
@@ -434,14 +485,16 @@ mod tests {
             Prompt::parse(Some("none")),
             Some(Prompt {
                 none: true,
-                login: false
+                login: false,
+                consent: false,
             })
         );
         assert_eq!(
             Prompt::parse(Some("consent login")),
             Some(Prompt {
                 none: false,
-                login: true
+                login: true,
+                consent: true,
             })
         );
     }
@@ -467,6 +520,68 @@ mod tests {
                 .get(LOCATION)
                 .and_then(|v| v.to_str().ok()),
             Some("https://app.example/cb?tenant=acme&error=login_required&state=a%20b")
+        );
+    }
+
+    #[test]
+    fn a_normal_sso_success_is_redirected_even_under_prompt_none() {
+        let mut result = output(AuthenticationStepStatus::Success, Some("https://client/cb"));
+        result.completion = Some(AuthCompletion::Redirect {
+            url: "https://client/cb".to_string(),
+        });
+
+        assert_eq!(
+            sso_fast_path_outcome(&result, true),
+            SsoFastPathOutcome::Redirect
+        );
+    }
+
+    #[test]
+    fn prompt_none_blocks_a_pending_consent_redirect_with_consent_required() {
+        let result = output(
+            AuthenticationStepStatus::Success,
+            Some("https://webapp/realms/demo/authentication/consent?consent_token=abc"),
+        );
+
+        assert_eq!(
+            sso_fast_path_outcome(&result, true),
+            SsoFastPathOutcome::ConsentRequired
+        );
+    }
+
+    #[test]
+    fn a_pending_consent_redirect_is_followed_when_prompt_is_not_none() {
+        let result = output(
+            AuthenticationStepStatus::Success,
+            Some("https://webapp/realms/demo/authentication/consent?consent_token=abc"),
+        );
+
+        assert_eq!(
+            sso_fast_path_outcome(&result, false),
+            SsoFastPathOutcome::Redirect
+        );
+    }
+
+    #[test]
+    fn a_non_success_status_is_never_a_fast_path_outcome() {
+        let result = output(AuthenticationStepStatus::RequiresActions, None);
+
+        assert_eq!(
+            sso_fast_path_outcome(&result, true),
+            SsoFastPathOutcome::NotApplicable
+        );
+    }
+
+    #[test]
+    fn a_completed_redirect_is_distinguishable_from_a_pending_consent_one() {
+        let mut result = output(AuthenticationStepStatus::Success, Some("https://client/cb"));
+        result.completion = Some(AuthCompletion::Redirect {
+            url: "https://client/cb".to_string(),
+        });
+
+        assert_eq!(
+            sso_fast_path_outcome(&result, true),
+            SsoFastPathOutcome::Redirect
         );
     }
 }

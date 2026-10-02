@@ -17,6 +17,7 @@ pub mod client_web_origins;
 pub mod clients;
 pub mod compass_flow_steps;
 pub mod compass_flows;
+pub mod consent_sessions;
 pub mod credentials;
 pub mod data_migrations;
 pub mod device_auth_sessions;

@@ -1,0 +1,2 @@
+ALTER TABLE clients
+    ADD COLUMN IF NOT EXISTS consent_required BOOLEAN NOT NULL DEFAULT false;

@@ -39,6 +39,8 @@ pub struct CreateClientValidator {
     pub oauth_device_code_grant_enabled: bool,
     #[serde(default)]
     pub token_exchange_enabled: bool,
+    #[serde(default)]
+    pub consent_required: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -84,6 +86,9 @@ pub struct UpdateClientValidator {
 
     #[serde(default)]
     pub backchannel_logout_session_required: Option<bool>,
+
+    #[serde(default)]
+    pub consent_required: Option<bool>,
 }
 
 fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
@@ -211,5 +216,47 @@ mod tests {
             serde_json::from_value(serde_json::json!({})).expect("valid payload");
 
         assert_eq!(payload.token_exchange_enabled, None);
+    }
+
+    #[test]
+    fn consent_required_stays_off_when_a_create_payload_omits_it() {
+        let payload: CreateClientValidator = serde_json::from_value(serde_json::json!({
+            "name": "api",
+            "client_id": "api",
+            "client_type": "confidential",
+        }))
+        .expect("valid payload");
+
+        assert!(!payload.consent_required);
+    }
+
+    #[test]
+    fn a_create_payload_can_turn_consent_required_on() {
+        let payload: CreateClientValidator = serde_json::from_value(serde_json::json!({
+            "name": "api",
+            "client_id": "api",
+            "client_type": "confidential",
+            "consent_required": true,
+        }))
+        .expect("valid payload");
+
+        assert!(payload.consent_required);
+    }
+
+    #[test]
+    fn an_update_payload_can_turn_consent_required_on() {
+        let payload: UpdateClientValidator =
+            serde_json::from_value(serde_json::json!({ "consent_required": true }))
+                .expect("valid payload");
+
+        assert_eq!(payload.consent_required, Some(true));
+    }
+
+    #[test]
+    fn an_update_payload_without_consent_required_leaves_it_untouched() {
+        let payload: UpdateClientValidator =
+            serde_json::from_value(serde_json::json!({})).expect("valid payload");
+
+        assert_eq!(payload.consent_required, None);
     }
 }

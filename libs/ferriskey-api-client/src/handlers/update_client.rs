@@ -82,6 +82,7 @@ pub async fn update_client(
                     maintenance_enabled: None,
                     maintenance_reason: None,
                     maintenance_session_strategy: None,
+                    consent_required: payload.consent_required,
                 },
             },
         )

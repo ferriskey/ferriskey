@@ -21,6 +21,7 @@ pub struct CreateClientRequest {
     /// Public clients have no secret to authenticate with, so PKCE is the only
     /// thing binding an authorization code to the instance that requested it.
     pub require_pkce: bool,
+    pub consent_required: bool,
 }
 
 impl CreateClientRequest {
@@ -42,6 +43,7 @@ impl CreateClientRequest {
             secret: None,
             service_account_enabled: false,
             require_pkce: false,
+            consent_required: false,
         }
     }
 }
@@ -64,6 +66,7 @@ pub struct UpdateClientRequest {
     pub maintenance_enabled: Option<bool>,
     pub maintenance_reason: Option<Option<String>>,
     pub maintenance_session_strategy: Option<MaintenanceSessionStrategy>,
+    pub consent_required: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

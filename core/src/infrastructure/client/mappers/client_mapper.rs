@@ -57,6 +57,7 @@ impl From<Model> for Client {
             updated_at,
             backchannel_logout_uri: model.backchannel_logout_uri,
             backchannel_logout_session_required: model.backchannel_logout_session_required,
+            consent_required: model.consent_required,
         }
     }
 }

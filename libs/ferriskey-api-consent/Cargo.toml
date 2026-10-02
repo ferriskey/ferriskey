@@ -1,0 +1,13 @@
+[package]
+name = "ferriskey-api-consent"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+ferriskey-api-core = { path = "../ferriskey-api-core" }
+ferriskey-core = { path = "../../core" }
+axum = "0.8.8"
+serde = { version = "1.0.228", features = ["derive"] }
+utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+validator = { version = "0.20.0", features = ["derive"] }

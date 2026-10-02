@@ -164,6 +164,7 @@ where
             maintenance_session_strategy: request.session_strategy.clone(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: None,
+            consent_required: None,
         };
 
         self.client_repository

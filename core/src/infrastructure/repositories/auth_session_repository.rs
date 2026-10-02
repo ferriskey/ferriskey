@@ -66,6 +66,8 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             user_session_id: model.user_session_id,
             remember_me: model.remember_me,
             reauth_session_id: model.reauth_session_id,
+            consent_token_hash: model.consent_token_hash,
+            prompt_consent: model.prompt_consent,
         })
     }
 }
@@ -109,6 +111,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             code_challenge: Set(session.code_challenge.clone()),
             code_challenge_method: Set(code_challenge_method),
             user_session_id: Set(session.user_session_id),
+            consent_token_hash: Set(session.consent_token_hash.clone()),
+            prompt_consent: Set(session.prompt_consent),
             remember_me: Set(session.remember_me),
             reauth_session_id: Set(session.reauth_session_id),
         };
@@ -473,6 +477,69 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 
         Ok(())
     }
+
+    async fn set_consent_token_hash(
+        &self,
+        session_code: Uuid,
+        consent_token_hash: String,
+    ) -> Result<(), AuthenticationError> {
+        let result = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::ConsentTokenHash,
+                Expr::value(consent_token_hash),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error setting consent_token_hash: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(AuthenticationError::NotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn get_by_consent_token_hash(
+        &self,
+        consent_token_hash: String,
+    ) -> Result<Option<Unscoped<AuthSession>>, AuthenticationError> {
+        let session = crate::entity::auth_sessions::Entity::find()
+            .filter(crate::entity::auth_sessions::Column::ConsentTokenHash.eq(consent_token_hash))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error looking up session by consent_token_hash: {:?}", e);
+                AuthenticationError::InternalServerError
+            })?;
+
+        let session = session.map(AuthSession::try_from).transpose()?;
+
+        Ok(session.map(Unscoped::new))
+    }
+
+    async fn clear_consent_token_hash(
+        &self,
+        session_code: Uuid,
+    ) -> Result<(), AuthenticationError> {
+        crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::ConsentTokenHash,
+                Expr::value(Option::<String>::None),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error clearing consent_token_hash: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
+        Ok(())
+    }
 }
 
 /// Integration tests for `PostgresAuthSessionRepository`.
@@ -577,6 +644,7 @@ mod tests {
             code_challenge: None,
             code_challenge_method: None,
             compass_flow_id: None,
+            prompt_consent: false,
         })
     }
 

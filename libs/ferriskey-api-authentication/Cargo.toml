@@ -6,6 +6,7 @@ edition.workspace = true
 
 [dependencies]
 ferriskey-api-core = { path = "../ferriskey-api-core" }
+ferriskey-api-consent = { path = "../ferriskey-api-consent" }
 ferriskey-core = { path = "../../core" }
 axum = { workspace = true }
 axum-cookie = { workspace = true }

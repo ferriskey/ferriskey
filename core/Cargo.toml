@@ -16,6 +16,7 @@ ferriskey-aegis = { path = "../libs/ferriskey-aegis", features = ["mock"] }
 ferriskey-mail = { path = "../libs/ferriskey-mail", features = ["mock"] }
 ferriskey-compass = { path = "../libs/ferriskey-compass" }
 ferriskey-seawatch = { path = "../libs/ferriskey-seawatch", features = ["mock"] }
+ferriskey-consent = { path = "../libs/ferriskey-consent", features = ["mock"] }
 ferriskey-password-policy = { path = "../libs/ferriskey-password-policy", features = ["mock"] }
 ferriskey-webhook = { path = "../libs/ferriskey-webhook", features = ["mock"] }
 ferriskey-portal-theme = { path = "../libs/ferriskey-portal-theme", features = ["mock"] }

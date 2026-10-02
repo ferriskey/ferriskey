@@ -5,6 +5,7 @@ pub mod backchannel_logout;
 pub mod client;
 pub mod common;
 pub mod compass;
+pub mod consent;
 pub mod db;
 pub mod email;
 pub mod email_template;

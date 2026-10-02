@@ -5,6 +5,7 @@ use ferriskey_api_authentication::router::AuthenticationApiDoc;
 use ferriskey_api_broker::BrokerApiDoc;
 use ferriskey_api_client::router::ClientApiDoc;
 use ferriskey_api_compass::router::CompassApiDoc;
+use ferriskey_api_consent::router::ConsentApiDoc;
 use ferriskey_api_email_template::router::{EmailTemplateApiDoc, EmailTemplateVariablesApiDoc};
 use ferriskey_api_maintenance::router::{MaintenanceApiDoc, RealmMaintenanceApiDoc};
 use ferriskey_api_organization::router::OrganizationApiDoc;
@@ -36,6 +37,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}/webhooks", api = WebhookApiDoc),
         (path = "/realms/{realm_name}", api = TridentApiDoc),
         (path = "/realms/{realm_name}", api = SeawatchApiDoc),
+        (path = "/realms/{realm_name}", api = ConsentApiDoc),
         (path = "/realms/{realm_name}", api = AbyssApiDoc),
         (path = "/realms/{realm_name}", api = BrokerApiDoc),
         (path = "/realms/{realm_name}", api = AegisApiDoc),

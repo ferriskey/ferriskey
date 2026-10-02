@@ -5,6 +5,9 @@ use axum::{
 
 use utoipa::OpenApi;
 
+use ferriskey_api_consent::handlers::get_consent::{__path_get_consent, get_consent};
+use ferriskey_api_consent::handlers::post_consent::{__path_post_consent, post_consent};
+
 use super::handlers::{
     auth::{__path_auth_handler, auth_handler},
     authentificate::{__path_authenticate, authenticate},
@@ -43,6 +46,8 @@ use ferriskey_api_core::{app_state::AppState, auth::auth};
         get_certs,
         get_jwks_json,
         auth_handler,
+        get_consent,
+        post_consent,
         logout_get,
         logout_post,
         revoke_token,
@@ -110,6 +115,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
             get(auth_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/auth/consent"),
+            get(get_consent).post(post_consent),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/registrations"),

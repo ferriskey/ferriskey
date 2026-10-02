@@ -58,6 +58,8 @@ pub struct AuthSession {
     /// A live SSO session the browser still held when it was sent to the
     /// login page; a login for the same user re-authenticates into it.
     pub reauth_session_id: Option<Uuid>,
+    pub consent_token_hash: Option<String>,
+    pub prompt_consent: bool,
 }
 
 impl RealmOwned for AuthSession {
@@ -84,6 +86,7 @@ pub struct AuthSessionParams {
     pub compass_flow_id: Option<Uuid>,
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
+    pub prompt_consent: bool,
 }
 
 impl AuthSession {
@@ -114,6 +117,8 @@ impl AuthSession {
             user_session_id: None,
             remember_me: false,
             reauth_session_id: None,
+            consent_token_hash: None,
+            prompt_consent: params.prompt_consent,
         }
     }
 }

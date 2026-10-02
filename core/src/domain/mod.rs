@@ -6,6 +6,7 @@ pub mod authentication;
 pub mod client;
 pub mod common;
 pub mod compass;
+pub mod consent;
 pub mod credential;
 pub mod crypto;
 pub mod email_template;

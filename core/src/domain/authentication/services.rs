@@ -19,6 +19,11 @@ use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperReposit
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName};
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_compass::value_objects::StepOutcome;
+use ferriskey_consent::{
+    ConsentDecisionOutcome, ConsentEvaluation, ConsentRequestView, ConsentService,
+    ConsentServiceImpl, DecideConsentInput, EvaluateConsentInput, ScopeDescriptor,
+    ports::ConsentDecisionRepository,
+};
 use ferriskey_organization::{
     Group, GroupId, GroupTokenRepository, OrganizationAttributeRepository, OrganizationId,
     OrganizationMemberRepository, OrganizationRepository,
@@ -35,9 +40,9 @@ use crate::domain::{
         OidcScope,
         entities::{
             AuthCompletion, AuthInput, AuthOutput, AuthProtocol, AuthSession, AuthSessionParams,
-            AuthenticateOutput, AuthenticationMethod, AuthorizeRequestInput,
-            AuthorizeRequestOutput, CredentialsAuthParams, ExchangeTokenInput, GrantType, JwtToken,
-            SsoSessionBinding, TokenIntrospectionResponse,
+            AuthenticateOutput, AuthenticationMethod, AuthenticationStepStatus,
+            AuthorizeRequestInput, AuthorizeRequestOutput, CredentialsAuthParams,
+            ExchangeTokenInput, GrantType, JwtToken, SsoSessionBinding, TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{AuthService, AuthSessionRepository, LoginActionToken, LoginActionTokenRepository},
@@ -100,6 +105,17 @@ type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>
 
 pub(crate) fn sso_token_hash(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
+}
+
+fn consent_error_redirect(redirect_uri: &str, error: &str, state: Option<&str>) -> String {
+    let separator = if redirect_uri.contains('?') { '&' } else { '?' };
+    let mut location = format!("{redirect_uri}{separator}error={error}");
+
+    if let Some(state) = state {
+        location.push_str(&format!("&state={}", urlencoding::encode(state)));
+    }
+
+    location
 }
 
 pub(crate) fn lockout_compute_locked_until(
@@ -888,6 +904,7 @@ pub struct AuthServiceImpl<
     SER,
     USR,
     LAT,
+    CO,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -917,6 +934,7 @@ pub struct AuthServiceImpl<
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
+    CO: ConsentDecisionRepository,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -949,6 +967,8 @@ pub struct AuthServiceImpl<
     pub(crate) mapper_engine: Arc<MapperEngine>,
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
+    pub(crate) consent_service: Arc<ConsentServiceImpl<CO>>,
+    pub(crate) webapp_url: String,
 }
 
 impl<
@@ -980,6 +1000,7 @@ impl<
     SER,
     USR,
     LAT,
+    CO,
 >
     AuthServiceImpl<
         R,
@@ -1010,6 +1031,7 @@ impl<
         SER,
         USR,
         LAT,
+        CO,
     >
 where
     R: RealmRepository,
@@ -1040,6 +1062,7 @@ where
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
+    CO: ConsentDecisionRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -1073,6 +1096,8 @@ where
         login_action_token_repository: Arc<LAT>,
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
+        consent_service: Arc<ConsentServiceImpl<CO>>,
+        webapp_url: String,
     ) -> Self {
         Self {
             realm_repository,
@@ -1106,6 +1131,8 @@ where
             mapper_engine,
             ldap_client: LdapClientImpl,
             flow_recorder,
+            consent_service,
+            webapp_url,
         }
     }
 }
@@ -1139,6 +1166,7 @@ impl<
     SER,
     USR,
     LAT,
+    CO,
 >
     AuthServiceImpl<
         R,
@@ -1169,6 +1197,7 @@ impl<
         SER,
         USR,
         LAT,
+        CO,
     >
 where
     R: RealmRepository,
@@ -1199,6 +1228,7 @@ where
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
+    CO: ConsentDecisionRepository,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -2407,6 +2437,34 @@ where
         Ok(sorted.join(" "))
     }
 
+    async fn narrow_scope_by_consent_decision(
+        &self,
+        realm_id: RealmId,
+        user_id: Uuid,
+        client_id: Uuid,
+        scope: String,
+    ) -> Result<String, CoreError> {
+        let decision = self
+            .consent_service
+            .find_decision(realm_id, user_id, client_id)
+            .await?;
+
+        let Some(decision) = decision else {
+            return Ok(scope);
+        };
+
+        if decision.denied_scopes.is_empty() {
+            return Ok(scope);
+        }
+
+        let narrowed: Vec<&str> = scope
+            .split_whitespace()
+            .filter(|name| !decision.denied_scopes.iter().any(|denied| denied == name))
+            .collect();
+
+        Ok(narrowed.join(" "))
+    }
+
     fn verify_pkce(
         code_verifier: &str,
         code_challenge: &str,
@@ -2520,6 +2578,15 @@ where
 
         let final_scope = self
             .resolve_scopes_for_client(auth_session.client_id, auth_session.scope.clone())
+            .await?;
+
+        let final_scope = self
+            .narrow_scope_by_consent_decision(
+                params.realm.id(),
+                user_id,
+                auth_session.client_id,
+                final_scope,
+            )
             .await?;
 
         info!("Final scope for authorization code grant: {}", final_scope);
@@ -3189,8 +3256,275 @@ where
             StepOutcome::skipped(),
         );
 
+        if let Some(output) = self
+            .consent_gate(auth_result.user_id, session_code, &auth_session, scope)
+            .await?
+        {
+            return Ok(output);
+        }
+
         self.finalize_authentication(
             auth_result.user_id,
+            session_code,
+            auth_session,
+            SsoSessionBinding::Open,
+            scope,
+        )
+        .await
+    }
+
+    async fn consent_scope_view(
+        &self,
+        client_id: Uuid,
+        requested_scope: Option<&str>,
+    ) -> Result<(Vec<ScopeDescriptor>, Vec<ScopeDescriptor>), CoreError> {
+        let default_scopes = self
+            .scope_mapping_repository
+            .get_default_scopes(client_id)
+            .await
+            .unwrap_or_default();
+        let optional_scopes = self
+            .scope_mapping_repository
+            .get_optional_scopes(client_id)
+            .await
+            .unwrap_or_default();
+
+        self.resolve_scopes_for_client(client_id, requested_scope.map(str::to_string))
+            .await?;
+
+        let requested_names: HashSet<&str> = requested_scope
+            .unwrap_or_default()
+            .split_whitespace()
+            .collect();
+
+        let requested_optional_scopes: Vec<ScopeDescriptor> = optional_scopes
+            .into_iter()
+            .filter(|scope| requested_names.contains(scope.name.as_str()))
+            .map(|scope| ScopeDescriptor {
+                name: scope.name,
+                description: scope.description,
+            })
+            .collect();
+
+        let default_scope_descriptors: Vec<ScopeDescriptor> = default_scopes
+            .into_iter()
+            .map(|scope| ScopeDescriptor {
+                name: scope.name,
+                description: scope.description,
+            })
+            .collect();
+
+        Ok((default_scope_descriptors, requested_optional_scopes))
+    }
+
+    async fn client_display_name(&self, scope: &RealmScope, client_id: Uuid) -> String {
+        self.client_repository
+            .get_by_id(scope.id(), client_id)
+            .await
+            .ok()
+            .and_then(|client| client.in_realm(scope).ok())
+            .map(|client| client.into_inner().name)
+            .unwrap_or_default()
+    }
+
+    async fn consent_gate(
+        &self,
+        user_id: Uuid,
+        session_code: Uuid,
+        auth_session: &AuthSession,
+        scope: &RealmScope,
+    ) -> Result<Option<AuthenticateOutput>, CoreError> {
+        let consent_required = self
+            .consent_service
+            .decision_repository
+            .get_client_consent_required(auth_session.client_id)
+            .await?;
+
+        if !consent_required {
+            return Ok(None);
+        }
+
+        let (default_scope_descriptors, requested_optional_scopes) = self
+            .consent_scope_view(auth_session.client_id, auth_session.scope.as_deref())
+            .await?;
+
+        let evaluation = self
+            .consent_service
+            .evaluate(EvaluateConsentInput {
+                realm_id: scope.id(),
+                user_id,
+                client_id: auth_session.client_id,
+                consent_required: true,
+                default_scopes: default_scope_descriptors,
+                requested_optional_scopes,
+                force_screen: auth_session.prompt_consent,
+            })
+            .await?;
+
+        if matches!(evaluation, ConsentEvaluation::Skip { .. }) {
+            return Ok(None);
+        }
+
+        let consent_token = generate_random_token();
+        let consent_token_hash = sso_token_hash(&consent_token);
+
+        self.auth_session_repository
+            .update_user_id(session_code, user_id)
+            .await
+            .map_err(|_| CoreError::SessionNotFound)?;
+        self.auth_session_repository
+            .set_consent_token_hash(session_code, consent_token_hash)
+            .await
+            .map_err(|_| CoreError::SessionNotFound)?;
+
+        let redirect_url = format!(
+            "{}/realms/{}/authentication/consent?consent_token={}",
+            self.webapp_url.trim_end_matches('/'),
+            scope.name(),
+            consent_token
+        );
+
+        Ok(Some(AuthenticateOutput {
+            user_id,
+            status: AuthenticationStepStatus::Success,
+            authorization_code: None,
+            temporary_token: None,
+            required_actions: Vec::new(),
+            redirect_url: Some(redirect_url),
+            completion: None,
+            session_state: None,
+            email: None,
+            sso_cookie: None,
+            sso_session_max_age_secs: None,
+        }))
+    }
+
+    async fn auth_session_by_consent_token(
+        &self,
+        scope: &RealmScope,
+        consent_token: &str,
+    ) -> Result<AuthSession, CoreError> {
+        let hash = sso_token_hash(consent_token);
+
+        let auth_session = self
+            .auth_session_repository
+            .get_by_consent_token_hash(hash)
+            .await
+            .map_err(|_| CoreError::NotFound)?
+            .ok_or(CoreError::NotFound)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::NotFound)?
+            .into_inner();
+
+        if auth_session.expires_at <= Utc::now() {
+            return Err(CoreError::NotFound);
+        }
+
+        Ok(auth_session)
+    }
+
+    pub async fn get_consent_view(
+        &self,
+        realm_name: &str,
+        consent_token: &str,
+    ) -> Result<ConsentRequestView, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
+        let auth_session = self
+            .auth_session_by_consent_token(&scope, consent_token)
+            .await?;
+
+        let (default_scopes, optional_scopes) = self
+            .consent_scope_view(auth_session.client_id, auth_session.scope.as_deref())
+            .await?;
+        let client_name = self
+            .client_display_name(&scope, auth_session.client_id)
+            .await;
+
+        Ok(ConsentRequestView {
+            client_name,
+            default_scopes,
+            optional_scopes,
+        })
+    }
+
+    pub async fn decide_consent(
+        &self,
+        realm_name: &str,
+        consent_token: &str,
+        approved_scopes: Vec<String>,
+    ) -> Result<String, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
+        let auth_session = self
+            .auth_session_by_consent_token(&scope, consent_token)
+            .await?;
+
+        self.auth_session_repository
+            .clear_consent_token_hash(auth_session.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let (default_scopes, optional_scopes) = self
+            .consent_scope_view(auth_session.client_id, auth_session.scope.as_deref())
+            .await?;
+        let default_scope_names: Vec<String> = default_scopes.into_iter().map(|s| s.name).collect();
+        let requested_optional_scope_names: Vec<String> =
+            optional_scopes.into_iter().map(|s| s.name).collect();
+
+        let ttl_days = self
+            .consent_service
+            .decision_repository
+            .get_consent_ttl_days(scope.id())
+            .await?
+            .map(i64::from);
+
+        let user_id = auth_session.user_id.ok_or(CoreError::InternalServerError)?;
+
+        let outcome = self
+            .consent_service
+            .decide(DecideConsentInput {
+                realm_id: scope.id(),
+                user_id,
+                client_id: auth_session.client_id,
+                default_scope_names,
+                requested_optional_scope_names,
+                approved_scope_names: approved_scopes,
+                ttl_days,
+            })
+            .await?;
+
+        match outcome {
+            ConsentDecisionOutcome::Denied => Ok(consent_error_redirect(
+                &auth_session.redirect_uri,
+                "access_denied",
+                auth_session.state.as_deref(),
+            )),
+            ConsentDecisionOutcome::Approved { .. } => {
+                let output = self
+                    .finalize_after_consent(auth_session.id, user_id, &scope)
+                    .await?;
+
+                output.redirect_url.ok_or(CoreError::InternalServerError)
+            }
+        }
+    }
+
+    async fn finalize_after_consent(
+        &self,
+        session_code: Uuid,
+        user_id: Uuid,
+        scope: &RealmScope,
+    ) -> Result<AuthenticateOutput, CoreError> {
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::SessionNotFound)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
+        self.finalize_authentication(
+            user_id,
             session_code,
             auth_session,
             SsoSessionBinding::Open,
@@ -4018,6 +4352,7 @@ impl<
     SER,
     USR,
     LAT,
+    CO,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -4048,6 +4383,7 @@ impl<
         SER,
         USR,
         LAT,
+        CO,
     >
 where
     R: RealmRepository,
@@ -4078,6 +4414,7 @@ where
     SER: SecurityEventRepository,
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
+    CO: ConsentDecisionRepository,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
@@ -4158,6 +4495,7 @@ where
             compass_flow_id: flow_id.as_ref().map(|id| id.0),
             code_challenge: input.code_challenge,
             code_challenge_method: input.code_challenge_method,
+            prompt_consent: input.prompt_consent,
         };
         let session = self
             .auth_session_repository
@@ -5266,6 +5604,8 @@ mod tests {
             user_session_id: None,
             remember_me: false,
             reauth_session_id: None,
+            consent_token_hash: None,
+            prompt_consent: false,
         }
     }
 
@@ -5676,6 +6016,7 @@ mod tests {
             updated_at: Utc::now(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
+            consent_required: false,
         }
     }
 
