@@ -16,8 +16,9 @@ use uuid::Uuid;
 
 use ferriskey_aegis::entities::{ClientScope, ProtocolMapper};
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
-use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
+use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName};
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_compass::value_objects::StepOutcome;
 use ferriskey_organization::{
     Group, GroupId, GroupTokenRepository, OrganizationAttributeRepository, OrganizationId,
     OrganizationMemberRepository, OrganizationRepository,
@@ -2571,10 +2572,7 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::TokenExchange,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(format!("{:?}", e)),
-                    None,
+                    StepOutcome::failure(format!("{:?}", e)).with_duration(duration),
                 );
                 self.flow_recorder.complete_flow(
                     flow_id.clone(),
@@ -2599,10 +2597,7 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::TokenExchange,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(format!("{:?}", e)),
-                    None,
+                    StepOutcome::failure(format!("{:?}", e)).with_duration(duration),
                 );
                 self.flow_recorder.complete_flow(
                     flow_id.clone(),
@@ -2617,10 +2612,7 @@ where
         self.flow_recorder.record_step(
             flow_id.clone(),
             FlowStepName::TokenExchange,
-            StepStatus::Success,
-            Some(duration),
-            None,
-            None,
+            StepOutcome::success().with_duration(duration),
         );
         self.flow_recorder.complete_flow(
             flow_id.clone(),
@@ -3116,10 +3108,7 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::CredentialValidation,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(format!("{:?}", e)),
-                    None,
+                    StepOutcome::failure(format!("{:?}", e)).with_duration(duration),
                 );
                 e
             })?;
@@ -3128,10 +3117,7 @@ where
         self.flow_recorder.record_step(
             flow_id.clone(),
             FlowStepName::CredentialValidation,
-            StepStatus::Success,
-            Some(duration),
-            None,
-            None,
+            StepOutcome::success().with_duration(duration),
         );
 
         // Kept on the authorization request: the session may only open after
@@ -3200,10 +3186,7 @@ where
         self.flow_recorder.record_step(
             flow_id.clone(),
             FlowStepName::MfaChallenge,
-            StepStatus::Skipped,
-            None,
-            None,
-            None,
+            StepOutcome::skipped(),
         );
 
         self.finalize_authentication(
@@ -3295,10 +3278,7 @@ where
         self.flow_recorder.record_step(
             auth_session.compass_flow_id.map(FlowId),
             FlowStepName::Finalize,
-            StepStatus::Success,
-            None,
-            None,
-            None,
+            StepOutcome::success(),
         );
 
         Ok(AuthenticateOutput::complete(
@@ -4185,14 +4165,8 @@ where
             .await
             .map_err(|_| CoreError::SessionCreateError)?;
 
-        self.flow_recorder.record_step(
-            flow_id,
-            FlowStepName::Authorize,
-            StepStatus::Success,
-            None,
-            None,
-            None,
-        );
+        self.flow_recorder
+            .record_step(flow_id, FlowStepName::Authorize, StepOutcome::success());
 
         let login_url = format!(
             "?client_id={}&redirect_uri={}&state={}",
@@ -4300,10 +4274,7 @@ where
                 self.flow_recorder.record_step(
                     standalone_flow_id.clone(),
                     FlowStepName::TokenExchange,
-                    StepStatus::Success,
-                    Some(duration),
-                    None,
-                    None,
+                    StepOutcome::success().with_duration(duration),
                 );
                 self.flow_recorder.complete_flow(
                     standalone_flow_id.clone(),
@@ -4316,10 +4287,7 @@ where
                 self.flow_recorder.record_step(
                     standalone_flow_id.clone(),
                     FlowStepName::TokenExchange,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(format!("{:?}", error)),
-                    None,
+                    StepOutcome::failure(format!("{:?}", error)).with_duration(duration),
                 );
                 self.flow_recorder.complete_flow(
                     standalone_flow_id.clone(),

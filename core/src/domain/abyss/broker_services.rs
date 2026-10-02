@@ -3,8 +3,9 @@ use std::sync::Arc;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::Utc;
 use ferriskey_compass::{
-    entities::{FlowStatus, FlowStepName, StepStatus},
+    entities::{FlowStatus, FlowStepName},
     recorder::FlowRecorder,
+    value_objects::StepOutcome,
 };
 use rand::{RngCore, thread_rng};
 use sha2::{Digest, Sha256};
@@ -658,10 +659,7 @@ where
         self.flow_recorder.record_step(
             flow_id.clone(),
             FlowStepName::IdpRedirect,
-            StepStatus::Success,
-            None,
-            None,
-            None,
+            StepOutcome::success(),
         );
 
         // 6. Exchange authorization code for tokens (IdP callback)
@@ -706,10 +704,9 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::IdpCallback,
-                    StepStatus::Success,
-                    Some(duration),
-                    None,
-                    None,
+                    StepOutcome::success()
+                        .with_duration(duration)
+                        .with_details(serde_json::json!({ "provider": idp.get().alias })),
                 );
                 response
             }
@@ -718,10 +715,9 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::IdpCallback,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(format!("{:?}", e)),
-                    idp_error,
+                    StepOutcome::failure(format!("{:?}", e))
+                        .with_duration(duration)
+                        .with_message(idp_error),
                 );
                 self.flow_recorder
                     .complete_flow(flow_id, FlowStatus::Failure, duration, None);

@@ -6,8 +6,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
-use ferriskey_compass::entities::{FlowStatus, FlowStepName, StepStatus};
+use ferriskey_compass::entities::{FlowStatus, FlowStepName};
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_compass::value_objects::StepOutcome;
 use ferriskey_domain::generate_uuid_v7;
 use ferriskey_domain::token_lifetime::TokenLifetimes;
 use serde_json::json;
@@ -432,21 +433,14 @@ where
         let result = self.exchange_as(&client, params.clone(), &mut trace).await;
 
         let duration = (Utc::now() - started).num_milliseconds();
-        let (step_status, flow_status, error_code) = match &result {
-            Ok(_) => (StepStatus::Success, FlowStatus::Success, None),
-            Err(err) => (
-                StepStatus::Failure,
-                FlowStatus::Failure,
-                Some(err.to_string()),
-            ),
+        let (outcome, flow_status) = match &result {
+            Ok(_) => (StepOutcome::success(), FlowStatus::Success),
+            Err(err) => (StepOutcome::failure(err.to_string()), FlowStatus::Failure),
         };
         self.flow_recorder.record_step(
             flow_id.clone(),
             FlowStepName::SubjectTokenExchange,
-            step_status,
-            Some(duration),
-            error_code,
-            None,
+            outcome.with_duration(duration),
         );
         self.flow_recorder
             .complete_flow(flow_id, flow_status, duration, trace.subject);
