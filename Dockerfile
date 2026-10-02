@@ -76,18 +76,8 @@ RUN VITE_API_URL="" pnpm run build
 # ── Frontend runtime ──────────────────────────────────────────────────────────
 FROM nginxinc/nginx-unprivileged:1.31.1-alpine3.23-slim AS webapp
 
-# The unprivileged image ships root-owned index.html/50x.html in the web root and
-# runs as the non-root "nginx" user. The runtime entrypoint wipes and repopulates
-# that directory, so it must be owned by the runtime user — otherwise the rm fails
-# with "Permission denied" and (under `set -e`) nginx never starts.
-# Numeric ids (hadolint DL3066): 0 = root, 101 = the image's nginx user.
-USER 0
-RUN rm -rf /usr/share/nginx/html/* && chown -R nginx:nginx /usr/share/nginx/html
-USER 101
-
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
+COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
 FROM debian:bookworm-slim AS standalone
