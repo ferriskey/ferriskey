@@ -109,6 +109,11 @@ pub trait PortalLayoutsRepository: Send + Sync {
         &self,
         layout: &Scoped<PortalLayout>,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn is_active_theme_layout(
+        &self,
+        layout: &Scoped<PortalLayout>,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 pub trait PortalLayoutsPolicy: Send + Sync {

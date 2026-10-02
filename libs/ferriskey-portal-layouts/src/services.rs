@@ -218,11 +218,25 @@ where
     ) -> Result<Option<PortalLayout>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        self.layouts_repository
+        let Some(layout) = self
+            .layouts_repository
             .get_by_id(scope.id().into(), input.layout_id)
             .await?
-            .in_realm(&scope)
-            .map(|layout| layout.map(Scoped::into_inner))
+            .in_realm(&scope)?
+        else {
+            return Ok(None);
+        };
+
+        if !layout.get().is_default
+            && !self
+                .layouts_repository
+                .is_active_theme_layout(&layout)
+                .await?
+        {
+            return Ok(None);
+        }
+
+        Ok(Some(layout.into_inner()))
     }
 
     async fn import_layout(
@@ -853,5 +867,139 @@ mod tests {
 
         assert!(result.is_some());
         assert_eq!(result.unwrap().name, "Public");
+    }
+
+    #[tokio::test]
+    async fn get_public_layout_serves_the_layout_the_active_theme_names() {
+        let realm = test_realm();
+        let stored = stored_layout(&realm, "Live", false);
+        let layout_id = stored.id;
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        layouts_repo.expect_get_by_id().returning(move |_, _| {
+            let l = stored.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(l))) })
+        });
+        layouts_repo
+            .expect_is_active_theme_layout()
+            .returning(|_| Box::pin(async move { Ok(true) }));
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            MockUserRepository::new(),
+            MockUserRoleRepository::new(),
+            layouts_repo,
+        );
+
+        let result = service
+            .get_public_layout(GetLayoutInput {
+                realm_name: realm.name.clone(),
+                layout_id,
+            })
+            .await
+            .expect("public fetch should succeed");
+
+        assert_eq!(
+            result.expect("the active theme layout must be served").name,
+            "Live"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_public_layout_hides_a_layout_no_active_theme_names() {
+        let realm = test_realm();
+        let stored = stored_layout(&realm, "Draft", false);
+        let layout_id = stored.id;
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        layouts_repo.expect_get_by_id().returning(move |_, _| {
+            let l = stored.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(l))) })
+        });
+        layouts_repo
+            .expect_is_active_theme_layout()
+            .returning(|_| Box::pin(async move { Ok(false) }));
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            MockUserRepository::new(),
+            MockUserRoleRepository::new(),
+            layouts_repo,
+        );
+
+        let result = service
+            .get_public_layout(GetLayoutInput {
+                realm_name: realm.name.clone(),
+                layout_id,
+            })
+            .await
+            .expect("public fetch should succeed");
+
+        assert!(
+            result.is_none(),
+            "an unreferenced layout must not be readable by an anonymous caller"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_public_layout_still_serves_the_realm_default() {
+        let realm = test_realm();
+        let stored = stored_layout(&realm, "Default", true);
+        let layout_id = stored.id;
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        layouts_repo.expect_get_by_id().returning(move |_, _| {
+            let l = stored.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(l))) })
+        });
+        layouts_repo.expect_is_active_theme_layout().never();
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            MockUserRepository::new(),
+            MockUserRoleRepository::new(),
+            layouts_repo,
+        );
+
+        let result = service
+            .get_public_layout(GetLayoutInput {
+                realm_name: realm.name.clone(),
+                layout_id,
+            })
+            .await
+            .expect("public fetch should succeed");
+
+        assert_eq!(
+            result.expect("the default layout is already public").name,
+            "Default"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_public_layout_returns_none_for_an_unknown_layout() {
+        let realm = test_realm();
+
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        layouts_repo
+            .expect_get_by_id()
+            .returning(|_, _| Box::pin(async move { Ok(None) }));
+        layouts_repo.expect_is_active_theme_layout().never();
+
+        let service = build_service(
+            realm_repo_returning(realm.clone()),
+            MockUserRepository::new(),
+            MockUserRoleRepository::new(),
+            layouts_repo,
+        );
+
+        let result = service
+            .get_public_layout(GetLayoutInput {
+                realm_name: realm.name.clone(),
+                layout_id: Uuid::new_v4(),
+            })
+            .await
+            .expect("public fetch should succeed");
+
+        assert!(result.is_none());
     }
 }

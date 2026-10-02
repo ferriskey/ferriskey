@@ -25,7 +25,7 @@ pub struct GetPublicPortalLayoutResponse {
     path = "/{layout_id}",
     tag = "portal-layouts",
     summary = "Get a portal layout by id (public)",
-    description = "Returns a specific portal layout without auth, used by the portal renderer to fetch the layout referenced by the active theme.",
+    description = "Returns a portal layout without auth, for the portal renderer. Only the layout named by the realm's active theme, or the realm's default layout, is served; any other layout of the realm answers with null.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
         ("layout_id" = Uuid, Path, description = "Portal layout ID"),
