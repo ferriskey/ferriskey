@@ -17,8 +17,6 @@ pub struct Model {
     pub realm_id: Uuid,
     pub user_id: Uuid,
     pub client_id: Uuid,
-    pub granted_scopes: Vec<String>,
-    pub denied_scopes: Vec<String>,
     pub expires_at: DateTime,
     pub created_at: DateTime,
     pub updated_at: DateTime,
@@ -30,8 +28,6 @@ pub enum Column {
     RealmId,
     UserId,
     ClientId,
-    GrantedScopes,
-    DeniedScopes,
     ExpiresAt,
     CreatedAt,
     UpdatedAt,
@@ -52,6 +48,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     Clients,
+    ConsentSessionScopes,
     Realms,
     Users,
 }
@@ -64,8 +61,6 @@ impl ColumnTrait for Column {
             Self::RealmId => ColumnType::Uuid.def(),
             Self::UserId => ColumnType::Uuid.def(),
             Self::ClientId => ColumnType::Uuid.def(),
-            Self::GrantedScopes => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
-            Self::DeniedScopes => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
             Self::ExpiresAt => ColumnType::DateTime.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
@@ -80,6 +75,9 @@ impl RelationTrait for Relation {
                 .from(Column::ClientId)
                 .to(super::clients::Column::Id)
                 .into(),
+            Self::ConsentSessionScopes => {
+                Entity::has_many(super::consent_session_scopes::Entity).into()
+            }
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
@@ -95,6 +93,12 @@ impl RelationTrait for Relation {
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
+    }
+}
+
+impl Related<super::consent_session_scopes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ConsentSessionScopes.def()
     }
 }
 

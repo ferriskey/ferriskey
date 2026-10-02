@@ -15,6 +15,7 @@ pub use super::client_web_origins::Entity as ClientWebOrigins;
 pub use super::clients::Entity as Clients;
 pub use super::compass_flow_steps::Entity as CompassFlowSteps;
 pub use super::compass_flows::Entity as CompassFlows;
+pub use super::consent_session_scopes::Entity as ConsentSessionScopes;
 pub use super::consent_sessions::Entity as ConsentSessions;
 pub use super::credentials::Entity as Credentials;
 pub use super::data_migrations::Entity as DataMigrations;
