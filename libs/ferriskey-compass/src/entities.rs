@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::value_objects::StepOutcome;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct FlowId(pub Uuid);
 
@@ -220,6 +222,7 @@ pub struct CompassFlowStep {
     pub duration_ms: Option<i64>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    pub details: Option<serde_json::Value>,
     pub started_at: DateTime<Utc>,
 }
 
@@ -227,20 +230,18 @@ impl CompassFlowStep {
     pub fn new(
         flow_id: FlowId,
         step_name: FlowStepName,
-        status: StepStatus,
-        duration_ms: Option<i64>,
-        error_code: Option<String>,
-        error_message: Option<String>,
+        outcome: StepOutcome,
         started_at: DateTime<Utc>,
     ) -> Self {
         Self {
             id: FlowStepId::new(),
             flow_id,
             step_name,
-            status,
-            duration_ms,
-            error_code,
-            error_message,
+            status: outcome.status,
+            duration_ms: outcome.duration_ms,
+            error_code: outcome.error_code,
+            error_message: outcome.error_message,
+            details: outcome.details,
             started_at,
         }
     }

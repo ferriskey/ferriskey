@@ -22,6 +22,7 @@ pub struct Model {
     pub error_message: Option<String>,
     pub started_at: DateTime,
     pub created_at: DateTime,
+    pub details: Option<Json>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -35,6 +36,7 @@ pub enum Column {
     ErrorMessage,
     StartedAt,
     CreatedAt,
+    Details,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -67,6 +69,7 @@ impl ColumnTrait for Column {
             Self::ErrorMessage => ColumnType::Text.def().null(),
             Self::StartedAt => ColumnType::DateTime.def(),
             Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::Details => ColumnType::JsonBinary.def().null(),
         }
     }
 }

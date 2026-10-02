@@ -3,7 +3,8 @@ use ferriskey_domain::realm::Realm;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
-use crate::entities::{CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName, StepStatus};
+use crate::entities::{CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName};
+use crate::value_objects::StepOutcome;
 
 pub enum CompassEvent {
     FlowStarted {
@@ -96,24 +97,13 @@ impl FlowRecorder {
         &self,
         flow_id: Option<FlowId>,
         step_name: FlowStepName,
-        status: StepStatus,
-        duration_ms: Option<i64>,
-        error_code: Option<String>,
-        error_message: Option<String>,
+        outcome: StepOutcome,
     ) {
         let Some(flow_id) = flow_id else {
             return;
         };
 
-        let step = CompassFlowStep::new(
-            flow_id,
-            step_name,
-            status,
-            duration_ms,
-            error_code,
-            error_message,
-            Utc::now(),
-        );
+        let step = CompassFlowStep::new(flow_id, step_name, outcome, Utc::now());
         self.send(CompassEvent::StepRecorded(step));
     }
 
@@ -263,19 +253,33 @@ mod tests {
         let (tx, mut events) = mpsc::channel(16);
         let recorder = FlowRecorder::new(tx);
 
-        recorder.record_step(
-            None,
-            FlowStepName::Authorize,
-            StepStatus::Success,
-            None,
-            None,
-            None,
-        );
+        recorder.record_step(None, FlowStepName::Authorize, StepOutcome::success());
         recorder.complete_flow(None, FlowStatus::Success, 12, None);
 
         assert!(
             events.try_recv().is_err(),
             "a step without a flow must not reach the writer"
         );
+    }
+
+    #[tokio::test]
+    async fn record_step_with_details_reaches_the_writer() {
+        let (tx, mut events) = mpsc::channel(16);
+        let recorder = FlowRecorder::new(tx);
+        let flow_id = FlowId::new();
+        let details = serde_json::json!({ "idp": "okta" });
+
+        recorder.record_step(
+            Some(flow_id),
+            FlowStepName::IdpCallback,
+            StepOutcome::success().with_details(details.clone()),
+        );
+
+        match events.try_recv().expect("a step must reach the writer") {
+            CompassEvent::StepRecorded(step) => {
+                assert_eq!(step.details, Some(details));
+            }
+            _ => panic!("expected a StepRecorded event"),
+        }
     }
 }

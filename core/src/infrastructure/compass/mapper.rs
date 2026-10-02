@@ -81,6 +81,7 @@ impl From<compass_flow_steps::Model> for CompassFlowStep {
             duration_ms: model.duration_ms,
             error_code: model.error_code,
             error_message: model.error_message,
+            details: model.details,
             started_at: Utc.from_utc_datetime(&model.started_at),
         }
     }
@@ -96,6 +97,7 @@ impl From<CompassFlowStep> for compass_flow_steps::ActiveModel {
             duration_ms: Set(step.duration_ms),
             error_code: Set(step.error_code),
             error_message: Set(step.error_message),
+            details: Set(step.details),
             started_at: Set(step.started_at.naive_utc()),
             created_at: Set(Utc::now().naive_utc()),
         }
@@ -134,6 +136,7 @@ mod tests {
             error_message: None,
             started_at: Utc::now().naive_utc(),
             created_at: Utc::now().naive_utc(),
+            details: None,
         }
     }
 
@@ -162,5 +165,25 @@ mod tests {
                 "`{written}` must not read back as another step"
             );
         }
+    }
+
+    #[test]
+    fn a_step_without_details_maps_to_none() {
+        let read = CompassFlowStep::from(stored_step("authorize"));
+
+        assert_eq!(read.details, None);
+    }
+
+    #[test]
+    fn a_step_round_trips_its_details_through_the_active_model() {
+        let details = serde_json::json!({ "idp": "okta", "redirect_count": 2 });
+        let mut model = stored_step("idp_callback");
+        model.details = Some(details.clone());
+
+        let read = CompassFlowStep::from(model);
+        assert_eq!(read.details, Some(details.clone()));
+
+        let active_model = compass_flow_steps::ActiveModel::from(read);
+        assert_eq!(active_model.details.unwrap(), Some(details));
     }
 }

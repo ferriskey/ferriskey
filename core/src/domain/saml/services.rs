@@ -2,8 +2,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName, StepStatus};
+use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName};
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_compass::value_objects::StepOutcome;
 use ferriskey_saml::authn::{AbsoluteUri, AuthnRequest};
 use ferriskey_saml::response::render_signed_response;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
@@ -401,10 +402,9 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::SamlAuthnRequest,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(error_code(&rejection.error)),
-                    Some(rejection.reason),
+                    StepOutcome::failure(error_code(&rejection.error))
+                        .with_duration(duration)
+                        .with_message(Some(rejection.reason)),
                 );
 
                 self.flow_recorder
@@ -464,10 +464,9 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::SamlAuthnRequest,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(error_code(&error)),
-                    Some(reason.to_string()),
+                    StepOutcome::failure(error_code(&error))
+                        .with_duration(duration)
+                        .with_message(Some(reason.to_string())),
                 );
 
                 self.flow_recorder
@@ -480,10 +479,7 @@ where
         self.flow_recorder.record_step(
             flow_id,
             FlowStepName::SamlAuthnRequest,
-            StepStatus::Success,
-            Some(elapsed_since(started_at)),
-            None,
-            None,
+            StepOutcome::success().with_duration(elapsed_since(started_at)),
         );
 
         Ok(AuthOutput {
@@ -556,10 +552,7 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::SamlAssertion,
-                    StepStatus::Success,
-                    Some(duration),
-                    None,
-                    None,
+                    StepOutcome::success().with_duration(duration),
                 );
 
                 self.flow_recorder
@@ -569,10 +562,9 @@ where
                 self.flow_recorder.record_step(
                     flow_id.clone(),
                     FlowStepName::SamlAssertion,
-                    StepStatus::Failure,
-                    Some(duration),
-                    Some(error_code(error)),
-                    Some(error.to_string()),
+                    StepOutcome::failure(error_code(error))
+                        .with_duration(duration)
+                        .with_message(Some(error.to_string())),
                 );
 
                 self.flow_recorder
@@ -590,7 +582,7 @@ pub(crate) mod tests {
 
     use std::sync::OnceLock;
 
-    use ferriskey_compass::entities::{CompassFlow, CompassFlowStep};
+    use ferriskey_compass::entities::{CompassFlow, CompassFlowStep, StepStatus};
     use ferriskey_compass::recorder::CompassEvent;
     use ferriskey_security::SecurityError;
     use mockall::predicate::eq;

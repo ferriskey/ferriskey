@@ -2000,6 +2000,7 @@ dependencies = [
  "ferriskey-domain",
  "mockall 0.14.0",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "utoipa",

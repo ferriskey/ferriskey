@@ -5,8 +5,9 @@ use std::{
 
 use chrono::{Duration, Utc};
 use ferriskey_compass::{
-    entities::{FlowId, FlowStepName, StepStatus},
+    entities::{FlowId, FlowStepName},
     recorder::FlowRecorder,
+    value_objects::StepOutcome,
 };
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
@@ -1350,10 +1351,7 @@ where
             self.flow_recorder.record_step(
                 flow_id,
                 FlowStepName::MfaChallenge,
-                StepStatus::Failure,
-                None,
-                Some("invalid_otp_code".to_string()),
-                None,
+                StepOutcome::failure("invalid_otp_code".to_string()),
             );
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".to_string(),
@@ -1363,10 +1361,7 @@ where
         self.flow_recorder.record_step(
             flow_id.clone(),
             FlowStepName::MfaChallenge,
-            StepStatus::Success,
-            None,
-            None,
-            None,
+            StepOutcome::success(),
         );
 
         let required_actions = self
@@ -1387,14 +1382,8 @@ where
         let (completion, sso_session) = self.complete_login(&auth_session, user.id, &scope).await?;
         let login_url = login_url_from(completion)?;
 
-        self.flow_recorder.record_step(
-            flow_id,
-            FlowStepName::Finalize,
-            StepStatus::Success,
-            None,
-            None,
-            None,
-        );
+        self.flow_recorder
+            .record_step(flow_id, FlowStepName::Finalize, StepOutcome::success());
 
         Ok(ChallengeOtpOutput {
             login_url: Some(login_url),
