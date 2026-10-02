@@ -150,6 +150,7 @@ pub mod auth;
 pub mod broker;
 pub mod client;
 pub mod compass;
+pub mod consent;
 pub mod credential;
 pub mod email_template;
 pub mod health;
@@ -268,6 +269,14 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     );
     let recovery_code = Arc::new(RandBytesRecoveryCodeRepository::new(hasher.clone()));
     let security_event = Arc::new(PostgresSecurityEventRepository::new(postgres.get_db()));
+    let consent_decision = Arc::new(
+        crate::infrastructure::consent::repositories::consent_decision_postgres_repository::PostgresConsentDecisionRepository::new(
+            postgres.get_db(),
+        ),
+    );
+    let consent_service = Arc::new(ferriskey_consent::ConsentServiceImpl::new(
+        consent_decision.clone(),
+    ));
     let sso_session = Arc::new(crate::application::sso_session::SsoSessionAdapter::new(
         user_session.clone(),
         security_event.clone(),
@@ -393,6 +402,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         login_action_token.clone(),
         Arc::new(MapperEngine::new()),
         flow_recorder.clone(),
+        consent_service.clone(),
+        config.webapp_url.clone(),
     );
 
     // The auth service doubles as the device flow's token issuer.
@@ -496,6 +507,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             security_event.clone(),
             policy.clone(),
         ),
+        consent_service: consent_service.clone(),
         trident_service: TridentServiceImpl::new(
             credential.clone(),
             recovery_code.clone(),
@@ -860,6 +872,7 @@ mod tests {
                     direct_access_grants_enabled: false,
                     oauth_device_code_grant_enabled: false,
                     token_exchange_enabled: false,
+                    consent_required: false,
                 },
             )
             .await

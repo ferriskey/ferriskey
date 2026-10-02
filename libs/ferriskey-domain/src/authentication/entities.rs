@@ -279,6 +279,7 @@ pub struct AuthInput {
     pub code_challenge_method: Option<CodeChallengeMethod>,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
+    pub prompt_consent: bool,
 }
 
 pub struct ExchangeTokenInput {

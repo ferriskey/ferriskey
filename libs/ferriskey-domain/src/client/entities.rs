@@ -114,6 +114,7 @@ pub struct Client {
     pub maintenance_session_strategy: MaintenanceSessionStrategy,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub consent_required: bool,
 }
 
 pub struct ClientConfig {
@@ -178,6 +179,7 @@ impl Client {
             maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: now,
             updated_at: now,
+            consent_required: false,
         }
     }
 
@@ -211,6 +213,7 @@ impl Client {
             maintenance_session_strategy: MaintenanceSessionStrategy::default(),
             created_at: now,
             updated_at: now,
+            consent_required: false,
         }
     }
 }

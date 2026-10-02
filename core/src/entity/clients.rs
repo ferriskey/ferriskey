@@ -38,6 +38,7 @@ pub struct Model {
     pub token_exchange_enabled: bool,
     pub backchannel_logout_uri: Option<String>,
     pub backchannel_logout_session_required: bool,
+    pub consent_required: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -67,6 +68,7 @@ pub enum Column {
     TokenExchangeEnabled,
     BackchannelLogoutUri,
     BackchannelLogoutSessionRequired,
+    ConsentRequired,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -129,6 +131,7 @@ impl ColumnTrait for Column {
             Self::TokenExchangeEnabled => ColumnType::Boolean.def(),
             Self::BackchannelLogoutUri => ColumnType::Text.def().null(),
             Self::BackchannelLogoutSessionRequired => ColumnType::Boolean.def(),
+            Self::ConsentRequired => ColumnType::Boolean.def(),
         }
     }
 }

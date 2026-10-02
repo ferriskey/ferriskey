@@ -784,6 +784,7 @@ where
                 compass_flow_id: flow_id.as_ref().map(|id| id.0),
                 code_challenge: session.code_challenge.clone(),
                 code_challenge_method: challenge_method,
+                prompt_consent: false,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }

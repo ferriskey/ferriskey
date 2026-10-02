@@ -190,6 +190,7 @@ where
                 token_exchange_enabled: input.token_exchange_enabled,
                 client_type: input.client_type,
                 require_pkce: false,
+                consent_required: input.consent_required,
             })
             .await?;
 
@@ -1290,6 +1291,7 @@ mod tests {
                     direct_access_grants_enabled: false,
                     oauth_device_code_grant_enabled: false,
                     token_exchange_enabled: false,
+                    consent_required: false,
                 },
             )
             .await
@@ -1346,6 +1348,7 @@ mod tests {
                         maintenance_session_strategy: None,
                         backchannel_logout_uri: None,
                         backchannel_logout_session_required: None,
+                        consent_required: None,
                     },
                 },
             )

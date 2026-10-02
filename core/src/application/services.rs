@@ -235,6 +235,9 @@ type OAuthClientImpl = ReqwestOAuthClient;
 type ClientScopeRepo = PostgresClientScopeRepository;
 type ProtocolMapperRepo = PostgresProtocolMapperRepository;
 type ScopeMappingRepo = PostgresScopeMappingRepository;
+type ConsentDecisionRepo =
+    crate::infrastructure::consent::repositories::consent_decision_postgres_repository::PostgresConsentDecisionRepository;
+type ApplicationConsentService = ferriskey_consent::ConsentServiceImpl<ConsentDecisionRepo>;
 type MagicLinkRepo = PostgresMagicLinkRepository;
 type CompassFlowRepo = PostgresCompassFlowRepository;
 type CompassFlowStepRepo = PostgresCompassFlowStepRepository;
@@ -395,6 +398,7 @@ type ApplicationAuthService = AuthServiceImpl<
     SecurityEventRepo,
     UserSessionRepo,
     LoginActionTokenRepo,
+    ConsentDecisionRepo,
 >;
 
 type LoginActionTokenRepo = PostgresLoginActionTokenRepository;
@@ -458,6 +462,7 @@ type ApplicationTokenExchangeService = TokenExchangeServiceImpl<
 pub struct ApplicationService {
     pub(crate) security_event_service:
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,
+    pub(crate) consent_service: std::sync::Arc<ApplicationConsentService>,
     pub(crate) credential_service:
         CredentialServiceImpl<RealmRepo, UserRepo, CredentialRepo, PolicyImpl>,
     pub(crate) client_service: ApplicationClientService,

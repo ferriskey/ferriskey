@@ -231,6 +231,7 @@ where
                         client_type: ClientType::Public,
                         secret: None,
                         require_pkce: true,
+                        consent_required: false,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -273,6 +274,7 @@ where
                         client_type: ClientType::Confidential,
                         secret: Some(generate_random_string()),
                         require_pkce: false,
+                        consent_required: false,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -308,6 +310,7 @@ where
                         client_type: ClientType::System,
                         secret: None,
                         require_pkce: false,
+                        consent_required: false,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -490,6 +493,7 @@ where
                             client_type: ClientType::Public,
                             secret: None,
                             require_pkce: true,
+                            consent_required: false,
                         })
                         .await
                     {
@@ -755,6 +759,7 @@ pub mod tests {
             updated_at: Utc::now(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
+            consent_required: false,
         };
 
         Identity::Client(client)

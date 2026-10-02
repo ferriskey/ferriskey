@@ -35,6 +35,8 @@ pub struct Model {
     pub user_session_id: Option<Uuid>,
     pub remember_me: bool,
     pub reauth_session_id: Option<Uuid>,
+    pub consent_token_hash: Option<String>,
+    pub prompt_consent: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -61,6 +63,8 @@ pub enum Column {
     UserSessionId,
     RememberMe,
     ReauthSessionId,
+    ConsentTokenHash,
+    PromptConsent,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -115,6 +119,8 @@ impl ColumnTrait for Column {
             Self::UserSessionId => ColumnType::Uuid.def().null(),
             Self::RememberMe => ColumnType::Boolean.def(),
             Self::ReauthSessionId => ColumnType::Uuid.def().null(),
+            Self::ConsentTokenHash => ColumnType::Text.def().null().unique(),
+            Self::PromptConsent => ColumnType::Boolean.def(),
         }
     }
 }

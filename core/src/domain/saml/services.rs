@@ -446,6 +446,7 @@ where
                 compass_flow_id: flow_id.as_ref().map(|id| id.0),
                 code_challenge: None,
                 code_challenge_method: None,
+                prompt_consent: false,
             }))
             .await;
 
@@ -694,6 +695,7 @@ pub(crate) mod tests {
             updated_at: Utc::now(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
+            consent_required: false,
         }
     }
 
@@ -750,6 +752,8 @@ pub(crate) mod tests {
             user_session_id: None,
             remember_me: false,
             reauth_session_id: None,
+            consent_token_hash: None,
+            prompt_consent: false,
         }
     }
 

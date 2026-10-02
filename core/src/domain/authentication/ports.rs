@@ -124,6 +124,23 @@ pub trait AuthSessionRepository: Send + Sync {
         session_code: Uuid,
         remember_me: bool,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    fn set_consent_token_hash(
+        &self,
+        session_code: Uuid,
+        consent_token_hash: String,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    fn get_by_consent_token_hash(
+        &self,
+        consent_token_hash: String,
+    ) -> impl Future<Output = Result<Option<Unscoped<AuthSession>>, AuthenticationError>> + Send;
+
+    fn clear_consent_token_hash(
+        &self,
+        session_code: Uuid,
+        consent_token_hash: String,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 }
 
 pub trait AuthService: Send + Sync {

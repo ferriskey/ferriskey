@@ -1590,6 +1590,7 @@ dependencies = [
  "ferriskey-api-broker",
  "ferriskey-api-client",
  "ferriskey-api-compass",
+ "ferriskey-api-consent",
  "ferriskey-api-core",
  "ferriskey-api-email-template",
  "ferriskey-api-health",
@@ -1694,6 +1695,7 @@ dependencies = [
  "axum-cookie",
  "axum-extra",
  "base64 0.22.1",
+ "ferriskey-api-consent",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
@@ -1747,6 +1749,20 @@ dependencies = [
  "serde_json",
  "utoipa",
  "uuid",
+]
+
+[[package]]
+name = "ferriskey-api-consent"
+version = "0.8.0"
+dependencies = [
+ "axum",
+ "axum-cookie",
+ "ferriskey-api-core",
+ "ferriskey-core",
+ "serde",
+ "utoipa",
+ "uuid",
+ "validator",
 ]
 
 [[package]]
@@ -2008,6 +2024,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferriskey-consent"
+version = "0.8.0"
+dependencies = [
+ "chrono",
+ "ferriskey-domain",
+ "mockall 0.14.0",
+ "serde",
+ "tokio",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ferriskey-core"
 version = "0.8.0"
 dependencies = [
@@ -2022,6 +2051,7 @@ dependencies = [
  "ferriskey-aegis",
  "ferriskey-authz",
  "ferriskey-compass",
+ "ferriskey-consent",
  "ferriskey-domain",
  "ferriskey-mail",
  "ferriskey-migrate",

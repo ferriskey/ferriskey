@@ -103,6 +103,7 @@ mod tests {
             updated_at: chrono::Utc::now(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
+            consent_required: false,
         }
     }
 

@@ -110,6 +110,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         updated_at: Utc::now(),
         backchannel_logout_uri: None,
         backchannel_logout_session_required: true,
+        consent_required: false,
     }
 }
 

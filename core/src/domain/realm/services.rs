@@ -419,6 +419,7 @@ where
                 secret: None,
                 service_account_enabled: false,
                 require_pkce: false,
+                consent_required: false,
             })
             .await?;
 
@@ -438,6 +439,7 @@ where
                 secret: None,
                 service_account_enabled: false,
                 require_pkce: false,
+                consent_required: false,
             })
             .await?;
 
@@ -466,6 +468,7 @@ where
                 secret: None,
                 service_account_enabled: false,
                 require_pkce: true,
+                consent_required: false,
             })
             .await?;
 
@@ -552,6 +555,7 @@ where
                 token_exchange_enabled: false,
                 client_type: ClientType::Public,
                 require_pkce: false,
+                consent_required: false,
             })
             .await?;
 

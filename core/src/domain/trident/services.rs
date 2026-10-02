@@ -3841,6 +3841,8 @@ mod tests {
             user_session_id: None,
             remember_me: false,
             reauth_session_id: None,
+            consent_token_hash: None,
+            prompt_consent: false,
         }
     }
 

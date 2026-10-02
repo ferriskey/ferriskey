@@ -118,6 +118,7 @@ mod tests {
             webhook_retry_max_total_delay_ms: None,
             default_locale: "en".to_string(),
             supported_locales: vec!["en".to_string()],
+            consent_ttl_days: None,
         }
     }
 
