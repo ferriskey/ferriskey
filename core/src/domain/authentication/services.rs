@@ -118,6 +118,18 @@ fn consent_error_redirect(redirect_uri: &str, error: &str, state: Option<&str>) 
     location
 }
 
+fn narrow_scope_to_consented(
+    scope: &str,
+    optional_names: &HashSet<&str>,
+    live_granted: &HashSet<&str>,
+) -> String {
+    scope
+        .split_whitespace()
+        .filter(|name| !optional_names.contains(name) || live_granted.contains(name))
+        .collect::<Vec<&str>>()
+        .join(" ")
+}
+
 pub(crate) fn lockout_compute_locked_until(
     new_attempts: i32,
     threshold: i32,
@@ -2444,25 +2456,45 @@ where
         client_id: Uuid,
         scope: String,
     ) -> Result<String, CoreError> {
+        let consent_required = self
+            .consent_service
+            .decision_repository
+            .get_client_consent_required(client_id)
+            .await?;
+
+        if !consent_required {
+            return Ok(scope);
+        }
+
+        let optional_scopes = self
+            .scope_mapping_repository
+            .get_optional_scopes(client_id)
+            .await
+            .unwrap_or_default();
+
+        if optional_scopes.is_empty() {
+            return Ok(scope);
+        }
+
+        let optional_names: HashSet<&str> =
+            optional_scopes.iter().map(|s| s.name.as_str()).collect();
+
         let decision = self
             .consent_service
             .find_decision(realm_id, user_id, client_id)
             .await?;
 
-        let Some(decision) = decision else {
-            return Ok(scope);
-        };
+        let live_granted: HashSet<&str> = decision
+            .as_ref()
+            .filter(|decision| decision.is_live(Utc::now()))
+            .map(|decision| decision.granted_scopes.iter().map(String::as_str).collect())
+            .unwrap_or_default();
 
-        if decision.denied_scopes.is_empty() {
-            return Ok(scope);
-        }
-
-        let narrowed: Vec<&str> = scope
-            .split_whitespace()
-            .filter(|name| !decision.denied_scopes.iter().any(|denied| denied == name))
-            .collect();
-
-        Ok(narrowed.join(" "))
+        Ok(narrow_scope_to_consented(
+            &scope,
+            &optional_names,
+            &live_granted,
+        ))
     }
 
     fn verify_pkce(
@@ -3459,9 +3491,9 @@ where
             .await?;
 
         self.auth_session_repository
-            .clear_consent_token_hash(auth_session.id)
+            .clear_consent_token_hash(auth_session.id, sso_token_hash(consent_token))
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+            .map_err(|_| CoreError::NotFound)?;
 
         let (default_scopes, optional_scopes) = self
             .consent_scope_view(auth_session.client_id, auth_session.scope.as_deref())
@@ -4081,6 +4113,21 @@ This is a server error that should be investigated. Do not forward back this mes
             .map_err(|e| warn!("Failed to record an SSO login in the audit log: {e}"))
             .ok();
 
+        if let Some(output) = self
+            .consent_gate(user.id, session_code, &auth_session, &scope)
+            .await?
+        {
+            if let Err(e) = self
+                .auth_session_repository
+                .set_reauth_session(session_code, session.get().id)
+                .await
+            {
+                warn!(error = ?e, "Failed to record the session to resume after consent");
+            }
+
+            return Ok(output);
+        }
+
         self.finalize_authentication(
             user.id,
             session_code,
@@ -4216,7 +4263,7 @@ This is a server error that should be investigated. Do not forward back this mes
             ));
         }
 
-        let binding = match claims.sid {
+        let named_session = match claims.sid {
             Some(sid) => {
                 let session = self
                     .user_session_repository
@@ -4229,8 +4276,29 @@ This is a server error that should be investigated. Do not forward back this mes
                     .in_realm(&scope)?
                     .ok_or(CoreError::SessionNotFound)?;
 
-                SsoSessionBinding::Adopt { session }
+                Some(session)
             }
+            None => None,
+        };
+
+        if let Some(output) = self
+            .consent_gate(claims.sub, session_code, &auth_session, &scope)
+            .await?
+        {
+            if let Some(session) = &named_session
+                && let Err(e) = self
+                    .auth_session_repository
+                    .set_reauth_session(session_code, session.get().id)
+                    .await
+            {
+                warn!(error = ?e, "Failed to record the session to resume after consent");
+            }
+
+            return Ok(output);
+        }
+
+        let binding = match named_session {
+            Some(session) => SsoSessionBinding::Adopt { session },
             None => SsoSessionBinding::Open,
         };
 
@@ -4990,15 +5058,24 @@ where
             && let Ok(scoped_session) = unscoped_session.in_realm(&scope)
             && auth_session_can_resume(scoped_session.get(), realm.id, Utc::now())
         {
-            let output = self
-                .finalize_authentication(
-                    user.id,
-                    session_code,
-                    scoped_session.into_inner(),
-                    SsoSessionBinding::Open,
-                    &scope,
-                )
-                .await?;
+            let auth_session = scoped_session.into_inner();
+
+            let output = match self
+                .consent_gate(user.id, session_code, &auth_session, &scope)
+                .await?
+            {
+                Some(pending) => pending,
+                None => {
+                    self.finalize_authentication(
+                        user.id,
+                        session_code,
+                        auth_session,
+                        SsoSessionBinding::Open,
+                        &scope,
+                    )
+                    .await?
+                }
+            };
             let redirect_url = output.redirect_url.ok_or(CoreError::InternalServerError)?;
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
@@ -5562,9 +5639,11 @@ where
 mod tests {
     use super::{
         auth_session_can_resume, format_auth_completion, format_authorization_redirect_url,
-        lockout_compute_locked_until, validate_authorization_code_request,
+        lockout_compute_locked_until, narrow_scope_to_consented,
+        validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
+    use std::collections::HashSet;
     use uuid::Uuid;
 
     use crate::domain::authentication::entities::{AuthCompletion, AuthProtocol, AuthSession};
@@ -6732,6 +6811,50 @@ mod tests {
         assert!(
             refuse_token_issuance_when_actions_pending(step(&[], false, false, false).as_ref())
                 .is_ok()
+        );
+    }
+
+    #[test]
+    fn an_optional_scope_with_no_stored_decision_is_dropped() {
+        let optional = HashSet::from(["contacts"]);
+        let granted = HashSet::new();
+
+        assert_eq!(
+            narrow_scope_to_consented("openid profile contacts", &optional, &granted),
+            "openid profile"
+        );
+    }
+
+    #[test]
+    fn an_optional_scope_the_decision_denied_is_dropped() {
+        let optional = HashSet::from(["contacts", "calendar"]);
+        let granted = HashSet::from(["calendar"]);
+
+        assert_eq!(
+            narrow_scope_to_consented("openid contacts calendar", &optional, &granted),
+            "openid calendar"
+        );
+    }
+
+    #[test]
+    fn an_optional_scope_the_decision_granted_survives() {
+        let optional = HashSet::from(["contacts"]);
+        let granted = HashSet::from(["contacts"]);
+
+        assert_eq!(
+            narrow_scope_to_consented("openid contacts", &optional, &granted),
+            "openid contacts"
+        );
+    }
+
+    #[test]
+    fn a_default_scope_is_never_dropped_even_without_a_decision() {
+        let optional = HashSet::new();
+        let granted = HashSet::new();
+
+        assert_eq!(
+            narrow_scope_to_consented("openid profile", &optional, &granted),
+            "openid profile"
         );
     }
 }

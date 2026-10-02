@@ -139,6 +139,7 @@ pub trait AuthSessionRepository: Send + Sync {
     fn clear_consent_token_hash(
         &self,
         session_code: Uuid,
+        consent_token_hash: String,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 }
 

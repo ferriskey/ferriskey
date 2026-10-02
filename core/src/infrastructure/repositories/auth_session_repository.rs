@@ -524,19 +524,25 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
     async fn clear_consent_token_hash(
         &self,
         session_code: Uuid,
+        consent_token_hash: String,
     ) -> Result<(), AuthenticationError> {
-        crate::entity::auth_sessions::Entity::update_many()
+        let result = crate::entity::auth_sessions::Entity::update_many()
             .col_expr(
                 crate::entity::auth_sessions::Column::ConsentTokenHash,
                 Expr::value(Option::<String>::None),
             )
             .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .filter(crate::entity::auth_sessions::Column::ConsentTokenHash.eq(consent_token_hash))
             .exec(&self.db)
             .await
             .map_err(|e| {
                 error!("Error clearing consent_token_hash: {:?}", e);
                 AuthenticationError::Invalid
             })?;
+
+        if result.rows_affected == 0 {
+            return Err(AuthenticationError::NotFound);
+        }
 
         Ok(())
     }

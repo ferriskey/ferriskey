@@ -521,4 +521,45 @@ mod tests {
             assert_eq!(remaining, 0, "a consent token must be single use");
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test consent_test -- --ignored"]
+    fn a_spent_consent_token_cannot_be_replayed() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let client = create_client(&srv, &realm, &token, "replay").await;
+            create_optional_scope(&srv, &realm, &token, &client, "replay-notes").await;
+            set_consent_required(&srv, &realm, &token, &client).await;
+
+            let result =
+                authorize_and_authenticate(&srv, &realm, &client, "openid replay-notes").await;
+            let url = result["url"].as_str().expect("redirect url");
+            let consent_token = query_param(url, "consent_token").expect("consent_token in url");
+
+            let first = srv
+                .post(&format!("/realms/{realm}/auth/consent"))
+                .json(&json!({
+                    "consent_token": consent_token,
+                    "approved_scopes": ["replay-notes"],
+                }))
+                .await;
+            assert_eq!(first.status_code(), 200, "{}", first.text());
+
+            let replay = srv
+                .post(&format!("/realms/{realm}/auth/consent"))
+                .json(&json!({
+                    "consent_token": consent_token,
+                    "approved_scopes": ["replay-notes"],
+                }))
+                .await;
+            assert_eq!(
+                replay.status_code(),
+                404,
+                "a spent consent token must be refused on replay: {}",
+                replay.text()
+            );
+        });
+    }
 }
