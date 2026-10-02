@@ -28,12 +28,14 @@ export interface ClientSettingsDraft {
   refreshTokenLifetime: number | null
   idTokenLifetime: number | null
   temporaryTokenLifetime: number | null
+  backchannelLogoutUri: string
+  backchannelLogoutSessionRequired: boolean
 }
 
 export interface ClientSettingsTabProps {
   client: Client
   draft: ClientSettingsDraft
-  errors: { clientId?: string; name?: string }
+  errors: { clientId?: string; name?: string; backchannelLogoutUri?: string }
   dirtyCount: number
   redirectUris: string[]
   redirectUriError?: string
@@ -236,6 +238,34 @@ export default function ClientSettingsTab({
           {postLogoutRedirectUriError && (
             <p className='mt-1.5 text-xs text-fk-danger'>{postLogoutRedirectUriError}</p>
           )}
+        </FieldRow>
+
+        <FieldRow
+          label={t('settings.logout.backchannel.uri.label')}
+          description={t('settings.logout.backchannel.uri.description')}
+          htmlFor='client-backchannel-logout-uri'
+        >
+          <Input
+            id='client-backchannel-logout-uri'
+            value={draft.backchannelLogoutUri}
+            onChange={(e) => onDraftChange({ backchannelLogoutUri: e.target.value })}
+            placeholder={t('settings.logout.backchannel.uri.placeholder')}
+            className='max-w-sm'
+            aria-invalid={Boolean(errors.backchannelLogoutUri)}
+          />
+          {errors.backchannelLogoutUri && (
+            <p className='mt-1.5 text-fk-danger text-xs'>{errors.backchannelLogoutUri}</p>
+          )}
+        </FieldRow>
+
+        <FieldRow
+          label={t('settings.logout.backchannel.session_required.label')}
+          description={t('settings.logout.backchannel.session_required.description')}
+        >
+          <SwitchField
+            checked={draft.backchannelLogoutSessionRequired}
+            onCheckedChange={(v) => onDraftChange({ backchannelLogoutSessionRequired: v })}
+          />
         </FieldRow>
       </Section>
       )}

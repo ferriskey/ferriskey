@@ -248,6 +248,14 @@ settings:
       placeholder: https://app.example.com
       empty: No exit URI declared.
       required: Post-logout redirect URI is required
+    backchannel:
+      uri:
+        label: Back-channel logout URL
+        description: FerrisKey notifies the application's backend at this URL when the user logs out or the session is revoked, so it can end its own session. Leave empty to disable.
+        placeholder: https://app.example.com/backchannel-logout
+      session_required:
+        label: Require session id (sid)
+        description: Records that the application needs the sid claim in the logout token. FerrisKey always includes it.
   lifetimes:
     title: Token lifetimes
     description: Leave empty to inherit the realm default value.
@@ -525,6 +533,7 @@ validation:
   target_audience_required: Select the target audience
   client_id_required: The client ID is required
   name_required: The name is required
+  backchannel_logout_uri_invalid: The URL must start with http:// or https://
   sp_entity_id_required: Entity ID is required
   acs_url_required: Assertion Consumer Service URL is required
   name_id_format_required: Name ID format is required

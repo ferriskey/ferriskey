@@ -260,6 +260,14 @@ settings:
       placeholder: https://app.example.com
       empty: 未声明任何退出 URI。
       required: 退出登录后重定向 URI 为必填项
+    backchannel:
+      uri:
+        label: 后端通道退出登录 URL
+        description: 当用户退出登录或会话被撤销时，FerrisKey 会通过此 URL 通知应用的后端，以便其结束自己的会话。留空则禁用。
+        placeholder: https://app.example.com/backchannel-logout
+      session_required:
+        label: 要求会话 ID (sid)
+        description: 表示应用需要在退出登录令牌中包含 sid 声明。FerrisKey 始终会包含该声明。
   lifetimes:
     title: 令牌有效期
     description: 留空则继承域的默认值。
@@ -543,6 +551,7 @@ validation:
   target_audience_required: 请选择目标受众
   client_id_required: 客户端 ID 为必填项
   name_required: 名称为必填项
+  backchannel_logout_uri_invalid: URL 必须以 http:// 或 https:// 开头
   sp_entity_id_required: Entity ID 为必填项
   acs_url_required: Assertion Consumer Service URL 为必填项
   name_id_format_required: Name ID 格式为必填项
