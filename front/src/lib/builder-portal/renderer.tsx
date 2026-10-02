@@ -6,6 +6,7 @@ import {
   Copy,
   KeyRound,
   Loader2,
+  Lock,
   Mail,
   QrCode as QrCodeIcon,
 } from 'lucide-react'
@@ -45,6 +46,11 @@ type RenderOptions = {
   deviceConsent?: {
     clientName: string
     scopes: string[]
+  }
+  consent?: {
+    clientName: string
+    defaultScopes: { name: string; description: string | null }[]
+    optionalScopes: { name: string; description: string | null }[]
   }
   /**
    * Inline form-error message surfaced by the page's submit handler
@@ -323,6 +329,57 @@ function renderNode(node: BuilderNode, options: RenderOptions): ReactNode {
           <span>{node.content ?? 'Deny'}</span>
         </button>
       )
+
+    case 'consent_allow_button':
+      return options.runtime ? (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='submit'
+          data-fk-portal-btn=''
+          data-fk-busy={options.isSubmitting ? 'true' : 'false'}
+          disabled={options.isSubmitting}
+          style={{ ...buttonStyle(node), gap: 8, border: 'none', cursor: 'pointer' }}
+        >
+          {options.isSubmitting && (
+            <Loader2 size={16} aria-hidden data-fk-portal-spinner='' />
+          )}
+          <span>{node.content ?? 'Allow'}</span>
+        </button>
+      ) : (
+        <a
+          key={node.id}
+          {...idAttr}
+          href='#'
+          data-fk-portal-btn=''
+          style={buttonStyle(node)}
+        >
+          {node.content ?? 'Allow'}
+        </a>
+      )
+
+    case 'consent_deny_button':
+      return (
+        <button
+          key={node.id}
+          {...idAttr}
+          type='button'
+          data-fk-action='consent-deny'
+          data-fk-portal-btn=''
+          style={{
+            ...buttonStyle(node),
+            gap: 8,
+            cursor: options.runtime ? 'pointer' : 'default',
+          }}
+          disabled={!options.runtime}
+        >
+          <Ban size={16} aria-hidden />
+          <span>{node.content ?? 'Deny'}</span>
+        </button>
+      )
+
+    case 'consent_scopes':
+      return <ConsentScopesBlock key={node.id} node={node} options={options} />
 
     // Magic link / passkey: rendered as alternative auth actions. The host
     // portal page wires the click behavior by selecting on the
@@ -839,6 +896,114 @@ export function FormErrorBannerBlock({
       <span style={{ flex: 1 }}>{message}</span>
     </div>
   )
+}
+
+const PLACEHOLDER_CONSENT: NonNullable<RenderOptions['consent']> = {
+  clientName: 'Acme Inc.',
+  defaultScopes: [{ name: 'openid', description: 'Confirm your identity' }],
+  optionalScopes: [
+    { name: 'profile', description: 'View your basic profile information' },
+    { name: 'email', description: 'View your email address' },
+  ],
+}
+
+export function ConsentScopesBlock({
+  node,
+  options,
+}: {
+  node: BuilderNode
+  options: RenderOptions
+}) {
+  const consent = options.consent ?? (options.runtime ? null : PLACEHOLDER_CONSENT)
+  if (!consent) return null
+
+  return (
+    <div
+      data-fk-id={node.id}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        ...orderStyle(node),
+      }}
+    >
+      <p style={{ margin: 0, fontSize: 'var(--fk-font-base-size, 14px)', color: 'var(--fk-color-body-text, #374151)' }}>
+        <strong>{consent.clientName}</strong>{' '}
+        {(node.props.label as string) || 'is requesting access to your account.'}
+      </p>
+      {consent.defaultScopes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {consent.defaultScopes.map((scope) => (
+            <div key={scope.name} style={consentScopeRowStyle()}>
+              <Lock size={14} aria-hidden style={{ opacity: 0.45, flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={consentScopeNameStyle()}>{scope.name}</span>
+                {scope.description ? (
+                  <span style={consentScopeDescriptionStyle()}>{scope.description}</span>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {consent.optionalScopes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {consent.optionalScopes.map((scope) => (
+            <div key={scope.name} style={consentScopeRowStyle()}>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                <span style={consentScopeNameStyle()}>{scope.name}</span>
+                {scope.description ? (
+                  <span style={consentScopeDescriptionStyle()}>{scope.description}</span>
+                ) : null}
+              </div>
+              <input
+                type='checkbox'
+                name='approved_scopes'
+                value={scope.name}
+                defaultChecked
+                disabled={!options.runtime}
+                aria-label={scope.name}
+                style={{
+                  width: 18,
+                  height: 18,
+                  accentColor: 'var(--fk-color-primary-button, #635dff)',
+                  cursor: options.runtime ? 'pointer' : 'default',
+                  flexShrink: 0,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function consentScopeRowStyle(): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 10px',
+    borderRadius: 'var(--fk-radius-input, 6px)',
+    border: '1px solid rgba(0,0,0,0.08)',
+    background: 'rgba(0,0,0,0.02)',
+  }
+}
+
+function consentScopeNameStyle(): CSSProperties {
+  return {
+    fontSize: 'var(--fk-font-base-size, 14px)',
+    fontWeight: 500,
+    color: 'var(--fk-color-body-text, #111827)',
+  }
+}
+
+function consentScopeDescriptionStyle(): CSSProperties {
+  return {
+    fontSize: 12,
+    color: 'var(--fk-color-body-text, #6b7280)',
+  }
 }
 
 export function IdentityProvidersBlock({

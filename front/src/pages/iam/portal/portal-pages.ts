@@ -26,6 +26,7 @@ const PORTAL_PAGE_TYPES: PortalPageType[] = [
   'totp_setup',
   'device_verify',
   'device_verified',
+  'consent',
 ]
 
 export const PORTAL_PAGES: PortalPageDescriptor[] = PORTAL_PAGE_TYPES.map((type) => ({

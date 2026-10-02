@@ -230,6 +230,18 @@ device:
   retry: 验证其他代码
   failed: 无法验证此代码。请重试。
 
+consent:
+  title: 授权访问
+  request: <app>{{name}}</app> 请求访问您的账户。
+  default_scopes_label: 始终授予
+  optional_scopes_label: 选择要分享的内容
+  allow: 允许
+  allowing: 正在允许…
+  deny: 拒绝
+  denying: 拒绝中…
+  token_missing: 缺少同意令牌，请重新开始登录流程。
+  failed: 无法提交您的决定，请重试。
+
 callback:
   error_title: 无法完成登录
   missing_code: 缺少授权码。请重试。
@@ -275,6 +287,8 @@ form:
   device_code_required: 请输入您设备上显示的 8 位字符代码。
   otp_code_required: 请输入您的身份验证器应用中显示的 6 位验证码。
   otp_code_mismatch: 验证码不匹配，请使用应用中最新的验证码。
+  consent_token_missing: 缺少同意令牌，请重新开始登录流程。
+  consent_failed: 无法提交您的决定，请重试。
 
 validation:
   username_required: 请输入用户名

@@ -30,6 +30,7 @@ const PAGE_PRESET_IDS: Record<PageType, string[]> = {
   totp_setup: ['totp-setup-card'],
   device_verify: ['device-verify-card'],
   device_verified: ['device-verified-card'],
+  consent: ['consent-card'],
 }
 
 export const DEFAULT_PAGE_TYPES = Object.keys(PAGE_PRESET_IDS) as PageType[]

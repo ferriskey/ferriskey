@@ -64,6 +64,9 @@ page_type:
   device_verified:
     label: 设备已验证
     description: 确认页面；设备将自行完成登录。
+  consent:
+    label: 同意
+    description: 请求用户批准客户端申请的可选作用域。
 
 # The width and the Tailwind breakpoint are technical facts the administrator matches against their
 # own CSS — the numbers and the sm/md/xl identifiers stay verbatim.

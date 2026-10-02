@@ -11,6 +11,7 @@ import PageMagicLinkRequestFeature from './feature/page-magic-link-request-featu
 import PageEmailVerifiedFeature from './feature/page-email-verified-feature'
 import PageCheckYourEmail from './feature/page-check-your-email'
 import PageDeviceVerifyFeature from './feature/page-device-verify-feature'
+import PageConsentFeature from './feature/page-consent-feature'
 import VerifyEmailRoute from './feature/verify-email-route'
 import { PortalLayoutWrapper } from './components/portal-layout-wrapper'
 import type { Schemas } from '@/api/api.client'
@@ -129,6 +130,14 @@ export default function PageAuthentication() {
         element={
           <Portal pageType={PORTAL_PAGE_TYPE.DEVICE_VERIFY}>
             <PageDeviceVerifyFeature />
+          </Portal>
+        }
+      />
+      <Route
+        path='/consent'
+        element={
+          <Portal pageType={PORTAL_PAGE_TYPE.CONSENT}>
+            <PageConsentFeature />
           </Portal>
         }
       />
