@@ -33,9 +33,7 @@ mod tests {
     struct SharedContext {
         app: std::sync::Mutex<Router>,
         realm_name: String,
-        #[allow(dead_code)]
         pool: sqlx::PgPool,
-        db: DatabaseConfig,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -129,28 +127,11 @@ mod tests {
             app: std::sync::Mutex::new(app),
             realm_name,
             pool,
-            db,
         }
     }
 
     fn server() -> TestServer {
         let app = ctx().app.lock().expect("lock app mutex").clone();
-        TestServer::new(app).expect("build test server")
-    }
-
-    async fn second_server() -> TestServer {
-        let svc = create_service(FerriskeyConfig {
-            webhook_allow_private_endpoints: false,
-            webapp_url: "http://localhost:5555".to_string(),
-            database: ctx().db.clone(),
-        })
-        .await
-        .expect("create a second, independent service against the same schema");
-
-        let args = Arc::new(Args::default());
-        let state = AppState::new(args, svc);
-        let app = router(state).expect("build router");
-
         TestServer::new(app).expect("build test server")
     }
 
@@ -228,11 +209,19 @@ mod tests {
             .await;
         assert_eq!(response.status_code(), 201, "{}", response.text());
         let body: Value = response.json();
+        let id = body["id"].as_str().expect("client id").to_string();
 
-        TestClient {
-            id: body["id"].as_str().expect("client id").to_string(),
-            client_id,
-        }
+        let redirect = server
+            .post(&format!("/realms/{realm}/clients/{id}/redirects"))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({
+                "value": format!("http://localhost:5555/realms/{realm}/authentication/callback"),
+                "enabled": true,
+            }))
+            .await;
+        assert_eq!(redirect.status_code(), 201, "{}", redirect.text());
+
+        TestClient { id, client_id }
     }
 
     async fn create_optional_scope(
@@ -298,17 +287,26 @@ mod tests {
             .add_query_param("client_id", &client.client_id)
             .add_query_param(
                 "redirect_uri",
-                "http://localhost:5555/realms/consent-test/authentication/callback",
+                format!("http://localhost:5555/realms/{realm}/authentication/callback"),
             )
             .add_query_param("scope", scope)
             .add_query_param("state", "st")
             .await;
 
         let status = authorize.status_code().as_u16();
+        let location = authorize
+            .headers()
+            .get("location")
+            .map(|value| value.to_str().unwrap_or("<non-utf8>").to_string())
+            .unwrap_or_default();
         assert!(
             (300..=399).contains(&status),
             "expected a redirect from /auth, got {status}: {}",
             authorize.text()
+        );
+        assert!(
+            authorize.maybe_cookie("FERRISKEY_SESSION").is_some(),
+            "/auth redirected to {location} without opening an auth session"
         );
 
         let login = server
@@ -335,7 +333,7 @@ mod tests {
 
             let url = result["url"].as_str().unwrap_or_default();
             assert!(
-                !url.contains("auth/consent"),
+                !url.contains("authentication/consent"),
                 "a client with consent_required=false was sent to the consent screen: {result}"
             );
         });
@@ -355,7 +353,7 @@ mod tests {
             let result = authorize_and_authenticate(&srv, &realm, &client, "openid contacts").await;
             let url = result["url"].as_str().expect("redirect url");
             assert!(
-                url.contains("auth/consent"),
+                url.contains("authentication/consent"),
                 "a client requiring consent was not sent to the consent screen: {result}"
             );
 
@@ -454,7 +452,7 @@ mod tests {
 
             let url = result["url"].as_str().unwrap_or_default();
             assert!(
-                !url.contains("auth/consent"),
+                !url.contains("authentication/consent"),
                 "a client with nothing optional requested was sent to the consent screen: {result}"
             );
         });
@@ -462,7 +460,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test consent_test -- --ignored"]
-    fn a_consent_token_minted_by_one_request_is_accepted_by_a_later_separate_request() {
+    fn a_consent_token_lives_in_the_database_and_not_in_process_memory() {
         let srv = server();
         let realm = ctx().realm_name.clone();
         rt().block_on(async {
@@ -475,20 +473,31 @@ mod tests {
             let url = result["url"].as_str().expect("redirect url");
             let consent_token = query_param(url, "consent_token").expect("consent_token in url");
 
-            let other_pod = second_server().await;
+            let stored: Option<String> = sqlx::query_scalar(
+                "SELECT consent_token_hash FROM auth_sessions WHERE consent_token_hash IS NOT NULL",
+            )
+            .fetch_one(&ctx().pool)
+            .await
+            .expect("the pending consent must be readable from the database alone");
 
-            let view = other_pod
+            let stored = stored.expect("a pending consent must carry its token hash");
+            assert_ne!(
+                stored, consent_token,
+                "the raw consent token must never be stored"
+            );
+            assert_eq!(
+                stored.len(),
+                64,
+                "the stored value must be a sha-256 hex digest, got {stored}"
+            );
+
+            let view = srv
                 .get(&format!("/realms/{realm}/auth/consent"))
                 .add_query_param("consent_token", &consent_token)
                 .await;
-            assert_eq!(
-                view.status_code(),
-                200,
-                "a token minted by one service instance was not honoured by another: {}",
-                view.text()
-            );
+            assert_eq!(view.status_code(), 200, "{}", view.text());
 
-            let decision = other_pod
+            let decision = srv
                 .post(&format!("/realms/{realm}/auth/consent"))
                 .json(&json!({
                     "consent_token": consent_token,
@@ -500,8 +509,16 @@ mod tests {
             let redirect_url = decision["redirect_url"].as_str().expect("redirect_url");
             assert!(
                 redirect_url.contains("code="),
-                "the second instance could not complete the decision: {decision}"
+                "the decision did not complete the login: {decision}"
             );
+
+            let remaining: i64 = sqlx::query_scalar(
+                "SELECT count(*) FROM auth_sessions WHERE consent_token_hash IS NOT NULL",
+            )
+            .fetch_one(&ctx().pool)
+            .await
+            .expect("count pending consents");
+            assert_eq!(remaining, 0, "a consent token must be single use");
         });
     }
 }
