@@ -1756,10 +1756,12 @@ name = "ferriskey-api-consent"
 version = "0.8.0"
 dependencies = [
  "axum",
+ "axum-cookie",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
  "utoipa",
+ "uuid",
  "validator",
 ]
 

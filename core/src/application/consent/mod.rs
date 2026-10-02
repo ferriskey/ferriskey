@@ -10,9 +10,10 @@ impl ApplicationService {
         &self,
         realm_name: &str,
         consent_token: &str,
+        browser_session: Option<uuid::Uuid>,
     ) -> Result<ConsentRequestView, CoreError> {
         self.auth_service
-            .get_consent_view(realm_name, consent_token)
+            .get_consent_view(realm_name, consent_token, browser_session)
             .await
     }
 
@@ -21,9 +22,10 @@ impl ApplicationService {
         realm_name: &str,
         consent_token: &str,
         approved_scopes: Vec<String>,
+        browser_session: Option<uuid::Uuid>,
     ) -> Result<String, CoreError> {
         self.auth_service
-            .decide_consent(realm_name, consent_token, approved_scopes)
+            .decide_consent(realm_name, consent_token, browser_session, approved_scopes)
             .await
     }
 }

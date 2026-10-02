@@ -4,6 +4,7 @@ mod tests {
 
     use axum::Router;
     use axum::http::HeaderValue;
+    use axum_extra::extract::cookie::Cookie;
     use axum_test::TestServer;
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
@@ -280,7 +281,7 @@ mod tests {
         realm: &str,
         client: &TestClient,
         scope: &str,
-    ) -> Value {
+    ) -> (Value, Cookie<'static>) {
         let authorize = server
             .get(&format!("/realms/{realm}/protocol/openid-connect/auth"))
             .add_query_param("response_type", "code")
@@ -317,7 +318,7 @@ mod tests {
             .await;
 
         assert_eq!(login.status_code(), 200, "{}", login.text());
-        login.json()
+        (login.json(), authorize.cookie("FERRISKEY_SESSION"))
     }
 
     #[test]
@@ -329,7 +330,8 @@ mod tests {
             let token = login(&srv, &realm).await;
             let client = create_client(&srv, &realm, &token, "noconsent").await;
 
-            let result = authorize_and_authenticate(&srv, &realm, &client, "openid").await;
+            let (result, _session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid").await;
 
             let url = result["url"].as_str().unwrap_or_default();
             assert!(
@@ -350,7 +352,8 @@ mod tests {
             create_optional_scope(&srv, &realm, &token, &client, "contacts").await;
             set_consent_required(&srv, &realm, &token, &client).await;
 
-            let result = authorize_and_authenticate(&srv, &realm, &client, "openid contacts").await;
+            let (result, session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid contacts").await;
             let url = result["url"].as_str().expect("redirect url");
             assert!(
                 url.contains("authentication/consent"),
@@ -361,6 +364,7 @@ mod tests {
 
             let view = srv
                 .get(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .add_query_param("consent_token", &consent_token)
                 .await;
             assert_eq!(view.status_code(), 200, "{}", view.text());
@@ -376,6 +380,7 @@ mod tests {
 
             let decision = srv
                 .post(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .json(&json!({
                     "consent_token": consent_token,
                     "approved_scopes": ["contacts"],
@@ -402,12 +407,14 @@ mod tests {
             create_optional_scope(&srv, &realm, &token, &client, "calendar").await;
             set_consent_required(&srv, &realm, &token, &client).await;
 
-            let result = authorize_and_authenticate(&srv, &realm, &client, "openid calendar").await;
+            let (result, session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid calendar").await;
             let url = result["url"].as_str().expect("redirect url");
             let consent_token = query_param(url, "consent_token").expect("consent_token in url");
 
             let decision = srv
                 .post(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .json(&json!({
                     "consent_token": consent_token,
                     "approved_scopes": [],
@@ -448,7 +455,8 @@ mod tests {
             let client = create_client(&srv, &realm, &token, "noscopes").await;
             set_consent_required(&srv, &realm, &token, &client).await;
 
-            let result = authorize_and_authenticate(&srv, &realm, &client, "openid").await;
+            let (result, _session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid").await;
 
             let url = result["url"].as_str().unwrap_or_default();
             assert!(
@@ -469,16 +477,20 @@ mod tests {
             create_optional_scope(&srv, &realm, &token, &client, "notes").await;
             set_consent_required(&srv, &realm, &token, &client).await;
 
-            let result = authorize_and_authenticate(&srv, &realm, &client, "openid notes").await;
+            let (result, session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid notes").await;
             let url = result["url"].as_str().expect("redirect url");
             let consent_token = query_param(url, "consent_token").expect("consent_token in url");
 
-            let stored: Option<String> = sqlx::query_scalar(
-                "SELECT consent_token_hash FROM auth_sessions WHERE consent_token_hash IS NOT NULL",
-            )
-            .fetch_one(&ctx().pool)
-            .await
-            .expect("the pending consent must be readable from the database alone");
+            let session_id =
+                Uuid::parse_str(session.value()).expect("the session cookie is a uuid");
+
+            let stored: Option<String> =
+                sqlx::query_scalar("SELECT consent_token_hash FROM auth_sessions WHERE id = $1")
+                    .bind(session_id)
+                    .fetch_one(&ctx().pool)
+                    .await
+                    .expect("the pending consent must be readable from the database alone");
 
             let stored = stored.expect("a pending consent must carry its token hash");
             assert_ne!(
@@ -493,12 +505,14 @@ mod tests {
 
             let view = srv
                 .get(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .add_query_param("consent_token", &consent_token)
                 .await;
             assert_eq!(view.status_code(), 200, "{}", view.text());
 
             let decision = srv
                 .post(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .json(&json!({
                     "consent_token": consent_token,
                     "approved_scopes": ["notes"],
@@ -512,13 +526,56 @@ mod tests {
                 "the decision did not complete the login: {decision}"
             );
 
-            let remaining: i64 = sqlx::query_scalar(
-                "SELECT count(*) FROM auth_sessions WHERE consent_token_hash IS NOT NULL",
-            )
-            .fetch_one(&ctx().pool)
-            .await
-            .expect("count pending consents");
-            assert_eq!(remaining, 0, "a consent token must be single use");
+            let remaining: Option<String> =
+                sqlx::query_scalar("SELECT consent_token_hash FROM auth_sessions WHERE id = $1")
+                    .bind(session_id)
+                    .fetch_one(&ctx().pool)
+                    .await
+                    .expect("read the consent token hash back");
+            assert_eq!(remaining, None, "a consent token must be single use");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test consent_test -- --ignored"]
+    fn a_consent_token_is_useless_without_the_browser_session() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let client = create_client(&srv, &realm, &token, "leaked").await;
+            create_optional_scope(&srv, &realm, &token, &client, "leaked-notes").await;
+            set_consent_required(&srv, &realm, &token, &client).await;
+
+            let (result, _session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid leaked-notes").await;
+            let url = result["url"].as_str().expect("redirect url");
+            let consent_token = query_param(url, "consent_token").expect("consent_token in url");
+
+            let view = srv
+                .get(&format!("/realms/{realm}/auth/consent"))
+                .add_query_param("consent_token", &consent_token)
+                .await;
+            assert_eq!(
+                view.status_code(),
+                404,
+                "a token lifted from a log or a referer must not open the screen: {}",
+                view.text()
+            );
+
+            let decision = srv
+                .post(&format!("/realms/{realm}/auth/consent"))
+                .json(&json!({
+                    "consent_token": consent_token,
+                    "approved_scopes": ["leaked-notes"],
+                }))
+                .await;
+            assert_eq!(
+                decision.status_code(),
+                404,
+                "a token alone must not be able to approve scopes: {}",
+                decision.text()
+            );
         });
     }
 
@@ -533,13 +590,14 @@ mod tests {
             create_optional_scope(&srv, &realm, &token, &client, "replay-notes").await;
             set_consent_required(&srv, &realm, &token, &client).await;
 
-            let result =
+            let (result, session) =
                 authorize_and_authenticate(&srv, &realm, &client, "openid replay-notes").await;
             let url = result["url"].as_str().expect("redirect url");
             let consent_token = query_param(url, "consent_token").expect("consent_token in url");
 
             let first = srv
                 .post(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .json(&json!({
                     "consent_token": consent_token,
                     "approved_scopes": ["replay-notes"],
@@ -549,6 +607,7 @@ mod tests {
 
             let replay = srv
                 .post(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
                 .json(&json!({
                     "consent_token": consent_token,
                     "approved_scopes": ["replay-notes"],

@@ -3435,6 +3435,7 @@ where
         &self,
         scope: &RealmScope,
         consent_token: &str,
+        browser_session: Option<Uuid>,
     ) -> Result<AuthSession, CoreError> {
         let hash = sso_token_hash(consent_token);
 
@@ -3452,6 +3453,10 @@ where
             return Err(CoreError::NotFound);
         }
 
+        if browser_session != Some(auth_session.id) {
+            return Err(CoreError::NotFound);
+        }
+
         Ok(auth_session)
     }
 
@@ -3459,10 +3464,11 @@ where
         &self,
         realm_name: &str,
         consent_token: &str,
+        browser_session: Option<Uuid>,
     ) -> Result<ConsentRequestView, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
         let auth_session = self
-            .auth_session_by_consent_token(&scope, consent_token)
+            .auth_session_by_consent_token(&scope, consent_token, browser_session)
             .await?;
 
         let (default_scopes, optional_scopes) = self
@@ -3483,11 +3489,12 @@ where
         &self,
         realm_name: &str,
         consent_token: &str,
+        browser_session: Option<Uuid>,
         approved_scopes: Vec<String>,
     ) -> Result<String, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
         let auth_session = self
-            .auth_session_by_consent_token(&scope, consent_token)
+            .auth_session_by_consent_token(&scope, consent_token, browser_session)
             .await?;
 
         self.auth_session_repository

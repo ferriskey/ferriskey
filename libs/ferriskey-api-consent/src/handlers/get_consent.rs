@@ -1,4 +1,5 @@
 use axum::extract::{Path, Query, State};
+use axum_cookie::CookieManager;
 use ferriskey_core::domain::consent::ScopeDescriptor;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -35,6 +36,12 @@ pub struct GetConsentResponse {
     pub awaiting_decision: Vec<ScopeView>,
 }
 
+fn browser_session(cookie: &CookieManager) -> Option<uuid::Uuid> {
+    cookie
+        .get("FERRISKEY_SESSION")
+        .and_then(|value| uuid::Uuid::parse_str(value.value()).ok())
+}
+
 #[utoipa::path(
     get,
     summary = "Get a pending consent request",
@@ -49,14 +56,16 @@ pub struct GetConsentResponse {
         (status = 404, description = "Unknown or expired consent token", body = ApiErrorResponse),
     )
 )]
+
 pub async fn get_consent(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    cookie: CookieManager,
     Query(query): Query<GetConsentQuery>,
 ) -> Result<Response<GetConsentResponse>, ApiError> {
     let view = state
         .service
-        .get_consent_request(&realm_name, &query.consent_token)
+        .get_consent_request(&realm_name, &query.consent_token, browser_session(&cookie))
         .await
         .map_err(ApiError::from)?;
 

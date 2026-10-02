@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum_cookie::CookieManager;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -20,6 +21,12 @@ pub struct PostConsentResponse {
     pub redirect_url: String,
 }
 
+fn browser_session(cookie: &CookieManager) -> Option<uuid::Uuid> {
+    cookie
+        .get("FERRISKEY_SESSION")
+        .and_then(|value| uuid::Uuid::parse_str(value.value()).ok())
+}
+
 #[utoipa::path(
     post,
     summary = "Submit a consent decision",
@@ -34,14 +41,21 @@ pub struct PostConsentResponse {
         (status = 404, description = "Unknown or expired consent token", body = ApiErrorResponse),
     )
 )]
+
 pub async fn post_consent(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    cookie: CookieManager,
     ValidateJson(payload): ValidateJson<PostConsentRequest>,
 ) -> Result<Response<PostConsentResponse>, ApiError> {
     let redirect_url = state
         .service
-        .submit_consent_decision(&realm_name, &payload.consent_token, payload.approved_scopes)
+        .submit_consent_decision(
+            &realm_name,
+            &payload.consent_token,
+            payload.approved_scopes,
+            browser_session(&cookie),
+        )
         .await
         .map_err(ApiError::from)?;
 
