@@ -174,6 +174,10 @@ pub struct BrokerCallbackInput {
 
     /// Base URL of the API server (e.g., "https://auth.example.com")
     pub base_url: String,
+
+    pub ip_address: Option<String>,
+
+    pub user_agent: Option<String>,
 }
 
 /// Output from broker callback handling

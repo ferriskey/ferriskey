@@ -19,6 +19,7 @@ use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
 use validator::Validate;
 
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
@@ -175,6 +176,7 @@ pub async fn auth_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    context: RequestContext,
     cookie: CookieManager,
     Query(params): Query<AuthRequest>,
 ) -> Result<axum::response::Response, ApiError> {
@@ -190,6 +192,8 @@ pub async fn auth_handler(
             nonce: params.nonce.clone(),
             code_challenge: params.code_challenge.clone(),
             code_challenge_method: params.code_challenge_method.clone(),
+            ip_address: context.ip_address,
+            user_agent: context.user_agent,
         })
         .await
     {

@@ -299,6 +299,14 @@ pub struct ServerArgs {
         long_help = "The origin browsers and service providers reach this deployment at, as scheme://host[:port]. Leave unset to derive it from each request's Host header, which is the historical behaviour. Setting it is required for SAML: an entity id is signed into every assertion, so it must not change when a request arrives through a different hostname."
     )]
     pub public_url: Option<String>,
+    #[arg(
+        long = "server-trust-forwarded-for",
+        env = "SERVER_TRUST_FORWARDED_FOR",
+        name = "SERVER_TRUST_FORWARDED_FOR",
+        default_value_t = false,
+        long_help = "Read the caller's address from the X-Forwarded-For header instead of the peer of the TCP connection. Leave it off unless a proxy you control is the only way in: when it is on, a client can put any address in that header and the recorded address is whatever it claims. With it off, a deployment behind a proxy records the proxy's address, which is honest but of little use."
+    )]
+    pub trust_forwarded_for: bool,
     #[command(flatten)]
     pub tls: Option<ServerTlsArgs>,
 }
@@ -311,6 +319,7 @@ impl Default for ServerArgs {
             port: 3333,
             root_path: String::new(),
             public_url: None,
+            trust_forwarded_for: false,
             tls: None,
         }
     }

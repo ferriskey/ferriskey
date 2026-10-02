@@ -44,6 +44,10 @@ pub struct TokenExchangeInput {
     /// Token-type URN of `actor_token`; required with it, forbidden without.
     #[serde(default)]
     pub actor_token_type: Option<String>,
+    #[serde(skip)]
+    pub ip_address: Option<String>,
+    #[serde(skip)]
+    pub user_agent: Option<String>,
 }
 
 /// Output of a successful token exchange (RFC 8693 §2.2.1).

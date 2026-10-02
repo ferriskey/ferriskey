@@ -392,8 +392,8 @@ where
                         scope.realm(),
                         rejection.client_id,
                         SAML_SSO_GRANT_TYPE.to_string(),
-                        None,
-                        None,
+                        input.ip_address.clone(),
+                        input.user_agent.clone(),
                     )
                     .await;
 
@@ -422,8 +422,8 @@ where
                 scope.realm(),
                 Some(accepted.client.client_id.clone()),
                 SAML_SSO_GRANT_TYPE.to_string(),
-                None,
-                None,
+                input.ip_address.clone(),
+                input.user_agent.clone(),
             )
             .await;
 
@@ -968,6 +968,8 @@ pub(crate) mod tests {
             authn_request: authn_request(acs),
             relay_state: relay_state.map(str::to_string),
             public_base_url: PUBLIC_BASE_URL.to_string(),
+            ip_address: None,
+            user_agent: None,
         }
     }
 

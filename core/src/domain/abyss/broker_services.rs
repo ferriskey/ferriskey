@@ -650,8 +650,8 @@ where
                 &realm,
                 Some(client.client_id.clone()),
                 format!("broker_{}", idp.get().alias),
-                None,
-                None,
+                input.ip_address.clone(),
+                input.user_agent.clone(),
             )
             .await;
 

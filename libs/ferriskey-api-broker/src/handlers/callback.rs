@@ -9,6 +9,7 @@ use ferriskey_core::domain::abyss::identity_provider::broker::{
 };
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
 use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse},
@@ -44,6 +45,7 @@ pub async fn broker_callback(
     Path((realm_name, alias)): Path<(String, String)>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    context: RequestContext,
     Query(params): Query<BrokerCallbackQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     let root_scoped_base_url = format!("{base_url}{}", state.args.server.root_path);
@@ -57,6 +59,8 @@ pub async fn broker_callback(
             error: params.error,
             error_description: params.error_description,
             base_url: root_scoped_base_url.clone(),
+            ip_address: context.ip_address,
+            user_agent: context.user_agent,
         })
         .await
     {
