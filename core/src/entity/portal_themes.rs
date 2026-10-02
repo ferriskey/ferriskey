@@ -32,6 +32,7 @@ pub struct Model {
     pub page_totp_setup: Json,
     pub page_device_verify: Json,
     pub page_device_verified: Json,
+    pub page_consent: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -55,6 +56,7 @@ pub enum Column {
     PageTotpSetup,
     PageDeviceVerify,
     PageDeviceVerified,
+    PageConsent,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -99,6 +101,7 @@ impl ColumnTrait for Column {
             Self::PageTotpSetup => ColumnType::JsonBinary.def(),
             Self::PageDeviceVerify => ColumnType::JsonBinary.def(),
             Self::PageDeviceVerified => ColumnType::JsonBinary.def(),
+            Self::PageConsent => ColumnType::JsonBinary.def(),
         }
     }
 }

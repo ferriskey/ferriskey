@@ -14,6 +14,7 @@ import { generateBreakpointCss, treeToReactNode } from '@/lib/builder-portal'
 import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { Schemas } from '@/api/api.client'
 import { useDevicePreview } from '@/api/device.api'
+import { toConsentScopeList, useGetConsentRequest } from '@/api/consent.api'
 import { usePortalPageSubmit } from '../hooks/use-portal-page-submit'
 import { usePasskeyAuth } from '../hooks/use-passkey-auth'
 import {
@@ -120,6 +121,26 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     }
   }, [pageType, devicePreviewData])
 
+  const consentToken =
+    pageType === 'consent'
+      ? new URLSearchParams(
+          typeof window === 'undefined' ? '' : window.location.search,
+        ).get('consent_token') ?? ''
+      : ''
+  const { data: consentRequestData } = useGetConsentRequest({
+    realm,
+    consentToken,
+    enabled: pageType === 'consent' && consentToken.length > 0,
+  })
+  const consent = useMemo(() => {
+    if (pageType !== 'consent' || !consentRequestData) return undefined
+    return {
+      clientName: consentRequestData.client_name,
+      defaultScopes: toConsentScopeList(consentRequestData.granted_by_default),
+      optionalScopes: toConsentScopeList(consentRequestData.awaiting_decision),
+    }
+  }, [pageType, consentRequestData])
+
   const totpSetup = useMemo(
     () => {
       if (
@@ -183,9 +204,10 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   // block reads this through the render options and shows or hides
   // itself accordingly.
   const [formError, setFormError] = useState<string | null>(null)
-  const { onSubmit, isSubmitting, onDeviceDeny, deviceResult, onDeviceReset } =
+  const { onSubmit, isSubmitting, onDeviceDeny, deviceResult, onDeviceReset, onConsentDeny } =
     usePortalPageSubmit(pageType, {
       onFormError: setFormError,
+      consentOptionalScopes: consent?.optionalScopes,
     })
 
   // Passkey + magic-link buttons rendered inside the custom portal tree
@@ -229,6 +251,13 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
         return
       }
 
+      if (action === 'consent-deny') {
+        event.preventDefault()
+        const form = trigger.closest('form')
+        if (form && onConsentDeny) onConsentDeny(new FormData(form))
+        return
+      }
+
       if (action === 'magic-link') {
         event.preventDefault()
         // Carry over whatever the user already typed into the page's
@@ -243,7 +272,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
         navigate(`/realms/${realm}/authentication/magic-link-request${query}`)
       }
     },
-    [navigate, onDeviceDeny, onPasskeyLogin, realm],
+    [navigate, onConsentDeny, onDeviceDeny, onPasskeyLogin, realm],
   )
 
   if (
@@ -433,7 +462,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
 
   const pageContent: ReactNode = (
     <form onSubmit={handleSubmit}>
-      {treeToReactNode(pageTree, { runtime: true, identityProviders, totpSetup, deviceConsent, formError, isSubmitting })}
+      {treeToReactNode(pageTree, { runtime: true, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
     </form>
   )
 
@@ -451,7 +480,7 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
     <div style={pageSurface} onClick={handlePortalActionClick}>
       {responsiveStyle}
       {buttonInteractionStyle}
-      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, formError, isSubmitting })}
+      {treeToReactNode(layoutTree, { runtime: true, pageContent, identityProviders, totpSetup, deviceConsent, consent, formError, isSubmitting })}
     </div>
   )
 }

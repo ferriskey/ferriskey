@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   AtSign,
   Box,
+  Check,
   CheckSquare,
   CreditCard,
   Fingerprint,
@@ -14,6 +15,7 @@ import {
   Image as ImageIcon,
   KeyRound,
   LayoutTemplate,
+  ListChecks,
   LockKeyhole,
   Mail,
   Ban,
@@ -54,6 +56,9 @@ const ALL_CHILDREN = [
   'totp_input',
   'user_code_input',
   'device_consent',
+  'consent_scopes',
+  'consent_allow_button',
+  'consent_deny_button',
   'submit_button',
   'device_approve_button',
   'device_deny_button',
@@ -433,6 +438,40 @@ export const portalComponents: ComponentDefinition[] = [
     defaultStyles: {},
   },
   {
+    type: 'consent_scopes',
+    label: 'Consent scopes',
+    icon: <ListChecks size={14} />,
+    defaultProps: {
+      label: 'is requesting access to your account.',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'consent_allow_button',
+    label: 'Allow button',
+    icon: <Check size={14} />,
+    hasContent: true,
+    defaultProps: {
+      variant: 'primary',
+      fullWidth: 'true',
+      submit: 'true',
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  {
+    type: 'consent_deny_button',
+    label: 'Deny button',
+    icon: <Ban size={14} />,
+    hasContent: true,
+    defaultProps: {
+      variant: 'outline',
+      fullWidth: 'true',
+      align: 'center',
+    },
+    defaultStyles: {},
+  },
+  {
     type: 'identity_providers',
     label: 'Identity providers',
     icon: <Globe size={14} />,
@@ -576,6 +615,9 @@ export const REQUIRED_BLOCK_TYPES = new Set([
   'device_consent',
   'device_approve_button',
   'device_deny_button',
+  'consent_scopes',
+  'consent_allow_button',
+  'consent_deny_button',
 ])
 
 /**
@@ -764,6 +806,26 @@ export const HIDDEN_BLOCKS_BY_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
     'username_input',
     'identity_providers',
   ]),
+  consent: new Set([
+    'magic_link_button',
+    'passkey_button',
+    'forgot_password_link',
+    'register_link',
+    'back_to_login_link',
+    'email_input',
+    'password_input',
+    'password_confirm_input',
+    'totp_input',
+    'first_name_input',
+    'last_name_input',
+    'username_input',
+    'identity_providers',
+    'user_code_input',
+    'device_consent',
+    'device_approve_button',
+    'device_deny_button',
+    'submit_button',
+  ]),
 }
 
 /**
@@ -782,6 +844,9 @@ export const RESTRICTED_TO_PAGE_TYPE: Record<string, ReadonlySet<string>> = {
   device_consent: new Set(['device_verify']),
   device_approve_button: new Set(['device_verify']),
   device_deny_button: new Set(['device_verify']),
+  consent_scopes: new Set(['consent']),
+  consent_allow_button: new Set(['consent']),
+  consent_deny_button: new Set(['consent']),
 }
 
 const DEFAULT_CONTENT: Partial<Record<string, string>> = {
@@ -791,6 +856,8 @@ const DEFAULT_CONTENT: Partial<Record<string, string>> = {
   submit_button: 'Continue',
   device_approve_button: 'Approve',
   device_deny_button: 'Deny',
+  consent_allow_button: 'Allow',
+  consent_deny_button: 'Deny',
   magic_link_button: 'Sign in with a magic link',
   passkey_button: 'Sign in with a passkey',
   forgot_password_link: 'Forgot password?',

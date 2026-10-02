@@ -62,6 +62,14 @@ pub const REQUIRED_BLOCKS: &[(PortalPageType, &[&str])] = &[
     // Device approval success screen. Like `EmailVerified`, a static
     // heading + text composition is a valid page, so no blocks are required.
     (PortalPageType::DeviceVerified, &[]),
+    (
+        PortalPageType::Consent,
+        &[
+            "consent_scopes",
+            "consent_allow_button",
+            "consent_deny_button",
+        ],
+    ),
 ];
 
 pub fn required_blocks_for(page_type: PortalPageType) -> &'static [&'static str] {

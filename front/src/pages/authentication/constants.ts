@@ -19,6 +19,7 @@ export const PORTAL_PAGE_TYPE = {
   VERIFY_EMAIL: 'verify_email',
   EMAIL_VERIFIED: 'email_verified',
   DEVICE_VERIFY: 'device_verify',
+  CONSENT: 'consent',
 } as const satisfies Record<string, Schemas.PortalPageType>
 
 export const DEVICE_ACTION = {

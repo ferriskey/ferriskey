@@ -30,6 +30,7 @@ import {
   TotpQrCodeBlock,
   TotpSecretBlock,
   FormErrorBannerBlock,
+  ConsentScopesBlock,
   treeToReactNode,
 } from '../renderer'
 import { InlineTextEditor } from './inline-text-editor'
@@ -160,6 +161,8 @@ export function renderVisualBlock(
     case 'submit_button':
     case 'device_approve_button':
     case 'device_deny_button':
+    case 'consent_allow_button':
+    case 'consent_deny_button':
     case 'magic_link_button':
     case 'passkey_button':
       return <ButtonBlock node={node} isSelected={isSelected} />
@@ -177,6 +180,12 @@ export function renderVisualBlock(
       return <UserCodeInputBlock node={node} isSelected={isSelected} />
     case 'device_consent':
       return <div data-selected={isSelected}>{treeToReactNode([node])}</div>
+    case 'consent_scopes':
+      return (
+        <div style={chromeStyle(isSelected)}>
+          <ConsentScopesBlock node={node} options={{}} />
+        </div>
+      )
     case 'identity_providers':
       return <IdentityProvidersPreview node={node} isSelected={isSelected} />
     case 'forgot_password_link':
@@ -401,7 +410,7 @@ function ButtonBlock({ node, isSelected }: { node: BuilderNode; isSelected: bool
       <Mail size={16} aria-hidden />
     ) : node.type === 'passkey_button' ? (
       <KeyRound size={16} aria-hidden />
-    ) : node.type === 'device_deny_button' ? (
+    ) : node.type === 'device_deny_button' || node.type === 'consent_deny_button' ? (
       <Ban size={16} aria-hidden />
     ) : null
   const style = mergeStyles(

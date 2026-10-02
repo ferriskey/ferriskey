@@ -389,6 +389,34 @@ function deviceVerifiedCard(): BuilderNode[] {
   ]
 }
 
+function consentCard(): BuilderNode[] {
+  return [
+    node('card', {
+      props: { maxWidth: '440px', align: 'center' },
+      children: [
+        node('card-header', {
+          props: { textAlign: 'center', gap: '6px' },
+          children: [
+            node('heading', { content: 'Authorize access' }),
+            node('text', {
+              content: 'Review what this application will be able to access.',
+            }),
+          ],
+        }),
+        node('card-content', {
+          props: { gap: '16px' },
+          children: [
+            node('form_error_banner'),
+            node('consent_scopes'),
+            node('consent_allow_button', { content: 'Allow' }),
+            node('consent_deny_button', { content: 'Deny' }),
+          ],
+        }),
+      ],
+    }),
+  ]
+}
+
 function emailVerifiedCard(): BuilderNode[] {
   return [
     node('card', {
@@ -586,6 +614,13 @@ export const PORTAL_PRESETS: PortalPreset[] = [
     description:
       'Success card shown after a device request has been approved. For the Device verified page.',
     factory: deviceVerifiedCard,
+  },
+  {
+    id: 'consent-card',
+    label: 'Consent card',
+    description:
+      'Card with the requested scopes + allow / deny buttons. For the Consent page.',
+    factory: consentCard,
   },
   {
     id: 'passwordless-card',

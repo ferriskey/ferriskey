@@ -58,6 +58,9 @@ page_type:
   device_verified:
     label: Device verified
     description: Confirmation screen; the device signs in on its own.
+  consent:
+    label: Consent
+    description: Asks the user to approve the optional scopes a client is requesting.
 
 # Device preview toggles in both editors. The width and the Tailwind breakpoint are technical
 # facts the administrator matches against their own CSS — keep the numbers and the `sm`/`md`/`xl`

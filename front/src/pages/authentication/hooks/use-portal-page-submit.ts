@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -13,8 +13,14 @@ import { apiErrorMessage, apiErrorReason } from '@/lib/api-error'
 import { useForgotPassword, useResetPassword } from '@/api/password-reset.api'
 import { useSendMagicLink, useSetupOtp, useVerifyOtp } from '@/api/trident.api'
 import { useDeviceVerify } from '@/api/device.api'
+import { useSubmitConsent } from '@/api/consent.api'
 import type { Schemas } from '@/api/api.client'
 import { useAuth } from '@/hooks/use-auth'
+import {
+  approvedScopesForDeny,
+  approvedScopesFromFormData,
+  type ConsentScopeView,
+} from '../utils/consent-decision'
 import { useOAuthParams } from './use-oauth-params'
 import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
 import { AUTH_NAMESPACE, DEVICE_ACTION, type DeviceAction } from '../constants'
@@ -38,7 +44,10 @@ const DEFAULT_AUTHENTICATOR_LABEL = 'Authenticator'
  */
 export function usePortalPageSubmit(
   pageType: Schemas.PortalPageType,
-  options?: { onFormError?: (message: string | null) => void },
+  options?: {
+    onFormError?: (message: string | null) => void
+    consentOptionalScopes?: ConsentScopeView[]
+  },
 ): {
   onSubmit?: (data: FormData) => void
   /**
@@ -63,8 +72,14 @@ export function usePortalPageSubmit(
   deviceResult?: DeviceVerifyResult
   /** Device-verify only: clears the result so the user can verify another code. */
   onDeviceReset?: () => void
+  onConsentDeny?: (data: FormData) => void
 } {
   const onFormError = options?.onFormError
+  const optionalScopesOption = options?.consentOptionalScopes
+  const consentOptionalScopes = useMemo(
+    () => optionalScopesOption ?? [],
+    [optionalScopesOption],
+  )
   const { t } = useTranslation(AUTH_NAMESPACE)
   const { realm_name, getAuthParamsFromUrl } = useOAuthParams()
   const navigate = useNavigate()
@@ -477,6 +492,43 @@ export function usePortalPageSubmit(
     [realm_name, verifyOtp, t],
   )
 
+  const { mutate: submitConsentDecision, isPending: isSubmittingConsentDecision } =
+    useSubmitConsent()
+  const runConsentSubmit = useCallback(
+    (approvedScopes: string[]) => {
+      const consentToken =
+        new URLSearchParams(window.location.search).get('consent_token') ?? ''
+      if (!consentToken) {
+        onFormError?.(t('form.consent_token_missing'))
+        return
+      }
+      onFormError?.(null)
+      submitConsentDecision(
+        {
+          path: { realm_name: realm_name ?? 'master' },
+          body: { consent_token: consentToken, approved_scopes: approvedScopes },
+        },
+        {
+          onSuccess: (response) => {
+            window.location.href = response.redirect_url
+          },
+          onError: (error) =>
+            onFormError?.(apiErrorMessage(error, t('form.consent_failed'))),
+        },
+      )
+    },
+    [onFormError, realm_name, submitConsentDecision, t],
+  )
+  const consentAllowSubmit = useCallback(
+    (data: FormData) => {
+      runConsentSubmit(approvedScopesFromFormData(consentOptionalScopes, data))
+    },
+    [consentOptionalScopes, runConsentSubmit],
+  )
+  const consentDenySubmit = useCallback(() => {
+    runConsentSubmit(approvedScopesForDeny())
+  }, [runConsentSubmit])
+
   // All hooks above run unconditionally so the order stays stable across
   // renders. We only branch on `pageType` *here*, at the return level, to
   // pick which submit handler the wrapper exposes for this page. The
@@ -512,6 +564,13 @@ export function usePortalPageSubmit(
       deviceResult,
       onDeviceReset: deviceReset,
       isSubmitting: isVerifyingDevice,
+    }
+  }
+  if (pageType === 'consent') {
+    return {
+      onSubmit: consentAllowSubmit,
+      onConsentDeny: consentDenySubmit,
+      isSubmitting: isSubmittingConsentDecision,
     }
   }
 

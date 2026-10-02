@@ -796,16 +796,19 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
 
     case 'device_approve_button':
     case 'device_deny_button':
-      // Hard-wired action: approve submits the form (action=approve), deny
-      // fires the `device-deny` action handled by the portal wrapper. Only
-      // visual style is editable here — same pattern as submit_button.
+    case 'consent_allow_button':
+    case 'consent_deny_button':
       return (
         <div className='flex flex-col'>
           {identity}
           <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
             {node.type === 'device_approve_button'
               ? 'Approve action is locked — this button submits the device authorisation when clicked.'
-              : 'Deny action is locked — this button rejects the device authorisation when clicked.'}
+              : node.type === 'device_deny_button'
+                ? 'Deny action is locked — this button rejects the device authorisation when clicked.'
+                : node.type === 'consent_allow_button'
+                  ? 'Allow action is locked — this button submits the consent decision with whichever optional scopes are toggled on.'
+                  : 'Deny action is locked — this button submits the consent decision with no optional scopes approved.'}
           </div>
           <ConfigSection title='Style'>
             <SelectField
@@ -988,6 +991,23 @@ function renderPortalConfigPanelInner(node: BuilderNode, onUpdate: OnUpdate): Re
               label='Button label prefix'
               value={node.props.buttonLabel as string}
               onChange={(v) => updateProp('buttonLabel', v)}
+            />
+          </ConfigSection>
+        </div>
+      )
+
+    case 'consent_scopes':
+      return (
+        <div className='flex flex-col'>
+          {identity}
+          <div className='border-b border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground'>
+            Scope list — the client name and the default / optional scopes come from the consent request at runtime. Only the intro label is editable here.
+          </div>
+          <ConfigSection title='Content'>
+            <TextField
+              label='Intro label'
+              value={node.props.label as string}
+              onChange={(v) => updateProp('label', v)}
             />
           </ConfigSection>
         </div>

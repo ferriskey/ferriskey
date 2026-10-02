@@ -133,6 +133,7 @@ export namespace Schemas {
     backchannel_logout_uri?: (string | null) | undefined;
     client_id: string;
     client_type: ClientType;
+    consent_required: boolean;
     created_at: string;
     direct_access_grants_enabled: boolean;
     enabled: boolean;
@@ -213,6 +214,7 @@ export namespace Schemas {
     | "saml_assertion"
     | "subject_token_exchange";
   export type CompassFlowStep = {
+    details?: unknown | undefined;
     duration_ms?: (number | null) | undefined;
     error_code?: (string | null) | undefined;
     error_message?: (string | null) | undefined;
@@ -263,6 +265,7 @@ export namespace Schemas {
   export type CreateClientValidator = {
     client_id?: string | undefined;
     client_type: ClientType;
+    consent_required?: boolean | undefined;
     direct_access_grants_enabled?: boolean | undefined;
     enabled?: boolean | undefined;
     name?: string | undefined;
@@ -355,6 +358,7 @@ export namespace Schemas {
   };
   export type CreateSamlAttributeMapperValidator = Partial<{ name: string; name_format: string; source: string }>;
   export type PortalThemePages = Partial<{
+    consent: unknown;
     deviceVerified: unknown;
     deviceVerify: unknown;
     emailVerified: unknown;
@@ -636,6 +640,12 @@ export namespace Schemas {
   export type GetClientResponse = { data: Client };
   export type GetClientRolesResponse = { data: Array<Role> };
   export type GetClientWhitelistResponse = { data: Array<MaintenanceWhitelistEntry> };
+  export type ScopeView = { description?: (string | null) | undefined; name: string };
+  export type GetConsentResponse = {
+    awaiting_decision: Array<ScopeView>;
+    client_name: string;
+    granted_by_default: Array<ScopeView>;
+  };
   export type GetDailyActivityStatsResponse = { data: Array<DailyActivityStats> };
   export type GetDeliveryResponse = { data: DeliveryDetail };
   export type GetEmailTemplateResponse = { data: EmailTemplate };
@@ -919,7 +929,8 @@ export namespace Schemas {
     | "email_verified"
     | "totp_setup"
     | "device_verify"
-    | "device_verified";
+    | "device_verified"
+    | "consent";
   export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> };
   export type PageRequirementsResponse = { data: Array<PageRequirement> };
   export type PasskeyAuthenticateResponse = { login_url: string; status: string };
@@ -972,6 +983,8 @@ export namespace Schemas {
     | "view_email_templates"
     | "manage_organizations"
     | "view_organizations";
+  export type PostConsentRequest = { approved_scopes?: Array<string> | undefined; consent_token: string };
+  export type PostConsentResponse = { redirect_url: string };
   export type ProtocolMapper = {
     client_scope_id: string;
     config: unknown;
@@ -1191,6 +1204,7 @@ export namespace Schemas {
     backchannel_logout_session_required: boolean | null;
     backchannel_logout_uri: string | null;
     client_id: string | null;
+    consent_required: boolean | null;
     direct_access_grants_enabled: boolean | null;
     enabled: boolean | null;
     id_token_lifetime: number | null;
@@ -1504,6 +1518,27 @@ export namespace Endpoints {
       path: { realm_name: string };
     };
     responses: { 200: Schemas.GetOpenIdConfigurationResponse };
+  };
+  export type get_Get_consent = {
+    method: "GET";
+    path: "/realms/{realm_name}/auth/consent";
+    requestFormat: "json";
+    parameters: {
+      query: { consent_token: string };
+      path: { realm_name: string };
+    };
+    responses: { 200: Schemas.GetConsentResponse; 404: Schemas.ApiErrorResponse };
+  };
+  export type post_Post_consent = {
+    method: "POST";
+    path: "/realms/{realm_name}/auth/consent";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.PostConsentRequest;
+    };
+    responses: { 200: Schemas.PostConsentResponse; 404: Schemas.ApiErrorResponse };
   };
   export type post_Broker_callback = {
     method: "POST";
@@ -3397,7 +3432,8 @@ export namespace Endpoints {
           | "email_verified"
           | "totp_setup"
           | "device_verify"
-          | "device_verified";
+          | "device_verified"
+          | "consent";
       };
       path: { realm_name: string };
     };
@@ -3590,7 +3626,8 @@ export namespace Endpoints {
           | "email_verified"
           | "totp_setup"
           | "device_verify"
-          | "device_verified";
+          | "device_verified"
+          | "consent";
       };
 
       body: Schemas.UpdateThemePageValidator;
@@ -4761,6 +4798,7 @@ export type EndpointByMethod = {
     "/realms/{name}": Endpoints.get_Get_realm;
     "/realms/{name}/login-settings": Endpoints.get_Get_login_realm_settings_handler;
     "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
+    "/realms/{realm_name}/auth/consent": Endpoints.get_Get_consent;
     "/realms/{realm_name}/broker/{alias}/login": Endpoints.get_Broker_login;
     "/realms/{realm_name}/client-scopes": Endpoints.get_Get_client_scopes;
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.get_Get_client_scope;
@@ -4846,6 +4884,7 @@ export type EndpointByMethod = {
   };
   post: {
     "/realms": Endpoints.post_Create_realm;
+    "/realms/{realm_name}/auth/consent": Endpoints.post_Post_consent;
     "/realms/{realm_name}/broker/{alias}/endpoint": Endpoints.post_Broker_callback;
     "/realms/{realm_name}/client-scopes": Endpoints.post_Create_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
