@@ -1535,7 +1535,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "ferriskey-abyss"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -1551,7 +1551,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-aegis"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -1567,7 +1567,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1641,7 +1641,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-abyss"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1657,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-account"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1675,7 +1675,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-aegis"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1689,7 +1689,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-authentication"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "axum-cookie",
@@ -1709,7 +1709,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-broker"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1723,7 +1723,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-client"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1739,7 +1739,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-compass"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1753,7 +1753,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-consent"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "axum-cookie",
@@ -1767,7 +1767,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-core"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1796,7 +1796,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-email-template"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1811,7 +1811,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-health"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1824,7 +1824,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-maintenance"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1837,7 +1837,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-organization"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1850,7 +1850,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-portal-layouts"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1864,7 +1864,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-portal-theme"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-realm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1893,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-role"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "ferriskey-api-core",
@@ -1908,7 +1908,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-saml"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "axum-extra",
@@ -1922,7 +1922,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-seawatch"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1935,7 +1935,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-trident"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "axum-cookie",
@@ -1952,7 +1952,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-user"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1968,7 +1968,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-api-webhook"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -1983,7 +1983,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-authz"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-domain",
@@ -2009,7 +2009,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-compass"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2025,7 +2025,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-consent"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-domain",
@@ -2038,7 +2038,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-core"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2097,7 +2097,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-domain"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "maskass",
@@ -2117,7 +2117,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-mail"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2138,7 +2138,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-migrate"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "mockall 0.13.1",
@@ -2148,7 +2148,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-operator"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "futures",
@@ -2173,7 +2173,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-organization"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2189,7 +2189,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-password-policy"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2203,7 +2203,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-portal-layouts"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2218,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-portal-theme"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2233,7 +2233,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-saml"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2246,7 +2246,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-seawatch"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -2263,7 +2263,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-security"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "argon2",
  "base64 0.22.1",
@@ -2286,7 +2286,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-trident"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "base32",
  "chrono",
@@ -2297,7 +2297,7 @@ dependencies = [
 
 [[package]]
 name = "ferriskey-webhook"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-authz",
@@ -3527,7 +3527,7 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
 name = "maskass"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "blake3",
  "serde",
