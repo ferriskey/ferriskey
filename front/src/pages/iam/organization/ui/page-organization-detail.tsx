@@ -34,6 +34,8 @@ export interface PageOrganizationDetailProps {
   onDeleteAttribute: (key: string) => void
   members: User[]
   availableUsers: User[]
+  onSearchUsers: (search: string) => void
+  isSearchingUsers: boolean
   isLoadingMembers: boolean
   onAddMembers: (userIds: string[]) => void
   onRemoveMember: (user: User) => void
@@ -60,6 +62,8 @@ export default function PageOrganizationDetail({
   onDeleteAttribute,
   members,
   availableUsers,
+  onSearchUsers,
+  isSearchingUsers,
   isLoadingMembers,
   onAddMembers,
   onRemoveMember,
@@ -175,6 +179,8 @@ export default function PageOrganizationDetail({
             <OrganizationMembersTab
               members={members}
               availableUsers={availableUsers}
+              onSearchUsers={onSearchUsers}
+              isSearchingUsers={isSearchingUsers}
               isLoading={isLoadingMembers}
               onAdd={onAddMembers}
               onRemove={onRemoveMember}

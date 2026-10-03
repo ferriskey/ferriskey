@@ -611,7 +611,6 @@ identities:
     title: 身份
     description: '本域的客户账户。可以搜索它们，查看它们的登录状态以及仍需完成的操作。'
     create: 新建身份
-    search_placeholder: 按姓名、邮箱或用户名筛选…
     columns:
       identity: 身份
       email: 邮箱
@@ -653,11 +652,11 @@ identities:
         title_other: '{{count, number}} 个身份在下次登录时有待处理的操作'
         detail: '{{names}}——在完成之前，他们无法完成登录。'
         action: 查看
-    filters:
-      active: 活跃
-      unverified: 邮箱未验证
-      pending: 待处理操作
-      disabled: 已禁用
+    filter_fields:
+      username: 用户名
+      email: 邮箱
+      enabled: 活跃
+      email_verified: 邮箱已验证
     empty:
       label: 无身份
       hint: 身份是本域的一个客户账户。服务账户属于应用，在应用页面中列出。

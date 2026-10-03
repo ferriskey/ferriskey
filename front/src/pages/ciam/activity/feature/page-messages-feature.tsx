@@ -3,7 +3,8 @@ import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { useGetSmtpConfig } from '@/api/smtp.api'
 import { useGetWebhooks } from '@/api/webhook.api'
-import { useRealmDirectory } from '@/hooks/use-realm-directory'
+import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
+import { detailString } from '../ui/event-journal'
 import { useWindowEvents } from './use-window-events'
 import PageMessages from '../ui/page-messages'
 
@@ -13,11 +14,18 @@ export default function PageMessagesFeature() {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
 
-  const directory = useRealmDirectory(realm)
   const { events, isLoading, isError, truncated, windowDays, windowLimit } = useWindowEvents(
     realm,
     EMAIL_EVENTS
   )
+  const userIds = useMemo(
+    () => [
+      ...eventUserIds(events),
+      ...events.flatMap((event) => detailString(event, 'user_id') ?? []),
+    ],
+    [events]
+  )
+  const directory = useRealmDirectory(realm, userIds)
 
   const { data: smtpConfig, isLoading: isLoadingSmtp } = useGetSmtpConfig({ realm })
   const { data: webhooksResponse } = useGetWebhooks({ realm })

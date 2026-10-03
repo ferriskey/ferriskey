@@ -917,6 +917,16 @@ export namespace Schemas {
   };
   export type OwnCredentialsResponse = { data: Array<OwnCredentialDto> };
   export type OwnProfileResponse = { data: User };
+  export type PageMetadata = {
+    first_page: number;
+    last_page: number;
+    limit: number;
+    next_page?: (number | null) | undefined;
+    page: number;
+    prev_page?: (number | null) | undefined;
+    total: number;
+    total_pages: number;
+  };
   export type PortalPageType =
     | "login"
     | "register"
@@ -933,6 +943,28 @@ export namespace Schemas {
     | "consent";
   export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> };
   export type PageRequirementsResponse = { data: Array<PageRequirement> };
+  export type Paginated_User = {
+    data: Array<{
+      client_id?: (string | null) | undefined;
+      created_at: string;
+      email?: (string | null) | undefined;
+      email_verified: boolean;
+      enabled: boolean;
+      failed_login_attempts: number;
+      firstname?: (string | null) | undefined;
+      id: string;
+      lastname?: (string | null) | undefined;
+      locale?: (string | null) | undefined;
+      locked_until?: (string | null) | undefined;
+      realm?: (null | Realm) | undefined;
+      realm_id: RealmId;
+      required_actions: Array<RequiredAction>;
+      roles?: (Array<Role> | null) | undefined;
+      updated_at: string;
+      username: string;
+    }>;
+    metadata: PageMetadata;
+  };
   export type PasskeyAuthenticateResponse = { login_url: string; status: string };
   export type PasskeyPublicKeyCredential = Record<string, unknown>;
   export type PasskeyPublicKeyCredentialRequestOptionsJSON = Record<string, unknown>;
@@ -1386,7 +1418,6 @@ export namespace Schemas {
   export type UserPermissionsResponse = { data: Array<Permissions> };
   export type UserRealmsResponse = { data: Array<Realm> };
   export type UserResponse = { data: User };
-  export type UsersResponse = { data: Array<User> };
   export type ValidatePublicKeyResponse = Record<string, unknown>;
   export type ValidationErrorResponse = { errors: Array<ValidationError> };
   export type VerifyEmailRequest = { token: string };
@@ -4028,10 +4059,25 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/users";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        username: string;
+        email: string;
+        firstname: string;
+        lastname: string;
+        enabled: boolean;
+        email_verified: boolean;
+        service_account: boolean;
+        role_id: string;
+        order_by: "username" | "email" | "firstname" | "lastname" | "enabled" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.UsersResponse;
+      200: Schemas.Paginated_User;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;

@@ -14,7 +14,6 @@ list:
   title: 用户
   description: 此域的账户及其类型和认证状态。
   create: 新建用户
-  search_placeholder: 按名称或邮箱筛选…
   # Fallback name shown in place of a person's name when the account belongs to a client.
   service_account_name: 服务账户
   columns:
@@ -22,6 +21,10 @@ list:
     email: 邮箱
     type: 类型
     status: 状态
+    firstname: 名
+    lastname: 姓
+    created: 创建时间
+    updated: 更新时间
   no_email: 无邮箱
   type:
     service: 服务账户
@@ -56,10 +59,15 @@ list:
       title_other: '{{count}} 个账户的邮箱未验证'
       detail: '{{names}}：密码找回邮件将无法送达。'
       action: 查看
-  filters:
-    users: 用户
-    service_accounts: 服务账户
-    unverified: 邮箱未验证
+  filter_fields:
+    username: 用户名
+    email: 邮箱
+    firstname: 名
+    lastname: 姓
+    enabled: 已启用
+    email_verified: 邮箱已验证
+    service_account: 服务账户
+    role: 角色
   aggregates:
     count_other: '{{count}} 个用户'
     # Raw total in a table footer, it never inflects.

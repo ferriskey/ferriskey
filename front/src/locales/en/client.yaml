@@ -363,8 +363,6 @@ scopes:
     title: Evaluate tokens
     description: Simulates the tokens issued for a given account, with the optional scopes the client would request.
     account: Account
-    account_placeholder: Select an account to evaluate
-    account_option: '{{username}} ({{email}})'
     optional: Optional scopes requested
     scope_string: Scope string
     # Shown in place of the scope string when no scope is requested at all.

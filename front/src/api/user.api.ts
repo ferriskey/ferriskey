@@ -1,6 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import type { Endpoints, Schemas } from './api.client'
 import { translate } from '@/lib/i18n'
 
 export interface UserMutateContract<T> {
@@ -14,14 +22,75 @@ export interface GetUserQueryParams {
   userId?: string
 }
 
-export const useGetUsers = ({ realm }: BaseQuery) => {
+export type UsersQuery = NonNullable<Endpoints.get_Get_users['parameters']['query']>
+
+export type UsersFilter = Omit<UsersQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const USER_SEARCH_LIMIT = 20
+
+const SEARCH_DEBOUNCE_MS = 300
+
+export const useGetUsers = ({
+  realm,
+  query,
+  enabled = true,
+}: BaseQuery & { query?: UsersQuery; enabled?: boolean }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/users', {
       path: {
         realm_name: realm || 'master',
       },
+      query: query ?? {},
     }).queryOptions,
+    enabled,
   })
+}
+
+export const useUserCount = ({ realm, filter }: BaseQuery & { filter?: UsersFilter }) => {
+  const { data, isLoading } = useGetUsers({ realm, query: { ...filter, limit: 1 } })
+  return { count: data?.metadata.total ?? 0, isLoading }
+}
+
+const combineUsers = (results: UseQueryResult<Schemas.UserResponse>[]) => ({
+  users: results
+    .map((result) => result.data?.data)
+    .filter((user): user is Schemas.User => user !== undefined),
+  isLoading: results.some((result) => result.isLoading),
+})
+
+export const useUsersByIds = ({ realm, ids }: BaseQuery & { ids: readonly string[] }) => {
+  const unique = useMemo(() => [...new Set(ids)].sort(), [ids])
+  return useQueries({
+    queries: unique.map((userId) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}', {
+        path: { realm_name: realm || 'master', user_id: userId },
+      }).queryOptions,
+      retry: false,
+    })),
+    combine: combineUsers,
+  })
+}
+
+export const useUserSearch = ({ realm, filter }: BaseQuery & { filter?: UsersFilter }) => {
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data, isLoading } = useGetUsers({
+    realm,
+    query: { ...filter, username: debounced || undefined, limit: USER_SEARCH_LIMIT },
+  })
+
+  return {
+    search,
+    setSearch,
+    users: data?.data ?? [],
+    isLoading,
+  }
 }
 
 export const useGetUser = ({ realm, userId }: GetUserQueryParams) => {
@@ -113,6 +182,7 @@ export const useCreateUser = () => {
         path: {
           realm_name: res.data.realm!.name,
         },
+        query: {},
       }).queryKey
 
       console.log(queryKeys)
@@ -139,6 +209,7 @@ export const useUpdateUser = () => {
         path: {
           realm_name,
         },
+        query: {},
       }).queryKey
       queryClient.invalidateQueries({ queryKey: userDetailKey })
       queryClient.invalidateQueries({ queryKey: usersListKey })
@@ -155,6 +226,7 @@ export const useBulkDeleteUser = () => {
         path: {
           realm_name: res.realm_name,
         },
+        query: {},
       }).queryKey
       queryClient.invalidateQueries({
         queryKey: keys,

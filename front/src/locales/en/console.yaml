@@ -605,7 +605,6 @@ identities:
     title: Identities
     description: 'Customer accounts of this realm. Search them, review their sign-in state and what they still have to do.'
     create: New identity
-    search_placeholder: 'Filter by name, email or username…'
     columns:
       identity: Identity
       email: Email
@@ -651,11 +650,11 @@ identities:
         title_other: '{{count, number}} identities have an action pending at next sign-in'
         detail: '{{names}} — they cannot complete a sign-in until it is done.'
         action: Review
-    filters:
-      active: Active
-      unverified: Unverified email
-      pending: Pending actions
-      disabled: Disabled
+    filter_fields:
+      username: Username
+      email: Email
+      enabled: Active
+      email_verified: Email verified
     empty:
       label: No identity
       hint: An identity is a customer account of this realm. Service accounts belong to applications and are listed there.

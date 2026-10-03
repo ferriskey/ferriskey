@@ -2,7 +2,6 @@ list:
   title: Users
   description: Accounts of this realm, their type and their authentication state.
   create: New user
-  search_placeholder: Filter by name or email…
   # Fallback name shown in place of a person's name when the account belongs to a client.
   service_account_name: Service Account
   columns:
@@ -10,6 +9,10 @@ list:
     email: Email
     type: Type
     status: Status
+    firstname: First name
+    lastname: Last name
+    created: Created
+    updated: Updated
   no_email: no email
   type:
     service: service account
@@ -45,10 +48,15 @@ list:
       title_other: '{{count}} accounts have an unverified email'
       detail: '{{names}} — password recovery will not reach them.'
       action: Review
-  filters:
-    users: Users
-    service_accounts: Service accounts
-    unverified: Unverified email
+  filter_fields:
+    username: Username
+    email: Email
+    firstname: First name
+    lastname: Last name
+    enabled: Enabled
+    email_verified: Email verified
+    service_account: Service account
+    role: Role
   aggregates:
     count_one: '{{count}} user'
     count_other: '{{count}} users'

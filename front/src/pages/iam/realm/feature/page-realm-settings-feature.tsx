@@ -11,7 +11,7 @@ import {
   useUpdateRealmPasswordPolicy,
   useUpdateRealmSettings,
 } from '@/api/realm.api'
-import { useGetUsers } from '@/api/user.api'
+import { useUserPicker } from '@/hooks/use-user-picker'
 import { useGetRoles } from '@/api/role.api'
 import {
   useAddRealmWhitelistEntry,
@@ -96,7 +96,6 @@ export default function PageRealmSettingsFeature() {
     isError: policyError,
   } = useGetRealmPasswordPolicy({ realm })
 
-  const { data: usersResponse } = useGetUsers({ realm })
   const { data: rolesResponse } = useGetRoles({ realm })
   const { data: whitelistResponse } = useGetRealmWhitelist({ realm })
 
@@ -174,7 +173,6 @@ export default function PageRealmSettingsFeature() {
   )
 
   const whitelist = useMemo(() => whitelistResponse?.data ?? [], [whitelistResponse])
-  const users = useMemo(() => usersResponse?.data ?? [], [usersResponse])
   const roles = useMemo(() => rolesResponse?.data ?? [], [rolesResponse])
 
   const whitelistedUserIds = whitelist
@@ -183,6 +181,7 @@ export default function PageRealmSettingsFeature() {
   const whitelistedRoleIds = whitelist
     .filter((entry) => entry.role_id)
     .map((entry) => entry.role_id as string)
+  const userPicker = useUserPicker({ realm, selectedIds: whitelistedUserIds })
 
   const entryIdFor = (kind: WhitelistKind, id: string) =>
     whitelist.find((entry) => (kind === USER_WHITELIST ? entry.user_id : entry.role_id) === id)
@@ -346,11 +345,9 @@ export default function PageRealmSettingsFeature() {
       policyErrors={policyErrors}
       policyLoading={policyLoading}
       policyFailed={policyError || !policyData}
-      maintenanceUsers={users.map((user) => ({
-        id: user.id,
-        label: user.username,
-        sublabel: user.email ?? undefined,
-      }))}
+      maintenanceUsers={userPicker.items}
+      onSearchMaintenanceUsers={userPicker.onSearchChange}
+      isSearchingMaintenanceUsers={userPicker.loading}
       maintenanceRoles={roles.map((role) => ({
         id: role.id,
         label: role.name,

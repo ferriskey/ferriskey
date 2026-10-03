@@ -5,6 +5,8 @@ import { REALM_NAMESPACE } from '../realm-namespace'
 
 export interface RealmMaintenanceTabProps {
   users: PickableEntity[]
+  onSearchUsers: (search: string) => void
+  isSearchingUsers: boolean
   roles: PickableEntity[]
   selectedUserIds: string[]
   selectedRoleIds: string[]
@@ -14,6 +16,8 @@ export interface RealmMaintenanceTabProps {
 
 export default function RealmMaintenanceTab({
   users,
+  onSearchUsers,
+  isSearchingUsers,
   roles,
   selectedUserIds,
   selectedRoleIds,
@@ -43,6 +47,8 @@ export default function RealmMaintenanceTab({
             items={users}
             value={selectedUserIds}
             onChange={onUsersChange}
+            onSearchChange={onSearchUsers}
+            loading={isSearchingUsers}
             addLabel={t('maintenance.users.add')}
             searchPlaceholder={t('maintenance.users.search_placeholder')}
             emptyHint={t('maintenance.users.empty_hint')}

@@ -36,6 +36,8 @@ export interface ClientMaintenanceTabProps {
   whitelistCount: number
   hasSettingsChanges: boolean
   users: PickableEntity[]
+  onSearchUsers: (search: string) => void
+  isSearchingUsers: boolean
   roles: PickableEntity[]
   whitelistedUserIds: string[]
   whitelistedRoleIds: string[]
@@ -95,6 +97,8 @@ export default function ClientMaintenanceTab({
   whitelistCount,
   hasSettingsChanges,
   users,
+  onSearchUsers,
+  isSearchingUsers,
   roles,
   whitelistedUserIds,
   whitelistedRoleIds,
@@ -177,6 +181,8 @@ export default function ClientMaintenanceTab({
             items={users}
             value={whitelistedUserIds}
             onChange={onWhitelistedUsersChange}
+            onSearchChange={onSearchUsers}
+            loading={isSearchingUsers}
             addLabel={t('maintenance.users.add')}
             searchPlaceholder={t('maintenance.users.search_placeholder')}
             emptyIcon={User}

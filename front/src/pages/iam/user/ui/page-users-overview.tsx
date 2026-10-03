@@ -2,25 +2,48 @@ import { Bot, MailCheck, MailX, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
-import type { CardSpec, Column } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { isServiceAccount } from '@/utils'
+import { formatRelative } from '@/utils/format-date'
+import { roleRelationSource } from '@/api/role.relation'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
-import { cumulativeSeries } from '@/utils/cumulative-series'
 
-const QUERY_SYNTAX = 'username:adm*  email_verified:false  enabled:true'
+export interface UserCounts {
+  total: number
+  enabled: number
+  disabled: number
+  verified: number
+}
 
 export interface PageUsersOverviewProps {
   users: User[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: UserCounts
+  unverified: { total: number; names: string[] }
   userHref: (user: User) => string
   onCreate: () => void
 }
 
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
 export default function PageUsersOverview({
   users,
+  pagination,
+  listing,
   isLoading,
+  counts,
+  unverified,
   userHref,
   onCreate,
 }: PageUsersOverviewProps) {
@@ -35,6 +58,13 @@ export default function PageUsersOverview({
   const typeLabel = (user: User) =>
     isServiceAccount(user) ? t('list.type.service') : t('list.type.user')
 
+  const dimmed = (value: string | null | undefined) =>
+    value ? (
+      <span className='text-neutral-600 dark:text-neutral-400'>{value}</span>
+    ) : (
+      <span className='text-neutral-300 dark:text-neutral-600'>—</span>
+    )
+
   const columns: Column<User>[] = [
     {
       key: 'user',
@@ -47,7 +77,19 @@ export default function PageUsersOverview({
           </span>
         </span>
       ),
-      sortValue: (u) => displayName(u),
+      sortKey: 'username',
+    },
+    {
+      key: 'firstname',
+      header: t('list.columns.firstname'),
+      render: (u) => dimmed(u.firstname),
+      sortKey: 'firstname',
+    },
+    {
+      key: 'lastname',
+      header: t('list.columns.lastname'),
+      render: (u) => dimmed(u.lastname),
+      sortKey: 'lastname',
     },
     {
       key: 'email',
@@ -65,7 +107,7 @@ export default function PageUsersOverview({
         ) : (
           <span className='text-neutral-400 dark:text-neutral-500'>{t('list.no_email')}</span>
         ),
-      sortValue: (u) => u.email ?? '',
+      sortKey: 'email',
     },
     {
       key: 'type',
@@ -75,7 +117,6 @@ export default function PageUsersOverview({
           {typeLabel(u)}
         </Pill>
       ),
-      sortValue: (u) => typeLabel(u),
     },
     {
       key: 'status',
@@ -86,7 +127,43 @@ export default function PageUsersOverview({
           {u.enabled ? t('list.status.enabled') : t('list.status.disabled')}
         </span>
       ),
-      sortValue: (u) => (u.enabled ? 1 : 0),
+      sortKey: 'enabled',
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (u) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(u.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (u) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(u.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
+    },
+  ]
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'username', label: t('list.filter_fields.username') },
+    { kind: 'text', key: 'email', label: t('list.filter_fields.email') },
+    { kind: 'text', key: 'firstname', label: t('list.filter_fields.firstname') },
+    { kind: 'text', key: 'lastname', label: t('list.filter_fields.lastname') },
+    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
+    { kind: 'boolean', key: 'email_verified', label: t('list.filter_fields.email_verified') },
+    { kind: 'boolean', key: 'service_account', label: t('list.filter_fields.service_account') },
+    {
+      kind: 'relation',
+      key: 'role_id',
+      label: t('list.filter_fields.role'),
+      relation: roleRelationSource,
     },
   ]
 
@@ -120,10 +197,9 @@ export default function PageUsersOverview({
     footer: (u) => <span className='truncate'>{u.email || u.username}</span>,
   }
 
-  const enabled = users.filter((u) => u.enabled)
-  const disabled = users.filter((u) => !u.enabled)
-  const verified = users.filter((u) => u.email_verified)
-  const unverified = users.filter((u) => !u.email_verified && !isServiceAccount(u))
+  const unverifiedNames =
+    unverified.names.join(NAME_SEPARATOR) +
+    (unverified.total > unverified.names.length ? TRUNCATION_MARK : '')
 
   const createButton = (
     <Button onClick={onCreate}>
@@ -141,81 +217,62 @@ export default function PageUsersOverview({
         {
           key: 'total',
           label: t('list.metrics.total.label'),
-          value: users.length,
+          value: counts.total,
           hint: t('list.metrics.total.hint'),
-          series: cumulativeSeries(users.map((r) => r.created_at)),
+          series: [counts.total, counts.total],
           tone: 'info',
         },
         {
           key: 'enabled',
           label: t('list.metrics.enabled.label'),
-          value: enabled.length,
+          value: counts.enabled,
           hint:
-            enabled.length > 0 && users.length > 0
+            counts.enabled > 0 && counts.total > 0
               ? t('list.metrics.enabled.hint', {
-                  percent: ((enabled.length / users.length) * 100).toFixed(0),
+                  percent: ((counts.enabled / counts.total) * 100).toFixed(0),
                 })
               : t('list.metrics.enabled.empty_hint'),
-          series: cumulativeSeries(enabled.map((r) => r.created_at)),
+          series: [counts.enabled, counts.enabled],
           tone: 'success',
         },
         {
           key: 'disabled',
           label: t('list.metrics.disabled.label'),
-          value: disabled.length,
+          value: counts.disabled,
           hint: t('list.metrics.disabled.hint'),
-          series: cumulativeSeries(disabled.map((r) => r.created_at)),
+          series: [counts.disabled, counts.disabled],
           tone: 'amber',
         },
         {
           key: 'verified',
           label: t('list.metrics.verified.label'),
-          value: verified.length,
+          value: counts.verified,
           hint: t('list.metrics.verified.hint'),
-          series: cumulativeSeries(verified.map((r) => r.created_at)),
+          series: [counts.verified, counts.verified],
           tone: 'success',
         },
       ]}
       alerts={
-        unverified.length
+        unverified.total
           ? [
               {
                 tone: 'warn' as const,
-                title: t('list.alerts.unverified_email.title', { count: unverified.length }),
-                detail: t('list.alerts.unverified_email.detail', {
-                  names: unverified.map((u) => u.username).join(', '),
-                }),
+                title: t('list.alerts.unverified_email.title', { count: unverified.total }),
+                detail: t('list.alerts.unverified_email.detail', { names: unverifiedNames }),
                 action: t('list.alerts.unverified_email.action'),
               },
             ]
           : []
       }
-      filters={[
-        { key: 'users', label: t('list.filters.users'), predicate: (u) => !isServiceAccount(u) },
-        {
-          key: 'service',
-          label: t('list.filters.service_accounts'),
-          predicate: isServiceAccount,
-        },
-        {
-          key: 'unverified',
-          label: t('list.filters.unverified'),
-          predicate: (u) => !u.email_verified && !isServiceAccount(u),
-        },
-      ]}
-      searchPlaceholder={t('list.search_placeholder')}
-      querySyntax={QUERY_SYNTAX}
-      searchIn={(u) =>
-        `${u.username} ${u.email ?? ''} ${u.firstname ?? ''} ${u.lastname ?? ''}`
-      }
+      paged={{ listing, pagination, filterFields }}
       rows={users}
       columns={columns}
       card={card}
       getKey={(u) => u.id}
       getHref={userHref}
       aggregates={{
-        user: t('list.aggregates.count', { count: users.length }),
-        status: t('list.aggregates.enabled', { total: enabled.length }),
+        user: t('list.aggregates.count', { count: counts.total }),
+        status: t('list.aggregates.enabled', { total: counts.enabled }),
       }}
       emptyLabel={t('list.empty.label')}
       emptyHint={t('list.empty.hint')}
