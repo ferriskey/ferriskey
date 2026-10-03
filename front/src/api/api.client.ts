@@ -603,9 +603,18 @@ export namespace Schemas {
   export type ElevationOnlyValidator = { elevation_id: string };
   export type ElevationResponse = { elevation_id: string; expires_at: string };
   export type EmailTemplateExportFormat = "json" | "mjml";
-  export type EvaluatedMapper = { config: unknown; mapper_type: string; name: string };
+  export type EvaluatedMapper = { scope: string; config: unknown; mapper_type: string; name: string };
   export type EvaluatedRoles = { client_roles: Record<string, Array<string>>; realm_roles: Array<string> };
   export type EvaluatedScope = { default_scope_type: string; name: string; protocol: string };
+  export type PreviewedMapper = { mapper: string; scope: string; type: string };
+  export type PreviewedScope = { name: string; type: string };
+  export type TokenPreviewResult = {
+    access_token_claims: unknown;
+    active_scopes: Array<PreviewedScope>;
+    applied_mappers: Array<PreviewedMapper>;
+    id_token_claims?: unknown | undefined;
+    userinfo_claims: unknown;
+  };
   export type EvaluateClientScopesResult = {
     access_token: unknown;
     effective_mappers: Array<EvaluatedMapper>;
@@ -614,7 +623,7 @@ export namespace Schemas {
     id_token?: unknown | undefined;
     userinfo: unknown;
   };
-  export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id: string };
+  export type EvaluateScopesValidator = { scope?: (string | null) | undefined; user_id?: string | undefined };
   export type EventStatus = "success" | "failure";
   export type ExportEnvelope = {
     email_type?: (string | null) | undefined;
@@ -1794,6 +1803,22 @@ export namespace Endpoints {
     };
     responses: {
       200: Schemas.EvaluateClientScopesResult;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Preview_token = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/token-preview";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.EvaluateScopesValidator;
+    };
+    responses: {
+      200: Schemas.TokenPreviewResult;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
@@ -4890,6 +4915,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
     "/realms/{realm_name}/clients": Endpoints.post_Create_client;
     "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes;
+    "/realms/{realm_name}/clients/{client_id}/token-preview": Endpoints.post_Preview_token;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
     "/realms/{realm_name}/clients/{client_id}/redirects": Endpoints.post_Create_redirect_uri;

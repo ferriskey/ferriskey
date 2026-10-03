@@ -46,6 +46,7 @@ use super::handlers::{
     },
     get_web_origins::{__path_get_web_origins, get_web_origins},
     set_client_saml_config::{__path_set_client_saml_config, set_client_saml_config},
+    token_preview::{__path_preview_token, preview_token},
     update_client::{__path_update_client, update_client},
     update_post_logout_redirect_uri::{
         __path_update_post_logout_redirect_uri, update_post_logout_redirect_uri,
@@ -85,7 +86,8 @@ use ferriskey_api_core::auth::auth;
         set_client_saml_config,
         create_saml_attribute_mapper,
         get_saml_attribute_mappers,
-        delete_saml_attribute_mapper
+        delete_saml_attribute_mapper,
+        preview_token
     ),
 
     tags(
@@ -284,6 +286,13 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             delete(delete_saml_attribute_mapper),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/{{client_id}}/token-preview",
+                state.args.server.root_path
+            ),
+            post(preview_token),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
 }

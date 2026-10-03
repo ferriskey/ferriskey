@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   useAssignScope,
-  useEvaluateClientScopes,
+  usePreviewToken,
   useGetClientScopes,
   useUnassignScope,
 } from '@/api/client.api'
@@ -32,7 +32,7 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
 
   const assignScope = useAssignScope()
   const unassignScope = useUnassignScope()
-  const evaluate = useEvaluateClientScopes()
+  const preview = usePreviewToken()
 
   const [view, setView] = useState('assigned')
   const [addOpen, setAddOpen] = useState(false)
@@ -91,8 +91,12 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
   }
 
   const handleEvaluate = () => {
-    if (!userId) return
-    evaluate.mutate({ realm, clientId: client.id, userId, scope: requestedScope || undefined })
+    preview.mutate({
+      realm,
+      clientId: client.id,
+      userId: userId || undefined,
+      scope: requestedScope || undefined,
+    })
   }
 
   return (
@@ -117,8 +121,8 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
           userId={userId}
           selectedOptional={selectedOptional}
           requestedScope={requestedScope}
-          isPending={evaluate.isPending}
-          result={evaluate.data}
+          isPending={preview.isPending}
+          result={preview.data}
           onUserChange={setUserId}
           onToggleOptional={(name) =>
             setSelectedOptional((prev) =>
