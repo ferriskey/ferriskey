@@ -207,11 +207,20 @@ data_view:
     page: Page <num>{{current}}</num> of <num>{{total}}</num>
     previous: Previous page
     next: Next page
+    first: First page
+    last: Last page
   bulk:
     selected_one: '{{count}} item selected'
     selected_other: '{{count}} items selected'
     ready_hint: Ready to delete?
     confirm_hint: Click confirm to delete permanently
+
+filter_bar:
+  any: Any
+  yes: Yes
+  no: No
+  clear: Clear filters
+  search: Search…
 
 entity_picker:
   search_placeholder: Search…

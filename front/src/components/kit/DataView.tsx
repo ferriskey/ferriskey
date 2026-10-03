@@ -1,11 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { EmptyState } from './empty-state'
+import { nextSort, type SortState } from './listing-query-state'
 
 export type ViewMode = 'list' | 'cards'
 
@@ -19,6 +20,7 @@ export interface Column<T> {
   header: string
   render: (row: T) => ReactNode
   sortValue?: (row: T) => string | number
+  sortKey?: string
   align?: 'right'
   headerClassName?: string
   cellClassName?: string
@@ -45,6 +47,36 @@ export interface DataViewProps<T> {
   emptyHint?: string
   emptyAction?: ReactNode
   loading?: boolean
+  sort?: SortState | null
+  onSortChange?: (sort: SortState | null) => void
+}
+
+function ServerSortButton({
+  header,
+  sortKey,
+  sort,
+  onSortChange,
+}: {
+  header: string
+  sortKey: string
+  sort: SortState | null
+  onSortChange: (sort: SortState | null) => void
+}) {
+  const active = sort?.orderBy === sortKey ? sort : null
+  const Icon = active?.order === 'asc' ? ArrowUp : active?.order === 'desc' ? ArrowDown : ArrowUpDown
+  return (
+    <button
+      type='button'
+      onClick={() => onSortChange(nextSort(sort, sortKey))}
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-neutral-700 dark:hover:text-neutral-300',
+        active && 'text-fk-primary-text'
+      )}
+    >
+      {header}
+      <Icon className='size-3' />
+    </button>
+  )
 }
 
 export function DataView<T>({
@@ -59,13 +91,15 @@ export function DataView<T>({
   emptyHint,
   emptyAction,
   loading = false,
+  sort: serverSort,
+  onSortChange,
 }: DataViewProps<T>) {
   const { t } = useTranslation()
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null)
   const [selected, setSelected] = useState<string[]>([])
 
   const sorted = useMemo(() => {
-    if (!sort) return rows
+    if (onSortChange || !sort) return rows
     const col = columns.find((c) => c.key === sort.key)
     if (!col?.sortValue) return rows
     const value = col.sortValue
@@ -76,7 +110,7 @@ export function DataView<T>({
         return (va - vb) * sort.dir
       return String(va).localeCompare(String(vb)) * sort.dir
     })
-  }, [rows, sort, columns])
+  }, [rows, sort, columns, onSortChange])
 
   if (loading) {
     return (
@@ -251,7 +285,18 @@ export function DataView<T>({
                   col.headerClassName
                 )}
               >
-                {tokens.table.sortable && col.sortValue ? (
+                {onSortChange ? (
+                  col.sortKey ? (
+                    <ServerSortButton
+                      header={col.header}
+                      sortKey={col.sortKey}
+                      sort={serverSort ?? null}
+                      onSortChange={onSortChange}
+                    />
+                  ) : (
+                    col.header
+                  )
+                ) : tokens.table.sortable && col.sortValue ? (
                   <button
                     type='button'
                     onClick={() =>
