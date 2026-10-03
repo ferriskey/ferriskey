@@ -25,13 +25,13 @@ export interface RelationSource {
 const SEARCH_DEBOUNCE_MS = 300
 const ANY_ITEM_VALUE = '__any__'
 
-function useDebounced(value: string, delay: number): string {
+function useDebounced(value: string, delay: number): [string, () => void] {
   const [debounced, setDebounced] = useState(value)
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(value), delay)
     return () => clearTimeout(timer)
   }, [value, delay])
-  return debounced
+  return [debounced, () => setDebounced('')]
 }
 
 export function RelationSelect({
@@ -48,18 +48,25 @@ export function RelationSelect({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const debounced = useDebounced(search, SEARCH_DEBOUNCE_MS)
+  const [debounced, resetDebounced] = useDebounced(search, SEARCH_DEBOUNCE_MS)
   const { options, loading } = source.useOptions(debounced)
   const selected = source.useSelected(value)
   const shown = value ? (selected?.label ?? value) : t('filter_bar.any')
 
+  const changeOpen = (next: boolean) => {
+    setOpen(next)
+    if (next) return
+    setSearch('')
+    resetDebounced()
+  }
+
   const pick = (id: string | undefined) => {
     onChange(id)
-    setOpen(false)
+    changeOpen(false)
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild>
         <button
           type='button'

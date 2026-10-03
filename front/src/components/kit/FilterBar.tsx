@@ -107,7 +107,7 @@ function FilterControl({ field, listing }: { field: FilterField; listing: PagedL
       return (
         <RelationSelect
           source={field.relation}
-          value={current}
+          value={current || undefined}
           onChange={(id) => setFilter(id ?? '')}
           label={field.label}
         />
