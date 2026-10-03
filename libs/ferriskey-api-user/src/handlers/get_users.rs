@@ -57,7 +57,7 @@ impl From<UserListParams> for UserFilter {
         ("realm_name" = String, Path, description = "Realm name"),
         PaginationParams,
         UserListParams,
-        ("order_by" = Option<UserSortField>, Query, description = "Sort column, `created_at` by default"),
+        ("order_by" = inline(Option<UserSortField>), Query, description = "Sort column, `created_at` by default"),
     ),
     responses(
         (status = 200, description = "One page of users", body = Paginated<User>),
