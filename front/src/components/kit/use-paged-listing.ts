@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   readListingState,
@@ -22,14 +22,9 @@ export interface PagedListing {
 export function usePagedListing(filterKeys: readonly string[], delay = 300): PagedListing {
   const [params, setParams] = useSearchParams()
   const state = useMemo(() => readListingState(params, filterKeys), [params, filterKeys])
-  const [drafts, setDrafts] = useState<Record<string, string>>(state.filters)
-  const filtersKey = JSON.stringify(state.filters)
-  const [syncedKey, setSyncedKey] = useState(filtersKey)
-  if (syncedKey !== filtersKey) {
-    setSyncedKey(filtersKey)
-    setDrafts(state.filters)
-  }
+  const [pending, setPending] = useState<Record<string, string>>({})
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const drafts = useMemo(() => ({ ...state.filters, ...pending }), [state.filters, pending])
 
   const commit = useCallback(
     (patch: Partial<ListingState>) => {
@@ -39,31 +34,61 @@ export function usePagedListing(filterKeys: readonly string[], delay = 300): Pag
     [setParams, filterKeys],
   )
 
+  const settle = useCallback((keys: readonly string[]) => {
+    for (const key of keys) {
+      const timer = timers.current.get(key)
+      if (timer !== undefined) clearTimeout(timer)
+      timers.current.delete(key)
+    }
+    startTransition(() => {
+      setPending((current) => {
+        const next = { ...current }
+        for (const key of keys) delete next[key]
+        return next
+      })
+    })
+  }, [])
+
   useEffect(() => {
-    const pending = timers.current
-    return () => pending.forEach(clearTimeout)
+    const scheduled = timers.current
+    return () => {
+      scheduled.forEach(clearTimeout)
+      scheduled.clear()
+    }
   }, [])
 
   const setFilter = useCallback(
     (key: string, value: string) => {
-      setDrafts((d) => ({ ...d, [key]: value }))
+      settle([key])
       commit({ filters: { [key]: value } })
     },
-    [commit],
+    [commit, settle],
   )
 
   const setDraft = useCallback(
     (key: string, value: string) => {
-      setDrafts((d) => ({ ...d, [key]: value }))
-      const pending = timers.current.get(key)
-      if (pending) clearTimeout(pending)
+      setPending((current) => ({ ...current, [key]: value }))
+      const timer = timers.current.get(key)
+      if (timer !== undefined) clearTimeout(timer)
       timers.current.set(
         key,
-        setTimeout(() => commit({ filters: { [key]: value } }), delay),
+        setTimeout(() => {
+          settle([key])
+          commit({ filters: { [key]: value } })
+        }, delay),
       )
     },
-    [commit, delay],
+    [commit, settle, delay],
   )
+
+  const setPage = useCallback((page: number) => commit({ page }), [commit])
+
+  const setSort = useCallback((sort: SortState | null) => commit({ sort }), [commit])
+
+  const clearFilters = useCallback(() => {
+    settle(filterKeys)
+    commit({ filters: Object.fromEntries(filterKeys.map((k) => [k, ''])) })
+  }, [commit, settle, filterKeys])
 
   const apiQuery = useMemo(() => toApiQuery(state), [state])
 
@@ -71,10 +96,10 @@ export function usePagedListing(filterKeys: readonly string[], delay = 300): Pag
     state,
     drafts,
     apiQuery,
-    setPage: (page) => commit({ page }),
-    setSort: (sort) => commit({ sort }),
+    setPage,
+    setSort,
     setFilter,
     setDraft,
-    clearFilters: () => commit({ filters: Object.fromEntries(filterKeys.map((k) => [k, ''])) }),
+    clearFilters,
   }
 }
