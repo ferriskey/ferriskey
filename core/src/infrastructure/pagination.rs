@@ -24,7 +24,7 @@ pub fn escape_like(value: &str) -> String {
 }
 
 pub fn contains<C: ColumnTrait>(column: C, value: &str) -> SimpleExpr {
-    Expr::col((column.entity_name(), column)).ilike(LikeExpr::new(escape_like(value)).escape('\\'))
+    Expr::col((column.entity_name(), column)).ilike(LikeExpr::new(escape_like(value)))
 }
 
 pub fn order<E, F, S>(select: Select<E>, request: &PageRequest<F, S>) -> Select<E>
@@ -135,8 +135,7 @@ mod tests {
             .filter(contains(realms::Column::Name, "a_b"))
             .build(DbBackend::Postgres)
             .to_string();
-        assert!(sql.contains(r#""realms"."name" ILIKE"#), "{sql}");
-        assert!(sql.contains("ESCAPE"), "{sql}");
-        assert!(sql.contains(r"E'%a\\_b%' ESCAPE E'\\'"), "{sql}");
+        assert!(sql.contains(r#""realms"."name" ILIKE E'%a\\_b%'"#), "{sql}");
+        assert!(!sql.contains("ESCAPE"), "{sql}");
     }
 }
