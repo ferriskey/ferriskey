@@ -6,7 +6,8 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
-use crate::realm::scope::{Scoped, Unscoped};
+use crate::common::pagination::{Page, PageRequest};
+use crate::realm::scope::{RealmScope, Scoped, Unscoped};
 use crate::realm::{Realm, RealmId};
 use crate::role::commands::GetUserRolesInput;
 use crate::role::entities::Role;
@@ -17,7 +18,9 @@ use crate::user::commands::{
     ImportPasswordCredentialInput, ResetPasswordInput, SetUserAttributesInput, UnassignRoleInput,
     UpdateOwnLocaleInput, UpdateOwnProfileInput, UpdateUserInput,
 };
-use crate::user::entities::{RequiredAction, RequiredActionError, User, UserAttribute};
+use crate::user::entities::{
+    RequiredAction, RequiredActionError, User, UserAttribute, UserFilter, UserSortField,
+};
 use crate::user::value_objects::{CreateUserRequest, UpdateUserRequest};
 
 pub trait UserService: Send + Sync {
@@ -43,11 +46,12 @@ pub trait UserService: Send + Sync {
         identity: Identity,
         input: ImportPasswordCredentialInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn get_users(
+    fn list_users(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
+        request: PageRequest<UserFilter, UserSortField>,
+    ) -> impl Future<Output = Result<Page<User>, CoreError>> + Send;
     fn assign_role(
         &self,
         identity: Identity,
@@ -167,6 +171,12 @@ pub trait UserRepository: Send + Sync {
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
+
+    fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<UserFilter, UserSortField>,
+    ) -> impl Future<Output = Result<Page<User>, CoreError>> + Send;
 
     fn get_by_email(
         &self,

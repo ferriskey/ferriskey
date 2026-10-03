@@ -2,7 +2,10 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         role::entities::{GetUserRolesInput, Role, permission::Permissions},
         user::{
             entities::{
@@ -10,7 +13,7 @@ use crate::{
                 GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
                 ImportPasswordCredentialInput, ResetPasswordInput, SetUserAttributesInput,
                 UnassignRoleInput, UpdateOwnLocaleInput, UpdateOwnProfileInput, UpdateUserInput,
-                User, UserAttribute,
+                User, UserAttribute, UserFilter, UserSortField,
             },
             ports::UserService,
         },
@@ -81,12 +84,15 @@ impl UserService for ApplicationService {
         self.user_service.update_own_locale(identity, input).await
     }
 
-    async fn get_users(
+    async fn list_users(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> Result<Vec<User>, CoreError> {
-        self.user_service.get_users(identity, realm_name).await
+        request: PageRequest<UserFilter, UserSortField>,
+    ) -> Result<Page<User>, CoreError> {
+        self.user_service
+            .list_users(identity, realm_name, request)
+            .await
     }
 
     async fn reset_password(

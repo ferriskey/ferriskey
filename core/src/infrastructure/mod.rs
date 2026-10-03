@@ -14,7 +14,6 @@ pub mod identity_provider;
 pub mod maintenance;
 pub mod migrate;
 pub mod organization;
-#[expect(dead_code)]
 pub mod pagination;
 pub mod realm;
 pub mod recovery_code;

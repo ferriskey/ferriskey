@@ -1,20 +1,80 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, DbErr,
-    EntityTrait, ModelTrait, QueryFilter, SqlErr,
+    EntityTrait, ModelTrait, QueryFilter, QuerySelect, QueryTrait, Select, SqlErr,
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
 
 use crate::domain::{
-    common::entities::app_errors::CoreError,
-    realm::entities::{RealmId, Scoped, Unscoped},
+    common::{
+        entities::app_errors::CoreError,
+        pagination::{Page, PageRequest},
+    },
+    realm::entities::{RealmId, RealmScope, Scoped, Unscoped},
     user::{
-        entities::{RequiredAction, User, UserConfig},
+        entities::{RequiredAction, User, UserConfig, UserFilter, UserSortField},
         ports::UserRepository,
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
 };
+use crate::entity::{user_role, users};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<users::Entity> for UserSortField {
+    fn column(&self) -> users::Column {
+        match self {
+            UserSortField::Username => users::Column::Username,
+            UserSortField::Email => users::Column::Email,
+            UserSortField::Firstname => users::Column::Firstname,
+            UserSortField::Lastname => users::Column::Lastname,
+            UserSortField::Enabled => users::Column::Enabled,
+            UserSortField::CreatedAt => users::Column::CreatedAt,
+            UserSortField::UpdatedAt => users::Column::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(realm_id: Uuid, filter: &UserFilter) -> Select<users::Entity> {
+    users::Entity::find()
+        .filter(users::Column::RealmId.eq(realm_id))
+        .apply_if(filter.username.as_deref(), |select, value| {
+            select.filter(contains(users::Column::Username, value))
+        })
+        .apply_if(filter.email.as_deref(), |select, value| {
+            select.filter(contains(users::Column::Email, value))
+        })
+        .apply_if(filter.firstname.as_deref(), |select, value| {
+            select.filter(contains(users::Column::Firstname, value))
+        })
+        .apply_if(filter.lastname.as_deref(), |select, value| {
+            select.filter(contains(users::Column::Lastname, value))
+        })
+        .apply_if(filter.enabled, |select, value| {
+            select.filter(users::Column::Enabled.eq(value))
+        })
+        .apply_if(filter.email_verified, |select, value| {
+            select.filter(users::Column::EmailVerified.eq(value))
+        })
+        .apply_if(filter.service_account, |select, value| {
+            select.filter(if value {
+                users::Column::ClientId.is_not_null()
+            } else {
+                users::Column::ClientId.is_null()
+            })
+        })
+        .apply_if(filter.role_id, |select, role_id| {
+            select.filter(
+                users::Column::Id.in_subquery(
+                    user_role::Entity::find()
+                        .select_only()
+                        .column(user_role::Column::UserId)
+                        .filter(user_role::Column::RoleId.eq(role_id))
+                        .into_query(),
+                ),
+            )
+        })
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UserUniqueViolation {
@@ -236,6 +296,25 @@ impl UserRepository for PostgresUserRepository {
         Ok(users)
     }
 
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<UserFilter, UserSortField>,
+    ) -> Result<Page<User>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing users: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(Page::new(
+            models.into_iter().map(User::from).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
+    }
+
     async fn get_by_email(
         &self,
         email: &str,
@@ -436,7 +515,82 @@ impl UserRepository for PostgresUserRepository {
 
 #[cfg(test)]
 mod tests {
-    use super::{UserUniqueViolation, classify_user_unique_violation_message};
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::{UserUniqueViolation, classify_user_unique_violation_message, listing_select};
+    use crate::domain::user::entities::UserFilter;
+
+    fn sql(filter: &UserFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&UserFilter::default());
+        assert!(
+            sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&UserFilter {
+            username: Some("a%".to_string()),
+            email: Some("b".to_string()),
+            firstname: Some("c".to_string()),
+            lastname: Some("d".to_string()),
+            ..UserFilter::default()
+        });
+        assert!(
+            sql.contains(r#""users"."username" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(sql.contains(r#""users"."email" ILIKE '%b%'"#), "{sql}");
+        assert!(sql.contains(r#""users"."firstname" ILIKE '%c%'"#), "{sql}");
+        assert!(sql.contains(r#""users"."lastname" ILIKE '%d%'"#), "{sql}");
+    }
+
+    #[test]
+    fn flags_are_exact_matches() {
+        let sql = sql(&UserFilter {
+            enabled: Some(true),
+            email_verified: Some(false),
+            ..UserFilter::default()
+        });
+        assert!(sql.contains(r#""users"."enabled" = TRUE"#), "{sql}");
+        assert!(sql.contains(r#""users"."email_verified" = FALSE"#), "{sql}");
+    }
+
+    #[test]
+    fn service_account_follows_the_client_link() {
+        let on = sql(&UserFilter {
+            service_account: Some(true),
+            ..UserFilter::default()
+        });
+        assert!(on.contains(r#""users"."client_id" IS NOT NULL"#), "{on}");
+        let off = sql(&UserFilter {
+            service_account: Some(false),
+            ..UserFilter::default()
+        });
+        assert!(off.contains(r#""users"."client_id" IS NULL"#), "{off}");
+    }
+
+    #[test]
+    fn role_filter_is_a_subquery_without_join() {
+        let sql = sql(&UserFilter {
+            role_id: Some(Uuid::nil()),
+            ..UserFilter::default()
+        });
+        assert!(!sql.contains("JOIN"), "{sql}");
+        assert!(
+            sql.contains(r#""users"."id" IN (SELECT "user_role"."user_id" FROM "user_role" WHERE "user_role"."role_id" = '00000000-0000-0000-0000-000000000000')"#),
+            "{sql}"
+        );
+    }
 
     #[test]
     fn classifies_username_unique_constraint_violation() {
