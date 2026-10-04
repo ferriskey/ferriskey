@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   useAddClientWhitelistEntry,
   useGetClientWhitelist,
@@ -51,9 +51,13 @@ export default function ClientMaintenanceTabFeature({
   const whitelistedRoleIds = roleEntries.map((e) => e.role_id as string)
 
   const userPicker = useUserPicker({ realm, selectedIds: whitelistedUserIds })
-  const inheritedUserIds = realmWhitelist
-    .filter((e) => e.user_id)
-    .map((e) => e.user_id as string)
+  const inheritedUserIds = useMemo(
+    () =>
+      (realmWhitelistResponse?.data ?? [])
+        .filter((e) => e.user_id)
+        .map((e) => e.user_id as string),
+    [realmWhitelistResponse]
+  )
   const { users } = useUsersByIds({ realm, ids: inheritedUserIds })
 
   const inheritedUsers = realmWhitelist
