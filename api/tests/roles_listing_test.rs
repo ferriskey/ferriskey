@@ -38,6 +38,7 @@ mod tests {
         name: String,
         description: Option<String>,
         require_mfa: bool,
+        permissions: i64,
         link: Link,
         created_minute: i32,
         updated_minute: i32,
@@ -50,6 +51,7 @@ mod tests {
                 name: format!("role-{i:02}"),
                 description: (i % 6 != 5).then(|| format!("desc {}", WORDS[i % WORDS.len()])),
                 require_mfa: i.is_multiple_of(3),
+                permissions: if i % 5 == 2 { 0 } else { 1 << (i % 4) },
                 link: match i % 4 {
                     1 => Link::First,
                     2 => Link::Second,
@@ -299,15 +301,16 @@ mod tests {
     async fn insert_seed(pool: &PgPool, realm_id: Uuid, seed: &Seed, client: Option<Uuid>) {
         sqlx::query(
             "INSERT INTO roles (id, realm_id, client_id, name, description, permissions, require_mfa, created_at, updated_at) \
-             VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, 0, $6, \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $7), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8))",
+             VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, \
+             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8), \
+             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $9))",
         )
         .bind(seed.id.to_string())
         .bind(realm_id.to_string())
         .bind(client.map(|id| id.to_string()))
         .bind(&seed.name)
         .bind(seed.description.as_deref())
+        .bind(seed.permissions)
         .bind(seed.require_mfa)
         .bind(seed.created_minute)
         .bind(seed.updated_minute)
@@ -645,6 +648,26 @@ mod tests {
                 matching(|s| s.link == Link::Second),
             ),
             (
+                "scope=realm".to_string(),
+                matching(|s| s.link == Link::None),
+            ),
+            (
+                "scope=client".to_string(),
+                matching(|s| s.link != Link::None),
+            ),
+            (
+                "has_permissions=true".to_string(),
+                matching(|s| s.permissions != 0),
+            ),
+            (
+                "has_permissions=false".to_string(),
+                matching(|s| s.permissions == 0),
+            ),
+            (
+                "scope=client&has_permissions=false".to_string(),
+                matching(|s| s.link != Link::None && s.permissions == 0),
+            ),
+            (
                 "name=role-1&require_mfa=true".to_string(),
                 matching(|s| s.name.contains("role-1") && s.require_mfa),
             ),
@@ -717,6 +740,15 @@ mod tests {
             .await;
             assert!(ids(&body).is_empty(), "{body}");
             assert_eq!(total(&body), 0);
+
+            let witness = list_ok(&server, &ctx().other_realm, "scope=client").await;
+            assert_eq!(ids(&witness), [ctx().foreign_role_id]);
+            let body = list_ok(&server, &ctx().realm, "scope=client&limit=100").await;
+            assert!(!ids(&body).contains(&ctx().foreign_role_id), "{body}");
+            assert_eq!(
+                total(&body),
+                matching(|s| s.link != Link::None).len() as u64
+            );
 
             let everything = list_ok(&server, &ctx().realm, "limit=100").await;
             assert_eq!(total(&everything), SEED_COUNT as u64);
@@ -862,6 +894,8 @@ mod tests {
                 ("order_by=permissions", "order_by"),
                 ("unknown=1", "unknown"),
                 ("require_mfa=maybe", "require_mfa"),
+                ("scope=global", "scope"),
+                ("has_permissions=maybe", "has_permissions"),
                 ("client_id=not-a-uuid", "client_id"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),

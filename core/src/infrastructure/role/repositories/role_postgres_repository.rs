@@ -16,7 +16,7 @@ use crate::domain::{
         pagination::{Page, PageRequest},
     },
     role::{
-        entities::{Role, RoleFilter, RoleSortField, permission::Permissions},
+        entities::{Role, RoleFilter, RoleScope, RoleSortField, permission::Permissions},
         ports::RoleRepository,
         value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
@@ -48,6 +48,19 @@ fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> 
         })
         .apply_if(filter.client_id, |select, client_id| {
             select.filter(roles::Column::ClientId.eq(client_id))
+        })
+        .apply_if(filter.scope, |select, scope| {
+            select.filter(match scope {
+                RoleScope::Realm => roles::Column::ClientId.is_null(),
+                RoleScope::Client => roles::Column::ClientId.is_not_null(),
+            })
+        })
+        .apply_if(filter.has_permissions, |select, granting| {
+            select.filter(if granting {
+                roles::Column::Permissions.ne(0)
+            } else {
+                roles::Column::Permissions.eq(0)
+            })
         })
         .apply_if(filter.ids.as_deref(), |select, ids| {
             select.filter(roles::Column::Id.is_in(ids.iter().copied()))
@@ -268,7 +281,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::listing_select;
-    use crate::domain::role::entities::RoleFilter;
+    use crate::domain::role::entities::{RoleFilter, RoleScope};
 
     fn sql(filter: &RoleFilter) -> String {
         listing_select(Uuid::nil(), filter)
@@ -326,5 +339,39 @@ mod tests {
             sql.contains(&format!(r#""roles"."id" IN ('{first}', '{second}')"#)),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn scope_follows_the_client_link() {
+        let realm = sql(&RoleFilter {
+            scope: Some(RoleScope::Realm),
+            ..RoleFilter::default()
+        });
+        assert!(realm.contains(r#""roles"."client_id" IS NULL"#), "{realm}");
+        let client = sql(&RoleFilter {
+            scope: Some(RoleScope::Client),
+            ..RoleFilter::default()
+        });
+        assert!(
+            client.contains(r#""roles"."client_id" IS NOT NULL"#),
+            "{client}"
+        );
+    }
+
+    #[test]
+    fn has_permissions_compares_the_bitfield_with_zero() {
+        let granting = sql(&RoleFilter {
+            has_permissions: Some(true),
+            ..RoleFilter::default()
+        });
+        assert!(
+            granting.contains(r#""roles"."permissions" <> 0"#),
+            "{granting}"
+        );
+        let empty = sql(&RoleFilter {
+            has_permissions: Some(false),
+            ..RoleFilter::default()
+        });
+        assert!(empty.contains(r#""roles"."permissions" = 0"#), "{empty}");
     }
 }

@@ -33,7 +33,16 @@ pub struct RoleFilter {
     pub description: Option<String>,
     pub require_mfa: Option<bool>,
     pub client_id: Option<Uuid>,
+    pub scope: Option<RoleScope>,
+    pub has_permissions: Option<bool>,
     pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RoleScope {
+    Realm,
+    Client,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

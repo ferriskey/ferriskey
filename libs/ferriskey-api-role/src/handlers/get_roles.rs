@@ -11,7 +11,7 @@ use ferriskey_api_core::api_entities::{
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::common::pagination::PageRequest;
-use ferriskey_core::domain::role::entities::{Role, RoleFilter, RoleSortField};
+use ferriskey_core::domain::role::entities::{Role, RoleFilter, RoleScope, RoleSortField};
 use ferriskey_core::domain::role::ports::RoleService;
 use serde::Deserialize;
 use utoipa::IntoParams;
@@ -25,6 +25,9 @@ pub struct RoleListParams {
     pub description: Option<String>,
     pub require_mfa: Option<bool>,
     pub client_id: Option<Uuid>,
+    #[param(inline)]
+    pub scope: Option<RoleScope>,
+    pub has_permissions: Option<bool>,
     #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f,0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e70")]
     pub ids: Option<String>,
 }
@@ -38,6 +41,8 @@ impl TryFrom<RoleListParams> for RoleFilter {
             description: params.description,
             require_mfa: params.require_mfa,
             client_id: params.client_id,
+            scope: params.scope,
+            has_permissions: params.has_permissions,
             ids: params
                 .ids
                 .as_deref()
@@ -50,7 +55,7 @@ impl TryFrom<RoleListParams> for RoleFilter {
 #[utoipa::path(
     get,
     summary = "List the roles of a realm",
-    description = "Returns one page of the realm's roles. Text filters (name, description) match case-insensitively anywhere in the value; require_mfa and client_id match exactly; ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
+    description = "Returns one page of the realm's roles. Text filters (name, description) match case-insensitively anywhere in the value; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
     path = "",
     tag = "role",
     params(
@@ -99,7 +104,7 @@ mod tests {
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
         let request = parse_list_query::<RoleListParams, RoleSortField>(&format!(
-            "order_by=name&order=asc&name=adm&description=ops&require_mfa=true&client_id={client_id}&ids={first},{second}"
+            "order_by=name&order=asc&name=adm&description=ops&require_mfa=true&client_id={client_id}&scope=client&has_permissions=false&ids={first},{second}"
         ))
         .expect("valid query");
 
@@ -112,6 +117,8 @@ mod tests {
                 description: Some("ops".to_string()),
                 require_mfa: Some(true),
                 client_id: Some(client_id),
+                scope: Some(RoleScope::Client),
+                has_permissions: Some(false),
                 ids: Some(vec![first, second]),
             }
         );
@@ -130,7 +137,12 @@ mod tests {
 
     #[test]
     fn unknown_filters_and_columns_are_refused() {
-        for query in ["permissions=x", "order_by=permissions", "client_id=nope"] {
+        for query in [
+            "permissions=x",
+            "order_by=permissions",
+            "client_id=nope",
+            "scope=global",
+        ] {
             assert!(
                 parse_list_query::<RoleListParams, RoleSortField>(query).is_err(),
                 "{query}"
