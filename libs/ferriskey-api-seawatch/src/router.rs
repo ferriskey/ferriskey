@@ -1,4 +1,5 @@
 use axum::{Router, middleware, routing::get};
+use ferriskey_core::domain::seawatch::SecurityEvent;
 use utoipa::OpenApi;
 
 use crate::handlers::get_security_events::{__path_get_security_events, get_security_events};
@@ -6,7 +7,7 @@ use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::auth::auth;
 
 #[derive(OpenApi)]
-#[openapi(paths(get_security_events))]
+#[openapi(paths(get_security_events), components(schemas(SecurityEvent)))]
 pub struct SeawatchApiDoc;
 
 pub fn seawatch_router(state: AppState) -> Router<AppState> {
