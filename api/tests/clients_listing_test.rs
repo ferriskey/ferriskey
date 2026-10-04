@@ -1068,6 +1068,73 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test clients_listing_test -- --ignored"]
+    fn listed_clients_carry_their_redirect_uris() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(&server, &ctx().apps_realm, "limit=100").await;
+            assert_eq!(rows(&body).len(), APPS.len());
+            for app in &APPS {
+                let row = rows(&body)
+                    .iter()
+                    .find(|row| row["name"] == app.name)
+                    .unwrap_or_else(|| panic!("{} is listed", app.name));
+                let uris = row["redirect_uris"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{}: redirect_uris is an array: {row}", app.name));
+                let values: Vec<&str> = uris
+                    .iter()
+                    .map(|uri| uri["value"].as_str().expect("redirect uri value"))
+                    .collect();
+                let expected: Vec<&str> = if app.redirect {
+                    vec!["https://app.test/callback"]
+                } else {
+                    Vec::new()
+                };
+                assert_eq!(values, expected, "{}", app.name);
+
+                let id = row["id"].as_str().expect("client id");
+                let single = server
+                    .get(&format!("/realms/{}/clients/{id}", ctx().apps_realm))
+                    .add_header("Authorization", auth_header(&ctx().admin_token))
+                    .await;
+                assert_eq!(single.status_code(), 200, "{}", single.text());
+                let single: Value = single.json();
+                assert_eq!(
+                    single["data"]["redirect_uris"], row["redirect_uris"],
+                    "{}: the listing matches the single fetch",
+                    app.name
+                );
+            }
+
+            let spa = list_ok(
+                &server,
+                &ctx().apps_realm,
+                "application_type=spa&name=spa-a",
+            )
+            .await;
+            assert_eq!(names(&spa), ["spa-a"]);
+            assert_eq!(
+                rows(&spa)[0]["redirect_uris"][0]["value"],
+                "https://app.test/callback"
+            );
+            assert_eq!(rows(&spa)[0]["oauth_device_code_grant_enabled"], true);
+
+            let seeded = list_ok(&server, &ctx().realm, "limit=100").await;
+            for row in rows(&seeded) {
+                let id = Uuid::parse_str(row["id"].as_str().expect("id")).expect("uuid");
+                let seed = ctx()
+                    .seeds
+                    .iter()
+                    .find(|seed| seed.id == id)
+                    .expect("seeded client");
+                let count = row["redirect_uris"].as_array().map(Vec::len);
+                assert_eq!(count, Some(usize::from(seed.redirect)), "{row}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test clients_listing_test -- --ignored"]
     fn the_device_grant_filter_treats_unset_as_disabled() {
         let server = make_server();
         rt().block_on(async {

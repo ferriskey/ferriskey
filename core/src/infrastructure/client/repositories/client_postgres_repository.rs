@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     domain::common::entities::app_errors::CoreError,
     entity::clients::{ActiveModel, Entity as ClientEntity},
@@ -7,8 +9,8 @@ use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
-    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
-    Select,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    QueryTrait, Select,
     sea_query::{Expr, Func},
 };
 use tracing::{error, instrument};
@@ -279,7 +281,33 @@ impl ClientRepository for PostgresClientRepository {
             error!("error listing clients: {:?}", e);
             CoreError::InternalServerError
         })?;
-        let clients = models.into_iter().map(Client::from).collect();
+        let ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
+        let mut uris: HashMap<Uuid, Vec<RedirectUri>> = HashMap::new();
+        if !ids.is_empty() {
+            let rows = redirect_uris::Entity::find()
+                .filter(redirect_uris::Column::ClientId.is_in(ids))
+                .order_by_asc(redirect_uris::Column::CreatedAt)
+                .order_by_asc(redirect_uris::Column::Id)
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    error!("error loading the redirect uris of listed clients: {:?}", e);
+                    CoreError::InternalServerError
+                })?;
+            for row in rows {
+                uris.entry(row.client_id).or_default().push(row.into());
+            }
+        }
+
+        let clients = models
+            .into_iter()
+            .map(|model| {
+                let redirect_uris = uris.remove(&model.id).unwrap_or_default();
+                let mut client = Client::from(model);
+                client.redirect_uris = Some(redirect_uris);
+                client
+            })
+            .collect();
 
         Ok(Page::new(clients, total, request.page, request.limit))
     }
