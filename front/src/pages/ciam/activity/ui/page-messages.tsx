@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { MetricsBand, Pill, Section } from '@/components/kit'
@@ -14,9 +14,10 @@ import {
   detailString,
   eventCard,
   eventColumns,
-  searchEvent,
   type ConsoleTranslate,
 } from './event-journal'
+import { journalFilterFields } from '@/pages/iam/seawatch/event-filter-fields'
+import type { EventJournal } from '../feature/use-event-journal'
 import { JournalSection } from './journal-section'
 
 import SecurityEvent = Schemas.SecurityEvent
@@ -33,6 +34,7 @@ export interface MessageCounts {
 export interface PageMessagesProps {
   events: SecurityEvent[]
   counts: MessageCounts
+  journal: EventJournal
   webhooks: Webhook[]
   webhookTotal: number
   webhooksHref: string
@@ -66,6 +68,7 @@ const recipientId = (event: SecurityEvent) =>
 export default function PageMessages({
   events,
   counts,
+  journal,
   webhooks,
   webhookTotal,
   webhooksHref,
@@ -79,20 +82,15 @@ export default function PageMessages({
   directory,
 }: PageMessagesProps) {
   const { t } = useTranslation(CONSOLE_NAMESPACES)
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
 
   const windowLabel = t('activity.window', { count: windowDays })
   const overWindow = t('activity.over_window', { window: windowLabel })
 
-  const filters = useMemo(
-    () => [
-      { key: 'all', label: t('activity.filter.all') },
-      { key: 'delivered', label: t('activity.messages.filters.delivered') },
-      { key: 'failed', label: t('activity.messages.filters.failed') },
-    ],
-    [t]
-  )
+  const tabs = [
+    { value: '', label: t('activity.filter.all') },
+    { value: 'email_sent', label: t('activity.messages.filters.delivered') },
+    { value: 'email_not_sent', label: t('activity.messages.filters.failed') },
+  ]
 
   const rate = counts.total ? Math.round((counts.delivered / counts.total) * 100) : 0
   const recipients = new Set(events.map((e) => recipientId(e) ?? 'unknown')).size
@@ -224,7 +222,6 @@ export default function PageMessages({
         </div>
       )
     },
-    sortValue: (e) => directory.userLabel(recipientId(e)) ?? recipientId(e) ?? '',
   }
 
   const messageColumn: Column<SecurityEvent> = {
@@ -238,22 +235,14 @@ export default function PageMessages({
         </p>
       </div>
     ),
-    sortValue: (e) => emailTypeLabel(e, t) ?? '',
   }
 
-  const filtered = useMemo(() => {
-    const byFilter =
-      filter === 'delivered'
-        ? events.filter((e) => e.event_type === 'email_sent')
-        : filter === 'failed'
-          ? events.filter((e) => e.event_type === 'email_not_sent')
-          : events
-    const needle = query.trim().toLowerCase()
-    if (!needle) return byFilter
-    return byFilter.filter((e) =>
-      `${searchEvent(e)} ${emailTypeLabel(e, t) ?? ''}`.toLowerCase().includes(needle)
-    )
-  }, [events, filter, query, t])
+  const journalColumns = [
+    messageColumn,
+    { ...shared.outcome, sortKey: 'status' },
+    recipientColumn,
+    { ...shared.when, sortKey: 'timestamp' },
+  ]
 
   return (
     <ActivityPage
@@ -267,25 +256,23 @@ export default function PageMessages({
       <JournalSection
         title={t('activity.messages.journal.title')}
         description={t('activity.messages.journal.description')}
-        rows={filtered}
-        total={counts.total}
-        columns={[messageColumn, shared.outcome, recipientColumn, shared.when]}
+        rows={journal.events}
+        pagination={journal.pagination}
+        listing={journal.listing}
+        tabs={tabs}
+        filterFields={journalFilterFields()}
+        columns={journalColumns}
         card={eventCard(directory, t)}
         getKey={(e) => e.id}
-        loading={isLoading}
-        filters={filters}
-        filter={filter}
-        onFilter={setFilter}
-        query={query}
-        onQuery={setQuery}
-        searchPlaceholder={t('activity.messages.journal.search_placeholder')}
+        loading={isLoading || journal.isLoading}
         aggregates={{
-          message: t('activity.messages.aggregates.attempts', { count: counts.total }),
-          status: t('activity.messages.aggregates.failed', { total: counts.failed }),
-          recipient: t('activity.messages.aggregates.recipients', { count: recipients }),
+          message: t('activity.messages.aggregates.attempts', {
+            count: journal.firstCount + journal.secondCount,
+          }),
+          status: t('activity.messages.aggregates.failed', { total: journal.secondCount }),
         }}
         emptyLabel={t('activity.messages.journal.empty_label')}
-        emptyHint={t('activity.messages.journal.empty_hint', { window: windowLabel })}
+        emptyHint={t('activity.messages.journal.empty_hint')}
       />
 
       <Section

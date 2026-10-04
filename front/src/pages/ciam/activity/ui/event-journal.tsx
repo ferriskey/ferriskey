@@ -22,9 +22,6 @@ const mono = 'font-mono-ui text-xs text-neutral-600 dark:text-neutral-400'
 const sub = 'truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'
 const subNum = `tnum ${sub}`
 
-export const searchEvent = (event: SecurityEvent) =>
-  `${event.event_type} ${event.actor_id ?? ''} ${event.target_id ?? ''} ${event.target_type ?? ''} ${event.resource ?? ''} ${event.ip_address ?? ''} ${event.user_agent ?? ''} ${event.status}`
-
 export const detailString = (event: SecurityEvent, key: string) => {
   const details = event.details
   if (typeof details !== 'object' || details === null || Array.isArray(details)) return null

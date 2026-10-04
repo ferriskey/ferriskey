@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MetricsBand } from '@/components/kit'
 import type { Metric } from '@/components/kit'
@@ -7,7 +7,9 @@ import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay } from '../feature/use-window-events'
 import { ActivityPage, NoticeList, type Notice } from './activity-notices'
-import { eventCard, eventColumns, searchEvent } from './event-journal'
+import { journalFilterFields } from '@/pages/iam/seawatch/event-filter-fields'
+import type { EventJournal } from '../feature/use-event-journal'
+import { eventCard, eventColumns } from './event-journal'
 import { JournalSection } from './journal-section'
 
 import SecurityEvent = Schemas.SecurityEvent
@@ -23,6 +25,7 @@ export interface SessionCounts {
 export interface PageSessionsProps {
   events: SecurityEvent[]
   counts: SessionCounts
+  journal: EventJournal
   isLoading: boolean
   isError: boolean
   truncated: boolean
@@ -34,6 +37,7 @@ export interface PageSessionsProps {
 export default function PageSessions({
   events,
   counts,
+  journal,
   isLoading,
   isError,
   truncated,
@@ -42,20 +46,15 @@ export default function PageSessions({
   directory,
 }: PageSessionsProps) {
   const { t } = useTranslation(CONSOLE_NAMESPACES)
-  const [filter, setFilter] = useState('all')
-  const [query, setQuery] = useState('')
 
   const windowLabel = t('activity.window', { count: windowDays })
   const overWindow = t('activity.over_window', { window: windowLabel })
 
-  const filters = useMemo(
-    () => [
-      { key: 'all', label: t('activity.filter.all') },
-      { key: 'opened', label: t('activity.sessions.filters.opened') },
-      { key: 'revoked', label: t('activity.sessions.filters.revoked') },
-    ],
-    [t]
-  )
+  const tabs = [
+    { value: '', label: t('activity.filter.all') },
+    { value: 'session_created', label: t('activity.sessions.filters.opened') },
+    { value: 'session_revoked', label: t('activity.sessions.filters.revoked') },
+  ]
 
   const opened = events.filter((e) => e.event_type === 'session_created')
   const accounts = new Set(events.map((e) => e.actor_id ?? 'unknown')).size
@@ -145,18 +144,13 @@ export default function PageSessions({
   ]
 
   const columns = eventColumns(directory, t)
-
-  const filtered = useMemo(() => {
-    const byFilter =
-      filter === 'opened'
-        ? events.filter((e) => e.event_type === 'session_created')
-        : filter === 'revoked'
-          ? events.filter((e) => e.event_type === 'session_revoked')
-          : events
-    const needle = query.trim().toLowerCase()
-    if (!needle) return byFilter
-    return byFilter.filter((e) => searchEvent(e).toLowerCase().includes(needle))
-  }, [events, filter, query])
+  const journalColumns = [
+    { ...columns.event, sortKey: 'event_type' },
+    { ...columns.outcome, sortKey: 'status' },
+    columns.actor,
+    columns.origin,
+    { ...columns.when, sortKey: 'timestamp' },
+  ]
 
   const lastOpened = opened[0]
 
@@ -179,31 +173,21 @@ export default function PageSessions({
       <JournalSection
         title={t('activity.sessions.journal.title')}
         description={t('activity.sessions.journal.description')}
-        rows={filtered}
-        total={counts.total}
-        columns={[
-          columns.event,
-          columns.outcome,
-          columns.actor,
-          columns.origin,
-          columns.when,
-        ]}
+        rows={journal.events}
+        pagination={journal.pagination}
+        listing={journal.listing}
+        tabs={tabs}
+        filterFields={journalFilterFields()}
+        columns={journalColumns}
         card={eventCard(directory, t)}
         getKey={(e) => e.id}
-        loading={isLoading}
-        filters={filters}
-        filter={filter}
-        onFilter={setFilter}
-        query={query}
-        onQuery={setQuery}
-        searchPlaceholder={t('activity.sessions.journal.search_placeholder')}
+        loading={isLoading || journal.isLoading}
         aggregates={{
-          event_type: t('activity.sessions.aggregates.opened', { total: counts.opened }),
-          status: t('activity.sessions.aggregates.revoked', { total: counts.revoked }),
-          actor: t('activity.sessions.aggregates.accounts', { count: accounts }),
+          event_type: t('activity.sessions.aggregates.opened', { total: journal.firstCount }),
+          status: t('activity.sessions.aggregates.revoked', { total: journal.secondCount }),
         }}
         emptyLabel={t('activity.sessions.journal.empty_label')}
-        emptyHint={t('activity.sessions.journal.empty_hint', { window: windowLabel })}
+        emptyHint={t('activity.sessions.journal.empty_hint')}
       />
     </ActivityPage>
   )

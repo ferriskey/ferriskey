@@ -46,7 +46,6 @@ activity:
       action: Clear filter
     count_one: '{{count, number}} entry'
     count_other: '{{count, number}} entries'
-    partial: '{{shown, number}} of {{total, number}}'
   live:
     title: Live
     description: 'Sign-ups and logins recorded in this realm over the {{window}}, counted from the authentication flows Compass traces.'
@@ -133,14 +132,11 @@ activity:
     journal:
       title: Session journal
       description: 'One line per session opened or revoked, with the device and the origin recorded at the time.'
-      search_placeholder: 'Search by account, IP, device…'
       empty_label: No session event
-      empty_hint: 'This journal fills as customers sign in and as sessions are revoked. Nothing was recorded over the {{window}}.'
+      empty_hint: This journal fills as customers sign in and as sessions are revoked. Nothing has been recorded yet.
     aggregates:
       opened: '{{total, number}} opened'
       revoked: '{{total, number}} revoked'
-      accounts_one: '{{count, number}} account'
-      accounts_other: '{{count, number}} accounts'
   messages:
     title: Message delivery
     description: 'Transactional emails this realm attempted to send over the {{window}}, and the webhook endpoints it notifies.'
@@ -177,15 +173,12 @@ activity:
     journal:
       title: Email deliveries
       description: 'One line per email the realm handed to its mail server, delivered or not.'
-      search_placeholder: 'Search by message, account…'
       empty_label: No email delivery
-      empty_hint: 'This journal fills as the realm sends magic links, verification emails and password resets. Nothing was attempted over the {{window}}.'
+      empty_hint: This journal fills as the realm sends magic links, verification emails and password resets. Nothing has been attempted yet.
     aggregates:
       attempts_one: '{{count, number}} attempt'
       attempts_other: '{{count, number}} attempts'
       failed: '{{total, number}} failed'
-      recipients_one: '{{count, number}} recipient'
-      recipients_other: '{{count, number}} recipients'
     webhooks:
       title: Webhook endpoints
       description: 'The endpoints this realm notifies, and the last time each one fired. Individual deliveries are not journalled, so no per-delivery status exists to show.'

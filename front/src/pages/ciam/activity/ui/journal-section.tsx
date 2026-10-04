@@ -1,21 +1,28 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LayoutGrid, List, Search } from 'lucide-react'
-import { Button, DataView, Section } from '@/components/kit'
-import type { CardSpec, Column, ViewMode } from '@/components/kit'
+import { LayoutGrid, List } from 'lucide-react'
+import { Button, DataView, FilterBar, PaginationBar, Section } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+  ViewMode,
+} from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { useLayoutTier } from '@/hooks/use-media-query'
 
-const ALL_FILTER = 'all'
+const TAB_FILTER_KEY = 'event_types'
 
 const VIEW_TOGGLES = [
   { mode: 'list', icon: List, labelKey: 'activity.journal.view.list' },
   { mode: 'cards', icon: LayoutGrid, labelKey: 'activity.journal.view.cards' },
 ] as const
 
-export interface JournalFilter {
-  key: string
+export interface JournalTab {
+  value: string
   label: string
 }
 
@@ -23,17 +30,14 @@ export interface JournalSectionProps<T> {
   title: string
   description: string
   rows: T[]
-  total: number
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
+  tabs: JournalTab[]
+  filterFields: FilterField[]
   columns: Column<T>[]
   card: CardSpec<T>
   getKey: (row: T) => string
   loading: boolean
-  filters?: JournalFilter[]
-  filter?: string
-  onFilter?: (key: string) => void
-  query: string
-  onQuery: (value: string) => void
-  searchPlaceholder: string
   aggregates?: Partial<Record<string, ReactNode>>
   emptyLabel: string
   emptyHint: string
@@ -43,17 +47,14 @@ export function JournalSection<T>({
   title,
   description,
   rows,
-  total,
+  pagination,
+  listing,
+  tabs,
+  filterFields,
   columns,
   card,
   getKey,
   loading,
-  filters,
-  filter = ALL_FILTER,
-  onFilter,
-  query,
-  onQuery,
-  searchPlaceholder,
   aggregates,
   emptyLabel,
   emptyHint,
@@ -64,7 +65,8 @@ export function JournalSection<T>({
   const tier = useLayoutTier()
   const effectiveView = tier === 'phone' ? 'cards' : view
 
-  const narrowed = Boolean(query.trim()) || filter !== ALL_FILTER
+  const activeTab = listing.state.filters[TAB_FILTER_KEY] ?? ''
+  const narrowed = Object.values(listing.state.filters).some(Boolean)
   const filteredOut = narrowed && rows.length === 0
 
   return (
@@ -74,35 +76,23 @@ export function JournalSection<T>({
       contained={false}
       action={
         <div className='flex flex-wrap items-center justify-end gap-2'>
-          {filters && onFilter && (
-            <div className='flex gap-1'>
-              {filters.map((f) => (
-                <button
-                  key={f.key}
-                  type='button'
-                  onClick={() => onFilter(f.key)}
-                  className={cn(
-                    'cursor-pointer rounded-md px-2 py-1 text-xs transition-colors',
-                    f.key === filter
-                      ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                      : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <label className='relative flex h-7 w-56 items-center'>
-            <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400 dark:text-neutral-500' />
-            <input
-              type='search'
-              value={query}
-              onChange={(e) => onQuery(e.target.value)}
-              placeholder={searchPlaceholder}
-              className='h-full w-full rounded-md border border-fk-line bg-white pl-7 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15 dark:bg-fk-surface'
-            />
-          </label>
+          <div className='flex gap-1'>
+            {tabs.map((tab) => (
+              <button
+                key={tab.value}
+                type='button'
+                onClick={() => listing.setFilter(TAB_FILTER_KEY, tab.value)}
+                className={cn(
+                  'cursor-pointer rounded-md px-2 py-1 text-xs transition-colors',
+                  tab.value === activeTab
+                    ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
+                    : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
           {tokens.toolbar.showViewToggle && tier !== 'phone' && (
             <div className='flex rounded-md border border-fk-line p-0.5'>
               {VIEW_TOGGLES.map(({ mode, icon: Icon, labelKey }) => (
@@ -128,6 +118,10 @@ export function JournalSection<T>({
       }
     >
       <div className={tokens.page.sectionGap}>
+        <div className='flex flex-wrap items-center gap-2'>
+          <FilterBar fields={filterFields} listing={listing} />
+        </div>
+
         <DataView
           rows={rows}
           columns={columns}
@@ -136,28 +130,26 @@ export function JournalSection<T>({
           view={effectiveView}
           loading={loading}
           aggregates={aggregates}
+          sort={listing.state.sort}
+          onSortChange={listing.setSort}
           emptyLabel={filteredOut ? t('activity.journal.filtered.label') : emptyLabel}
           emptyHint={filteredOut ? t('activity.journal.filtered.hint') : emptyHint}
           emptyAction={
             filteredOut ? (
-              <Button
-                variant='outline'
-                onClick={() => {
-                  onQuery('')
-                  onFilter?.(ALL_FILTER)
-                }}
-              >
+              <Button variant='outline' onClick={() => listing.clearFilters()}>
                 {t('activity.journal.filtered.action')}
               </Button>
             ) : undefined
           }
         />
 
-        {!loading && total > 0 && (
+        {pagination && (
+          <PaginationBar pagination={pagination} onPageChange={listing.setPage} />
+        )}
+
+        {!loading && pagination && pagination.total > 0 && (
           <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
-            {rows.length === total
-              ? t('activity.journal.count', { count: total })
-              : t('activity.journal.partial', { shown: rows.length, total })}
+            {t('activity.journal.count', { count: pagination.total })}
           </p>
         )}
       </div>

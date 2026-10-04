@@ -62,7 +62,6 @@ activity:
       hint: 没有条目符合当前的搜索和筛选条件。
       action: 清除筛选
     count_other: '{{count, number}} 个条目'
-    partial: '{{total, number}} 个中的 {{shown, number}} 个'
   live:
     title: 实时
     description: '本域在{{window}}内记录的注册与登录，统计自 Compass 追踪的认证流程。'
@@ -146,13 +145,11 @@ activity:
     journal:
       title: 会话日志
       description: '每打开或撤销一个会话记录一行，并附上当时记录的设备和来源。'
-      search_placeholder: 按账户、IP、设备搜索…
       empty_label: 无会话事件
-      empty_hint: '当客户登录以及会话被撤销时，此日志会逐渐填满。{{window}}内没有任何记录。'
+      empty_hint: 当客户登录以及会话被撤销时，此日志会逐渐填满。目前尚未有任何记录。
     aggregates:
       opened: '{{total, number}} 个已打开'
       revoked: '{{total, number}} 个已撤销'
-      accounts_other: '{{count, number}} 个账户'
   messages:
     title: 消息投递
     description: '本域在{{window}}内尝试发送的事务性邮件，以及它所通知的 Webhook 端点。'
@@ -190,13 +187,11 @@ activity:
     journal:
       title: 邮件投递
       description: '本域交给邮件服务器的每一封邮件记录一行，无论是否投递成功。'
-      search_placeholder: 按消息、账户搜索…
       empty_label: 无邮件投递
-      empty_hint: '当本域发送魔法链接、验证邮件和密码重置邮件时，此日志会逐渐填满。{{window}}内没有任何尝试。'
+      empty_hint: 当本域发送魔法链接、验证邮件和密码重置邮件时，此日志会逐渐填满。目前尚未有任何尝试。
     aggregates:
       attempts_other: '{{count, number}} 次尝试'
       failed: '{{total, number}} 次失败'
-      recipients_other: '{{count, number}} 位收件人'
     webhooks:
       title: Webhook 端点
       description: '本域通知的端点，以及每个端点最后一次触发的时间。单次投递不会记入日志，因此没有逐次投递的状态可供显示。'
