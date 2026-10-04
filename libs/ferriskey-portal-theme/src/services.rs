@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::entities::{PortalTheme, PortalThemeConfig};
+use crate::entities::{PortalTheme, PortalThemeConfig, PortalThemeFilter, PortalThemeSortField};
 use crate::ports::{
     CreateThemeInput, GetThemeByIdInput, GetThemeInput, ListThemesInput, PortalThemePolicy,
     PortalThemeRepository, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
@@ -11,6 +11,7 @@ use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped, UnscopedOption};
@@ -110,18 +111,17 @@ where
     async fn list_themes(
         &self,
         identity: Identity,
-        input: ListThemesInput,
-    ) -> Result<Vec<PortalTheme>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        request: PageRequest<PortalThemeFilter, PortalThemeSortField>,
+    ) -> Result<Page<PortalTheme>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
             self.policy.can_view_theme(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
-        self.portal_theme_repository
-            .list_by_realm(scope.id().into())
-            .await
+        self.portal_theme_repository.list(&scope, &request).await
     }
 
     async fn get_theme_by_id(
@@ -891,5 +891,99 @@ mod tests {
             result,
             Err(CoreError::PortalThemeInvalidForActivation(_))
         ));
+    }
+
+    fn listing_mocks(
+        realm: &Realm,
+        user: &User,
+        role: Role,
+    ) -> (
+        MockRealmRepository,
+        MockUserRepository,
+        MockUserRoleRepository,
+    ) {
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        let user_clone = user.clone();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = user_clone.clone();
+            Box::pin(async move { Ok(Unscoped::new(u)) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let roles = vec![role.clone()];
+            Box::pin(async move { Ok(roles) })
+        });
+
+        (realm_repo, user_repo, user_role_repo)
+    }
+
+    fn list_request() -> PageRequest<PortalThemeFilter, PortalThemeSortField> {
+        PageRequest {
+            filter: PortalThemeFilter {
+                name: Some("brand".to_string()),
+                layout_id: Some(Uuid::nil()),
+                activatable: Some(true),
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_themes_refuses_a_caller_without_rights_before_listing() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let (realm_repo, user_repo, user_role_repo) =
+            listing_mocks(&realm, &user, empty_role(&realm));
+        let mut theme_repo = MockPortalThemeRepository::new();
+        theme_repo.expect_list().never();
+
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
+
+        let result = service
+            .list_themes(Identity::User(user), realm.name.clone(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_themes_pages_the_resolved_realm_with_the_request() {
+        let realm = test_realm();
+        let realm_id = realm.id;
+        let user = test_user(&realm);
+        let (realm_repo, user_repo, user_role_repo) =
+            listing_mocks(&realm, &user, admin_role(&realm));
+        let listed = stored_theme(&realm, PortalThemeConfig::default());
+        let expected_id = listed.id;
+        let mut theme_repo = MockPortalThemeRepository::new();
+        theme_repo
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 4, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = build_service(realm_repo, user_repo, user_role_repo, theme_repo);
+
+        let page = service
+            .list_themes(Identity::User(user), realm.name.clone(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 4);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }

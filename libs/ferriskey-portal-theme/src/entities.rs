@@ -332,6 +332,22 @@ pub enum ThemeShadow {
     Large,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PortalThemeFilter {
+    pub name: Option<String>,
+    pub layout_id: Option<Uuid>,
+    pub activatable: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PortalThemeSortField {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
