@@ -80,7 +80,6 @@ list:
   title: 身份提供商
   description: 联合到此域的外部认证源。
   add: 添加提供商
-  search_placeholder: 按名称或别名筛选…
   row_delete: '删除 {{name}}'
   columns:
     provider: 提供商
@@ -88,6 +87,8 @@ list:
     type: 类型
     configuration: 配置
     status: 状态
+    created: 创建时间
+    updated: 更新时间
   flags:
     enabled: 在登录页面上提供
     trust_email: 电子邮件地址被信任为已验证
@@ -104,20 +105,25 @@ list:
     disabled:
       label: 已禁用的提供商
       hint: 在登录页面上隐藏
-    types:
-      label: 提供商类型
-      hint: 不同的协议
   alerts:
     broken:
-      title: '{{name}} 无法代理登录'
+      title_other: '{{count}} 个提供商无法代理登录'
+      detail_other: '{{names}} — 缺少必需的端点或凭据。'
       action: 修复
     degraded:
-      title: '{{name}} 未请求任何作用域'
+      title_other: '{{count}} 个提供商未请求任何作用域'
+      detail_other: '{{names}} — 大多数提供商会拒绝没有作用域的授权请求。'
       action: 检查
-  filters:
+  filter_fields:
+    alias: 别名
+    display_name: 显示名称
+    provider_id: 类型
     enabled: 已启用
-    disabled: 已禁用
-    issues: 配置有误
+    health: 配置
+    health_values:
+      healthy: 完整
+      degraded: 无作用域
+      error: 不完整
   aggregates:
     provider_count_other: '{{count}} 个提供商'
     # Raw counter over the misconfigured rows, never inflected.

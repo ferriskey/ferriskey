@@ -3,14 +3,24 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { CreatePickerDialog, ListingPage, Pill, StatusDot } from '@/components/kit'
-import type { CardSpec, Choice, Column, PillTone } from '@/components/kit'
+import type {
+  CardSpec,
+  Choice,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+  PillTone,
+} from '@/components/kit'
 import ProviderIcon from '@/components/provider-icon'
 import {
   PROVIDER_TEMPLATES,
   templateDisplayName,
 } from '@/constants/identity-provider-templates'
 import { Schemas } from '@/api/api.client'
+import { formatRelative } from '@/utils/format-date'
 import {
+  PROVIDER_TYPES,
   providerName,
   providerStatus,
   providerTypeLabel,
@@ -28,9 +38,32 @@ interface ConfirmState {
   onConfirm: () => void
 }
 
+export interface ProviderCounts {
+  total: number
+  enabled: number
+  disabled: number
+}
+
+export interface ProviderPreview {
+  total: number
+  names: string[]
+}
+
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
+const previewNames = (preview: ProviderPreview) =>
+  preview.names.join(NAME_SEPARATOR) +
+  (preview.total > preview.names.length ? TRUNCATION_MARK : '')
+
 export interface PageProvidersOverviewProps {
   providers: IdentityProvider[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: ProviderCounts
+  broken: ProviderPreview
+  degraded: ProviderPreview
   pickerOpen: boolean
   confirm: ConfirmState
   providerHref: (provider: IdentityProvider) => string
@@ -45,11 +78,22 @@ const POPULAR_TEMPLATE_IDS = ['google', 'discord', 'github', 'microsoft']
 
 const DEFAULT_PROTOCOL: ProviderProtocol = 'oidc'
 
-const QUERY_SYNTAX_HINT = 'alias:git*  type:oidc  status:disabled'
+const HEALTH_ERROR = 'error'
+
+const HEALTH_DEGRADED = 'degraded'
 
 const popularTemplates = PROVIDER_TEMPLATES.filter((template) =>
   POPULAR_TEMPLATE_IDS.includes(template.id)
 )
+
+const providerTypeOptions = () => {
+  const options = new Map<string, string>()
+  PROVIDER_TYPES.forEach((type) => options.set(type, providerTypeLabel(type)))
+  PROVIDER_TEMPLATES.forEach((template) => {
+    if (!options.has(template.name)) options.set(template.name, templateDisplayName(template))
+  })
+  return [...options].map(([value, label]) => ({ value, label }))
+}
 
 const typeTones: Record<string, PillTone> = {
   oidc: 'violet',
@@ -62,7 +106,12 @@ const typeTone = (providerId: string) => typeTones[providerId.toLowerCase()] ?? 
 
 export default function PageProvidersOverview({
   providers,
+  pagination,
+  listing,
   isLoading,
+  counts,
+  broken,
+  degraded,
   pickerOpen,
   confirm,
   providerHref,
@@ -108,13 +157,13 @@ export default function PageProvidersOverview({
       key: 'provider',
       header: t('list.columns.provider'),
       render: (p) => providerName(p),
-      sortValue: (p) => providerName(p),
+      sortKey: 'display_name',
     },
     {
       key: 'alias',
       header: t('list.columns.alias'),
       render: (p) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{p.alias}</span>,
-      sortValue: (p) => p.alias,
+      sortKey: 'alias',
     },
     {
       key: 'type',
@@ -124,7 +173,7 @@ export default function PageProvidersOverview({
           {providerTypeLabel(p.provider_id)}
         </Pill>
       ),
-      sortValue: (p) => p.provider_id,
+      sortKey: 'provider_id',
     },
     {
       key: 'configuration',
@@ -138,7 +187,6 @@ export default function PageProvidersOverview({
           </div>
         )
       },
-      sortValue: (p) => providerStatus(p).health,
     },
     {
       key: 'status',
@@ -149,7 +197,27 @@ export default function PageProvidersOverview({
           {p.enabled ? t('state.enabled') : t('state.disabled')}
         </span>
       ),
-      sortValue: (p) => (p.enabled ? 'enabled' : 'disabled'),
+      sortKey: 'enabled',
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (p) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(p.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (p) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(p.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
     },
     {
       key: 'actions',
@@ -196,11 +264,30 @@ export default function PageProvidersOverview({
     footer: (p) => <span className='truncate'>{providerStatus(p).detail}</span>,
   }
 
-  const enabled = providers.filter((p) => p.enabled)
-  const disabled = providers.filter((p) => !p.enabled)
-  const types = new Set(providers.map((p) => p.provider_id))
-  const broken = providers.filter((p) => providerStatus(p).health === 'error')
-  const degraded = providers.filter((p) => providerStatus(p).health === 'degraded')
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'alias', label: t('list.filter_fields.alias') },
+    { kind: 'text', key: 'display_name', label: t('list.filter_fields.display_name') },
+    {
+      kind: 'enum',
+      key: 'provider_id',
+      label: t('list.filter_fields.provider_id'),
+      options: providerTypeOptions(),
+    },
+    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
+    {
+      kind: 'enum',
+      key: 'health',
+      label: t('list.filter_fields.health'),
+      options: [
+        { value: 'healthy', label: t('list.filter_fields.health_values.healthy') },
+        { value: 'degraded', label: t('list.filter_fields.health_values.degraded') },
+        { value: 'error', label: t('list.filter_fields.health_values.error') },
+      ],
+    },
+  ]
+
+  const reviewHealth = (health: string) => () =>
+    listing.setFilters({ health })
 
   const addButton = (
     <Button onClick={() => onPickerOpenChange(true)}>
@@ -219,68 +306,70 @@ export default function PageProvidersOverview({
           {
             key: 'total',
             label: t('list.metrics.total.label'),
-            value: providers.length,
+            value: counts.total,
             hint: t('list.metrics.total.hint'),
+            series: [counts.total, counts.total],
           },
           {
             key: 'enabled',
             label: t('list.metrics.enabled.label'),
-            value: enabled.length,
+            value: counts.enabled,
             hint:
-              enabled.length > 0 && providers.length > 0
+              counts.enabled > 0 && counts.total > 0
                 ? t('list.metrics.enabled.hint', {
-                    percent: ((enabled.length / providers.length) * 100).toFixed(0),
+                    percent: ((counts.enabled / counts.total) * 100).toFixed(0),
                   })
                 : t('list.metrics.enabled.empty_hint'),
+            series: [counts.enabled, counts.enabled],
           },
           {
             key: 'disabled',
             label: t('list.metrics.disabled.label'),
-            value: disabled.length,
+            value: counts.disabled,
             hint: t('list.metrics.disabled.hint'),
-          },
-          {
-            key: 'types',
-            label: t('list.metrics.types.label'),
-            value: types.size,
-            hint: t('list.metrics.types.hint'),
+            series: [counts.disabled, counts.disabled],
           },
         ]}
         alerts={[
-          ...broken.map((p) => ({
-            tone: 'error' as const,
-            title: t('list.alerts.broken.title', { name: providerName(p) }),
-            detail: providerStatus(p).detail,
-            action: t('list.alerts.broken.action'),
-          })),
-          ...degraded.map((p) => ({
-            tone: 'warn' as const,
-            title: t('list.alerts.degraded.title', { name: providerName(p) }),
-            detail: providerStatus(p).detail,
-            action: t('list.alerts.degraded.action'),
-          })),
+          ...(broken.total
+            ? [
+                {
+                  tone: 'error' as const,
+                  title: t('list.alerts.broken.title', { count: broken.total }),
+                  detail: t('list.alerts.broken.detail', {
+                    count: broken.total,
+                    names: previewNames(broken),
+                  }),
+                  action: t('list.alerts.broken.action'),
+                  onAction: reviewHealth(HEALTH_ERROR),
+                },
+              ]
+            : []),
+          ...(degraded.total
+            ? [
+                {
+                  tone: 'warn' as const,
+                  title: t('list.alerts.degraded.title', { count: degraded.total }),
+                  detail: t('list.alerts.degraded.detail', {
+                    count: degraded.total,
+                    names: previewNames(degraded),
+                  }),
+                  action: t('list.alerts.degraded.action'),
+                  onAction: reviewHealth(HEALTH_DEGRADED),
+                },
+              ]
+            : []),
         ]}
-        filters={[
-          { key: 'enabled', label: t('list.filters.enabled'), predicate: (p) => p.enabled },
-          { key: 'disabled', label: t('list.filters.disabled'), predicate: (p) => !p.enabled },
-          {
-            key: 'issues',
-            label: t('list.filters.issues'),
-            predicate: (p) => providerStatus(p).health !== 'healthy',
-          },
-        ]}
-        searchPlaceholder={t('list.search_placeholder')}
-        querySyntax={QUERY_SYNTAX_HINT}
-        searchIn={(p) => `${p.display_name ?? ''} ${p.alias}`}
+        paged={{ listing, pagination, filterFields }}
         rows={providers}
         columns={columns}
         card={card}
         getKey={(p) => p.alias}
         getHref={providerHref}
         aggregates={{
-          provider: t('list.aggregates.provider_count', { count: providers.length }),
+          provider: t('list.aggregates.provider_count', { count: counts.total }),
           configuration: t('list.aggregates.to_review', {
-            total: broken.length + degraded.length,
+            total: broken.total + degraded.total,
           }),
         }}
         emptyLabel={t('list.empty.label')}

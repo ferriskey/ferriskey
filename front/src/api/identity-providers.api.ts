@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Endpoints } from './api.client'
 
 export interface CreateProviderInput {
   alias: string
@@ -35,13 +36,52 @@ interface ProviderQuery extends BaseQuery {
   providerId: string
 }
 
-export const useGetIdentityProviders = ({ realm }: BaseQuery) => {
+export type IdentityProvidersQuery = NonNullable<
+  Endpoints.get_List_identity_providers['parameters']['query']
+>
+
+export type IdentityProvidersFilter = Omit<
+  IdentityProvidersQuery,
+  'page' | 'limit' | 'order' | 'order_by'
+>
+
+export const IDENTITY_PROVIDER_FILTER_KEYS = [
+  'alias',
+  'display_name',
+  'provider_id',
+  'enabled',
+  'health',
+] as const
+
+export const identityProvidersKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
+
+export const useGetIdentityProviders = ({
+  realm,
+  query,
+  enabled = true,
+}: BaseQuery & { query?: IdentityProvidersQuery; enabled?: boolean }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
       path: { realm_name: realm ?? 'master' },
-      query: { brief_representation: undefined },
+      query: query ?? {},
     }).queryOptions,
+    enabled,
   })
+}
+
+export const useIdentityProviderCount = ({
+  realm,
+  filter,
+}: BaseQuery & { filter?: IdentityProvidersFilter }) => {
+  const { data, isLoading } = useGetIdentityProviders({
+    realm,
+    query: { ...filter, limit: 1 },
+  })
+  return { count: data?.metadata.total ?? 0, isLoading }
 }
 
 export const useCreateIdentityProvider = () => {
@@ -51,16 +91,7 @@ export const useCreateIdentityProvider = () => {
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/identity-providers')
       .mutationOptions,
     onSuccess: (_, variables) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
-        path: {
-          realm_name: variables.path.realm_name,
-        },
-        query: {
-          brief_representation: undefined,
-        },
-      }).queryOptions.queryKey
-
-      queryClient.invalidateQueries({ queryKey: keys })
+      queryClient.invalidateQueries({ queryKey: identityProvidersKey(variables.path.realm_name) })
     },
   })
 }
@@ -84,14 +115,7 @@ export const useUpdateIdentityProvider = () => {
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/identity-providers/{alias}')
       .mutationOptions,
     onSuccess: async (_, variables) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
-        path: {
-          realm_name: variables.path.realm_name,
-        },
-        query: {
-          brief_representation: undefined,
-        },
-      }).queryOptions.queryKey
+      const keys = identityProvidersKey(variables.path.realm_name)
 
       const detailKeys = window.tanstackApi.get('/realms/{realm_name}/identity-providers/{alias}', {
         path: {
@@ -113,14 +137,7 @@ export const useDeleteIdentityProvider = () => {
     ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/identity-providers/{alias}')
       .mutationOptions,
     onSuccess: async (_, variables) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
-        path: {
-          realm_name: variables.path.realm_name,
-        },
-        query: {
-          brief_representation: undefined,
-        },
-      }).queryOptions.queryKey
+      const keys = identityProvidersKey(variables.path.realm_name)
 
       await queryClient.invalidateQueries({ queryKey: keys })
     },
