@@ -12,9 +12,9 @@ export type ClientsQuery = NonNullable<Endpoints.get_Get_clients['parameters']['
 
 export type ClientsFilter = Omit<ClientsQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
-export type ClientSearchField = 'name' | 'client_id'
-
 export const CLIENT_SEARCH_LIMIT = 20
+
+export const APPLICATION_FILTER_KEYS = ['search', 'enabled', 'application_type'] as const
 
 export const CLIENT_FILTER_KEYS = [
   'name',
@@ -75,30 +75,10 @@ export const useClientsByIds = ({ realm, ids }: BaseQuery & { ids: readonly stri
   })
 }
 
-export const useAllClients = ({ realm }: BaseQuery) => {
-  const first = useGetClients({ realm, query: { order_by: 'created_at', limit: ID_BATCH } })
-  const lastPage = first.data?.metadata.last_page ?? 1
-  const rest = useQueries({
-    queries: Array.from({ length: Math.max(0, lastPage - 1) }, (_, index) => ({
-      ...window.tanstackApi.get('/realms/{realm_name}/clients', {
-        path: { realm_name: realm || 'master' },
-        query: { order_by: 'created_at', limit: ID_BATCH, page: index + 2 },
-      }).queryOptions,
-    })),
-    combine: combineClients,
-  })
-  const clients = useMemo(
-    () => [...(first.data?.data ?? []), ...rest.clients],
-    [first.data, rest.clients]
-  )
-  return { clients, isLoading: first.isLoading || rest.isLoading }
-}
-
 export const useClientSearch = ({
   realm,
-  field = 'name',
   enabled = true,
-}: BaseQuery & { field?: ClientSearchField; enabled?: boolean }) => {
+}: BaseQuery & { enabled?: boolean }) => {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
 
@@ -110,8 +90,8 @@ export const useClientSearch = ({
   const { data, isLoading } = useGetClients({
     realm,
     query: {
-      [field]: debounced || undefined,
-      order_by: field,
+      search: debounced || undefined,
+      order_by: 'name',
       order: 'asc',
       limit: CLIENT_SEARCH_LIMIT,
     },

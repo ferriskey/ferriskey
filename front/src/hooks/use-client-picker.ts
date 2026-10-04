@@ -1,4 +1,4 @@
-import { useGetClient, useClientSearch, type ClientSearchField } from '@/api/client.api'
+import { useGetClient, useClientSearch } from '@/api/client.api'
 import type { Schemas } from '@/api/api.client'
 
 export interface ClientPicking {
@@ -12,13 +12,11 @@ export interface ClientPicking {
 export function useClientPicker({
   realm,
   selectedId,
-  field,
 }: {
   realm: string
   selectedId?: string
-  field?: ClientSearchField
 }): ClientPicking {
-  const { search, setSearch, clients, isLoading } = useClientSearch({ realm, field })
+  const { search, setSearch, clients, isLoading } = useClientSearch({ realm })
   const { data: selected } = useGetClient({ realm, clientId: selectedId })
 
   return {

@@ -1760,13 +1760,16 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         client_id: string;
         enabled: boolean;
         public_client: boolean;
         service_account_enabled: boolean;
+        oauth_device_code_grant_enabled: boolean;
         protocol: "openid-connect" | "saml";
         client_type: "confidential" | "public" | "system";
+        application_type: "m2m" | "device" | "spa" | "native" | "web";
         has_redirect_uris: boolean;
         maintenance_enabled: boolean;
         ids: string;

@@ -24,7 +24,7 @@ function useClientOptions(search: string) {
   const { data, isLoading } = useGetClients({
     realm: useRealm(),
     query: {
-      name: search.trim() || undefined,
+      search: search.trim() || undefined,
       order_by: 'name',
       order: 'asc',
       limit: CLIENT_SEARCH_LIMIT,

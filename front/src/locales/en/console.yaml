@@ -258,24 +258,25 @@ applications:
     description: 'Anything that talks to FerrisKey: mobile apps, single-page apps, web servers, daemons.'
     create: Create application
     all: All applications
-    filters:
-      all: All
-      enabled: Enabled
-      disabled: Disabled
-    sorts:
-      recent: Most recent
-      oldest: Oldest first
-      name: Name
     search_placeholder: Search by name or client ID…
+    columns:
+      name: Application
+      client_id: Client ID
+      type: Type
+      status: Status
+      created: Created
+    filter_fields:
+      search: Search
+      enabled: Enabled
+      application_type: Type
     alerts:
       missing_callback:
-        body_one: '<em>{{count, number}} application has no callback URL</em> — {{names}}: FerrisKey has nowhere to send the user back, so sign-in stops with an error.'
-        body_other: '<em>{{count, number}} applications have no callback URL</em> — {{names}}: FerrisKey has nowhere to send the user back, so sign-in stops with an error.'
+        title_one: '{{count, number}} application has no callback URL'
+        title_other: '{{count, number}} applications have no callback URL'
+        detail: '{{names}}: FerrisKey has nowhere to send the user back, so sign-in stops with an error.'
     empty:
       label: No application yet
       hint: 'Pick a type, give it a name, and we generate everything you need to integrate.'
-      filtered_label: No application matches
-      filtered_hint: No application of this type carries that name or client ID.
     card:
       disabled: disabled
     picker:

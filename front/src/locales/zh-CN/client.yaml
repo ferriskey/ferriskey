@@ -528,7 +528,7 @@ token_exchange:
       label: 目标受众
       description: 交换后的令牌所面向的客户端。
       placeholder: 选择客户端
-      search_placeholder: 按 client_id 搜索…
+      search_placeholder: 按名称或 client_id 搜索…
       empty: 没有匹配的客户端。
     scopes:
       label: 允许的作用域

@@ -30,7 +30,7 @@ export default function ClientTokenExchangeTabFeature({
     isLoading,
     isError,
   } = useGetTokenExchangePolicies({ realm, clientId: client.id })
-  const picker = useClientPicker({ realm, field: 'client_id' })
+  const picker = useClientPicker({ realm })
   const { count: clientTotal } = useClientCount({ realm })
   const { mutateAsync: createPolicy, isPending: isCreating } = useCreateTokenExchangePolicy()
   const { mutateAsync: deletePolicy, isPending: isDeleting } = useDeleteTokenExchangePolicy()

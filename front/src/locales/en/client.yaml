@@ -510,7 +510,7 @@ token_exchange:
       label: Target audience
       description: The client the exchanged token is issued for.
       placeholder: Select a client
-      search_placeholder: Search by client_id…
+      search_placeholder: Search by name or client_id…
       empty: No client matches.
     scopes:
       label: Allowed scopes
