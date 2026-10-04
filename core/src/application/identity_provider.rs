@@ -3,13 +3,17 @@ use crate::domain::{
         entities::{
             CreateIdentityProviderInput, DeleteIdentityProviderInput,
             DeleteIdentityProviderLinkInput, GetIdentityProviderInput, IdentityProvider,
-            IdentityProviderLinkView, ListIdentityProviderLinksInput, ListIdentityProvidersInput,
+            IdentityProviderFilter, IdentityProviderLinkView, IdentityProviderSortField,
+            ListIdentityProviderLinksInput, ListIdentityProvidersInput,
             UpdateIdentityProviderInput,
         },
         ports::IdentityProviderService,
     },
     authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
+    common::{
+        entities::app_errors::CoreError,
+        pagination::{Page, PageRequest},
+    },
 };
 
 use super::ApplicationService;
@@ -39,9 +43,10 @@ impl IdentityProviderService for ApplicationService {
         &self,
         identity: Identity,
         input: ListIdentityProvidersInput,
-    ) -> Result<Vec<IdentityProvider>, CoreError> {
+        request: PageRequest<IdentityProviderFilter, IdentityProviderSortField>,
+    ) -> Result<Page<IdentityProvider>, CoreError> {
         self.identity_provider_service
-            .list_identity_providers(identity, input)
+            .list_identity_providers(identity, input, request)
             .await
     }
 

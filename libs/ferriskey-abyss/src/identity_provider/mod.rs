@@ -6,8 +6,9 @@ pub mod value_objects;
 pub use entities::{
     CreateIdentityProviderInput, DeleteIdentityProviderInput, DeleteIdentityProviderLinkInput,
     GetIdentityProviderInput, IdentityProvider, IdentityProviderConfig,
-    IdentityProviderCreationConfig, IdentityProviderId, IdentityProviderLinkView,
-    IdentityProviderPresentation, ListIdentityProviderLinksInput, ListIdentityProvidersInput,
+    IdentityProviderCreationConfig, IdentityProviderFilter, IdentityProviderHealth,
+    IdentityProviderId, IdentityProviderLinkView, IdentityProviderPresentation,
+    IdentityProviderSortField, ListIdentityProviderLinksInput, ListIdentityProvidersInput,
     UpdateIdentityProviderInput,
 };
 pub use ports::{IdentityProviderPolicy, IdentityProviderRepository, IdentityProviderService};

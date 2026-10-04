@@ -45,6 +45,7 @@ pub trait BrokerAuthSessionRepository: Send + Sync {
 }
 
 /// Repository trait for IdentityProviderLink persistence
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait IdentityProviderLinkRepository: Send + Sync {
     /// Creates a new identity provider link
     fn create(

@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::common::policies::ensure_policy;
 use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::domain::realm::ports::RealmRepository;
@@ -23,8 +24,9 @@ use crate::domain::abyss::identity_provider::value_objects::{
 };
 use crate::domain::abyss::identity_provider::{
     CreateIdentityProviderInput, DeleteIdentityProviderInput, DeleteIdentityProviderLinkInput,
-    GetIdentityProviderInput, IdentityProvider, IdentityProviderLinkView,
-    ListIdentityProviderLinksInput, ListIdentityProvidersInput, UpdateIdentityProviderInput,
+    GetIdentityProviderInput, IdentityProvider, IdentityProviderFilter, IdentityProviderLinkView,
+    IdentityProviderSortField, ListIdentityProviderLinksInput, ListIdentityProvidersInput,
+    UpdateIdentityProviderInput,
 };
 use crate::domain::abyss::identity_provider::{
     IdentityProviderPolicy, IdentityProviderRepository, IdentityProviderService,
@@ -251,30 +253,20 @@ where
         &self,
         identity: Identity,
         input: ListIdentityProvidersInput,
-    ) -> Result<Vec<IdentityProvider>, CoreError> {
-        // Resolve realm by name
+        request: PageRequest<IdentityProviderFilter, IdentityProviderSortField>,
+    ) -> Result<Page<IdentityProvider>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        // Get all identity providers for the realm
-        let providers = self
-            .identity_provider_repository
-            .list_identity_providers_by_realm(scope.id(), None)
-            .await?;
-
-        // Filter based on view permission
-        let mut accessible_providers = Vec::new();
-        for provider in providers {
-            if self
-                .identity_provider_policy
+        ensure_policy(
+            self.identity_provider_policy
                 .can_view_identity_provider(&identity, scope.realm())
-                .await
-                .unwrap_or(false)
-            {
-                accessible_providers.push(provider);
-            }
-        }
+                .await,
+            "insufficient permissions to view identity providers",
+        )?;
 
-        Ok(accessible_providers)
+        self.identity_provider_repository
+            .list(&scope, &request)
+            .await
     }
 
     #[instrument(
@@ -449,5 +441,150 @@ where
             .await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::abyss::identity_provider::broker::ports::MockIdentityProviderLinkRepository;
+    use crate::domain::abyss::identity_provider::ports::MockIdentityProviderRepository;
+    use crate::domain::client::ports::MockClientRepository;
+    use crate::domain::common::policies::FerriskeyPolicy;
+    use crate::domain::common::services::tests::{
+        create_test_realm_with_name, create_test_user_identity_with_realm,
+    };
+    use crate::domain::realm::entities::Realm;
+    use crate::domain::realm::ports::MockRealmRepository;
+    use crate::domain::role::entities::Role;
+    use crate::domain::role::entities::permission::Permissions;
+    use crate::domain::seawatch::ports::MockSecurityEventRepository;
+    use crate::domain::user::ports::{MockUserRepository, MockUserRoleRepository};
+
+    type TestService = IdentityProviderServiceImpl<
+        MockIdentityProviderRepository,
+        FerriskeyPolicy<MockUserRepository, MockClientRepository, MockUserRoleRepository>,
+        MockRealmRepository,
+        MockUserRepository,
+        MockIdentityProviderLinkRepository,
+        MockSecurityEventRepository,
+    >;
+
+    fn role_with(realm: &Realm, permissions: Vec<String>) -> Role {
+        Role {
+            id: Uuid::new_v4(),
+            name: "caller".to_string(),
+            description: None,
+            permissions,
+            realm_id: realm.id,
+            client_id: None,
+            client: None,
+            require_mfa: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    fn service(
+        realm: Realm,
+        caller_id: Uuid,
+        roles: Vec<Role>,
+        repository: MockIdentityProviderRepository,
+    ) -> TestService {
+        let mut realm_repository = MockRealmRepository::new();
+        realm_repository
+            .expect_get_by_name()
+            .with(mockall::predicate::eq("test-realm".to_string()))
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
+        let mut user_role_repository = MockUserRoleRepository::new();
+        user_role_repository
+            .expect_get_user_roles()
+            .with(mockall::predicate::eq(caller_id))
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(roles) }));
+        let user_repository = Arc::new(MockUserRepository::new());
+        let policy = FerriskeyPolicy::new(
+            user_repository.clone(),
+            Arc::new(MockClientRepository::new()),
+            Arc::new(user_role_repository),
+        );
+
+        IdentityProviderServiceImpl::new(
+            Arc::new(repository),
+            Arc::new(policy),
+            Arc::new(realm_repository),
+            user_repository,
+            Arc::new(MockIdentityProviderLinkRepository::new()),
+            Arc::new(MockSecurityEventRepository::new()),
+        )
+    }
+
+    fn list_request() -> PageRequest<IdentityProviderFilter, IdentityProviderSortField> {
+        PageRequest {
+            filter: IdentityProviderFilter {
+                alias: Some("git".to_string()),
+                ..IdentityProviderFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    fn caller_of(identity: &Identity) -> Uuid {
+        match identity {
+            Identity::User(user) => user.id,
+            _ => panic!("Expected user identity"),
+        }
+    }
+
+    fn input() -> ListIdentityProvidersInput {
+        ListIdentityProvidersInput {
+            realm_name: "test-realm".to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_identity_providers_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let caller_id = caller_of(&identity);
+        let mut repository = MockIdentityProviderRepository::new();
+        repository.expect_list().never();
+        let service = service(realm, caller_id, vec![], repository);
+
+        let result = service
+            .list_identity_providers(identity, input(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_identity_providers_pages_the_resolved_realm_with_the_request() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let caller_id = caller_of(&identity);
+        let viewer = role_with(&realm, vec![Permissions::ViewIdentityProviders.name()]);
+        let realm_id = realm.id;
+        let mut repository = MockIdentityProviderRepository::new();
+        repository
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![], 7, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+        let service = service(realm, caller_id, vec![viewer], repository);
+
+        let page = service
+            .list_identity_providers(identity, input(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 7);
     }
 }

@@ -265,6 +265,35 @@ pub struct IdentityProviderLinkView {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum IdentityProviderHealth {
+    Healthy,
+    Degraded,
+    Error,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IdentityProviderFilter {
+    pub alias: Option<String>,
+    pub display_name: Option<String>,
+    pub provider_id: Option<String>,
+    pub enabled: Option<bool>,
+    pub health: Option<IdentityProviderHealth>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum IdentityProviderSortField {
+    Alias,
+    DisplayName,
+    ProviderId,
+    Enabled,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
