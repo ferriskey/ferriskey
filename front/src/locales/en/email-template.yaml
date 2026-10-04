@@ -54,11 +54,19 @@ list:
     description: One template per email. Without an assignment, FerrisKey sends its plain-text default email.
     not_configured: Not configured
     empty: No template of this type in this realm.
+    picker_label: Template
+  filters:
+    name: Name
+    email_type: Type
+  columns:
+    name: Template
+    email_type: Type
+    updated_at: Updated
+    created_at: Created
   templates:
     title: Templates
     description: 'The type of a template is fixed at creation: it decides the variables available to it.'
     search_placeholder: Filter templates…
-    filter_all: All
     # Lowercase on purpose: rendered inside a pill next to the template name.
     assigned: assigned
     meta: '{{type}} · updated {{when}}'
