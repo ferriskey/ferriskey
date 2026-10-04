@@ -763,7 +763,6 @@ export namespace Schemas {
     username: string;
   };
   export type GroupMemberPage = { data: Array<GroupMemberDetail>; limit: number; offset: number; total: number };
-  export type GroupNode = Group & { children: Array<GroupNode> };
   export type IdentityProviderLinkResponse = {
     created_at: string;
     id: string;
@@ -999,6 +998,18 @@ export namespace Schemas {
       status: string;
       updated_at: string;
       webhook_id: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_Group = {
+    data: Array<{
+      created_at: string;
+      description?: (string | null) | undefined;
+      id: GroupId;
+      name: string;
+      organization_id: OrganizationId;
+      parent_group_id?: (null | GroupId) | undefined;
+      updated_at: string;
     }>;
     metadata: PageMetadata;
   };
@@ -3173,10 +3184,23 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/organizations/{organization_id}/groups";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        description: string;
+        parent_group_id: string;
+        is_root: boolean;
+        ids: string;
+        order_by: "name" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string; organization_id: string };
     };
     responses: {
-      200: Array<Schemas.GroupNode>;
+      200: Schemas.Paginated_Group;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
