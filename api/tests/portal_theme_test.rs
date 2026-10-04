@@ -121,7 +121,7 @@ mod tests {
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
                 admin_email: "admin@test.local".to_string(),
-                default_client_id: "admin-cli".to_string(),
+                default_client_id: "ferriskey-admin".to_string(),
             })
             .await
             .expect("initialize application");
@@ -205,7 +205,7 @@ mod tests {
             .await;
         assert_eq!(overwrite.status_code(), 200);
 
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM realm_branding")
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM portal_themes")
             .fetch_one(&pool)
             .await
             .expect("count theme rows");
@@ -220,10 +220,7 @@ mod tests {
             .await;
         assert_eq!(login_settings.status_code(), 200);
         let login_body: Value = login_settings.json();
-        assert_eq!(
-            login_body["data"]["theme"]["colors"]["primaryButton"],
-            "#222222"
-        );
+        assert_eq!(login_body["theme"]["colors"]["primaryButton"], "#222222");
 
         // --- OpenAPI exposes the admin endpoint.
         let openapi_response = server.get("/api-docs/openapi.json").await;

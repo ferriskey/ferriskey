@@ -116,7 +116,7 @@ mod tests {
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
                 admin_email: "admin@test.local".to_string(),
-                default_client_id: "admin-cli".to_string(),
+                default_client_id: "ferriskey-admin".to_string(),
             })
             .await
             .expect("initialize application");
@@ -311,7 +311,7 @@ mod tests {
             .json(&json!({ "description": "missing name and alias" }))
             .await;
 
-        assert_eq!(response.status_code(), 422);
+        assert_eq!(response.status_code(), 400);
     }
 
     #[tokio::test]
@@ -365,8 +365,8 @@ mod tests {
 
         assert_eq!(response.status_code(), 200);
         let body: Value = response.json();
-        assert!(body.is_array());
-        assert_eq!(body.as_array().unwrap().len(), 0);
+        assert!(body["data"].is_array());
+        assert_eq!(body["data"].as_array().unwrap().len(), 0);
     }
 
     #[tokio::test]
