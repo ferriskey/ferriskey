@@ -13,12 +13,7 @@ const STATUSES: Record<string, DeliveryStatusDescriptor> = {
   failed: { labelKey: 'delivery.status.failed', tone: 'danger', terminal: true },
 }
 
-export const DELIVERY_STATUS_FILTERS = [
-  { key: 'all', labelKey: 'delivery.filters.all' },
-  { key: 'failed', labelKey: 'delivery.status.failed' },
-  { key: 'pending', labelKey: 'delivery.status.pending' },
-  { key: 'succeeded', labelKey: 'delivery.status.succeeded' },
-]
+export const DELIVERY_STATUSES = ['pending', 'delivering', 'succeeded', 'failed'] as const
 
 export function describeDeliveryStatus(status: string): DeliveryStatusDescriptor {
   return STATUSES[status] ?? { labelKey: null, tone: 'neutral', terminal: false }

@@ -1,8 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Button, Column, DataView, Pill, Section, Segmented, type ViewMode } from '@/components/kit'
+import {
+  Button,
+  Column,
+  DataView,
+  FilterBar,
+  PaginationBar,
+  Pill,
+  Section,
+  usePagedListing,
+  type FilterField,
+  type ViewMode,
+} from '@/components/kit'
 import {
   Dialog,
   DialogContent,
@@ -11,24 +22,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  DELIVERY_FILTER_KEYS,
   useGetWebhookDeliveries,
   useGetWebhookDelivery,
   useRetryWebhookDelivery,
+  useWebhookDeliveryCount,
+  type WebhookDeliveriesQuery,
 } from '@/api/webhook.api'
 import { Schemas } from '@/api/api.client'
+import { catalogedTriggers } from '@/constants/webhook-utils'
 import { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { apiErrorMessage } from '@/lib/api-error'
-import {
-  DELIVERY_STATUS_FILTERS,
-  describeDeliveryStatus,
-  isReplayable,
-} from '../webhook-delivery-status'
+import { DELIVERY_STATUSES, describeDeliveryStatus, isReplayable } from '../webhook-delivery-status'
 
 import DeliverySummary = Schemas.DeliverySummary
 
-const PAGE_SIZE = 25
-const ALL_STATUS = 'all'
 const DELIVERY_VIEW: ViewMode = 'list'
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const EVENT_OPTIONS = (Object.keys(catalogedTriggers) as Schemas.WebhookTrigger[])
+  .sort()
+  .map((event) => ({ value: event, label: event }))
 
 export interface WebhookDeliveriesTabProps {
   realm: string
@@ -41,18 +54,40 @@ function outcomeOf(delivery: DeliverySummary): string {
   return '—'
 }
 
+function deliveriesQuery(apiQuery: Record<string, string | number>): WebhookDeliveriesQuery {
+  const { resource_id: resourceId, ...rest } = apiQuery
+  const query = rest as WebhookDeliveriesQuery
+  if (typeof resourceId === 'string' && UUID_PATTERN.test(resourceId.trim())) {
+    return { ...query, resource_id: resourceId.trim() }
+  }
+  return query
+}
+
+function TimestampCell({ value }: { value?: string | null }) {
+  if (!value) {
+    return <span className='text-neutral-400 dark:text-neutral-500'>—</span>
+  }
+  return (
+    <div className='min-w-0 whitespace-nowrap'>
+      <span className='text-neutral-700 dark:text-neutral-300'>{formatRelative(value)}</span>
+      <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
+        {formatTimestamp(value)}
+      </p>
+    </div>
+  )
+}
+
 export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDeliveriesTabProps) {
   const { t } = useTranslation('webhook')
-  const [status, setStatus] = useState(ALL_STATUS)
-  const [offset, setOffset] = useState(0)
+  const listing = usePagedListing(DELIVERY_FILTER_KEYS)
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
 
-  const { data, isLoading, isError } = useGetWebhookDeliveries({
+  const query = useMemo(() => deliveriesQuery(listing.apiQuery), [listing.apiQuery])
+  const { data, isLoading, isError } = useGetWebhookDeliveries({ realm, webhookId, query })
+  const { count: failedTotal } = useWebhookDeliveryCount({
     realm,
     webhookId,
-    status: status === ALL_STATUS ? undefined : status,
-    limit: PAGE_SIZE,
-    offset,
+    filter: { status: 'failed' },
   })
 
   const { data: detail } = useGetWebhookDelivery({
@@ -64,24 +99,36 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   const { mutate: retryDelivery, isPending: isRetrying } = useRetryWebhookDelivery()
 
   const deliveries = data?.data ?? []
-  const total = data?.total ?? 0
-  const from = total === 0 ? 0 : offset + 1
-  const to = offset + deliveries.length
+  const pagination = data?.metadata
+  const narrowed = Object.values(listing.state.filters).some(Boolean)
 
   const statusOf = (value: string) => {
     const descriptor = describeDeliveryStatus(value)
     return { tone: descriptor.tone, label: descriptor.labelKey ? t(descriptor.labelKey) : value }
   }
 
-  const filters = DELIVERY_STATUS_FILTERS.map((filter) => ({
-    key: filter.key,
-    label: t(filter.labelKey),
-  }))
-
-  const onFilterChange = (next: string) => {
-    setStatus(next)
-    setOffset(0)
-  }
+  const filterFields: FilterField[] = [
+    {
+      kind: 'enum',
+      key: 'status',
+      label: t('delivery.filter_fields.status'),
+      options: DELIVERY_STATUSES.map((status) => ({
+        value: status,
+        label: statusOf(status).label,
+      })),
+    },
+    {
+      kind: 'enum',
+      key: 'event',
+      label: t('delivery.filter_fields.event'),
+      options: EVENT_OPTIONS,
+    },
+    {
+      kind: 'text',
+      key: 'resource_id',
+      label: t('delivery.filter_fields.resource_id'),
+    },
+  ]
 
   const onRetry = (delivery: DeliverySummary) => {
     retryDelivery(
@@ -113,7 +160,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
           </Pill>
         )
       },
-      sortValue: (delivery) => delivery.status,
+      sortKey: 'status',
     },
     {
       key: 'event',
@@ -123,13 +170,12 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
           {delivery.event}
         </span>
       ),
-      sortValue: (delivery) => delivery.event,
     },
     {
       key: 'attempts',
       header: t('delivery.columns.attempts'),
       render: (delivery) => <span className='tnum'>{delivery.attempt_count}</span>,
-      sortValue: (delivery) => delivery.attempt_count,
+      sortKey: 'attempt_count',
     },
     {
       key: 'outcome',
@@ -139,23 +185,27 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
           {outcomeOf(delivery)}
         </span>
       ),
-      sortValue: (delivery) => outcomeOf(delivery),
+    },
+    {
+      key: 'last_attempt_at',
+      header: t('delivery.columns.last_attempt_at'),
+      align: 'right',
+      render: (delivery) => <TimestampCell value={delivery.last_attempt_at} />,
+      sortKey: 'last_attempt_at',
+    },
+    {
+      key: 'updated_at',
+      header: t('delivery.columns.updated_at'),
+      align: 'right',
+      render: (delivery) => <TimestampCell value={delivery.updated_at} />,
+      sortKey: 'updated_at',
     },
     {
       key: 'created_at',
       header: t('delivery.columns.created_at'),
       align: 'right',
-      render: (delivery) => (
-        <div className='min-w-0 whitespace-nowrap'>
-          <span className='text-neutral-700 dark:text-neutral-300'>
-            {formatRelative(delivery.created_at)}
-          </span>
-          <p className='tnum truncate font-mono-ui text-[11px] text-neutral-400 dark:text-neutral-500'>
-            {formatTimestamp(delivery.created_at)}
-          </p>
-        </div>
-      ),
-      sortValue: (delivery) => delivery.created_at,
+      render: (delivery) => <TimestampCell value={delivery.created_at} />,
+      sortKey: 'created_at',
     },
     {
       key: 'actions',
@@ -182,16 +232,12 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     },
   ]
 
-  const failed = deliveries.filter((delivery) => delivery.status === 'failed').length
-
   return (
     <>
-      <Section
-        title={t('delivery.title')}
-        description={t('delivery.description')}
-        contained={false}
-        action={<Segmented items={filters} value={status} onChange={onFilterChange} />}
-      >
+      <Section title={t('delivery.title')} description={t('delivery.description')} contained={false}>
+        <div className='mb-3 flex'>
+          <FilterBar fields={filterFields} listing={listing} />
+        </div>
         {isError ? (
           <div className='rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5 text-sm text-fk-danger'>
             {t('delivery.error')}
@@ -216,50 +262,30 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
             getKey={(delivery) => delivery.id}
             view={DELIVERY_VIEW}
             loading={isLoading}
+            sort={listing.state.sort}
+            onSortChange={listing.setSort}
             aggregates={
-              failed > 0
-                ? { status: t('delivery.failed_on_page', { total: failed }) }
+              failedTotal > 0
+                ? { status: t('delivery.failed_total', { count: failedTotal }) }
                 : undefined
             }
             emptyLabel={
-              status === ALL_STATUS ? t('delivery.empty.all.label') : t('delivery.empty.filtered.label')
+              narrowed ? t('delivery.empty.filtered.label') : t('delivery.empty.all.label')
             }
-            emptyHint={
-              status === ALL_STATUS ? t('delivery.empty.all.hint') : t('delivery.empty.filtered.hint')
-            }
+            emptyHint={narrowed ? t('delivery.empty.filtered.hint') : t('delivery.empty.all.hint')}
             emptyAction={
-              status === ALL_STATUS ? undefined : (
-                <Button variant='outline' onClick={() => onFilterChange(ALL_STATUS)}>
+              narrowed ? (
+                <Button variant='outline' onClick={listing.clearFilters}>
                   {t('delivery.show_all')}
                 </Button>
-              )
+              ) : undefined
             }
           />
         )}
 
-        {total > PAGE_SIZE && (
-          <div className='mt-3 flex items-center justify-between px-1'>
-            <span className='text-sm text-muted-foreground'>
-              {t('delivery.range', { from, to, total })}
-            </span>
-            <div className='flex gap-2'>
-              <Button
-                variant='outline'
-                size='sm'
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                {t('delivery.previous')}
-              </Button>
-              <Button
-                variant='outline'
-                size='sm'
-                disabled={to >= total}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                {t('delivery.next')}
-              </Button>
-            </div>
+        {pagination && !isError && (
+          <div className='mt-3 px-1'>
+            <PaginationBar pagination={pagination} onPageChange={listing.setPage} />
           </div>
         )}
       </Section>

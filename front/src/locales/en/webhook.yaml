@@ -207,21 +207,22 @@ delivery:
     delivering: Sending
     succeeded: Delivered
     failed: Failed
-  filters:
-    all: All
   columns:
     status: Status
     event: Event
     attempts: Attempts
     outcome: Outcome
     created_at: When
+    last_attempt_at: Last attempt
+    updated_at: Updated
+  filter_fields:
+    status: Status
+    event: Event
+    resource_id: Resource ID
   inspect: Inspect
   retry: Send again
-  # Footer aggregate of the current page only, never inflected.
-  failed_on_page: '{{total}} failed on this page'
-  range: '{{from}}-{{to}} of {{total}}'
-  previous: Previous
-  next: Next
+  failed_total_one: '{{count}} failed in total'
+  failed_total_other: '{{count}} failed in total'
   show_all: Show all
   empty:
     all:
