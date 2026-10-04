@@ -2,18 +2,22 @@ use std::future::Future;
 
 use uuid::Uuid;
 
-use crate::email_template::entities::{EmailTemplate, EmailType};
+use crate::email_template::entities::{
+    EmailTemplate, EmailTemplateFilter, EmailTemplateSortField, EmailType,
+};
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::realm::Realm;
-use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 
 pub trait EmailTemplateService: Send + Sync {
-    fn get_templates_by_realm(
+    fn list_templates(
         &self,
         identity: Identity,
-        input: GetEmailTemplatesInput,
-    ) -> impl Future<Output = Result<Vec<EmailTemplate>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<EmailTemplateFilter, EmailTemplateSortField>,
+    ) -> impl Future<Output = Result<Page<EmailTemplate>, CoreError>> + Send;
 
     fn get_template(
         &self,
@@ -54,10 +58,11 @@ pub trait EmailTemplateService: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait EmailTemplateRepository: Send + Sync {
-    fn fetch_by_realm(
+    fn list(
         &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<EmailTemplate>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<EmailTemplateFilter, EmailTemplateSortField>,
+    ) -> impl Future<Output = Result<Page<EmailTemplate>, CoreError>> + Send;
 
     fn get_by_id(
         &self,
@@ -116,10 +121,6 @@ pub trait EmailTemplatePolicy: Send + Sync {
         identity: &Identity,
         target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-}
-
-pub struct GetEmailTemplatesInput {
-    pub realm_name: String,
 }
 
 pub struct GetEmailTemplateInput {
