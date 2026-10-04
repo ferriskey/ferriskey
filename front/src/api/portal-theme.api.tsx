@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { BaseQuery } from '.'
 import { preloadNamespaces, translate } from '@/lib/i18n'
-import type { Schemas } from './api.client'
+import type { Endpoints, Schemas } from './api.client'
 
 const PORTAL_NAMESPACE = 'portal'
 
@@ -45,12 +45,83 @@ export const useUpdatePortalTheme = () => {
 
 // ---------- Collection API ----------
 
-export const useListPortalThemes = ({ realm = 'master' }: BaseQuery) => {
+export type PortalThemesQuery = NonNullable<
+  Endpoints.get_List_themes['parameters']['query']
+>
+
+export type PortalThemesFilter = Omit<PortalThemesQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const PORTAL_THEME_FILTER_KEYS = ['name', 'layout_id', 'activatable'] as const
+
+export const USED_BY_PREVIEW = 5
+
+const portalThemesKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
+
+export const useListPortalThemes = ({
+  realm = 'master',
+  query,
+  enabled = true,
+}: BaseQuery & { query?: PortalThemesQuery; enabled?: boolean }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
       path: { realm_name: realm },
+      query: query ?? {},
     }).queryOptions,
-    enabled: !!realm,
+    enabled: enabled && !!realm,
+  })
+}
+
+export const usePortalThemeCount = ({
+  realm = 'master',
+  filter,
+  enabled = true,
+}: BaseQuery & { filter?: PortalThemesFilter; enabled?: boolean }) => {
+  const { data, isLoading } = useListPortalThemes({
+    realm,
+    query: { ...filter, limit: 1 },
+    enabled,
+  })
+  return { count: data?.metadata.total ?? 0, isLoading }
+}
+
+export interface ThemesUsingLayout {
+  total: number
+  names: string[]
+}
+
+const combineThemesByLayout =
+  (layoutIds: readonly string[]) =>
+  (results: UseQueryResult<Schemas.Paginated_PortalTheme>[]) =>
+    new Map<string, ThemesUsingLayout>(
+      layoutIds.map((layoutId, index) => {
+        const data = results[index]?.data
+        return [
+          layoutId,
+          {
+            total: data?.metadata.total ?? 0,
+            names: (data?.data ?? []).map((theme) => theme.name),
+          },
+        ]
+      })
+    )
+
+export const usePortalThemesByLayout = ({
+  realm = 'master',
+  layoutIds,
+}: BaseQuery & { layoutIds: readonly string[] }) => {
+  const combine = useMemo(() => combineThemesByLayout(layoutIds), [layoutIds])
+  return useQueries({
+    queries: layoutIds.map((layoutId) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
+        path: { realm_name: realm },
+        query: { layout_id: layoutId, order_by: 'name', order: 'asc', limit: USED_BY_PREVIEW },
+      }).queryOptions,
+    })),
+    combine,
   })
 }
 
@@ -71,9 +142,7 @@ export const useCreatePortalTheme = () => {
   return useMutation({
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/portal/themes').mutationOptions,
     onSuccess: async (_, variables) => {
-      const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
-        path: { realm_name: variables.path.realm_name },
-      }).queryKey
+      const listKey = portalThemesKey(variables.path.realm_name)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: listKey }),
         queryClient.invalidateQueries({
@@ -105,9 +174,7 @@ export const useImportPortalTheme = () => {
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/portal/themes/import')
       .mutationOptions,
     onSuccess: async (_, variables) => {
-      const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
-        path: { realm_name: variables.path.realm_name },
-      }).queryKey
+      const listKey = portalThemesKey(variables.path.realm_name)
       await queryClient.invalidateQueries({ queryKey: listKey })
       toast.success(translate('portal:themes.toast.imported'))
     },
@@ -286,9 +353,7 @@ export const useDeletePortalTheme = () => {
     ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/portal/themes/{theme_id}')
       .mutationOptions,
     onSuccess: async (_, variables) => {
-      const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
-        path: { realm_name: variables.path.realm_name },
-      }).queryKey
+      const listKey = portalThemesKey(variables.path.realm_name)
       // Deleting the live theme changes which one is active, so the active
       // query has to go too.
       await Promise.all([
@@ -347,9 +412,7 @@ async function invalidateThemeQueries(
   realmName: string,
   themeId: string,
 ) {
-  const listKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
-    path: { realm_name: realmName },
-  }).queryKey
+  const listKey = portalThemesKey(realmName)
   const itemKey = window.tanstackApi.get('/realms/{realm_name}/portal/themes/{theme_id}', {
     path: { realm_name: realmName, theme_id: themeId },
   }).queryKey

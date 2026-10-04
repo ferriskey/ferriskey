@@ -5,7 +5,7 @@ import {
   useGetPortalLayout,
   useUpdatePortalLayout,
 } from '@/api/portal-layouts.api'
-import { useGetPortalTheme, useListPortalThemes } from '@/api/portal-theme.api'
+import { useGetPortalTheme, usePortalThemeCount } from '@/api/portal-theme.api'
 import { BasicSpinner } from '@/components/ui/spinner'
 import type { BuilderNode } from '@/lib/builder-core'
 import { createPortalAdapter } from '@/lib/builder-portal'
@@ -24,7 +24,11 @@ export default function PagePortalLayoutBuilderFeature() {
 
   const { data: layoutData, isLoading } = useGetPortalLayout({ realm, layoutId })
   const { data: themeData } = useGetPortalTheme({ realm })
-  const { data: themesData } = useListPortalThemes({ realm })
+  const usedBy = usePortalThemeCount({
+    realm,
+    filter: { layout_id: layoutId },
+    enabled: !isNew && !!layoutId,
+  })
 
   if (!isNew && isLoading) {
     return (
@@ -43,9 +47,7 @@ export default function PagePortalLayoutBuilderFeature() {
       layoutId={layoutId}
       isNew={isNew}
       isDefault={layout?.is_default ?? false}
-      usedBy={(themesData?.data ?? [])
-        .filter((t) => layout && t.layout_id === layout.id)
-        .map((t) => t.name)}
+      usedByCount={isNew ? 0 : usedBy.count}
       initialName={layout?.name ?? ''}
       initialTree={isNew ? [] : parseTree(layout?.tree)}
       themeConfig={themeData?.data}
@@ -59,7 +61,7 @@ interface InnerProps {
   layoutId: string
   isNew: boolean
   isDefault: boolean
-  usedBy: string[]
+  usedByCount: number
   initialName: string
   initialTree: BuilderNode[]
   themeConfig: Parameters<typeof mergeWithDefaults>[0]
@@ -71,7 +73,7 @@ function LayoutBuilderInner({
   layoutId,
   isNew,
   isDefault,
-  usedBy,
+  usedByCount,
   initialName,
   initialTree,
   themeConfig,
@@ -126,7 +128,7 @@ function LayoutBuilderInner({
       isNew={isNew}
       isSaving={isCreating || isUpdating}
       isDefault={isDefault}
-      usedBy={usedBy}
+      usedByCount={usedByCount}
       cssVars={cssVars}
       onTreeChange={handleTreeChange}
       onNameChange={setName}

@@ -7,6 +7,7 @@ import { IconTile, MetricsBand, PageShell, Pill, Section } from '@/components/ki
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
+import type { ThemesUsingLayout } from '@/api/portal-theme.api'
 import { PORTAL_TAB_LAYOUTS, PortalPageHeader } from './portal-page-header'
 import { ImportButton } from './import-button'
 import { formatDate } from '@/utils/format-date'
@@ -14,8 +15,14 @@ import { formatDate } from '@/utils/format-date'
 export interface PortalLayoutRow {
   layout: Schemas.PortalLayout
   nodes: number
-  usedBy: string[]
+  usedBy: ThemesUsingLayout
 }
+
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
+const usedByNames = (usedBy: ThemesUsingLayout) =>
+  usedBy.names.join(NAME_SEPARATOR) + (usedBy.total > usedBy.names.length ? TRUNCATION_MARK : '')
 
 export interface PagePortalLayoutsProps {
   rows: PortalLayoutRow[]
@@ -30,7 +37,7 @@ export interface PagePortalLayoutsProps {
 
 function refusalKeyFor({ layout, usedBy }: PortalLayoutRow): string | null {
   if (layout.is_default) return 'layouts.row.refusal.default'
-  if (usedBy.length > 0) return 'layouts.row.refusal.in_use'
+  if (usedBy.total > 0) return 'layouts.row.refusal.in_use'
   return null
 }
 
@@ -51,7 +58,7 @@ export default function PagePortalLayouts({
     </Button>
   )
 
-  const used = rows.filter((r) => r.usedBy.length > 0).length
+  const used = rows.filter((r) => r.usedBy.total > 0).length
 
   return (
     <PageShell>
@@ -134,9 +141,9 @@ export default function PagePortalLayouts({
                           {layout.name}
                         </button>
                         {layout.is_default && <Pill tone='violet'>{t('layouts.row.default')}</Pill>}
-                        <Pill tone={usedBy.length > 0 ? 'info' : 'neutral'}>
-                          {usedBy.length > 0
-                            ? t('layouts.row.theme_count', { count: usedBy.length })
+                        <Pill tone={usedBy.total > 0 ? 'info' : 'neutral'}>
+                          {usedBy.total > 0
+                            ? t('layouts.row.theme_count', { count: usedBy.total })
                             : t('layouts.row.unused')}
                         </Pill>
                       </div>
@@ -176,8 +183,8 @@ export default function PagePortalLayouts({
                         </TooltipTrigger>
                         <TooltipContent side='left' className='max-w-xs'>
                           {t(refusalKey, {
-                            themes: usedBy.join(', '),
-                            count: usedBy.length,
+                            themes: usedByNames(usedBy),
+                            count: usedBy.total,
                           })}
                         </TooltipContent>
                       </Tooltip>

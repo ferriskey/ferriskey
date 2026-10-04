@@ -80,7 +80,19 @@ themes:
   section:
     title: 主题
     description: 同一时间只能启用一个主题，门户渲染的就是它。
-  empty: 尚无主题。主题承载颜色、排版以及门户渲染的 {{total}} 个页面。
+  empty:
+    label: 尚无主题
+    hint: 主题承载颜色、排版以及门户渲染的 {{total}} 个页面。
+  filters:
+    name: 名称
+    layout: 布局
+    activatable: 可启用
+  columns:
+    name: 名称
+    layout: 布局
+    colors: 颜色
+    updated_at: 更新时间
+    created_at: 创建时间
   metrics:
     total:
       label: 主题
@@ -104,9 +116,7 @@ themes:
     active_theme: 当前启用的主题
     # <num> wraps the "valid/total" counter so it can be rendered with tabular figures.
     pages_valid: <num>{{valid}}/{{total}}</num> 个页面有效
-    layout: 布局 {{name}}
     no_layout: 无布局
-    summary: '{{layout}} · 更新于 {{date}}'
     identifier: 'theme_id: {{id}}'
     incomplete_pages_other: <num>{{count}}</num> 个页面不完整
     activation_blocked: '无法启用：{{detail}}'

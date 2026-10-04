@@ -7,7 +7,7 @@ import {
   useGetPortalLayouts,
   useImportPortalLayout,
 } from '@/api/portal-layouts.api'
-import { useListPortalThemes } from '@/api/portal-theme.api'
+import { usePortalThemesByLayout } from '@/api/portal-theme.api'
 import { downloadPortalLayoutExport, readExportFile } from '@/api/builder-export'
 import { RouterParams } from '@/routes/router'
 import { NEW_LAYOUT_ID, usePortalUrls } from '../use-portal-urls'
@@ -22,18 +22,23 @@ export default function PagePortalLayoutsFeature() {
   const realm = realm_name ?? 'master'
 
   const { data: layoutsData, isLoading } = useGetPortalLayouts({ realm })
-  const { data: themesData } = useListPortalThemes({ realm })
+  const layoutIds = useMemo(
+    () => (layoutsData?.data ?? []).map((layout) => layout.id),
+    [layoutsData]
+  )
+  const themesByLayout = usePortalThemesByLayout({ realm, layoutIds })
   const { mutate: deleteLayout } = useDeletePortalLayout()
   const { mutate: importLayout } = useImportPortalLayout()
 
-  const rows = useMemo<PortalLayoutRow[]>(() => {
-    const themes = themesData?.data ?? []
-    return (layoutsData?.data ?? []).map((layout) => ({
-      layout,
-      nodes: countNodes(layout.tree),
-      usedBy: themes.filter((t) => t.layout_id === layout.id).map((t) => t.name),
-    }))
-  }, [layoutsData, themesData])
+  const rows = useMemo<PortalLayoutRow[]>(
+    () =>
+      (layoutsData?.data ?? []).map((layout) => ({
+        layout,
+        nodes: countNodes(layout.tree),
+        usedBy: themesByLayout.get(layout.id) ?? { total: 0, names: [] },
+      })),
+    [layoutsData, themesByLayout]
+  )
 
   const handleImport = (file: File) => {
     readExportFile(file)
