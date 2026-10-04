@@ -5,6 +5,7 @@ use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped};
@@ -17,8 +18,8 @@ use uuid::Uuid;
 use crate::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, CreateGroupParams,
     DeleteGroupAttributeInput, DeleteGroupInput, GetGroupInput, Group, GroupAttribute,
-    GroupAttributeRepository, GroupConfig, GroupId, GroupMember, GroupMemberPage,
-    GroupMemberRepository, GroupNode, GroupRepository, GroupRoleRepository, GroupService,
+    GroupAttributeRepository, GroupConfig, GroupFilter, GroupId, GroupMember, GroupMemberPage,
+    GroupMemberRepository, GroupRepository, GroupRoleRepository, GroupService, GroupSortField,
     ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
     Organization, OrganizationId, OrganizationPolicy, OrganizationRepository,
     RemoveGroupMemberInput, RevokeGroupRoleInput, UpdateGroupInput, UpdateGroupParams,
@@ -194,35 +195,6 @@ where
 
         Ok(())
     }
-
-    fn build_tree(flat: Vec<Group>) -> Vec<GroupNode> {
-        let mut children: HashMap<Option<GroupId>, Vec<Group>> = HashMap::new();
-        for group in flat {
-            children
-                .entry(group.parent_group_id)
-                .or_default()
-                .push(group);
-        }
-        build_nodes(None, &children)
-    }
-}
-
-fn build_nodes(
-    parent: Option<GroupId>,
-    children: &HashMap<Option<GroupId>, Vec<Group>>,
-) -> Vec<GroupNode> {
-    children
-        .get(&parent)
-        .map(|groups| {
-            groups
-                .iter()
-                .map(|group| GroupNode {
-                    group: group.clone(),
-                    children: build_nodes(Some(group.id), children),
-                })
-                .collect()
-        })
-        .unwrap_or_default()
 }
 
 impl<R, U, C, UR, RO, OR, GR, GMR, GRR, GAR> GroupService
@@ -299,7 +271,8 @@ where
         &self,
         identity: Identity,
         input: ListGroupsInput,
-    ) -> Result<Vec<GroupNode>, CoreError> {
+        request: PageRequest<GroupFilter, GroupSortField>,
+    ) -> Result<Page<Group>, CoreError> {
         let (scope, org) = self
             .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
@@ -310,12 +283,7 @@ where
             "insufficient permissions to view groups",
         )?;
 
-        let flat = self
-            .group_repository
-            .list_groups_by_organization(org.get().id)
-            .await?;
-
-        Ok(Self::build_tree(flat))
+        self.group_repository.list(&org, &request).await
     }
 
     async fn update_group(
@@ -887,12 +855,7 @@ mod tests {
         let org_id = org.id;
 
         let mut group_repo = MockGroupRepository::new();
-        group_repo
-            .expect_list_groups_by_organization()
-            .returning(move |_| {
-                let g = make_group(org_id);
-                Box::pin(async move { Ok(vec![g]) })
-            });
+        group_repo.expect_list().never();
 
         let service = build_service(
             realm_repo,
@@ -910,6 +873,7 @@ mod tests {
                     realm_name: VICTIM_REALM.to_string(),
                     organization_id: org_id,
                 },
+                list_request(),
             )
             .await;
 
@@ -917,6 +881,126 @@ mod tests {
             matches!(result, Err(CoreError::NotFound)),
             "an actor of another realm must not enumerate groups here, got {result:?}"
         );
+    }
+
+    fn list_request() -> PageRequest<GroupFilter, GroupSortField> {
+        PageRequest {
+            filter: GroupFilter {
+                name: Some("eng".to_string()),
+                parent_group_id: Some(Uuid::nil()),
+                is_root: Some(false),
+                ..GroupFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    fn same_realm_actor(
+        realm_id: RealmId,
+        permissions: &'static [&'static str],
+    ) -> (Identity, MockRealmRepository, MockUserRoleRepository) {
+        let realm = make_realm(realm_id, "test-realm");
+        let identity = Identity::User(make_user(&realm));
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let roles = permissions
+                .iter()
+                .map(|permission| make_role_with_permission(realm_id, permission))
+                .collect();
+            Box::pin(async move { Ok(roles) })
+        });
+
+        (identity, realm_repo, user_role_repo)
+    }
+
+    #[tokio::test]
+    async fn list_groups_refuses_a_caller_without_view_rights_before_listing() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_role_repo) = same_realm_actor(realm_id, &[]);
+        let org = make_org(realm_id);
+        let org_id = org.id;
+
+        let mut group_repo = MockGroupRepository::new();
+        group_repo.expect_list().never();
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo_returning(org),
+            group_repo,
+            MockGroupMemberRepository::new(),
+        );
+
+        let result = service
+            .list_groups(
+                identity,
+                ListGroupsInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                },
+                list_request(),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_groups_pages_the_proven_organization_with_the_request() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_role_repo) =
+            same_realm_actor(realm_id, &["view_organizations"]);
+        let org = make_org(realm_id);
+        let org_id = org.id;
+        let listed = make_group(org_id);
+        let expected_id = listed.id;
+
+        let mut group_repo = MockGroupRepository::new();
+        group_repo
+            .expect_list()
+            .withf(move |organization, request| {
+                organization.get().id == org_id && *request == list_request()
+            })
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo_returning(org),
+            group_repo,
+            MockGroupMemberRepository::new(),
+        );
+
+        let page = service
+            .list_groups(
+                identity,
+                ListGroupsInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                },
+                list_request(),
+            )
+            .await
+            .expect("a viewer must be able to list groups");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 
     #[tokio::test]

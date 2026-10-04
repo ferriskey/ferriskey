@@ -1,18 +1,25 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QueryTrait, Select,
+};
 use tracing::error;
+use uuid::Uuid;
 
+use ferriskey_domain::realm::scope::Scoped;
 use ferriskey_organization::{
-    CreateGroupParams, Group, GroupId, GroupRepository, OrganizationId, UpdateGroupParams,
+    CreateGroupParams, Group, GroupFilter, GroupId, GroupRepository, GroupSortField, Organization,
+    OrganizationId, UpdateGroupParams,
 };
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_timestamp;
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::entity::organization_groups::{
     ActiveModel as GroupActiveModel, Column as GroupColumn, Entity as GroupEntity,
     Model as GroupModel,
 };
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 #[derive(Debug, Clone)]
 pub struct PostgresGroupRepository {
@@ -35,6 +42,40 @@ fn model_to_domain(model: GroupModel) -> Group {
         created_at: model.created_at.with_timezone(&Utc),
         updated_at: model.updated_at.with_timezone(&Utc),
     }
+}
+
+impl SortColumn<GroupEntity> for GroupSortField {
+    fn column(&self) -> GroupColumn {
+        match self {
+            GroupSortField::Name => GroupColumn::Name,
+            GroupSortField::CreatedAt => GroupColumn::CreatedAt,
+            GroupSortField::UpdatedAt => GroupColumn::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(organization_id: Uuid, filter: &GroupFilter) -> Select<GroupEntity> {
+    GroupEntity::find()
+        .filter(GroupColumn::OrganizationId.eq(organization_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(GroupColumn::Name, value))
+        })
+        .apply_if(filter.description.as_deref(), |select, value| {
+            select.filter(contains(GroupColumn::Description, value))
+        })
+        .apply_if(filter.parent_group_id, |select, parent| {
+            select.filter(GroupColumn::ParentGroupId.eq(parent))
+        })
+        .apply_if(filter.is_root, |select, root| {
+            select.filter(if root {
+                GroupColumn::ParentGroupId.is_null()
+            } else {
+                GroupColumn::ParentGroupId.is_not_null()
+            })
+        })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(GroupColumn::Id.is_in(ids.iter().copied()))
+        })
 }
 
 impl GroupRepository for PostgresGroupRepository {
@@ -89,6 +130,25 @@ impl GroupRepository for PostgresGroupRepository {
             })?;
 
         Ok(models.into_iter().map(model_to_domain).collect())
+    }
+
+    async fn list(
+        &self,
+        organization: &Scoped<Organization>,
+        request: &PageRequest<GroupFilter, GroupSortField>,
+    ) -> Result<Page<Group>, CoreError> {
+        let select = listing_select(organization.get().id.as_uuid(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("Failed to list groups: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(Page::new(
+            models.into_iter().map(model_to_domain).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
     }
 
     async fn update_group(
@@ -146,5 +206,99 @@ impl GroupRepository for PostgresGroupRepository {
             })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use ferriskey_organization::GroupFilter;
+
+    fn sql(filter: &GroupFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_organization() {
+        let sql = sql(&GroupFilter::default());
+        assert!(
+            sql.contains(
+                r#""organization_groups"."organization_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&GroupFilter {
+            name: Some("a%".to_string()),
+            description: Some("b_".to_string()),
+            ..GroupFilter::default()
+        });
+        assert!(
+            sql.contains(r#""organization_groups"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""organization_groups"."description" ILIKE E'%b\\_%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn parent_group_id_is_an_equality() {
+        let parent = Uuid::from_u128(7);
+        let sql = sql(&GroupFilter {
+            parent_group_id: Some(parent),
+            ..GroupFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(
+                r#""organization_groups"."parent_group_id" = '{parent}'"#
+            )),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn is_root_tests_the_parent_for_null() {
+        let roots = sql(&GroupFilter {
+            is_root: Some(true),
+            ..GroupFilter::default()
+        });
+        assert!(
+            roots.contains(r#""organization_groups"."parent_group_id" IS NULL"#),
+            "{roots}"
+        );
+        let children = sql(&GroupFilter {
+            is_root: Some(false),
+            ..GroupFilter::default()
+        });
+        assert!(
+            children.contains(r#""organization_groups"."parent_group_id" IS NOT NULL"#),
+            "{children}"
+        );
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(&GroupFilter {
+            ids: Some(vec![first, second]),
+            ..GroupFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(
+                r#""organization_groups"."id" IN ('{first}', '{second}')"#
+            )),
+            "{sql}"
+        );
     }
 }
