@@ -34,21 +34,26 @@ list:
   title: Webhook
   description: 接收此域事件通知的端点。
   create: 新建 Webhook
-  search_placeholder: 按名称或端点筛选…
   count_other: '{{count}} 个 Webhook'
   columns:
     name: Webhook
     endpoint: 端点
     subscribers: 事件
     triggered_at: 最近触发
+    created: 创建时间
+    updated: 更新时间
+  filter_fields:
+    name: 名称
+    endpoint: 端点
+    last_delivery_status: 最近投递
+    triggered: 已触发
+    has_subscribers: 含事件
+    secure_endpoint: 通过 HTTPS
   never_triggered: 从未
   metrics:
     total:
       label: 总计
       hint: 个端点
-    subscriptions:
-      label: 订阅
-      hint: '共 {{total}} 个触发器'
     never:
       label: 从未触发
       hint: 尚无投递
@@ -57,16 +62,13 @@ list:
       hint: 永远不会触发
   alerts:
     silent:
-      title: '{{name}} 未订阅任何事件'
-      detail: 它不含任何触发器，因此永远不会被调用。
+      title_other: '{{count}} 个 Webhook 未订阅任何事件'
+      detail: '{{names}}：不含任何触发器，因此永远不会被调用。'
       action: 查看
     insecure:
-      title: '{{name}} 通过明文 HTTP 投递'
-      detail: '{{endpoint}}：负载及其签名请求头以未加密方式传输。'
+      title_other: '{{count}} 个 Webhook 通过明文 HTTP 投递'
+      detail: '{{names}}：负载及其签名请求头以未加密方式传输。'
       action: 查看
-  filters:
-    triggered: 已触发
-    silent: 无事件
   card:
     triggered: 已触发
     never_triggered: 从未触发

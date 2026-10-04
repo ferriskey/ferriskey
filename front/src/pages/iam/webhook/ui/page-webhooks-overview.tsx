@@ -2,18 +2,47 @@ import { Plus, Webhook as WebhookIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill } from '@/components/kit'
-import type { CardSpec, Column } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
+import { describeDeliveryStatus } from '../webhook-delivery-status'
 
 import Webhook = Schemas.Webhook
-import { formatDateTime } from '@/utils/format-date'
+import { formatDateTime, formatRelative } from '@/utils/format-date'
 
-const QUERY_SYNTAX = 'endpoint:hooks.*  event:user.created  events:0'
+const DELIVERY_STATUSES = ['pending', 'delivering', 'succeeded', 'failed'] as const
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
+export interface WebhookCounts {
+  total: number
+  never: number
+  silent: number
+}
+
+export interface WebhookPreview {
+  total: number
+  names: string[]
+}
+
+const previewNames = (preview: WebhookPreview) =>
+  preview.names.join(NAME_SEPARATOR) +
+  (preview.total > preview.names.length ? TRUNCATION_MARK : '')
 
 export interface PageWebhooksOverviewProps {
   webhooks: Webhook[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: WebhookCounts
+  silent: WebhookPreview
+  insecure: WebhookPreview
   webhookHref: (webhook: Webhook) => string
   onCreate: () => void
 }
@@ -24,7 +53,12 @@ const isSecure = (webhook: Webhook) => webhook.endpoint.startsWith('https://')
 
 export default function PageWebhooksOverview({
   webhooks,
+  pagination,
+  listing,
   isLoading,
+  counts,
+  silent,
+  insecure,
   webhookHref,
   onCreate,
 }: PageWebhooksOverviewProps) {
@@ -40,7 +74,7 @@ export default function PageWebhooksOverview({
         ) : (
           <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
         ),
-      sortValue: (w) => label(w),
+      sortKey: 'name',
     },
     {
       key: 'endpoint',
@@ -48,7 +82,7 @@ export default function PageWebhooksOverview({
       render: (w) => (
         <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
       ),
-      sortValue: (w) => w.endpoint,
+      sortKey: 'endpoint',
     },
     {
       key: 'subscribers',
@@ -60,7 +94,6 @@ export default function PageWebhooksOverview({
         ) : (
           <span className='tnum text-fk-danger'>0</span>
         ),
-      sortValue: (w) => w.subscribers.length,
     },
     {
       key: 'triggered_at',
@@ -75,7 +108,27 @@ export default function PageWebhooksOverview({
             {t('list.never_triggered')}
           </span>
         ),
-      sortValue: (w) => w.triggered_at ?? '',
+      sortKey: 'triggered_at',
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (w) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(w.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (w) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(w.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
     },
   ]
 
@@ -112,10 +165,22 @@ export default function PageWebhooksOverview({
     ),
   }
 
-  const silent = webhooks.filter((w) => w.subscribers.length === 0)
-  const insecure = webhooks.filter((w) => !isSecure(w))
-  const neverTriggered = webhooks.filter((w) => !w.triggered_at)
-  const subscriptions = webhooks.reduce((n, w) => n + w.subscribers.length, 0)
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
+    { kind: 'text', key: 'endpoint', label: t('list.filter_fields.endpoint') },
+    {
+      kind: 'enum',
+      key: 'last_delivery_status',
+      label: t('list.filter_fields.last_delivery_status'),
+      options: DELIVERY_STATUSES.map((status) => {
+        const labelKey = describeDeliveryStatus(status).labelKey
+        return { value: status, label: labelKey ? t(labelKey) : status }
+      }),
+    },
+    { kind: 'boolean', key: 'triggered', label: t('list.filter_fields.triggered') },
+    { kind: 'boolean', key: 'has_subscribers', label: t('list.filter_fields.has_subscribers') },
+    { kind: 'boolean', key: 'secure_endpoint', label: t('list.filter_fields.secure_endpoint') },
+  ]
 
   const createButton = (
     <Button onClick={onCreate}>
@@ -133,65 +198,55 @@ export default function PageWebhooksOverview({
         {
           key: 'total',
           label: t('list.metrics.total.label'),
-          value: webhooks.length,
+          value: counts.total,
           hint: t('list.metrics.total.hint'),
-        },
-        {
-          key: 'subscriptions',
-          label: t('list.metrics.subscriptions.label'),
-          value: subscriptions,
-          hint: t('list.metrics.subscriptions.hint', { total: WEBHOOK_TRIGGER_COUNT }),
+          series: [counts.total, counts.total],
         },
         {
           key: 'never',
           label: t('list.metrics.never.label'),
-          value: neverTriggered.length,
+          value: counts.never,
           hint: t('list.metrics.never.hint'),
+          series: [counts.never, counts.never],
         },
         {
           key: 'silent',
           label: t('list.metrics.silent.label'),
-          value: silent.length,
+          value: counts.silent,
           hint: t('list.metrics.silent.hint'),
+          series: [counts.silent, counts.silent],
         },
       ]}
       alerts={[
-        ...silent.map((w) => ({
-          tone: 'warn' as const,
-          title: t('list.alerts.silent.title', { name: label(w) }),
-          detail: t('list.alerts.silent.detail'),
-          action: t('list.alerts.silent.action'),
-        })),
-        ...insecure.map((w) => ({
-          tone: 'error' as const,
-          title: t('list.alerts.insecure.title', { name: label(w) }),
-          detail: t('list.alerts.insecure.detail', { endpoint: w.endpoint }),
-          action: t('list.alerts.insecure.action'),
-        })),
+        ...(silent.total
+          ? [
+              {
+                tone: 'warn' as const,
+                title: t('list.alerts.silent.title', { count: silent.total }),
+                detail: t('list.alerts.silent.detail', { names: previewNames(silent) }),
+                action: t('list.alerts.silent.action'),
+              },
+            ]
+          : []),
+        ...(insecure.total
+          ? [
+              {
+                tone: 'error' as const,
+                title: t('list.alerts.insecure.title', { count: insecure.total }),
+                detail: t('list.alerts.insecure.detail', { names: previewNames(insecure) }),
+                action: t('list.alerts.insecure.action'),
+              },
+            ]
+          : []),
       ]}
-      filters={[
-        {
-          key: 'triggered',
-          label: t('list.filters.triggered'),
-          predicate: (w) => Boolean(w.triggered_at),
-        },
-        {
-          key: 'silent',
-          label: t('list.filters.silent'),
-          predicate: (w) => w.subscribers.length === 0,
-        },
-      ]}
-      searchPlaceholder={t('list.search_placeholder')}
-      querySyntax={QUERY_SYNTAX}
-      searchIn={(w) => `${w.name ?? ''} ${w.endpoint}`}
+      paged={{ listing, pagination, filterFields }}
       rows={webhooks}
       columns={columns}
       card={card}
       getKey={(w) => w.id}
       getHref={webhookHref}
       aggregates={{
-        name: t('list.count', { count: webhooks.length }),
-        subscribers: subscriptions,
+        name: t('list.count', { count: counts.total }),
       }}
       emptyLabel={t('list.empty.label')}
       emptyHint={t('list.empty.hint')}
