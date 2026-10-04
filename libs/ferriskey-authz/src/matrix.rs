@@ -1575,7 +1575,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-layouts/src/services.rs",
-        line: 67,
+        line: 73,
     },
     AuthzRow {
         service_fn: "get_layout",
@@ -1585,7 +1585,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-layouts/src/services.rs",
-        line: 86,
+        line: 90,
     },
     AuthzRow {
         service_fn: "create_layout",
@@ -1595,7 +1595,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-layouts/src/services.rs",
-        line: 108,
+        line: 112,
     },
     AuthzRow {
         service_fn: "update_layout",
@@ -1605,7 +1605,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-layouts/src/services.rs",
-        line: 131,
+        line: 135,
     },
     AuthzRow {
         service_fn: "set_default_layout",
@@ -1615,7 +1615,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-layouts/src/services.rs",
-        line: 157,
+        line: 161,
     },
     AuthzRow {
         service_fn: "delete_layout",
@@ -1625,7 +1625,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-layouts/src/services.rs",
-        line: 181,
+        line: 185,
     },
     AuthzRow {
         service_fn: "get_theme",

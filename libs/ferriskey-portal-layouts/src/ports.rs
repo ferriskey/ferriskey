@@ -2,18 +2,22 @@ use std::future::Future;
 
 use uuid::Uuid;
 
-use crate::entities::PortalLayout;
+use crate::entities::{
+    PortalLayout, PortalLayoutFilter, PortalLayoutListItem, PortalLayoutSortField,
+};
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::realm::Realm;
-use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 
 pub trait PortalLayoutsService: Send + Sync {
     fn list_layouts(
         &self,
         identity: Identity,
-        input: ListLayoutsInput,
-    ) -> impl Future<Output = Result<Vec<PortalLayout>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<PortalLayoutFilter, PortalLayoutSortField>,
+    ) -> impl Future<Output = Result<Page<PortalLayoutListItem>, CoreError>> + Send;
 
     fn get_layout(
         &self,
@@ -64,10 +68,11 @@ pub trait PortalLayoutsService: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait PortalLayoutsRepository: Send + Sync {
-    fn list_by_realm(
+    fn list(
         &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<PortalLayout>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<PortalLayoutFilter, PortalLayoutSortField>,
+    ) -> impl Future<Output = Result<Page<PortalLayoutListItem>, CoreError>> + Send;
 
     fn get_by_id(
         &self,

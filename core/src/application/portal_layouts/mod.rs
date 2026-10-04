@@ -2,9 +2,14 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         portal_layouts::{
-            entities::PortalLayout,
+            entities::{
+                PortalLayout, PortalLayoutFilter, PortalLayoutListItem, PortalLayoutSortField,
+            },
             ports::{
                 CreateLayoutInput, GetLayoutInput, ImportLayoutInput, ListLayoutsInput,
                 PortalLayoutsService, UpdateLayoutInput,
@@ -17,10 +22,11 @@ impl PortalLayoutsService for ApplicationService {
     async fn list_layouts(
         &self,
         identity: Identity,
-        input: ListLayoutsInput,
-    ) -> Result<Vec<PortalLayout>, CoreError> {
+        realm_name: String,
+        request: PageRequest<PortalLayoutFilter, PortalLayoutSortField>,
+    ) -> Result<Page<PortalLayoutListItem>, CoreError> {
         self.portal_layouts_service
-            .list_layouts(identity, input)
+            .list_layouts(identity, realm_name, request)
             .await
     }
 

@@ -1,18 +1,35 @@
+use std::collections::HashMap;
+
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, TransactionTrait,
+    ActiveValue::Set,
+    ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect,
+    QueryTrait, Select, TransactionTrait,
+    sea_query::{Expr, Query, SimpleExpr},
 };
 use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     domain::{
-        common::{entities::app_errors::CoreError, generate_uuid_v7},
-        portal_layouts::{entities::PortalLayout, ports::PortalLayoutsRepository},
-        realm::entities::{Scoped, Unscoped},
+        common::{
+            entities::app_errors::CoreError,
+            generate_uuid_v7,
+            pagination::{Page, PageRequest},
+        },
+        portal_layouts::{
+            entities::{
+                PortalLayout, PortalLayoutFilter, PortalLayoutListItem, PortalLayoutSortField,
+            },
+            ports::PortalLayoutsRepository,
+        },
+        realm::entities::{RealmScope, Scoped, Unscoped},
     },
-    entity::portal_layouts::{ActiveModel, Column, Entity, Model},
+    entity::{
+        portal_layouts::{ActiveModel, Column, Entity, Model},
+        portal_themes,
+    },
+    infrastructure::pagination::{SortColumn, contains, paginate},
 };
 
 #[derive(Debug, Clone)]
@@ -40,19 +57,118 @@ impl From<Model> for PortalLayout {
     }
 }
 
-impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
-    async fn list_by_realm(&self, realm_id: Uuid) -> Result<Vec<PortalLayout>, CoreError> {
-        let models = Entity::find()
-            .filter(Column::RealmId.eq(realm_id))
-            .order_by_asc(Column::CreatedAt)
+impl SortColumn<Entity> for PortalLayoutSortField {
+    fn column(&self) -> Column {
+        match self {
+            PortalLayoutSortField::Name => Column::Name,
+            PortalLayoutSortField::CreatedAt => Column::CreatedAt,
+            PortalLayoutSortField::UpdatedAt => Column::UpdatedAt,
+        }
+    }
+}
+
+fn used_by_a_theme(realm_id: Uuid) -> SimpleExpr {
+    Expr::exists(
+        Query::select()
+            .expr(Expr::val(1))
+            .from(portal_themes::Entity)
+            .and_where(
+                Expr::col((portal_themes::Entity, portal_themes::Column::LayoutId))
+                    .equals((Entity, Column::Id)),
+            )
+            .and_where(
+                Expr::col((portal_themes::Entity, portal_themes::Column::RealmId)).eq(realm_id),
+            )
+            .to_owned(),
+    )
+}
+
+fn listing_select(realm_id: Uuid, filter: &PortalLayoutFilter) -> Select<Entity> {
+    Entity::find()
+        .filter(Column::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(Column::Name, value))
+        })
+        .apply_if(filter.is_default, |select, value| {
+            select.filter(Column::IsDefault.eq(value))
+        })
+        .apply_if(filter.in_use, |select, in_use| {
+            select.filter(if in_use {
+                used_by_a_theme(realm_id)
+            } else {
+                used_by_a_theme(realm_id).not()
+            })
+        })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(Column::Id.is_in(ids.iter().copied()))
+        })
+}
+
+fn theme_count_select(realm_id: Uuid, layout_ids: Vec<Uuid>) -> Select<portal_themes::Entity> {
+    portal_themes::Entity::find()
+        .select_only()
+        .column(portal_themes::Column::LayoutId)
+        .column_as(portal_themes::Column::Id.count(), "theme_count")
+        .filter(portal_themes::Column::RealmId.eq(realm_id))
+        .filter(portal_themes::Column::LayoutId.is_in(layout_ids))
+        .group_by(portal_themes::Column::LayoutId)
+}
+
+impl PostgresPortalLayoutsRepository {
+    async fn theme_counts(
+        &self,
+        realm_id: Uuid,
+        layout_ids: Vec<Uuid>,
+    ) -> Result<HashMap<Uuid, u64>, CoreError> {
+        if layout_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows: Vec<(Option<Uuid>, i64)> = theme_count_select(realm_id, layout_ids)
+            .into_tuple()
             .all(&self.db)
             .await
             .map_err(|e| {
-                error!("failed to list portal layouts: {e}");
+                error!("failed to count themes per portal layout: {e}");
                 CoreError::InternalServerError
             })?;
 
-        Ok(models.into_iter().map(PortalLayout::from).collect())
+        Ok(rows
+            .into_iter()
+            .filter_map(|(layout, count)| Some((layout?, u64::try_from(count).ok()?)))
+            .collect())
+    }
+}
+
+impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<PortalLayoutFilter, PortalLayoutSortField>,
+    ) -> Result<Page<PortalLayoutListItem>, CoreError> {
+        let realm_id: Uuid = scope.id().into();
+        let (models, total) =
+            paginate(&self.db, listing_select(realm_id, &request.filter), request)
+                .await
+                .map_err(|e| {
+                    error!("failed to list portal layouts: {e}");
+                    CoreError::InternalServerError
+                })?;
+        let counts = self
+            .theme_counts(realm_id, models.iter().map(|model| model.id).collect())
+            .await?;
+
+        Ok(Page::new(
+            models
+                .into_iter()
+                .map(|model| PortalLayoutListItem {
+                    theme_count: counts.get(&model.id).copied().unwrap_or_default(),
+                    layout: PortalLayout::from(model),
+                })
+                .collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
     }
 
     async fn get_by_id(
@@ -215,8 +331,6 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
     }
 
     async fn is_used_by_themes(&self, layout: &Scoped<PortalLayout>) -> Result<bool, CoreError> {
-        use crate::entity::portal_themes;
-
         let count = portal_themes::Entity::find()
             .filter(portal_themes::Column::RealmId.eq::<Uuid>(layout.get().realm_id.into()))
             .filter(portal_themes::Column::LayoutId.eq(layout.get().id))
@@ -234,7 +348,7 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
         &self,
         layout: &Scoped<PortalLayout>,
     ) -> Result<bool, CoreError> {
-        use crate::entity::{portal_themes, realm_settings};
+        use crate::entity::realm_settings;
 
         let realm_id: Uuid = layout.get().realm_id.into();
 
@@ -263,5 +377,106 @@ impl PortalLayoutsRepository for PostgresPortalLayoutsRepository {
             })?;
 
         Ok(count > 0)
+    }
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::{listing_select, theme_count_select};
+    use crate::domain::portal_layouts::entities::PortalLayoutFilter;
+
+    fn sql(filter: &PortalLayoutFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&PortalLayoutFilter::default());
+        assert!(
+            sql.contains(r#""portal_layouts"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!sql.contains("EXISTS"), "{sql}");
+        assert!(!sql.contains(" IN "), "{sql}");
+    }
+
+    #[test]
+    fn name_is_an_escaped_contains_match() {
+        let sql = sql(&PortalLayoutFilter {
+            name: Some("a%".to_string()),
+            ..PortalLayoutFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_layouts"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn is_default_is_an_equality() {
+        let sql = sql(&PortalLayoutFilter {
+            is_default: Some(false),
+            ..PortalLayoutFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_layouts"."is_default" = FALSE"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn in_use_checks_for_a_theme_of_the_same_realm() {
+        let sql = sql(&PortalLayoutFilter {
+            in_use: Some(true),
+            ..PortalLayoutFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"EXISTS(SELECT 1 FROM "portal_themes" WHERE "portal_themes"."layout_id" = "portal_layouts"."id" AND "portal_themes"."realm_id" = '00000000-0000-0000-0000-000000000000')"#
+            ),
+            "{sql}"
+        );
+        assert!(!sql.contains("NOT"), "{sql}");
+    }
+
+    #[test]
+    fn not_in_use_negates_the_theme_check() {
+        let sql = sql(&PortalLayoutFilter {
+            in_use: Some(false),
+            ..PortalLayoutFilter::default()
+        });
+        assert!(
+            sql.contains(r#"NOT EXISTS(SELECT 1 FROM "portal_themes""#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let sql = sql(&PortalLayoutFilter {
+            ids: Some(vec![Uuid::nil(), Uuid::max()]),
+            ..PortalLayoutFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_layouts"."id" IN ('00000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff')"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn theme_counts_are_one_grouped_query_bound_to_the_realm() {
+        let sql = theme_count_select(Uuid::nil(), vec![Uuid::max()])
+            .build(DbBackend::Postgres)
+            .to_string();
+        assert_eq!(
+            sql,
+            r#"SELECT "portal_themes"."layout_id", COUNT("portal_themes"."id") AS "theme_count" FROM "portal_themes" WHERE "portal_themes"."realm_id" = '00000000-0000-0000-0000-000000000000' AND "portal_themes"."layout_id" IN ('ffffffff-ffff-ffff-ffff-ffffffffffff') GROUP BY "portal_themes"."layout_id""#
+        );
     }
 }
