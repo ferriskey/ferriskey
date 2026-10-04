@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use ferriskey_core::domain::abyss::identity_provider::{
     IdentityProvider, IdentityProviderFilter, IdentityProviderHealth,
 };
@@ -109,6 +110,8 @@ pub struct IdentityProviderResponse {
     pub trust_email: bool,
     pub link_only: bool,
     pub config: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl From<IdentityProvider> for IdentityProviderResponse {
@@ -126,6 +129,8 @@ impl From<IdentityProvider> for IdentityProviderResponse {
             trust_email: value.trust_email,
             link_only: value.link_only,
             config: serde_json::to_value(value.config).unwrap_or(serde_json::Value::Null),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
         }
     }
 }

@@ -698,6 +698,8 @@ mod tests {
             assert_eq!(first["alias"], seed.alias.as_str());
             assert_eq!(first["provider_id"], seed.provider_id);
             assert_eq!(first["enabled"], seed.enabled);
+            assert!(first["created_at"].is_string(), "{first}");
+            assert!(first["updated_at"].is_string(), "{first}");
         });
     }
 
