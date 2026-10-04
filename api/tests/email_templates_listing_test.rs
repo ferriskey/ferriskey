@@ -674,11 +674,7 @@ mod tests {
             assert_eq!(total(&own), FOREIGN_COUNT);
 
             let foreign = list(&server, &ctx().viewer_token, &ctx().realm, "").await;
-            assert!(
-                [403, 404].contains(&foreign.status_code().as_u16()),
-                "{}",
-                foreign.text()
-            );
+            assert_eq!(foreign.status_code(), 404, "{}", foreign.text());
             let foreign = foreign.text();
             assert!(!foreign.contains("template-00"), "{foreign}");
         });
