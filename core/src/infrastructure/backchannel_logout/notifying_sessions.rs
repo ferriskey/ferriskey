@@ -6,11 +6,13 @@ use uuid::Uuid;
 use crate::domain::authentication::backchannel_logout::{
     BackchannelLogoutNotifier, EndedSession, SessionParticipantRepository,
 };
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{Scoped, Unscoped};
 use crate::domain::session::{
-    entities::{SessionError, UserSession},
+    entities::{SessionError, SessionFilter, SessionSortField, UserSession},
     ports::UserSessionRepository,
 };
+use crate::domain::user::entities::User;
 
 /// Wraps the session store so that every session deleted through it, by
 /// logout, revocation, password change or user disable, is reported to the
@@ -91,6 +93,14 @@ where
         self.inner
             .find_all_by_user_and_realm(user_id, realm_id)
             .await
+    }
+
+    async fn list(
+        &self,
+        user: &Scoped<User>,
+        request: &PageRequest<SessionFilter, SessionSortField>,
+    ) -> Result<Page<UserSession>, SessionError> {
+        self.inner.list(user, request).await
     }
 
     async fn find_by_id(

@@ -46,6 +46,7 @@ use crate::{
             services::ClientServiceImpl,
             token_exchange_policy_services::TokenExchangePolicyServiceImpl,
         },
+        common::pagination::{Page, PageRequest},
         common::{
             entities::{InitializationResult, StartupConfig, app_errors::CoreError},
             ports::CoreService,
@@ -75,7 +76,8 @@ use crate::{
             services::SecurityEventServiceImpl,
         },
         session::{
-            entities::UserSession, ports::UserSessionManagementService,
+            entities::{SessionFilter, SessionSortField, UserSession},
+            ports::UserSessionManagementService,
             services::UserSessionManagementServiceImpl,
         },
         trident::services::TridentServiceImpl,
@@ -277,6 +279,7 @@ pub(crate) type ApplicationTokenRevocation =
 
 type ApplicationUserSessionManagementService = UserSessionManagementServiceImpl<
     RealmRepo,
+    UserRepo,
     UserSessionRepo,
     PolicyImpl,
     ApplicationTokenRevocation,
@@ -991,9 +994,10 @@ impl ApplicationService {
         identity: Identity,
         realm_name: String,
         user_id: uuid::Uuid,
-    ) -> Result<Vec<UserSession>, CoreError> {
+        request: PageRequest<SessionFilter, SessionSortField>,
+    ) -> Result<Page<UserSession>, CoreError> {
         self.user_session_management_service
-            .list_sessions(identity, realm_name, user_id)
+            .list_sessions(identity, realm_name, user_id, request)
             .await
     }
 

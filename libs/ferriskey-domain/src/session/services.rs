@@ -5,13 +5,15 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
+use crate::common::pagination::{Page, PageRequest};
 use crate::common::policies::Policy;
 use crate::realm::ports::RealmRepository;
-use crate::realm::scope::{RealmScope, UnscopedOption};
-use crate::session::entities::{SessionError, UserSession};
+use crate::realm::scope::{RealmScope, Unscoped, UnscopedOption};
+use crate::session::entities::{SessionError, SessionFilter, SessionSortField, UserSession};
 use crate::session::ports::{
     TokenRevocationPort, UserSessionManagementService, UserSessionRepository, UserSessionService,
 };
+use crate::user::ports::UserRepository;
 
 #[derive(Clone)]
 pub struct UserSessionServiceImpl<U>
@@ -61,34 +63,39 @@ where
 }
 
 #[derive(Clone, Debug)]
-pub struct UserSessionManagementServiceImpl<R, U, P, T>
+pub struct UserSessionManagementServiceImpl<R, UR, U, P, T>
 where
     R: RealmRepository,
+    UR: UserRepository,
     U: UserSessionRepository,
     P: Policy,
     T: TokenRevocationPort,
 {
     realm_repository: Arc<R>,
+    user_repository: Arc<UR>,
     session_repository: Arc<U>,
     policy: Arc<P>,
     token_revocation: Arc<T>,
 }
 
-impl<R, U, P, T> UserSessionManagementServiceImpl<R, U, P, T>
+impl<R, UR, U, P, T> UserSessionManagementServiceImpl<R, UR, U, P, T>
 where
     R: RealmRepository,
+    UR: UserRepository,
     U: UserSessionRepository,
     P: Policy,
     T: TokenRevocationPort,
 {
     pub fn new(
         realm_repository: Arc<R>,
+        user_repository: Arc<UR>,
         session_repository: Arc<U>,
         policy: Arc<P>,
         token_revocation: Arc<T>,
     ) -> Self {
         Self {
             realm_repository,
+            user_repository,
             session_repository,
             policy,
             token_revocation,
@@ -96,9 +103,11 @@ where
     }
 }
 
-impl<R, U, P, T> UserSessionManagementService for UserSessionManagementServiceImpl<R, U, P, T>
+impl<R, UR, U, P, T> UserSessionManagementService
+    for UserSessionManagementServiceImpl<R, UR, U, P, T>
 where
     R: RealmRepository,
+    UR: UserRepository,
     U: UserSessionRepository,
     P: Policy,
     T: TokenRevocationPort,
@@ -108,12 +117,15 @@ where
         identity: Identity,
         realm_name: String,
         user_id: Uuid,
-    ) -> Result<Vec<UserSession>, CoreError> {
+        request: PageRequest<SessionFilter, SessionSortField>,
+    ) -> Result<Page<UserSession>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         let actor = self.policy.get_user_from_identity(&identity).await?;
 
-        if actor.id != user_id {
+        let user = if actor.id == user_id {
+            Unscoped::new(actor).in_realm(&scope)?
+        } else {
             let permissions = self
                 .policy
                 .get_permission_for_target_realm(&actor, scope.realm())
@@ -133,15 +145,17 @@ where
                     "insufficient permissions to list sessions".to_string(),
                 ));
             }
-        }
 
-        let sessions = self
-            .session_repository
-            .find_all_by_user_and_realm(user_id, scope.id().into())
+            self.user_repository
+                .get_by_id(user_id)
+                .await?
+                .in_realm(&scope)?
+        };
+
+        self.session_repository
+            .list(&user, &request)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        Ok(sessions)
+            .map_err(|_| CoreError::InternalServerError)
     }
 
     async fn revoke_session(
@@ -220,12 +234,16 @@ mod tests {
     use crate::role::permission::Permissions;
     use crate::session::ports::{MockTokenRevocationPort, MockUserSessionRepository};
     use crate::user::entities::User;
+    use crate::user::ports::MockUserRepository;
     use std::collections::HashSet;
     use uuid::Uuid;
 
     /// The engine lives in `ferriskey-authz`, which the kernel cannot depend
     /// on; these tests only need the caller resolved from its identity.
-    struct TestPolicy;
+    #[derive(Default)]
+    struct TestPolicy {
+        permissions: HashSet<Permissions>,
+    }
 
     impl Policy for TestPolicy {
         async fn get_user_from_identity(&self, identity: &Identity) -> Result<User, CoreError> {
@@ -247,7 +265,7 @@ mod tests {
             _user: &User,
             _target_realm: &Realm,
         ) -> Result<HashSet<Permissions>, CoreError> {
-            Ok(HashSet::new())
+            Ok(self.permissions.clone())
         }
 
         fn can_access_realm(&self, user_realm: &Realm, target_realm: &Realm) -> bool {
@@ -257,6 +275,7 @@ mod tests {
 
     type TestManagementService = UserSessionManagementServiceImpl<
         MockRealmRepository,
+        MockUserRepository,
         MockUserSessionRepository,
         TestPolicy,
         MockTokenRevocationPort,
@@ -302,10 +321,203 @@ mod tests {
     ) -> TestManagementService {
         UserSessionManagementServiceImpl::new(
             Arc::new(realm_repo),
+            Arc::new(MockUserRepository::new()),
             Arc::new(session_repo),
-            Arc::new(TestPolicy),
+            Arc::new(TestPolicy::default()),
             Arc::new(revoker),
         )
+    }
+
+    fn build_listing_service(
+        realm: &Realm,
+        user_repo: MockUserRepository,
+        session_repo: MockUserSessionRepository,
+        permissions: &[Permissions],
+    ) -> TestManagementService {
+        let mut realm_repo = MockRealmRepository::new();
+        let realm = realm.clone();
+        realm_repo
+            .expect_get_by_name()
+            .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
+
+        UserSessionManagementServiceImpl::new(
+            Arc::new(realm_repo),
+            Arc::new(user_repo),
+            Arc::new(session_repo),
+            Arc::new(TestPolicy {
+                permissions: permissions.iter().copied().collect(),
+            }),
+            Arc::new(MockTokenRevocationPort::new()),
+        )
+    }
+
+    fn list_request() -> PageRequest<SessionFilter, SessionSortField> {
+        PageRequest {
+            filter: SessionFilter {
+                ip_address: Some("10.0".to_string()),
+                user_agent: Some("firefox".to_string()),
+                persistent: Some(true),
+            },
+            sort: crate::common::pagination::Sort {
+                field: SessionSortField::LastSeenAt,
+                order: crate::common::pagination::SortOrder::Asc,
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn listing_another_users_sessions_without_rights_is_refused_before_any_lookup() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&realm);
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().never();
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo.expect_list().never();
+
+        let svc = build_listing_service(&realm, user_repo, session_repo, &[]);
+
+        let result = svc
+            .list_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                Uuid::new_v4(),
+                list_request(),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn listing_the_sessions_of_a_user_of_another_realm_is_refused_as_absent() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&realm);
+        let foreign = make_user(&make_realm("other-realm"));
+        let foreign_id = foreign.id;
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo
+            .expect_get_by_id()
+            .withf(move |id| *id == foreign_id)
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Unscoped::new(foreign)) }));
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo.expect_list().never();
+
+        let svc = build_listing_service(&realm, user_repo, session_repo, &[Permissions::ViewUsers]);
+
+        let result = svc
+            .list_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                foreign_id,
+                list_request(),
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)), "got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn a_viewer_lists_the_proven_users_sessions_with_the_request_unchanged() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&realm);
+        let target = make_user(&realm);
+        let target_id = target.id;
+        let listed = make_session(target_id, realm.id.into());
+        let listed_id = listed.id;
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo
+            .expect_get_by_id()
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Unscoped::new(target)) }));
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_list()
+            .withf(move |user, request| user.get().id == target_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let svc = build_listing_service(&realm, user_repo, session_repo, &[Permissions::ViewUsers]);
+
+        let page = svc
+            .list_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                target_id,
+                list_request(),
+            )
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.data().len(), 1);
+        assert_eq!(page.data()[0].id, listed_id);
+    }
+
+    #[tokio::test]
+    async fn a_user_lists_its_own_sessions_without_any_permission() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&realm);
+        let actor_id = actor.id;
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().never();
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_list()
+            .withf(move |user, request| user.get().id == actor_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![], 0, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let svc = build_listing_service(&realm, user_repo, session_repo, &[]);
+
+        let result = svc
+            .list_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                actor_id,
+                list_request(),
+            )
+            .await;
+
+        assert!(result.is_ok(), "got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn a_user_cannot_list_its_own_sessions_through_another_realm() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&make_realm("home-realm"));
+        let actor_id = actor.id;
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().never();
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo.expect_list().never();
+
+        let svc = build_listing_service(&realm, user_repo, session_repo, &[]);
+
+        let result = svc
+            .list_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                actor_id,
+                list_request(),
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)), "got {result:?}");
     }
 
     #[tokio::test]

@@ -1,5 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::realm::RealmId;
@@ -82,6 +84,22 @@ impl UserSession {
             SessionState::Active
         }
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SessionFilter {
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub persistent: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionSortField {
+    LastSeenAt,
+    ExpiresAt,
+    #[default]
+    CreatedAt,
 }
 
 impl RealmOwned for UserSession {

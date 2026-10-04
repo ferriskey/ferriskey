@@ -607,10 +607,11 @@ mod tests {
             );
 
             let refused = list_sessions(&server, TENANT_A, ctx().victim_id).await;
-            let refused_body = assert_ok(
+            assert_not_found(
                 &refused,
                 "listing the sessions of a tenant-b user from the tenant-a url",
             );
+            let refused_body = refused.text();
 
             assert_body_free_of(
                 &refused_body,
