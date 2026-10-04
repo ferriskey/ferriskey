@@ -1,20 +1,26 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
-    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Statement,
+    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QueryTrait, Select, Statement,
 };
 use uuid::Uuid;
 
 use ferriskey_compass::{
-    entities::{CompassFlow, FlowStatus},
+    entities::{CompassFlow, CompassFlowStep, FlowStatus},
     ports::CompassFlowRepository,
-    value_objects::{DailyActivityStats, DailyActivityStatsFilter, FlowFilter, FlowStats},
+    value_objects::{
+        DailyActivityStats, DailyActivityStatsFilter, FlowFilter, FlowSortField, FlowStats,
+    },
 };
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::realm::RealmId;
-use ferriskey_domain::realm::scope::Unscoped;
+use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::entity::{compass_flow_steps, compass_flows};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 #[derive(Debug, Clone)]
 pub struct PostgresCompassFlowRepository {
@@ -25,40 +31,45 @@ impl PostgresCompassFlowRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
     }
+}
 
-    fn apply_filter(
-        query: sea_orm::Select<compass_flows::Entity>,
-        realm_id: RealmId,
-        filter: &FlowFilter,
-    ) -> sea_orm::Select<compass_flows::Entity> {
-        let mut query = query.filter(compass_flows::Column::RealmId.eq::<Uuid>(realm_id.into()));
-
-        if let Some(ref client_id) = filter.client_id {
-            query = query.filter(compass_flows::Column::ClientId.eq(client_id.clone()));
+impl SortColumn<compass_flows::Entity> for FlowSortField {
+    fn column(&self) -> compass_flows::Column {
+        match self {
+            FlowSortField::Status => compass_flows::Column::Status,
+            FlowSortField::StartedAt => compass_flows::Column::StartedAt,
+            FlowSortField::DurationMs => compass_flows::Column::DurationMs,
+            FlowSortField::CreatedAt => compass_flows::Column::CreatedAt,
         }
-
-        if let Some(user_id) = filter.user_id {
-            query = query.filter(compass_flows::Column::UserId.eq(user_id));
-        }
-
-        if let Some(ref grant_type) = filter.grant_type {
-            query = query.filter(compass_flows::Column::GrantType.eq(grant_type.clone()));
-        }
-
-        if let Some(ref status) = filter.status {
-            query = query.filter(compass_flows::Column::Status.eq(status.clone()));
-        }
-
-        if let Some(from) = filter.from_timestamp {
-            query = query.filter(compass_flows::Column::StartedAt.gte(from.naive_utc()));
-        }
-
-        if let Some(to) = filter.to_timestamp {
-            query = query.filter(compass_flows::Column::StartedAt.lte(to.naive_utc()));
-        }
-
-        query
     }
+}
+
+fn listing_select(realm_id: Uuid, filter: &FlowFilter) -> Select<compass_flows::Entity> {
+    use compass_flows::Column;
+
+    compass_flows::Entity::find()
+        .filter(Column::RealmId.eq(realm_id))
+        .apply_if(filter.client_id.as_deref(), |select, value| {
+            select.filter(Column::ClientId.eq(value))
+        })
+        .apply_if(filter.user_id, |select, value| {
+            select.filter(Column::UserId.eq(value))
+        })
+        .apply_if(filter.grant_type.as_deref(), |select, value| {
+            select.filter(Column::GrantType.eq(value))
+        })
+        .apply_if(filter.status.as_ref(), |select, value| {
+            select.filter(Column::Status.eq(value.to_string()))
+        })
+        .apply_if(filter.ip_address.as_deref(), |select, value| {
+            select.filter(contains(Column::IpAddress, value))
+        })
+        .apply_if(filter.from_timestamp, |select, value| {
+            select.filter(Column::StartedAt.gte(value.naive_utc()))
+        })
+        .apply_if(filter.to_timestamp, |select, value| {
+            select.filter(Column::StartedAt.lte(value.naive_utc()))
+        })
 }
 
 impl CompassFlowRepository for PostgresCompassFlowRepository {
@@ -110,45 +121,48 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
         Ok(())
     }
 
-    async fn get_flows(
+    async fn list(
         &self,
-        realm_id: RealmId,
-        filter: FlowFilter,
-    ) -> Result<Vec<CompassFlow>, CoreError> {
-        let query = Self::apply_filter(compass_flows::Entity::find(), realm_id, &filter)
-            .order_by_desc(compass_flows::Column::StartedAt);
+        scope: &RealmScope,
+        request: &PageRequest<FlowFilter, FlowSortField>,
+    ) -> Result<Page<CompassFlow>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            tracing::error!("Failed to list compass flows: {}", e);
+            CoreError::InternalServerError
+        })?;
 
-        let query = if let Some(limit) = filter.limit {
-            query.limit(limit as u64)
-        } else {
-            query
-        };
-
-        let query = if let Some(offset) = filter.offset {
-            query.offset(offset as u64)
-        } else {
-            query
-        };
-
-        let results = query
-            .find_with_related(compass_flow_steps::Entity)
+        let flow_ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
+        let mut steps = compass_flow_steps::Entity::find()
+            .filter(compass_flow_steps::Column::FlowId.is_in(flow_ids))
+            .order_by_asc(compass_flow_steps::Column::StartedAt)
+            .order_by_asc(compass_flow_steps::Column::Id)
             .all(&self.db)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to get compass flows: {}", e);
+                tracing::error!("Failed to load compass flow steps: {}", e);
                 CoreError::InternalServerError
-            })?;
-
-        let flows = results
+            })?
             .into_iter()
-            .map(|(flow_model, step_models)| {
-                let mut flow: CompassFlow = flow_model.into();
-                flow.steps = step_models.into_iter().map(|s| s.into()).collect();
+            .fold(
+                HashMap::<Uuid, Vec<CompassFlowStep>>::new(),
+                |mut acc, step| {
+                    acc.entry(step.flow_id).or_default().push(step.into());
+                    acc
+                },
+            );
+
+        let flows = models
+            .into_iter()
+            .map(|model| {
+                let flow_steps = steps.remove(&model.id).unwrap_or_default();
+                let mut flow: CompassFlow = model.into();
+                flow.steps = flow_steps;
                 flow
             })
             .collect();
 
-        Ok(flows)
+        Ok(Page::new(flows, total, request.page, request.limit))
     }
 
     async fn get_flow_by_id(
@@ -171,17 +185,6 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
         });
 
         Ok(flow)
-    }
-
-    async fn count_flows(&self, realm_id: RealmId, filter: FlowFilter) -> Result<i64, CoreError> {
-        let query = Self::apply_filter(compass_flows::Entity::find(), realm_id, &filter);
-
-        let count = query.count(&self.db).await.map_err(|e| {
-            tracing::error!("Failed to count compass flows: {}", e);
-            CoreError::InternalServerError
-        })?;
-
-        Ok(count as i64)
     }
 
     async fn purge_old_flows(&self, older_than: DateTime<Utc>) -> Result<u64, CoreError> {
@@ -413,5 +416,90 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
                 })
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeZone, Utc};
+    use ferriskey_compass::{entities::FlowStatus, value_objects::FlowFilter};
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+
+    fn sql(filter: &FlowFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&FlowFilter::default());
+        assert!(
+            sql.ends_with(
+                r#"WHERE "compass_flows"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn ip_address_is_an_escaped_contains_match() {
+        let sql = sql(&FlowFilter {
+            ip_address: Some("10.%_".to_string()),
+            ..FlowFilter::default()
+        });
+        assert!(
+            sql.contains(r#""compass_flows"."ip_address" ILIKE E'%10.\\%\\_%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn identifiers_grant_type_and_status_are_exact_matches() {
+        let user_id = Uuid::max();
+        let sql = sql(&FlowFilter {
+            client_id: Some("web-app".to_string()),
+            user_id: Some(user_id),
+            grant_type: Some("password".to_string()),
+            status: Some(FlowStatus::Expired),
+            ..FlowFilter::default()
+        });
+        assert!(
+            sql.contains(r#""compass_flows"."client_id" = 'web-app'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""compass_flows"."user_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""compass_flows"."grant_type" = 'password'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""compass_flows"."status" = 'expired'"#),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
+    }
+
+    #[test]
+    fn the_time_range_is_inclusive_on_started_at() {
+        let sql = sql(&FlowFilter {
+            from_timestamp: Utc.with_ymd_and_hms(2026, 1, 1, 0, 5, 0).single(),
+            to_timestamp: Utc.with_ymd_and_hms(2026, 1, 2, 0, 0, 0).single(),
+            ..FlowFilter::default()
+        });
+        assert!(
+            sql.contains(r#""compass_flows"."started_at" >= '2026-01-01 00:05:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""compass_flows"."started_at" <= '2026-01-02 00:00:00.000000'"#),
+            "{sql}"
+        );
     }
 }

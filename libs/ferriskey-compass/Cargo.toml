@@ -16,5 +16,6 @@ utoipa = { version = "5.4.0", features = ["uuid", "chrono"] }
 uuid = { version = "1.21.0", features = ["serde"] }
 
 [dev-dependencies]
+ferriskey-domain = { path = "../ferriskey-domain", features = ["mock"] }
 mockall = "0.14.0"
 tokio = { version = "1", features = ["sync", "macros", "rt"] }

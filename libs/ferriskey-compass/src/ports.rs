@@ -3,24 +3,31 @@ use std::future::Future;
 use chrono::{DateTime, Utc};
 use ferriskey_domain::{
     auth::Identity,
-    common::app_errors::CoreError,
-    realm::{Realm, RealmId, scope::Unscoped},
+    common::{
+        app_errors::CoreError,
+        pagination::{Page, PageRequest},
+    },
+    realm::{
+        Realm, RealmId,
+        scope::{RealmScope, Unscoped},
+    },
 };
 use uuid::Uuid;
 
 use crate::{
     entities::{CompassFlow, CompassFlowStep, FlowStatus},
     value_objects::{
-        DailyActivityStats, DailyActivityStatsFilter, FetchFlowsInput, FlowFilter, FlowStats,
+        DailyActivityStats, DailyActivityStatsFilter, FlowFilter, FlowSortField, FlowStats,
     },
 };
 
 pub trait CompassService: Send + Sync {
-    fn fetch_flows(
+    fn list_flows(
         &self,
         identity: Identity,
-        input: FetchFlowsInput,
-    ) -> impl Future<Output = Result<Vec<CompassFlow>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<FlowFilter, FlowSortField>,
+    ) -> impl Future<Output = Result<Page<CompassFlow>, CoreError>> + Send;
 
     fn get_flow(
         &self,
@@ -64,22 +71,16 @@ pub trait CompassFlowRepository: Send + Sync {
         user_id: Option<Uuid>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn get_flows(
+    fn list(
         &self,
-        realm_id: RealmId,
-        filter: FlowFilter,
-    ) -> impl Future<Output = Result<Vec<CompassFlow>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<FlowFilter, FlowSortField>,
+    ) -> impl Future<Output = Result<Page<CompassFlow>, CoreError>> + Send;
 
     fn get_flow_by_id(
         &self,
         flow_id: Uuid,
     ) -> impl Future<Output = Result<Option<Unscoped<CompassFlow>>, CoreError>> + Send;
-
-    fn count_flows(
-        &self,
-        realm_id: RealmId,
-        filter: FlowFilter,
-    ) -> impl Future<Output = Result<i64, CoreError>> + Send;
 
     /// Deletes flows started before `older_than`, with their steps. Compass is
     /// a dashboard, not an archive: without a retention window `compass_flows`

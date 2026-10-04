@@ -1086,7 +1086,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 193,
     },
     AuthzRow {
-        service_fn: "fetch_flows",
+        service_fn: "list_flows",
         policy_fn: "can_view_flows",
         action: actions::FLOW_READ,
         resource: EntityType::REALM,
@@ -1097,7 +1097,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-compass/src/services.rs",
-        line: 75,
+        line: 79,
     },
     AuthzRow {
         service_fn: "get_flow",
@@ -1111,7 +1111,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-compass/src/services.rs",
-        line: 96,
+        line: 95,
     },
     AuthzRow {
         service_fn: "get_stats",
@@ -1125,7 +1125,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-compass/src/services.rs",
-        line: 122,
+        line: 121,
     },
     AuthzRow {
         service_fn: "get_daily_activity_stats",
@@ -1139,7 +1139,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-compass/src/services.rs",
-        line: 140,
+        line: 139,
     },
     AuthzRow {
         service_fn: "get_credentials",

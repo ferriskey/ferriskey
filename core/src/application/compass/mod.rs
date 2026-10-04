@@ -1,8 +1,11 @@
 use ferriskey_compass::{
     entities::CompassFlow,
     ports::CompassService,
-    value_objects::{DailyActivityStats, DailyActivityStatsFilter, FetchFlowsInput, FlowStats},
+    value_objects::{
+        DailyActivityStats, DailyActivityStatsFilter, FlowFilter, FlowSortField, FlowStats,
+    },
 };
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use uuid::Uuid;
 
 use crate::{
@@ -11,12 +14,15 @@ use crate::{
 };
 
 impl CompassService for ApplicationService {
-    async fn fetch_flows(
+    async fn list_flows(
         &self,
         identity: Identity,
-        input: FetchFlowsInput,
-    ) -> Result<Vec<CompassFlow>, CoreError> {
-        self.compass_service.fetch_flows(identity, input).await
+        realm_name: String,
+        request: PageRequest<FlowFilter, FlowSortField>,
+    ) -> Result<Page<CompassFlow>, CoreError> {
+        self.compass_service
+            .list_flows(identity, realm_name, request)
+            .await
     }
 
     async fn get_flow(
