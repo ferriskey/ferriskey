@@ -1,13 +1,26 @@
-import { useMemo, useState } from 'react'
-import { Search, Shield, Trash2, UserPlus } from 'lucide-react'
+import { useState } from 'react'
+import { Shield, Trash2, UserPlus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { EntityPicker, IconTile, Pill, Section, StatusDot } from '@/components/kit'
-import type { PickableEntity } from '@/components/kit'
-import { cn } from '@/lib/utils'
-import { tokens } from '@/styles/style-tokens'
+import {
+  DataView,
+  EntityPicker,
+  FilterBar,
+  IconTile,
+  PaginationBar,
+  Pill,
+  Section,
+  StatusDot,
+  type Column,
+  type FilterField,
+  type PagedListing,
+  type PaginationMetadata,
+  type PickableEntity,
+  type ViewMode,
+} from '@/components/kit'
 import { isServiceAccount } from '@/utils'
+import { formatRelative } from '@/utils/format-date'
 import { Schemas } from '@/api/api.client'
 import { memberDisplayName } from '../member-name'
 
@@ -15,41 +28,44 @@ import User = Schemas.User
 
 const SERVICE_ACCOUNT_INITIAL = 'S'
 const FALLBACK_INITIAL = 'U'
+const EMPTY_VALUE = '—'
+const MEMBERS_VIEW: ViewMode = 'list'
+
+export interface OrganizationMemberRow {
+  id: string
+  joinedAt: string
+  user: User
+}
 
 export interface OrganizationMembersTabProps {
-  members: User[]
+  rows: OrganizationMemberRow[]
+  listing: PagedListing
+  pagination?: PaginationMetadata
+  isLoading: boolean
   availableUsers: User[]
   onSearchUsers: (search: string) => void
   isSearchingUsers: boolean
-  isLoading: boolean
   onAdd: (userIds: string[]) => void
   onRemove: (user: User) => void
   onManageRoles: (user: User) => void
 }
 
 export default function OrganizationMembersTab({
-  members,
+  rows,
+  listing,
+  pagination,
+  isLoading,
   availableUsers,
   onSearchUsers,
   isSearchingUsers,
-  isLoading,
   onAdd,
   onRemove,
   onManageRoles,
 }: OrganizationMembersTabProps) {
   const { t } = useTranslation('organization')
   const [staged, setStaged] = useState<PickableEntity[]>([])
-  const [query, setQuery] = useState('')
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return members
-    return members.filter((user) =>
-      `${user.username} ${user.email ?? ''} ${user.firstname ?? ''} ${user.lastname ?? ''}`
-        .toLowerCase()
-        .includes(q)
-    )
-  }, [members, query])
+  const narrowed = Object.values(listing.state.filters).some(Boolean)
 
   const pickerItems = [
     ...staged,
@@ -60,6 +76,126 @@ export default function OrganizationMembersTab({
         label: memberDisplayName(user),
         sublabel: user.email ?? user.username,
       })),
+  ]
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'username', label: t('detail.members.filter_fields.username') },
+    { kind: 'text', key: 'email', label: t('detail.members.filter_fields.email') },
+    { kind: 'boolean', key: 'enabled', label: t('detail.members.filter_fields.enabled') },
+  ]
+
+  const avatar = ({ user }: OrganizationMemberRow) => {
+    const serviceAccount = isServiceAccount(user)
+    return (
+      <IconTile tone={serviceAccount ? 'violet' : 'info'}>
+        <span className='text-xs font-semibold uppercase'>
+          {(serviceAccount
+            ? SERVICE_ACCOUNT_INITIAL
+            : user.firstname || user.username || FALLBACK_INITIAL
+          ).charAt(0)}
+        </span>
+      </IconTile>
+    )
+  }
+
+  const kind = ({ user }: OrganizationMemberRow) => {
+    const serviceAccount = isServiceAccount(user)
+    return (
+      <Pill tone={serviceAccount ? 'violet' : 'info'} mono>
+        {serviceAccount ? t('member.kind.service_account') : t('member.kind.user_account')}
+      </Pill>
+    )
+  }
+
+  const status = ({ user }: OrganizationMemberRow) => (
+    <span className='inline-flex shrink-0 items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
+      <StatusDot on={user.enabled} />
+      {user.enabled ? t('member.status.active') : t('member.status.inactive')}
+    </span>
+  )
+
+  const actions = ({ user }: OrganizationMemberRow) => (
+    <div className='flex items-center justify-end gap-1'>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant='ghost'
+            size='icon'
+            className='size-7 text-neutral-400 dark:text-neutral-500'
+            aria-label={t('detail.members.manage_roles_for', { name: memberDisplayName(user) })}
+            onClick={() => onManageRoles(user)}
+          >
+            <Shield />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('detail.members.manage_roles')}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant='ghost'
+            size='icon'
+            className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
+            aria-label={t('detail.members.remove_member', { name: memberDisplayName(user) })}
+            onClick={() => onRemove(user)}
+          >
+            <Trash2 />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('detail.members.remove')}</TooltipContent>
+      </Tooltip>
+    </div>
+  )
+
+  const columns: Column<OrganizationMemberRow>[] = [
+    {
+      key: 'member',
+      header: t('detail.members.columns.member'),
+      render: (row) => (
+        <div className='flex items-center gap-3'>
+          {avatar(row)}
+          <div className='min-w-0'>
+            <div className='flex items-center gap-2'>
+              <span className='truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>
+                {memberDisplayName(row.user)}
+              </span>
+              {kind(row)}
+            </div>
+            <p className='truncate text-xs text-neutral-500 dark:text-neutral-400'>
+              {row.user.username}
+            </p>
+          </div>
+        </div>
+      ),
+      sortKey: 'username',
+    },
+    {
+      key: 'email',
+      header: t('detail.members.columns.email'),
+      render: (row) => (
+        <span className='text-sm text-neutral-500 dark:text-neutral-400'>
+          {row.user.email ?? EMPTY_VALUE}
+        </span>
+      ),
+      sortKey: 'email',
+    },
+    {
+      key: 'status',
+      header: t('detail.members.columns.status'),
+      render: status,
+    },
+    {
+      key: 'joined',
+      header: t('detail.members.columns.joined'),
+      render: (row) => <span className='tnum'>{formatRelative(row.joinedAt)}</span>,
+      sortKey: 'created_at',
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      render: actions,
+    },
   ]
 
   return (
@@ -96,106 +232,44 @@ export default function OrganizationMembersTab({
       </Section>
 
       <Section
-        title={t('detail.members.title', { total: members.length })}
+        title={t('detail.members.title', { total: pagination?.total ?? 0 })}
         description={t('detail.members.description')}
         contained={false}
-        action={
-          <label className='relative flex h-8 w-64 items-center'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
-            <input
-              type='search'
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('detail.members.search_placeholder')}
-              className='h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
-            />
-          </label>
-        }
       >
-        <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className='flex items-center gap-3 px-3 py-3'>
-                <div className='size-9 animate-pulse rounded-md bg-neutral-100 dark:bg-fk-raised' />
-                <div className='h-3 w-48 animate-pulse rounded bg-neutral-100 dark:bg-fk-raised' />
-              </div>
-            ))
-          ) : members.length === 0 ? (
-            <p className='px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-              {t('detail.members.empty')}
-            </p>
-          ) : filtered.length === 0 ? (
-            <p className='px-3 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400'>
-              {t('detail.members.no_match')}
-            </p>
-          ) : (
-            filtered.map((user) => {
-              const serviceAccount = isServiceAccount(user)
-              return (
-                <div key={user.id} className='flex items-center gap-3 px-3 py-2'>
-                  <IconTile tone={serviceAccount ? 'violet' : 'info'}>
-                    <span className='text-xs font-semibold uppercase'>
-                      {(serviceAccount
-                        ? SERVICE_ACCOUNT_INITIAL
-                        : user.firstname || user.username || FALLBACK_INITIAL
-                      ).charAt(0)}
-                    </span>
-                  </IconTile>
-                  <div className='min-w-0 flex-1'>
-                    <div className='flex items-center gap-2'>
-                      <span className='truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100'>
-                        {memberDisplayName(user)}
-                      </span>
-                      <Pill tone={serviceAccount ? 'violet' : 'info'} mono>
-                        {serviceAccount
-                          ? t('member.kind.service_account')
-                          : t('member.kind.user_account')}
-                      </Pill>
-                    </div>
-                    <p className='truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                      {user.email ?? user.username}
-                    </p>
-                  </div>
-                  <span className='inline-flex shrink-0 items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
-                    <StatusDot on={user.enabled} />
-                    {user.enabled ? t('member.status.active') : t('member.status.inactive')}
-                  </span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='size-7 text-neutral-400 dark:text-neutral-500'
-                        aria-label={t('detail.members.manage_roles_for', {
-                          name: memberDisplayName(user),
-                        })}
-                        onClick={() => onManageRoles(user)}
-                      >
-                        <Shield />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('detail.members.manage_roles')}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='size-7 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
-                        aria-label={t('detail.members.remove_member', {
-                          name: memberDisplayName(user),
-                        })}
-                        onClick={() => onRemove(user)}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('detail.members.remove')}</TooltipContent>
-                  </Tooltip>
-                </div>
-              )
-            })
-          )}
+        <div className='flex flex-col gap-3'>
+          <div className='flex'>
+            <FilterBar fields={filterFields} listing={listing} />
+          </div>
+          <DataView
+            rows={rows}
+            columns={columns}
+            card={{
+              avatar,
+              title: (row) => memberDisplayName(row.user),
+              subtitle: (row) => row.user.email ?? row.user.username,
+              badges: (row) => (
+                <>
+                  {kind(row)}
+                  {status(row)}
+                </>
+              ),
+              footer: actions,
+            }}
+            getKey={(row) => row.id}
+            view={MEMBERS_VIEW}
+            loading={isLoading}
+            sort={listing.state.sort}
+            onSortChange={listing.setSort}
+            emptyLabel={narrowed ? t('detail.members.no_match') : t('detail.members.empty')}
+            emptyAction={
+              narrowed ? (
+                <Button variant='outline' onClick={listing.clearFilters}>
+                  {t('detail.members.show_all')}
+                </Button>
+              ) : undefined
+            }
+          />
+          {pagination && <PaginationBar pagination={pagination} onPageChange={listing.setPage} />}
         </div>
       </Section>
     </>

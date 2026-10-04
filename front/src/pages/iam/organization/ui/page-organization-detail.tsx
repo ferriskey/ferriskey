@@ -9,11 +9,9 @@ import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 import OrganizationSettingsTab, { type OrganizationDraft } from './organization-settings-tab'
 import OrganizationAttributesTab from './organization-attributes-tab'
-import OrganizationMembersTab from './organization-members-tab'
 
 import Organization = Schemas.Organization
 import OrganizationAttribute = Schemas.OrganizationAttribute
-import User = Schemas.User
 import { formatDate } from '@/utils/format-date'
 
 export interface PageOrganizationDetailProps {
@@ -32,14 +30,7 @@ export interface PageOrganizationDetailProps {
   isLoadingAttributes: boolean
   onUpsertAttribute: (key: string, value: string) => void
   onDeleteAttribute: (key: string) => void
-  members: User[]
-  availableUsers: User[]
-  onSearchUsers: (search: string) => void
-  isSearchingUsers: boolean
-  isLoadingMembers: boolean
-  onAddMembers: (userIds: string[]) => void
-  onRemoveMember: (user: User) => void
-  onManageRoles: (user: User) => void
+  members: ReactNode
   groups: ReactNode
   onBack: () => void
 }
@@ -61,13 +52,6 @@ export default function PageOrganizationDetail({
   onUpsertAttribute,
   onDeleteAttribute,
   members,
-  availableUsers,
-  onSearchUsers,
-  isSearchingUsers,
-  isLoadingMembers,
-  onAddMembers,
-  onRemoveMember,
-  onManageRoles,
   groups,
   onBack,
 }: PageOrganizationDetailProps) {
@@ -175,18 +159,7 @@ export default function PageOrganizationDetail({
             />
           )}
 
-          {tab === 'members' && (
-            <OrganizationMembersTab
-              members={members}
-              availableUsers={availableUsers}
-              onSearchUsers={onSearchUsers}
-              isSearchingUsers={isSearchingUsers}
-              isLoading={isLoadingMembers}
-              onAdd={onAddMembers}
-              onRemove={onRemoveMember}
-              onManageRoles={onManageRoles}
-            />
-          )}
+          {tab === 'members' && members}
 
           {tab === 'groups' && groups}
         </div>

@@ -175,9 +175,18 @@ detail:
       submit_other: '添加 {{count}} 个成员'
     title: '成员（{{total}}）'
     description: 归属于此组织的账户，以及它们在该组织范围内的角色。
-    search_placeholder: 搜索成员…
+    columns:
+      member: 成员
+      email: 邮箱
+      status: 状态
+      joined: 加入时间
+    filter_fields:
+      username: 用户名
+      email: 邮箱
+      enabled: 已启用
     empty: 此组织暂无成员。
-    no_match: 没有成员与此搜索匹配。
+    no_match: 没有成员与这些筛选条件匹配。
+    show_all: 显示所有成员
     manage_roles: 管理角色
     manage_roles_for: '管理 {{name}} 的角色'
     remove: 从组织中移除
