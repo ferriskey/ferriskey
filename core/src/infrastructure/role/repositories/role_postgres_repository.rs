@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryTrait, Select,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select,
+    sea_query::{Query, SimpleExpr},
 };
 use tracing::error;
 use uuid::Uuid;
@@ -34,9 +36,34 @@ impl SortColumn<roles::Entity> for RoleSortField {
     }
 }
 
+fn client_identifier_contains(realm_id: Uuid, value: &str) -> SimpleExpr {
+    roles::Column::ClientId.in_subquery(
+        Query::select()
+            .column((clients::Entity, clients::Column::Id))
+            .from(clients::Entity)
+            .and_where(clients::Column::RealmId.eq(realm_id))
+            .and_where(contains(clients::Column::ClientId, value))
+            .to_owned(),
+    )
+}
+
+fn search_condition(realm_id: Uuid, value: &str) -> Condition {
+    Condition::any()
+        .add(contains(roles::Column::Name, value))
+        .add(client_identifier_contains(realm_id, value))
+        .add_option(value.rsplit_once('.').map(|(prefix, suffix)| {
+            Condition::all()
+                .add(client_identifier_contains(realm_id, prefix))
+                .add(contains(roles::Column::Name, suffix))
+        }))
+}
+
 fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> {
     roles::Entity::find()
         .filter(roles::Column::RealmId.eq(realm_id))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search_condition(realm_id, value))
+        })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(roles::Column::Name, value))
         })
@@ -373,5 +400,38 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(empty.contains(r#""roles"."permissions" = 0"#), "{empty}");
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_client_identifier() {
+        let sql = sql(&RoleFilter {
+            search: Some("app%".to_string()),
+            ..RoleFilter::default()
+        });
+        assert!(
+            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')))"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_with_a_dot_also_matches_the_qualified_value_split_at_the_last_dot() {
+        let sql = sql(&RoleFilter {
+            search: Some("app.web.adm_".to_string()),
+            ..RoleFilter::default()
+        });
+        assert!(
+            sql.contains(r#"OR ("roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE '%app.web%')) AND ("roles"."name" ILIKE E'%adm\\_%')))"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_without_a_dot_has_no_qualified_branch() {
+        let sql = sql(&RoleFilter {
+            search: Some("app".to_string()),
+            ..RoleFilter::default()
+        });
+        assert_eq!(sql.matches("IN (SELECT").count(), 1, "{sql}");
     }
 }

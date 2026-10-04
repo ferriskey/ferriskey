@@ -21,6 +21,8 @@ use uuid::Uuid;
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct RoleListParams {
+    #[param(example = "app-web.admin")]
+    pub search: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub require_mfa: Option<bool>,
@@ -37,6 +39,7 @@ impl TryFrom<RoleListParams> for RoleFilter {
 
     fn try_from(params: RoleListParams) -> Result<Self, Self::Error> {
         Ok(Self {
+            search: params.search,
             name: params.name,
             description: params.description,
             require_mfa: params.require_mfa,
@@ -55,7 +58,7 @@ impl TryFrom<RoleListParams> for RoleFilter {
 #[utoipa::path(
     get,
     summary = "List the roles of a realm",
-    description = "Returns one page of the realm's roles. Text filters (name, description) match case-insensitively anywhere in the value; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
+    description = "Returns one page of the realm's roles. search matches case-insensitively a role whose name contains the value, a client role whose client identifier (client_id string) contains the value, or, when the value contains a dot, a client role whose client identifier contains the part before the last dot and whose name contains the part after it (so `app-web.admin` finds the `admin` role of client `app-web`). Text filters (name, description) match case-insensitively anywhere in the value; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
     path = "",
     tag = "role",
     params(
@@ -104,7 +107,7 @@ mod tests {
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
         let request = parse_list_query::<RoleListParams, RoleSortField>(&format!(
-            "order_by=name&order=asc&name=adm&description=ops&require_mfa=true&client_id={client_id}&scope=client&has_permissions=false&ids={first},{second}"
+            "order_by=name&order=asc&search=app-web.adm&name=adm&description=ops&require_mfa=true&client_id={client_id}&scope=client&has_permissions=false&ids={first},{second}"
         ))
         .expect("valid query");
 
@@ -113,6 +116,7 @@ mod tests {
         assert_eq!(
             RoleFilter::try_from(request.filter).expect("valid filter"),
             RoleFilter {
+                search: Some("app-web.adm".to_string()),
                 name: Some("adm".to_string()),
                 description: Some("ops".to_string()),
                 require_mfa: Some(true),
@@ -142,6 +146,7 @@ mod tests {
             "order_by=permissions",
             "client_id=nope",
             "scope=global",
+            "search=a&search=b",
         ] {
             assert!(
                 parse_list_query::<RoleListParams, RoleSortField>(query).is_err(),

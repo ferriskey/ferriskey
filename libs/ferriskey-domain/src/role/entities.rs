@@ -29,6 +29,7 @@ impl RealmOwned for Role {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RoleFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub require_mfa: Option<bool>,

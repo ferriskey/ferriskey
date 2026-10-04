@@ -690,6 +690,92 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn search_matches_the_name_the_client_identifier_or_the_qualified_value() {
+        let server = make_server();
+        let cases: Vec<(&str, HashSet<Uuid>)> = vec![
+            ("search=ROLE-1", matching(|s| s.name.contains("role-1"))),
+            ("search=FIRST", matching(|s| s.link == Link::First)),
+            ("search=app", matching(|s| s.link != Link::None)),
+            (
+                "search=FIRST-APP.role-0",
+                matching(|s| s.link == Link::First && s.name.contains("role-0")),
+            ),
+            (
+                "search=st-app.0",
+                matching(|s| s.link == Link::First && s.name.contains('0')),
+            ),
+            (
+                "search=second&name=role-1",
+                matching(|s| s.link == Link::Second && s.name.contains("role-1")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let none = list_ok(&server, &ctx().realm, "search=first-app.zzz").await;
+            assert!(ids(&none).is_empty(), "{none}");
+            assert_eq!(total(&none), 0);
+
+            let empty = list_ok(&server, &ctx().realm, "search=&limit=100").await;
+            assert_eq!(total(&empty), SEED_COUNT as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn search_never_reaches_another_realm() {
+        let server = make_server();
+        rt().block_on(async {
+            for query in [
+                "search=foreign",
+                "search=foreign-app.role-50",
+                "search=role-50",
+            ] {
+                let witness = list_ok(&server, &ctx().other_realm, query).await;
+                assert_eq!(ids(&witness), [ctx().foreign_role_id], "{query}: witness");
+                assert_eq!(total(&witness), 1, "{query}: witness total");
+
+                let body = list_ok(&server, &ctx().realm, query).await;
+                assert!(ids(&body).is_empty(), "{query}: {body}");
+                assert_eq!(total(&body), 0, "{query}: total");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn search_matches_like_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let witness = list_ok(&server, &ctx().other_realm, "search=pctx").await;
+            assert_eq!(names(&witness), ["pctxrole"]);
+
+            let percent = list_ok(&server, &ctx().other_realm, "search=%25").await;
+            assert_eq!(names(&percent), ["pct%role"]);
+            assert_eq!(total(&percent), 1);
+
+            let underscore = list_ok(&server, &ctx().other_realm, "search=_").await;
+            assert_eq!(names(&underscore), ["under_score"]);
+            assert_eq!(total(&underscore), 1);
+
+            let qualified = list_ok(&server, &ctx().other_realm, "search=%25.role").await;
+            assert!(ids(&qualified).is_empty(), "{qualified}");
+            assert_eq!(total(&qualified), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
     fn client_roles_carry_their_client() {
         let server = make_server();
         rt().block_on(async {
@@ -899,6 +985,7 @@ mod tests {
                 ("client_id=not-a-uuid", "client_id"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());
