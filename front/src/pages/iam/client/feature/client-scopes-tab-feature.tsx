@@ -30,8 +30,15 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
 
   const [view, setView] = useState('assigned')
   const [addOpen, setAddOpen] = useState(false)
-  const realmScopes = useClientScopeCount({ realm })
-  const scopeSearch = useClientScopeSearch({ realm, enabled: addOpen })
+  const unassigned = useClientScopeCount({
+    realm,
+    filter: { not_assigned_to_client: client.id },
+  })
+  const scopeSearch = useClientScopeSearch({
+    realm,
+    filter: { not_assigned_to_client: client.id },
+    enabled: addOpen,
+  })
   const [userId, setUserId] = useState('')
   const [selectedOptional, setSelectedOptional] = useState<string[]>([])
 
@@ -40,14 +47,7 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
     return Array.isArray(raw) ? (raw as ClientScope[]) : []
   }, [clientScopesData])
 
-  const availableScopes = useMemo(
-    () =>
-      scopeSearch.scopes.filter(
-        (scope) => !assignedScopes.some((assigned) => assigned.id === scope.id)
-      ),
-    [scopeSearch.scopes, assignedScopes]
-  )
-  const hasAvailable = realmScopes.count > assignedScopes.length
+  const hasAvailable = unassigned.count > 0
 
   const optionalScopes = useMemo(
     () => assignedScopes.filter((s) => s.default_scope_type === 'OPTIONAL'),
@@ -97,7 +97,7 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
       view={view}
       onViewChange={setView}
       assignedScopes={assignedScopes}
-      availableScopes={availableScopes}
+      availableScopes={scopeSearch.scopes}
       hasAvailable={hasAvailable}
       search={scopeSearch.search}
       onSearchChange={scopeSearch.setSearch}

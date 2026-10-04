@@ -1700,6 +1700,7 @@ export namespace Endpoints {
         protocol: string;
         default_scope_type: "NONE" | "OPTIONAL" | "DEFAULT";
         has_protocol_mappers: boolean;
+        not_assigned_to_client: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };

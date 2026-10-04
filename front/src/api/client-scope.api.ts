@@ -26,7 +26,7 @@ export const CLIENT_SCOPE_SEARCH_LIMIT = 20
 
 const SEARCH_DEBOUNCE_MS = 300
 
-const clientScopesKey = (realm: string) =>
+export const clientScopesKey = (realm: string) =>
   window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
     path: { realm_name: realm },
     query: {},
@@ -63,8 +63,9 @@ export const useClientScopeCount = ({
 
 export const useClientScopeSearch = ({
   realm,
+  filter,
   enabled = true,
-}: BaseQuery & { enabled?: boolean }) => {
+}: BaseQuery & { filter?: ClientScopesFilter; enabled?: boolean }) => {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
 
@@ -76,6 +77,7 @@ export const useClientScopeSearch = ({
   const { data, isLoading } = useGetClientScopes({
     realm,
     query: {
+      ...filter,
       search: debounced || undefined,
       order_by: 'name',
       order: 'asc',

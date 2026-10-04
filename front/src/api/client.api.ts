@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
+import { clientScopesKey } from './client-scope.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 
@@ -279,7 +280,10 @@ export const useAssignScope = () => {
           },
         }
       )
-      await queryClient.invalidateQueries({ queryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey }),
+        queryClient.invalidateQueries({ queryKey: clientScopesKey(variables.realm) }),
+      ])
       toast.success(translate(`common:toast.client.scope_assigned.${variables.type}`))
     },
     onError: (error) => {
@@ -317,7 +321,10 @@ export const useUnassignScope = () => {
           },
         }
       )
-      await queryClient.invalidateQueries({ queryKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey }),
+        queryClient.invalidateQueries({ queryKey: clientScopesKey(variables.realm) }),
+      ])
       toast.success(translate(`common:toast.client.scope_unassigned.${variables.type}`))
     },
     onError: (error) => {
