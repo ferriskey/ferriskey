@@ -34,6 +34,8 @@ export interface PageRealmSettingsProps {
   onSearchMaintenanceUsers: (search: string) => void
   isSearchingMaintenanceUsers: boolean
   maintenanceRoles: PickableEntity[]
+  onSearchMaintenanceRoles: (search: string) => void
+  isSearchingMaintenanceRoles: boolean
   whitelistedUserIds: string[]
   whitelistedRoleIds: string[]
   dirtyCount: number
@@ -69,6 +71,8 @@ export default function PageRealmSettings({
   onSearchMaintenanceUsers,
   isSearchingMaintenanceUsers,
   maintenanceRoles,
+  onSearchMaintenanceRoles,
+  isSearchingMaintenanceRoles,
   whitelistedUserIds,
   whitelistedRoleIds,
   dirtyCount,
@@ -183,6 +187,8 @@ export default function PageRealmSettings({
               onSearchUsers={onSearchMaintenanceUsers}
               isSearchingUsers={isSearchingMaintenanceUsers}
               roles={maintenanceRoles}
+              onSearchRoles={onSearchMaintenanceRoles}
+              isSearchingRoles={isSearchingMaintenanceRoles}
               selectedUserIds={whitelistedUserIds}
               selectedRoleIds={whitelistedRoleIds}
               onUsersChange={onWhitelistedUsersChange}

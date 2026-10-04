@@ -39,6 +39,8 @@ export interface ClientMaintenanceTabProps {
   onSearchUsers: (search: string) => void
   isSearchingUsers: boolean
   roles: PickableEntity[]
+  onSearchRoles: (search: string) => void
+  isSearchingRoles: boolean
   whitelistedUserIds: string[]
   whitelistedRoleIds: string[]
   inheritedUsers: InheritedEntry[]
@@ -100,6 +102,8 @@ export default function ClientMaintenanceTab({
   onSearchUsers,
   isSearchingUsers,
   roles,
+  onSearchRoles,
+  isSearchingRoles,
   whitelistedUserIds,
   whitelistedRoleIds,
   inheritedUsers,
@@ -203,6 +207,8 @@ export default function ClientMaintenanceTab({
             items={roles}
             value={whitelistedRoleIds}
             onChange={onWhitelistedRolesChange}
+            onSearchChange={onSearchRoles}
+            loading={isSearchingRoles}
             addLabel={t('maintenance.roles.add')}
             searchPlaceholder={t('maintenance.roles.search_placeholder')}
             emptyIcon={ShieldCheck}

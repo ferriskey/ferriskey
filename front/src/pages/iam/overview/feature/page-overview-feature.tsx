@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Compass, LayoutGrid, Shield, Users } from 'lucide-react'
 import { useGetClients } from '@/api/client.api'
 import { useUserCount, useUsersByIds } from '@/api/user.api'
-import { useGetRoles } from '@/api/role.api'
+import { useRoleCount } from '@/api/role.api'
 import { useGetDailyActivityStats, useGetFlows, useGetStats } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
 import { RouterParams } from '@/routes/router'
@@ -46,7 +46,7 @@ export default function PageOverviewFeature() {
   const { count: userTotal, isLoading: isLoadingUsers } = useUserCount({ realm })
   const { count: verifiedUsers } = useUserCount({ realm, filter: { email_verified: true } })
   const { count: unverifiedUsers } = useUserCount({ realm, filter: { email_verified: false } })
-  const { data: rolesResponse, isLoading: isLoadingRoles } = useGetRoles({ realm })
+  const { count: roleTotal, isLoading: isLoadingRoles } = useRoleCount({ realm })
   const { data: statsResponse, isLoading: isLoadingStats } = useGetStats({ realm })
 
   const settings = realmResponse?.settings ?? null
@@ -56,7 +56,6 @@ export default function PageOverviewFeature() {
   const { data: flowsResponse } = useGetFlows({ realm: compassRealm, limit: EVENT_COUNT })
 
   const clients = useMemo(() => clientsResponse?.data ?? [], [clientsResponse])
-  const roles = useMemo(() => rolesResponse?.data ?? [], [rolesResponse])
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])
   const flowUserIds = useMemo(
@@ -104,9 +103,9 @@ export default function PageOverviewFeature() {
     {
       key: 'roles',
       label: t('metrics.roles.label'),
-      value: roles.length,
+      value: roleTotal,
       hint: t('metrics.roles.hint'),
-      series: cumulativeSeries(roles.map((r) => r.created_at)),
+      series: [roleTotal, roleTotal],
       tone: 'violet',
     },
     {

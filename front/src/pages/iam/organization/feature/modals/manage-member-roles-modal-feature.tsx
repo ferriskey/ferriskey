@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
-import { useGetRoles } from '@/api/role.api'
+import { useRoleSearch } from '@/api/role.api'
 import {
   useAssignOrganizationMemberRole,
   useOrganizationMemberRoles,
@@ -40,9 +40,7 @@ export default function ManageMemberRolesModalFeature({
   const { t } = useTranslation('organization')
   const userId = user?.id
   const { data: assigned } = useOrganizationMemberRoles(realm, orgId, userId)
-  const rolesResp = useGetRoles({ realm })
-  const rolesData = (rolesResp.data as { data?: Array<{ id: string; name: string }> } | undefined)
-    ?.data
+  const { roles: found, setSearch } = useRoleSearch({ realm, enabled: open })
   const assignRole = useAssignOrganizationMemberRole(realm, orgId, userId)
   const revokeRole = useRevokeOrganizationMemberRole(realm, orgId, userId)
 
@@ -50,8 +48,8 @@ export default function ManageMemberRolesModalFeature({
     toast.error(apiErrorMessage(e, 'Failed to update member roles'))
 
   const options: Option[] = useMemo(
-    () => (rolesData ?? []).map((r) => ({ value: r.id, label: r.name })),
-    [rolesData]
+    () => found.map((r) => ({ value: r.id, label: r.name })),
+    [found]
   )
   const value: Option[] = useMemo(
     () => (assigned ?? []).map((r) => ({ value: r.id, label: r.name })),
@@ -85,6 +83,7 @@ export default function ManageMemberRolesModalFeature({
             value={value}
             options={options}
             onChange={onChange}
+            inputProps={{ onValueChange: setSearch }}
             placeholder={t('member_roles.search_placeholder')}
             hidePlaceholderWhenSelected
             emptyIndicator={

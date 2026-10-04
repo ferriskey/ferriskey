@@ -11,6 +11,8 @@ import Role = Schemas.Role
 export interface UserRoleMappingTabProps {
   roles: Role[]
   assignableRoles: Role[]
+  onSearchRoles: (search: string) => void
+  isSearchingRoles: boolean
   isLoading: boolean
   isError: boolean
   selectedRoleIds: string[]
@@ -22,6 +24,8 @@ export interface UserRoleMappingTabProps {
 export default function UserRoleMappingTab({
   roles,
   assignableRoles,
+  onSearchRoles,
+  isSearchingRoles,
   isLoading,
   isError,
   selectedRoleIds,
@@ -173,6 +177,8 @@ export default function UserRoleMappingTab({
             }))}
             value={selectedRoleIds}
             onChange={onSelectedRoleIdsChange}
+            onSearchChange={onSearchRoles}
+            loading={isSearchingRoles}
             addLabel={t('detail.role_mapping.assign.add')}
             searchPlaceholder={t('detail.role_mapping.assign.search_placeholder')}
             emptyHint={t('detail.role_mapping.assign.empty_hint')}

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetUserRoles } from '@/api/user.api'
 import { useAssignUserRole, useUnassignUserRole } from '@/api/user_role.api'
-import { useGetRoles } from '@/api/role.api'
+import { useRolePicker } from '@/hooks/use-role-picker'
 import { RouterParams } from '@/routes/router'
 import { assignRoleSchema } from '@/pages/iam/user/schemas/assign-role.schema'
 import UserRoleMappingTab from '../ui/user-role-mapping-tab'
@@ -19,18 +19,18 @@ export default function UserRoleMappingFeature() {
     isLoading,
     isError,
   } = useGetUserRoles({ realm, userId: user_id ?? '' })
-  const { data: rolesResponse } = useGetRoles({ realm })
   const { mutateAsync: assignRole } = useAssignUserRole()
   const { mutate: unassignRole } = useUnassignUserRole()
 
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
 
   const roles = useMemo(() => userRoles?.data ?? [], [userRoles])
+  const rolePicker = useRolePicker({ realm, selectedIds: selectedRoleIds })
 
   const assignableRoles = useMemo(() => {
     const assigned = new Set(roles.map((role) => role.id))
-    return (rolesResponse?.data ?? []).filter((role) => !assigned.has(role.id))
-  }, [roles, rolesResponse])
+    return rolePicker.roles.filter((role) => !assigned.has(role.id))
+  }, [roles, rolePicker.roles])
 
   const handleAssign = async () => {
     if (!user_id || !realm_name) {
@@ -73,6 +73,8 @@ export default function UserRoleMappingFeature() {
     <UserRoleMappingTab
       roles={roles}
       assignableRoles={assignableRoles}
+      onSearchRoles={rolePicker.onSearchChange}
+      isSearchingRoles={rolePicker.loading}
       isLoading={isLoading}
       isError={isError}
       selectedRoleIds={selectedRoleIds}

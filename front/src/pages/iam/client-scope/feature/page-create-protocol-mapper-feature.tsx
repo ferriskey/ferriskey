@@ -7,7 +7,7 @@ import { clientScopeMappersUrl } from '../urls'
 import { configFromStrings, defaultConfigValues, parseJsonConfig } from '../config-values'
 import { templateById } from '../mapper-templates'
 import PageCreateProtocolMapper from '../ui/page-create-protocol-mapper'
-import { useMapperEntityOptions } from './use-mapper-entity-options'
+import { MAPPER_ENTITY_SOURCES } from './mapper-entity-sources'
 
 interface Draft {
   key: string
@@ -29,7 +29,6 @@ export default function PageCreateProtocolMapperFeature() {
   const mappersUrl = clientScopeMappersUrl(realm, scope_id ?? '')
 
   const { mutate: createProtocolMapper, isPending } = useCreateProtocolMapper()
-  const entityOptions = useMapperEntityOptions(realm)
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
 
@@ -89,7 +88,7 @@ export default function PageCreateProtocolMapperFeature() {
       mapperType={current.mapperType}
       configJson={current.configJson}
       configValues={current.config}
-      entityOptions={entityOptions}
+      entityOptions={MAPPER_ENTITY_SOURCES}
       nameError={nameError}
       configError={configError}
       canSubmit={parsed.success && typeIsSet && !isPending}

@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dialog'
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
 import { useUserSearch } from '@/api/user.api'
-import { useGetRoles } from '@/api/role.api'
+import { useRoleSearch } from '@/api/role.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import {
   GroupNode,
@@ -389,15 +389,13 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
 function RolesTab({ realm, orgId, group }: { realm?: string; orgId?: string; group: GroupNode }) {
   const { t } = useTranslation('organization')
   const { data: assigned } = useGroupRoles(realm, orgId, group.id)
-  const rolesResp = useGetRoles({ realm })
-  const rolesData = (rolesResp.data as { data?: Array<{ id: string; name: string }> } | undefined)
-    ?.data
+  const { roles: found, setSearch } = useRoleSearch({ realm })
   const assignRole = useAssignGroupRole(realm, orgId, group.id)
   const revokeRole = useRevokeGroupRole(realm, orgId, group.id)
 
   const options: Option[] = useMemo(
-    () => (rolesData ?? []).map((r) => ({ value: r.id, label: r.name })),
-    [rolesData]
+    () => found.map((r) => ({ value: r.id, label: r.name })),
+    [found]
   )
   const value: Option[] = useMemo(
     () => (assigned ?? []).map((r) => ({ value: r.id, label: r.name })),
@@ -422,6 +420,7 @@ function RolesTab({ realm, orgId, group }: { realm?: string; orgId?: string; gro
         value={value}
         options={options}
         onChange={onChange}
+        inputProps={{ onValueChange: setSearch }}
         placeholder={t('groups.roles.search_placeholder')}
         hidePlaceholderWhenSelected
         emptyIndicator={

@@ -12,7 +12,7 @@ import {
   useUpdateRealmSettings,
 } from '@/api/realm.api'
 import { useUserPicker } from '@/hooks/use-user-picker'
-import { useGetRoles } from '@/api/role.api'
+import { useRolePicker } from '@/hooks/use-role-picker'
 import {
   useAddRealmWhitelistEntry,
   useGetRealmWhitelist,
@@ -96,7 +96,6 @@ export default function PageRealmSettingsFeature() {
     isError: policyError,
   } = useGetRealmPasswordPolicy({ realm })
 
-  const { data: rolesResponse } = useGetRoles({ realm })
   const { data: whitelistResponse } = useGetRealmWhitelist({ realm })
 
   const { mutate: updateRealm } = useUpdateRealm()
@@ -173,7 +172,6 @@ export default function PageRealmSettingsFeature() {
   )
 
   const whitelist = useMemo(() => whitelistResponse?.data ?? [], [whitelistResponse])
-  const roles = useMemo(() => rolesResponse?.data ?? [], [rolesResponse])
 
   const whitelistedUserIds = whitelist
     .filter((entry) => entry.user_id)
@@ -182,6 +180,7 @@ export default function PageRealmSettingsFeature() {
     .filter((entry) => entry.role_id)
     .map((entry) => entry.role_id as string)
   const userPicker = useUserPicker({ realm, selectedIds: whitelistedUserIds })
+  const rolePicker = useRolePicker({ realm, selectedIds: whitelistedRoleIds })
 
   const entryIdFor = (kind: WhitelistKind, id: string) =>
     whitelist.find((entry) => (kind === USER_WHITELIST ? entry.user_id : entry.role_id) === id)
@@ -348,11 +347,9 @@ export default function PageRealmSettingsFeature() {
       maintenanceUsers={userPicker.items}
       onSearchMaintenanceUsers={userPicker.onSearchChange}
       isSearchingMaintenanceUsers={userPicker.loading}
-      maintenanceRoles={roles.map((role) => ({
-        id: role.id,
-        label: role.name,
-        sublabel: role.description ?? undefined,
-      }))}
+      maintenanceRoles={rolePicker.items}
+      onSearchMaintenanceRoles={rolePicker.onSearchChange}
+      isSearchingMaintenanceRoles={rolePicker.loading}
       whitelistedUserIds={whitelistedUserIds}
       whitelistedRoleIds={whitelistedRoleIds}
       dirtyCount={dirtyCount}
