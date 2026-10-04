@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 use ferriskey_core::domain::abyss::federation::{
-    entities::FederationProvider,
+    entities::{FederationProvider, FederationProviderFilter},
     value_objects::{SyncResult, TestConnectionResult},
 };
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateProviderRequest {
@@ -127,9 +127,28 @@ impl From<FederationProvider> for ProviderResponse {
     }
 }
 
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ListProvidersResponse {
-    pub data: Vec<ProviderResponse>,
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub struct FederationProviderListParams {
+    pub name: Option<String>,
+    #[param(example = "Ldap")]
+    pub provider_type: Option<String>,
+    pub enabled: Option<bool>,
+    pub sync_enabled: Option<bool>,
+    pub synced: Option<bool>,
+}
+
+impl From<FederationProviderListParams> for FederationProviderFilter {
+    fn from(params: FederationProviderListParams) -> Self {
+        Self {
+            name: params.name,
+            provider_type: params.provider_type,
+            enabled: params.enabled,
+            sync_enabled: params.sync_enabled,
+            synced: params.synced,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]

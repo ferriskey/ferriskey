@@ -108,6 +108,27 @@ pub struct FederatedUser {
     pub attributes: Option<HashMap<String, Vec<String>>>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FederationProviderFilter {
+    pub name: Option<String>,
+    pub provider_type: Option<String>,
+    pub enabled: Option<bool>,
+    pub sync_enabled: Option<bool>,
+    pub synced: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FederationProviderSortField {
+    Name,
+    Priority,
+    Enabled,
+    LastSyncAt,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

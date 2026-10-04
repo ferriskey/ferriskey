@@ -43,7 +43,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "core/src/domain/abyss/federation/services.rs",
-        line: 88,
+        line: 90,
     },
     AuthzRow {
         service_fn: "get_federation_provider",
@@ -53,7 +53,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ViewRealm],
         self_bypass: false,
         file: "core/src/domain/abyss/federation/services.rs",
-        line: 117,
+        line: 119,
     },
     AuthzRow {
         service_fn: "update_federation_provider",
@@ -63,7 +63,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "core/src/domain/abyss/federation/services.rs",
-        line: 144,
+        line: 146,
     },
     AuthzRow {
         service_fn: "delete_federation_provider",
@@ -73,7 +73,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "core/src/domain/abyss/federation/services.rs",
-        line: 172,
+        line: 174,
     },
     AuthzRow {
         service_fn: "list_federation_providers",
@@ -83,7 +83,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ViewRealm],
         self_bypass: false,
         file: "core/src/domain/abyss/federation/services.rs",
-        line: 190,
+        line: 193,
     },
     AuthzRow {
         service_fn: "resolve_provider_for_management",
@@ -93,7 +93,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "core/src/domain/abyss/federation/services.rs",
-        line: 271,
+        line: 272,
     },
     AuthzRow {
         service_fn: "resolve_user_for_link_management",

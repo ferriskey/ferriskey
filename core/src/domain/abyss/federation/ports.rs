@@ -1,14 +1,19 @@
 use std::future::Future;
 use uuid::Uuid;
 
-use super::entities::{FederationMapping, FederationProvider, SyncMode};
+use super::entities::{
+    FederationMapping, FederationProvider, FederationProviderFilter, FederationProviderSortField,
+    SyncMode,
+};
 use super::value_objects::{
     CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::{Realm, Scoped, Unscoped};
+use crate::domain::common::pagination::{Page, PageRequest};
+use crate::domain::realm::entities::{Realm, RealmScope, Scoped, Unscoped};
 
+#[cfg_attr(test, mockall::automock)]
 pub trait FederationRepository: Send + Sync {
     // Provider CRUD
     fn create(
@@ -28,10 +33,11 @@ pub trait FederationRepository: Send + Sync {
         &self,
         provider: &Scoped<FederationProvider>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
-    fn list_by_realm(
+    fn list(
         &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<FederationProvider>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<FederationProviderFilter, FederationProviderSortField>,
+    ) -> impl Future<Output = Result<Page<FederationProvider>, CoreError>> + Send;
 
     // Mappings
     fn create_mapping(
@@ -119,7 +125,8 @@ pub trait FederationService: Send + Sync {
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> impl Future<Output = Result<Vec<FederationProvider>, CoreError>> + Send;
+        request: PageRequest<FederationProviderFilter, FederationProviderSortField>,
+    ) -> impl Future<Output = Result<Page<FederationProvider>, CoreError>> + Send;
 
     fn test_federation_connection(
         &self,
