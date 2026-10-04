@@ -26,6 +26,7 @@ const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 export interface PageMessagesProps {
   events: SecurityEvent[]
   webhooks: Webhook[]
+  webhookTotal: number
   smtpConfigured: boolean
   isLoading: boolean
   isLoadingSmtp: boolean
@@ -56,6 +57,7 @@ const recipientId = (event: SecurityEvent) =>
 export default function PageMessages({
   events,
   webhooks,
+  webhookTotal,
   smtpConfigured,
   isLoading,
   isLoadingSmtp,
@@ -277,7 +279,7 @@ export default function PageMessages({
         contained={false}
         action={
           <span className='tnum text-[11px] text-neutral-400 dark:text-neutral-500'>
-            {t('activity.messages.webhooks.count', { count: webhooks.length })}
+            {t('activity.messages.webhooks.count', { count: webhookTotal })}
           </span>
         }
       >

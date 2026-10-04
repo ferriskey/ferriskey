@@ -12,6 +12,8 @@ import PageMessages from '../ui/page-messages'
 
 const EMAIL_EVENTS = ['email_sent', 'email_not_sent'] as const
 
+const WEBHOOK_PREVIEW = 20
+
 export default function PageMessagesFeature() {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
@@ -32,7 +34,7 @@ export default function PageMessagesFeature() {
   const directory = useRealmDirectory(realm, userIds, roleIds, clientIds)
 
   const { data: smtpConfig, isLoading: isLoadingSmtp } = useGetSmtpConfig({ realm })
-  const { data: webhooksResponse } = useGetWebhooks({ realm })
+  const { data: webhooksResponse } = useGetWebhooks({ realm, query: { limit: WEBHOOK_PREVIEW } })
 
   const webhooks = useMemo(() => webhooksResponse?.data ?? [], [webhooksResponse])
 
@@ -40,6 +42,7 @@ export default function PageMessagesFeature() {
     <PageMessages
       events={events}
       webhooks={webhooks}
+      webhookTotal={webhooksResponse?.metadata.total ?? 0}
       smtpConfigured={Boolean(smtpConfig)}
       isLoading={isLoading}
       isLoadingSmtp={isLoadingSmtp}
