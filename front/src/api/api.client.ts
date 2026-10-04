@@ -998,6 +998,10 @@ export namespace Schemas {
     }>;
     metadata: PageMetadata;
   };
+  export type Paginated_OrganizationMember = {
+    data: Array<{ created_at: string; id: string; organization_id: OrganizationId; user_id: string }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_PortalLayoutListItem = {
     data: Array<PortalLayout & { theme_count: number }>;
     metadata: PageMetadata;
@@ -3536,10 +3540,20 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/organizations/{organization_id}/members";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        username: string;
+        email: string;
+        enabled: boolean;
+        order_by: "username" | "email" | "created_at";
+      }>;
       path: { realm_name: string; organization_id: string };
     };
     responses: {
-      200: Array<Schemas.OrganizationMember>;
+      200: Schemas.Paginated_OrganizationMember;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
@@ -4498,6 +4512,7 @@ export namespace Endpoints {
         role_id: string;
         ids: string;
         not_in_group: string;
+        not_in_organization: string;
         order_by: "username" | "email" | "firstname" | "lastname" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
