@@ -18,7 +18,7 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
 use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
-use crate::entity::{client_scope_protocol_mappers, client_scopes};
+use crate::entity::{client_scope_mappings, client_scope_protocol_mappers, client_scopes};
 use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 impl SortColumn<client_scopes::Entity> for ClientScopeSortField {
@@ -63,6 +63,14 @@ fn listing_select(realm_id: Uuid, filter: &ClientScopeFilter) -> Select<client_s
             } else {
                 client_scopes::Column::Id.not_in_subquery(with_mappers)
             })
+        })
+        .apply_if(filter.not_assigned_to_client, |select, client_id| {
+            let assigned = client_scope_mappings::Entity::find()
+                .select_only()
+                .column(client_scope_mappings::Column::ClientScopeId)
+                .filter(client_scope_mappings::Column::ClientId.eq(client_id))
+                .into_query();
+            select.filter(client_scopes::Column::Id.not_in_subquery(assigned))
         })
 }
 
@@ -369,6 +377,21 @@ mod tests {
                 r#""client_scopes"."id" NOT IN (SELECT "client_scope_protocol_mappers"."client_scope_id" FROM "client_scope_protocol_mappers")"#
             ),
             "{without}"
+        );
+    }
+
+    #[test]
+    fn not_assigned_to_client_excludes_the_mapped_scopes_of_that_client() {
+        let client_id = Uuid::from_u128(7);
+        let sql = sql(&ClientScopeFilter {
+            not_assigned_to_client: Some(client_id),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(
+                r#""client_scopes"."id" NOT IN (SELECT "client_scope_mappings"."client_scope_id" FROM "client_scope_mappings" WHERE "client_scope_mappings"."client_id" = '{client_id}')"#
+            )),
+            "{sql}"
         );
     }
 }

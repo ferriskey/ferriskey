@@ -39,6 +39,7 @@ mod tests {
         protocol: &'static str,
         scope_type: &'static str,
         mappers: usize,
+        assigned: bool,
         created_minute: i32,
         updated_minute: i32,
     }
@@ -60,6 +61,7 @@ mod tests {
                     2 => 2,
                     _ => 0,
                 },
+                assigned: i.is_multiple_of(7),
                 created_minute: i32::try_from(i / 3).expect("small index"),
                 updated_minute: i32::try_from(((i * 11) % SEED_COUNT) / 2).expect("small index"),
             }
@@ -88,6 +90,8 @@ mod tests {
         realm: String,
         other_realm: String,
         seeds: Vec<Seed>,
+        mapped_client: Uuid,
+        other_client: Uuid,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -200,6 +204,17 @@ mod tests {
             insert_seed(&pool, realm_id, seed).await;
         }
 
+        let mapped_client = insert_client(&pool, realm_id, "mapped-app").await;
+        let other_client = insert_client(&pool, realm_id, "other-app").await;
+        for seed in seeds.iter().filter(|seed| seed.assigned) {
+            map_scope(&pool, mapped_client, seed.id).await;
+        }
+        let elsewhere = seeds
+            .iter()
+            .find(|seed| !seed.assigned)
+            .expect("an unassigned seed");
+        map_scope(&pool, other_client, elsewhere.id).await;
+
         let viewer_username = format!("viewer-{}", &suffix[..8]);
         let viewer_id = create_user(&server, &admin_token, &other_realm, &viewer_username).await;
         set_password(
@@ -251,7 +266,36 @@ mod tests {
             realm,
             other_realm,
             seeds,
+            mapped_client,
+            other_client,
         }
+    }
+
+    async fn insert_client(pool: &PgPool, realm_id: Uuid, name: &str) -> Uuid {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO clients (id, realm_id, name, client_id, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at) \
+             VALUES ($1::uuid, $2::uuid, $3, $3, true, 'openid-connect', false, false, 'confidential', now(), now())",
+        )
+        .bind(id.to_string())
+        .bind(realm_id.to_string())
+        .bind(name)
+        .execute(pool)
+        .await
+        .expect("insert client");
+        id
+    }
+
+    async fn map_scope(pool: &PgPool, client_id: Uuid, scope_id: Uuid) {
+        sqlx::query(
+            "INSERT INTO client_scope_mappings (client_id, client_scope_id, default_scope_type) \
+             VALUES ($1::uuid, $2::uuid, 'DEFAULT')",
+        )
+        .bind(client_id.to_string())
+        .bind(scope_id.to_string())
+        .execute(pool)
+        .await
+        .expect("map client scope");
     }
 
     async fn realm_id_of(pool: &PgPool, name: &str) -> Uuid {
@@ -650,6 +694,67 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_scopes_listing_test -- --ignored"]
+    fn not_assigned_to_client_returns_exactly_the_unassigned_scopes() {
+        let server = make_server();
+        rt().block_on(async {
+            let assigned = matching(|s| s.assigned);
+            assert!(!assigned.is_empty() && assigned.len() < SEED_COUNT);
+            let witness = list_ok(&server, &ctx().realm, "limit=100").await;
+            let listed: HashSet<Uuid> = ids(&witness).into_iter().collect();
+            assert!(assigned.is_subset(&listed));
+            assert_eq!(total(&witness), SEED_COUNT as u64);
+
+            let mapped = ctx().mapped_client;
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("not_assigned_to_client={mapped}&limit=100"),
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            let expected = matching(|s| !s.assigned);
+            assert_eq!(found, expected);
+            assert_eq!(total(&body), expected.len() as u64);
+
+            let narrowed = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("not_assigned_to_client={mapped}&search=desc&limit=100"),
+            )
+            .await;
+            let expected = matching(|s| !s.assigned && s.description.is_some());
+            assert_eq!(ids(&narrowed).into_iter().collect::<HashSet<_>>(), expected);
+            assert_eq!(total(&narrowed), expected.len() as u64);
+
+            let other = ctx().other_client;
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("not_assigned_to_client={other}&limit=100"),
+            )
+            .await;
+            let elsewhere = ctx()
+                .seeds
+                .iter()
+                .find(|seed| !seed.assigned)
+                .expect("an unassigned seed")
+                .id;
+            let expected = matching(|s| s.id != elsewhere);
+            assert_eq!(ids(&body).into_iter().collect::<HashSet<_>>(), expected);
+            assert_eq!(total(&body), SEED_COUNT as u64 - 1);
+            let unknown = Uuid::new_v4();
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("not_assigned_to_client={unknown}"),
+            )
+            .await;
+            assert_eq!(total(&body), SEED_COUNT as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test client_scopes_listing_test -- --ignored"]
     fn listed_scopes_carry_their_protocol_mappers() {
         let server = make_server();
         rt().block_on(async {
@@ -766,6 +871,7 @@ mod tests {
                 ("unknown=1", "unknown"),
                 ("default_scope_type=MANDATORY", "default_scope_type"),
                 ("has_protocol_mappers=maybe", "has_protocol_mappers"),
+                ("not_assigned_to_client=nope", "not_assigned_to_client"),
                 ("name=a&name=b", "name"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;

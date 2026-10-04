@@ -108,6 +108,7 @@ pub struct ClientScopeFilter {
     pub protocol: Option<String>,
     pub default_scope_type: Option<ScopeType>,
     pub has_protocol_mappers: Option<bool>,
+    pub not_assigned_to_client: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

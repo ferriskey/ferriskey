@@ -16,6 +16,7 @@ use ferriskey_core::domain::aegis::ports::ClientScopeService;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::Deserialize;
 use utoipa::IntoParams;
+use uuid::Uuid;
 
 #[derive(Debug, Default, Deserialize, IntoParams)]
 #[serde(deny_unknown_fields)]
@@ -29,6 +30,8 @@ pub struct ClientScopeListParams {
     #[param(inline)]
     pub default_scope_type: Option<ScopeType>,
     pub has_protocol_mappers: Option<bool>,
+    #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f")]
+    pub not_assigned_to_client: Option<Uuid>,
 }
 
 impl From<ClientScopeListParams> for ClientScopeFilter {
@@ -40,6 +43,7 @@ impl From<ClientScopeListParams> for ClientScopeFilter {
             protocol: params.protocol,
             default_scope_type: params.default_scope_type,
             has_protocol_mappers: params.has_protocol_mappers,
+            not_assigned_to_client: params.not_assigned_to_client,
         }
     }
 }
@@ -48,7 +52,7 @@ impl From<ClientScopeListParams> for ClientScopeFilter {
     get,
     path = "/client-scopes",
     summary = "List the client scopes of a realm",
-    description = "Returns one page of the realm's client scopes, each with its protocol mappers. Text filters (name, description) match case-insensitively anywhere in the value; search matches the name or the description; protocol and default_scope_type match exactly; has_protocol_mappers keeps scopes with at least one protocol mapper (true) or none (false). Filters combine with AND.",
+    description = "Returns one page of the realm's client scopes, each with its protocol mappers. Text filters (name, description) match case-insensitively anywhere in the value; search matches the name or the description; protocol and default_scope_type match exactly; has_protocol_mappers keeps scopes with at least one protocol mapper (true) or none (false); not_assigned_to_client takes a client id and keeps the scopes not yet assigned to that client. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         PaginationParams,
@@ -92,7 +96,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<ClientScopeListParams, ClientScopeSortField>(
-            "order_by=name&order=asc&name=pro&description=claims&search=mail&protocol=saml&default_scope_type=OPTIONAL&has_protocol_mappers=false",
+            "order_by=name&order=asc&name=pro&description=claims&search=mail&protocol=saml&default_scope_type=OPTIONAL&has_protocol_mappers=false&not_assigned_to_client=0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f",
         )
         .expect("valid query");
 
@@ -107,6 +111,9 @@ mod tests {
                 protocol: Some("saml".to_string()),
                 default_scope_type: Some(ScopeType::Optional),
                 has_protocol_mappers: Some(false),
+                not_assigned_to_client: Some(
+                    Uuid::parse_str("0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f").expect("uuid"),
+                ),
             }
         );
     }
@@ -131,6 +138,7 @@ mod tests {
             "order_by=protocol",
             "default_scope_type=optional",
             "has_protocol_mappers=maybe",
+            "not_assigned_to_client=nope",
         ] {
             assert!(
                 parse_list_query::<ClientScopeListParams, ClientScopeSortField>(query).is_err(),
