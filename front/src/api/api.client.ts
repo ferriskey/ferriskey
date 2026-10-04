@@ -854,17 +854,6 @@ export namespace Schemas {
   export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> };
   export type ListPortalLayoutsResponse = { data: Array<PortalLayout> };
   export type ListThemesResponse = { data: Array<PortalTheme> };
-  export type UserSessionDto = {
-    created_at: string;
-    expires_at: string;
-    id: string;
-    ip_address?: (string | null) | undefined;
-    last_seen_at?: (string | null) | undefined;
-    realm_id: string;
-    user_agent?: (string | null) | undefined;
-    user_id: string;
-  };
-  export type ListUserSessionsResponse = { data: Array<UserSessionDto> };
   export type LogoutRequestValidator = Partial<{
     client_id: string | null;
     id_token_hint: string | null;
@@ -1098,6 +1087,20 @@ export namespace Schemas {
       roles?: (Array<Role> | null) | undefined;
       updated_at: string;
       username: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_UserSessionDto = {
+    data: Array<{
+      created_at: string;
+      expires_at: string;
+      id: string;
+      ip_address?: (string | null) | undefined;
+      last_seen_at?: (string | null) | undefined;
+      persistent: boolean;
+      realm_id: string;
+      user_agent?: (string | null) | undefined;
+      user_id: string;
     }>;
     metadata: PageMetadata;
   };
@@ -1584,6 +1587,17 @@ export namespace Schemas {
   };
   export type UserPermissionsResponse = { data: Array<Permissions> };
   export type UserResponse = { data: User };
+  export type UserSessionDto = {
+    created_at: string;
+    expires_at: string;
+    id: string;
+    ip_address?: (string | null) | undefined;
+    last_seen_at?: (string | null) | undefined;
+    persistent: boolean;
+    realm_id: string;
+    user_agent?: (string | null) | undefined;
+    user_id: string;
+  };
   export type ValidatePublicKeyResponse = Record<string, unknown>;
   export type ValidationErrorResponse = { errors: Array<ValidationError> };
   export type VerifyEmailRequest = { token: string };
@@ -4922,10 +4936,20 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/users/{user_id}/sessions";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        ip_address: string;
+        user_agent: string;
+        persistent: boolean;
+        order_by: "last_seen_at" | "expires_at" | "created_at";
+      }>;
       path: { realm_name: string; user_id: string };
     };
     responses: {
-      200: Schemas.ListUserSessionsResponse;
+      200: Schemas.Paginated_UserSessionDto;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;

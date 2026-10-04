@@ -2,7 +2,14 @@ import { useMemo } from 'react'
 import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useGetOwnProfile, useGetUserSessions, useRevokeUserSession } from '@/api/user.api.ts'
+import {
+  USER_SESSION_FILTER_KEYS,
+  useGetOwnProfile,
+  useGetUserSessions,
+  useRevokeUserSession,
+  type UserSessionsQuery,
+} from '@/api/user.api.ts'
+import { usePagedListing } from '@/components/kit'
 import { authStore } from '@/store/auth.store'
 import { RouterParams } from '@/routes/router'
 import PageAccountSessions from '../ui/page-account-sessions'
@@ -29,9 +36,11 @@ export default function PageAccountSessionsFeature() {
   const { data: profileResponse, isLoading: isProfileLoading } = useGetOwnProfile({ realm: realm_name })
   const userId = profileResponse?.data.id
 
+  const listing = usePagedListing(USER_SESSION_FILTER_KEYS)
   const { data: sessionsResponse, isLoading: isSessionsLoading } = useGetUserSessions({
     realm: realm_name,
     userId,
+    query: listing.apiQuery as UserSessionsQuery,
   })
   const { mutate: revokeSession } = useRevokeUserSession()
 
@@ -53,8 +62,11 @@ export default function PageAccountSessionsFeature() {
   return (
     <PageAccountSessions
       profile={profileResponse?.data}
-      isLoading={isProfileLoading || isSessionsLoading}
+      isLoading={isProfileLoading}
+      isSessionsLoading={isSessionsLoading}
       sessions={sessionsResponse?.data ?? []}
+      pagination={sessionsResponse?.metadata}
+      listing={listing}
       currentSessionId={currentSessionId}
       onRevoke={handleRevoke}
     />
