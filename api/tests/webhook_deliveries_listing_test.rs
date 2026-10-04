@@ -229,8 +229,9 @@ mod tests {
 
         let resources: Vec<Uuid> = (0..5).map(|_| Uuid::new_v4()).collect();
         let seeds: Vec<Seed> = (0..SEED_COUNT).map(|i| Seed::new(i, &resources)).collect();
+        let seed_base = seed_base(&pool).await;
         for seed in &seeds {
-            insert_seed(&pool, realm_id, webhook, seed).await;
+            insert_seed(&pool, realm_id, webhook, &seed_base, seed).await;
         }
 
         let mut sibling_deliveries = HashSet::new();
@@ -316,7 +317,16 @@ mod tests {
         id
     }
 
-    async fn insert_seed(pool: &PgPool, realm_id: Uuid, webhook_id: Uuid, seed: &Seed) {
+    async fn seed_base(pool: &PgPool) -> String {
+        sqlx::query_scalar(
+            "SELECT to_char(date_trunc('minute', now() AT TIME ZONE 'UTC') - interval '1 day', 'YYYY-MM-DD HH24:MI:SS')",
+        )
+        .fetch_one(pool)
+        .await
+        .expect("seed base timestamp")
+    }
+
+    async fn insert_seed(pool: &PgPool, realm_id: Uuid, webhook_id: Uuid, base: &str, seed: &Seed) {
         let next_attempt = (seed.status == "pending").then_some(seed.created_minute + 30);
         let (status_code, error_code, error_detail) = if seed.failed() {
             (Some(503), Some("http_503"), Some("upstream down"))
@@ -328,10 +338,10 @@ mod tests {
              next_attempt_at, last_attempt_at, last_status_code, last_error_code, last_error_detail, created_at, updated_at) \
              VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, jsonb_build_object('marker', $6::text), $7, $8, \
              TIMESTAMP '2099-01-01 00:00:00' + make_interval(mins => $9), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $10), \
+             $16::timestamp + make_interval(mins => $10), \
              $11, $12, $13, \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $14), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $15))",
+             $16::timestamp + make_interval(mins => $14), \
+             $16::timestamp + make_interval(mins => $15))",
         )
         .bind(seed.id.to_string())
         .bind(realm_id.to_string())
@@ -348,6 +358,7 @@ mod tests {
         .bind(error_detail)
         .bind(seed.created_minute)
         .bind(seed.updated_minute)
+        .bind(base)
         .execute(pool)
         .await
         .expect("insert delivery");
@@ -722,12 +733,14 @@ mod tests {
                 matching(|s| s.failed() && s.resource_id == resource),
             ),
             ("status=".to_string(), matching(|_| true)),
+            ("event=".to_string(), matching(|_| true)),
+            ("resource_id=".to_string(), matching(|_| true)),
         ];
 
         rt().block_on(async {
             for (query, expected) in cases {
                 assert!(
-                    (!expected.is_empty() && expected.len() < SEED_COUNT) || query == "status=",
+                    (!expected.is_empty() && expected.len() < SEED_COUNT) || query.ends_with('='),
                     "{query}: the fixture must make this filter discriminating"
                 );
                 let body = list_seeded(&server, &format!("{query}&limit=100")).await;
