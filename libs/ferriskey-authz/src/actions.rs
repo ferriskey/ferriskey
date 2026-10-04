@@ -9,6 +9,18 @@
 
 use crate::entities::ActionId;
 
+pub const AUTHORIZATION_POLICY_CREATE: ActionId = ActionId::new("authorization_policy:create");
+pub const AUTHORIZATION_POLICY_DELETE: ActionId = ActionId::new("authorization_policy:delete");
+pub const AUTHORIZATION_POLICY_READ: ActionId = ActionId::new("authorization_policy:read");
+pub const AUTHORIZATION_POLICY_UPDATE: ActionId = ActionId::new("authorization_policy:update");
+pub const AUTHORIZATION_SCHEMA_READ: ActionId = ActionId::new("authorization_schema:read");
+pub const AUTHORIZATION_SCHEMA_UPDATE: ActionId = ActionId::new("authorization_schema:update");
+pub const AUTHORIZATION_STATE_READ: ActionId = ActionId::new("authorization_state:read");
+pub const AUTHORIZATION_STATE_UPDATE: ActionId = ActionId::new("authorization_state:update");
+pub const AUTHORIZATION_TEMPLATE_CREATE: ActionId = ActionId::new("authorization_template:create");
+pub const AUTHORIZATION_TEMPLATE_DELETE: ActionId = ActionId::new("authorization_template:delete");
+pub const AUTHORIZATION_TEMPLATE_READ: ActionId = ActionId::new("authorization_template:read");
+pub const AUTHORIZATION_TEMPLATE_UPDATE: ActionId = ActionId::new("authorization_template:update");
 pub const CLIENT_CREATE: ActionId = ActionId::new("client:create");
 pub const CLIENT_DELETE: ActionId = ActionId::new("client:delete");
 pub const CLIENT_READ: ActionId = ActionId::new("client:read");
@@ -109,6 +121,18 @@ pub const WEBHOOK_UPDATE: ActionId = ActionId::new("webhook:update");
 
 /// Every action the matrix references, for catalogue lookups by name.
 pub const ALL: &[ActionId] = &[
+    AUTHORIZATION_POLICY_CREATE,
+    AUTHORIZATION_POLICY_DELETE,
+    AUTHORIZATION_POLICY_READ,
+    AUTHORIZATION_POLICY_UPDATE,
+    AUTHORIZATION_SCHEMA_READ,
+    AUTHORIZATION_SCHEMA_UPDATE,
+    AUTHORIZATION_STATE_READ,
+    AUTHORIZATION_STATE_UPDATE,
+    AUTHORIZATION_TEMPLATE_CREATE,
+    AUTHORIZATION_TEMPLATE_DELETE,
+    AUTHORIZATION_TEMPLATE_READ,
+    AUTHORIZATION_TEMPLATE_UPDATE,
     CLIENT_CREATE,
     CLIENT_DELETE,
     CLIENT_READ,
