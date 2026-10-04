@@ -2,8 +2,6 @@ import { useEffect, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useParams } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useGetUserRealmsQuery } from '@/api/realm.api'
-import useRealmStore from '@/store/realm.store'
 import { useLayoutTier } from '@/hooks/use-media-query'
 import { RouterParams } from '@/routes/router'
 import { TopBar } from '../top-bar'
@@ -20,18 +18,10 @@ export function AppShell() {
   const crumbs = useCrumbs()
   const { collapsed, toggle } = useSidebarCollapsed()
   const { realm_name } = useParams<RouterParams>()
-  const { setUserRealms } = useRealmStore()
-  const { data: userRealmsResponse } = useGetUserRealmsQuery({
-    realm: realm_name ?? 'master',
-  })
   const tier = useLayoutTier()
   const [navOpen, setNavOpen] = useState(false)
   const realm = realm_name ?? 'master'
   const base = REALM_URL(realm)
-
-  useEffect(() => {
-    if (userRealmsResponse) setUserRealms(userRealmsResponse.data)
-  }, [userRealmsResponse, setUserRealms])
 
   useEffect(() => {
     document.documentElement.dataset.style = 'ferriskey'

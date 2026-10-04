@@ -1,21 +1,62 @@
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
+import type { Endpoints } from './api.client'
 
-export interface UserRealmsQuery {
-  realm: string
-}
+export type UserRealmsQuery = NonNullable<Endpoints.get_Get_user_realms['parameters']['query']>
 
-export const useGetUserRealmsQuery = ({ realm }: UserRealmsQuery) => {
-  return useQuery(
-    window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
+export const REALM_SEARCH_LIMIT = 20
+
+const SEARCH_DEBOUNCE_MS = 300
+
+export const useGetUserRealmsQuery = ({
+  realm,
+  query,
+  enabled = true,
+}: BaseQuery & { query?: UserRealmsQuery; enabled?: boolean }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
       path: {
-        realm_name: realm,
+        realm_name: realm || 'master',
       },
-    }).queryOptions
-  )
+      query: query ?? {},
+    }).queryOptions,
+    enabled,
+  })
 }
 
-export const useCreateRealm = ({ realm }: UserRealmsQuery) => {
+export const useUserRealmSearch = ({
+  realm,
+  enabled = true,
+}: BaseQuery & { enabled?: boolean }) => {
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data, isLoading } = useGetUserRealmsQuery({
+    realm,
+    query: {
+      name: debounced || undefined,
+      order_by: 'name',
+      order: 'asc',
+      limit: REALM_SEARCH_LIMIT,
+    },
+    enabled,
+  })
+
+  return {
+    search,
+    setSearch,
+    realms: data?.data ?? [],
+    isLoading,
+  }
+}
+
+export const useCreateRealm = ({ realm }: BaseQuery) => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -24,8 +65,9 @@ export const useCreateRealm = ({ realm }: UserRealmsQuery) => {
     onSuccess: async () => {
       const keys = window.tanstackApi.get('/realms/{realm_name}/users/@me/realms', {
         path: {
-          realm_name: realm,
+          realm_name: realm || 'master',
         },
+        query: {},
       }).queryKey
 
       await queryClient.invalidateQueries({
@@ -67,6 +109,7 @@ export const useDeleteRealm = () => {
         path: {
           realm_name: variables.path.name,
         },
+        query: {},
       }).queryKey
       await queryClient.invalidateQueries({ queryKey: keys })
     },
@@ -83,6 +126,7 @@ export const useUpdateRealm = () => {
         path: {
           realm_name: variables.path.name,
         },
+        query: {},
       }).queryKey
 
       const realmKeys = window.tanstackApi.get('/realms/{name}', {

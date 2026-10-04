@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { ChevronRight } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useGetUserRealmsQuery } from '@/api/realm.api'
-import useRealmStore from '@/store/realm.store'
 import { useLayoutTier } from '@/hooks/use-media-query'
 import { RouterParams } from '@/routes/router'
 import { cn } from '@/lib/utils'
@@ -73,14 +71,8 @@ export function ConsoleShell() {
   const { t } = useTranslation()
   const { realm_name = 'master' } = useParams<RouterParams>()
   const { pathname } = useLocation()
-  const { setUserRealms } = useRealmStore()
-  const { data: userRealmsResponse } = useGetUserRealmsQuery({ realm: realm_name })
   const tier = useLayoutTier()
   const [navOpen, setNavOpen] = useState(false)
-
-  useEffect(() => {
-    if (userRealmsResponse) setUserRealms(userRealmsResponse.data)
-  }, [userRealmsResponse, setUserRealms])
 
   useEffect(() => {
     document.documentElement.dataset.style = 'ferriskey'
