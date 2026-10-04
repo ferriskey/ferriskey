@@ -507,6 +507,13 @@ impl GroupAttribute {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct GroupListItem {
+    #[serde(flatten)]
+    pub group: Group,
+    pub child_count: u64,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GroupFilter {
     pub name: Option<String>,

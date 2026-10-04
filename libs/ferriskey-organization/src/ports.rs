@@ -12,9 +12,9 @@ use crate::entities::{
     CreateGroupInput, CreateGroupParams, CreateOrganizationInput, CreateOrganizationParams,
     DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
     DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
-    GroupFilter, GroupId, GroupMember, GroupMemberDetail, GroupMemberPage, GroupRoleMapping,
-    GroupSortField, ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput,
-    ListGroupsInput, ListMemberRolesInput, ListOrganizationAttributesInput,
+    GroupFilter, GroupId, GroupListItem, GroupMember, GroupMemberDetail, GroupMemberPage,
+    GroupRoleMapping, GroupSortField, ListGroupAttributesInput, ListGroupMembersInput,
+    ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput, ListOrganizationAttributesInput,
     ListOrganizationMembersInput, ListUserOrganizationsInput, Organization, OrganizationAttribute,
     OrganizationFilter, OrganizationId, OrganizationMember, OrganizationSortField,
     RemoveGroupMemberInput, RemoveOrganizationMemberInput, RevokeGroupRoleInput,
@@ -243,7 +243,7 @@ pub trait GroupRepository: Send + Sync {
         &self,
         organization: &Scoped<Organization>,
         request: &PageRequest<GroupFilter, GroupSortField>,
-    ) -> impl Future<Output = Result<Page<Group>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Page<GroupListItem>, CoreError>> + Send;
 
     fn update_group(
         &self,
@@ -422,7 +422,7 @@ pub trait GroupService: Send + Sync {
         identity: Identity,
         input: ListGroupsInput,
         request: PageRequest<GroupFilter, GroupSortField>,
-    ) -> impl Future<Output = Result<Page<Group>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Page<GroupListItem>, CoreError>> + Send;
 
     fn update_group(
         &self,

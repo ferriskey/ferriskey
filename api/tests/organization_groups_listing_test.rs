@@ -658,6 +658,10 @@ mod tests {
                 format!("name=grp-0&parent_group_id={root_b}"),
                 matching(|s| s.name.contains("grp-0") && s.parent == Some(1)),
             ),
+            (
+                format!("is_root=false&parent_group_id={root_a}"),
+                matching(|s| s.parent == Some(0)),
+            ),
             ("name=".to_string(), matching(|_| true)),
         ];
 
@@ -803,6 +807,68 @@ mod tests {
         });
     }
 
+    fn child_counts(body: &Value) -> Vec<(Uuid, u64)> {
+        body["data"]
+            .as_array()
+            .expect("data array")
+            .iter()
+            .map(|group| {
+                (
+                    Uuid::parse_str(group["id"].as_str().expect("group id")).expect("uuid"),
+                    group["child_count"].as_u64().expect("child_count"),
+                )
+            })
+            .collect()
+    }
+
+    fn expected_child_count(id: Uuid) -> u64 {
+        let seeds = &ctx().seeds;
+        let index = seeds
+            .iter()
+            .position(|seed| seed.id == id)
+            .expect("a seeded group");
+        seeds
+            .iter()
+            .filter(|seed| seed.parent == Some(index))
+            .count() as u64
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
+    fn child_count_counts_the_direct_children_of_each_listed_group() {
+        let server = make_server();
+        rt().block_on(async {
+            for query in ["order_by=name&order=asc", "limit=100", "is_root=true"] {
+                let body = list_main(&server, query).await;
+                let counts = child_counts(&body);
+                assert!(!counts.is_empty(), "{query}");
+                for (id, count) in counts {
+                    assert_eq!(count, expected_child_count(id), "{query}: {id}");
+                }
+            }
+
+            let all = child_counts(&list_main(&server, "limit=100").await);
+            let parents = all.iter().filter(|(_, count)| *count > 0).count();
+            let leaves = all.iter().filter(|(_, count)| *count == 0).count();
+            assert_eq!(parents, 4);
+            assert_eq!(leaves, SEED_COUNT - 4);
+
+            let page = child_counts(&list_main(&server, "order_by=name&order=asc").await);
+            assert!(page.iter().any(|(_, count)| *count > 0));
+            assert!(page.iter().any(|(_, count)| *count == 0));
+
+            let sibling = list_ok(
+                &server,
+                &ctx().realm,
+                ctx().sibling_organization_id,
+                "is_root=true",
+            )
+            .await;
+            assert_eq!(names(&sibling), ["grp-50"]);
+            assert_eq!(sibling["data"][0]["child_count"], 1);
+        });
+    }
+
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
     fn ids_select_exactly_the_given_groups_of_the_organization() {
@@ -894,6 +960,10 @@ mod tests {
                 ("parent_group_id=not-a-uuid", "parent_group_id"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
+                (
+                    "is_root=true&parent_group_id=00000000-0000-0000-0000-000000000001",
+                    "is_root",
+                ),
             ] {
                 let response = list(
                     &server,

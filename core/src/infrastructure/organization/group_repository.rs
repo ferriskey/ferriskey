@@ -1,15 +1,18 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QueryTrait, Select,
+    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
+    Select,
 };
 use tracing::error;
 use uuid::Uuid;
 
 use ferriskey_domain::realm::scope::Scoped;
 use ferriskey_organization::{
-    CreateGroupParams, Group, GroupFilter, GroupId, GroupRepository, GroupSortField, Organization,
-    OrganizationId, UpdateGroupParams,
+    CreateGroupParams, Group, GroupFilter, GroupId, GroupListItem, GroupRepository, GroupSortField,
+    Organization, OrganizationId, UpdateGroupParams,
 };
 
 use crate::domain::common::entities::app_errors::CoreError;
@@ -41,6 +44,41 @@ fn model_to_domain(model: GroupModel) -> Group {
         description: model.description,
         created_at: model.created_at.with_timezone(&Utc),
         updated_at: model.updated_at.with_timezone(&Utc),
+    }
+}
+
+fn child_count_select(organization_id: Uuid, parent_ids: Vec<Uuid>) -> Select<GroupEntity> {
+    GroupEntity::find()
+        .select_only()
+        .column(GroupColumn::ParentGroupId)
+        .column_as(GroupColumn::Id.count(), "child_count")
+        .filter(GroupColumn::OrganizationId.eq(organization_id))
+        .filter(GroupColumn::ParentGroupId.is_in(parent_ids))
+        .group_by(GroupColumn::ParentGroupId)
+}
+
+impl PostgresGroupRepository {
+    async fn child_counts(
+        &self,
+        organization_id: Uuid,
+        parent_ids: Vec<Uuid>,
+    ) -> Result<HashMap<Uuid, u64>, CoreError> {
+        if parent_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows: Vec<(Option<Uuid>, i64)> = child_count_select(organization_id, parent_ids)
+            .into_tuple()
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Failed to count child groups: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(rows
+            .into_iter()
+            .filter_map(|(parent, count)| Some((parent?, u64::try_from(count).ok()?)))
+            .collect())
     }
 }
 
@@ -136,15 +174,30 @@ impl GroupRepository for PostgresGroupRepository {
         &self,
         organization: &Scoped<Organization>,
         request: &PageRequest<GroupFilter, GroupSortField>,
-    ) -> Result<Page<Group>, CoreError> {
+    ) -> Result<Page<GroupListItem>, CoreError> {
         let select = listing_select(organization.get().id.as_uuid(), &request.filter);
         let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
             error!("Failed to list groups: {}", e);
             CoreError::InternalServerError
         })?;
+        let counts = self
+            .child_counts(
+                organization.get().id.as_uuid(),
+                models.iter().map(|model| model.id).collect(),
+            )
+            .await?;
 
         Ok(Page::new(
-            models.into_iter().map(model_to_domain).collect(),
+            models
+                .into_iter()
+                .map(|model| {
+                    let child_count = counts.get(&model.id).copied().unwrap_or_default();
+                    GroupListItem {
+                        group: model_to_domain(model),
+                        child_count,
+                    }
+                })
+                .collect(),
             total,
             request.page,
             request.limit,
@@ -283,6 +336,35 @@ mod listing_tests {
         assert!(
             children.contains(r#""organization_groups"."parent_group_id" IS NOT NULL"#),
             "{children}"
+        );
+    }
+
+    #[test]
+    fn child_counts_are_one_grouped_query_over_the_page() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = super::child_count_select(Uuid::nil(), vec![first, second])
+            .build(DbBackend::Postgres)
+            .to_string();
+        assert!(
+            sql.contains(r#"COUNT("organization_groups"."id") AS "child_count""#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(
+                r#""organization_groups"."organization_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(&format!(
+                r#""organization_groups"."parent_group_id" IN ('{first}', '{second}')"#
+            )),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#"GROUP BY "organization_groups"."parent_group_id""#),
+            "{sql}"
         );
     }
 

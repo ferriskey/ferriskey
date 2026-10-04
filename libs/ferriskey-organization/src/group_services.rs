@@ -18,10 +18,10 @@ use uuid::Uuid;
 use crate::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, CreateGroupParams,
     DeleteGroupAttributeInput, DeleteGroupInput, GetGroupInput, Group, GroupAttribute,
-    GroupAttributeRepository, GroupConfig, GroupFilter, GroupId, GroupMember, GroupMemberPage,
-    GroupMemberRepository, GroupRepository, GroupRoleRepository, GroupService, GroupSortField,
-    ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
-    Organization, OrganizationId, OrganizationPolicy, OrganizationRepository,
+    GroupAttributeRepository, GroupConfig, GroupFilter, GroupId, GroupListItem, GroupMember,
+    GroupMemberPage, GroupMemberRepository, GroupRepository, GroupRoleRepository, GroupService,
+    GroupSortField, ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput,
+    ListGroupsInput, Organization, OrganizationId, OrganizationPolicy, OrganizationRepository,
     RemoveGroupMemberInput, RevokeGroupRoleInput, UpdateGroupInput, UpdateGroupParams,
     UpsertGroupAttributeInput, validate_membership_realms,
 };
@@ -272,7 +272,7 @@ where
         identity: Identity,
         input: ListGroupsInput,
         request: PageRequest<GroupFilter, GroupSortField>,
-    ) -> Result<Page<Group>, CoreError> {
+    ) -> Result<Page<GroupListItem>, CoreError> {
         let (scope, org) = self
             .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
@@ -974,7 +974,11 @@ mod tests {
             })
             .times(1)
             .return_once(move |_, request| {
-                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                let item = GroupListItem {
+                    group: listed,
+                    child_count: 2,
+                };
+                let page = Page::new(vec![item], 1, request.page, request.limit);
                 Box::pin(async move { Ok(page) })
             });
 
@@ -1000,7 +1004,8 @@ mod tests {
             .expect("a viewer must be able to list groups");
 
         assert_eq!(page.metadata().total, 1);
-        assert_eq!(page.data()[0].id, expected_id);
+        assert_eq!(page.data()[0].group.id, expected_id);
+        assert_eq!(page.data()[0].child_count, 2);
     }
 
     #[tokio::test]

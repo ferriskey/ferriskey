@@ -7,10 +7,10 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::common::pagination::PageRequest;
 use ferriskey_core::domain::organization::ports::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, DeleteGroupAttributeInput,
-    DeleteGroupInput, GetGroupInput, Group, GroupAttribute, GroupFilter, GroupId, GroupMember,
-    GroupMemberPage, GroupService, GroupSortField, ListGroupAttributesInput, ListGroupMembersInput,
-    ListGroupRolesInput, ListGroupsInput, OrganizationId, RemoveGroupMemberInput,
-    RevokeGroupRoleInput, UpdateGroupInput, UpsertGroupAttributeInput,
+    DeleteGroupInput, GetGroupInput, Group, GroupAttribute, GroupFilter, GroupId, GroupListItem,
+    GroupMember, GroupMemberPage, GroupService, GroupSortField, ListGroupAttributesInput,
+    ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, OrganizationId,
+    RemoveGroupMemberInput, RevokeGroupRoleInput, UpdateGroupInput, UpsertGroupAttributeInput,
 };
 use ferriskey_core::domain::role::entities::Role;
 use serde::Deserialize;
@@ -31,7 +31,7 @@ use crate::validators::{
     UpsertAttributeValidator,
 };
 use ferriskey_api_core::api_entities::{
-    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    api_error::{ApiError, ApiErrorBody, ApiErrorResponse, ValidateJson},
     list_query::{ListQuery, PaginationParams, parse_id_list},
     paginated::Paginated,
     response::Response,
@@ -54,6 +54,12 @@ impl TryFrom<GroupListParams> for GroupFilter {
     type Error = ApiError;
 
     fn try_from(params: GroupListParams) -> Result<Self, Self::Error> {
+        if params.is_root == Some(true) && params.parent_group_id.is_some() {
+            return Err(ApiError::BadRequest(ApiErrorBody::new(
+                "Invalid query parameter `is_root`: cannot be combined with parent_group_id",
+                "invalid_query",
+            )));
+        }
         Ok(Self {
             name: params.name,
             description: params.description,
@@ -73,7 +79,7 @@ impl TryFrom<GroupListParams> for GroupFilter {
     path = "/{organization_id}/groups",
     tag = "organization",
     summary = "List an organization's groups",
-    description = "Returns one page of the organization's groups as a flat list. Text filters (name, description) match case-insensitively anywhere in the value; parent_group_id keeps the direct children of that group; is_root keeps top-level groups (true) or nested groups (false); ids takes a comma-separated list of at most 100 group ids. Filters combine with AND.",
+    description = "Returns one page of the organization's groups as a flat list. Text filters (name, description) match case-insensitively anywhere in the value; parent_group_id keeps the direct children of that group; is_root keeps top-level groups (true) or nested groups (false), and is_root=true cannot be combined with parent_group_id; child_count is the number of direct sub-groups; ids takes a comma-separated list of at most 100 group ids. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
@@ -82,7 +88,7 @@ impl TryFrom<GroupListParams> for GroupFilter {
         ("order_by" = inline(Option<GroupSortField>), Query, description = "Sort column, `created_at` by default"),
     ),
     responses(
-        (status = 200, description = "One page of groups", body = Paginated<Group>),
+        (status = 200, description = "One page of groups", body = Paginated<GroupListItem>),
         (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
         (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
@@ -95,7 +101,7 @@ pub async fn list_groups(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     ListQuery(request): ListQuery<GroupListParams, GroupSortField>,
-) -> Result<Response<Paginated<Group>>, ApiError> {
+) -> Result<Response<Paginated<GroupListItem>>, ApiError> {
     let request = PageRequest {
         filter: GroupFilter::try_from(request.filter)?,
         page: request.page,
@@ -673,6 +679,26 @@ mod list_groups_tests {
                 "{query}"
             );
         }
+    }
+
+    #[test]
+    fn a_root_filter_cannot_be_combined_with_a_parent() {
+        let parent = Uuid::new_v4();
+        let refused = parse_list_query::<GroupListParams, GroupSortField>(&format!(
+            "is_root=true&parent_group_id={parent}"
+        ))
+        .expect("each parameter is valid on its own");
+        assert!(matches!(
+            GroupFilter::try_from(refused.filter),
+            Err(ApiError::BadRequest(ref body))
+                if body.message.contains("is_root") && body.message.contains("parent_group_id")
+        ));
+
+        let allowed = parse_list_query::<GroupListParams, GroupSortField>(&format!(
+            "is_root=false&parent_group_id={parent}"
+        ))
+        .expect("valid query");
+        assert!(GroupFilter::try_from(allowed.filter).is_ok());
     }
 
     #[test]

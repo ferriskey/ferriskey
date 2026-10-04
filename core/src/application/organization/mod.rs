@@ -11,7 +11,7 @@ use crate::{
             AssignMemberRoleInput, CreateGroupInput, CreateOrganizationInput,
             DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
             DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
-            GroupFilter, GroupMember, GroupMemberPage, GroupService, GroupSortField,
+            GroupFilter, GroupListItem, GroupMember, GroupMemberPage, GroupService, GroupSortField,
             ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
             ListMemberRolesInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
             ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
@@ -167,7 +167,7 @@ impl GroupService for ApplicationService {
         identity: Identity,
         input: ListGroupsInput,
         request: PageRequest<GroupFilter, GroupSortField>,
-    ) -> Result<Page<Group>, CoreError> {
+    ) -> Result<Page<GroupListItem>, CoreError> {
         self.group_service
             .list_groups(identity, input, request)
             .await
