@@ -1,18 +1,21 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { useListingQuery } from '@/components/kit'
+import { usePagedListing } from '@/components/kit'
+import {
+  SECURITY_EVENT_FILTER_KEYS,
+  useGetSecurityEvents,
+  useSecurityEventCount,
+  type SecurityEventsFilter,
+  type SecurityEventsQuery,
+} from '@/api/sea-watch.api'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
 import { eventRoleIds } from '@/hooks/event-role-ids'
 import { eventClientIds } from '@/hooks/event-client-ids'
 import { useGetDailyActivityStats } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
-import { eventFamilies } from '../event-catalogue'
+import { useWindowEvents } from '@/pages/ciam/activity/feature/use-window-events'
 import PageSecurityEvents from '../ui/page-security-events'
-
-const WINDOW_DAYS = 7
-const WINDOW_LIMIT = 500
 
 const toDateParam = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -20,75 +23,60 @@ export default function PageSecurityEventsFeature() {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
 
-  const range = useMemo(() => {
-    const to = new Date()
-    const from = new Date(to.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000)
-    const fromDay = new Date(to)
-    fromDay.setDate(to.getDate() - (WINDOW_DAYS - 1))
-    return {
-      from: from.toISOString(),
-      to: to.toISOString(),
-      fromDay: toDateParam(fromDay),
-      toDay: toDateParam(to),
-    }
-  }, [])
+  const listing = usePagedListing(SECURITY_EVENT_FILTER_KEYS)
 
-  const listing = useListingQuery()
-  const family = eventFamilies[listing.filter]
+  const {
+    data: eventsResponse,
+    isLoading,
+    isError,
+  } = useGetSecurityEvents({ realm, query: listing.apiQuery as SecurityEventsQuery })
+
+  const recent = useWindowEvents(realm)
+  const failures = useWindowEvents(realm, undefined, 'failure')
+  const failedInView = useSecurityEventCount({
+    realm,
+    filter: { ...(listing.state.filters as SecurityEventsFilter), status: 'failure' },
+  })
+
+  const days = useMemo(() => {
+    const to = new Date()
+    const from = new Date(to)
+    from.setDate(to.getDate() - (recent.windowDays - 1))
+    return { from: toDateParam(from), to: toDateParam(to) }
+  }, [recent.windowDays])
 
   const { data: realmResponse } = useGetRealm({ realm })
   const compassRealm = realmResponse?.settings?.compass_enabled ? realm : undefined
 
   const { data: activityResponse } = useGetDailyActivityStats({
     realm: compassRealm,
-    from: range.fromDay,
-    to: range.toDay,
+    from: days.from,
+    to: days.to,
   })
 
-  const {
-    data: eventsResponse,
-    isLoading,
-    isError,
-  } = useQuery({
-    ...window.tanstackApi.get(
-      '/realms/{realm_name}/seawatch/v1/security-events',
-      {
-        path: { realm_name: realm },
-        query: {
-          from_timestamp: range.from,
-          to_timestamp: range.to,
-          limit: WINDOW_LIMIT,
-          event_types: family ? family.join(',') : undefined,
-        },
-      }
-    ).queryOptions,
-    enabled: Boolean(realm_name),
-  })
-
-  const events = useMemo(
-    () =>
-      [...(eventsResponse?.data ?? [])].sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      ),
-    [eventsResponse]
+  const events = useMemo(() => eventsResponse?.data ?? [], [eventsResponse])
+  const known = useMemo(
+    () => [...events, ...recent.events, ...failures.events],
+    [events, recent.events, failures.events]
   )
 
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
-  const userIds = useMemo(() => eventUserIds(events), [events])
-  const roleIds = useMemo(() => eventRoleIds(events), [events])
-  const clientIds = useMemo(() => eventClientIds(events), [events])
+  const userIds = useMemo(() => eventUserIds(known), [known])
+  const roleIds = useMemo(() => eventRoleIds(known), [known])
+  const clientIds = useMemo(() => eventClientIds(known), [known])
   const directory = useRealmDirectory(realm, userIds, roleIds, clientIds)
 
   return (
     <PageSecurityEvents
       events={events}
+      pagination={eventsResponse?.metadata}
+      listing={listing}
+      recent={recent}
+      failures={failures}
+      failedInView={failedInView.count}
       activity={activity}
       isLoading={isLoading}
-      isError={isError}
-      windowDays={WINDOW_DAYS}
-      windowLimit={WINDOW_LIMIT}
-      truncated={events.length >= WINDOW_LIMIT}
-      listing={listing}
+      isError={isError || recent.isError}
       directory={directory}
     />
   )

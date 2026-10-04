@@ -32,8 +32,8 @@ activity:
     all: 全部
   capped:
     title: 已限制为 {{limit, number}} 个事件
-    detail_above: '本域在{{window}}内记录的事件更多；以上数字仅涵盖最近的 {{limit, number}} 个。'
-    detail_below: '本域在{{window}}内记录的事件更多；以下数字仅涵盖最近的 {{limit, number}} 个。'
+    detail_above: '本域在{{window}}内记录的事件更多；不同数量、每日趋势和日志仅涵盖最近的 {{limit, number}} 个。'
+    detail_below: '本域在{{window}}内记录的事件更多；不同账户数、每日趋势和失败分布仅涵盖最近的 {{limit, number}} 个。'
   event:
     columns:
       event: 事件
@@ -97,17 +97,9 @@ activity:
       unidentified: 未识别到账户
   logs:
     title: 日志与事件
-    description: '本域在{{window}}内记录的所有认证、凭据和管理事件，最近的排在最前。'
-    filters:
-      failures: 失败
-      authentication: 认证
-      credentials: 凭据
-      administration: 管理
+    description: '本域记录的所有认证、凭据和管理事件，最近的排在最前。上方数字涵盖{{window}}。'
     metrics:
       events: 事件
-      # TRANSLATOR NOTE: telegraphic in English ("capped, {{window}}") — a hint under the event
-      # count meaning the count hit its ceiling within the window.
-      capped: '已达上限，{{window}}'
       latest: 最近一次 {{timestamp}}
       failures: 失败
       rate: 成功率
@@ -123,14 +115,12 @@ activity:
         top_error_code: 主要为 {{code}}
     feed:
       title: 事件流
-      description: 事件类别由服务器筛选；搜索框用于在已加载的结果中进一步缩小范围。
-      search_placeholder: 按事件、账户、IP 搜索…
+      description: 筛选和排序由服务器对所有已记录的事件执行。
       empty_label: 无事件
-      empty_hint: '当客户登录、重置凭据以及管理员修改本域时，此事件流会逐渐填满。{{window}}内没有任何记录。'
+      empty_hint: 当客户登录、重置凭据以及管理员修改本域时，此事件流会逐渐填满。目前尚未有任何记录。
     aggregates:
       events_other: '{{count, number}} 个事件'
       failed: '{{total, number}} 个失败'
-      accounts_other: '{{count, number}} 个账户'
   sessions:
     title: 会话
     description: '本域在{{window}}内打开和撤销的会话。'

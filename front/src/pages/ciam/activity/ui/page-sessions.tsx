@@ -14,8 +14,15 @@ import SecurityEvent = Schemas.SecurityEvent
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 
+export interface SessionCounts {
+  opened: number
+  revoked: number
+  total: number
+}
+
 export interface PageSessionsProps {
   events: SecurityEvent[]
+  counts: SessionCounts
   isLoading: boolean
   isError: boolean
   truncated: boolean
@@ -26,6 +33,7 @@ export interface PageSessionsProps {
 
 export default function PageSessions({
   events,
+  counts,
   isLoading,
   isError,
   truncated,
@@ -50,32 +58,35 @@ export default function PageSessions({
   )
 
   const opened = events.filter((e) => e.event_type === 'session_created')
-  const revoked = events.filter((e) => e.event_type === 'session_revoked')
   const accounts = new Set(events.map((e) => e.actor_id ?? 'unknown')).size
   const origins = new Set(events.map((e) => e.ip_address).filter(Boolean)).size
 
   const buckets = useMemo(() => bucketPerDay(events, windowDays), [events, windowDays])
 
   const measured = (series: number[]) => (!truncated && series.length > 0 ? series : undefined)
+  const counted = (series: number[], value: number) =>
+    !truncated && series.length > 0 ? series : [value, value]
 
   const metrics: Metric[] = [
     {
       key: 'opened',
       label: t('activity.sessions.metrics.opened'),
-      value: t('number', { value: opened.length }),
+      value: t('number', { value: counts.opened }),
       hint: overWindow,
-      series: measured(
-        buckets.map((b) => b.filter((e) => e.event_type === 'session_created').length)
+      series: counted(
+        buckets.map((b) => b.filter((e) => e.event_type === 'session_created').length),
+        counts.opened
       ),
       tone: 'success',
     },
     {
       key: 'revoked',
       label: t('activity.sessions.metrics.revoked'),
-      value: t('number', { value: revoked.length }),
-      hint: revoked.length === 0 ? t('activity.sessions.metrics.none_revoked') : overWindow,
-      series: measured(
-        buckets.map((b) => b.filter((e) => e.event_type === 'session_revoked').length)
+      value: t('number', { value: counts.revoked }),
+      hint: counts.revoked === 0 ? t('activity.sessions.metrics.none_revoked') : overWindow,
+      series: counted(
+        buckets.map((b) => b.filter((e) => e.event_type === 'session_revoked').length),
+        counts.revoked
       ),
       tone: 'brand',
     },
@@ -169,7 +180,7 @@ export default function PageSessions({
         title={t('activity.sessions.journal.title')}
         description={t('activity.sessions.journal.description')}
         rows={filtered}
-        total={events.length}
+        total={counts.total}
         columns={[
           columns.event,
           columns.outcome,
@@ -187,8 +198,8 @@ export default function PageSessions({
         onQuery={setQuery}
         searchPlaceholder={t('activity.sessions.journal.search_placeholder')}
         aggregates={{
-          event_type: t('activity.sessions.aggregates.opened', { total: opened.length }),
-          status: t('activity.sessions.aggregates.revoked', { total: revoked.length }),
+          event_type: t('activity.sessions.aggregates.opened', { total: counts.opened }),
+          status: t('activity.sessions.aggregates.revoked', { total: counts.revoked }),
           actor: t('activity.sessions.aggregates.accounts', { count: accounts }),
         }}
         emptyLabel={t('activity.sessions.journal.empty_label')}

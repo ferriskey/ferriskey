@@ -166,7 +166,6 @@ console_nav:
       description: 门户页面结构
 data_view:
   search_placeholder: 搜索…
-  filter_all: 全部
   view_mode:
     list: 列表视图
     cards: 卡片视图
@@ -180,12 +179,8 @@ data_view:
   no_data: 暂无数据。
   no_match: 无匹配项
   no_match_server_hint: 没有条目符合当前的搜索和筛选条件。
-  hidden_by_filter_other: '有 {{count}} 个条目存在，但被当前筛选条件隐藏。'
   clear_filter: 清除筛选
   entry_count_other: '{{count}} 个条目'
-  # ⚠ Rendered alone under a table, next to entry_count. English "3 of 50" has no natural
-  # word-for-word Chinese counter; this reorders the two figures instead.
-  shown_of_total: '{{total}} 个条目中的 {{shown}} 个'
   pagination:
     range: 显示第 <num>{{from}}</num> 至 <num>{{to}}</num> 条，共 <num>{{total}}</num> 条结果
     page: 第 <num>{{current}}</num> 页，共 <num>{{total}}</num> 页

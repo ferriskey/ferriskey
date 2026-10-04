@@ -4,7 +4,7 @@ page:
   title: Sea Watch
   # {{days}} is the width of the observation window. The screen fixes it at 7, so it never inflects;
   # write the sentence for a plural count.
-  description: 'Security events recorded for this realm over the last {{days}} days, most recent first.'
+  description: 'Security events recorded for this realm, most recent first. The figures above cover the last {{days}} days.'
 
 # Labels for the SecurityEventType values the API sends, keyed on the enum value itself. The raw
 # value stays on screen in a monospace font right next to the label, so the label never has to echo
@@ -48,7 +48,6 @@ metrics:
   value: '{{total, number}}'
   total:
     label: Events
-    hint_capped: 'capped, last {{days}} days'
     hint_latest: 'last {{timestamp}}'
     hint_window: 'last {{days}} days'
   failures:
@@ -73,14 +72,13 @@ activity:
   failures_other: '<value>{{count}}</value> failures'
 
 stream:
-  title: Event stream
-  description: Event families are applied by the server; the search box narrows the events loaded above.
-  search_placeholder: Filter the stream…
-  no_activity: No activity yet
-  count_one: '{{count}} entry'
-  count_other: '{{count}} entries'
-  # Two raw counters side by side, neither of which inflects.
-  filtered: '{{shown}} of {{total}}'
+  description: Filters and sorting are applied by the server to every recorded event.
+  filter_fields:
+    ip_address: IP address
+    event_types: Event
+    status: Outcome
+    target_type: Target type
+    actor_id: Actor
   columns:
     event: Event
     status: Outcome
@@ -89,14 +87,9 @@ stream:
     ip_address: IP address
     timestamp: When
   filters:
-    all: All
-    failures: Failures
     authentication: Authentication
     credentials: Credentials
     administration: Administration
-  view:
-    list: List view
-    cards: Card view
   actor:
     unattributed: unattributed
     unknown_type: unknown type
@@ -116,14 +109,9 @@ stream:
     events_other: '{{count}} events'
     # Never inflects: the noun it qualifies is the column header, not a word in this string.
     failures: '{{total}} failed'
-    actors_one: '{{count}} actor'
-    actors_other: '{{count}} actors'
   empty:
     label: No security event
-    hint: 'Sea Watch records every security-relevant action taken in this realm — logins, credential changes, and administrative operations. Nothing was recorded over the last {{days}} days.'
-    filtered_label: No match
-    filtered_hint: No event matches the current search and filter.
-    clear: Clear filter
+    hint: 'Sea Watch records every security-relevant action taken in this realm — logins, credential changes, and administrative operations. Nothing has been recorded yet.'
 
 alerts:
   unavailable:
@@ -132,7 +120,7 @@ alerts:
   capped:
     # {{limit}} is a fixed ceiling in the hundreds, so this reads as a plural in every case.
     title: 'Capped at {{limit}} events'
-    detail: 'The realm recorded more over the last {{days}} days; the figures below cover the {{limit}} most recent only.'
+    detail: 'The realm recorded more over the last {{days}} days; distinct actors, daily trends and the failure breakdown cover the {{limit}} most recent only.'
   failures:
     title_one: '{{count}} failed event over the last {{days}} days'
     title_other: '{{count}} failed events over the last {{days}} days'

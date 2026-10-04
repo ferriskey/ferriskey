@@ -1,36 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import {
-  AlertTriangle,
-  CheckCircle2,
-  LayoutGrid,
-  List,
-  Lock,
-  Search,
-  Unlock,
-} from 'lucide-react'
-import {
-  ActivityChart,
-  Button,
-  DataView,
-  IconTile,
-  MetricsBand,
-  PageShell,
-  Pill,
-  Section,
-} from '@/components/kit'
+import { Lock, Unlock } from 'lucide-react'
+import { ActivityChart, IconTile, ListingPage, Pill, Section } from '@/components/kit'
 import type {
   CardSpec,
   Column,
   ListingAlert,
-  ListingQuery,
-  Metric,
-  ViewMode,
+  ListingMetric,
+  PagedListing,
+  PaginationMetadata,
 } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { useLayoutTier } from '@/hooks/use-media-query'
 import { Schemas } from '@/api/api.client'
+import type { WindowEvents } from '@/pages/ciam/activity/feature/use-window-events'
 import {
   actorLabel,
   eventDetailSummary,
@@ -39,6 +22,7 @@ import {
   formatRelative,
   formatTimestamp,
 } from '../event-catalogue'
+import { securityEventFilterFields } from '../event-filter-fields'
 
 import SecurityEvent = Schemas.SecurityEvent
 import DailyActivityStats = Schemas.DailyActivityStats
@@ -46,13 +30,14 @@ import type { RealmDirectory } from '@/hooks/use-realm-directory'
 
 export interface PageSecurityEventsProps {
   events: SecurityEvent[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
+  recent: WindowEvents
+  failures: WindowEvents
+  failedInView: number
   activity: DailyActivityStats[]
   isLoading: boolean
   isError: boolean
-  windowDays: number
-  windowLimit: number
-  truncated: boolean
-  listing: ListingQuery
   directory: RealmDirectory
 }
 
@@ -129,51 +114,20 @@ const windowDayKeys = (days: number) => {
   })
 }
 
-const QUERY_SYNTAX = 'event:login_failure  ip:10.0.0.6'
-
-const DEFAULT_FILTER = 'all'
-
-const viewOptions = [
-  { mode: 'list' as const, Icon: List, labelKey: 'stream.view.list' },
-  { mode: 'cards' as const, Icon: LayoutGrid, labelKey: 'stream.view.cards' },
-]
-
-const eventFilters: {
-  key: string
-  labelKey: string
-  predicate?: (event: SecurityEvent) => boolean
-}[] = [
-  { key: DEFAULT_FILTER, labelKey: 'stream.filters.all' },
-  {
-    key: 'failures',
-    labelKey: 'stream.filters.failures',
-    predicate: (event) => event.status === 'failure',
-  },
-  { key: 'authentication', labelKey: 'stream.filters.authentication' },
-  { key: 'credentials', labelKey: 'stream.filters.credentials' },
-  { key: 'administration', labelKey: 'stream.filters.administration' },
-]
-
-const searchIn = (event: SecurityEvent) =>
-  `${event.event_type} ${event.actor_id ?? ''} ${event.target_id ?? ''} ${event.target_type ?? ''} ${event.resource ?? ''} ${event.ip_address ?? ''} ${event.user_agent ?? ''} ${event.status}`
-
 export default function PageSecurityEvents({
   events,
+  pagination,
+  listing,
+  recent,
+  failures,
+  failedInView,
   activity,
   isLoading,
   isError,
-  windowDays,
-  windowLimit,
-  truncated,
-  listing,
   directory,
 }: PageSecurityEventsProps) {
   const { t } = useTranslation('seawatch')
-  const [view, setView] = useState<ViewMode>('list')
-  const [query, setQuery] = useState('')
-
-  const tier = useLayoutTier()
-  const effectiveView = tier === 'phone' ? 'cards' : view
+  const windowDays = recent.windowDays
 
   const columns: Column<SecurityEvent>[] = [
     {
@@ -187,7 +141,7 @@ export default function PageSecurityEvents({
           </p>
         </div>
       ),
-      sortValue: (e) => eventLabel(e),
+      sortKey: 'event_type',
     },
     {
       key: 'status',
@@ -211,7 +165,7 @@ export default function PageSecurityEvents({
           </div>
         )
       },
-      sortValue: (e) => e.status,
+      sortKey: 'status',
     },
     {
       key: 'actor',
@@ -240,7 +194,6 @@ export default function PageSecurityEvents({
           </div>
         )
       },
-      sortValue: (e) => directory.label(e.actor_id, e.actor_type) ?? actorLabel(e) ?? '',
     },
     {
       key: 'target',
@@ -270,8 +223,6 @@ export default function PageSecurityEvents({
           </div>
         )
       },
-      sortValue: (e) =>
-        directory.label(e.target_id, e.target_type) ?? e.target_id ?? e.resource ?? '',
     },
     {
       key: 'ip_address',
@@ -284,7 +235,6 @@ export default function PageSecurityEvents({
             {t('stream.ip.not_recorded')}
           </span>
         ),
-      sortValue: (e) => e.ip_address ?? '',
     },
     {
       key: 'timestamp',
@@ -298,7 +248,7 @@ export default function PageSecurityEvents({
           </p>
         </div>
       ),
-      sortValue: (e) => e.timestamp,
+      sortKey: 'timestamp',
     },
   ]
 
@@ -343,67 +293,68 @@ export default function PageSecurityEvents({
     ),
   }
 
-  const failures = events.filter((e) => e.status === 'failure')
-  const successes = events.length - failures.length
-  const successRate = events.length
-    ? Math.round((successes / events.length) * 100)
-    : 0
-  const uniqueActors = new Set(events.map((e) => e.actor_id ?? 'unknown')).size
+  const total = recent.total
+  const failed = failures.total
+  const successes = Math.max(total - failed, 0)
+  const successRate = total ? Math.round((successes / total) * 100) : 0
+  const uniqueActors = new Set(recent.events.map((e) => e.actor_id ?? 'unknown')).size
 
-  const topFailure = dominant(failures.map((e) => eventLabel(e)))
-  const topErrorCode = dominant(failures.map((e) => eventReason(e)?.errorCode))
+  const topFailure = dominant(failures.events.map((e) => eventLabel(e)))
+  const topErrorCode = dominant(failures.events.map((e) => eventReason(e)?.errorCode))
   const topFailingResource = dominant(
-    failures.map((e) => e.resource ?? (e.target_type === 'client' ? e.target_id : null))
+    failures.events.map((e) => e.resource ?? (e.target_type === 'client' ? e.target_id : null))
   )
 
   const buckets = useMemo(() => {
     const keys = windowDayKeys(windowDays)
-    return keys.map((key) => events.filter((event) => dayKey(event.timestamp) === key))
-  }, [events, windowDays])
+    return keys.map((key) => recent.events.filter((event) => dayKey(event.timestamp) === key))
+  }, [recent.events, windowDays])
 
-  const measured = (series: (number | null)[]) =>
-    !truncated && series.length > 0 ? series : undefined
+  const failureBuckets = useMemo(() => {
+    const keys = windowDayKeys(windowDays)
+    return keys.map((key) => failures.events.filter((event) => dayKey(event.timestamp) === key))
+  }, [failures.events, windowDays])
 
-  const eventsPerDay = buckets.map((bucket) => bucket.length)
-  const failuresPerDay = buckets.map(
-    (bucket) => bucket.filter((event) => event.status === 'failure').length
-  )
-  const actorsPerDay = buckets.map(
-    (bucket) => new Set(bucket.map((event) => event.actor_id ?? 'unknown')).size
-  )
+  const sampled = (window: WindowEvents, series: (number | null)[], value: number) =>
+    !window.truncated && series.length > 0 ? series : [value, value]
+
   const successRatePerDay: (number | null)[] = buckets.map((bucket) => {
     if (bucket.length === 0) return null
-    const failed = bucket.filter((event) => event.status === 'failure').length
-    return Math.round(((bucket.length - failed) / bucket.length) * 100)
+    const failedInBucket = bucket.filter((event) => event.status === 'failure').length
+    return Math.round(((bucket.length - failedInBucket) / bucket.length) * 100)
   })
 
-  const latest = latestTimestamp(events)
+  const latest = latestTimestamp(recent.events)
 
-  const metrics: Metric[] = [
+  const metrics: ListingMetric[] = [
     {
       key: 'total',
       label: t('metrics.total.label'),
-      value: t('metrics.value', { total: events.length }),
-      hint: truncated
-        ? t('metrics.total.hint_capped', { days: windowDays })
-        : events.length > 0
-          ? t('metrics.total.hint_latest', {
-              timestamp: latest ?? t('stream.no_activity'),
-            })
-          : t('metrics.total.hint_window', { days: windowDays }),
-      series: measured(eventsPerDay),
+      value: t('metrics.value', { total }),
+      hint: latest
+        ? t('metrics.total.hint_latest', { timestamp: latest })
+        : t('metrics.total.hint_window', { days: windowDays }),
+      series: sampled(
+        recent,
+        buckets.map((bucket) => bucket.length),
+        total
+      ),
       tone: 'info',
     },
     {
       key: 'failures',
       label: t('metrics.failures.label'),
-      value: t('metrics.value', { total: failures.length }),
+      value: t('metrics.value', { total: failed }),
       hint: topErrorCode
         ? topErrorCode[0]
         : topFailure
           ? topFailure[0].toLowerCase()
           : t('metrics.failures.hint_none'),
-      series: measured(failuresPerDay),
+      series: sampled(
+        failures,
+        failureBuckets.map((bucket) => bucket.length),
+        failed
+      ),
       tone: 'brand',
     },
     {
@@ -411,7 +362,7 @@ export default function PageSecurityEvents({
       label: t('metrics.rate.label'),
       value: t('metrics.rate.value', { total: successRate }),
       hint: t('metrics.rate.hint', { total: successes }),
-      series: measured(successRatePerDay),
+      series: sampled(recent, successRatePerDay, successRate),
       tone: 'success',
     },
     {
@@ -419,7 +370,11 @@ export default function PageSecurityEvents({
       label: t('metrics.actors.label'),
       value: t('metrics.value', { total: uniqueActors }),
       hint: t('metrics.actors.hint', { days: windowDays }),
-      series: measured(actorsPerDay),
+      series: recent.truncated
+        ? undefined
+        : buckets.map(
+            (bucket) => new Set(bucket.map((event) => event.actor_id ?? 'unknown')).size
+          ),
       tone: 'violet',
     },
   ]
@@ -438,21 +393,24 @@ export default function PageSecurityEvents({
           },
         ]
       : []),
-    ...(truncated
+    ...(recent.truncated
       ? [
           {
             tone: 'warn' as const,
-            title: t('alerts.capped.title', { limit: windowLimit }),
-            detail: t('alerts.capped.detail', { limit: windowLimit, days: windowDays }),
+            title: t('alerts.capped.title', { limit: recent.windowLimit }),
+            detail: t('alerts.capped.detail', {
+              limit: recent.windowLimit,
+              days: windowDays,
+            }),
           },
         ]
       : []),
-    ...(failures.length > 0
+    ...(failed > 0
       ? [
           {
             tone: 'error' as const,
             title: t('alerts.failures.title', {
-              count: failures.length,
+              count: failed,
               days: windowDays,
             }),
             detail: [
@@ -472,7 +430,7 @@ export default function PageSecurityEvents({
           },
         ]
       : []),
-    ...riskyActors(events).map((actor) => ({
+    ...riskyActors(failures.events).map((actor) => ({
       tone: actor.count > 3 ? ('error' as const) : ('warn' as const),
       title: t('alerts.actor.title', {
         actor: actor.identifier || t('alerts.actor.unknown'),
@@ -489,219 +447,60 @@ export default function PageSecurityEvents({
     })),
   ]
 
-  const filtered = useMemo(() => {
-    const predicate = eventFilters.find((f) => f.key === listing.filter)?.predicate
-    let out = predicate ? events.filter(predicate) : events
-    const needle = query.trim().toLowerCase()
-    if (needle) out = out.filter((e) => searchIn(e).toLowerCase().includes(needle))
-    return out
-  }, [events, listing.filter, query])
-
-  const narrowed = Boolean(query.trim()) || listing.filter !== DEFAULT_FILTER
-  const filteredOut = narrowed && filtered.length === 0
-
-  const searchBox = (
-    <label className='relative flex h-7 w-56 items-center'>
-      <Search className='pointer-events-none absolute left-2 size-3.5 text-neutral-400 dark:text-neutral-500' />
-      <input
-        type='search'
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={
-          tokens.toolbar.showQuerySyntax ? QUERY_SYNTAX : t('stream.search_placeholder')
-        }
-        className={cn(
-          'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-7 pr-2 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
-          tokens.toolbar.showQuerySyntax
-            ? 'font-mono-ui text-[11px] placeholder:text-neutral-300'
-            : 'text-xs'
-        )}
-      />
-    </label>
-  )
+  const insights = hasActivity ? (
+    <Section
+      title={t('activity.title')}
+      description={t('activity.description', { days: windowDays })}
+      contained={false}
+      action={
+        <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
+          <span className='inline-flex items-center gap-1'>
+            <span className='size-1.5 rounded-full bg-fk-success' />
+            <Trans
+              ns='seawatch'
+              i18nKey='activity.logins'
+              count={totalLogins}
+              components={{ value: <span className='tnum' /> }}
+            />
+          </span>
+          <span className='inline-flex items-center gap-1'>
+            <span className='size-1.5 rounded-full bg-fk-danger' />
+            <Trans
+              ns='seawatch'
+              i18nKey='activity.failures'
+              count={totalLoginFailures}
+              components={{ value: <span className='tnum' /> }}
+            />
+          </span>
+        </div>
+      }
+    >
+      <div className={cn(tokens.surface.panel, 'px-2 py-2')}>
+        <ActivityChart data={activity} height={130} />
+      </div>
+    </Section>
+  ) : undefined
 
   return (
-    <PageShell>
-      <div
-        className={cn(
-          'flex flex-wrap items-start justify-between gap-3',
-          tokens.header.spacing
-        )}
-      >
-        <div className='min-w-0'>
-          <h1 className={tokens.header.title}>{t('page.title')}</h1>
-          <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-            {t('page.description', { days: windowDays })}
-          </p>
-        </div>
-      </div>
-
-      <div className={tokens.page.sectionGap}>
-        {alerts.length > 0 && (
-          <ul className='space-y-1'>
-            {alerts.map((alert) => (
-              <li
-                key={alert.title}
-                className={cn(
-                  'flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-[13px]',
-                  alert.tone === 'error'
-                    ? 'border-fk-danger-border bg-fk-danger-soft/40 text-fk-danger'
-                    : alert.tone === 'warn'
-                      ? 'border-fk-amber-border bg-fk-amber-soft/50 text-fk-amber'
-                      : 'border-fk-success-border bg-fk-success-soft/50 text-fk-success'
-                )}
-              >
-                {alert.tone === 'ok' ? (
-                  <CheckCircle2 className='size-3.5 shrink-0' strokeWidth={2} />
-                ) : (
-                  <AlertTriangle className='size-3.5 shrink-0' strokeWidth={2} />
-                )}
-                <span className='shrink-0 font-medium text-neutral-900 dark:text-neutral-100'>
-                  {alert.title}
-                </span>
-                {alert.detail && (
-                  <span className='min-w-0 truncate text-neutral-500 dark:text-neutral-400'>
-                    {alert.detail}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <MetricsBand metrics={metrics} />
-
-        {hasActivity && (
-          <Section
-            title={t('activity.title')}
-            description={t('activity.description', { days: windowDays })}
-            contained={false}
-            action={
-              <div className='flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400'>
-                <span className='inline-flex items-center gap-1'>
-                  <span className='size-1.5 rounded-full bg-fk-success' />
-                  <Trans
-                    ns='seawatch'
-                    i18nKey='activity.logins'
-                    count={totalLogins}
-                    components={{ value: <span className='tnum' /> }}
-                  />
-                </span>
-                <span className='inline-flex items-center gap-1'>
-                  <span className='size-1.5 rounded-full bg-fk-danger' />
-                  <Trans
-                    ns='seawatch'
-                    i18nKey='activity.failures'
-                    count={totalLoginFailures}
-                    components={{ value: <span className='tnum' /> }}
-                  />
-                </span>
-              </div>
-            }
-          >
-            <div className={cn(tokens.surface.panel, 'px-2 py-2')}>
-              <ActivityChart data={activity} height={130} />
-            </div>
-          </Section>
-        )}
-
-        <Section
-          title={t('stream.title')}
-          description={t('stream.description')}
-          contained={false}
-          action={
-            <div className='flex flex-wrap items-center justify-end gap-2'>
-              <div className='flex gap-1'>
-                {eventFilters.map((f) => (
-                  <button
-                    key={f.key}
-                    type='button'
-                    onClick={() => listing.setFilter(f.key)}
-                    className={cn(
-                      'cursor-pointer rounded-md px-2 py-1 text-xs transition-colors',
-                      f.key === listing.filter
-                        ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                        : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
-                    )}
-                  >
-                    {t(f.labelKey)}
-                  </button>
-                ))}
-              </div>
-              {searchBox}
-              {tokens.toolbar.showViewToggle && tier !== 'phone' && (
-                <div className='flex rounded-md border border-fk-line p-0.5'>
-                  {viewOptions.map(({ mode, Icon, labelKey }) => (
-                    <button
-                      key={mode}
-                      type='button'
-                      onClick={() => setView(mode)}
-                      aria-label={t(labelKey)}
-                      aria-pressed={view === mode}
-                      className={cn(
-                        'grid size-6 cursor-pointer place-items-center rounded transition-colors',
-                        view === mode
-                          ? 'bg-fk-primary-soft text-fk-primary-text'
-                          : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
-                      )}
-                    >
-                      <Icon className='size-3.5' />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          }
-        >
-          <div className={tokens.page.sectionGap}>
-            <DataView
-              rows={filtered}
-              columns={columns}
-              card={card}
-              getKey={(e) => e.id}
-              view={effectiveView}
-              loading={isLoading}
-              aggregates={{
-                event_type: t('stream.aggregates.events', { count: events.length }),
-                status: t('stream.aggregates.failures', { total: failures.length }),
-                actor: t('stream.aggregates.actors', { count: uniqueActors }),
-              }}
-              emptyLabel={
-                filteredOut ? t('stream.empty.filtered_label') : t('stream.empty.label')
-              }
-              emptyHint={
-                filteredOut
-                  ? t('stream.empty.filtered_hint')
-                  : t('stream.empty.hint', { days: windowDays })
-              }
-              emptyAction={
-                filteredOut ? (
-                  <Button
-                    variant='outline'
-                    onClick={() => {
-                      setQuery('')
-                      listing.setFilter(DEFAULT_FILTER)
-                    }}
-                  >
-                    {t('stream.empty.clear')}
-                  </Button>
-                ) : undefined
-              }
-            />
-
-            {!isLoading && events.length > 0 && (
-              <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
-                {filtered.length === events.length
-                  ? t('stream.count', { count: events.length })
-                  : t('stream.filtered', {
-                      shown: filtered.length,
-                      total: events.length,
-                    })}
-              </p>
-            )}
-          </div>
-        </Section>
-      </div>
-    </PageShell>
+    <ListingPage
+      title={t('page.title')}
+      description={t('page.description', { days: windowDays })}
+      loading={isLoading}
+      metrics={metrics}
+      alerts={alerts}
+      insights={insights}
+      paged={{ listing, pagination, filterFields: securityEventFilterFields() }}
+      searchScopeHint={t('stream.description')}
+      rows={events}
+      columns={columns}
+      card={card}
+      getKey={(e) => e.id}
+      aggregates={{
+        event_type: t('stream.aggregates.events', { count: pagination?.total ?? 0 }),
+        status: t('stream.aggregates.failures', { total: failedInView }),
+      }}
+      emptyLabel={t('stream.empty.label')}
+      emptyHint={t('stream.empty.hint')}
+    />
   )
 }

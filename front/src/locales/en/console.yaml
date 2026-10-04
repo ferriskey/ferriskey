@@ -17,8 +17,8 @@ activity:
     all: All
   capped:
     title: Capped at {{limit, number}} events
-    detail_above: 'The realm recorded more over the {{window}}; the figures above cover the {{limit, number}} most recent only.'
-    detail_below: 'The realm recorded more over the {{window}}; the figures below cover the {{limit, number}} most recent only.'
+    detail_above: 'The realm recorded more over the {{window}}; distinct counts, daily trends and the journal cover the {{limit, number}} most recent only.'
+    detail_below: 'The realm recorded more over the {{window}}; distinct accounts, daily trends and the failure breakdown cover the {{limit, number}} most recent only.'
   event:
     columns:
       event: Event
@@ -82,15 +82,9 @@ activity:
       unidentified: no account identified
   logs:
     title: Logs & events
-    description: 'Every authentication, credential and administrative event recorded in this realm over the {{window}}, most recent first.'
-    filters:
-      failures: Failures
-      authentication: Authentication
-      credentials: Credentials
-      administration: Administration
+    description: 'Every authentication, credential and administrative event recorded in this realm, most recent first. The figures above cover the {{window}}.'
     metrics:
       events: Events
-      capped: capped, {{window}}
       latest: last {{timestamp}}
       failures: Failures
       rate: Success rate
@@ -107,16 +101,13 @@ activity:
         top_error_code: mostly {{code}}
     feed:
       title: Event feed
-      description: Event families are applied by the server; the search box narrows what was loaded above.
-      search_placeholder: Search by event, account, IP…
+      description: Filters and sorting are applied by the server to every recorded event.
       empty_label: No event
-      empty_hint: 'This feed fills as customers sign in, reset credentials and as administrators change the realm. Nothing was recorded over the {{window}}.'
+      empty_hint: This feed fills as customers sign in, reset credentials and as administrators change the realm. Nothing has been recorded yet.
     aggregates:
       events_one: '{{count, number}} event'
       events_other: '{{count, number}} events'
       failed: '{{total, number}} failed'
-      accounts_one: '{{count, number}} account'
-      accounts_other: '{{count, number}} accounts'
   sessions:
     title: Sessions
     description: Sessions opened and revoked in this realm over the {{window}}.

@@ -11,7 +11,7 @@
 page:
   title: Sea Watch
   # {{days}} is the width of the observation window. The screen fixes it at 7, so it never inflects.
-  description: '此域在过去 {{days}} 天内记录的安全事件，最新的排在最前。'
+  description: '此域记录的安全事件，最新的排在最前。上方数据涵盖过去 {{days}} 天。'
 
 # Labels for the SecurityEventType values the API sends, keyed on the enum value itself. The raw
 # value stays on screen in a monospace font right next to the label, so the label never has to echo
@@ -55,7 +55,6 @@ metrics:
   value: '{{total, number}}'
   total:
     label: 事件
-    hint_capped: '已达上限，过去 {{days}} 天'
     hint_latest: '最近一次 {{timestamp}}'
     hint_window: '过去 {{days}} 天'
   failures:
@@ -78,13 +77,13 @@ activity:
   failures_other: '<value>{{count}}</value> 次失败'
 
 stream:
-  title: 事件流
-  description: 事件族由服务器应用；搜索框只在上方已加载的事件中缩小范围。
-  search_placeholder: 筛选事件流…
-  no_activity: 暂无活动
-  count_other: '{{count}} 条记录'
-  # Two raw counters side by side, neither of which inflects.
-  filtered: '{{total}} 条中的 {{shown}} 条'
+  description: 筛选和排序由服务器对所有已记录的事件执行。
+  filter_fields:
+    ip_address: IP 地址
+    event_types: 事件
+    status: 结果
+    target_type: 目标类型
+    actor_id: 操作者
   columns:
     event: 事件
     status: 结果
@@ -93,14 +92,9 @@ stream:
     ip_address: IP 地址
     timestamp: 时间
   filters:
-    all: 全部
-    failures: 失败
     authentication: 认证
     credentials: 凭据
     administration: 管理
-  view:
-    list: 列表视图
-    cards: 卡片视图
   actor:
     unattributed: 未归属
     unknown_type: 未知类型
@@ -119,13 +113,9 @@ stream:
     events_other: '{{count}} 条事件'
     # Never inflects: the noun it qualifies is the column header, not a word in this string.
     failures: '{{total}} 次失败'
-    actors_other: '{{count}} 位操作者'
   empty:
     label: 无安全事件
-    hint: 'Sea Watch 会记录此域中每一项与安全相关的操作：登录、凭据变更以及管理操作。过去 {{days}} 天内没有记录到任何内容。'
-    filtered_label: 无匹配结果
-    filtered_hint: 没有事件与当前的搜索和筛选条件匹配。
-    clear: 清除筛选
+    hint: 'Sea Watch 会记录此域中每一项与安全相关的操作：登录、凭据变更以及管理操作。目前尚未记录任何内容。'
 
 alerts:
   unavailable:
@@ -134,7 +124,7 @@ alerts:
   capped:
     # {{limit}} is a fixed ceiling in the hundreds, so this reads as a plural in every case.
     title: '已限制为 {{limit}} 条事件'
-    detail: '此域在过去 {{days}} 天内记录的事件多于此数；下方数据仅涵盖最近的 {{limit}} 条。'
+    detail: '此域在过去 {{days}} 天内记录的事件多于此数；独立操作者、每日趋势和失败分布仅涵盖最近的 {{limit}} 条。'
   failures:
     title_other: '过去 {{days}} 天内有 {{count}} 条失败事件'
     # {{label}} is an event label from the catalogue above; {{total}} is how many of them occurred.

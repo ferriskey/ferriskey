@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, CheckCircle2, LayoutGrid, List, Search } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, LayoutGrid, List } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
@@ -38,22 +38,13 @@ export interface ListingPageProps<T> {
   actions?: ReactNode
   metrics?: ListingMetric[]
   alerts?: ListingAlert[]
-  filters?: { key: string; label: string; predicate?: (row: T) => boolean }[]
-  server?: {
-    filter: string
-    onFilterChange: (key: string) => void
-    draft?: string
-    onDraftChange?: (v: string) => void
-  }
-  paged?: {
+  insights?: ReactNode
+  paged: {
     listing: PagedListing
     pagination: PaginationMetadata | undefined
     filterFields: FilterField[]
   }
   searchScopeHint?: string
-  searchPlaceholder?: string
-  querySyntax?: string
-  searchIn?: (row: T) => string
   rows: T[]
   columns: Column<T>[]
   card: CardSpec<T>
@@ -66,8 +57,6 @@ export interface ListingPageProps<T> {
   defaultView?: ViewMode
   loading?: boolean
 }
-
-const ALL_FILTER_KEY = 'all'
 
 const VIEW_MODES = [
   ['list', List],
@@ -86,13 +75,9 @@ export function ListingPage<T>({
   actions,
   metrics,
   alerts,
-  filters,
-  server,
+  insights,
   paged,
   searchScopeHint,
-  searchPlaceholder,
-  querySyntax,
-  searchIn,
   rows,
   columns,
   card,
@@ -107,51 +92,14 @@ export function ListingPage<T>({
 }: ListingPageProps<T>) {
   const { t } = useTranslation()
   const [view, setView] = useState<ViewMode>(defaultView)
-  const [localQuery, setLocalQuery] = useState('')
-  const [localFilter, setLocalFilter] = useState<string>(ALL_FILTER_KEY)
-
   const tier = useLayoutTier()
   const effectiveView = tier === 'phone' ? 'cards' : view
 
-  const serverSearch = Boolean(server?.onDraftChange)
-  const query = serverSearch ? (server?.draft ?? '') : localQuery
-  const setQuery = serverSearch ? server!.onDraftChange! : setLocalQuery
-  const filter = server ? server.filter : localFilter
-  const setFilter = server ? server.onFilterChange : setLocalFilter
+  const narrowed = Object.values(paged.listing.state.filters).some(Boolean)
+  const filteredOut = narrowed && rows.length === 0
 
-  const filtered = useMemo(() => {
-    if (paged) return rows
-    let out = rows
-    const activeKey = server ? server.filter : localFilter
-    const predicate = filters?.find((f) => f.key === activeKey)?.predicate
-    if (predicate) out = out.filter((row) => predicate(row))
-    if (!serverSearch && localQuery.trim() && searchIn) {
-      const q = localQuery.trim().toLowerCase()
-      out = out.filter((r) => searchIn(r).toLowerCase().includes(q))
-    }
-    return out
-  }, [rows, filters, localFilter, localQuery, searchIn, server, serverSearch, paged])
-
-  const narrowed = paged
-    ? Object.values(paged.listing.state.filters).some(Boolean)
-    : Boolean(query.trim()) || filter !== ALL_FILTER_KEY
-  const filteredOut =
-    narrowed && filtered.length === 0 && (server || paged ? true : rows.length > 0)
-
-  const clearNarrowing = () => {
-    if (paged) {
-      paged.listing.clearFilters()
-      return
-    }
-    setQuery('')
-    setFilter(ALL_FILTER_KEY)
-  }
-
-  const entryCount = paged
-    ? paged.pagination && t('data_view.entry_count', { count: paged.pagination.total })
-    : filtered.length === rows.length
-      ? t('data_view.entry_count', { count: rows.length })
-      : t('data_view.shown_of_total', { shown: filtered.length, total: rows.length })
+  const entryCount =
+    paged.pagination && t('data_view.entry_count', { count: paged.pagination.total })
 
   return (
     <PageShell>
@@ -210,52 +158,10 @@ export function ListingPage<T>({
 
         <MetricsBand metrics={metrics ?? []} />
 
-        <div className='flex flex-wrap items-center gap-2'>
-          {paged ? (
-            <FilterBar fields={paged.filterFields} listing={paged.listing} />
-          ) : (
-            <>
-              <label className='relative flex h-8 min-w-[15rem] flex-1 items-center'>
-                <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
-                <input
-                  type='search'
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={
-                    tokens.toolbar.showQuerySyntax && querySyntax
-                      ? querySyntax
-                      : (searchPlaceholder ?? t('data_view.search_placeholder'))
-                  }
-                  className={cn(
-                    'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
-                    tokens.toolbar.showQuerySyntax && querySyntax
-                      ? 'font-mono-ui text-xs placeholder:text-neutral-300'
-                      : 'text-sm'
-                  )}
-                />
-              </label>
+        {insights}
 
-              {filters && filters.length > 0 && (
-                <div className='flex gap-1'>
-                  {[{ key: ALL_FILTER_KEY, label: t('data_view.filter_all') }, ...filters].map((f) => (
-                    <button
-                      key={f.key}
-                      type='button'
-                      onClick={() => setFilter(f.key)}
-                      className={cn(
-                        'cursor-pointer rounded-md px-2.5 py-1.5 text-xs transition-colors',
-                        f.key === filter
-                          ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                          : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
-                      )}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+        <div className='flex flex-wrap items-center gap-2'>
+          <FilterBar fields={paged.filterFields} listing={paged.listing} />
 
           {tokens.toolbar.showViewToggle && tier !== 'phone' && (
             <div className='flex rounded-md border border-fk-line p-0.5'>
@@ -285,7 +191,7 @@ export function ListingPage<T>({
         )}
 
         <DataView
-          rows={filtered}
+          rows={rows}
           columns={columns}
           card={card}
           getKey={getKey}
@@ -293,23 +199,14 @@ export function ListingPage<T>({
           view={effectiveView}
           loading={loading}
           aggregates={aggregates}
-          sort={paged?.listing.state.sort}
-          onSortChange={paged?.listing.setSort}
+          sort={paged.listing.state.sort}
+          onSortChange={paged.listing.setSort}
           emptyLabel={filteredOut ? t('data_view.no_match') : emptyLabel}
-          emptyHint={
-            filteredOut
-              ? server || paged
-                ? t('data_view.no_match_server_hint')
-                : t('data_view.hidden_by_filter', { count: rows.length })
-              : emptyHint
-          }
+          emptyHint={filteredOut ? t('data_view.no_match_server_hint') : emptyHint}
           emptyAction={
             filteredOut ? (
               <div className='flex flex-wrap items-center justify-center gap-2'>
-                <Button
-                  variant='outline'
-                  onClick={clearNarrowing}
-                >
+                <Button variant='outline' onClick={() => paged.listing.clearFilters()}>
                   {t('data_view.clear_filter')}
                 </Button>
                 {emptyAction}
@@ -320,7 +217,7 @@ export function ListingPage<T>({
           }
         />
 
-        {paged?.pagination && (
+        {paged.pagination && (
           <PaginationBar pagination={paged.pagination} onPageChange={paged.listing.setPage} />
         )}
 

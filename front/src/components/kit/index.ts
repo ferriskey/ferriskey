@@ -31,8 +31,6 @@ export { EntityPicker } from './EntityPicker'
 export type { PickableEntity } from './EntityPicker'
 export { CreatePickerDialog } from './CreatePickerDialog'
 export { useCreatePicker } from './useCreatePicker'
-export { useListingQuery } from './useListingQuery'
-export type { ListingQuery } from './useListingQuery'
 
 export {
   FieldRow,
