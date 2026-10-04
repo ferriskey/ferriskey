@@ -66,15 +66,31 @@ list:
     total:
       label: 总计
       hint: 个角色
-    mfa:
-      label: 需要 MFA
+    realm:
+      label: 域角色
       hint: 占总数的 {{percent}}%
-      empty_hint: 无需要 MFA 的角色
+      empty_hint: 无域角色
+    client:
+      label: 客户端角色
+      hint: 限定于某个客户端
+    granting:
+      label: 含权限
+      hint: 至少授予一项
+  alerts:
+    without_permissions:
+      title_other: '{{count}} 个角色未授予任何权限'
+      detail: '{{names}}：未携带任何权限。'
+      action: 查看
+  filters:
+    realm: 域
+    client: 客户端
   filter_fields:
     name: 名称
     description: 描述
     require_mfa: 需要 MFA
     client: 客户端
+    scope: 作用域
+    has_permissions: 含权限
   card:
     flags:
       grants: 至少授予一项权限

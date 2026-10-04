@@ -1,5 +1,10 @@
 import { useNavigate, useParams } from 'react-router'
-import { useGetRoles, useRoleCount, type RolesQuery } from '@/api/role.api'
+import {
+  ROLE_FILTER_KEYS,
+  useGetRoles,
+  useRoleCount,
+  type RolesQuery,
+} from '@/api/role.api'
 import { usePagedListing } from '@/components/kit'
 import { RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
@@ -8,7 +13,7 @@ import { CONSOLE_ROLE_URL, CONSOLE_ROLES_URL } from '../urls'
 
 import Role = Schemas.Role
 
-const ROLE_FILTER_KEYS = ['name', 'description', 'require_mfa', 'client_id'] as const
+const EMPTY_PREVIEW = 5
 
 export default function PageRolesFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -21,7 +26,13 @@ export default function PageRolesFeature() {
     query: listing.apiQuery as RolesQuery,
   })
   const total = useRoleCount({ realm })
-  const mfa = useRoleCount({ realm, filter: { require_mfa: true } })
+  const realmRoles = useRoleCount({ realm, filter: { scope: 'realm' } })
+  const clientRoles = useRoleCount({ realm, filter: { scope: 'client' } })
+  const granting = useRoleCount({ realm, filter: { has_permissions: true } })
+  const { data: emptyResponse } = useGetRoles({
+    realm,
+    query: { has_permissions: false, limit: EMPTY_PREVIEW },
+  })
 
   return (
     <PageRolesOverview
@@ -29,7 +40,16 @@ export default function PageRolesFeature() {
       pagination={rolesResponse?.metadata}
       listing={listing}
       isLoading={isLoading}
-      counts={{ total: total.count, mfa: mfa.count }}
+      counts={{
+        total: total.count,
+        realm: realmRoles.count,
+        client: clientRoles.count,
+        granting: granting.count,
+      }}
+      withoutPermissions={{
+        total: emptyResponse?.metadata.total ?? 0,
+        names: (emptyResponse?.data ?? []).map((role) => role.name),
+      }}
       roleHref={(role: Role) => `${CONSOLE_ROLE_URL(realm, role.id)}/settings`}
       onCreate={() => navigate(`${CONSOLE_ROLES_URL(realm)}/create`)}
     />

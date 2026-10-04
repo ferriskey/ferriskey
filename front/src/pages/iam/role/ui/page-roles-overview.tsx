@@ -18,7 +18,14 @@ import { roleScopeLabelKey } from '../role-scope'
 
 export interface RoleCounts {
   total: number
-  mfa: number
+  realm: number
+  client: number
+  granting: number
+}
+
+export interface RolesWithoutPermissions {
+  total: number
+  names: string[]
 }
 
 export interface PageRolesOverviewProps {
@@ -27,9 +34,13 @@ export interface PageRolesOverviewProps {
   listing: PagedListing
   isLoading: boolean
   counts: RoleCounts
+  withoutPermissions: RolesWithoutPermissions
   roleHref: (role: Role) => string
   onCreate: () => void
 }
+
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
 
 const isClientRole = (role: Role) => Boolean(role.client_id)
 
@@ -39,6 +50,7 @@ export default function PageRolesOverview({
   listing,
   isLoading,
   counts,
+  withoutPermissions,
   roleHref,
   onCreate,
 }: PageRolesOverviewProps) {
@@ -110,6 +122,20 @@ export default function PageRolesOverview({
     { kind: 'text', key: 'description', label: t('list.filter_fields.description') },
     { kind: 'boolean', key: 'require_mfa', label: t('list.filter_fields.require_mfa') },
     {
+      kind: 'enum',
+      key: 'scope',
+      label: t('list.filter_fields.scope'),
+      options: [
+        { value: 'realm', label: t('list.filters.realm') },
+        { value: 'client', label: t('list.filters.client') },
+      ],
+    },
+    {
+      kind: 'boolean',
+      key: 'has_permissions',
+      label: t('list.filter_fields.has_permissions'),
+    },
+    {
       kind: 'relation',
       key: 'client_id',
       label: t('list.filter_fields.client'),
@@ -148,6 +174,10 @@ export default function PageRolesOverview({
     ),
   }
 
+  const withoutPermissionsNames =
+    withoutPermissions.names.join(NAME_SEPARATOR) +
+    (withoutPermissions.total > withoutPermissions.names.length ? TRUNCATION_MARK : '')
+
   const createButton = (
     <Button onClick={onCreate}>
       <Plus /> {t('list.create')}
@@ -170,19 +200,51 @@ export default function PageRolesOverview({
           tone: 'info',
         },
         {
-          key: 'mfa',
-          label: t('list.metrics.mfa.label'),
-          value: counts.mfa,
+          key: 'realm',
+          label: t('list.metrics.realm.label'),
+          value: counts.realm,
           hint:
-            counts.mfa > 0 && counts.total > 0
-              ? t('list.metrics.mfa.hint', {
-                  percent: ((counts.mfa / counts.total) * 100).toFixed(0),
+            counts.realm > 0 && counts.total > 0
+              ? t('list.metrics.realm.hint', {
+                  percent: ((counts.realm / counts.total) * 100).toFixed(0),
                 })
-              : t('list.metrics.mfa.empty_hint'),
-          series: [counts.mfa, counts.mfa],
+              : t('list.metrics.realm.empty_hint'),
+          series: [counts.realm, counts.realm],
+          tone: 'info',
+        },
+        {
+          key: 'client',
+          label: t('list.metrics.client.label'),
+          value: counts.client,
+          hint: t('list.metrics.client.hint'),
+          series: [counts.client, counts.client],
           tone: 'violet',
         },
+        {
+          key: 'granting',
+          label: t('list.metrics.granting.label'),
+          value: counts.granting,
+          hint: t('list.metrics.granting.hint'),
+          series: [counts.granting, counts.granting],
+          tone: 'success',
+        },
       ]}
+      alerts={
+        withoutPermissions.total
+          ? [
+              {
+                tone: 'warn' as const,
+                title: t('list.alerts.without_permissions.title', {
+                  count: withoutPermissions.total,
+                }),
+                detail: t('list.alerts.without_permissions.detail', {
+                  names: withoutPermissionsNames,
+                }),
+                action: t('list.alerts.without_permissions.action'),
+              },
+            ]
+          : []
+      }
       paged={{ listing, pagination, filterFields }}
       rows={roles}
       columns={columns}

@@ -3906,6 +3906,8 @@ export namespace Endpoints {
         description: string;
         require_mfa: boolean;
         client_id: string;
+        scope: "realm" | "client";
+        has_permissions: boolean;
         ids: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
