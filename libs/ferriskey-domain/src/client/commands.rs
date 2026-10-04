@@ -79,10 +79,6 @@ pub struct GetPostLogoutRedirectUrisInput {
     pub client_id: Uuid,
 }
 
-pub struct GetClientsInput {
-    pub realm_name: String,
-}
-
 pub struct UpdateClientInput {
     pub realm_name: String,
     pub client_id: Uuid,

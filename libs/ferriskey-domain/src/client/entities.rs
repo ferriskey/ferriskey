@@ -224,6 +224,31 @@ impl RealmOwned for Client {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ClientFilter {
+    pub name: Option<String>,
+    pub client_id: Option<String>,
+    pub enabled: Option<bool>,
+    pub public_client: Option<bool>,
+    pub service_account_enabled: Option<bool>,
+    pub protocol: Option<AuthProtocol>,
+    pub client_type: Option<ClientType>,
+    pub has_redirect_uris: Option<bool>,
+    pub maintenance_enabled: Option<bool>,
+    pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ClientSortField {
+    Name,
+    ClientId,
+    Enabled,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

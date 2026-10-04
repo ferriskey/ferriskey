@@ -5,20 +5,87 @@ use crate::{
 };
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    QueryFilter, QuerySelect, QueryTrait, Select,
 };
-use tracing::instrument;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
-use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
+use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::domain::{
     client::{
-        entities::{Client, redirect_uri::RedirectUri},
+        entities::{Client, ClientFilter, ClientSortField, redirect_uri::RedirectUri},
         ports::ClientRepository,
         value_objects::{CreateClientRequest, UpdateClientRequest},
     },
-    common::{generate_timestamp, generate_uuid_v7},
+    common::{
+        generate_timestamp, generate_uuid_v7,
+        pagination::{Page, PageRequest},
+    },
 };
+use crate::entity::{clients, redirect_uris};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<clients::Entity> for ClientSortField {
+    fn column(&self) -> clients::Column {
+        match self {
+            ClientSortField::Name => clients::Column::Name,
+            ClientSortField::ClientId => clients::Column::ClientId,
+            ClientSortField::Enabled => clients::Column::Enabled,
+            ClientSortField::CreatedAt => clients::Column::CreatedAt,
+            ClientSortField::UpdatedAt => clients::Column::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(realm_id: Uuid, filter: &ClientFilter) -> Select<clients::Entity> {
+    clients::Entity::find()
+        .filter(clients::Column::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(clients::Column::Name, value))
+        })
+        .apply_if(filter.client_id.as_deref(), |select, value| {
+            select.filter(contains(clients::Column::ClientId, value))
+        })
+        .apply_if(filter.enabled, |select, value| {
+            select.filter(clients::Column::Enabled.eq(value))
+        })
+        .apply_if(filter.public_client, |select, value| {
+            select.filter(clients::Column::PublicClient.eq(value))
+        })
+        .apply_if(filter.service_account_enabled, |select, value| {
+            select.filter(clients::Column::ServiceAccountEnabled.eq(value))
+        })
+        .apply_if(filter.protocol, |select, protocol| {
+            select.filter(clients::Column::Protocol.eq(protocol.as_str()))
+        })
+        .apply_if(filter.client_type.as_ref(), |select, client_type| {
+            select.filter(clients::Column::ClientType.eq(client_type.to_string()))
+        })
+        .apply_if(filter.has_redirect_uris, |select, present| {
+            let with_redirects = redirect_uris::Entity::find()
+                .select_only()
+                .column(redirect_uris::Column::ClientId)
+                .into_query();
+            select.filter(if present {
+                clients::Column::Id.in_subquery(with_redirects)
+            } else {
+                clients::Column::Id.not_in_subquery(with_redirects)
+            })
+        })
+        .apply_if(filter.maintenance_enabled, |select, value| {
+            select.filter(if value {
+                Condition::all().add(clients::Column::MaintenanceEnabled.eq(true))
+            } else {
+                Condition::any()
+                    .add(clients::Column::MaintenanceEnabled.eq(false))
+                    .add(clients::Column::MaintenanceEnabled.is_null())
+            })
+        })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(clients::Column::Id.is_in(ids.iter().copied()))
+        })
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresClientRepository {
@@ -139,6 +206,21 @@ impl ClientRepository for PostgresClientRepository {
         Ok(clients)
     }
 
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<ClientFilter, ClientSortField>,
+    ) -> Result<Page<Client>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing clients: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+        let clients = models.into_iter().map(Client::from).collect();
+
+        Ok(Page::new(clients, total, request.page, request.limit))
+    }
+
     async fn update_client(
         &self,
         client: &Scoped<Client>,
@@ -248,5 +330,128 @@ impl ClientRepository for PostgresClientRepository {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::authentication::entities::AuthProtocol;
+    use crate::domain::client::entities::{ClientFilter, ClientType};
+
+    fn sql(filter: &ClientFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&ClientFilter::default());
+        assert!(
+            sql.contains(r#""clients"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&ClientFilter {
+            name: Some("a%".to_string()),
+            client_id: Some("b".to_string()),
+            ..ClientFilter::default()
+        });
+        assert!(sql.contains(r#""clients"."name" ILIKE E'%a\\%%'"#), "{sql}");
+        assert!(
+            sql.contains(r#""clients"."client_id" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn exact_filters_are_equalities() {
+        let sql = sql(&ClientFilter {
+            enabled: Some(true),
+            public_client: Some(false),
+            service_account_enabled: Some(true),
+            protocol: Some(AuthProtocol::Saml),
+            client_type: Some(ClientType::System),
+            ..ClientFilter::default()
+        });
+        assert!(sql.contains(r#""clients"."enabled" = TRUE"#), "{sql}");
+        assert!(
+            sql.contains(r#""clients"."public_client" = FALSE"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""clients"."service_account_enabled" = TRUE"#),
+            "{sql}"
+        );
+        assert!(sql.contains(r#""clients"."protocol" = 'saml'"#), "{sql}");
+        assert!(
+            sql.contains(r#""clients"."client_type" = 'system'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn redirect_presence_is_a_subquery_on_redirect_uris() {
+        let with = sql(&ClientFilter {
+            has_redirect_uris: Some(true),
+            ..ClientFilter::default()
+        });
+        assert!(
+            with.contains(
+                r#""clients"."id" IN (SELECT "redirect_uris"."client_id" FROM "redirect_uris")"#
+            ),
+            "{with}"
+        );
+        let without = sql(&ClientFilter {
+            has_redirect_uris: Some(false),
+            ..ClientFilter::default()
+        });
+        assert!(
+            without.contains(
+                r#""clients"."id" NOT IN (SELECT "redirect_uris"."client_id" FROM "redirect_uris")"#
+            ),
+            "{without}"
+        );
+    }
+
+    #[test]
+    fn maintenance_off_includes_unset_rows() {
+        let on = sql(&ClientFilter {
+            maintenance_enabled: Some(true),
+            ..ClientFilter::default()
+        });
+        assert!(
+            on.contains(r#""clients"."maintenance_enabled" = TRUE"#),
+            "{on}"
+        );
+        let off = sql(&ClientFilter {
+            maintenance_enabled: Some(false),
+            ..ClientFilter::default()
+        });
+        assert!(
+            off.contains(r#"("clients"."maintenance_enabled" = FALSE OR "clients"."maintenance_enabled" IS NULL)"#),
+            "{off}"
+        );
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(&ClientFilter {
+            ids: Some(vec![first, second]),
+            ..ClientFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(r#""clients"."id" IN ('{first}', '{second}')"#)),
+            "{sql}"
+        );
     }
 }

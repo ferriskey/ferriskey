@@ -6,14 +6,15 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, CreateClientInput, CreatePostLogoutRedirectUriInput, CreateRedirectUriInput,
-            CreateRoleInput, CreateSamlAttributeMapperInput, CreateWebOriginInput,
-            DeleteClientInput, DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput,
+            Client, ClientFilter, ClientSortField, CreateClientInput,
+            CreatePostLogoutRedirectUriInput, CreateRedirectUriInput, CreateRoleInput,
+            CreateSamlAttributeMapperInput, CreateWebOriginInput, DeleteClientInput,
+            DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput,
             DeleteSamlAttributeMapperInput, DeleteWebOriginInput, GetClientInput,
-            GetClientRolesInput, GetClientSamlConfigInput, GetClientsInput,
-            GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
-            GetWebOriginsInput, SetClientSamlConfigInput, UpdateClientInput,
-            UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+            GetClientRolesInput, GetClientSamlConfigInput, GetPostLogoutRedirectUrisInput,
+            GetRedirectUrisInput, GetSamlAttributeMappersInput, GetWebOriginsInput,
+            SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
+            UpdateRedirectUriInput,
             redirect_uri::RedirectUri,
             saml::{
                 AcsUrl, ClientSamlConfig, NameIdFormat, SamlAttributeMapper,
@@ -33,6 +34,7 @@ use crate::domain::{
     common::{
         entities::app_errors::CoreError,
         generate_random_string,
+        pagination::{Page, PageRequest},
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
@@ -880,24 +882,20 @@ where
             .map_err(|_| CoreError::NotFound)
     }
 
-    async fn get_clients(
+    async fn list_clients(
         &self,
         identity: Identity,
-        input: GetClientsInput,
-    ) -> Result<Vec<Client>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
-        let realm = scope.realm().clone();
+        realm_name: String,
+        request: PageRequest<ClientFilter, ClientSortField>,
+    ) -> Result<Page<Client>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_client(&identity, &realm).await,
+            self.policy.can_view_client(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
-        self.client_repository
-            .get_by_realm_id(realm_id)
-            .await
-            .map_err(|_| CoreError::NotFound)
+        self.client_repository.list(&scope, &request).await
     }
 
     async fn get_redirect_uris(
@@ -1356,5 +1354,68 @@ mod tests {
             .expect("client is updated");
 
         assert!(client.token_exchange_enabled);
+    }
+
+    fn list_request() -> PageRequest<ClientFilter, ClientSortField> {
+        PageRequest {
+            filter: ClientFilter {
+                name: Some("api".to_string()),
+                enabled: Some(true),
+                protocol: Some(AuthProtocol::Saml),
+                ..ClientFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_clients_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = create_test_realm_with_name("acme");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let mut mocks = Mocks::for_admin_of(&realm, &identity);
+        let mut user_role = MockUserRoleRepository::new();
+        user_role
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        mocks.user_role = user_role;
+        mocks.client.expect_list().never();
+        let service = mocks.build();
+
+        let result = service
+            .list_clients(identity, realm.name.clone(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_clients_pages_the_resolved_realm_with_the_request() {
+        let realm = create_test_realm_with_name("acme");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let mut mocks = Mocks::for_admin_of(&realm, &identity);
+        let listed = stored_client(&realm, false);
+        let expected_id = listed.id;
+        let realm_id = realm.id;
+        mocks
+            .client
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+        let service = mocks.build();
+
+        let page = service
+            .list_clients(identity, realm.name.clone(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }
