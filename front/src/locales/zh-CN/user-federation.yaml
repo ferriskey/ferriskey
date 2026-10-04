@@ -91,6 +91,10 @@ list:
   filter_fields:
     name: 名称
     provider_type: 类型
+    provider_family: 类别
+    provider_family_values:
+      ldap: LDAP（含 Active Directory）
+      kerberos: Kerberos
     enabled: 已启用
     sync_enabled: 计划同步
     synced: 至少同步过一次

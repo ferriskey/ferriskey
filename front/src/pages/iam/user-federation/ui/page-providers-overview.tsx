@@ -261,6 +261,15 @@ export default function PageProvidersOverview({
       label: t('list.filter_fields.provider_type'),
       options: PROVIDER_TYPE_OPTIONS,
     },
+    {
+      kind: 'enum',
+      key: 'provider_family',
+      label: t('list.filter_fields.provider_family'),
+      options: [
+        { value: 'ldap', label: t('list.filter_fields.provider_family_values.ldap') },
+        { value: 'kerberos', label: t('list.filter_fields.provider_family_values.kerberos') },
+      ],
+    },
     { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
     { kind: 'boolean', key: 'sync_enabled', label: t('list.filter_fields.sync_enabled') },
     { kind: 'boolean', key: 'synced', label: t('list.filter_fields.synced') },

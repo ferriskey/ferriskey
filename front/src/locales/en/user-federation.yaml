@@ -83,6 +83,10 @@ list:
   filter_fields:
     name: Name
     provider_type: Type
+    provider_family: Family
+    provider_family_values:
+      ldap: LDAP (incl. Active Directory)
+      kerberos: Kerberos
     enabled: Enabled
     sync_enabled: Scheduled sync
     synced: Synchronised at least once

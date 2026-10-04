@@ -2644,6 +2644,7 @@ export namespace Endpoints {
         order: "asc" | "desc";
         name: string;
         provider_type: string;
+        provider_family: "ldap" | "kerberos";
         enabled: boolean;
         sync_enabled: boolean;
         synced: boolean;
