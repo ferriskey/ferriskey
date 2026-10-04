@@ -260,6 +260,7 @@ groups:
     add: Add
     empty: No sub-groups.
     browse: Show in the list
+    child_count: ({{total}})
   create:
     title: Add sub-group
     description: Create a sub-group under "{{name}}".

@@ -15,6 +15,7 @@ export interface PagedListing {
   setPage: (page: number) => void
   setSort: (sort: SortState | null) => void
   setFilter: (key: string, value: string) => void
+  setFilters: (patch: Record<string, string>) => void
   setDraft: (key: string, value: string) => void
   clearFilters: () => void
 }
@@ -65,6 +66,14 @@ export function usePagedListing(filterKeys: readonly string[], delay = 300): Pag
     [commit, settle],
   )
 
+  const setFilters = useCallback(
+    (patch: Record<string, string>) => {
+      settle(Object.keys(patch))
+      commit({ filters: patch })
+    },
+    [commit, settle],
+  )
+
   const setDraft = useCallback(
     (key: string, value: string) => {
       setPending((current) => ({ ...current, [key]: value }))
@@ -99,6 +108,7 @@ export function usePagedListing(filterKeys: readonly string[], delay = 300): Pag
     setPage,
     setSort,
     setFilter,
+    setFilters,
     setDraft,
     clearFilters,
   }

@@ -46,6 +46,7 @@ import { useRoleSearch } from '@/api/role.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import { formatRelative } from '@/utils/format-date'
 import { groupRelationSource } from '@/api/group.relation'
+import { groupFilterPatch, walkDownPatch } from './group-filter-patch'
 import {
   GROUP_FILTER_KEYS,
   GROUP_SEARCH_LIMIT,
@@ -64,6 +65,7 @@ import {
   useRevokeGroupRole,
   useUpsertGroupAttribute,
   type Group,
+  type GroupListItem,
   type GroupsQuery,
 } from '@/api/group.api'
 
@@ -506,6 +508,11 @@ function SubGroupsTab({
               onClick={() => onSelect(child.id)}
             >
               {child.name}
+              {child.child_count > 0 && (
+                <span className='ml-2 text-xs text-muted-foreground'>
+                  {t('groups.subgroups.child_count', { total: child.child_count })}
+                </span>
+              )}
             </button>
           ))
         )}
@@ -606,6 +613,13 @@ function GroupsTable({
     [parents]
   )
   const narrowed = Object.values(listing.state.filters).some(Boolean)
+  const filterListing = useMemo<PagedListing>(
+    () => ({
+      ...listing,
+      setFilter: (key, value) => listing.setFilters(groupFilterPatch(key, value)),
+    }),
+    [listing]
+  )
 
   const filterFields: FilterField[] = [
     { kind: 'text', key: 'name', label: t('groups.list.filter_fields.name') },
@@ -619,12 +633,12 @@ function GroupsTable({
     { kind: 'boolean', key: 'is_root', label: t('groups.list.filter_fields.is_root') },
   ]
 
-  const parentLabel = (group: Group) =>
+  const parentLabel = (group: GroupListItem) =>
     group.parent_group_id
       ? (parentNames.get(group.parent_group_id) ?? EMPTY_VALUE)
       : t('groups.list.top_level')
 
-  const columns: Column<Group>[] = [
+  const columns: Column<GroupListItem>[] = [
     {
       key: 'name',
       header: t('groups.list.columns.name'),
@@ -673,14 +687,16 @@ function GroupsTable({
       align: 'right',
       render: (group) => (
         <div className='flex justify-end gap-1'>
-          <button
-            type='button'
-            className='text-muted-foreground hover:text-foreground'
-            title={t('groups.list.show_subgroups')}
-            onClick={() => listing.setFilter('parent_group_id', group.id)}
-          >
-            <FolderTree className='h-4 w-4' />
-          </button>
+          {group.child_count > 0 && (
+            <button
+              type='button'
+              className='text-muted-foreground hover:text-foreground'
+              title={t('groups.list.show_subgroups')}
+              onClick={() => listing.setFilters(walkDownPatch(group.id))}
+            >
+              <FolderTree className='h-4 w-4' />
+            </button>
+          )}
           <button
             type='button'
             className='text-muted-foreground hover:text-foreground'
@@ -705,7 +721,7 @@ function GroupsTable({
   return (
     <div className='flex flex-col gap-3'>
       <div className='flex'>
-        <FilterBar fields={filterFields} listing={listing} />
+        <FilterBar fields={filterFields} listing={filterListing} />
       </div>
       <DataView
         rows={groups}
@@ -751,11 +767,12 @@ export default function PageOrganizationGroupsFeature() {
   const [childName, setChildName] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Group | undefined>()
 
-  const { data: selected } = useGroup({
+  const selectedQuery = useGroup({
     realm: realm_name,
     orgId: organizationId,
     groupId: selectedId,
   })
+  const selected = selectedQuery.isError ? undefined : selectedQuery.data
 
   const createRoot = () => {
     if (!newName) return
@@ -767,7 +784,7 @@ export default function PageOrganizationGroupsFeature() {
     setAddParent(parent)
   }
 
-  const browse = (parentId: string) => listing.setFilter('parent_group_id', parentId)
+  const browse = (parentId: string) => listing.setFilters(walkDownPatch(parentId))
 
   const submitChild = () => {
     if (!childName || !addParent) return
@@ -791,6 +808,9 @@ export default function PageOrganizationGroupsFeature() {
       onSuccess: () => {
         setSelectedId((id) => (id === target.id ? undefined : id))
         setDeleteTarget(undefined)
+        if (listing.state.filters.parent_group_id === target.id) {
+          listing.setFilter('parent_group_id', '')
+        }
       },
     })
   }

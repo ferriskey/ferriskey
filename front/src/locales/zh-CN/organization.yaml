@@ -266,6 +266,7 @@ groups:
     add: 添加
     empty: 暂无子组。
     browse: 在列表中查看
+    child_count: '（{{total}}）'
   create:
     title: 添加子组
     description: '在“{{name}}”下创建一个子组。'

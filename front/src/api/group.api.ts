@@ -14,6 +14,8 @@ import { ID_BATCH, idBatches } from './id-batches'
 
 export type Group = Schemas.Group
 
+export type GroupListItem = Schemas.GroupListItem
+
 export type GroupsQuery = NonNullable<Endpoints.get_List_groups['parameters']['query']>
 
 export const GROUP_FILTER_KEYS = ['name', 'description', 'parent_group_id', 'is_root'] as const
@@ -128,6 +130,13 @@ const groupKey = (realm?: string, orgId?: string, groupId?: string) =>
     path: { ...groupsPath(realm, orgId), group_id: groupId ?? '' },
   }).queryKey
 
+const groupDetailsKey = (realm?: string, orgId?: string) => [
+  {
+    _id: '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}',
+    path: groupsPath(realm, orgId),
+  },
+]
+
 const refreshGroups = (qc: QueryClient, realm?: string, orgId?: string, groupId?: string) =>
   Promise.all([
     qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
@@ -154,7 +163,7 @@ export function useGroups({
   })
 }
 
-const combineGroups = (results: UseQueryResult<Schemas.Paginated_Group>[]) => ({
+const combineGroups = (results: UseQueryResult<Schemas.Paginated_GroupListItem>[]) => ({
   groups: results.flatMap((result) => result.data?.data ?? []),
   isLoading: results.some((result) => result.isLoading),
 })
@@ -229,7 +238,13 @@ export function useDeleteGroup(realm?: string, orgId?: string) {
   return useMutation({
     mutationFn: (groupId: string) =>
       request<void>('DELETE', `${groupsBase(realm!, orgId!)}/${groupId}`),
-    onSuccess: () => refreshGroups(qc, realm, orgId),
+    onSuccess: (_, groupId) => {
+      qc.removeQueries({ queryKey: groupKey(realm, orgId, groupId) })
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
+        qc.invalidateQueries({ queryKey: groupDetailsKey(realm, orgId) }),
+      ])
+    },
   })
 }
 

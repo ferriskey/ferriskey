@@ -750,6 +750,7 @@ export namespace Schemas {
     updated_at: string;
   };
   export type GroupAttribute = { created_at: string; group_id: GroupId; id: string; key: string; value: string };
+  export type GroupListItem = Group & { child_count: number };
   export type GroupMember = { created_at: string; group_id: GroupId; id: string; user_id: string };
   export type GroupMemberDetail = {
     created_at: string;
@@ -1001,18 +1002,7 @@ export namespace Schemas {
     }>;
     metadata: PageMetadata;
   };
-  export type Paginated_Group = {
-    data: Array<{
-      created_at: string;
-      description?: (string | null) | undefined;
-      id: GroupId;
-      name: string;
-      organization_id: OrganizationId;
-      parent_group_id?: (null | GroupId) | undefined;
-      updated_at: string;
-    }>;
-    metadata: PageMetadata;
-  };
+  export type Paginated_GroupListItem = { data: Array<Group & { child_count: number }>; metadata: PageMetadata };
   export type Paginated_Organization = {
     data: Array<{
       alias: string;
@@ -3198,7 +3188,7 @@ export namespace Endpoints {
       path: { realm_name: string; organization_id: string };
     };
     responses: {
-      200: Schemas.Paginated_Group;
+      200: Schemas.Paginated_GroupListItem;
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
