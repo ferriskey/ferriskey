@@ -3,7 +3,10 @@ use uuid::Uuid;
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
 use crate::common::locale::SupportedLocales;
-use crate::realm::{LoginAliases, Realm, RealmId, RealmSetting, SmtpConfig};
+use crate::common::pagination::{Page, PageRequest};
+use crate::realm::{
+    LoginAliases, Realm, RealmFilter, RealmId, RealmSetting, RealmSortField, SmtpConfig,
+};
 
 pub trait RealmPolicy: Send + Sync {
     fn can_create_realm(
@@ -31,6 +34,12 @@ pub trait RealmPolicy: Send + Sync {
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait RealmRepository: Send + Sync {
     fn fetch_realm(&self) -> impl Future<Output = Result<Vec<Realm>, CoreError>> + Send;
+
+    fn list(
+        &self,
+        accessible: &[RealmId],
+        request: &PageRequest<RealmFilter, RealmSortField>,
+    ) -> impl Future<Output = Result<Page<Realm>, CoreError>> + Send;
 
     fn get_by_name(
         &self,

@@ -2,10 +2,15 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         portal_theme::ports::{GetThemeInput, PortalThemeService},
         realm::{
-            entities::{Realm, RealmId, RealmLoginSetting, RealmSetting},
+            entities::{
+                Realm, RealmFilter, RealmId, RealmLoginSetting, RealmSetting, RealmSortField,
+            },
             ports::{
                 CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
                 GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
@@ -71,8 +76,12 @@ impl RealmService for ApplicationService {
             .await
     }
 
-    async fn get_realms_by_user(&self, identity: Identity) -> Result<Vec<Realm>, CoreError> {
-        self.realm_service.get_realms_by_user(identity).await
+    async fn list_user_realms(
+        &self,
+        identity: Identity,
+        request: PageRequest<RealmFilter, RealmSortField>,
+    ) -> Result<Page<Realm>, CoreError> {
+        self.realm_service.list_user_realms(identity, request).await
     }
 
     async fn update_realm(

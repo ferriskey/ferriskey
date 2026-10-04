@@ -16,10 +16,14 @@ use crate::domain::{
         console_callback_uri,
         entities::app_errors::CoreError,
         generate_random_string,
+        pagination::{Page, PageRequest},
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
-        entities::{Realm, RealmId, RealmLoginSetting, RealmScope, RealmSetting, SmtpConfig},
+        entities::{
+            Realm, RealmFilter, RealmId, RealmLoginSetting, RealmScope, RealmSetting,
+            RealmSortField, SmtpConfig,
+        },
         ports::{
             CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, DeleteSmtpConfigInput,
             GetRealmInput, GetRealmSettingInput, GetSmtpConfigInput, MailService, RealmPolicy,
@@ -28,7 +32,9 @@ use crate::domain::{
         },
     },
     role::{
-        entities::permission::Permissions, ports::RoleRepository, value_objects::CreateRoleRequest,
+        entities::{Role, permission::Permissions},
+        ports::RoleRepository,
+        value_objects::CreateRoleRequest,
     },
     user::ports::{UserRepository, UserRoleRepository},
     webhook::{
@@ -42,6 +48,31 @@ use ferriskey_aegis::ports::{
 use ferriskey_aegis::value_objects::{CreateClientScopeRequest, CreateProtocolMapperRequest};
 use serde_json::json;
 use tracing::instrument;
+
+fn accessible_realm_ids(realms: &[Realm], user_roles: &[Role]) -> Vec<RealmId> {
+    realms
+        .iter()
+        .filter(|realm| {
+            let client_name = format!("{}-realm", realm.name);
+            let permissions = user_roles
+                .iter()
+                .filter(|role| role.client.as_ref().is_some_and(|c| c.name == client_name))
+                .flat_map(|role| role.permissions.iter())
+                .filter_map(|perm_str| Permissions::from_name(perm_str))
+                .collect::<HashSet<Permissions>>();
+
+            Permissions::has_one_of_permissions(
+                &permissions,
+                &[
+                    Permissions::QueryRealms,
+                    Permissions::ManageRealm,
+                    Permissions::ViewRealm,
+                ],
+            )
+        })
+        .map(|realm| realm.id)
+        .collect()
+}
 
 #[derive(Clone, Debug)]
 pub struct RealmServiceImpl<R, U, C, UR, RO, W, I, CS, PM, CSM, RU>
@@ -722,7 +753,11 @@ where
             identity.kind = %identity.kind(),
         )
     )]
-    async fn get_realms_by_user(&self, identity: Identity) -> Result<Vec<Realm>, CoreError> {
+    async fn list_user_realms(
+        &self,
+        identity: Identity,
+        request: PageRequest<RealmFilter, RealmSortField>,
+    ) -> Result<Page<Realm>, CoreError> {
         let user = match identity {
             Identity::User(user) => user,
             Identity::Client(client) => self
@@ -732,50 +767,14 @@ where
                 .across_realms(),
         };
 
-        let realm = user.realm.clone().ok_or(CoreError::InternalServerError)?;
+        let realm = user.realm.as_ref().ok_or(CoreError::InternalServerError)?;
         RealmScope::resolve(self.realm_repository.as_ref(), &realm.name).await?;
 
         let user_roles = self.user_role_repository.get_user_roles(user.id).await?;
-
         let realms = self.realm_repository.fetch_realm().await?;
+        let accessible = accessible_realm_ids(&realms, &user_roles);
 
-        let mut user_realms: Vec<Realm> = Vec::new();
-
-        for realm in realms {
-            let client_name = format!("{}-realm", realm.name);
-
-            let client_roles = user_roles
-                .iter()
-                .filter(|role| role.client.as_ref().is_some_and(|c| c.name == client_name))
-                .collect::<Vec<_>>();
-
-            let mut permissions = HashSet::new();
-
-            for role in client_roles {
-                let role_permissions = role
-                    .permissions
-                    .iter()
-                    .filter_map(|perm_str| Permissions::from_name(perm_str))
-                    .collect::<HashSet<Permissions>>();
-
-                permissions.extend(role_permissions);
-            }
-
-            let has_access = Permissions::has_one_of_permissions(
-                &permissions,
-                &[
-                    Permissions::QueryRealms,
-                    Permissions::ManageRealm,
-                    Permissions::ViewRealm,
-                ],
-            );
-
-            if has_access {
-                user_realms.push(realm.clone());
-            }
-        }
-
-        Ok(user_realms)
+        self.realm_repository.list(&accessible, &request).await
     }
 
     #[instrument(
@@ -1069,10 +1068,14 @@ mod tests {
     use crate::domain::{
         abyss::identity_provider::ports::MockIdentityProviderRepository,
         client::ports::{MockClientRepository, MockRedirectUriRepository},
-        common::services::tests::{
-            create_test_realm_with_name, create_test_user_identity_with_realm,
+        common::{
+            pagination::{Page, PageRequest},
+            services::tests::{create_test_realm_with_name, create_test_user_identity_with_realm},
         },
-        realm::{entities::RealmId, ports::MockRealmRepository},
+        realm::{
+            entities::{RealmFilter, RealmId, RealmSortField},
+            ports::MockRealmRepository,
+        },
         role::ports::MockRoleRepository,
         user::ports::{MockUserRepository, MockUserRoleRepository},
         webhook::ports::MockWebhookRepository,
@@ -1820,5 +1823,131 @@ mod tests {
         assert_eq!(created_realm.name, realm_name);
 
         Ok(())
+    }
+
+    fn realm_access_role(
+        master_realm: &Realm,
+        client_name: Option<&str>,
+        permission: Permissions,
+    ) -> crate::domain::role::entities::Role {
+        let client = client_name.map(|name| {
+            crate::domain::client::entities::Client::new(
+                crate::domain::client::entities::ClientConfig {
+                    realm_id: master_realm.id,
+                    name: name.to_string(),
+                    client_id: name.to_string(),
+                    secret: None,
+                    enabled: true,
+                    protocol: AuthProtocol::OpenIdConnect,
+                    public_client: false,
+                    service_account_enabled: false,
+                    client_type: ClientType::System,
+                    direct_access_grants_enabled: None,
+                    oauth_device_code_grant_enabled: None,
+                    token_exchange_enabled: None,
+                    access_token_lifetime: None,
+                    refresh_token_lifetime: None,
+                    id_token_lifetime: None,
+                    temporary_token_lifetime: None,
+                },
+            )
+        });
+        crate::domain::role::entities::Role {
+            id: uuid::Uuid::new_v4(),
+            name: "realm-access".to_string(),
+            description: None,
+            permissions: vec![permission.name()],
+            realm_id: master_realm.id,
+            client_id: client.as_ref().map(|c| c.id),
+            client,
+            require_mfa: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    fn realms_list_request() -> PageRequest<RealmFilter, RealmSortField> {
+        PageRequest {
+            filter: RealmFilter {
+                name: Some("al".to_string()),
+                ..RealmFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_user_realms_pages_only_the_realms_reachable_through_realm_client_roles() {
+        let master = create_test_realm_with_name("master");
+        let alpha = create_test_realm_with_name("alpha");
+        let beta = create_test_realm_with_name("beta");
+        let gamma = create_test_realm_with_name("gamma");
+        let delta = create_test_realm_with_name("delta");
+        let epsilon = create_test_realm_with_name("epsilon");
+        let identity = create_test_user_identity_with_realm(&master);
+        let user_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+        let roles = vec![
+            realm_access_role(&master, Some("alpha-realm"), Permissions::ViewRealm),
+            realm_access_role(&master, Some("beta-realm"), Permissions::QueryRealms),
+            realm_access_role(&master, Some("gamma-realm"), Permissions::ViewUsers),
+            realm_access_role(&master, Some("delta-realm"), Permissions::ManageRealm),
+            realm_access_role(&master, None, Permissions::ManageRealm),
+            realm_access_role(&master, Some("epsilon-client"), Permissions::ManageRealm),
+        ];
+        let expected = vec![alpha.id, beta.id, delta.id];
+        let listed = alpha.clone();
+        let all_realms = vec![master.clone(), alpha, beta, gamma, delta, epsilon];
+
+        let mut builder = RealmServiceTestBuilder::new()
+            .with_realm_by_name(master)
+            .with_user_permissions(user_id, roles);
+        let realm_repo = Arc::get_mut(&mut builder.realm_repo).unwrap();
+        realm_repo
+            .expect_fetch_realm()
+            .times(1)
+            .return_once(move || Box::pin(async move { Ok(all_realms) }));
+        realm_repo
+            .expect_list()
+            .withf(move |accessible, request| {
+                accessible == expected.as_slice() && *request == realms_list_request()
+            })
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 3, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+        let service = builder.build();
+
+        let page = service
+            .list_user_realms(identity, realms_list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 3);
+        assert_eq!(page.data()[0].name, "alpha");
+    }
+
+    #[tokio::test]
+    async fn list_user_realms_refuses_an_unresolvable_caller_realm_before_listing() {
+        let master = create_test_realm_with_name("master");
+        let identity = create_test_user_identity_with_realm(&master);
+
+        let mut builder = RealmServiceTestBuilder::new();
+        let realm_repo = Arc::get_mut(&mut builder.realm_repo).unwrap();
+        realm_repo
+            .expect_get_by_name()
+            .return_once(|_| Box::pin(async move { Ok(None) }));
+        realm_repo.expect_fetch_realm().never();
+        realm_repo.expect_list().never();
+        let service = builder.build();
+
+        let result = service
+            .list_user_realms(identity, realms_list_request())
+            .await;
+
+        assert!(result.is_err(), "got {result:?}");
     }
 }

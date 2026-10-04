@@ -6,17 +6,23 @@ use crate::domain::common::locale::SupportedLocales;
 use crate::domain::realm::entities::RealmId;
 use crate::domain::{
     authentication::value_objects::Identity,
-    common::entities::app_errors::CoreError,
-    realm::entities::{Realm, RealmLoginSetting, RealmSetting, SmtpConfig},
+    common::{
+        entities::app_errors::CoreError,
+        pagination::{Page, PageRequest},
+    },
+    realm::entities::{
+        Realm, RealmFilter, RealmLoginSetting, RealmSetting, RealmSortField, SmtpConfig,
+    },
     user::entities::User,
 };
 use ferriskey_domain::realm::LoginAliases;
 
 pub trait RealmService: Send + Sync {
-    fn get_realms_by_user(
+    fn list_user_realms(
         &self,
         identity: Identity,
-    ) -> impl Future<Output = Result<Vec<Realm>, CoreError>> + Send;
+        request: PageRequest<RealmFilter, RealmSortField>,
+    ) -> impl Future<Output = Result<Page<Realm>, CoreError>> + Send;
 
     fn get_realm_by_name(
         &self,
