@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { useListingQuery } from '@/components/kit'
-import { useRealmDirectory } from '@/hooks/use-realm-directory'
+import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
 import { useGetDailyActivityStats } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
 import { eventFamilies } from '../event-catalogue'
@@ -32,7 +32,6 @@ export default function PageSecurityEventsFeature() {
   }, [])
 
   const listing = useListingQuery()
-  const directory = useRealmDirectory(realm)
   const family = eventFamilies[listing.filter]
 
   const { data: realmResponse } = useGetRealm({ realm })
@@ -73,6 +72,8 @@ export default function PageSecurityEventsFeature() {
   )
 
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
+  const userIds = useMemo(() => eventUserIds(events), [events])
+  const directory = useRealmDirectory(realm, userIds)
 
   return (
     <PageSecurityEvents

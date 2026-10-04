@@ -9,6 +9,7 @@ use crate::domain::{
     client::ports::ClientRepository,
     common::{
         entities::app_errors::CoreError,
+        pagination::{Page, PageRequest},
         policies::{FerriskeyPolicy, Policy, ensure_policy},
     },
     credential::ports::CredentialRepository,
@@ -33,7 +34,7 @@ use crate::domain::{
             GetUserAttributesInput, GetUserInput, GetUserPermissionsInput,
             ImportPasswordCredentialInput, RequiredAction, ResetPasswordInput,
             SetUserAttributesInput, UnassignRoleInput, UpdateOwnLocaleInput, UpdateOwnProfileInput,
-            UpdateUserInput, User, UserAttribute,
+            UpdateUserInput, User, UserAttribute, UserFilter, UserSortField,
         },
         ports::{
             UserAttributeRepository, UserPolicy, UserRepository, UserRequiredActionRepository,
@@ -524,25 +525,20 @@ where
         Ok(user)
     }
 
-    async fn get_users(
+    async fn list_users(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> Result<Vec<User>, CoreError> {
+        request: PageRequest<UserFilter, UserSortField>,
+    ) -> Result<Page<User>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
-        let realm = scope.realm().clone();
-
-        let realm_id = realm.id;
 
         ensure_policy(
-            self.policy.can_view_user(&identity, &realm).await,
+            self.policy.can_view_user(&identity, scope.realm()).await,
             "You are not allowed to view users in this realm.",
         )?;
 
-        self.user_repository
-            .find_by_realm_id(realm_id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)
+        self.user_repository.list(&scope, &request).await
     }
 
     async fn assign_role(
@@ -2454,5 +2450,85 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    fn list_request() -> PageRequest<UserFilter, UserSortField> {
+        PageRequest {
+            filter: UserFilter {
+                username: Some("jo".to_string()),
+                ..UserFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_users_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let caller_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+
+        let mut builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm)
+            .with_user_permissions(caller_id, vec![]);
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_list()
+            .never();
+        let service = builder.build();
+
+        let result = service
+            .list_users(identity, "test-realm".to_string(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_users_pages_the_resolved_realm_with_the_request() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let caller_id = match &identity {
+            Identity::User(u) => u.id,
+            _ => panic!("Expected user identity"),
+        };
+        let mut viewer_role = create_admin_role(&realm);
+        viewer_role.permissions.push(Permissions::ViewUsers.name());
+        let listed = create_test_user_with_params_and_realm(
+            &realm,
+            "john",
+            "john@example.com".to_string(),
+            true,
+        );
+        let expected_id = listed.id;
+        let realm_id = realm.id;
+
+        let mut builder = UserServiceTestBuilder::new()
+            .with_realm("test-realm".to_string(), realm)
+            .with_user_permissions(caller_id, vec![viewer_role]);
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+        let service = builder.build();
+
+        let page = service
+            .list_users(identity, "test-realm".to_string(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }

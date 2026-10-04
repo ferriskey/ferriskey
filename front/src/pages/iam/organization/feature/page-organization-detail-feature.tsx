@@ -12,7 +12,7 @@ import {
   useUpdateOrganization,
   useUpsertOrganizationAttribute,
 } from '@/api/organization.api'
-import { useGetUsers } from '@/api/user.api'
+import { useUserSearch, useUsersByIds } from '@/api/user.api'
 import { RouterParams } from '@/routes/router'
 import { useRouteTabs, type TabItem } from '@/components/kit'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
@@ -72,7 +72,6 @@ export default function PageOrganizationDetailFeature() {
     realm,
     organizationId,
   })
-  const { data: usersResponse, isLoading: isLoadingUsers } = useGetUsers({ realm })
   const { mutate: addMember } = useAddUserToOrganization()
   const { mutate: removeMember } = useRemoveOrganizationMember()
   const { confirm, ask, close } = useConfirmDeleteAlert()
@@ -133,19 +132,23 @@ export default function PageOrganizationDetailFeature() {
           alias: parsed.error.issues.find((i) => i.path[0] === 'alias')?.message,
         }
 
+  const memberIds = useMemo(() => (members ?? []).map((member) => member.user_id), [members])
+  const { users: resolvedMembers, isLoading: isLoadingUsers } = useUsersByIds({
+    realm,
+    ids: memberIds,
+  })
   const memberUsers = useMemo<User[]>(() => {
-    if (!members || !usersResponse) return []
-    const userMap = new Map(usersResponse.data.map((u) => [u.id, u]))
-    return members
-      .map((m) => userMap.get(m.user_id))
-      .filter((u): u is User => u !== undefined)
-  }, [members, usersResponse])
+    const byId = new Map(resolvedMembers.map((user) => [user.id, user]))
+    return memberIds
+      .map((id) => byId.get(id))
+      .filter((user): user is User => user !== undefined)
+  }, [memberIds, resolvedMembers])
 
-  const availableUsers = useMemo<User[]>(() => {
-    if (!members || !usersResponse) return []
-    const memberIds = new Set(members.map((m) => m.user_id))
-    return usersResponse.data.filter((u) => !memberIds.has(u.id))
-  }, [members, usersResponse])
+  const userSearch = useUserSearch({ realm })
+  const availableUsers = useMemo<User[]>(
+    () => userSearch.users.filter((user) => !memberIds.includes(user.id)),
+    [userSearch.users, memberIds]
+  )
 
   const handleSave = () => {
     if (!organization || !parsed.success) return
@@ -224,6 +227,8 @@ export default function PageOrganizationDetailFeature() {
         }}
         members={memberUsers}
         availableUsers={availableUsers}
+        onSearchUsers={userSearch.setSearch}
+        isSearchingUsers={userSearch.isLoading}
         isLoadingMembers={isLoadingMembers || isLoadingUsers}
         onAddMembers={(userIds) => {
           if (!organizationId) return

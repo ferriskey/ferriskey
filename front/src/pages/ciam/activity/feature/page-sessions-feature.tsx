@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
 import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
-import { useRealmDirectory } from '@/hooks/use-realm-directory'
+import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
 import { useWindowEvents } from './use-window-events'
 import PageSessions from '../ui/page-sessions'
 
@@ -10,11 +11,12 @@ export default function PageSessionsFeature() {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
 
-  const directory = useRealmDirectory(realm)
   const { events, isLoading, isError, truncated, windowDays, windowLimit } = useWindowEvents(
     realm,
     SESSION_EVENTS
   )
+  const userIds = useMemo(() => eventUserIds(events), [events])
+  const directory = useRealmDirectory(realm, userIds)
 
   return (
     <PageSessions

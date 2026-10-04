@@ -381,8 +381,6 @@ scopes:
     title: 评估令牌
     description: 模拟为指定账户签发的令牌，并附带客户端将会请求的可选作用域。
     account: 账户
-    account_placeholder: 选择要评估的账户
-    account_option: '{{username}} ({{email}})'
     optional: 请求的可选作用域
     scope_string: 作用域字符串
     # Shown in place of the scope string when no scope is requested at all.

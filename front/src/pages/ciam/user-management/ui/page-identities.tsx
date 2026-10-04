@@ -2,15 +2,31 @@ import { MailCheck, MailX, Plus, UserCog } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
-import type { CardSpec, Column } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { formatRelative } from '@/utils/format-date'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
 
+export interface IdentityCounts {
+  total: number
+  verified: number
+  disabled: number
+  active: number
+}
+
 export interface PageIdentitiesProps {
   identities: User[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: IdentityCounts
   identityHref: (identity: User) => string
   onCreate: () => void
   onReviewPending: () => void
@@ -25,13 +41,12 @@ const pendingCount = (user: User) => user.required_actions.length
 
 const NAME_SEPARATOR = ', '
 
-const PENDING_FILTER = 'pending'
-
-const QUERY_SYNTAX = 'username:ada*  email_verified:false  enabled:true'
-
 export default function PageIdentities({
   identities,
+  pagination,
+  listing,
   isLoading,
+  counts,
   identityHref,
   onCreate,
   onReviewPending,
@@ -50,7 +65,7 @@ export default function PageIdentities({
           </span>
         </span>
       ),
-      sortValue: (u) => displayName(u),
+      sortKey: 'username',
     },
     {
       key: 'email',
@@ -70,7 +85,7 @@ export default function PageIdentities({
             {t('identities.list.no_email')}
           </span>
         ),
-      sortValue: (u) => u.email ?? '',
+      sortKey: 'email',
     },
     {
       key: 'status',
@@ -100,7 +115,7 @@ export default function PageIdentities({
           </span>
         )
       },
-      sortValue: (u) => (!u.enabled ? 0 : pendingCount(u) > 0 ? 1 : 2),
+      sortKey: 'enabled',
     },
     {
       key: 'created',
@@ -110,7 +125,7 @@ export default function PageIdentities({
           {formatRelative(u.created_at)}
         </span>
       ),
-      sortValue: (u) => u.created_at,
+      sortKey: 'created_at',
     },
     {
       key: 'roles',
@@ -124,7 +139,6 @@ export default function PageIdentities({
           <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         )
       },
-      sortValue: (u) => u.roles?.length ?? 0,
     },
   ]
 
@@ -165,10 +179,18 @@ export default function PageIdentities({
     ),
   }
 
-  const active = identities.filter((u) => u.enabled)
-  const verified = identities.filter((u) => u.email_verified)
   const pending = identities.filter((u) => pendingCount(u) > 0)
-  const disabled = identities.filter((u) => !u.enabled)
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'username', label: t('identities.list.filter_fields.username') },
+    { kind: 'text', key: 'email', label: t('identities.list.filter_fields.email') },
+    { kind: 'boolean', key: 'enabled', label: t('identities.list.filter_fields.enabled') },
+    {
+      kind: 'boolean',
+      key: 'email_verified',
+      label: t('identities.list.filter_fields.email_verified'),
+    },
+  ]
 
   const createButton = (
     <Button onClick={onCreate}>
@@ -186,19 +208,21 @@ export default function PageIdentities({
         {
           key: 'total',
           label: t('identities.list.metrics.total.label'),
-          value: identities.length,
-          hint: t('identities.list.metrics.total.hint', { count: identities.length }),
+          value: counts.total,
+          hint: t('identities.list.metrics.total.hint', { count: counts.total }),
+          series: [counts.total, counts.total],
         },
         {
           key: 'verified',
           label: t('identities.list.metrics.verified.label'),
-          value: verified.length,
+          value: counts.verified,
           hint:
-            verified.length > 0 && identities.length > 0
+            counts.verified > 0 && counts.total > 0
               ? t('identities.list.metrics.verified.hint', {
-                  percent: ((verified.length / identities.length) * 100).toFixed(0),
+                  percent: ((counts.verified / counts.total) * 100).toFixed(0),
                 })
               : t('identities.list.metrics.verified.empty_hint'),
+          series: [counts.verified, counts.verified],
         },
         {
           key: 'pending',
@@ -209,8 +233,9 @@ export default function PageIdentities({
         {
           key: 'disabled',
           label: t('identities.list.metrics.disabled.label'),
-          value: disabled.length,
+          value: counts.disabled,
           hint: t('identities.list.metrics.disabled.hint'),
+          series: [counts.disabled, counts.disabled],
         },
       ]}
       alerts={
@@ -228,35 +253,15 @@ export default function PageIdentities({
             ]
           : []
       }
-      filters={[
-        { key: 'active', label: t('identities.list.filters.active'), predicate: (u) => u.enabled },
-        {
-          key: 'unverified',
-          label: t('identities.list.filters.unverified'),
-          predicate: (u) => !u.email_verified,
-        },
-        {
-          key: PENDING_FILTER,
-          label: t('identities.list.filters.pending'),
-          predicate: (u) => pendingCount(u) > 0,
-        },
-        {
-          key: 'disabled',
-          label: t('identities.list.filters.disabled'),
-          predicate: (u) => !u.enabled,
-        },
-      ]}
-      searchPlaceholder={t('identities.list.search_placeholder')}
-      querySyntax={QUERY_SYNTAX}
-      searchIn={(u) => `${u.username} ${u.email ?? ''} ${u.firstname ?? ''} ${u.lastname ?? ''}`}
+      paged={{ listing, pagination, filterFields }}
       rows={identities}
       columns={columns}
       card={card}
       getKey={(u) => u.id}
       getHref={identityHref}
       aggregates={{
-        identity: t('identities.list.aggregates.identities', { count: identities.length }),
-        status: t('identities.list.aggregates.active', { total: active.length }),
+        identity: t('identities.list.aggregates.identities', { count: counts.total }),
+        status: t('identities.list.aggregates.active', { total: counts.active }),
       }}
       emptyLabel={t('identities.list.empty.label')}
       emptyHint={t('identities.list.empty.hint')}

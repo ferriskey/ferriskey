@@ -31,6 +31,8 @@ export interface PageRealmSettingsProps {
   policyLoading: boolean
   policyFailed: boolean
   maintenanceUsers: PickableEntity[]
+  onSearchMaintenanceUsers: (search: string) => void
+  isSearchingMaintenanceUsers: boolean
   maintenanceRoles: PickableEntity[]
   whitelistedUserIds: string[]
   whitelistedRoleIds: string[]
@@ -64,6 +66,8 @@ export default function PageRealmSettings({
   policyLoading,
   policyFailed,
   maintenanceUsers,
+  onSearchMaintenanceUsers,
+  isSearchingMaintenanceUsers,
   maintenanceRoles,
   whitelistedUserIds,
   whitelistedRoleIds,
@@ -176,6 +180,8 @@ export default function PageRealmSettings({
           {tab === 'maintenance' && (
             <RealmMaintenanceTab
               users={maintenanceUsers}
+              onSearchUsers={onSearchMaintenanceUsers}
+              isSearchingUsers={isSearchingMaintenanceUsers}
               roles={maintenanceRoles}
               selectedUserIds={whitelistedUserIds}
               selectedRoleIds={whitelistedRoleIds}

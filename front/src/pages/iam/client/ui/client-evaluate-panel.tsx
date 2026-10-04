@@ -1,24 +1,16 @@
 import { Check, Play } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Pill, Section } from '@/components/kit'
+import { Pill, RelationSelect, Section } from '@/components/kit'
+import { userRelationSource } from '@/api/user.relation'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { Schemas } from '@/api/api.client'
 
 import ClientScope = Schemas.ClientScope
 import EvaluateClientScopesResult = Schemas.EvaluateClientScopesResult
-import User = Schemas.User
 
 export interface ClientEvaluatePanelProps {
-  users: User[]
   optionalScopes: ClientScope[]
   userId: string
   selectedOptional: string[]
@@ -44,7 +36,6 @@ function JsonPanel({ title, value }: { title: string; value: unknown }) {
 }
 
 export default function ClientEvaluatePanel({
-  users,
   optionalScopes,
   userId,
   selectedOptional,
@@ -66,26 +57,12 @@ export default function ClientEvaluatePanel({
       >
         <div className={cn(tokens.surface.panel, 'space-y-4 p-4')}>
           <div className='max-w-sm'>
-            <label className='block pb-1 text-xs font-medium text-neutral-900 dark:text-neutral-100' htmlFor='evaluate-user'>
-              {t('scopes.evaluate.account')}
-            </label>
-            <Select value={userId} onValueChange={onUserChange}>
-              <SelectTrigger id='evaluate-user' className='w-full'>
-                <SelectValue placeholder={t('scopes.evaluate.account_placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.email
-                      ? t('scopes.evaluate.account_option', {
-                          username: user.username,
-                          email: user.email,
-                        })
-                      : user.username}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <RelationSelect
+              source={userRelationSource}
+              value={userId || undefined}
+              onChange={(id) => onUserChange(id ?? '')}
+              label={t('scopes.evaluate.account')}
+            />
           </div>
 
           {optionalScopes.length > 0 && (

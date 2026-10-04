@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EntityPicker, IconTile, Pill, Section, StatusDot } from '@/components/kit'
+import type { PickableEntity } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { isServiceAccount } from '@/utils'
@@ -18,6 +19,8 @@ const FALLBACK_INITIAL = 'U'
 export interface OrganizationMembersTabProps {
   members: User[]
   availableUsers: User[]
+  onSearchUsers: (search: string) => void
+  isSearchingUsers: boolean
   isLoading: boolean
   onAdd: (userIds: string[]) => void
   onRemove: (user: User) => void
@@ -27,13 +30,15 @@ export interface OrganizationMembersTabProps {
 export default function OrganizationMembersTab({
   members,
   availableUsers,
+  onSearchUsers,
+  isSearchingUsers,
   isLoading,
   onAdd,
   onRemove,
   onManageRoles,
 }: OrganizationMembersTabProps) {
   const { t } = useTranslation('organization')
-  const [staged, setStaged] = useState<string[]>([])
+  const [staged, setStaged] = useState<PickableEntity[]>([])
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
@@ -46,6 +51,17 @@ export default function OrganizationMembersTab({
     )
   }, [members, query])
 
+  const pickerItems = [
+    ...staged,
+    ...availableUsers
+      .filter((user) => !staged.some((item) => item.id === user.id))
+      .map((user) => ({
+        id: user.id,
+        label: memberDisplayName(user),
+        sublabel: user.email ?? user.username,
+      })),
+  ]
+
   return (
     <>
       <Section
@@ -55,13 +71,11 @@ export default function OrganizationMembersTab({
       >
         <div className='space-y-2'>
           <EntityPicker
-            items={availableUsers.map((user) => ({
-              id: user.id,
-              label: memberDisplayName(user),
-              sublabel: user.email ?? user.username,
-            }))}
-            value={staged}
-            onChange={setStaged}
+            items={pickerItems}
+            value={staged.map((item) => item.id)}
+            onChange={(next) => setStaged(pickerItems.filter((item) => next.includes(item.id)))}
+            onSearchChange={onSearchUsers}
+            loading={isSearchingUsers}
             addLabel={t('detail.members.add.pick')}
             searchPlaceholder={t('detail.members.add.search_placeholder')}
             emptyHint={t('detail.members.add.empty_hint')}
@@ -71,7 +85,7 @@ export default function OrganizationMembersTab({
             <Button
               size='sm'
               onClick={() => {
-                onAdd(staged)
+                onAdd(staged.map((item) => item.id))
                 setStaged([])
               }}
             >

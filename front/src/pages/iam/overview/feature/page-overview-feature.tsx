@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Compass, LayoutGrid, Shield, Users } from 'lucide-react'
 import { useGetClients } from '@/api/client.api'
-import { useGetUsers } from '@/api/user.api'
+import { useUserCount, useUsersByIds } from '@/api/user.api'
 import { useGetRoles } from '@/api/role.api'
 import { useGetDailyActivityStats, useGetFlows, useGetStats } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
@@ -30,26 +30,8 @@ const EVENT_COUNT = 8
 
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0)
 
-function windowDays() {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Array.from({ length: WINDOW_DAYS }, (_, i) => {
-    const day = new Date(today)
-    day.setDate(today.getDate() - (WINDOW_DAYS - 1 - i))
-    return day.getTime()
-  })
-}
-
 function measured(series: number[]) {
   return series.length > 0 ? series : undefined
-}
-
-function createdInWindow(createdAt: string[]) {
-  const [first] = windowDays()
-  return createdAt.filter((value) => {
-    const time = new Date(value).getTime()
-    return !Number.isNaN(time) && time >= first
-  }).length
 }
 
 export default function PageOverviewFeature() {
@@ -61,7 +43,9 @@ export default function PageOverviewFeature() {
 
   const { data: realmResponse, isLoading: isLoadingRealm } = useGetRealm({ realm })
   const { data: clientsResponse, isLoading: isLoadingClients } = useGetClients({ realm })
-  const { data: usersResponse, isLoading: isLoadingUsers } = useGetUsers({ realm })
+  const { count: userTotal, isLoading: isLoadingUsers } = useUserCount({ realm })
+  const { count: verifiedUsers } = useUserCount({ realm, filter: { email_verified: true } })
+  const { count: unverifiedUsers } = useUserCount({ realm, filter: { email_verified: false } })
   const { data: rolesResponse, isLoading: isLoadingRoles } = useGetRoles({ realm })
   const { data: statsResponse, isLoading: isLoadingStats } = useGetStats({ realm })
 
@@ -72,10 +56,14 @@ export default function PageOverviewFeature() {
   const { data: flowsResponse } = useGetFlows({ realm: compassRealm, limit: EVENT_COUNT })
 
   const clients = useMemo(() => clientsResponse?.data ?? [], [clientsResponse])
-  const users = useMemo(() => usersResponse?.data ?? [], [usersResponse])
   const roles = useMemo(() => rolesResponse?.data ?? [], [rolesResponse])
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])
+  const flowUserIds = useMemo(
+    () => flows.flatMap((flow) => (flow.user_id ? [flow.user_id] : [])),
+    [flows]
+  )
+  const { users: flowUsers } = useUsersByIds({ realm, ids: flowUserIds })
   const flowStats = statsResponse?.data ?? null
 
   const greeting = useMemo(() => {
@@ -84,27 +72,22 @@ export default function PageOverviewFeature() {
     return fromName || currentUser.preferred_username || undefined
   }, [currentUser])
 
-  const verifiedUsers = users.filter((u) => u.email_verified).length
   const activeClients = clients.filter((c) => c.enabled).length
   const disabledClients = clients.filter((c) => !c.enabled)
-  const unverifiedUsers = users.filter((u) => !u.email_verified)
   const totalFlows = flowStats?.total ?? 0
   const successFlows = flowStats?.success_count ?? 0
   const failedFlows = flowStats?.failure_count ?? 0
-
-  const newUsers = createdInWindow(users.map((u) => u.created_at))
 
   const metrics: Metric[] = [
     {
       key: 'users',
       label: t('metrics.users.label'),
-      value: users.length,
+      value: userTotal,
       hint:
-        users.length > 0
-          ? t('metrics.users.hint', { percent: pct(verifiedUsers, users.length) })
+        userTotal > 0
+          ? t('metrics.users.hint', { percent: pct(verifiedUsers, userTotal) })
           : t('metrics.users.empty_hint'),
-      delta: newUsers > 0 ? newUsers : undefined,
-      series: cumulativeSeries(users.map((u) => u.created_at)),
+      series: [userTotal, userTotal],
       tone: 'success',
     },
     {
@@ -166,11 +149,11 @@ export default function PageOverviewFeature() {
     })
   }
 
-  if (settings?.email_verification_enabled && unverifiedUsers.length > 0) {
+  if (settings?.email_verification_enabled && unverifiedUsers > 0) {
     alerts.push({
       key: 'unverified-users',
       tone: 'warn',
-      title: t('alerts.unverified_users.title', { count: unverifiedUsers.length }),
+      title: t('alerts.unverified_users.title', { count: unverifiedUsers }),
       detail: t('alerts.unverified_users.detail'),
       action: t('alerts.unverified_users.action'),
       onAction: () => navigate(USERS_URL(realm)),
@@ -229,7 +212,7 @@ export default function PageOverviewFeature() {
 
   const events: OverviewEvent[] = flows.map((flow) => {
     const client = clients.find((c) => c.id === flow.client_id || c.client_id === flow.client_id)
-    const user = users.find((u) => u.id === flow.user_id)
+    const user = flowUsers.find((u) => u.id === flow.user_id)
     return {
       id: flow.id,
       status: flow.status,

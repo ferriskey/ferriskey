@@ -15,7 +15,6 @@ export default function PageFlowsFeature() {
   const realm = realm_name ?? 'master'
 
   const listing = useListingQuery()
-  const directory = useRealmDirectory(realm)
 
   const {
     data: flowsResponse,
@@ -29,6 +28,8 @@ export default function PageFlowsFeature() {
   const { data: statsResponse, isLoading: isLoadingStats } = useGetStats({ realm })
 
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])
+  const userIds = useMemo(() => flows.flatMap((flow) => flow.user_id ?? []), [flows])
+  const directory = useRealmDirectory(realm, userIds)
 
   return (
     <PageFlows

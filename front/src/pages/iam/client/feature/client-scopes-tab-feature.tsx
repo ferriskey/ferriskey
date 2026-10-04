@@ -6,7 +6,6 @@ import {
   useUnassignScope,
 } from '@/api/client.api'
 import { useGetClientScopes as useGetRealmClientScopes } from '@/api/client-scope.api'
-import { useGetUsers } from '@/api/user.api'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 import ClientScopesTab, { type AssignableScopeType } from '../ui/client-scopes-tab'
@@ -28,7 +27,6 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
   const { data: realmScopesResponse, isLoading: isLoadingAvailable } = useGetRealmClientScopes({
     realm,
   })
-  const { data: usersResponse } = useGetUsers({ realm })
 
   const assignScope = useAssignScope()
   const unassignScope = useUnassignScope()
@@ -112,7 +110,6 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
       onRemove={handleRemove}
       evaluatePanel={
         <ClientEvaluatePanel
-          users={usersResponse?.data ?? []}
           optionalScopes={optionalScopes}
           userId={userId}
           selectedOptional={selectedOptional}

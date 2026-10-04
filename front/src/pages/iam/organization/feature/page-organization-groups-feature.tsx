@@ -31,7 +31,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
-import { useGetUsers } from '@/api/user.api'
+import { useUserSearch } from '@/api/user.api'
 import { useGetRoles } from '@/api/role.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import {
@@ -54,7 +54,6 @@ const PAGE_SIZE = 50
 
 const EMPTY_VALUE = '—'
 
-const MEMBER_SEARCH_KEYS: (keyof Schemas.User)[] = ['username', 'email']
 
 const GROUP_TAB = {
   members: 'members',
@@ -174,8 +173,7 @@ function AddMembersDialog({
   const { t } = useTranslation('organization')
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Schemas.User[]>([])
-  const { data: usersResp } = useGetUsers({ realm })
-  const users = usersResp?.data ?? []
+  const { search, setSearch, users } = useUserSearch({ realm })
   const addMember = useAddGroupMember(realm, orgId, groupId)
 
   const columns: ColumnDef<Schemas.User>[] = [
@@ -228,12 +226,20 @@ function AddMembersDialog({
       <DialogContent className='max-w-4xl'>
         <DialogTitle>{t('groups.members.add.title')}</DialogTitle>
         <DialogBody>
+          <div className='relative mb-3'>
+            <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+            <Input
+              type='search'
+              placeholder={t('groups.members.add.search_placeholder')}
+              className='h-9 w-64 bg-background pl-9 text-sm'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <DataTable
             columns={columns}
             data={users}
             enableSelection
-            searchKeys={MEMBER_SEARCH_KEYS}
-            searchPlaceholder={t('groups.members.add.search_placeholder')}
             onSelectionChange={setSelected}
           />
         </DialogBody>

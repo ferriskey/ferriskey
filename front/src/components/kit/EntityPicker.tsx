@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronsUpDown, Plus, Trash2, Users } from 'lucide-react'
+import { ChevronsUpDown, Loader2, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import {
   Command,
@@ -33,6 +33,8 @@ export function EntityPicker({
   exhaustedHint,
   disabled,
   fullWidth = false,
+  onSearchChange,
+  loading = false,
 }: {
   items: PickableEntity[]
   value: string[]
@@ -44,9 +46,13 @@ export function EntityPicker({
   exhaustedHint?: string
   disabled?: boolean
   fullWidth?: boolean
+  onSearchChange?: (search: string) => void
+  loading?: boolean
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const serverSearch = onSearchChange !== undefined
   const addText = addLabel ?? t('action.add')
   const searchText = searchPlaceholder ?? t('entity_picker.search_placeholder')
   const emptyText = emptyHint ?? t('entity_picker.empty')
@@ -56,15 +62,26 @@ export function EntityPicker({
     .map((id) => items.find((i) => i.id === id))
     .filter((i): i is PickableEntity => Boolean(i))
   const available = items.filter((i) => !value.includes(i.id))
+  const exhausted = !serverSearch && available.length === 0
+
+  const changeSearch = (next: string) => {
+    setSearch(next)
+    onSearchChange?.(next)
+  }
+
+  const changeOpen = (next: boolean) => {
+    setOpen(next)
+    if (!next) changeSearch('')
+  }
 
   const addControl = (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild>
         <Button
           type='button'
           variant='outline'
           size='sm'
-          disabled={disabled || available.length === 0}
+          disabled={disabled || exhausted}
           aria-expanded={open}
         >
           <Plus /> {addText}
@@ -72,13 +89,21 @@ export function EntityPicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent align='start' sideOffset={6} className='w-64 p-0'>
-        <Command>
+        <Command shouldFilter={!serverSearch}>
           <CommandInput
+            value={search}
+            onValueChange={changeSearch}
             placeholder={searchText}
             className='h-8 py-0 text-[13px]'
           />
           <CommandList className='max-h-56'>
-            <CommandEmpty className='py-3 text-[13px]'>{t('entity_picker.no_match')}</CommandEmpty>
+            {loading ? (
+              <div className='flex justify-center py-3'>
+                <Loader2 className='size-4 animate-spin text-neutral-400 dark:text-neutral-500' />
+              </div>
+            ) : (
+              <CommandEmpty className='py-3 text-[13px]'>{t('entity_picker.no_match')}</CommandEmpty>
+            )}
             <CommandGroup className='p-1'>
               {available.map((entity) => (
                 <CommandItem
@@ -87,7 +112,7 @@ export function EntityPicker({
                   className='px-1.5 py-1'
                   onSelect={() => {
                     onChange([...value, entity.id])
-                    setOpen(false)
+                    changeOpen(false)
                   }}
                 >
                   <span className='min-w-0 flex-1'>
@@ -110,7 +135,6 @@ export function EntityPicker({
   )
 
   if (selected.length === 0) {
-    const exhausted = available.length === 0
     return (
       <div className={fullWidth ? undefined : 'max-w-lg'}>
         <EmptyState
@@ -156,7 +180,7 @@ export function EntityPicker({
 
       {addControl}
 
-      {available.length === 0 && (
+      {exhausted && (
         <p className='text-xs text-neutral-400 dark:text-neutral-500'>{exhaustedText}</p>
       )}
     </div>

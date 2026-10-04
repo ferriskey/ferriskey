@@ -809,7 +809,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 457,
     },
     AuthzRow {
-        service_fn: "get_users",
+        service_fn: "list_users",
         policy_fn: "can_view_user",
         action: actions::USER_READ,
         resource: EntityType::REALM,
@@ -820,7 +820,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/user/services.rs",
-        line: 531,
+        line: 536,
     },
     AuthzRow {
         service_fn: "assign_role",

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   useAddClientWhitelistEntry,
   useGetClientWhitelist,
@@ -6,7 +6,8 @@ import {
   useRemoveClientWhitelistEntry,
   useToggleMaintenance,
 } from '@/api/maintenance.api'
-import { useGetUsers } from '@/api/user.api'
+import { useUsersByIds } from '@/api/user.api'
+import { useUserPicker } from '@/hooks/use-user-picker'
 import { useGetRoles } from '@/api/role.api'
 import { Schemas } from '@/api/api.client'
 import ClientMaintenanceTab from '../ui/client-maintenance-tab'
@@ -25,7 +26,6 @@ export default function ClientMaintenanceTabFeature({
 }: ClientMaintenanceTabFeatureProps) {
   const { data: whitelistResponse } = useGetClientWhitelist({ realm, clientId: client.id })
   const { data: realmWhitelistResponse } = useGetRealmWhitelist({ realm })
-  const { data: usersResponse } = useGetUsers({ realm })
   const { data: rolesResponse } = useGetRoles({ realm })
 
   const { mutate: toggleMaintenance } = useToggleMaintenance()
@@ -37,7 +37,6 @@ export default function ClientMaintenanceTabFeature({
 
   const whitelist = whitelistResponse?.data ?? []
   const realmWhitelist = realmWhitelistResponse?.data ?? []
-  const users = usersResponse?.data ?? []
   const roles = rolesResponse?.data ?? []
 
   const serverReason = client.maintenance_reason ?? ''
@@ -50,6 +49,16 @@ export default function ClientMaintenanceTabFeature({
 
   const whitelistedUserIds = userEntries.map((e) => e.user_id as string)
   const whitelistedRoleIds = roleEntries.map((e) => e.role_id as string)
+
+  const userPicker = useUserPicker({ realm, selectedIds: whitelistedUserIds })
+  const inheritedUserIds = useMemo(
+    () =>
+      (realmWhitelistResponse?.data ?? [])
+        .filter((e) => e.user_id)
+        .map((e) => e.user_id as string),
+    [realmWhitelistResponse]
+  )
+  const { users } = useUsersByIds({ realm, ids: inheritedUserIds })
 
   const inheritedUsers = realmWhitelist
     .filter((e) => e.user_id)
@@ -107,7 +116,9 @@ export default function ClientMaintenanceTabFeature({
       strategy={strategy}
       whitelistCount={whitelist.length}
       hasSettingsChanges={hasSettingsChanges}
-      users={users.map((u) => ({ id: u.id, label: u.username, sublabel: u.email ?? undefined }))}
+      users={userPicker.items}
+      onSearchUsers={userPicker.onSearchChange}
+      isSearchingUsers={userPicker.loading}
       roles={roles.map((r) => ({ id: r.id, label: r.name, sublabel: r.description ?? undefined }))}
       whitelistedUserIds={whitelistedUserIds}
       whitelistedRoleIds={whitelistedRoleIds}

@@ -38,10 +38,10 @@ export default function PageLiveFeature() {
     limit: FLOW_COUNT,
   })
 
-  const directory = useRealmDirectory(realm)
-
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])
+  const userIds = useMemo(() => flows.flatMap((flow) => flow.user_id ?? []), [flows])
+  const directory = useRealmDirectory(realm, userIds)
 
   return (
     <PageLive

@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { useGetUsers } from '@/api/user.api'
+import { useUsersByIds } from '@/api/user.api'
 import { useGetClients } from '@/api/client.api'
 import { useGetRoles } from '@/api/role.api'
+import type { Schemas } from '@/api/api.client'
 
 export interface RealmDirectory {
   isLoading: boolean
@@ -9,15 +10,22 @@ export interface RealmDirectory {
   label: (id?: string | null, type?: string | null) => string | null
 }
 
-export function useRealmDirectory(realm: string): RealmDirectory {
-  const { data: usersResponse, isLoading: loadingUsers } = useGetUsers({ realm })
+const USER_KINDS: readonly (string | null | undefined)[] = ['user', 'service_account', 'admin']
+
+export function eventUserIds(events: readonly Schemas.SecurityEvent[]): string[] {
+  return events.flatMap((event) => [
+    ...(event.actor_id && USER_KINDS.includes(event.actor_type) ? [event.actor_id] : []),
+    ...(event.target_id && USER_KINDS.includes(event.target_type) ? [event.target_id] : []),
+  ])
+}
+
+export function useRealmDirectory(realm: string, userIds: readonly string[]): RealmDirectory {
+  const { users: resolved, isLoading: loadingUsers } = useUsersByIds({ realm, ids: userIds })
   const { data: clientsResponse, isLoading: loadingClients } = useGetClients({ realm })
   const { data: rolesResponse, isLoading: loadingRoles } = useGetRoles({ realm })
 
   return useMemo(() => {
-    const users = new Map(
-      (usersResponse?.data ?? []).map((u) => [u.id, u.username])
-    )
+    const users = new Map(resolved.map((u) => [u.id, u.username]))
     const clients = new Map(
       (clientsResponse?.data ?? []).map((c) => [c.id, c.name || c.client_id])
     )
@@ -45,5 +53,5 @@ export function useRealmDirectory(realm: string): RealmDirectory {
       userLabel,
       label,
     }
-  }, [usersResponse, clientsResponse, rolesResponse, loadingUsers, loadingClients, loadingRoles])
+  }, [resolved, clientsResponse, rolesResponse, loadingUsers, loadingClients, loadingRoles])
 }
