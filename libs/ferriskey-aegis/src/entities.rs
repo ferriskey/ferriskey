@@ -100,6 +100,25 @@ impl RealmOwned for ClientScope {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ClientScopeFilter {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub search: Option<String>,
+    pub protocol: Option<String>,
+    pub default_scope_type: Option<ScopeType>,
+    pub has_protocol_mappers: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ClientScopeSortField {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ClientScopeAttribute {
     pub id: Uuid,

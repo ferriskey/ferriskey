@@ -3,22 +3,28 @@ use std::future::Future;
 use ferriskey_domain::{
     auth::Identity,
     client::entities::Client,
-    common::app_errors::CoreError,
+    common::{
+        app_errors::CoreError,
+        pagination::{Page, PageRequest},
+    },
     realm::{
         Realm, RealmId,
-        scope::{Scoped, Unscoped},
+        scope::{RealmScope, Scoped, Unscoped},
     },
 };
 use uuid::Uuid;
 
 use crate::{
-    entities::{ClientScope, ClientScopeAttribute, ClientScopeMapping, ProtocolMapper},
+    entities::{
+        ClientScope, ClientScopeAttribute, ClientScopeFilter, ClientScopeMapping,
+        ClientScopeSortField, ProtocolMapper,
+    },
     value_objects::{
         AssignClientScopeInput, CreateClientScopeInput, CreateClientScopeRequest,
         CreateProtocolMapperInput, CreateProtocolMapperRequest, DeleteClientScopeInput,
         DeleteProtocolMapperInput, GetClientClientScopesInput, GetClientScopeInput,
-        GetClientScopesInput, UnassignClientScopeInput, UpdateClientScopeInput,
-        UpdateClientScopeRequest, UpdateProtocolMapperInput, UpdateProtocolMapperRequest,
+        UnassignClientScopeInput, UpdateClientScopeInput, UpdateClientScopeRequest,
+        UpdateProtocolMapperInput, UpdateProtocolMapperRequest,
     },
 };
 
@@ -39,6 +45,12 @@ pub trait ClientScopeRepository: Send + Sync {
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<ClientScope>, CoreError>> + Send;
+
+    fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<ClientScopeFilter, ClientScopeSortField>,
+    ) -> impl Future<Output = Result<Page<ClientScope>, CoreError>> + Send;
 
     fn find_by_name(
         &self,
@@ -182,11 +194,12 @@ pub trait ClientScopeService: Send + Sync {
         input: GetClientScopeInput,
     ) -> impl Future<Output = Result<ClientScope, CoreError>> + Send;
 
-    fn get_client_scopes(
+    fn list_client_scopes(
         &self,
         identity: Identity,
-        input: GetClientScopesInput,
-    ) -> impl Future<Output = Result<Vec<ClientScope>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<ClientScopeFilter, ClientScopeSortField>,
+    ) -> impl Future<Output = Result<Page<ClientScope>, CoreError>> + Send;
 
     fn update_client_scope(
         &self,

@@ -2,17 +2,23 @@ use crate::{
     application::services::ApplicationService,
     domain::{
         aegis::{
-            entities::{ClientScope, ClientScopeMapping, ProtocolMapper},
+            entities::{
+                ClientScope, ClientScopeFilter, ClientScopeMapping, ClientScopeSortField,
+                ProtocolMapper,
+            },
             ports::{ClientScopeService, ProtocolMapperService, ScopeMappingService},
             value_objects::{
                 AssignClientScopeInput, CreateClientScopeInput, CreateProtocolMapperInput,
                 DeleteClientScopeInput, DeleteProtocolMapperInput, GetClientClientScopesInput,
-                GetClientScopeInput, GetClientScopesInput, UnassignClientScopeInput,
-                UpdateClientScopeInput, UpdateProtocolMapperInput,
+                GetClientScopeInput, UnassignClientScopeInput, UpdateClientScopeInput,
+                UpdateProtocolMapperInput,
             },
         },
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
     },
 };
 
@@ -37,13 +43,14 @@ impl ClientScopeService for ApplicationService {
             .await
     }
 
-    async fn get_client_scopes(
+    async fn list_client_scopes(
         &self,
         identity: Identity,
-        input: GetClientScopesInput,
-    ) -> Result<Vec<ClientScope>, CoreError> {
+        realm_name: String,
+        request: PageRequest<ClientScopeFilter, ClientScopeSortField>,
+    ) -> Result<Page<ClientScope>, CoreError> {
         self.client_scope_service
-            .get_client_scopes(identity, input)
+            .list_client_scopes(identity, realm_name, request)
             .await
     }
 

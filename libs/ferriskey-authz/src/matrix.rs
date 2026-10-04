@@ -957,7 +957,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClientScopes],
         self_bypass: false,
         file: "libs/ferriskey-aegis/src/services/client_scope_service.rs",
-        line: 90,
+        line: 91,
     },
     AuthzRow {
         service_fn: "get_client_scope",
@@ -971,10 +971,10 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-aegis/src/services/client_scope_service.rs",
-        line: 128,
+        line: 129,
     },
     AuthzRow {
-        service_fn: "get_client_scopes",
+        service_fn: "list_client_scopes",
         policy_fn: "can_view_scope",
         action: actions::CLIENT_SCOPE_READ,
         resource: EntityType::REALM,
@@ -985,7 +985,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-aegis/src/services/client_scope_service.rs",
-        line: 168,
+        line: 169,
     },
     AuthzRow {
         service_fn: "update_client_scope",
@@ -995,7 +995,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClientScopes],
         self_bypass: false,
         file: "libs/ferriskey-aegis/src/services/client_scope_service.rs",
-        line: 208,
+        line: 198,
     },
     AuthzRow {
         service_fn: "delete_client_scope",
@@ -1005,7 +1005,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageClientScopes],
         self_bypass: false,
         file: "libs/ferriskey-aegis/src/services/client_scope_service.rs",
-        line: 247,
+        line: 237,
     },
     AuthzRow {
         service_fn: "create_protocol_mapper",

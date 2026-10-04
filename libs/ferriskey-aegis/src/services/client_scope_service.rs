@@ -3,13 +3,13 @@ use std::sync::Arc;
 use tracing::instrument;
 
 use crate::{
-    entities::ClientScope,
+    entities::{ClientScope, ClientScopeFilter, ClientScopeSortField},
     ports::{
         ClientScopePolicy, ClientScopeRepository, ClientScopeService, ProtocolMapperRepository,
     },
     value_objects::{
         CreateClientScopeInput, CreateClientScopeRequest, DeleteClientScopeInput,
-        GetClientScopeInput, GetClientScopesInput, UpdateClientScopeInput,
+        GetClientScopeInput, UpdateClientScopeInput,
     },
 };
 
@@ -17,6 +17,7 @@ use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, UnscopedOption};
@@ -150,20 +151,20 @@ where
     }
 
     #[instrument(
-        skip(self, identity, input),
+        skip(self, identity, request),
         fields(
             identity.id = %identity.id(),
             identity.kind = %identity.kind(),
-            realm.name = %input.realm_name,
+            realm.name = %realm_name,
         )
     )]
-    async fn get_client_scopes(
+    async fn list_client_scopes(
         &self,
         identity: Identity,
-        input: GetClientScopesInput,
-    ) -> Result<Vec<ClientScope>, CoreError> {
-        let realm_scope =
-            RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        request: PageRequest<ClientScopeFilter, ClientScopeSortField>,
+    ) -> Result<Page<ClientScope>, CoreError> {
+        let realm_scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
             self.policy
@@ -172,20 +173,9 @@ where
             "insufficient permissions",
         )?;
 
-        let mut client_scopes = self
-            .client_scope_repository
-            .find_by_realm_id(realm_scope.id())
-            .await?;
-
-        for scope in &mut client_scopes {
-            let mappers = self
-                .protocol_mapper_repository
-                .get_by_scope_id(scope.id)
-                .await?;
-            scope.protocol_mappers = Some(mappers);
-        }
-
-        Ok(client_scopes)
+        self.client_scope_repository
+            .list(&realm_scope, &request)
+            .await
     }
 
     #[instrument(
@@ -277,6 +267,7 @@ mod tests {
     use ferriskey_domain::role::entities::Role;
     use ferriskey_domain::user::ports::{MockUserRepository, MockUserRoleRepository};
 
+    use crate::entities::ScopeType;
     use crate::ports::{MockClientScopeRepository, MockProtocolMapperRepository};
     use crate::services::test_support::{
         make_admin_role, make_realm, make_scope, make_user, mock_client_repository, mock_policy,
@@ -554,5 +545,76 @@ mod tests {
             .await;
 
         result.expect("a scope of the path realm is deletable");
+    }
+
+    fn list_request() -> PageRequest<ClientScopeFilter, ClientScopeSortField> {
+        PageRequest {
+            filter: ClientScopeFilter {
+                name: Some("pro".to_string()),
+                default_scope_type: Some(ScopeType::Optional),
+                has_protocol_mappers: Some(true),
+                ..ClientScopeFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_client_scopes_refuses_a_caller_without_view_rights_before_listing() {
+        let realm_a = make_realm("tenant-a");
+        let user = make_user(&realm_a);
+        let mut scope_repository = MockClientScopeRepository::new();
+        scope_repository.expect_list().never();
+
+        let service = build_service(
+            vec![realm_a],
+            vec![],
+            scope_repository,
+            MockProtocolMapperRepository::new(),
+        );
+
+        let result = service
+            .list_client_scopes(Identity::User(user), "tenant-a".to_string(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_client_scopes_pages_the_resolved_realm_with_the_request() {
+        let realm_a = make_realm("tenant-a");
+        let realm_id = realm_a.id;
+        let user = make_user(&realm_a);
+        let role = make_admin_role(realm_a.id);
+        let listed = make_scope(realm_a.id);
+        let expected_id = listed.id;
+
+        let mut scope_repository = MockClientScopeRepository::new();
+        scope_repository
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = build_service(
+            vec![realm_a],
+            vec![role],
+            scope_repository,
+            MockProtocolMapperRepository::new(),
+        );
+
+        let page = service
+            .list_client_scopes(Identity::User(user), "tenant-a".to_string(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }

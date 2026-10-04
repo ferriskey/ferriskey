@@ -1,18 +1,70 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use ferriskey_aegis::entities::ScopeType;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, QuerySelect, QueryTrait, Select,
 };
-use tracing::instrument;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
-use crate::domain::aegis::entities::ClientScope;
+use crate::domain::aegis::entities::{
+    ClientScope, ClientScopeFilter, ClientScopeSortField, ProtocolMapper,
+};
 use crate::domain::aegis::ports::ClientScopeRepository;
 use crate::domain::aegis::value_objects::{CreateClientScopeRequest, UpdateClientScopeRequest};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
-use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
-use crate::entity::client_scopes;
+use crate::domain::common::pagination::{Page, PageRequest};
+use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
+use crate::entity::{client_scope_protocol_mappers, client_scopes};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<client_scopes::Entity> for ClientScopeSortField {
+    fn column(&self) -> client_scopes::Column {
+        match self {
+            ClientScopeSortField::Name => client_scopes::Column::Name,
+            ClientScopeSortField::CreatedAt => client_scopes::Column::CreatedAt,
+            ClientScopeSortField::UpdatedAt => client_scopes::Column::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(realm_id: Uuid, filter: &ClientScopeFilter) -> Select<client_scopes::Entity> {
+    client_scopes::Entity::find()
+        .filter(client_scopes::Column::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(client_scopes::Column::Name, value))
+        })
+        .apply_if(filter.description.as_deref(), |select, value| {
+            select.filter(contains(client_scopes::Column::Description, value))
+        })
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(
+                Condition::any()
+                    .add(contains(client_scopes::Column::Name, value))
+                    .add(contains(client_scopes::Column::Description, value)),
+            )
+        })
+        .apply_if(filter.protocol.as_deref(), |select, value| {
+            select.filter(client_scopes::Column::Protocol.eq(value))
+        })
+        .apply_if(filter.default_scope_type.as_ref(), |select, value| {
+            select.filter(client_scopes::Column::DefaultScopeType.eq(value.as_str()))
+        })
+        .apply_if(filter.has_protocol_mappers, |select, present| {
+            let with_mappers = client_scope_protocol_mappers::Entity::find()
+                .select_only()
+                .column(client_scope_protocol_mappers::Column::ClientScopeId)
+                .into_query();
+            select.filter(if present {
+                client_scopes::Column::Id.in_subquery(with_mappers)
+            } else {
+                client_scopes::Column::Id.not_in_subquery(with_mappers)
+            })
+        })
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -86,6 +138,55 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
             })?;
 
         Ok(models.into_iter().map(ClientScope::from).collect())
+    }
+
+    #[instrument(skip(self, request), fields(realm.id = ?scope.id()))]
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<ClientScopeFilter, ClientScopeSortField>,
+    ) -> Result<Page<ClientScope>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing client scopes: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        let scope_ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
+        let mut mappers: HashMap<Uuid, Vec<ProtocolMapper>> = HashMap::new();
+        if !scope_ids.is_empty() {
+            let rows = client_scope_protocol_mappers::Entity::find()
+                .filter(client_scope_protocol_mappers::Column::ClientScopeId.is_in(scope_ids))
+                .order_by_asc(client_scope_protocol_mappers::Column::CreatedAt)
+                .order_by_asc(client_scope_protocol_mappers::Column::Id)
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    error!(
+                        "error loading protocol mappers of listed client scopes: {:?}",
+                        e
+                    );
+                    CoreError::InternalServerError
+                })?;
+            for row in rows {
+                mappers
+                    .entry(row.client_scope_id)
+                    .or_default()
+                    .push(ProtocolMapper::from(row));
+            }
+        }
+
+        let client_scopes = models
+            .into_iter()
+            .map(|model| {
+                let id = model.id;
+                let mut client_scope = ClientScope::from(model);
+                client_scope.protocol_mappers = Some(mappers.remove(&id).unwrap_or_default());
+                client_scope
+            })
+            .collect();
+
+        Ok(Page::new(client_scopes, total, request.page, request.limit))
     }
 
     #[instrument(skip(self))]
@@ -173,5 +274,101 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::aegis::entities::{ClientScopeFilter, ScopeType};
+
+    fn sql(filter: &ClientScopeFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&ClientScopeFilter::default());
+        assert!(
+            sql.contains(r#""client_scopes"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&ClientScopeFilter {
+            name: Some("a%".to_string()),
+            description: Some("b".to_string()),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""client_scopes"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""client_scopes"."description" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_description() {
+        let sql = sql(&ClientScopeFilter {
+            search: Some("pro".to_string()),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("client_scopes"."name" ILIKE '%pro%') OR ("client_scopes"."description" ILIKE '%pro%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn exact_filters_are_equalities() {
+        let sql = sql(&ClientScopeFilter {
+            protocol: Some("saml".to_string()),
+            default_scope_type: Some(ScopeType::Optional),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""client_scopes"."protocol" = 'saml'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""client_scopes"."default_scope_type" = 'OPTIONAL'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn mapper_presence_is_a_subquery_on_protocol_mappers() {
+        let with = sql(&ClientScopeFilter {
+            has_protocol_mappers: Some(true),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            with.contains(
+                r#""client_scopes"."id" IN (SELECT "client_scope_protocol_mappers"."client_scope_id" FROM "client_scope_protocol_mappers")"#
+            ),
+            "{with}"
+        );
+        let without = sql(&ClientScopeFilter {
+            has_protocol_mappers: Some(false),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            without.contains(
+                r#""client_scopes"."id" NOT IN (SELECT "client_scope_protocol_mappers"."client_scope_id" FROM "client_scope_protocol_mappers")"#
+            ),
+            "{without}"
+        );
     }
 }
