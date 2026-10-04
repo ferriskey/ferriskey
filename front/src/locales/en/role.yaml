@@ -187,6 +187,9 @@ permissions:
     view_authorization:
       label: View Authorization
       description: Read the authorization policies of the realm.
+    evaluate_authorization:
+      label: Evaluate Authorization
+      description: Ask the realm for access decisions, as an application enforcing them does.
     manage_realm:
       label: Manage Realm
       description: Edit realm settings, tokens and login policy.
