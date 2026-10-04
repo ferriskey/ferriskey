@@ -646,7 +646,6 @@ export namespace Schemas {
   export type GetDailyActivityStatsResponse = { data: Array<DailyActivityStats> };
   export type GetDeliveryResponse = { data: DeliveryDetail };
   export type GetEmailTemplateResponse = { data: EmailTemplate };
-  export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> };
   export type GetFlowResponse = { data: CompassFlow };
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string;
@@ -934,6 +933,19 @@ export namespace Schemas {
       status: string;
       updated_at: string;
       webhook_id: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_EmailTemplate = {
+    data: Array<{
+      created_at: string;
+      email_type: EmailType;
+      id: string;
+      mjml: string;
+      name: string;
+      realm_id: string;
+      structure: unknown;
+      updated_at: string;
     }>;
     metadata: PageMetadata;
   };
@@ -2601,12 +2613,22 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/email-templates";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        email_type: "reset_password" | "magic_link" | "email_verification";
+        order_by: "name" | "email_type" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.GetEmailTemplatesResponse;
+      200: Schemas.Paginated_EmailTemplate;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
