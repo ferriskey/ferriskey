@@ -165,4 +165,5 @@ export enum Permissions {
   ViewEmailTemplates = 'view_email_templates',
   ManageOrganizations = 'manage_organizations',
   ViewOrganizations = 'view_organizations',
+  EvaluateAuthorization = 'evaluate_authorization',
 }

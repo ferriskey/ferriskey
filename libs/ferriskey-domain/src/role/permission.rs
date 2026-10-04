@@ -48,6 +48,10 @@ pub enum Permissions {
     // the same authority as administering the realm's users.
     ManageOrganizations = 1 << 27, // 1 << 27
     ViewOrganizations = 1 << 28,   // 1 << 28
+
+    // Asking the realm's policy decision point for a decision, as a policy
+    // enforcement point does. Grants no right over the policies themselves.
+    EvaluateAuthorization = 1 << 29, // 1 << 29
 }
 
 impl Permissions {
@@ -57,7 +61,7 @@ impl Permissions {
     /// `name()` is an exhaustive match and will fail to compile until it is
     /// handled, and `every_permission_round_trips` fails until the variant is
     /// listed here and in `from_name`.
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 30] = [
         Self::CreateClient,
         Self::ManageAuthorization,
         Self::ManageClients,
@@ -87,6 +91,7 @@ impl Permissions {
         Self::ViewEmailTemplates,
         Self::ManageOrganizations,
         Self::ViewOrganizations,
+        Self::EvaluateAuthorization,
     ];
 
     pub fn from_bitfield(bitfield: u64) -> Vec<Self> {
@@ -128,6 +133,7 @@ impl Permissions {
             Self::ViewEmailTemplates => "view_email_templates".to_string(),
             Self::ManageOrganizations => "manage_organizations".to_string(),
             Self::ViewOrganizations => "view_organizations".to_string(),
+            Self::EvaluateAuthorization => "evaluate_authorization".to_string(),
         }
     }
 
@@ -204,6 +210,7 @@ impl Permissions {
             "view_email_templates" => Some(Self::ViewEmailTemplates),
             "manage_organizations" => Some(Self::ManageOrganizations),
             "view_organizations" => Some(Self::ViewOrganizations),
+            "evaluate_authorization" => Some(Self::EvaluateAuthorization),
             _ => None,
         }
     }
