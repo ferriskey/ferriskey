@@ -21,6 +21,7 @@ import {
 import { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 import {
+  PROVIDER_TYPES,
   providerName,
   providerStatus,
   providerTypeLabel,
@@ -88,6 +89,7 @@ const popularTemplates = PROVIDER_TEMPLATES.filter((template) =>
 
 const providerTypeOptions = () => {
   const options = new Map<string, string>()
+  PROVIDER_TYPES.forEach((type) => options.set(type, providerTypeLabel(type)))
   ALL_TEMPLATES.forEach((template) => {
     if (!options.has(template.name)) options.set(template.name, templateDisplayName(template))
   })
