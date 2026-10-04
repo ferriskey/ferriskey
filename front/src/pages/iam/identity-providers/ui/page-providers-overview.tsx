@@ -14,13 +14,13 @@ import type {
 } from '@/components/kit'
 import ProviderIcon from '@/components/provider-icon'
 import {
+  ALL_TEMPLATES,
   PROVIDER_TEMPLATES,
   templateDisplayName,
 } from '@/constants/identity-provider-templates'
 import { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 import {
-  PROVIDER_TYPES,
   providerName,
   providerStatus,
   providerTypeLabel,
@@ -88,8 +88,7 @@ const popularTemplates = PROVIDER_TEMPLATES.filter((template) =>
 
 const providerTypeOptions = () => {
   const options = new Map<string, string>()
-  PROVIDER_TYPES.forEach((type) => options.set(type, providerTypeLabel(type)))
-  PROVIDER_TEMPLATES.forEach((template) => {
+  ALL_TEMPLATES.forEach((template) => {
     if (!options.has(template.name)) options.set(template.name, templateDisplayName(template))
   })
   return [...options].map(([value, label]) => ({ value, label }))
