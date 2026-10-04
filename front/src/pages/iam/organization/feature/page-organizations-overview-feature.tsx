@@ -1,11 +1,10 @@
-import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useGetOrganizations } from '@/api/organization.api'
 import { RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 import { ORGANIZATIONS_URL } from '@/routes/router'
 import { ORGANIZATION_URL } from '../urls'
 import PageOrganizationsOverview from '../ui/page-organizations-overview'
+import { useOrganizationsOverview } from './use-organizations-overview'
 
 import Organization = Schemas.Organization
 
@@ -14,15 +13,11 @@ export default function PageOrganizationsOverviewFeature() {
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
 
-  const { data, isLoading } = useGetOrganizations({ realm })
-  const organizations = useMemo(() => data?.data ?? [], [data])
-
-  const firstDisabled = organizations.find((o) => !o.enabled)
+  const { firstDisabled, ...overview } = useOrganizationsOverview(realm)
 
   return (
     <PageOrganizationsOverview
-      organizations={organizations}
-      isLoading={isLoading}
+      {...overview}
       organizationHref={(organization: Organization) =>
         `${ORGANIZATION_URL(realm, organization.id)}/settings`
       }

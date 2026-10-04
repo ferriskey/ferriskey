@@ -65,7 +65,6 @@ list:
   title: 组织
   description: 共享同一域名、同一重定向并拥有各自角色的账户集合。
   create: 新建组织
-  search_placeholder: 按名称、别名或域名筛选…
   count_other: '{{count}} 个组织'
   columns:
     name: 组织
@@ -73,6 +72,8 @@ list:
     domain: 域名
     description: 描述
     status: 状态
+    created: 创建时间
+    updated: 更新时间
   metrics:
     total:
       label: 总数
@@ -97,10 +98,12 @@ list:
       # "names" is the list of disabled organizations, already joined.
       detail_other: '{{names}}，其成员无法访问。'
       action: 检查
-  filters:
+  filter_fields:
+    name: 名称
+    alias: 别名
+    domain: 域名
     enabled: 已启用
-    disabled: 已禁用
-    without_domain: 无域名
+    has_domain: 已设置域名
   card:
     flags:
       reachable: 其成员可以访问
