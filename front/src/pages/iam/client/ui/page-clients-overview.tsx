@@ -1,16 +1,16 @@
 import { Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
-import {
-  CreatePickerDialog,
-  ListingPage,
-  Pill,
-  Squircle,
-  StatusDot,
-  type CardSpec,
-  type Column,
+import { CreatePickerDialog, ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
 } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
+import { formatRelative } from '@/utils/format-date'
 import {
   DEFAULT_PROTOCOL,
   clientAuthenticationOf,
@@ -20,22 +20,50 @@ import {
 } from '../client-choices'
 
 import Client = Schemas.Client
-import { cumulativeSeries } from '@/utils/cumulative-series'
+
+export interface ClientCounts {
+  total: number
+  active: number
+  public: number
+  confidential: number
+}
+
+export interface ClientPreview {
+  total: number
+  names: string[]
+}
 
 export interface PageClientsOverviewProps {
   clients: Client[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: ClientCounts
+  withoutRedirect: ClientPreview
+  inMaintenance: ClientPreview
   pickerOpen: boolean
   onPickerOpenChange: (open: boolean) => void
   createUrl: (protocol: ClientProtocol) => string
   clientHref: (client: Client) => string
 }
 
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
+const previewNames = (preview: ClientPreview) =>
+  preview.names.join(NAME_SEPARATOR) +
+  (preview.total > preview.names.length ? TRUNCATION_MARK : '')
+
 const redirectCount = (client: Client) => client.redirect_uris?.length ?? 0
 
 export default function PageClientsOverview({
   clients,
+  pagination,
+  listing,
   isLoading,
+  counts,
+  withoutRedirect,
+  inMaintenance,
   pickerOpen,
   onPickerOpenChange,
   createUrl,
@@ -48,13 +76,13 @@ export default function PageClientsOverview({
       key: 'name',
       header: t('list.columns.name'),
       render: (c) => c.name,
-      sortValue: (c) => c.name,
+      sortKey: 'name',
     },
     {
       key: 'client_id',
       header: t('list.columns.client_id'),
       render: (c) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{c.client_id}</span>,
-      sortValue: (c) => c.client_id,
+      sortKey: 'client_id',
     },
     {
       key: 'kind',
@@ -64,7 +92,6 @@ export default function PageClientsOverview({
           {t(`shared.authentication.${clientAuthenticationOf(c.public_client)}`)}
         </Pill>
       ),
-      sortValue: (c) => clientAuthenticationOf(c.public_client),
     },
     {
       key: 'protocol',
@@ -74,7 +101,6 @@ export default function PageClientsOverview({
           {c.protocol}
         </Pill>
       ),
-      sortValue: (c) => c.protocol,
     },
     {
       key: 'redirects',
@@ -86,7 +112,6 @@ export default function PageClientsOverview({
         ) : (
           <span className='tnum text-fk-amber'>0</span>
         ),
-      sortValue: (c) => redirectCount(c),
     },
     {
       key: 'status',
@@ -97,7 +122,65 @@ export default function PageClientsOverview({
           {t(`shared.status.${clientStateOf(c.enabled)}`)}
         </span>
       ),
-      sortValue: (c) => clientStateOf(c.enabled),
+      sortKey: 'enabled',
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (c) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(c.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (c) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(c.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
+    },
+  ]
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
+    { kind: 'text', key: 'client_id', label: t('list.filter_fields.client_id') },
+    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
+    { kind: 'boolean', key: 'public_client', label: t('list.filter_fields.public_client') },
+    {
+      kind: 'boolean',
+      key: 'service_account_enabled',
+      label: t('list.filter_fields.service_account_enabled'),
+    },
+    {
+      kind: 'enum',
+      key: 'protocol',
+      label: t('list.filter_fields.protocol'),
+      options: protocolChoices(t).map((choice) => ({ value: choice.value, label: choice.label })),
+    },
+    {
+      kind: 'enum',
+      key: 'client_type',
+      label: t('list.filter_fields.client_type'),
+      options: [
+        { value: 'confidential', label: t('list.filter_fields.client_types.confidential') },
+        { value: 'public', label: t('list.filter_fields.client_types.public') },
+        { value: 'system', label: t('list.filter_fields.client_types.system') },
+      ],
+    },
+    {
+      kind: 'boolean',
+      key: 'has_redirect_uris',
+      label: t('list.filter_fields.has_redirect_uris'),
+    },
+    {
+      kind: 'boolean',
+      key: 'maintenance_enabled',
+      label: t('list.filter_fields.maintenance_enabled'),
     },
   ]
 
@@ -135,12 +218,6 @@ export default function PageClientsOverview({
     ),
   }
 
-  const publicClients = clients.filter((c) => c.public_client)
-  const confidentialClients = clients.filter((c) => !c.public_client)
-  const activeClients = clients.filter((c) => c.enabled)
-  const withoutRedirect = clients.filter((c) => redirectCount(c) === 0)
-  const inMaintenance = clients.filter((c) => c.maintenance_enabled)
-
   const createButton = (
     <Button onClick={() => onPickerOpenChange(true)}>
       <Plus /> {t('list.create')}
@@ -158,83 +235,70 @@ export default function PageClientsOverview({
           {
             key: 'total',
             label: t('list.metrics.total.label'),
-            value: clients.length,
+            value: counts.total,
             hint: t('list.metrics.total.hint'),
-            series: cumulativeSeries(clients.map((c) => c.created_at)),
+            series: [counts.total, counts.total],
             tone: 'info',
           },
           {
             key: 'active',
             label: t('list.metrics.active.label'),
-            value: activeClients.length,
+            value: counts.active,
             hint: t('list.metrics.active.hint'),
-            series: cumulativeSeries(activeClients.map((c) => c.created_at)),
+            series: [counts.active, counts.active],
             tone: 'success',
           },
           {
             key: 'public',
             label: t('list.metrics.public.label'),
-            value: publicClients.length,
+            value: counts.public,
             hint: t('list.metrics.public.hint'),
-            series: cumulativeSeries(publicClients.map((c) => c.created_at)),
+            series: [counts.public, counts.public],
             tone: 'info',
           },
           {
             key: 'confidential',
             label: t('list.metrics.confidential.label'),
-            value: confidentialClients.length,
+            value: counts.confidential,
             hint: t('list.metrics.confidential.hint'),
-            series: cumulativeSeries(confidentialClients.map((c) => c.created_at)),
+            series: [counts.confidential, counts.confidential],
             tone: 'violet',
           },
         ]}
         alerts={[
-          ...(withoutRedirect.length
+          ...(withoutRedirect.total
             ? [
                 {
                   tone: 'warn' as const,
-                  title: t('list.alerts.no_redirect.title', { count: withoutRedirect.length }),
+                  title: t('list.alerts.no_redirect.title', { count: withoutRedirect.total }),
                   detail: t('list.alerts.no_redirect.detail', {
-                    clients: withoutRedirect.map((c) => c.name || c.client_id).join(', '),
+                    clients: previewNames(withoutRedirect),
                   }),
                   action: t('list.alerts.no_redirect.action'),
                 },
               ]
             : []),
-          ...(inMaintenance.length
+          ...(inMaintenance.total
             ? [
                 {
                   tone: 'warn' as const,
-                  title: t('list.alerts.maintenance.title', { count: inMaintenance.length }),
+                  title: t('list.alerts.maintenance.title', { count: inMaintenance.total }),
                   detail: t('list.alerts.maintenance.detail', {
-                    clients: inMaintenance.map((c) => c.name || c.client_id).join(', '),
+                    clients: previewNames(inMaintenance),
                   }),
                   action: t('list.alerts.maintenance.action'),
                 },
               ]
             : []),
         ]}
-        filters={[
-          { key: 'public', label: t('list.filters.public'), predicate: (c) => c.public_client },
-          {
-            key: 'confidential',
-            label: t('list.filters.confidential'),
-            predicate: (c) => !c.public_client,
-          },
-          { key: 'disabled', label: t('list.filters.disabled'), predicate: (c) => !c.enabled },
-        ]}
-        searchPlaceholder={t('list.search_placeholder')}
-        querySyntax={t('list.query_syntax')}
-        searchIn={(c) => `${c.name} ${c.client_id}`}
+        paged={{ listing, pagination, filterFields }}
         rows={clients}
         columns={columns}
         card={card}
         getKey={(c) => c.id}
         getHref={clientHref}
         aggregates={{
-          name: t('list.aggregates.count', { count: clients.length }),
-          redirects: clients.reduce((n, c) => n + redirectCount(c), 0),
-          status: t('list.aggregates.enabled', { total: activeClients.length }),
+          name: t('list.aggregates.count', { count: counts.total }),
         }}
         emptyLabel={t('list.empty.label')}
         emptyHint={t('list.empty.hint')}
