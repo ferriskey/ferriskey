@@ -167,11 +167,6 @@ pub trait UserRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Unscoped<User>, CoreError>> + Send;
 
-    fn find_by_realm_id(
-        &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Vec<User>, CoreError>> + Send;
-
     fn list(
         &self,
         scope: &RealmScope,

@@ -284,18 +284,6 @@ impl UserRepository for PostgresUserRepository {
         Ok(Unscoped::new(user))
     }
 
-    async fn find_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<User>, CoreError> {
-        let users = crate::entity::users::Entity::find()
-            .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
-            .all(&self.db)
-            .await
-            .map_err(|_| CoreError::NotFound)?;
-
-        let users: Vec<User> = users.into_iter().map(|user| user.into()).collect();
-
-        Ok(users)
-    }
-
     async fn list(
         &self,
         scope: &RealmScope,
