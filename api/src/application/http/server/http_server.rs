@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use crate::application::http::server::app_state::AppState;
@@ -33,6 +34,7 @@ use axum::http::header::{
 use axum::routing::get;
 use axum_cookie::prelude::*;
 use axum_prometheus::PrometheusMetricLayer;
+use axum_prometheus::metrics_exporter_prometheus::PrometheusHandle;
 use ferriskey_api_core::cors::CorsOriginResolver;
 use ferriskey_api_health::health_routes;
 use ferriskey_core::application::create_service;
@@ -46,6 +48,13 @@ use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
 const PREFLIGHT_MAX_AGE: Duration = Duration::from_secs(600);
+
+// `PrometheusMetricLayer::pair` installs a process-wide recorder and panics on a
+// second call, so every router built in this process shares one pair.
+fn prometheus_pair() -> (PrometheusMetricLayer<'static>, PrometheusHandle) {
+    static PAIR: OnceLock<(PrometheusMetricLayer<'static>, PrometheusHandle)> = OnceLock::new();
+    PAIR.get_or_init(PrometheusMetricLayer::pair).clone()
+}
 
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
@@ -119,7 +128,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .allow_credentials(true)
         .max_age(PREFLIGHT_MAX_AGE);
 
-    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+    let (prometheus_layer, metric_handle) = prometheus_pair();
 
     let mut openapi = ApiDoc::openapi();
     let mut paths = openapi.paths.clone();
