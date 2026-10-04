@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useCreateRole } from '@/api/role.api'
-import { useGetClients } from '@/api/client.api'
+import { useClientPicker } from '@/hooks/use-client-picker'
 import { RouterParams } from '@/routes/router'
 import { createRoleSchema } from '@/pages/iam/role/schemas/create-role.schema'
 import { ROLES_URL } from '@/routes/router'
@@ -12,7 +12,6 @@ export default function PageCreateRoleFeature() {
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
 
-  const { data: clientsResponse } = useGetClients({ realm })
   const { mutate: createRole } = useCreateRole()
 
   const [name, setName] = useState('')
@@ -21,7 +20,7 @@ export default function PageCreateRoleFeature() {
   const [clientId, setClientId] = useState<string>()
   const [permissions, setPermissions] = useState<string[]>([])
 
-  const clients = useMemo(() => clientsResponse?.data ?? [], [clientsResponse])
+  const clientPicker = useClientPicker({ realm, selectedId: clientId })
 
   const parsed = createRoleSchema.safeParse({
     name,
@@ -53,7 +52,7 @@ export default function PageCreateRoleFeature() {
 
   return (
     <PageCreateRole
-      clients={clients}
+      clientPicker={clientPicker}
       name={name}
       description={description}
       scope={scope}

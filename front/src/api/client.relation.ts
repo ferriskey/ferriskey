@@ -2,9 +2,7 @@ import { useParams } from 'react-router'
 import type { RelationOption, RelationSource } from '@/components/kit'
 import { RouterParams } from '@/routes/router'
 import type { Schemas } from './api.client'
-import { useGetClients } from './client.api'
-
-const CLIENT_OPTION_LIMIT = 20
+import { CLIENT_SEARCH_LIMIT, useGetClient, useGetClients } from './client.api'
 
 const toOption = (client: Schemas.Client): RelationOption => ({
   id: client.id,
@@ -12,30 +10,22 @@ const toOption = (client: Schemas.Client): RelationOption => ({
   sublabel: client.client_id,
 })
 
-function useRealmClients() {
+function useRealm() {
   const { realm_name } = useParams<RouterParams>()
-  return useGetClients({ realm: realm_name ?? 'master' })
+  return realm_name ?? 'master'
 }
 
 function useClientOptions(search: string) {
-  const { data, isLoading } = useRealmClients()
-  const needle = search.trim().toLowerCase()
-  const options = (data?.data ?? [])
-    .filter(
-      (client) =>
-        !needle ||
-        client.name.toLowerCase().includes(needle) ||
-        client.client_id.toLowerCase().includes(needle)
-    )
-    .slice(0, CLIENT_OPTION_LIMIT)
-    .map(toOption)
-  return { options, loading: isLoading }
+  const { data, isLoading } = useGetClients({
+    realm: useRealm(),
+    query: { name: search.trim() || undefined, limit: CLIENT_SEARCH_LIMIT },
+  })
+  return { options: (data?.data ?? []).map(toOption), loading: isLoading }
 }
 
 function useSelectedClient(id: string | undefined) {
-  const { data } = useRealmClients()
-  const client = id ? data?.data.find((candidate) => candidate.id === id) : undefined
-  return client ? toOption(client) : undefined
+  const { data } = useGetClient({ realm: useRealm(), clientId: id })
+  return data?.data ? toOption(data.data) : undefined
 }
 
 export const clientRelationSource: RelationSource = {

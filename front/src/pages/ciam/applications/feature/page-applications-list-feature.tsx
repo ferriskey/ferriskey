@@ -1,6 +1,5 @@
-import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { useGetClients } from '@/api/client.api'
+import { useAllClients } from '@/api/client.api'
 import { RouterParams } from '@/routes/router'
 import { useCreatePicker } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
@@ -17,8 +16,7 @@ export default function PageApplicationsListFeature() {
   const { realm_name } = useParams<RouterParams>()
   const realm = realm_name ?? 'master'
 
-  const { data: clientsResponse, isLoading } = useGetClients({ realm })
-  const applications = useMemo(() => clientsResponse?.data ?? [], [clientsResponse])
+  const { clients: applications, isLoading } = useAllClients({ realm })
 
   const picker = useCreatePicker()
 

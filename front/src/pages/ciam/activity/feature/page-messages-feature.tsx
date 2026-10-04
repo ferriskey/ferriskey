@@ -5,6 +5,7 @@ import { useGetSmtpConfig } from '@/api/smtp.api'
 import { useGetWebhooks } from '@/api/webhook.api'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
 import { eventRoleIds } from '@/hooks/event-role-ids'
+import { eventClientIds } from '@/hooks/event-client-ids'
 import { detailString } from '../ui/event-journal'
 import { useWindowEvents } from './use-window-events'
 import PageMessages from '../ui/page-messages'
@@ -27,7 +28,8 @@ export default function PageMessagesFeature() {
     [events]
   )
   const roleIds = useMemo(() => eventRoleIds(events), [events])
-  const directory = useRealmDirectory(realm, userIds, roleIds)
+  const clientIds = useMemo(() => eventClientIds(events), [events])
+  const directory = useRealmDirectory(realm, userIds, roleIds, clientIds)
 
   const { data: smtpConfig, isLoading: isLoadingSmtp } = useGetSmtpConfig({ realm })
   const { data: webhooksResponse } = useGetWebhooks({ realm })

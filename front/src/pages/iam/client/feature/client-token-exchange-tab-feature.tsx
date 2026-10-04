@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useGetClients } from '@/api/client.api'
+import { useClientCount } from '@/api/client.api'
+import { useClientPicker } from '@/hooks/use-client-picker'
 import {
   useCreateTokenExchangePolicy,
   useDeleteTokenExchangePolicy,
@@ -29,11 +30,15 @@ export default function ClientTokenExchangeTabFeature({
     isLoading,
     isError,
   } = useGetTokenExchangePolicies({ realm, clientId: client.id })
-  const { data: clientsResponse } = useGetClients({ realm })
+  const picker = useClientPicker({ realm, field: 'client_id' })
+  const { count: clientTotal } = useClientCount({ realm })
   const { mutateAsync: createPolicy, isPending: isCreating } = useCreateTokenExchangePolicy()
   const { mutateAsync: deletePolicy, isPending: isDeleting } = useDeleteTokenExchangePolicy()
 
-  const audiences = (clientsResponse?.data ?? []).filter((candidate) => candidate.id !== client.id)
+  const audiences = {
+    ...picker,
+    clients: picker.clients.filter((candidate) => candidate.id !== client.id),
+  }
 
   const handleCreate = async (values: TokenExchangePolicySchema) => {
     const created = await createPolicy({
@@ -65,6 +70,7 @@ export default function ClientTokenExchangeTabFeature({
       client={client}
       policies={policies}
       audiences={audiences}
+      canCreate={clientTotal > 1}
       isLoading={isLoading}
       isError={isError}
       isCreating={isCreating}
