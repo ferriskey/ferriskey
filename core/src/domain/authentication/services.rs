@@ -3053,7 +3053,9 @@ where
                 .revoke_family(stored.family_id)
                 .await
                 .map_err(|_| CoreError::InternalServerError)?;
-            return Err(CoreError::InvalidRefreshToken);
+            return Err(CoreError::InvalidGrant(
+                "This refresh token has already been used.".to_string(),
+            ));
         }
 
         let user = self
@@ -3114,7 +3116,9 @@ where
                     .revoke_family(stored.family_id)
                     .await
                     .map_err(|_| CoreError::InternalServerError)?;
-                Err(CoreError::InvalidRefreshToken)
+                Err(CoreError::InvalidGrant(
+                    "This refresh token has already been used.".to_string(),
+                ))
             }
             RotateOutcome::Rotated(new_stored) => {
                 // `rotate()` already committed the successor refresh token row.

@@ -299,32 +299,12 @@ mod tests {
 
             // /auth returns 302 redirect — extract session cookie
             assert_eq!(auth_resp.status_code(), 302, "auth should redirect");
-            let session_cookie = auth_resp
-                .headers()
-                .get_all("set-cookie")
-                .iter()
-                .find_map(|v| {
-                    let s = v.to_str().ok()?;
-                    if s.contains("FERRISKEY_SESSION") {
-                        Some(s.to_string())
-                    } else {
-                        None
-                    }
-                })
-                .expect("FERRISKEY_SESSION cookie");
-            let session_id = session_cookie
-                .split('=')
-                .nth(1)
-                .and_then(|s| s.split(';').next())
-                .expect("session id");
+            let session_cookie = auth_resp.cookie("FERRISKEY_SESSION");
 
             // 2. Authenticate to get the authorization code
             let auth_result = server
-                .post(&format!(
-                    "/realms/{}/protocol/openid-connect/authenticate",
-                    realm()
-                ))
-                .add_query_param("session_code", session_id)
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(session_cookie)
                 .add_query_param("client_id", &ctx.plain_client_id)
                 .json(&serde_json::json!({
                     "username": "admin",
@@ -332,11 +312,9 @@ mod tests {
                 }))
                 .await;
 
-            // 302 redirect with ?code=...
-            let location = auth_result
-                .headers()
-                .get("location")
-                .and_then(|v| v.to_str().ok())
+            // 200 with the redirect url carrying ?code=...
+            let location = auth_result.json::<serde_json::Value>()["url"]
+                .as_str()
                 .unwrap_or_default()
                 .to_string();
             let code = location
@@ -348,17 +326,22 @@ mod tests {
             // 3. Exchange code with code_verifier
             let token_resp = server
                 .post(&token_url(realm()))
-                .content_type("application/x-www-form-urlencoded")
-                .text(format!(
-                    "grant_type=authorization_code&client_id={}&code={}&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&code_verifier={}",
-                    ctx.plain_client_id, code, verifier
-                ))
+                .form(&[
+                    ("grant_type", "authorization_code"),
+                    ("client_id", ctx.plain_client_id.as_str()),
+                    ("code", code),
+                    ("redirect_uri", "http://localhost/callback"),
+                    ("code_verifier", verifier),
+                ])
                 .await;
 
             let status = token_resp.status_code();
             let body: Value = token_resp.json();
             assert_eq!(status, 200, "token exchange should succeed: {body:?}");
-            assert!(body.get("access_token").is_some(), "should have access_token");
+            assert!(
+                body.get("access_token").is_some(),
+                "should have access_token"
+            );
         });
     }
 
@@ -384,36 +367,34 @@ mod tests {
                 .await;
 
             assert_eq!(auth_resp.status_code(), 302);
-            let session_cookie = auth_resp
-                .headers()
-                .get_all("set-cookie")
-                .iter()
-                .find_map(|v| {
-                    let s = v.to_str().ok()?;
-                    if s.contains("FERRISKEY_SESSION") { Some(s.to_string()) } else { None }
-                })
-                .expect("session cookie");
-            let session_id = session_cookie.split('=').nth(1).and_then(|s| s.split(';').next()).unwrap();
+            let session_cookie = auth_resp.cookie("FERRISKEY_SESSION");
 
             let auth_result = server
-                .post(&format!("/realms/{}/protocol/openid-connect/authenticate", realm()))
-                .add_query_param("session_code", session_id)
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(session_cookie)
                 .add_query_param("client_id", &ctx.plain_client_id)
                 .json(&serde_json::json!({"username": "admin", "password": "admin"}))
                 .await;
 
-            let location = auth_result.headers().get("location")
-                .and_then(|v| v.to_str().ok()).unwrap_or_default().to_string();
-            let code = location.split("code=").nth(1)
-                .and_then(|s| s.split('&').next()).expect("code");
+            let location = auth_result.json::<serde_json::Value>()["url"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string();
+            let code = location
+                .split("code=")
+                .nth(1)
+                .and_then(|s| s.split('&').next())
+                .expect("code");
 
             let token_resp = server
                 .post(&token_url(realm()))
-                .content_type("application/x-www-form-urlencoded")
-                .text(format!(
-                    "grant_type=authorization_code&client_id={}&code={}&redirect_uri=http%3A%2F%2Flocalhost%2Fcallback&code_verifier={}",
-                    ctx.plain_client_id, code, wrong_verifier
-                ))
+                .form(&[
+                    ("grant_type", "authorization_code"),
+                    ("client_id", ctx.plain_client_id.as_str()),
+                    ("code", code),
+                    ("redirect_uri", "http://localhost/callback"),
+                    ("code_verifier", wrong_verifier),
+                ])
                 .await;
 
             let status = token_resp.status_code();

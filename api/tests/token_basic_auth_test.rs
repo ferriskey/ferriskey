@@ -109,7 +109,7 @@ mod tests {
                 admin_username: "admin".to_string(),
                 admin_password: "admin".to_string(),
                 admin_email: "admin@test.local".to_string(),
-                default_client_id: "admin-cli".to_string(),
+                default_client_id: "ferriskey-admin".to_string(),
             })
             .await
             .expect("initialize application");
