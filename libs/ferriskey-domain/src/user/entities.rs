@@ -58,6 +58,32 @@ impl RealmOwned for User {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct UserFilter {
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub firstname: Option<String>,
+    pub lastname: Option<String>,
+    pub enabled: Option<bool>,
+    pub email_verified: Option<bool>,
+    pub service_account: Option<bool>,
+    pub role_id: Option<Uuid>,
+    pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UserSortField {
+    Username,
+    Email,
+    Firstname,
+    Lastname,
+    Enabled,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,31 +165,6 @@ mod tests {
         assert_eq!(user.id, supplied);
         assert_eq!(user.id.get_version_num(), 4);
     }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct UserFilter {
-    pub username: Option<String>,
-    pub email: Option<String>,
-    pub firstname: Option<String>,
-    pub lastname: Option<String>,
-    pub enabled: Option<bool>,
-    pub email_verified: Option<bool>,
-    pub service_account: Option<bool>,
-    pub role_id: Option<Uuid>,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum UserSortField {
-    Username,
-    Email,
-    Firstname,
-    Lastname,
-    Enabled,
-    #[default]
-    CreatedAt,
-    UpdatedAt,
 }
 
 pub struct UserConfig {

@@ -63,6 +63,9 @@ fn listing_select(realm_id: Uuid, filter: &UserFilter) -> Select<users::Entity> 
                 users::Column::ClientId.is_null()
             })
         })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(users::Column::Id.is_in(ids.iter().copied()))
+        })
         .apply_if(filter.role_id, |select, role_id| {
             select.filter(
                 users::Column::Id.in_subquery(
@@ -565,6 +568,20 @@ mod tests {
             ..UserFilter::default()
         });
         assert!(off.contains(r#""users"."client_id" IS NULL"#), "{off}");
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(&UserFilter {
+            ids: Some(vec![first, second]),
+            ..UserFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(r#""users"."id" IN ('{first}', '{second}')"#)),
+            "{sql}"
+        );
     }
 
     #[test]

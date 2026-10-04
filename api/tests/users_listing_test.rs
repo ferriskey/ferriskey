@@ -99,6 +99,7 @@ mod tests {
         other_realm: String,
         role_id: String,
         seeds: Vec<Seed>,
+        foreign_user_id: Uuid,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -229,14 +230,16 @@ mod tests {
             }
         }
 
+        let foreign_user_id = insert_plain_user(&pool, other_realm_id, "user-50").await;
         for username in [
-            "user-50",
             "user-51",
             "user-52",
             "pct%user",
             "pctxuser",
             "under_score",
             "underxscore",
+            "back\\slash",
+            "backxslash",
         ] {
             insert_plain_user(&pool, other_realm_id, username).await;
         }
@@ -278,6 +281,7 @@ mod tests {
             other_realm,
             role_id,
             seeds,
+            foreign_user_id,
         }
     }
 
@@ -330,17 +334,19 @@ mod tests {
         .expect("insert user");
     }
 
-    async fn insert_plain_user(pool: &PgPool, realm_id: Uuid, username: &str) {
+    async fn insert_plain_user(pool: &PgPool, realm_id: Uuid, username: &str) -> Uuid {
+        let id = Uuid::new_v4();
         sqlx::query(
             "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at, failed_login_attempts) \
              VALUES ($1::uuid, $2::uuid, $3, false, true, now(), now(), 0)",
         )
-        .bind(Uuid::new_v4().to_string())
+        .bind(id.to_string())
         .bind(realm_id.to_string())
         .bind(username)
         .execute(pool)
         .await
         .expect("insert plain user");
+        id
     }
 
     async fn link_role(pool: &PgPool, user_id: Uuid, role_id: &str) {
@@ -741,6 +747,83 @@ mod tests {
             let underscore = list_ok(&server, &ctx().other_realm, "username=_").await;
             assert_eq!(usernames(&underscore), ["under_score"]);
             assert_eq!(total(&underscore), 1);
+
+            let witness = list_ok(&server, &ctx().other_realm, "username=backx").await;
+            assert_eq!(usernames(&witness), ["backxslash"]);
+            let backslash = list_ok(&server, &ctx().other_realm, "username=%5C").await;
+            assert_eq!(usernames(&backslash), ["back\\slash"]);
+            assert_eq!(total(&backslash), 1);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
+    fn ids_select_exactly_the_given_users_of_the_realm() {
+        let server = make_server();
+        rt().block_on(async {
+            let seeds = &ctx().seeds;
+            let witness = list_ok(&server, &ctx().realm, "limit=100").await;
+            let listed: HashSet<Uuid> = ids(&witness).into_iter().collect();
+            let wanted = [seeds[1].id, seeds[7].id, seeds[22].id];
+            assert!(wanted.iter().all(|id| listed.contains(id)));
+            assert_eq!(total(&witness), SEED_COUNT as u64);
+
+            let foreign = ctx().foreign_user_id;
+            let foreign_witness =
+                list_ok(&server, &ctx().other_realm, &format!("ids={foreign}")).await;
+            assert_eq!(ids(&foreign_witness), [foreign]);
+            let joined = wanted
+                .iter()
+                .chain([&foreign])
+                .map(Uuid::to_string)
+                .collect::<Vec<_>>()
+                .join(",");
+
+            let body = list_ok(&server, &ctx().realm, &format!("ids={joined}")).await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert_eq!(found, wanted.into_iter().collect::<HashSet<_>>());
+            assert_eq!(total(&body), 3);
+
+            let narrowed =
+                list_ok(&server, &ctx().realm, &format!("ids={joined}&enabled=true")).await;
+            let expected: HashSet<Uuid> = [&seeds[1], &seeds[7], &seeds[22]]
+                .into_iter()
+                .filter(|seed| seed.enabled)
+                .map(|seed| seed.id)
+                .collect();
+            assert_eq!(ids(&narrowed).into_iter().collect::<HashSet<_>>(), expected);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
+    fn more_than_a_hundred_ids_are_refused() {
+        let server = make_server();
+        rt().block_on(async {
+            let hundred = (0..100)
+                .map(|_| Uuid::new_v4().to_string())
+                .collect::<Vec<_>>();
+            let accepted = list(
+                &server,
+                &ctx().admin_token,
+                &ctx().realm,
+                &format!("ids={}", hundred.join(",")),
+            )
+            .await;
+            assert_eq!(accepted.status_code(), 200, "{}", accepted.text());
+
+            let too_many = (0..101)
+                .map(|_| Uuid::new_v4().to_string())
+                .collect::<Vec<_>>();
+            let response = list(
+                &server,
+                &ctx().admin_token,
+                &ctx().realm,
+                &format!("ids={}", too_many.join(",")),
+            )
+            .await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert!(response.text().contains("ids"), "{}", response.text());
         });
     }
 
@@ -756,6 +839,7 @@ mod tests {
                 ("unknown=1", "unknown"),
                 ("enabled=maybe", "enabled"),
                 ("role_id=not-a-uuid", "role_id"),
+                ("ids=not-a-uuid", "ids"),
                 ("username=a&username=b", "username"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
