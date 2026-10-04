@@ -11,7 +11,7 @@ import {
   useGetPortalThemeById,
   useUpdatePortalThemeMetadata,
 } from '@/api/portal-theme.api'
-import { useGetPortalLayouts } from '@/api/portal-layouts.api'
+import { useGetPortalLayout } from '@/api/portal-layouts.api'
 import { useRouteTabs } from '@/components/kit'
 import {
   PortalThemeProvider,
@@ -24,6 +24,8 @@ import { requirementsByPage, statusesForTheme } from '../theme-validation'
 import PagePortalThemeDetail from '../ui/page-portal-theme-detail'
 import { NO_LAYOUT } from '../ui/theme-layout-tab'
 import { useCrumbLabel } from '@/components/shell/crumb-store'
+
+const layoutIdOrEmpty = (id: string) => (id === NO_LAYOUT ? '' : id)
 
 const THEME_TABS = [
   { key: 'theme', labelKey: 'detail.tabs.theme' },
@@ -40,7 +42,6 @@ export default function PagePortalThemeDetailFeature() {
   const themeId = theme_id ?? ''
 
   const { data: themeData, isLoading } = useGetPortalThemeById({ realm, themeId })
-  const { data: layoutsData } = useGetPortalLayouts({ realm })
   const { data: requirementsData } = useGetPortalPageRequirements({ realm })
   const { data: activeData } = useGetActivePortalTheme({ realm, pageType: 'login' })
 
@@ -63,7 +64,6 @@ export default function PagePortalThemeDetailFeature() {
     return (
       <PagePortalThemeDetail
         isLoading={isLoading}
-        layouts={[]}
         isActive={false}
         isActivating={false}
         isSaving={false}
@@ -71,7 +71,6 @@ export default function PagePortalThemeDetailFeature() {
         tabs={tabs}
         name=''
         layoutId={NO_LAYOUT}
-        savedLayoutId={NO_LAYOUT}
         statuses={statuses}
         dirtyCount={0}
         pageHref={() => ''}
@@ -91,7 +90,6 @@ export default function PagePortalThemeDetailFeature() {
       <ThemeDetailInner
         realm={realm}
         theme={theme}
-        layouts={layoutsData?.data ?? []}
         isActive={activeData?.theme_id === theme.id}
         statuses={statuses}
         tab={tab}
@@ -104,7 +102,6 @@ export default function PagePortalThemeDetailFeature() {
 interface InnerProps {
   realm: string
   theme: Schemas.PortalTheme
-  layouts: Schemas.PortalLayout[]
   isActive: boolean
   statuses: ReturnType<typeof statusesForTheme>
   tab: string
@@ -114,7 +111,6 @@ interface InnerProps {
 function ThemeDetailInner({
   realm,
   theme,
-  layouts,
   isActive,
   statuses,
   tab,
@@ -128,6 +124,11 @@ function ThemeDetailInner({
   const savedLayoutId = theme.layout_id ?? NO_LAYOUT
   const [name, setName] = useState(theme.name)
   const [layoutId, setLayoutId] = useState(savedLayoutId)
+  const { data: selectedLayout } = useGetPortalLayout({ realm, layoutId: layoutIdOrEmpty(layoutId) })
+  const { data: savedLayout } = useGetPortalLayout({
+    realm,
+    layoutId: layoutIdOrEmpty(savedLayoutId),
+  })
 
   const { mutate: updateMetadata, isPending: isSaving } = useUpdatePortalThemeMetadata()
   const { mutate: activateTheme, isPending: isActivating } = useActivatePortalTheme()
@@ -181,7 +182,8 @@ function ThemeDetailInner({
   return (
     <PagePortalThemeDetail
       theme={theme}
-      layouts={layouts}
+      selectedLayoutName={selectedLayout?.data.name}
+      detachingLayoutName={savedLayoutId !== layoutId ? savedLayout?.data.name : undefined}
       isLoading={false}
       isActive={isActive}
       isActivating={isActivating}
@@ -191,7 +193,6 @@ function ThemeDetailInner({
       name={name}
       nameError={dirtyCount > 0 ? nameError : undefined}
       layoutId={layoutId}
-      savedLayoutId={savedLayoutId}
       statuses={statuses}
       dirtyCount={dirtyCount}
       pageHref={(pageType) => portal.themePage(theme.id, pageType)}

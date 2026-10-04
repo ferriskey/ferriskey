@@ -17,7 +17,8 @@ import { formatDate } from '@/utils/format-date'
 
 export interface PagePortalThemeDetailProps {
   theme?: Schemas.PortalTheme
-  layouts: Schemas.PortalLayout[]
+  selectedLayoutName?: string
+  detachingLayoutName?: string
   isLoading: boolean
   isActive: boolean
   isActivating: boolean
@@ -27,7 +28,6 @@ export interface PagePortalThemeDetailProps {
   name: string
   nameError?: string
   layoutId: string
-  savedLayoutId: string
   statuses: PortalPageStatus[]
   dirtyCount: number
   pageHref: (pageType: string) => string
@@ -42,7 +42,8 @@ export interface PagePortalThemeDetailProps {
 
 export default function PagePortalThemeDetail({
   theme,
-  layouts,
+  selectedLayoutName,
+  detachingLayoutName,
   isLoading,
   isActive,
   isActivating,
@@ -52,7 +53,6 @@ export default function PagePortalThemeDetail({
   name,
   nameError,
   layoutId,
-  savedLayoutId,
   statuses,
   dirtyCount,
   pageHref,
@@ -220,9 +220,9 @@ export default function PagePortalThemeDetail({
 
           {tab === 'layout' && (
             <ThemeLayoutTab
-              layouts={layouts}
               layoutId={layoutId}
-              savedLayoutId={savedLayoutId}
+              selectedName={selectedLayoutName}
+              detachingName={detachingLayoutName}
               onLayoutChange={onLayoutChange}
             />
           )}

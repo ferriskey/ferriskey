@@ -1,32 +1,23 @@
 import { useTranslation } from 'react-i18next'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { FieldRow, Section } from '@/components/kit'
-import type { Schemas } from '@/api/api.client'
+import { FieldRow, RelationSelect, Section } from '@/components/kit'
+import { portalLayoutRelationSource } from '@/api/portal-layout.relation'
 
 export const NO_LAYOUT = '__none__'
 
 export interface ThemeLayoutTabProps {
-  layouts: Schemas.PortalLayout[]
   layoutId: string
-  savedLayoutId: string
+  selectedName?: string
+  detachingName?: string
   onLayoutChange: (value: string) => void
 }
 
 export default function ThemeLayoutTab({
-  layouts,
   layoutId,
-  savedLayoutId,
+  selectedName,
+  detachingName,
   onLayoutChange,
 }: ThemeLayoutTabProps) {
   const { t } = useTranslation('portal')
-  const selected = layouts.find((l) => l.id === layoutId)
-  const detaching = layouts.find((l) => l.id === savedLayoutId && savedLayoutId !== layoutId)
 
   return (
     <Section
@@ -38,30 +29,26 @@ export default function ThemeLayoutTab({
         description={t('detail.layout.field.description')}
       >
         <div className='max-w-sm'>
-          <Select value={layoutId} onValueChange={onLayoutChange}>
-            <SelectTrigger className='w-full'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_LAYOUT}>{t('detail.layout.option_none')}</SelectItem>
-              {layouts.map((layout) => (
-                <SelectItem key={layout.id} value={layout.id}>
-                  {layout.is_default
-                    ? t('detail.layout.option_default', { name: layout.name })
-                    : layout.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <RelationSelect
+            source={portalLayoutRelationSource}
+            value={layoutId === NO_LAYOUT ? undefined : layoutId}
+            onChange={(id) => onLayoutChange(id ?? NO_LAYOUT)}
+            label={t('detail.layout.field.label')}
+          />
 
-          {selected && (
+          {layoutId === NO_LAYOUT && (
             <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
-              {t('detail.layout.locked', { name: selected.name })}
+              {t('detail.layout.option_none')}
             </p>
           )}
-          {detaching && (
+          {selectedName && (
+            <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
+              {t('detail.layout.locked', { name: selectedName })}
+            </p>
+          )}
+          {detachingName && (
             <p className='mt-1.5 text-xs text-fk-amber'>
-              {t('detail.layout.detaching', { name: detaching.name })}
+              {t('detail.layout.detaching', { name: detachingName })}
             </p>
           )}
         </div>

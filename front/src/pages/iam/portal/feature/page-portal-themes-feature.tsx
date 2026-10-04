@@ -16,7 +16,7 @@ import {
   type PortalThemesQuery,
 } from '@/api/portal-theme.api'
 import { usePagedListing } from '@/components/kit'
-import { useGetPortalLayouts } from '@/api/portal-layouts.api'
+import { usePortalLayoutsByIds } from '@/api/portal-layouts.api'
 import { downloadPortalThemeExport, readExportFile } from '@/api/builder-export'
 import { DEFAULT_PAGE_TYPES, defaultPageTree } from '@/lib/builder-portal'
 import { defaultTheme } from '@/lib/portal-theme/theme'
@@ -40,7 +40,12 @@ export default function PagePortalThemesFeature() {
   const total = usePortalThemeCount({ realm })
   const activatable = usePortalThemeCount({ realm, filter: { activatable: true } })
   const { data: activeData } = useGetActivePortalTheme({ realm, pageType: 'login' })
-  const { data: layoutsData } = useGetPortalLayouts({ realm })
+  const layoutIds = useMemo(
+    () =>
+      (listData?.data ?? []).flatMap((theme) => (theme.layout_id ? [theme.layout_id] : [])),
+    [listData]
+  )
+  const { layouts } = usePortalLayoutsByIds({ realm, ids: layoutIds })
   const { data: requirementsData } = useGetPortalPageRequirements({ realm })
 
   const { mutate: createTheme, isPending: isCreating } = useCreatePortalTheme()
@@ -53,14 +58,14 @@ export default function PagePortalThemesFeature() {
 
   const rows = useMemo<PortalThemeRow[]>(() => {
     const requirements = requirementsByPage(requirementsData?.data)
-    const layouts = layoutsData?.data ?? []
+    const layoutNames = new Map(layouts.map((layout) => [layout.id, layout.name]))
     return (listData?.data ?? []).map((theme) => ({
       theme,
       isActive: activeThemeId === theme.id,
-      layoutName: layouts.find((l) => l.id === theme.layout_id)?.name,
+      layoutName: theme.layout_id ? layoutNames.get(theme.layout_id) : undefined,
       failures: failingPages(statusesForTheme(theme, requirements)),
     }))
-  }, [listData, layoutsData, requirementsData, activeThemeId])
+  }, [listData, layouts, requirementsData, activeThemeId])
 
   const seedDefaultPages = async (themeId: string) => {
     let failed = 0

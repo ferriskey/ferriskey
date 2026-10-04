@@ -1,9 +1,10 @@
-import { useMutation, useQueries, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { useMemo, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { BaseQuery } from '.'
 import { preloadNamespaces, translate } from '@/lib/i18n'
 import type { Endpoints, Schemas } from './api.client'
+import { portalLayoutsKey } from './portal-layouts.api'
 
 const PORTAL_NAMESPACE = 'portal'
 
@@ -88,41 +89,21 @@ export const usePortalThemeCount = ({
   return { count: data?.metadata.total ?? 0, isLoading }
 }
 
-export interface ThemesUsingLayout {
-  total: number
-  names: string[]
-}
-
-const combineThemesByLayout =
-  (layoutIds: readonly string[]) =>
-  (results: UseQueryResult<Schemas.Paginated_PortalTheme>[]) =>
-    new Map<string, ThemesUsingLayout>(
-      layoutIds.map((layoutId, index) => {
-        const data = results[index]?.data
-        return [
-          layoutId,
-          {
-            total: data?.metadata.total ?? 0,
-            names: (data?.data ?? []).map((theme) => theme.name),
-          },
-        ]
-      })
-    )
-
-export const usePortalThemesByLayout = ({
+export const useThemesUsingLayout = ({
   realm = 'master',
-  layoutIds,
-}: BaseQuery & { layoutIds: readonly string[] }) => {
-  const combine = useMemo(() => combineThemesByLayout(layoutIds), [layoutIds])
-  return useQueries({
-    queries: layoutIds.map((layoutId) => ({
-      ...window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
-        path: { realm_name: realm },
-        query: { layout_id: layoutId, order_by: 'name', order: 'asc', limit: USED_BY_PREVIEW },
-      }).queryOptions,
-    })),
-    combine,
+  layoutId,
+  enabled = true,
+}: BaseQuery & { layoutId: string; enabled?: boolean }) => {
+  const { data, isLoading } = useListPortalThemes({
+    realm,
+    query: { layout_id: layoutId, order_by: 'name', order: 'asc', limit: USED_BY_PREVIEW },
+    enabled: enabled && !!layoutId,
   })
+  return {
+    names: (data?.data ?? []).map((theme) => theme.name),
+    total: data?.metadata.total ?? 0,
+    isLoading,
+  }
 }
 
 export const useGetPortalThemeById = ({
@@ -145,6 +126,7 @@ export const useCreatePortalTheme = () => {
       const listKey = portalThemesKey(variables.path.realm_name)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({ queryKey: portalLayoutsKey(variables.path.realm_name) }),
         queryClient.invalidateQueries({
           queryKey: activeThemeQueryKey(variables.path.realm_name),
         }),
@@ -175,7 +157,10 @@ export const useImportPortalTheme = () => {
       .mutationOptions,
     onSuccess: async (_, variables) => {
       const listKey = portalThemesKey(variables.path.realm_name)
-      await queryClient.invalidateQueries({ queryKey: listKey })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({ queryKey: portalLayoutsKey(variables.path.realm_name) }),
+      ])
       toast.success(translate('portal:themes.toast.imported'))
     },
     // The server refuses a file that belongs to another builder or that uses a
@@ -358,6 +343,7 @@ export const useDeletePortalTheme = () => {
       // query has to go too.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({ queryKey: portalLayoutsKey(variables.path.realm_name) }),
         queryClient.invalidateQueries({
           queryKey: activeThemeQueryKey(variables.path.realm_name),
         }),
@@ -420,6 +406,7 @@ async function invalidateThemeQueries(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: listKey }),
     queryClient.invalidateQueries({ queryKey: itemKey }),
+    queryClient.invalidateQueries({ queryKey: portalLayoutsKey(realmName) }),
     queryClient.invalidateQueries({ queryKey: activeThemeQueryKey(realmName) }),
   ])
 }

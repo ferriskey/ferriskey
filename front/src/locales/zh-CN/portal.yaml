@@ -151,7 +151,17 @@ layouts:
   section:
     title: 布局
     description: '主题复用的页面结构：卡片、视觉图和页脚所在的位置。'
-  empty: 尚无布局。没有布局的主题会裸渲染其页面，这也是一种有效的组合。
+  empty:
+    label: 尚无布局
+    hint: 没有布局的主题会裸渲染其页面，这也是一种有效的组合。
+  filters:
+    name: 名称
+    is_default: 默认
+    in_use: 已附加到主题
+  columns:
+    name: 名称
+    updated_at: 更新时间
+    created_at: 创建时间
   metrics:
     total:
       label: 布局
@@ -224,7 +234,6 @@ detail:
       label: 门户布局
       description: 可选。没有布局时，门户会自行渲染页面树。
     option_none: 无布局——裸渲染页面
-    option_default: '{{name}} · 默认'
     locked: 在此主题使用它期间，“{{name}}”无法删除。
     detaching: 保存会将“{{name}}”从此主题分离；除非另一个主题持有它，否则它将变为可删除。
   pages:

@@ -8,7 +8,7 @@ import {
   useGetPortalThemeById,
   useUpdatePortalThemePage,
 } from '@/api/portal-theme.api'
-import { useGetPortalLayouts } from '@/api/portal-layouts.api'
+import { useGetPortalLayout } from '@/api/portal-layouts.api'
 import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { BuilderNode } from '@/lib/builder-core'
 import { RouterParams } from '@/routes/router'
@@ -31,11 +31,11 @@ export default function PagePortalPageBuilderFeature() {
   const pageType = (PAGE_TYPES.has(page_type ?? '') ? page_type : 'login') as PortalPageType
 
   const { data: themeData, isLoading } = useGetPortalThemeById({ realm, themeId })
-  const { data: layoutsData } = useGetPortalLayouts({ realm })
   const { mutate: updatePage, isPending: isSaving } = useUpdatePortalThemePage()
 
   const theme = themeData?.data
-  const layout = (layoutsData?.data ?? []).find((l) => l.id === theme?.layout_id)
+  const { data: layoutData } = useGetPortalLayout({ realm, layoutId: theme?.layout_id ?? '' })
+  const layout = theme?.layout_id ? layoutData?.data : undefined
 
   const cssVars = useMemo<CSSProperties>(
     () => themeToCssVars(mergeWithDefaults(theme?.config)) as CSSProperties,

@@ -2,9 +2,11 @@ import { useParams } from 'react-router'
 import type { RelationOption, RelationSource } from '@/components/kit'
 import { RouterParams } from '@/routes/router'
 import type { Schemas } from './api.client'
-import { useGetPortalLayout, useGetPortalLayouts } from './portal-layouts.api'
-
-const LAYOUT_OPTION_LIMIT = 20
+import {
+  PORTAL_LAYOUT_SEARCH_LIMIT,
+  useGetPortalLayout,
+  useGetPortalLayouts,
+} from './portal-layouts.api'
 
 const toOption = (layout: Schemas.PortalLayout): RelationOption => ({
   id: layout.id,
@@ -18,13 +20,16 @@ function useRealm() {
 
 function useLayoutOptions(search: string) {
   const realm = useRealm()
-  const { data, isLoading } = useGetPortalLayouts({ realm })
-  const needle = search.trim().toLowerCase()
-  const options = (data?.data ?? [])
-    .filter((layout) => layout.name.toLowerCase().includes(needle))
-    .slice(0, LAYOUT_OPTION_LIMIT)
-    .map(toOption)
-  return { options, loading: isLoading }
+  const { data, isLoading } = useGetPortalLayouts({
+    realm,
+    query: {
+      name: search.trim() || undefined,
+      order_by: 'name',
+      order: 'asc',
+      limit: PORTAL_LAYOUT_SEARCH_LIMIT,
+    },
+  })
+  return { options: (data?.data ?? []).map(toOption), loading: isLoading }
 }
 
 function useSelectedLayout(id: string | undefined) {
