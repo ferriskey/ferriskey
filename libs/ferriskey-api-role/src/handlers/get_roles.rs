@@ -3,14 +3,14 @@ use axum::{
     extract::{Path, State},
 };
 use ferriskey_api_core::api_entities::{
-    api_error::{ApiError, ApiErrorBody, ApiErrorResponse},
-    list_query::{ListQuery, PaginationParams},
+    api_error::{ApiError, ApiErrorResponse},
+    list_query::{ListQuery, PaginationParams, parse_id_list},
     paginated::Paginated,
     response::Response,
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::common::pagination::{MAX_PAGE_LIMIT, PageRequest};
+use ferriskey_core::domain::common::pagination::PageRequest;
 use ferriskey_core::domain::role::entities::{Role, RoleFilter, RoleSortField};
 use ferriskey_core::domain::role::ports::RoleService;
 use serde::Deserialize;
@@ -29,25 +29,6 @@ pub struct RoleListParams {
     pub ids: Option<String>,
 }
 
-fn invalid_ids(detail: impl std::fmt::Display) -> ApiError {
-    ApiError::BadRequest(ApiErrorBody::new(
-        format!("Invalid query parameter `ids`: {detail}"),
-        "invalid_query",
-    ))
-}
-
-fn parse_ids(raw: &str) -> Result<Vec<Uuid>, ApiError> {
-    let ids = raw
-        .split(',')
-        .map(|part| Uuid::parse_str(part.trim()))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(invalid_ids)?;
-    if ids.len() > MAX_PAGE_LIMIT as usize {
-        return Err(invalid_ids(format!("at most {MAX_PAGE_LIMIT} ids")));
-    }
-    Ok(ids)
-}
-
 impl TryFrom<RoleListParams> for RoleFilter {
     type Error = ApiError;
 
@@ -57,7 +38,11 @@ impl TryFrom<RoleListParams> for RoleFilter {
             description: params.description,
             require_mfa: params.require_mfa,
             client_id: params.client_id,
-            ids: params.ids.as_deref().map(parse_ids).transpose()?,
+            ids: params
+                .ids
+                .as_deref()
+                .map(|raw| parse_id_list("ids", raw))
+                .transpose()?,
         })
     }
 }
@@ -108,17 +93,6 @@ mod tests {
 
     use super::*;
 
-    fn filter_of(query: &str) -> Result<RoleFilter, ApiError> {
-        let request =
-            parse_list_query::<RoleListParams, RoleSortField>(query).expect("parsable query");
-        RoleFilter::try_from(request.filter)
-    }
-
-    fn ids_query(count: usize) -> String {
-        let ids: Vec<String> = (0..count).map(|_| Uuid::new_v4().to_string()).collect();
-        format!("ids={}", ids.join(","))
-    }
-
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let client_id = Uuid::new_v4();
@@ -141,25 +115,6 @@ mod tests {
                 ids: Some(vec![first, second]),
             }
         );
-    }
-
-    #[test]
-    fn up_to_a_hundred_ids_are_accepted() {
-        let filter = filter_of(&ids_query(100)).expect("100 ids");
-        assert_eq!(filter.ids.map(|ids| ids.len()), Some(100));
-    }
-
-    #[test]
-    fn invalid_ids_name_the_parameter() {
-        for query in [ids_query(101), "ids=nope".to_string(), "ids=,".to_string()] {
-            match filter_of(&query) {
-                Err(ApiError::BadRequest(body)) => {
-                    assert!(body.message.contains("`ids`"), "{}", body.message);
-                    assert_eq!(body.reason, Some("invalid_query"));
-                }
-                other => panic!("{query}: {other:?}"),
-            }
-        }
     }
 
     #[test]
