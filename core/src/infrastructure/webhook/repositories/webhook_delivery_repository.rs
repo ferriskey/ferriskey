@@ -3,20 +3,22 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, DbBackend, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, Statement,
+    ColumnTrait, DatabaseConnection, DbBackend, EntityTrait, QueryFilter, QueryTrait, Select,
+    Statement,
 };
 use tracing::{error, warn};
 use uuid::Uuid;
 
 use ferriskey_domain::realm::RealmId;
-use ferriskey_domain::realm::scope::Unscoped;
+use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
 
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::webhook::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
+use crate::domain::webhook::entities::webhook::Webhook;
 use crate::domain::webhook::entities::webhook_delivery::{
-    DeliveryFilter, DeliveryOutcome, DeliveryPage, DeliveryStatus, WebhookDelivery,
-    WebhookDeliveryId,
+    DeliveryOutcome, DeliveryStatus, WebhookDelivery, WebhookDeliveryFilter, WebhookDeliveryId,
+    WebhookDeliverySortField,
 };
 use crate::domain::webhook::ports::WebhookDeliveryRepository;
 use crate::entity::realm_settings::{Column as RealmSettingsColumn, Entity as RealmSettingsEntity};
@@ -25,6 +27,7 @@ use crate::entity::webhook_deliveries::{
     Entity as WebhookDeliveryEntity,
 };
 use crate::entity::webhooks::{Column as WebhookColumn, Entity as WebhookEntity};
+use crate::infrastructure::pagination::{SortColumn, paginate};
 
 fn optional_u32(value: Option<i32>) -> Option<u32> {
     value.and_then(|value| u32::try_from(value).ok())
@@ -86,6 +89,37 @@ fn persisted_state(delivery: &WebhookDelivery) -> Result<WebhookDeliveryActiveMo
         updated_at: Set(delivery.updated_at.naive_utc()),
         ..Default::default()
     })
+}
+
+impl SortColumn<WebhookDeliveryEntity> for WebhookDeliverySortField {
+    fn column(&self) -> WebhookDeliveryColumn {
+        match self {
+            WebhookDeliverySortField::Status => WebhookDeliveryColumn::Status,
+            WebhookDeliverySortField::AttemptCount => WebhookDeliveryColumn::AttemptCount,
+            WebhookDeliverySortField::LastAttemptAt => WebhookDeliveryColumn::LastAttemptAt,
+            WebhookDeliverySortField::CreatedAt => WebhookDeliveryColumn::CreatedAt,
+            WebhookDeliverySortField::UpdatedAt => WebhookDeliveryColumn::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(
+    realm_id: Uuid,
+    webhook_id: Uuid,
+    filter: &WebhookDeliveryFilter,
+) -> Select<WebhookDeliveryEntity> {
+    WebhookDeliveryEntity::find()
+        .filter(WebhookDeliveryColumn::RealmId.eq(realm_id))
+        .filter(WebhookDeliveryColumn::WebhookId.eq(webhook_id))
+        .apply_if(filter.event.as_ref(), |select, event| {
+            select.filter(WebhookDeliveryColumn::Event.eq(event.to_string()))
+        })
+        .apply_if(filter.status, |select, status| {
+            select.filter(WebhookDeliveryColumn::Status.eq(status.as_str()))
+        })
+        .apply_if(filter.resource_id, |select, resource_id| {
+            select.filter(WebhookDeliveryColumn::ResourceId.eq(resource_id))
+        })
 }
 
 impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
@@ -188,42 +222,24 @@ impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
         Ok(result.rows_affected)
     }
 
-    async fn list_by_webhook(
+    async fn list(
         &self,
-        realm_id: RealmId,
-        webhook_id: Uuid,
-        filter: DeliveryFilter,
-    ) -> Result<DeliveryPage, CoreError> {
-        let mut query = WebhookDeliveryEntity::find()
-            .filter(WebhookDeliveryColumn::RealmId.eq::<Uuid>(realm_id.into()))
-            .filter(WebhookDeliveryColumn::WebhookId.eq(webhook_id));
+        scope: &RealmScope,
+        webhook: &Webhook,
+        request: &PageRequest<WebhookDeliveryFilter, WebhookDeliverySortField>,
+    ) -> Result<Page<WebhookDelivery>, CoreError> {
+        let select = listing_select(scope.id().into(), webhook.id, &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing webhook deliveries: {:?}", e);
+            CoreError::InternalServerError
+        })?;
 
-        if let Some(status) = filter.status {
-            query = query.filter(WebhookDeliveryColumn::Status.eq(status.as_str()));
-        }
-
-        if let Some(event) = filter.event {
-            query = query.filter(WebhookDeliveryColumn::Event.eq(event.to_string()));
-        }
-
-        let total = query
-            .clone()
-            .count(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let items = query
-            .order_by_desc(WebhookDeliveryColumn::CreatedAt)
-            .limit(u64::from(filter.limit))
-            .offset(u64::from(filter.offset))
-            .all(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
+        let deliveries = models
             .into_iter()
             .map(WebhookDelivery::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(DeliveryPage { items, total })
+        Ok(Page::new(deliveries, total, request.page, request.limit))
     }
 
     async fn get(
@@ -323,6 +339,7 @@ impl WebhookDeliveryRepository for PostgresWebhookDeliveryRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::common::pagination::PageLimit;
     use crate::domain::realm::entities::{Realm, RealmScope};
     use crate::domain::webhook::entities::webhook_delivery::DeliveryErrorCode;
     use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
@@ -411,6 +428,23 @@ mod tests {
         let mut realm = Realm::new("fixture".to_string());
         realm.id = realm_id;
         RealmScope::from_realm(realm)
+    }
+
+    fn webhook_of(id: Uuid) -> Webhook {
+        Webhook {
+            id,
+            endpoint: "https://example.test/hook".to_string(),
+            headers: Default::default(),
+            secret: String::new(),
+            name: None,
+            description: None,
+            subscribers: Vec::new(),
+            retry_policy: RetryPolicyOverride::default(),
+            effective_retry_policy: None,
+            triggered_at: None,
+            updated_at: Utc::now(),
+            created_at: Utc::now(),
+        }
     }
 
     fn sample(realm_id: RealmId, webhook_id: Uuid) -> WebhookDelivery {
@@ -643,29 +677,42 @@ mod tests {
 
         let foreign = fixture
             .repository
-            .list_by_webhook(
-                fixture.realm_b,
-                fixture.webhook_b,
-                DeliveryFilter::new(None, None, None, None).expect("filter"),
+            .list(
+                &scope_of(fixture.realm_b),
+                &webhook_of(fixture.webhook_b),
+                &PageRequest::default(),
             )
             .await
             .expect("list foreign");
 
-        assert_eq!(foreign.total, 0);
-        assert!(foreign.items.is_empty());
+        assert_eq!(foreign.metadata().total, 0);
+        assert!(foreign.data().is_empty());
+
+        let crossed = fixture
+            .repository
+            .list(
+                &scope_of(fixture.realm_b),
+                &webhook_of(fixture.webhook_a),
+                &PageRequest::default(),
+            )
+            .await
+            .expect("list crossed");
+
+        assert_eq!(crossed.metadata().total, 0);
+        assert!(crossed.data().is_empty());
 
         let owned = fixture
             .repository
-            .list_by_webhook(
-                fixture.realm_a,
-                fixture.webhook_a,
-                DeliveryFilter::new(None, None, None, None).expect("filter"),
+            .list(
+                &scope_of(fixture.realm_a),
+                &webhook_of(fixture.webhook_a),
+                &PageRequest::default(),
             )
             .await
             .expect("list owned");
 
-        assert_eq!(owned.total, 2);
-        assert_eq!(owned.items.len(), 2);
+        assert_eq!(owned.metadata().total, 2);
+        assert_eq!(owned.data().len(), 2);
     }
 
     #[tokio::test]
@@ -674,18 +721,22 @@ mod tests {
         let fixture = setup().await;
         enqueue_due(&fixture, 5).await;
 
+        let request = PageRequest {
+            limit: PageLimit::try_from(2).expect("valid limit"),
+            ..PageRequest::default()
+        };
         let page = fixture
             .repository
-            .list_by_webhook(
-                fixture.realm_a,
-                fixture.webhook_a,
-                DeliveryFilter::new(None, None, Some(2), Some(0)).expect("filter"),
+            .list(
+                &scope_of(fixture.realm_a),
+                &webhook_of(fixture.webhook_a),
+                &request,
             )
             .await
             .expect("list page");
 
-        assert_eq!(page.items.len(), 2);
-        assert_eq!(page.total, 5);
+        assert_eq!(page.data().len(), 2);
+        assert_eq!(page.metadata().total, 5);
     }
 
     #[tokio::test]
@@ -1013,5 +1064,75 @@ mod tests {
             .expect("purge");
 
         assert_eq!(purged, 0);
+    }
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::webhook::entities::webhook_delivery::{
+        DeliveryStatus, WebhookDeliveryFilter,
+    };
+    use crate::domain::webhook::entities::webhook_trigger::WebhookTrigger;
+
+    const REALM: Uuid = Uuid::from_u128(1);
+    const WEBHOOK: Uuid = Uuid::from_u128(2);
+
+    fn sql(filter: &WebhookDeliveryFilter) -> String {
+        listing_select(REALM, WEBHOOK, filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm_and_the_webhook() {
+        let sql = sql(&WebhookDeliveryFilter::default());
+        assert!(
+            sql.contains(&format!(r#""webhook_deliveries"."realm_id" = '{REALM}'"#)),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(&format!(
+                r#""webhook_deliveries"."webhook_id" = '{WEBHOOK}'"#
+            )),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn every_filter_is_an_equality() {
+        let resource = Uuid::from_u128(3);
+        let sql = sql(&WebhookDeliveryFilter {
+            event: Some(WebhookTrigger::UserCreated),
+            status: Some(DeliveryStatus::Failed),
+            resource_id: Some(resource),
+        });
+        assert!(
+            sql.contains(r#""webhook_deliveries"."event" = 'user.created'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""webhook_deliveries"."status" = 'failed'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(&format!(
+                r#""webhook_deliveries"."resource_id" = '{resource}'"#
+            )),
+            "{sql}"
+        );
+        assert!(!sql.contains("LIKE"), "{sql}");
+    }
+
+    #[test]
+    fn absent_filters_add_no_condition() {
+        let sql = sql(&WebhookDeliveryFilter::default());
+        let conditions = sql.split(" WHERE ").nth(1).expect("a WHERE clause");
+        assert!(!conditions.contains(r#""event""#), "{sql}");
+        assert!(!conditions.contains(r#""status""#), "{sql}");
+        assert!(!conditions.contains(r#""resource_id""#), "{sql}");
     }
 }

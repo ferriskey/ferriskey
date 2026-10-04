@@ -144,6 +144,9 @@ jobs:
       - name: run webhooks listing integration tests
         run: cargo test -p ferriskey-api --test webhooks_listing_test -- --ignored
 
+      - name: run webhook deliveries listing integration tests
+        run: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored
+
       - name: run cross-realm client isolation integration tests
         run: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored
 

@@ -1739,7 +1739,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 89,
+        line: 92,
     },
     AuthzRow {
         service_fn: "get_webhooks_by_subscribers",
@@ -1753,7 +1753,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 105,
+        line: 108,
     },
     AuthzRow {
         service_fn: "get_webhook",
@@ -1767,7 +1767,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 126,
+        line: 129,
     },
     AuthzRow {
         service_fn: "create_webhook",
@@ -1777,7 +1777,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 160,
+        line: 163,
     },
     AuthzRow {
         service_fn: "update_webhook",
@@ -1787,7 +1787,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 211,
+        line: 214,
     },
     AuthzRow {
         service_fn: "delete_webhook",
@@ -1797,10 +1797,10 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 272,
+        line: 275,
     },
     AuthzRow {
-        service_fn: "get_webhook_deliveries",
+        service_fn: "list_webhook_deliveries",
         policy_fn: "can_view_webhook",
         action: actions::WEBHOOK_READ,
         resource: EntityType::REALM,
@@ -1811,7 +1811,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 310,
+        line: 315,
     },
     AuthzRow {
         service_fn: "get_webhook_delivery",
@@ -1825,7 +1825,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 327,
+        line: 338,
     },
     AuthzRow {
         service_fn: "retry_webhook_delivery",
@@ -1835,7 +1835,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 353,
+        line: 364,
     },
     AuthzRow {
         service_fn: "rotate_webhook_secret",
@@ -1845,6 +1845,6 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageWebhooks],
         self_bypass: false,
         file: "libs/ferriskey-webhook/src/services.rs",
-        line: 382,
+        line: 393,
     },
 ];

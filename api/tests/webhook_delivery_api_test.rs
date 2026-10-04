@@ -276,7 +276,7 @@ mod tests {
 
             assert_eq!(response.status_code(), 200, "{}", response.text());
             let body: Value = response.json();
-            assert_eq!(body["total"], 0);
+            assert_eq!(body["metadata"]["total"], 0);
             assert_eq!(body["data"].as_array().expect("data array").len(), 0);
         });
     }

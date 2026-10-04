@@ -9,20 +9,23 @@ use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::RealmScope;
 use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
+use uuid::Uuid;
 
 use crate::endpoint::{PrivateEndpoints, reject_reserved_headers, validate_endpoint};
 use crate::entities::retry_policy::RetryPolicy;
-use crate::entities::webhook_delivery::{DeliveryPage, WebhookDelivery};
+use crate::entities::webhook_delivery::{
+    WebhookDelivery, WebhookDeliveryFilter, WebhookDeliverySortField,
+};
 use crate::entities::{
     webhook::{Webhook, WebhookFilter, WebhookSortField},
     webhook_payload::WebhookPayload,
     webhook_trigger::WebhookTrigger,
 };
 use crate::ports::{
-    CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput, GetWebhookDeliveryInput,
-    GetWebhookInput, GetWebhookSubscribersInput, RetryWebhookDeliveryInput,
-    RotateWebhookSecretInput, UpdateWebhookInput, WebhookDeliveryRepository, WebhookPolicy,
-    WebhookRepository, WebhookService,
+    CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveryInput, GetWebhookInput,
+    GetWebhookSubscribersInput, RetryWebhookDeliveryInput, RotateWebhookSecretInput,
+    UpdateWebhookInput, WebhookDeliveryRepository, WebhookPolicy, WebhookRepository,
+    WebhookService,
 };
 
 #[derive(Clone, Debug)]
@@ -300,20 +303,28 @@ where
         Ok(())
     }
 
-    async fn get_webhook_deliveries(
+    async fn list_webhook_deliveries(
         &self,
         identity: Identity,
-        input: GetWebhookDeliveriesInput,
-    ) -> Result<DeliveryPage, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        webhook_id: Uuid,
+        request: PageRequest<WebhookDeliveryFilter, WebhookDeliverySortField>,
+    ) -> Result<Page<WebhookDelivery>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
             self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
+        let webhook = self
+            .webhook_repository
+            .get_webhook_by_id(webhook_id, scope.id())
+            .await?
+            .ok_or(CoreError::WebhookNotFound)?;
+
         self.webhook_delivery_repository
-            .list_by_webhook(scope.id(), input.webhook_id, input.filter)
+            .list(&scope, &webhook, &request)
             .await
     }
 
@@ -408,6 +419,9 @@ mod tests {
 
     use super::*;
     use crate::entities::retry_policy::RetryPolicyOverride;
+    use crate::entities::webhook_delivery::{
+        DeliveryStatus, WebhookDeliveryFilter, WebhookDeliverySortField,
+    };
     use crate::ports::{MockWebhookDeliveryRepository, MockWebhookRepository};
 
     fn test_realm() -> Realm {
@@ -495,12 +509,34 @@ mod tests {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn build_service(
         realm_repo: MockRealmRepository,
         user_repo: MockUserRepository,
         user_role_repo: MockUserRoleRepository,
         webhook_repo: MockWebhookRepository,
+    ) -> WebhookServiceImpl<
+        MockRealmRepository,
+        MockUserRepository,
+        MockClientRepository,
+        MockUserRoleRepository,
+        MockWebhookRepository,
+        MockWebhookDeliveryRepository,
+    > {
+        build_service_with_deliveries(
+            realm_repo,
+            user_repo,
+            user_role_repo,
+            webhook_repo,
+            MockWebhookDeliveryRepository::new(),
+        )
+    }
+
+    fn build_service_with_deliveries(
+        realm_repo: MockRealmRepository,
+        user_repo: MockUserRepository,
+        user_role_repo: MockUserRoleRepository,
+        webhook_repo: MockWebhookRepository,
+        delivery_repo: MockWebhookDeliveryRepository,
     ) -> WebhookServiceImpl<
         MockRealmRepository,
         MockUserRepository,
@@ -518,7 +554,7 @@ mod tests {
         WebhookServiceImpl::new(
             Arc::new(realm_repo),
             Arc::new(webhook_repo),
-            Arc::new(MockWebhookDeliveryRepository::new()),
+            Arc::new(delivery_repo),
             policy,
             PrivateEndpoints::Forbidden,
         )
@@ -804,6 +840,153 @@ mod tests {
 
         let page = service
             .list_webhooks(Identity::User(user), realm.name.clone(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
+    }
+
+    fn deliveries_request() -> PageRequest<WebhookDeliveryFilter, WebhookDeliverySortField> {
+        PageRequest {
+            filter: WebhookDeliveryFilter {
+                event: Some(WebhookTrigger::UserCreated),
+                status: Some(DeliveryStatus::Failed),
+                resource_id: Some(Uuid::nil()),
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_webhook_deliveries_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let (realm_repo, _) = allowing_realm_and_role_mocks(&realm);
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(vec![]) }));
+
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo.expect_get_webhook_by_id().never();
+        let mut delivery_repo = MockWebhookDeliveryRepository::new();
+        delivery_repo.expect_list().never();
+
+        let service = build_service_with_deliveries(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            webhook_repo,
+            delivery_repo,
+        );
+
+        let result = service
+            .list_webhook_deliveries(
+                Identity::User(user),
+                realm.name.clone(),
+                Uuid::new_v4(),
+                deliveries_request(),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_webhook_deliveries_of_a_webhook_outside_the_realm_is_not_found() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let (realm_repo, user_role_repo) = allowing_realm_and_role_mocks(&realm);
+
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo
+            .expect_get_webhook_by_id()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(None) }));
+        let mut delivery_repo = MockWebhookDeliveryRepository::new();
+        delivery_repo.expect_list().never();
+
+        let service = build_service_with_deliveries(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            webhook_repo,
+            delivery_repo,
+        );
+
+        let result = service
+            .list_webhook_deliveries(
+                Identity::User(user),
+                realm.name.clone(),
+                Uuid::new_v4(),
+                deliveries_request(),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::WebhookNotFound)),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_webhook_deliveries_pages_the_proven_webhook_with_the_request() {
+        let realm = test_realm();
+        let realm_id = realm.id;
+        let user = test_user(&realm);
+        let (realm_repo, user_role_repo) = allowing_realm_and_role_mocks(&realm);
+        let webhook_id = Uuid::new_v4();
+        let webhook = owned_webhook(webhook_id);
+
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo
+            .expect_get_webhook_by_id()
+            .withf(move |id, rid| *id == webhook_id && *rid == realm_id)
+            .times(1)
+            .return_once(move |_, _| Box::pin(async move { Ok(Some(webhook)) }));
+
+        let listed = WebhookDelivery::pending(
+            realm_id,
+            webhook_id,
+            WebhookTrigger::UserCreated,
+            Uuid::nil(),
+            serde_json::json!({}),
+            Utc::now(),
+        );
+        let expected_id = listed.id;
+        let mut delivery_repo = MockWebhookDeliveryRepository::new();
+        delivery_repo
+            .expect_list()
+            .withf(move |scope, webhook, request| {
+                scope.id() == realm_id
+                    && webhook.id == webhook_id
+                    && *request == deliveries_request()
+            })
+            .times(1)
+            .return_once(move |_, _, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = build_service_with_deliveries(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            webhook_repo,
+            delivery_repo,
+        );
+
+        let page = service
+            .list_webhook_deliveries(
+                Identity::User(user),
+                realm.name.clone(),
+                webhook_id,
+                deliveries_request(),
+            )
             .await
             .expect("listing succeeds");
 

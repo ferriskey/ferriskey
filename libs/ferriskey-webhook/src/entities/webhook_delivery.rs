@@ -12,9 +12,6 @@ use ferriskey_domain::realm::scope::RealmOwned;
 
 use crate::entities::webhook_trigger::WebhookTrigger;
 
-pub const DEFAULT_PAGE_SIZE: u32 = 50;
-pub const MAX_PAGE_SIZE: u32 = 200;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct WebhookDeliveryId(Uuid);
@@ -287,45 +284,22 @@ impl WebhookDelivery {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeliveryFilter {
-    pub status: Option<DeliveryStatus>,
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WebhookDeliveryFilter {
     pub event: Option<WebhookTrigger>,
-    pub limit: u32,
-    pub offset: u32,
+    pub status: Option<DeliveryStatus>,
+    pub resource_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum DeliveryFilterError {
-    #[error("limit must be between 1 and {MAX_PAGE_SIZE}, got {got}")]
-    LimitOutOfRange { got: u32 },
-}
-
-impl DeliveryFilter {
-    pub fn new(
-        status: Option<DeliveryStatus>,
-        event: Option<WebhookTrigger>,
-        limit: Option<u32>,
-        offset: Option<u32>,
-    ) -> Result<Self, DeliveryFilterError> {
-        let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
-        if limit == 0 || limit > MAX_PAGE_SIZE {
-            return Err(DeliveryFilterError::LimitOutOfRange { got: limit });
-        }
-
-        Ok(Self {
-            status,
-            event,
-            limit,
-            offset: offset.unwrap_or(0),
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeliveryPage {
-    pub items: Vec<WebhookDelivery>,
-    pub total: u64,
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookDeliverySortField {
+    Status,
+    AttemptCount,
+    LastAttemptAt,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
 }
 
 #[cfg(test)]
@@ -635,42 +609,5 @@ mod tests {
         assert_eq!(succeeded.status(), DeliveryStatus::Succeeded);
         assert_eq!(retrying.status(), DeliveryStatus::Pending);
         assert_eq!(exhausted.status(), DeliveryStatus::Failed);
-    }
-
-    #[test]
-    fn a_filter_defaults_its_page_size_when_none_is_given() {
-        let filter = DeliveryFilter::new(None, None, None, None).expect("no bounds are crossed");
-
-        assert_eq!(filter.limit, DEFAULT_PAGE_SIZE);
-        assert_eq!(filter.offset, 0);
-    }
-
-    #[test]
-    fn a_page_size_above_the_cap_is_rejected_rather_than_clamped() {
-        let error = DeliveryFilter::new(None, None, Some(MAX_PAGE_SIZE + 1), None)
-            .expect_err("an oversized page must be refused");
-
-        assert_eq!(
-            error,
-            DeliveryFilterError::LimitOutOfRange {
-                got: MAX_PAGE_SIZE + 1
-            }
-        );
-    }
-
-    #[test]
-    fn a_zero_page_size_is_rejected() {
-        assert_eq!(
-            DeliveryFilter::new(None, None, Some(0), None),
-            Err(DeliveryFilterError::LimitOutOfRange { got: 0 })
-        );
-    }
-
-    #[test]
-    fn the_page_size_cap_itself_is_accepted() {
-        let filter = DeliveryFilter::new(None, None, Some(MAX_PAGE_SIZE), None)
-            .expect("the cap is a legal page size");
-
-        assert_eq!(filter.limit, MAX_PAGE_SIZE);
     }
 }
