@@ -79,6 +79,15 @@ stream:
     status: Outcome
     target_type: Target type
     actor_id: Actor
+  status_options:
+    success: Success
+    failure: Failure
+  target_types:
+    user: User
+    client: Client
+    session: Session
+    webhook: Webhook
+    identity_provider_link: Identity provider link
   columns:
     event: Event
     status: Outcome

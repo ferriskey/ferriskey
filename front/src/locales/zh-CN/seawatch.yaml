@@ -84,6 +84,15 @@ stream:
     status: 结果
     target_type: 目标类型
     actor_id: 操作者
+  status_options:
+    success: 成功
+    failure: 失败
+  target_types:
+    user: 用户
+    client: 客户端
+    session: 会话
+    webhook: Webhook
+    identity_provider_link: 身份提供方关联
   columns:
     event: 事件
     status: 结果

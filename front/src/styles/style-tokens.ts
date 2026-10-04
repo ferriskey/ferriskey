@@ -34,7 +34,6 @@ export interface StyleTokens {
   }
 
   toolbar: {
-    showQuerySyntax: boolean
     showViewToggle: boolean
   }
 }
@@ -71,7 +70,6 @@ export const tokens: StyleTokens = {
     divider: 'divide-y divide-fk-line-soft',
   },
   toolbar: {
-    showQuerySyntax: true,
     showViewToggle: true,
   },
 }

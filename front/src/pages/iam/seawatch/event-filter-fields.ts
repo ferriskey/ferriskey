@@ -41,13 +41,19 @@ export const securityEventFilterFields = (): FilterField[] => [
     kind: 'enum',
     key: 'status',
     label: translate('seawatch:stream.filter_fields.status'),
-    options: EVENT_STATUSES.map((status) => ({ value: status, label: status })),
+    options: EVENT_STATUSES.map((status) => ({
+      value: status,
+      label: translate(`seawatch:stream.status_options.${status}`),
+    })),
   },
   {
     kind: 'enum',
     key: 'target_type',
     label: translate('seawatch:stream.filter_fields.target_type'),
-    options: TARGET_TYPES.map((type) => ({ value: type, label: type })),
+    options: TARGET_TYPES.map((type) => ({
+      value: type,
+      label: translate(`seawatch:stream.target_types.${type}`),
+    })),
   },
   {
     kind: 'relation',
@@ -56,3 +62,8 @@ export const securityEventFilterFields = (): FilterField[] => [
     relation: userRelationSource,
   },
 ]
+
+const JOURNAL_FIELD_KEYS: readonly string[] = ['ip_address', 'actor_id']
+
+export const journalFilterFields = (): FilterField[] =>
+  securityEventFilterFields().filter((field) => JOURNAL_FIELD_KEYS.includes(field.key))
