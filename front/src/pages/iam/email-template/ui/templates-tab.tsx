@@ -41,6 +41,7 @@ type Assignments = Record<EmailTypeSpec['assignmentField'], string | null>
 export interface TemplateCounts {
   total: number
   byType: Record<EmailType, number>
+  loadingByType: Record<EmailType, boolean>
 }
 
 export interface TemplatesTabProps {
@@ -292,7 +293,7 @@ export default function TemplatesTab({
                   label={t('list.assignment.picker_label')}
                   noneLabel={t('list.assignment.not_configured')}
                 />
-                {counts.byType[spec.key] === 0 && (
+                {!counts.loadingByType[spec.key] && counts.byType[spec.key] === 0 && (
                   <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
                     {t('list.assignment.empty')}
                   </p>

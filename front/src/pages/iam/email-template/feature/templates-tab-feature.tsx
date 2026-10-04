@@ -65,6 +65,11 @@ export default function TemplatesTabFeature() {
           magic_link: magicLink.count,
           email_verification: emailVerification.count,
         },
+        loadingByType: {
+          reset_password: resetPassword.isLoading,
+          magic_link: magicLink.isLoading,
+          email_verification: emailVerification.isLoading,
+        },
       }}
       isLoading={isLoading}
       assignments={assignments}
