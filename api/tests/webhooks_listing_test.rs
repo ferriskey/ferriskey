@@ -660,7 +660,6 @@ mod tests {
                 "last_delivery_status=succeeded",
                 matching(|s| s.status == Some("succeeded")),
             ),
-            ("last_delivery_status=fail", HashSet::new()),
             ("triggered=true", matching(|s| s.triggered_minute.is_some())),
             (
                 "triggered=false",
@@ -690,9 +689,7 @@ mod tests {
         rt().block_on(async {
             for (query, expected) in cases {
                 assert!(
-                    (!expected.is_empty() && expected.len() < SEED_COUNT)
-                        || query == "name="
-                        || query == "last_delivery_status=fail",
+                    (!expected.is_empty() && expected.len() < SEED_COUNT) || query == "name=",
                     "{query}: the fixture must make this filter discriminating"
                 );
                 let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
@@ -864,6 +861,8 @@ mod tests {
                 ("triggered=maybe", "triggered"),
                 ("has_subscribers=maybe", "has_subscribers"),
                 ("secure_endpoint=maybe", "secure_endpoint"),
+                ("last_delivery_status=fail", "last_delivery_status"),
+                ("last_delivery_status=FAILED", "last_delivery_status"),
                 ("name=a&name=b", "name"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;

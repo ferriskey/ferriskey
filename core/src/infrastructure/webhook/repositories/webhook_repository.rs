@@ -110,8 +110,8 @@ fn listing_select(realm_id: Uuid, filter: &WebhookFilter) -> Select<WebhookEntit
         .apply_if(filter.endpoint.as_deref(), |select, value| {
             select.filter(contains(WebhookColumn::Endpoint, value))
         })
-        .apply_if(filter.last_delivery_status.as_deref(), |select, value| {
-            select.filter(WebhookColumn::LastDeliveryStatus.eq(value))
+        .apply_if(filter.last_delivery_status, |select, status| {
+            select.filter(WebhookColumn::LastDeliveryStatus.eq(status.as_str()))
         })
         .apply_if(filter.triggered, |select, triggered| {
             select.filter(if triggered {
@@ -733,6 +733,7 @@ mod listing_tests {
 
     use super::listing_select;
     use crate::domain::webhook::entities::webhook::WebhookFilter;
+    use crate::domain::webhook::entities::webhook_delivery::DeliveryStatus;
 
     fn sql(filter: &WebhookFilter) -> String {
         listing_select(Uuid::nil(), filter)
@@ -769,7 +770,7 @@ mod listing_tests {
     #[test]
     fn last_delivery_status_is_an_equality() {
         let sql = sql(&WebhookFilter {
-            last_delivery_status: Some("failed".to_string()),
+            last_delivery_status: Some(DeliveryStatus::Failed),
             ..WebhookFilter::default()
         });
         assert!(

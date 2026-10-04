@@ -4815,7 +4815,7 @@ export namespace Endpoints {
         order: "asc" | "desc";
         name: string;
         endpoint: string;
-        last_delivery_status: string;
+        last_delivery_status: "pending" | "delivering" | "succeeded" | "failed";
         triggered: boolean;
         has_subscribers: boolean;
         secure_endpoint: boolean;
