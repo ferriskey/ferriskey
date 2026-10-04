@@ -18,7 +18,7 @@ use crate::domain::{
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
 };
-use crate::entity::{organization_group_members, user_role, users};
+use crate::entity::{organization_group_members, organization_members, user_role, users};
 use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 impl SortColumn<users::Entity> for UserSortField {
@@ -84,6 +84,17 @@ fn listing_select(realm_id: Uuid, filter: &UserFilter) -> Select<users::Entity> 
                         .select_only()
                         .column(organization_group_members::Column::UserId)
                         .filter(organization_group_members::Column::GroupId.eq(group_id))
+                        .into_query(),
+                ),
+            )
+        })
+        .apply_if(filter.not_in_organization, |select, organization_id| {
+            select.filter(
+                users::Column::Id.not_in_subquery(
+                    organization_members::Entity::find()
+                        .select_only()
+                        .column(organization_members::Column::UserId)
+                        .filter(organization_members::Column::OrganizationId.eq(organization_id))
                         .into_query(),
                 ),
             )
@@ -619,6 +630,26 @@ mod tests {
         assert!(
             sql.contains(&format!(
                 r#""users"."id" NOT IN (SELECT "organization_group_members"."user_id" FROM "organization_group_members" WHERE "organization_group_members"."group_id" = '{group_id}')"#
+            )),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn not_in_organization_excludes_the_members_of_that_organization() {
+        let organization_id = Uuid::from_u128(11);
+        let sql = sql(&UserFilter {
+            not_in_organization: Some(organization_id),
+            ..UserFilter::default()
+        });
+        assert!(!sql.contains("JOIN"), "{sql}");
+        assert!(
+            sql.contains(&format!(
+                r#""users"."id" NOT IN (SELECT "organization_members"."user_id" FROM "organization_members" WHERE "organization_members"."organization_id" = '{organization_id}')"#
             )),
             "{sql}"
         );
