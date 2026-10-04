@@ -17,6 +17,8 @@ export interface UserMembership {
 export interface UserOrganizationsTabProps {
   memberships: UserMembership[]
   availableOrganizations: Organization[]
+  onSearchOrganizations: (search: string) => void
+  isSearchingOrganizations: boolean
   isLoading: boolean
   isError: boolean
   selectedOrganizationIds: string[]
@@ -31,6 +33,8 @@ const formatJoinedAt = (iso: string) =>
 export default function UserOrganizationsTab({
   memberships,
   availableOrganizations,
+  onSearchOrganizations,
+  isSearchingOrganizations,
   isLoading,
   isError,
   selectedOrganizationIds,
@@ -145,6 +149,8 @@ export default function UserOrganizationsTab({
             }))}
             value={selectedOrganizationIds}
             onChange={onSelectedOrganizationIdsChange}
+            onSearchChange={onSearchOrganizations}
+            loading={isSearchingOrganizations}
             addLabel={t('detail.organizations.assign.add')}
             searchPlaceholder={t('detail.organizations.assign.search_placeholder')}
             emptyHint={t('detail.organizations.assign.empty_hint')}
