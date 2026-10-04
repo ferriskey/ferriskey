@@ -29,31 +29,13 @@ export interface GroupMember {
   created_at: string
 }
 
-/** A member enriched with the user's identity, as returned by the paginated members endpoint. */
-export interface GroupMemberDetail {
-  id: string
-  group_id: string
-  user_id: string
-  username: string
-  email: string | null
-  firstname: string | null
-  lastname: string | null
-  enabled: boolean
-  created_at: string
-}
+export type GroupMemberDetail = Schemas.GroupMemberDetail
 
-export interface GroupMembersPage {
-  data: GroupMemberDetail[]
-  total: number
-  limit: number
-  offset: number
-}
+export type GroupMembersQuery = NonNullable<
+  Endpoints.get_List_group_members['parameters']['query']
+>
 
-export interface GroupMembersParams {
-  limit?: number
-  offset?: number
-  search?: string
-}
+export const GROUP_MEMBER_FILTER_KEYS = ['username', 'email', 'enabled'] as const
 
 export interface GroupAttribute {
   id: string
@@ -248,35 +230,45 @@ export function useDeleteGroup(realm?: string, orgId?: string) {
   })
 }
 
-const membersKey = (realm?: string, orgId?: string, groupId?: string) => [
-  'org-group-members',
+const membersPath = (realm?: string, orgId?: string, groupId?: string) => ({
+  ...groupsPath(realm, orgId),
+  group_id: groupId ?? '',
+})
+
+const membersKey = (realm?: string, orgId?: string, groupId?: string) =>
+  window.tanstackApi.get(
+    '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}/members',
+    { path: membersPath(realm, orgId, groupId), query: {} }
+  ).queryKey
+
+const realmUsersKey = (realm?: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/users', {
+    path: { realm_name: realm || 'master' },
+    query: {},
+  }).queryKey
+
+const refreshMembers = (qc: QueryClient, realm?: string, orgId?: string, groupId?: string) =>
+  Promise.all([
+    qc.invalidateQueries({ queryKey: membersKey(realm, orgId, groupId) }),
+    qc.invalidateQueries({ queryKey: realmUsersKey(realm) }),
+  ])
+
+export function useGroupMembers({
   realm,
   orgId,
   groupId,
-]
-
-export function useGroupMembers(
-  realm?: string,
-  orgId?: string,
-  groupId?: string,
-  params?: GroupMembersParams
-) {
-  const limit = params?.limit ?? 50
-  const offset = params?.offset ?? 0
-  const search = params?.search ?? ''
-
-  return useQuery<GroupMembersPage>({
-    queryKey: [...membersKey(realm, orgId, groupId), limit, offset, search],
-    queryFn: () => {
-      const qs = new URLSearchParams()
-      qs.set('limit', String(limit))
-      qs.set('offset', String(offset))
-      if (search) qs.set('search', search)
-      return request<GroupMembersPage>(
-        'GET',
-        `${groupsBase(realm!, orgId!)}/${groupId}/members?${qs.toString()}`
-      )
-    },
+  query,
+}: {
+  realm?: string
+  orgId?: string
+  groupId?: string
+  query?: GroupMembersQuery
+}) {
+  return useQuery({
+    ...window.tanstackApi.get(
+      '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}/members',
+      { path: membersPath(realm, orgId, groupId), query: query ?? {} }
+    ).queryOptions,
     enabled: !!realm && !!orgId && !!groupId,
   })
 }
@@ -288,7 +280,7 @@ export function useAddGroupMember(realm?: string, orgId?: string, groupId?: stri
       request<GroupMember>('POST', `${groupsBase(realm!, orgId!)}/${groupId}/members`, {
         user_id: userId,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: membersKey(realm, orgId, groupId) }),
+    onSuccess: () => refreshMembers(qc, realm, orgId, groupId),
   })
 }
 
@@ -297,7 +289,7 @@ export function useRemoveGroupMember(realm?: string, orgId?: string, groupId?: s
   return useMutation({
     mutationFn: (userId: string) =>
       request<void>('DELETE', `${groupsBase(realm!, orgId!)}/${groupId}/members/${userId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: membersKey(realm, orgId, groupId) }),
+    onSuccess: () => refreshMembers(qc, realm, orgId, groupId),
   })
 }
 

@@ -224,21 +224,26 @@ groups:
     subgroups: 子组
   members:
     title: '成员（{{total}}）'
-    search_placeholder: 搜索成员…
-    loading: 加载中…
-    no_match: 没有成员与当前搜索匹配。
+    no_match: 没有成员与这些筛选条件匹配。
     empty: 没有直接成员。
+    show_all: 显示所有成员
     remove: 移除成员
     status:
       enabled: 已启用
       disabled: 已禁用
-    pagination:
-      range: '{{from}}-{{to}}，共 {{total}}'
-      previous: 上一页
-      next: 下一页
+    columns:
+      member: 成员
+      email: 邮箱
+      status: 状态
+      joined: 加入时间
+    filter_fields:
+      username: 用户名
+      email: 邮箱
+      enabled: 已启用
     add:
       trigger: 添加成员
       title: 添加成员
+      description: 仅列出本域中尚未加入此组的账号。
       columns:
         username: 用户
         name: 姓名

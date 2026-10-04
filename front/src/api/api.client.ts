@@ -763,7 +763,6 @@ export namespace Schemas {
     user_id: string;
     username: string;
   };
-  export type GroupMemberPage = { data: Array<GroupMemberDetail>; limit: number; offset: number; total: number };
   export type IdentityProviderLinkResponse = {
     created_at: string;
     id: string;
@@ -1003,6 +1002,20 @@ export namespace Schemas {
     metadata: PageMetadata;
   };
   export type Paginated_GroupListItem = { data: Array<Group & { child_count: number }>; metadata: PageMetadata };
+  export type Paginated_GroupMemberDetail = {
+    data: Array<{
+      created_at: string;
+      email?: (string | null) | undefined;
+      enabled: boolean;
+      firstname?: (string | null) | undefined;
+      group_id: GroupId;
+      id: string;
+      lastname?: (string | null) | undefined;
+      user_id: string;
+      username: string;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_Organization = {
     data: Array<{
       alias: string;
@@ -3280,9 +3293,25 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}/members";
     requestFormat: "json";
     parameters: {
-      query: Partial<{ limit: number; offset: number; search: string }>;
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        username: string;
+        email: string;
+        enabled: boolean;
+        order_by: "username" | "email" | "created_at";
+      }>;
+      path: { realm_name: string; organization_id: string; group_id: string };
     };
-    responses: { 200: Schemas.GroupMemberPage; 404: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
+    responses: {
+      200: Schemas.Paginated_GroupMemberDetail;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Add_group_member = {
     method: "POST";
@@ -4275,6 +4304,7 @@ export namespace Endpoints {
         service_account: boolean;
         role_id: string;
         ids: string;
+        not_in_group: string;
         order_by: "username" | "email" | "firstname" | "lastname" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
