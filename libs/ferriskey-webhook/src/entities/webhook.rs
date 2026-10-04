@@ -8,7 +8,6 @@ use uuid::Uuid;
 use ferriskey_domain::generate_timestamp;
 
 use crate::entities::retry_policy::RetryPolicyOverride;
-use crate::entities::webhook_delivery::DeliveryStatus;
 use crate::entities::webhook_subscriber::WebhookSubscriber;
 use crate::signing::generate_secret;
 
@@ -77,7 +76,6 @@ impl Webhook {
 pub struct WebhookFilter {
     pub name: Option<String>,
     pub endpoint: Option<String>,
-    pub last_delivery_status: Option<DeliveryStatus>,
     pub triggered: Option<bool>,
     pub has_subscribers: Option<bool>,
     pub secure_endpoint: Option<bool>,

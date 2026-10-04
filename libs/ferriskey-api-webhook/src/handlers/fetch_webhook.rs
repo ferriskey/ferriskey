@@ -13,7 +13,6 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook::{
     Webhook, WebhookFilter, WebhookSortField,
 };
-use ferriskey_core::domain::webhook::entities::webhook_delivery::DeliveryStatus;
 use ferriskey_core::domain::webhook::ports::WebhookService;
 use serde::Deserialize;
 use utoipa::IntoParams;
@@ -24,8 +23,6 @@ use utoipa::IntoParams;
 pub struct WebhookListParams {
     pub name: Option<String>,
     pub endpoint: Option<String>,
-    #[param(inline)]
-    pub last_delivery_status: Option<DeliveryStatus>,
     pub triggered: Option<bool>,
     pub has_subscribers: Option<bool>,
     pub secure_endpoint: Option<bool>,
@@ -36,7 +33,6 @@ impl From<WebhookListParams> for WebhookFilter {
         Self {
             name: params.name,
             endpoint: params.endpoint,
-            last_delivery_status: params.last_delivery_status,
             triggered: params.triggered,
             has_subscribers: params.has_subscribers,
             secure_endpoint: params.secure_endpoint,
@@ -49,7 +45,7 @@ impl From<WebhookListParams> for WebhookFilter {
     path = "",
     tag = "webhook",
     summary = "List the webhooks of a realm",
-    description = "Returns one page of the realm's webhooks, each with its subscribers. Stored secrets and header values are never returned. Text filters (name, endpoint) match case-insensitively anywhere in the value; last_delivery_status matches exactly one of pending, delivering, succeeded, failed; triggered keeps webhooks that fired at least once (true) or never (false); has_subscribers keeps webhooks with at least one subscribed trigger (true) or none (false); secure_endpoint keeps endpoints starting with `https://` (true) or not (false). Filters combine with AND. Webhooks without a name or never triggered sort last in ascending order and first in descending order.",
+    description = "Returns one page of the realm's webhooks, each with its subscribers. Stored secrets and header values are never returned. Text filters (name, endpoint) match case-insensitively anywhere in the value; triggered keeps webhooks that fired at least once (true) or never (false); has_subscribers keeps webhooks with at least one subscribed trigger (true) or none (false); secure_endpoint keeps endpoints starting with `https://` (true) or not (false). Filters combine with AND. Webhooks without a name or never triggered sort last in ascending order and first in descending order.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
         PaginationParams,
@@ -92,7 +88,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<WebhookListParams, WebhookSortField>(
-            "order_by=triggered_at&order=asc&name=hook&endpoint=example&last_delivery_status=failed&triggered=true&has_subscribers=false&secure_endpoint=false",
+            "order_by=triggered_at&order=asc&name=hook&endpoint=example&triggered=true&has_subscribers=false&secure_endpoint=false",
         )
         .expect("valid query");
 
@@ -103,7 +99,6 @@ mod tests {
             WebhookFilter {
                 name: Some("hook".to_string()),
                 endpoint: Some("example".to_string()),
-                last_delivery_status: Some(DeliveryStatus::Failed),
                 triggered: Some(true),
                 has_subscribers: Some(false),
                 secure_endpoint: Some(false),
@@ -141,8 +136,7 @@ mod tests {
             "triggered=maybe",
             "has_subscribers=maybe",
             "secure_endpoint=maybe",
-            "last_delivery_status=fail",
-            "last_delivery_status=FAILED",
+            "last_delivery_status=failed",
         ] {
             assert!(
                 parse_list_query::<WebhookListParams, WebhookSortField>(query).is_err(),

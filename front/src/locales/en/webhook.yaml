@@ -32,7 +32,6 @@ list:
   filter_fields:
     name: Name
     endpoint: Endpoint
-    last_delivery_status: Last delivery
     triggered: Already triggered
     has_subscribers: With events
     secure_endpoint: Over HTTPS

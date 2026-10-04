@@ -11,12 +11,10 @@ import type {
 } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
-import { describeDeliveryStatus } from '../webhook-delivery-status'
 
 import Webhook = Schemas.Webhook
 import { formatDateTime, formatRelative } from '@/utils/format-date'
 
-const DELIVERY_STATUSES = ['pending', 'delivering', 'succeeded', 'failed'] as const
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
 
@@ -168,15 +166,6 @@ export default function PageWebhooksOverview({
   const filterFields: FilterField[] = [
     { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
     { kind: 'text', key: 'endpoint', label: t('list.filter_fields.endpoint') },
-    {
-      kind: 'enum',
-      key: 'last_delivery_status',
-      label: t('list.filter_fields.last_delivery_status'),
-      options: DELIVERY_STATUSES.map((status) => {
-        const labelKey = describeDeliveryStatus(status).labelKey
-        return { value: status, label: labelKey ? t(labelKey) : status }
-      }),
-    },
     { kind: 'boolean', key: 'triggered', label: t('list.filter_fields.triggered') },
     { kind: 'boolean', key: 'has_subscribers', label: t('list.filter_fields.has_subscribers') },
     { kind: 'boolean', key: 'secure_endpoint', label: t('list.filter_fields.secure_endpoint') },

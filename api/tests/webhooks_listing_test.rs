@@ -35,14 +35,12 @@ mod tests {
         "created_at",
         "updated_at",
     ];
-    const STATUSES: [Option<&str>; 3] = [Some("succeeded"), Some("failed"), None];
     const TRIGGERS: [&str; 3] = ["user.created", "client.deleted", "role.created"];
 
     struct Seed {
         id: Uuid,
         name: Option<String>,
         endpoint: String,
-        status: Option<&'static str>,
         subscribers: Vec<&'static str>,
         secret: String,
         header_value: String,
@@ -58,7 +56,6 @@ mod tests {
                 id: Uuid::new_v4(),
                 name: (i % 6 != 5).then(|| format!("hook-{:02}", i / 2)),
                 endpoint: format!("{scheme}://e{:02}.example.com/hook", i % 10),
-                status: STATUSES[i % STATUSES.len()],
                 subscribers: TRIGGERS.iter().take(i % 4).copied().collect(),
                 secret: format!("seedsecret{}", Uuid::new_v4().simple()),
                 header_value: format!("seedheader{}", Uuid::new_v4().simple()),
@@ -281,11 +278,11 @@ mod tests {
 
     async fn insert_seed(pool: &PgPool, realm_id: Uuid, seed: &Seed) {
         sqlx::query(
-            "INSERT INTO webhooks (id, realm_id, name, endpoint, headers, secret, last_delivery_status, triggered_at, created_at, updated_at) \
-             VALUES ($1::uuid, $2::uuid, $3, $4, jsonb_build_object('Authorization', $5::text), $6, $7, \
+            "INSERT INTO webhooks (id, realm_id, name, endpoint, headers, secret, triggered_at, created_at, updated_at) \
+             VALUES ($1::uuid, $2::uuid, $3, $4, jsonb_build_object('Authorization', $5::text), $6, \
+             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $7), \
              TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $9), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $10))",
+             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $9))",
         )
         .bind(seed.id.to_string())
         .bind(realm_id.to_string())
@@ -293,7 +290,6 @@ mod tests {
         .bind(&seed.endpoint)
         .bind(&seed.header_value)
         .bind(&seed.secret)
-        .bind(seed.status)
         .bind(seed.triggered_minute)
         .bind(seed.created_minute)
         .bind(seed.updated_minute)
@@ -652,14 +648,6 @@ mod tests {
                 "endpoint=http://",
                 matching(|s| s.endpoint.starts_with("http://")),
             ),
-            (
-                "last_delivery_status=failed",
-                matching(|s| s.status == Some("failed")),
-            ),
-            (
-                "last_delivery_status=succeeded",
-                matching(|s| s.status == Some("succeeded")),
-            ),
             ("triggered=true", matching(|s| s.triggered_minute.is_some())),
             (
                 "triggered=false",
@@ -861,8 +849,7 @@ mod tests {
                 ("triggered=maybe", "triggered"),
                 ("has_subscribers=maybe", "has_subscribers"),
                 ("secure_endpoint=maybe", "secure_endpoint"),
-                ("last_delivery_status=fail", "last_delivery_status"),
-                ("last_delivery_status=FAILED", "last_delivery_status"),
+                ("last_delivery_status=failed", "last_delivery_status"),
                 ("name=a&name=b", "name"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;

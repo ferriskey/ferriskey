@@ -45,7 +45,6 @@ list:
   filter_fields:
     name: 名称
     endpoint: 端点
-    last_delivery_status: 最近投递
     triggered: 已触发
     has_subscribers: 含事件
     secure_endpoint: 通过 HTTPS

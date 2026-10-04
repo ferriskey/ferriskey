@@ -9,7 +9,6 @@ export type WebhooksFilter = Omit<WebhooksQuery, 'page' | 'limit' | 'order' | 'o
 export const WEBHOOK_FILTER_KEYS = [
   'name',
   'endpoint',
-  'last_delivery_status',
   'triggered',
   'has_subscribers',
   'secure_endpoint',
