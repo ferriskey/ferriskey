@@ -197,6 +197,8 @@ mod tests {
         app: std::sync::Mutex<Router>,
         admin_token: String,
         viewer_token: String,
+        local_viewer_token: String,
+        no_rights_token: String,
         realm: String,
         other_realm: String,
         seeds: Vec<Seed>,
@@ -367,10 +369,71 @@ mod tests {
         let viewer_token =
             direct_grant(&server, &other_realm, &viewer_username, VIEWER_PASSWORD).await;
 
+        let local_viewer_username = format!("local-viewer-{}", &suffix[..8]);
+        let local_viewer_id =
+            create_user(&server, &admin_token, &realm, &local_viewer_username).await;
+        set_password(
+            &server,
+            &admin_token,
+            &realm,
+            &local_viewer_id,
+            VIEWER_PASSWORD,
+        )
+        .await;
+        let local_viewer_role = create_role(
+            &server,
+            &admin_token,
+            &realm,
+            "local-viewer",
+            &["view_identity_providers"],
+        )
+        .await;
+        assign_role(
+            &server,
+            &admin_token,
+            &realm,
+            &local_viewer_id,
+            &local_viewer_role,
+        )
+        .await;
+        let local_viewer_token =
+            direct_grant(&server, &realm, &local_viewer_username, VIEWER_PASSWORD).await;
+
+        let no_rights_username = format!("no-rights-{}", &suffix[..8]);
+        let no_rights_id = create_user(&server, &admin_token, &realm, &no_rights_username).await;
+        set_password(
+            &server,
+            &admin_token,
+            &realm,
+            &no_rights_id,
+            VIEWER_PASSWORD,
+        )
+        .await;
+        let no_rights_role = create_role(
+            &server,
+            &admin_token,
+            &realm,
+            "user-reader",
+            &["view_users"],
+        )
+        .await;
+        assign_role(
+            &server,
+            &admin_token,
+            &realm,
+            &no_rights_id,
+            &no_rights_role,
+        )
+        .await;
+        let no_rights_token =
+            direct_grant(&server, &realm, &no_rights_username, VIEWER_PASSWORD).await;
+
         SharedContext {
             app: std::sync::Mutex::new(app),
             admin_token,
             viewer_token,
+            local_viewer_token,
+            no_rights_token,
             realm,
             other_realm,
             seeds,
@@ -909,6 +972,30 @@ mod tests {
             assert_eq!(foreign.status_code(), 404, "{}", foreign.text());
             let foreign = foreign.text();
             assert!(!foreign.contains("idp-00"), "{foreign}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test identity_providers_listing_test -- --ignored"]
+    fn a_caller_of_the_realm_without_provider_rights_is_forbidden() {
+        let server = make_server();
+        rt().block_on(async {
+            let witness = list(
+                &server,
+                &ctx().local_viewer_token,
+                &ctx().realm,
+                "limit=100",
+            )
+            .await;
+            assert_eq!(witness.status_code(), 200, "{}", witness.text());
+            let witness: Value = witness.json();
+            assert_eq!(total(&witness), SEED_COUNT as u64);
+            assert_eq!(ids(&witness).len(), SEED_COUNT);
+
+            let refused = list(&server, &ctx().no_rights_token, &ctx().realm, "").await;
+            assert_eq!(refused.status_code(), 403, "{}", refused.text());
+            let refused = refused.text();
+            assert!(!refused.contains("idp-00"), "{refused}");
         });
     }
 
