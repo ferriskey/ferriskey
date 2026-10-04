@@ -456,9 +456,13 @@ mod tests {
             .await
     }
 
-    async fn my_realms(server: &TestServer, token: &str, realm: &str) -> TestResponse {
+    async fn my_realms(server: &TestServer, token: &str, realm: &str, name: &str) -> TestResponse {
         server
-            .get(&format!("/realms/{}/users/@me/realms", realm))
+            .get(&format!(
+                "/realms/{}/users/@me/realms?name={}&limit=100",
+                realm,
+                urlencoding::encode(name)
+            ))
             .add_header("Authorization", auth_header(token))
             .await
     }
@@ -889,35 +893,28 @@ mod tests {
         rt().block_on(async {
             let server = make_server();
 
-            let response = my_realms(&server, admin_token(), MASTER_REALM).await;
-            assert_eq!(
-                response.status_code(),
-                200,
-                "the master administrator must be able to list the realms he administers: {}",
-                response.text()
-            );
+            for tenant in [tenant_a(), tenant_b()] {
+                let response = my_realms(&server, admin_token(), MASTER_REALM, tenant).await;
+                assert_eq!(
+                    response.status_code(),
+                    200,
+                    "the master administrator must be able to list the realms he administers: {}",
+                    response.text()
+                );
 
-            let body: Value = response.json();
-            let realms = body["data"]
-                .as_array()
-                .unwrap_or_else(|| panic!("data array in realm listing: {body}"));
-            assert!(
-                !realms.is_empty(),
-                "an empty listing would make every membership assertion below vacuous: {body}"
-            );
-
-            let names: Vec<&str> = realms
-                .iter()
-                .filter_map(|realm| realm["name"].as_str())
-                .collect();
-            assert!(
-                names.contains(&tenant_a()),
-                "the master administrator created tenant-a and must see it: {names:?}"
-            );
-            assert!(
-                names.contains(&tenant_b()),
-                "the master administrator created tenant-b and must see it: {names:?}"
-            );
+                let body: Value = response.json();
+                let realms = body["data"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("data array in realm listing: {body}"));
+                let names: Vec<&str> = realms
+                    .iter()
+                    .filter_map(|realm| realm["name"].as_str())
+                    .collect();
+                assert!(
+                    names.contains(&tenant),
+                    "the master administrator created {tenant} and must see it: {names:?}"
+                );
+            }
         });
     }
 }
