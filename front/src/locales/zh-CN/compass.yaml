@@ -66,9 +66,15 @@ list:
     ip_address: IP 地址
     status: 结果
     grant_type: 授权类型
-    grant_type_placeholder: 完整的授权类型，例如 authorization_code
     client_id: 客户端
     user_id: 用户
+  grant_types:
+    authorization_code: 授权码
+    password: 密码
+    credentials: 客户端凭据
+    device_code: 设备码
+    token_exchange: 令牌交换
+    saml_sso: SAML 单点登录
   client:
     unresolved: 未解析
   user:
@@ -102,12 +108,12 @@ list:
       title: 流程不可用
       detail: 我们无法获取最新的流程。请稍后重试。
     failed:
-      title_other: '{{count}} 次执行失败'
+      title_other: '此域中 {{count}} 次执行失败'
       # {{step}} is a step label from the catalogue above; {{total}} is how many of the {{sample}} most recent failed executions failed there.
       detail_recent: '在最近的 {{sample}} 次中，{{step}} 占 {{total}} 次。'
       no_step: 未记录失败步骤
     expired:
-      title_other: '{{count}} 次执行已过期'
+      title_other: '此域中 {{count}} 次执行已过期'
       detail: 已转到外部提供商后再未返回，没有任何步骤失败。
   empty:
     label: 未记录任何执行

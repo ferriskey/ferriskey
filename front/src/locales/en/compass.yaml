@@ -58,9 +58,15 @@ list:
     ip_address: IP address
     status: Outcome
     grant_type: Grant type
-    grant_type_placeholder: Exact grant type, e.g. authorization_code
     client_id: Client
     user_id: User
+  grant_types:
+    authorization_code: Authorization code
+    password: Password
+    credentials: Client credentials
+    device_code: Device code
+    token_exchange: Token exchange
+    saml_sso: SAML single sign-on
   client:
     unresolved: unresolved
   user:
@@ -95,14 +101,14 @@ list:
       title: Flows unavailable
       detail: We could not fetch the latest flows. Please try again later.
     failed:
-      title_one: '{{count}} failed execution'
-      title_other: '{{count}} failed executions'
+      title_one: '{{count}} failed execution in this realm'
+      title_other: '{{count}} failed executions in this realm'
       # {{step}} is a step label from the catalogue above; {{total}} is how many of the {{sample}} most recent failed executions failed there.
       detail_recent: '{{step}} accounts for {{total}} of the {{sample}} most recent.'
       no_step: No failing step recorded
     expired:
-      title_one: '{{count}} expired execution'
-      title_other: '{{count}} expired executions'
+      title_one: '{{count}} expired execution in this realm'
+      title_other: '{{count}} expired executions in this realm'
       detail: Left for an external provider and never came back — no step failed.
   empty:
     label: No execution recorded

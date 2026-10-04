@@ -30,6 +30,8 @@ import type { RealmDirectory } from '@/hooks/use-realm-directory'
 export interface FlowCounts {
   failed: number
   expired: number
+  failedInView: number
+  expiredInView: number
 }
 
 export interface PageFlowsProps {
@@ -48,6 +50,15 @@ export interface PageFlowsProps {
 const SLOW_FLOW_MS = 5000
 
 const FLOW_STATUSES: FlowStatus[] = ['pending', 'success', 'failure', 'expired']
+
+const GRANT_TYPES = [
+  { value: 'authorization_code', key: 'authorization_code' },
+  { value: 'password', key: 'password' },
+  { value: 'credentials', key: 'credentials' },
+  { value: 'urn:ietf:params:oauth:grant-type:device_code', key: 'device_code' },
+  { value: 'urn:ietf:params:oauth:grant-type:token-exchange', key: 'token_exchange' },
+  { value: 'saml_sso', key: 'saml_sso' },
+] as const
 
 export default function PageFlows({
   flows,
@@ -214,10 +225,13 @@ export default function PageFlows({
       options: FLOW_STATUSES.map((status) => ({ value: status, label: status })),
     },
     {
-      kind: 'text',
+      kind: 'enum',
       key: 'grant_type',
       label: t('list.filter_fields.grant_type'),
-      placeholder: t('list.filter_fields.grant_type_placeholder'),
+      options: GRANT_TYPES.map((grant) => ({
+        value: grant.value,
+        label: t(`list.grant_types.${grant.key}`),
+      })),
     },
     {
       kind: 'relation',
@@ -332,7 +346,9 @@ export default function PageFlows({
       getHref={flowHref}
       aggregates={{
         started_at: t('list.aggregates.executions', { count: pagination?.total ?? 0 }),
-        status: t('list.aggregates.unfinished', { total: counts.failed + counts.expired }),
+        status: t('list.aggregates.unfinished', {
+          total: counts.failedInView + counts.expiredInView,
+        }),
       }}
       emptyLabel={t('list.empty.label')}
       emptyHint={t('list.empty.hint')}

@@ -5,6 +5,7 @@ import {
   useFlowCount,
   useGetFlows,
   useGetStats,
+  type FlowsFilter,
   type FlowsQuery,
 } from '@/api/compass.api'
 import { RouterParams } from '@/routes/router'
@@ -36,6 +37,9 @@ export default function PageFlowsFeature() {
     query: { status: 'failure', limit: FAILURE_SAMPLE },
   })
   const expired = useFlowCount({ realm, filter: { status: 'expired' } })
+  const activeFilter = listing.state.filters as FlowsFilter
+  const failedInView = useFlowCount({ realm, filter: { ...activeFilter, status: 'failure' } })
+  const expiredInView = useFlowCount({ realm, filter: { ...activeFilter, status: 'expired' } })
 
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])
   const userIds = useMemo(() => flows.flatMap((flow) => flow.user_id ?? []), [flows])
@@ -50,6 +54,8 @@ export default function PageFlowsFeature() {
       counts={{
         failed: failuresResponse?.metadata.total ?? 0,
         expired: expired.count,
+        failedInView: failedInView.count,
+        expiredInView: expiredInView.count,
       }}
       recentFailures={failuresResponse?.data ?? []}
       isLoading={isLoadingFlows || isLoadingStats}
