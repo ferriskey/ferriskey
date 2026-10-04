@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { KeyRound, Plus, Search, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -35,6 +35,9 @@ export interface ClientScopesTabProps {
   onViewChange: (view: string) => void
   assignedScopes: ClientScope[]
   availableScopes: ClientScope[]
+  hasAvailable: boolean
+  search: string
+  onSearchChange: (search: string) => void
   isLoading: boolean
   isLoadingAvailable: boolean
   isAssigning: boolean
@@ -60,6 +63,8 @@ function AddScopeDialog({
   open,
   onOpenChange,
   available,
+  query,
+  onQueryChange,
   isLoading,
   isAssigning,
   onAdd,
@@ -67,23 +72,18 @@ function AddScopeDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   available: ClientScope[]
+  query: string
+  onQueryChange: (query: string) => void
   isLoading: boolean
   isAssigning: boolean
   onAdd: (scopeId: string, type: AssignableScopeType) => void
 }) {
   const { t } = useTranslation('client')
-  const [query, setQuery] = useState('')
   const [type, setType] = useState<AssignableScopeType>('default')
   const [selected, setSelected] = useState<string | null>(null)
 
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return available
-    return available.filter((s) => `${s.name} ${s.description ?? ''}`.toLowerCase().includes(q))
-  }, [available, query])
-
   const close = () => {
-    setQuery('')
+    onQueryChange('')
     setSelected(null)
     setType('default')
     onOpenChange(false)
@@ -103,7 +103,7 @@ function AddScopeDialog({
             <input
               type='search'
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onQueryChange(e.target.value)}
               placeholder={t('scopes.add.search_placeholder')}
               className='h-full w-full rounded-md border border-fk-line pl-8 pr-2 text-xs outline-none placeholder:text-neutral-400 focus:border-fk-primary-border'
             />
@@ -128,9 +128,9 @@ function AddScopeDialog({
             <p className='px-3 py-6 text-center text-xs text-neutral-500 dark:text-neutral-400'>
               {t('scopes.add.loading')}
             </p>
-          ) : rows.length > 0 ? (
+          ) : available.length > 0 ? (
             <ul className='divide-y divide-fk-line-soft'>
-              {rows.map((scope) => (
+              {available.map((scope) => (
                 <li key={scope.id}>
                   <label
                     htmlFor={`add-scope-${scope.id}`}
@@ -190,6 +190,9 @@ export default function ClientScopesTab({
   onViewChange,
   assignedScopes,
   availableScopes,
+  hasAvailable,
+  search,
+  onSearchChange,
   isLoading,
   isLoadingAvailable,
   isAssigning,
@@ -225,7 +228,7 @@ export default function ClientScopesTab({
             action={
               <Button
                 size='sm'
-                disabled={availableScopes.length === 0}
+                disabled={!hasAvailable}
                 onClick={() => onAddOpenChange(true)}
               >
                 <Plus /> {t('scopes.assigned.add')}
@@ -317,7 +320,7 @@ export default function ClientScopesTab({
                   <Button
                     size='sm'
                     variant='outline'
-                    disabled={availableScopes.length === 0}
+                    disabled={!hasAvailable}
                     onClick={() => onAddOpenChange(true)}
                   >
                     <Plus /> {t('scopes.assigned.add')}
@@ -380,6 +383,8 @@ export default function ClientScopesTab({
         open={addOpen}
         onOpenChange={onAddOpenChange}
         available={availableScopes}
+        query={search}
+        onQueryChange={onSearchChange}
         isLoading={isLoadingAvailable}
         isAssigning={isAssigning}
         onAdd={onAdd}
