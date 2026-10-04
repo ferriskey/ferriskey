@@ -177,6 +177,9 @@ jobs:
       - name: run portal layouts listing integration tests
         run: cargo test -p ferriskey-api --test portal_layouts_listing_test -- --ignored
 
+      - name: run email templates listing integration tests
+        run: cargo test -p ferriskey-api --test email_templates_listing_test -- --ignored
+
       - name: run cross-realm client isolation integration tests
         run: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored
 
