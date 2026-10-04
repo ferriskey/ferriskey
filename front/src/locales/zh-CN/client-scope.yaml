@@ -45,7 +45,6 @@ list:
   title: 客户端作用域
   description: 此域的客户端按名称请求的可复用声明集合。
   create: 新建客户端作用域
-  search_placeholder: 按名称筛选…
   row_delete: 删除 {{name}}
   count_other: '{{count}} 个作用域'
   columns:
@@ -55,6 +54,14 @@ list:
     type: 分配方式
     protocol: 协议
     mappers: 映射器
+    created: 创建时间
+    updated: 更新时间
+  filter_fields:
+    name: 名称
+    description: 描述
+    protocol: 协议
+    default_scope_type: 分配方式
+    has_protocol_mappers: 含映射器
   metrics:
     total:
       label: 总计
@@ -74,10 +81,6 @@ list:
       title_other: '{{count}} 个作用域未写入任何声明'
       detail: '{{names}}：未携带任何协议映射器。'
       action: 查看
-  filters:
-    default: 默认
-    optional: 可选
-    without_mappers: 无映射器
   card:
     # Always plural by design: the card footer shows a raw total, never a singular row.
     footer_mappers: '{{count}} 个映射器'

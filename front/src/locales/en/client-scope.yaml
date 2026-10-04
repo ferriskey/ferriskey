@@ -34,7 +34,6 @@ list:
   title: Client Scopes
   description: Reusable sets of claims that clients of this realm request by name.
   create: New client scope
-  search_placeholder: Filter by name…
   row_delete: Delete {{name}}
   count_one: '{{count}} scope'
   count_other: '{{count}} scopes'
@@ -44,6 +43,14 @@ list:
     type: Assignment
     protocol: Protocol
     mappers: Mappers
+    created: Created
+    updated: Updated
+  filter_fields:
+    name: Name
+    description: Description
+    protocol: Protocol
+    default_scope_type: Assignment
+    has_protocol_mappers: With mappers
   metrics:
     total:
       label: Total
@@ -64,10 +71,6 @@ list:
       title_other: '{{count}} scopes write no claim'
       detail: '{{names}} — carries no protocol mapper.'
       action: Review
-  filters:
-    default: Default
-    optional: Optional
-    without_mappers: Without mappers
   card:
     # Always plural by design: the card footer shows a raw total, never a singular row.
     footer_mappers: '{{count}} mappers'
