@@ -4,6 +4,7 @@ use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped};
@@ -12,12 +13,12 @@ use ferriskey_domain::user::ports::{UserRepository, UserRoleRepository};
 use crate::{
     AddOrganizationMemberInput, CreateOrganizationInput, DeleteOrganizationAttributeInput,
     DeleteOrganizationInput, GetOrganizationInput, ListOrganizationAttributesInput,
-    ListOrganizationMembersInput, ListOrganizationsInput, ListUserOrganizationsInput, Organization,
-    OrganizationAttribute, OrganizationAttributeRepository, OrganizationConfig, OrganizationId,
+    ListOrganizationMembersInput, ListUserOrganizationsInput, Organization, OrganizationAttribute,
+    OrganizationAttributeRepository, OrganizationConfig, OrganizationFilter, OrganizationId,
     OrganizationMember, OrganizationMemberRepository, OrganizationPolicy, OrganizationRepository,
-    OrganizationService, OrganizationValidationError, RemoveOrganizationMemberInput,
-    UpdateOrganizationInput, UpdateOrganizationParams, UpsertOrganizationAttributeInput,
-    validate_membership_realms,
+    OrganizationService, OrganizationSortField, OrganizationValidationError,
+    RemoveOrganizationMemberInput, UpdateOrganizationInput, UpdateOrganizationParams,
+    UpsertOrganizationAttributeInput, validate_membership_realms,
 };
 
 #[derive(Clone, Debug)]
@@ -161,9 +162,10 @@ where
     async fn list_organizations(
         &self,
         identity: Identity,
-        input: ListOrganizationsInput,
-    ) -> Result<Vec<Organization>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        request: PageRequest<OrganizationFilter, OrganizationSortField>,
+    ) -> Result<Page<Organization>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
             self.policy
@@ -172,9 +174,7 @@ where
             "insufficient permissions to list organizations",
         )?;
 
-        self.organization_repository
-            .list_organizations_by_realm(scope.id())
-            .await
+        self.organization_repository.list(&scope, &request).await
     }
 
     async fn update_organization(
@@ -450,6 +450,7 @@ mod tests {
     use ferriskey_domain::auth::Identity;
     use ferriskey_domain::client::ports::MockClientRepository;
     use ferriskey_domain::common::app_errors::CoreError;
+    use ferriskey_domain::common::pagination::{Page, PageRequest};
     use ferriskey_domain::realm::RealmId;
     use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
@@ -459,7 +460,8 @@ mod tests {
 
     use crate::{
         MockOrganizationAttributeRepository, MockOrganizationMemberRepository,
-        MockOrganizationRepository, Organization, OrganizationId, OrganizationMember,
+        MockOrganizationRepository, Organization, OrganizationFilter, OrganizationId,
+        OrganizationMember, OrganizationSortField,
     };
 
     use super::*;
@@ -1400,12 +1402,7 @@ mod tests {
             cross_realm_actor(victim_realm_id, "manage_realm");
 
         let mut org_repo = MockOrganizationRepository::new();
-        org_repo
-            .expect_list_organizations_by_realm()
-            .returning(move |_| {
-                let o = make_organization(victim_realm_id);
-                Box::pin(async move { Ok(vec![o]) })
-            });
+        org_repo.expect_list().never();
 
         let service = build_service(
             realm_repo,
@@ -1417,12 +1414,7 @@ mod tests {
         );
 
         let result = service
-            .list_organizations(
-                identity,
-                ListOrganizationsInput {
-                    realm_name: VICTIM_REALM.to_string(),
-                },
-            )
+            .list_organizations(identity, VICTIM_REALM.to_string(), list_request())
             .await;
 
         assert!(
@@ -1723,10 +1715,20 @@ mod tests {
         );
     }
 
+    fn list_request() -> PageRequest<OrganizationFilter, OrganizationSortField> {
+        PageRequest {
+            filter: OrganizationFilter {
+                name: Some("acme".to_string()),
+                has_domain: Some(true),
+                without_member: Some(Uuid::nil()),
+                ..OrganizationFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
     #[tokio::test]
-    async fn list_organizations_allows_view_only_actor() {
-        // Listing is a read: `view_users` alone must be enough. Guards against the read path
-        // being gated on the *create* policy again.
+    async fn list_organizations_refuses_a_caller_without_view_rights_before_listing() {
         let realm_id = RealmId::new(Uuid::new_v4());
         let realm = make_realm(realm_id, "test-realm");
         let identity = Identity::User(make_user(&realm));
@@ -1737,12 +1739,55 @@ mod tests {
             Box::pin(async move { Ok(Some(r)) })
         });
 
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(vec![]) }));
+
+        let mut org_repo = MockOrganizationRepository::new();
+        org_repo.expect_list().never();
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo,
+            MockOrganizationAttributeRepository::new(),
+            MockOrganizationMemberRepository::new(),
+        );
+
+        let result = service
+            .list_organizations(identity, "test-realm".to_string(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_organizations_allows_view_only_actor() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let realm = make_realm(realm_id, "test-realm");
+        let identity = Identity::User(make_user(&realm));
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = make_realm(realm_id, "test-realm");
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let listed = make_organization(realm_id);
+        let expected_id = listed.id;
         let mut org_repo = MockOrganizationRepository::new();
         org_repo
-            .expect_list_organizations_by_realm()
-            .returning(move |_| {
-                let o = make_organization(realm_id);
-                Box::pin(async move { Ok(vec![o]) })
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
             });
 
         let mut user_role_repo = MockUserRoleRepository::new();
@@ -1760,18 +1805,12 @@ mod tests {
             MockOrganizationMemberRepository::new(),
         );
 
-        let result = service
-            .list_organizations(
-                identity,
-                ListOrganizationsInput {
-                    realm_name: "test-realm".to_string(),
-                },
-            )
-            .await;
+        let page = service
+            .list_organizations(identity, "test-realm".to_string(), list_request())
+            .await
+            .expect("a viewer must be able to list organizations");
 
-        assert!(
-            matches!(result, Ok(ref v) if v.len() == 1),
-            "a viewer must be able to list organizations, got {result:?}"
-        );
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }

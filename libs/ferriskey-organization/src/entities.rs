@@ -222,8 +222,27 @@ pub struct GetOrganizationInput {
     pub organization_id: OrganizationId,
 }
 
-pub struct ListOrganizationsInput {
-    pub realm_name: String,
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OrganizationFilter {
+    pub search: Option<String>,
+    pub name: Option<String>,
+    pub alias: Option<String>,
+    pub domain: Option<String>,
+    pub enabled: Option<bool>,
+    pub has_domain: Option<bool>,
+    pub without_member: Option<Uuid>,
+    pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationSortField {
+    Name,
+    Alias,
+    Enabled,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
 }
 
 pub struct UpdateOrganizationInput {
