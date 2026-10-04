@@ -1,10 +1,7 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::sea_query::{Expr, SimpleExpr};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, Order, PaginatorTrait, QueryFilter, QueryOrder,
-    QuerySelect, QueryTrait, Select, SelectTwo,
-};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select};
 use tracing::error;
 use uuid::Uuid;
 
@@ -15,13 +12,13 @@ use ferriskey_organization::{
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_timestamp;
-use crate::domain::common::pagination::{Page, PageRequest, SortOrder};
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::entity::organization_group_members::{
     ActiveModel as MemberActiveModel, Column as MemberColumn, Entity as MemberEntity,
     Model as MemberModel,
 };
 use crate::entity::users::{Column as UserColumn, Entity as UserEntity, Model as UserModel};
-use crate::infrastructure::pagination::contains;
+use crate::infrastructure::pagination::{SortExpr, contains, paginate_also};
 
 #[derive(Debug, Clone)]
 pub struct PostgresGroupMemberRepository {
@@ -58,30 +55,20 @@ fn listing_select(group_id: Uuid, filter: &GroupMemberFilter) -> Select<MemberEn
         })
 }
 
-fn sort_expr(field: GroupMemberSortField) -> SimpleExpr {
-    match field {
-        GroupMemberSortField::Username => Expr::col((UserEntity, UserColumn::Username)).into(),
-        GroupMemberSortField::Email => Expr::col((UserEntity, UserColumn::Email)).into(),
-        GroupMemberSortField::CreatedAt => {
-            Expr::col((MemberEntity, MemberColumn::CreatedAt)).into()
+impl SortExpr for GroupMemberSortField {
+    fn expr(&self) -> SimpleExpr {
+        match self {
+            GroupMemberSortField::Username => Expr::col((UserEntity, UserColumn::Username)).into(),
+            GroupMemberSortField::Email => Expr::col((UserEntity, UserColumn::Email)).into(),
+            GroupMemberSortField::CreatedAt => {
+                Expr::col((MemberEntity, MemberColumn::CreatedAt)).into()
+            }
         }
     }
 }
 
-fn page_select(
-    group_id: Uuid,
-    request: &PageRequest<GroupMemberFilter, GroupMemberSortField>,
-) -> SelectTwo<MemberEntity, UserEntity> {
-    let direction = match request.sort.order {
-        SortOrder::Asc => Order::Asc,
-        SortOrder::Desc => Order::Desc,
-    };
-    listing_select(group_id, &request.filter)
-        .select_also(UserEntity)
-        .order_by(sort_expr(request.sort.field), direction.clone())
-        .order_by(Expr::col((MemberEntity, MemberColumn::Id)), direction)
-        .offset(request.offset())
-        .limit(u64::from(request.limit.get()))
+fn tie_breaker() -> SimpleExpr {
+    Expr::col((MemberEntity, MemberColumn::Id)).into()
 }
 
 fn detail_from(member: MemberModel, user: UserModel) -> GroupMemberDetail {
@@ -139,21 +126,18 @@ impl GroupMemberRepository for PostgresGroupMemberRepository {
         group: &Group,
         request: &PageRequest<GroupMemberFilter, GroupMemberSortField>,
     ) -> Result<Page<GroupMemberDetail>, CoreError> {
-        let group_id = group.id.as_uuid();
-        let total = listing_select(group_id, &request.filter)
-            .count(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to count group members: {}", e);
-                CoreError::InternalServerError
-            })?;
-        let rows = page_select(group_id, request)
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to list group members: {}", e);
-                CoreError::InternalServerError
-            })?;
+        let (rows, total) = paginate_also(
+            &self.db,
+            listing_select(group.id.as_uuid(), &request.filter),
+            UserEntity,
+            tie_breaker(),
+            request,
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to list group members: {}", e);
+            CoreError::InternalServerError
+        })?;
 
         Ok(Page::new(
             rows.into_iter()
@@ -189,8 +173,9 @@ mod listing_tests {
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
-    use super::{listing_select, page_select};
+    use super::{UserEntity, listing_select, tie_breaker};
     use crate::domain::common::pagination::{PageRequest, Sort, SortOrder};
+    use crate::infrastructure::pagination::page_by_expr;
     use ferriskey_organization::{GroupMemberFilter, GroupMemberSortField};
 
     fn sql(filter: &GroupMemberFilter) -> String {
@@ -200,12 +185,13 @@ mod listing_tests {
     }
 
     fn ordered(field: GroupMemberSortField, order: SortOrder) -> String {
-        page_select(
-            Uuid::nil(),
-            &PageRequest {
+        page_by_expr(
+            listing_select(Uuid::nil(), &GroupMemberFilter::default()).select_also(UserEntity),
+            &PageRequest::<GroupMemberFilter, GroupMemberSortField> {
                 sort: Sort { field, order },
                 ..PageRequest::default()
             },
+            tie_breaker(),
         )
         .build(DbBackend::Postgres)
         .to_string()
