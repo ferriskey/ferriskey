@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ChevronsUpDown, Plus, Search } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Plus, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import useRealmStore from '@/store/realm.store'
+import { useUserRealmSearch } from '@/api/realm.api'
 import { CreateRealmDialog } from './create-realm-dialog'
 
 export function RealmPicker({
@@ -15,19 +15,23 @@ export function RealmPicker({
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { userRealms } = useRealmStore()
   const [open, setOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
-  const [query, setQuery] = useState('')
+  const {
+    search: query,
+    setSearch: setQuery,
+    realms: matches,
+    isLoading,
+  } = useUserRealmSearch({ realm, enabled: open })
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return q ? userRealms.filter((r) => r.name.toLowerCase().includes(q)) : userRealms
-  }, [query, userRealms])
+  const changeOpen = (next: boolean) => {
+    setOpen(next)
+    if (!next) setQuery('')
+  }
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={changeOpen}>
         <PopoverTrigger asChild>
           <button
             type='button'
@@ -49,14 +53,18 @@ export function RealmPicker({
               className='h-8 w-full bg-transparent text-[13px] outline-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500'
             />
           </label>
-          {matches.length > 0 ? (
+          {isLoading ? (
+            <div className='flex justify-center px-3 py-4'>
+              <Loader2 className='size-4 animate-spin text-neutral-400 dark:text-neutral-500' />
+            </div>
+          ) : matches.length > 0 ? (
             <ul className='max-h-[calc(7*2rem+0.5rem)] overflow-y-auto p-1'>
               {matches.map((r) => (
                 <li key={r.id}>
                   <button
                     type='button'
                     onClick={() => {
-                      setOpen(false)
+                      changeOpen(false)
                       navigate(hrefFor(r.name))
                     }}
                     className='flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-1.5 text-left transition-colors hover:bg-neutral-100 dark:hover:bg-fk-raised'
@@ -81,7 +89,7 @@ export function RealmPicker({
             <button
               type='button'
               onClick={() => {
-                setOpen(false)
+                changeOpen(false)
                 setCreateOpen(true)
               }}
               className='flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-1.5 text-left text-[13px] transition-colors hover:bg-neutral-100 dark:hover:bg-fk-raised'

@@ -943,6 +943,17 @@ export namespace Schemas {
     | "consent";
   export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> };
   export type PageRequirementsResponse = { data: Array<PageRequirement> };
+  export type Paginated_Realm = {
+    data: Array<{
+      created_at: string;
+      display_name?: (string | null) | undefined;
+      id: RealmId;
+      name: string;
+      settings?: (null | RealmSetting) | undefined;
+      updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_User = {
     data: Array<{
       client_id?: (string | null) | undefined;
@@ -1416,7 +1427,6 @@ export namespace Schemas {
     sub: string;
   };
   export type UserPermissionsResponse = { data: Array<Permissions> };
-  export type UserRealmsResponse = { data: Array<Realm> };
   export type UserResponse = { data: User };
   export type ValidatePublicKeyResponse = Record<string, unknown>;
   export type ValidationErrorResponse = { errors: Array<ValidationError> };
@@ -4125,10 +4135,19 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/users/@me/realms";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        display_name: string;
+        order_by: "name" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.UserRealmsResponse;
+      200: Schemas.Paginated_Realm;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;

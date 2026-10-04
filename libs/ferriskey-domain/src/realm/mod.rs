@@ -105,6 +105,21 @@ pub struct Realm {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RealmFilter {
+    pub name: Option<String>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RealmSortField {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LoginAlias {

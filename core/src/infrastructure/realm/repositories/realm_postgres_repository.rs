@@ -1,5 +1,6 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    QueryTrait, Select,
 };
 
 use crate::{
@@ -11,13 +12,38 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::domain::common::locale::{Locale, SupportedLocales};
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::RealmId;
+use crate::domain::realm::entities::{RealmFilter, RealmSortField};
 use crate::domain::realm::{
     entities::{Realm, RealmSetting},
     ports::RealmRepository,
 };
+use crate::entity::realms;
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 use ferriskey_domain::realm::LoginAliases;
-use tracing::info_span;
+use tracing::{error, info_span};
+
+impl SortColumn<realms::Entity> for RealmSortField {
+    fn column(&self) -> realms::Column {
+        match self {
+            RealmSortField::Name => realms::Column::Name,
+            RealmSortField::CreatedAt => realms::Column::CreatedAt,
+            RealmSortField::UpdatedAt => realms::Column::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(accessible: &[RealmId], filter: &RealmFilter) -> Select<realms::Entity> {
+    RealmEntity::find()
+        .filter(realms::Column::Id.is_in(accessible.iter().map(|id| Uuid::from(*id))))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(realms::Column::Name, value))
+        })
+        .apply_if(filter.display_name.as_deref(), |select, value| {
+            select.filter(contains(realms::Column::DisplayName, value))
+        })
+}
 
 /// Recognise a Postgres unique-constraint violation (SQLSTATE 23505).
 ///
@@ -54,6 +80,25 @@ impl RealmRepository for PostgresRealmRepository {
             .collect::<Vec<Realm>>();
 
         Ok(realms)
+    }
+
+    async fn list(
+        &self,
+        accessible: &[RealmId],
+        request: &PageRequest<RealmFilter, RealmSortField>,
+    ) -> Result<Page<Realm>, CoreError> {
+        let select = listing_select(accessible, &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing realms: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(Page::new(
+            models.into_iter().map(Realm::from).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
     }
 
     async fn get_by_name(&self, name: &str) -> Result<Option<Realm>, CoreError> {
@@ -386,5 +431,56 @@ impl RealmRepository for PostgresRealmRepository {
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(realm_setting.map(|setting| setting.into()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::realm::entities::{RealmFilter, RealmId};
+
+    fn sql(accessible: &[RealmId], filter: &RealmFilter) -> String {
+        listing_select(accessible, filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_accessible_realms() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(
+            &[RealmId::new(first), RealmId::new(second)],
+            &RealmFilter::default(),
+        );
+        assert!(
+            sql.contains(&format!(r#""realms"."id" IN ('{first}', '{second}')"#)),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn no_accessible_realm_matches_nothing() {
+        let sql = sql(&[], &RealmFilter::default());
+        assert!(sql.contains("WHERE 1 = 2"), "{sql}");
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(
+            &[RealmId::new(Uuid::nil())],
+            &RealmFilter {
+                name: Some("a%".to_string()),
+                display_name: Some("b".to_string()),
+            },
+        );
+        assert!(sql.contains(r#""realms"."name" ILIKE E'%a\\%%'"#), "{sql}");
+        assert!(
+            sql.contains(r#""realms"."display_name" ILIKE '%b%'"#),
+            "{sql}"
+        );
     }
 }
