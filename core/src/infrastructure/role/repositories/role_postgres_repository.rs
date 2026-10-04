@@ -1,18 +1,58 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    QueryTrait, Select,
 };
+use tracing::error;
 use uuid::Uuid;
 
-use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
+use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::domain::{
-    common::{entities::app_errors::CoreError, generate_uuid_v7},
+    common::{
+        entities::app_errors::CoreError,
+        generate_uuid_v7,
+        pagination::{Page, PageRequest},
+    },
     role::{
-        entities::{Role, permission::Permissions},
+        entities::{Role, RoleFilter, RoleSortField, permission::Permissions},
         ports::RoleRepository,
         value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
 };
+use crate::entity::{clients, roles};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<roles::Entity> for RoleSortField {
+    fn column(&self) -> roles::Column {
+        match self {
+            RoleSortField::Name => roles::Column::Name,
+            RoleSortField::CreatedAt => roles::Column::CreatedAt,
+            RoleSortField::UpdatedAt => roles::Column::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> {
+    roles::Entity::find()
+        .filter(roles::Column::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(roles::Column::Name, value))
+        })
+        .apply_if(filter.description.as_deref(), |select, value| {
+            select.filter(contains(roles::Column::Description, value))
+        })
+        .apply_if(filter.require_mfa, |select, value| {
+            select.filter(roles::Column::RequireMfa.eq(value))
+        })
+        .apply_if(filter.client_id, |select, client_id| {
+            select.filter(roles::Column::ClientId.eq(client_id))
+        })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(roles::Column::Id.is_in(ids.iter().copied()))
+        })
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresRoleRepository {
@@ -101,30 +141,48 @@ impl RoleRepository for PostgresRoleRepository {
         Ok(())
     }
 
-    async fn find_by_realm_id(&self, realm_id: RealmId) -> Result<Vec<Role>, CoreError> {
-        let roles = crate::entity::roles::Entity::find()
-            .filter(crate::entity::roles::Column::RealmId.eq::<Uuid>(realm_id.into()))
-            .find_with_related(crate::entity::clients::Entity)
-            .all(&self.db)
-            .await
-            .map_err(|_| CoreError::NotFound)?;
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<RoleFilter, RoleSortField>,
+    ) -> Result<Page<Role>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing roles: {:?}", e);
+            CoreError::InternalServerError
+        })?;
 
-        if roles.is_empty() {
-            return Ok(Vec::new());
-        }
+        let client_ids: Vec<Uuid> = models.iter().filter_map(|role| role.client_id).collect();
+        let clients: HashMap<Uuid, clients::Model> = if client_ids.is_empty() {
+            HashMap::new()
+        } else {
+            clients::Entity::find()
+                .filter(clients::Column::Id.is_in(client_ids))
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    error!("error loading the clients of listed roles: {:?}", e);
+                    CoreError::InternalServerError
+                })?
+                .into_iter()
+                .map(|client| (client.id, client))
+                .collect()
+        };
 
-        let roles: Vec<Role> = roles
+        let roles = models
             .into_iter()
-            .map(|(role, clients)| {
-                let mut role: Role = role.into();
-                if let Some(client) = clients.first() {
-                    role.client = Some(client.clone().into());
-                }
+            .map(|model| {
+                let client = model
+                    .client_id
+                    .and_then(|id| clients.get(&id).cloned())
+                    .map(Into::into);
+                let mut role = Role::from(model);
+                role.client = client;
                 role
             })
             .collect();
 
-        Ok(roles)
+        Ok(Page::new(roles, total, request.page, request.limit))
     }
 
     async fn find_by_name(
@@ -201,5 +259,72 @@ impl RoleRepository for PostgresRoleRepository {
             .into();
 
         Ok(updated_role)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::role::entities::RoleFilter;
+
+    fn sql(filter: &RoleFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&RoleFilter::default());
+        assert!(
+            sql.contains(r#""roles"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&RoleFilter {
+            name: Some("a%".to_string()),
+            description: Some("b".to_string()),
+            ..RoleFilter::default()
+        });
+        assert!(sql.contains(r#""roles"."name" ILIKE E'%a\\%%'"#), "{sql}");
+        assert!(
+            sql.contains(r#""roles"."description" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn exact_filters_are_equalities() {
+        let client = Uuid::from_u128(7);
+        let sql = sql(&RoleFilter {
+            require_mfa: Some(true),
+            client_id: Some(client),
+            ..RoleFilter::default()
+        });
+        assert!(sql.contains(r#""roles"."require_mfa" = TRUE"#), "{sql}");
+        assert!(
+            sql.contains(&format!(r#""roles"."client_id" = '{client}'"#)),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(&RoleFilter {
+            ids: Some(vec![first, second]),
+            ..RoleFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(r#""roles"."id" IN ('{first}', '{second}')"#)),
+            "{sql}"
+        );
     }
 }

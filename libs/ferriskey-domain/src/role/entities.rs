@@ -26,3 +26,21 @@ impl RealmOwned for Role {
         self.realm_id
     }
 }
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RoleFilter {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub require_mfa: Option<bool>,
+    pub client_id: Option<Uuid>,
+    pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RoleSortField {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
