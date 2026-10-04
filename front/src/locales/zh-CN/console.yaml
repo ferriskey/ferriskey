@@ -211,6 +211,8 @@ activity:
       title: Webhook 端点
       description: '本域通知的端点，以及每个端点最后一次触发的时间。单次投递不会记入日志，因此没有逐次投递的状态可供显示。'
       count_other: '{{count, number}} 个端点'
+      showing_other: '显示 {{shown, number}} / {{count, number}} 个端点'
+      view_all: 查看全部
       empty: 本域没有注册任何 Webhook 端点。
       triggers_other: '{{count, number}} 个触发器'
       never_fired: 从未触发

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
+import { RouterParams, WEBHOOKS_URL } from '@/routes/router'
 import { useGetSmtpConfig } from '@/api/smtp.api'
 import { useGetWebhooks } from '@/api/webhook.api'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
@@ -43,6 +43,7 @@ export default function PageMessagesFeature() {
       events={events}
       webhooks={webhooks}
       webhookTotal={webhooksResponse?.metadata.total ?? 0}
+      webhooksHref={WEBHOOKS_URL(realm)}
       smtpConfigured={Boolean(smtpConfig)}
       isLoading={isLoading}
       isLoadingSmtp={isLoadingSmtp}

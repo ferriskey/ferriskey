@@ -200,6 +200,9 @@ activity:
       description: 'The endpoints this realm notifies, and the last time each one fired. Individual deliveries are not journalled, so no per-delivery status exists to show.'
       count_one: '{{count, number}} endpoint'
       count_other: '{{count, number}} endpoints'
+      showing_one: 'Showing {{shown, number}} of {{count, number}} endpoint'
+      showing_other: 'Showing {{shown, number}} of {{count, number}} endpoints'
+      view_all: View all
       empty: No webhook endpoint is registered for this realm.
       triggers_one: '{{count, number}} trigger'
       triggers_other: '{{count, number}} triggers'
