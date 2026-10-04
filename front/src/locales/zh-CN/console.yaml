@@ -275,6 +275,9 @@ applications:
       type: 类型
       status: 状态
       created: 创建时间
+    status:
+      enabled: 已启用
+      disabled: 已禁用
     filter_fields:
       search: 搜索
       enabled: 已启用

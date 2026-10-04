@@ -265,6 +265,9 @@ applications:
       type: Type
       status: Status
       created: Created
+    status:
+      enabled: Enabled
+      disabled: Disabled
     filter_fields:
       search: Search
       enabled: Enabled

@@ -3,13 +3,14 @@ import type { TFunction } from 'i18next'
 import type { Choice, PillTone } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 
-import Client = Schemas.Client
 import CreateClientValidator = Schemas.CreateClientValidator
 import { DEFAULT_CLIENT_PROTOCOL } from '@/lib/client-protocol'
+import { inferApplicationType, type ApplicationType } from './infer-application-type'
 
 export type ConsoleTranslate = TFunction<'console'>
 
-export type ApplicationType = 'native' | 'spa' | 'web' | 'm2m' | 'device'
+export type { ApplicationType }
+export { inferApplicationType }
 
 export const APPLICATION_TYPES: readonly ApplicationType[] = [
   'native',
@@ -87,14 +88,6 @@ export const applicationTypeChoices = (t: ConsoleTranslate): Choice<ApplicationT
     icon: APPLICATION_TYPE_ICONS[meta.key],
   }))
 
-export function inferApplicationType(client: Client): ApplicationType {
-  if (client.service_account_enabled) return 'm2m'
-  if (client.oauth_device_code_grant_enabled && (client.redirect_uris?.length ?? 0) === 0) {
-    return 'device'
-  }
-  if (client.client_type === 'public') return client.public_client ? 'spa' : 'native'
-  return 'web'
-}
 
 export function createPayloadFor(
   type: ApplicationType,

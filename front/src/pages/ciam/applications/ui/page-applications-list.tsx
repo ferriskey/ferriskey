@@ -122,7 +122,9 @@ export default function PageApplicationsList({
       render: (c) => (
         <span className='inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-400'>
           <StatusDot on={c.enabled} />
-          {c.enabled ? t('applications.list.filter_fields.enabled') : t('applications.list.card.disabled')}
+          {c.enabled
+            ? t('applications.list.status.enabled')
+            : t('applications.list.status.disabled')}
         </span>
       ),
       sortKey: 'enabled',
