@@ -676,7 +676,6 @@ export namespace Schemas {
   export type GetPublicPortalLayoutResponse = Partial<{ data: null | PortalLayout }>;
   export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> };
   export type GetRoleResponse = { data: Role };
-  export type GetRolesResponse = { data: Array<Role> };
   export type SecurityEventType =
     | "login_success"
     | "login_failure"
@@ -950,6 +949,21 @@ export namespace Schemas {
       id: RealmId;
       name: string;
       settings?: (null | RealmSetting) | undefined;
+      updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_Role = {
+    data: Array<{
+      client?: (null | Client) | undefined;
+      client_id?: (string | null) | undefined;
+      created_at: string;
+      description?: (string | null) | undefined;
+      id: string;
+      name: string;
+      permissions: Array<string>;
+      realm_id: RealmId;
+      require_mfa: boolean;
       updated_at: string;
     }>;
     metadata: PageMetadata;
@@ -3884,9 +3898,25 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/roles";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        description: string;
+        require_mfa: boolean;
+        client_id: string;
+        ids: string;
+        order_by: "name" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
-    responses: { 200: Schemas.GetRolesResponse; 403: Schemas.ApiErrorResponse; 500: Schemas.ApiErrorResponse };
+    responses: {
+      200: Schemas.Paginated_Role;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Create_realm_role = {
     method: "POST";

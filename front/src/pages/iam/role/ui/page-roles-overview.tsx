@@ -2,18 +2,31 @@ import { Plus, Shield, ShieldCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
-import type { CardSpec, Column } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
+import { clientRelationSource } from '@/api/client.relation'
 import { Schemas } from '@/api/api.client'
+import { formatRelative } from '@/utils/format-date'
 
 import Role = Schemas.Role
-import { cumulativeSeries } from '@/utils/cumulative-series'
 import { roleScopeLabelKey } from '../role-scope'
 
-const QUERY_SYNTAX = 'name:realm*  scope:client  permissions:0'
+export interface RoleCounts {
+  total: number
+  mfa: number
+}
 
 export interface PageRolesOverviewProps {
   roles: Role[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: RoleCounts
   roleHref: (role: Role) => string
   onCreate: () => void
 }
@@ -22,7 +35,10 @@ const isClientRole = (role: Role) => Boolean(role.client_id)
 
 export default function PageRolesOverview({
   roles,
+  pagination,
+  listing,
   isLoading,
+  counts,
   roleHref,
   onCreate,
 }: PageRolesOverviewProps) {
@@ -33,7 +49,7 @@ export default function PageRolesOverview({
       key: 'name',
       header: t('list.columns.name'),
       render: (r) => r.name,
-      sortValue: (r) => r.name,
+      sortKey: 'name',
     },
     {
       key: 'description',
@@ -55,7 +71,6 @@ export default function PageRolesOverview({
           {t(roleScopeLabelKey(isClientRole(r)))}
         </Pill>
       ),
-      sortValue: (r) => t(roleScopeLabelKey(isClientRole(r))),
     },
     {
       key: 'permissions',
@@ -67,7 +82,38 @@ export default function PageRolesOverview({
         ) : (
           <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         ),
-      sortValue: (r) => r.permissions.length,
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (r) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(r.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (r) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(r.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
+    },
+  ]
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
+    { kind: 'text', key: 'description', label: t('list.filter_fields.description') },
+    { kind: 'boolean', key: 'require_mfa', label: t('list.filter_fields.require_mfa') },
+    {
+      kind: 'relation',
+      key: 'client_id',
+      label: t('list.filter_fields.client'),
+      relation: clientRelationSource,
     },
   ]
 
@@ -102,11 +148,6 @@ export default function PageRolesOverview({
     ),
   }
 
-  const realmRoles = roles.filter((r) => !isClientRole(r))
-  const clientRoles = roles.filter(isClientRole)
-  const withPermissions = roles.filter((r) => r.permissions.length > 0)
-  const empty = roles.filter((r) => r.permissions.length === 0)
-
   const createButton = (
     <Button onClick={onCreate}>
       <Plus /> {t('list.create')}
@@ -123,75 +164,33 @@ export default function PageRolesOverview({
         {
           key: 'total',
           label: t('list.metrics.total.label'),
-          value: roles.length,
+          value: counts.total,
           hint: t('list.metrics.total.hint'),
-          series: cumulativeSeries(roles.map((r) => r.created_at)),
+          series: [counts.total, counts.total],
           tone: 'info',
         },
         {
-          key: 'realm',
-          label: t('list.metrics.realm.label'),
-          value: realmRoles.length,
+          key: 'mfa',
+          label: t('list.metrics.mfa.label'),
+          value: counts.mfa,
           hint:
-            realmRoles.length > 0 && roles.length > 0
-              ? t('list.metrics.realm.hint', {
-                  percent: ((realmRoles.length / roles.length) * 100).toFixed(0),
+            counts.mfa > 0 && counts.total > 0
+              ? t('list.metrics.mfa.hint', {
+                  percent: ((counts.mfa / counts.total) * 100).toFixed(0),
                 })
-              : t('list.metrics.realm.empty_hint'),
-          series: cumulativeSeries(realmRoles.map((r) => r.created_at)),
-          tone: 'info',
-        },
-        {
-          key: 'client',
-          label: t('list.metrics.client.label'),
-          value: clientRoles.length,
-          hint: t('list.metrics.client.hint'),
-          series: cumulativeSeries(clientRoles.map((r) => r.created_at)),
+              : t('list.metrics.mfa.empty_hint'),
+          series: [counts.mfa, counts.mfa],
           tone: 'violet',
         },
-        {
-          key: 'granting',
-          label: t('list.metrics.granting.label'),
-          value: withPermissions.length,
-          hint: t('list.metrics.granting.hint'),
-          series: cumulativeSeries(withPermissions.map((r) => r.created_at)),
-          tone: 'success',
-        },
       ]}
-      alerts={
-        empty.length
-          ? [
-              {
-                tone: 'warn' as const,
-                title: t('list.alerts.without_permissions.title', { count: empty.length }),
-                detail: t('list.alerts.without_permissions.detail', {
-                  names: empty.map((r) => r.name).join(', '),
-                }),
-                action: t('list.alerts.without_permissions.action'),
-              },
-            ]
-          : []
-      }
-      filters={[
-        { key: 'realm', label: t('list.filters.realm'), predicate: (r) => !isClientRole(r) },
-        { key: 'client', label: t('list.filters.client'), predicate: isClientRole },
-        {
-          key: 'empty',
-          label: t('list.filters.without_permissions'),
-          predicate: (r) => r.permissions.length === 0,
-        },
-      ]}
-      searchPlaceholder={t('list.search_placeholder')}
-      querySyntax={QUERY_SYNTAX}
-      searchIn={(r) => `${r.name} ${r.description ?? ''}`}
+      paged={{ listing, pagination, filterFields }}
       rows={roles}
       columns={columns}
       card={card}
       getKey={(r) => r.id}
       getHref={roleHref}
       aggregates={{
-        name: t('list.count', { count: roles.length }),
-        permissions: roles.reduce((n, r) => n + r.permissions.length, 0),
+        name: t('list.count', { count: counts.total }),
       }}
       emptyLabel={t('list.empty.label')}
       emptyHint={t('list.empty.hint')}

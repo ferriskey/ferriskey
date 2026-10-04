@@ -1,7 +1,16 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  QueryClient,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
-import type { Schemas } from './api.client'
+import type { Endpoints, Schemas } from './api.client'
+import { USER_IDS_BATCH, idBatches } from './user-ids'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 
@@ -15,6 +24,7 @@ const invalidateRole = async (
   })
   const roles = window.tanstackApi.get('/realms/{realm_name}/roles', {
     path: { realm_name: realmName },
+    query: {},
   })
 
   await Promise.all([
@@ -23,14 +33,84 @@ const invalidateRole = async (
   ])
 }
 
-export const useGetRoles = ({ realm = 'master' }: BaseQuery) => {
-  return useQuery(
-    window.tanstackApi.get('/realms/{realm_name}/roles', {
+export type RolesQuery = NonNullable<Endpoints.get_Get_roles['parameters']['query']>
+
+export type RolesFilter = Omit<RolesQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const ROLE_SEARCH_LIMIT = 20
+
+const SEARCH_DEBOUNCE_MS = 300
+
+export const useGetRoles = ({
+  realm,
+  query,
+  enabled = true,
+}: BaseQuery & { query?: RolesQuery; enabled?: boolean }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/roles', {
       path: {
-        realm_name: realm,
+        realm_name: realm || 'master',
       },
-    }).queryOptions
-  )
+      query: query ?? {},
+    }).queryOptions,
+    enabled,
+  })
+}
+
+export const useRoleCount = ({ realm, filter }: BaseQuery & { filter?: RolesFilter }) => {
+  const { data, isLoading } = useGetRoles({ realm, query: { ...filter, limit: 1 } })
+  return { count: data?.metadata.total ?? 0, isLoading }
+}
+
+const combineRoles = (results: UseQueryResult<Schemas.Paginated_Role>[]) => ({
+  roles: results.flatMap((result) => result.data?.data ?? []),
+  isLoading: results.some((result) => result.isLoading),
+})
+
+export const useRolesByIds = ({ realm, ids }: BaseQuery & { ids: readonly string[] }) => {
+  const batches = useMemo(() => idBatches(ids), [ids])
+  return useQueries({
+    queries: batches.map((batch) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/roles', {
+        path: { realm_name: realm || 'master' },
+        query: { ids: batch, limit: USER_IDS_BATCH },
+      }).queryOptions,
+    })),
+    combine: combineRoles,
+  })
+}
+
+export const useRoleSearch = ({
+  realm,
+  filter,
+  enabled = true,
+}: BaseQuery & { filter?: RolesFilter; enabled?: boolean }) => {
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data, isLoading } = useGetRoles({
+    realm,
+    query: {
+      ...filter,
+      name: debounced || undefined,
+      order_by: 'name',
+      order: 'asc',
+      limit: ROLE_SEARCH_LIMIT,
+    },
+    enabled,
+  })
+
+  return {
+    search,
+    setSearch,
+    roles: data?.data ?? [],
+    isLoading,
+  }
 }
 
 export const useGetRole = ({ realm, roleId }: BaseQuery & { roleId?: string }) => {
@@ -86,6 +166,7 @@ export const useCreateRole = () => {
         path: {
           realm_name: variables.realmName,
         },
+        query: {},
       })
       await queryClient.invalidateQueries({ queryKey })
 
@@ -167,6 +248,7 @@ export const useDeleteRole = () => {
         path: {
           realm_name: variables.path.realm_name,
         },
+        query: {},
       })
       await queryClient.invalidateQueries({
         queryKey: [...queryKey],
