@@ -93,9 +93,113 @@ mod tests {
         viewer_token: String,
         realm: String,
         other_realm: String,
+        apps_realm: String,
         seeds: Vec<Seed>,
         foreign_client_id: Uuid,
     }
+
+    struct App {
+        name: &'static str,
+        service_account: bool,
+        device_grant: Option<bool>,
+        client_type: &'static str,
+        public_client: bool,
+        redirect: bool,
+        expected: &'static str,
+    }
+
+    const APPS: [App; 10] = [
+        App {
+            name: "m2m-a",
+            service_account: true,
+            device_grant: Some(true),
+            client_type: "confidential",
+            public_client: false,
+            redirect: false,
+            expected: "m2m",
+        },
+        App {
+            name: "m2m-b",
+            service_account: true,
+            device_grant: None,
+            client_type: "public",
+            public_client: true,
+            redirect: true,
+            expected: "m2m",
+        },
+        App {
+            name: "device-a",
+            service_account: false,
+            device_grant: Some(true),
+            client_type: "public",
+            public_client: true,
+            redirect: false,
+            expected: "device",
+        },
+        App {
+            name: "device-b",
+            service_account: false,
+            device_grant: Some(true),
+            client_type: "confidential",
+            public_client: false,
+            redirect: false,
+            expected: "device",
+        },
+        App {
+            name: "spa-a",
+            service_account: false,
+            device_grant: Some(true),
+            client_type: "public",
+            public_client: true,
+            redirect: true,
+            expected: "spa",
+        },
+        App {
+            name: "spa-b",
+            service_account: false,
+            device_grant: None,
+            client_type: "public",
+            public_client: true,
+            redirect: false,
+            expected: "spa",
+        },
+        App {
+            name: "native-a",
+            service_account: false,
+            device_grant: Some(false),
+            client_type: "public",
+            public_client: false,
+            redirect: true,
+            expected: "native",
+        },
+        App {
+            name: "web-a",
+            service_account: false,
+            device_grant: Some(false),
+            client_type: "confidential",
+            public_client: false,
+            redirect: true,
+            expected: "web",
+        },
+        App {
+            name: "web-b",
+            service_account: false,
+            device_grant: None,
+            client_type: "system",
+            public_client: false,
+            redirect: false,
+            expected: "web",
+        },
+        App {
+            name: "web-c",
+            service_account: false,
+            device_grant: Some(true),
+            client_type: "confidential",
+            public_client: true,
+            redirect: true,
+            expected: "web",
+        },
+    ];
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
     static CTX: std::sync::OnceLock<SharedContext> = std::sync::OnceLock::new();
@@ -197,14 +301,23 @@ mod tests {
         create_realm(&server, &admin_token, &realm).await;
         create_realm(&server, &admin_token, &other_realm).await;
 
+        let apps_realm = format!("apps-{}", &suffix[..8]);
+        create_realm(&server, &admin_token, &apps_realm).await;
+
         let realm_id = realm_id_of(&pool, &realm).await;
         let other_realm_id = realm_id_of(&pool, &other_realm).await;
+        let apps_realm_id = realm_id_of(&pool, &apps_realm).await;
 
-        sqlx::query("DELETE FROM clients WHERE realm_id = $1::uuid")
-            .bind(realm_id.to_string())
-            .execute(&pool)
-            .await
-            .expect("clear the default clients of the listed realm");
+        for cleared in [realm_id, apps_realm_id] {
+            sqlx::query("DELETE FROM clients WHERE realm_id = $1::uuid")
+                .bind(cleared.to_string())
+                .execute(&pool)
+                .await
+                .expect("clear the default clients of a seeded realm");
+        }
+        for app in &APPS {
+            insert_app(&pool, apps_realm_id, app).await;
+        }
 
         let seeds: Vec<Seed> = (0..SEED_COUNT).map(Seed::new).collect();
         for (i, seed) in seeds.iter().enumerate() {
@@ -261,8 +374,39 @@ mod tests {
             viewer_token,
             realm,
             other_realm,
+            apps_realm,
             seeds,
             foreign_client_id,
+        }
+    }
+
+    async fn insert_app(pool: &PgPool, realm_id: Uuid, app: &App) {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO clients (id, realm_id, name, client_id, enabled, protocol, public_client, service_account_enabled, oauth_device_code_grant_enabled, client_type, created_at, updated_at) \
+             VALUES ($1::uuid, $2::uuid, $3, $3, true, 'openid-connect', $4, $5, $6, $7, now(), now())",
+        )
+        .bind(id.to_string())
+        .bind(realm_id.to_string())
+        .bind(app.name)
+        .bind(app.public_client)
+        .bind(app.service_account)
+        .bind(app.device_grant)
+        .bind(app.client_type)
+        .execute(pool)
+        .await
+        .expect("insert application");
+
+        if app.redirect {
+            sqlx::query(
+                "INSERT INTO redirect_uris (id, client_id, value, enabled, created_at, updated_at) \
+                 VALUES ($1::uuid, $2::uuid, 'https://app.test/callback', true, now(), now())",
+            )
+            .bind(Uuid::new_v4().to_string())
+            .bind(id.to_string())
+            .execute(pool)
+            .await
+            .expect("insert application redirect uri");
         }
     }
 
@@ -655,6 +799,12 @@ mod tests {
                 "name=client-1&enabled=true&public_client=false",
                 matching(|s| s.name.contains("client-1") && s.enabled && !s.public_client),
             ),
+            ("search=CLIENT-1", matching(|s| s.name.contains("client-1"))),
+            ("search=APP-0", matching(|s| s.client_id.contains("app-0"))),
+            (
+                "search=client-1&enabled=true",
+                matching(|s| s.name.contains("client-1") && s.enabled),
+            ),
             ("name=", matching(|_| true)),
         ];
 
@@ -756,6 +906,15 @@ mod tests {
             assert_eq!(names(&underscore), ["under_client"]);
             assert_eq!(total(&underscore), 1);
 
+            let witness = list_ok(&server, &ctx().other_realm, "search=pctx").await;
+            assert_eq!(names(&witness), ["pctxclient"]);
+            let percent = list_ok(&server, &ctx().other_realm, "search=%25").await;
+            assert_eq!(names(&percent), ["pct%client"]);
+            assert_eq!(total(&percent), 1);
+            let through_client_id = list_ok(&server, &ctx().other_realm, "search=pct%25id").await;
+            assert_eq!(names(&through_client_id), ["pct%client"]);
+            assert_eq!(total(&through_client_id), 1);
+
             let witness = list_ok(&server, &ctx().other_realm, "name=backx").await;
             assert_eq!(names(&witness), ["backxclient"]);
             let backslash = list_ok(&server, &ctx().other_realm, "name=%5C").await;
@@ -850,6 +1009,11 @@ mod tests {
                 ("public_client=maybe", "public_client"),
                 ("protocol=oauth", "protocol"),
                 ("client_type=robot", "client_type"),
+                ("application_type=robot", "application_type"),
+                (
+                    "oauth_device_code_grant_enabled=maybe",
+                    "oauth_device_code_grant_enabled",
+                ),
                 ("has_redirect_uris=maybe", "has_redirect_uris"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
@@ -862,6 +1026,67 @@ mod tests {
                     response.text()
                 );
             }
+        });
+    }
+
+    fn app_names(predicate: impl Fn(&App) -> bool) -> Vec<String> {
+        let mut names: Vec<String> = APPS
+            .iter()
+            .filter(|app| predicate(app))
+            .map(|app| app.name.to_string())
+            .collect();
+        names.sort();
+        names
+    }
+
+    async fn sorted_names(server: &TestServer, query: &str) -> (Vec<String>, u64) {
+        let body = list_ok(server, &ctx().apps_realm, &format!("{query}&limit=100")).await;
+        let mut found = names(&body);
+        found.sort();
+        (found, total(&body))
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test clients_listing_test -- --ignored"]
+    fn every_application_type_returns_exactly_its_clients() {
+        let server = make_server();
+        rt().block_on(async {
+            let (everything, all) = sorted_names(&server, "").await;
+            assert_eq!(everything, app_names(|_| true));
+            assert_eq!(all, APPS.len() as u64);
+
+            for kind in ["m2m", "device", "spa", "native", "web"] {
+                let expected = app_names(|app| app.expected == kind);
+                assert!(!expected.is_empty(), "{kind}: the fixture covers this type");
+                let (found, count) =
+                    sorted_names(&server, &format!("application_type={kind}")).await;
+                assert_eq!(found, expected, "{kind}: rows");
+                assert_eq!(count, expected.len() as u64, "{kind}: total");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test clients_listing_test -- --ignored"]
+    fn the_device_grant_filter_treats_unset_as_disabled() {
+        let server = make_server();
+        rt().block_on(async {
+            let (on, _) = sorted_names(&server, "oauth_device_code_grant_enabled=true").await;
+            assert_eq!(on, app_names(|app| app.device_grant == Some(true)));
+            let (off, _) = sorted_names(&server, "oauth_device_code_grant_enabled=false").await;
+            assert_eq!(off, app_names(|app| app.device_grant != Some(true)));
+
+            let (missing_callback, count) = sorted_names(
+                &server,
+                "service_account_enabled=false&oauth_device_code_grant_enabled=false&has_redirect_uris=false",
+            )
+            .await;
+            let expected = app_names(|app| {
+                !app.service_account && app.device_grant != Some(true) && !app.redirect
+            });
+            assert!(!expected.is_empty());
+            assert_eq!(missing_callback, expected);
+            assert_eq!(count, expected.len() as u64);
         });
     }
 }

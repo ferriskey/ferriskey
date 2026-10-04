@@ -226,16 +226,29 @@ impl RealmOwned for Client {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClientFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub client_id: Option<String>,
     pub enabled: Option<bool>,
     pub public_client: Option<bool>,
     pub service_account_enabled: Option<bool>,
+    pub oauth_device_code_grant_enabled: Option<bool>,
     pub protocol: Option<AuthProtocol>,
     pub client_type: Option<ClientType>,
+    pub application_type: Option<ApplicationType>,
     pub has_redirect_uris: Option<bool>,
     pub maintenance_enabled: Option<bool>,
     pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplicationType {
+    M2m,
+    Device,
+    Spa,
+    Native,
+    Web,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
