@@ -24,12 +24,15 @@ mod tests {
     const VIEWER_PASSWORD: &str = "V1ewer-Tenant-Pw!";
     const SEED_COUNT: usize = 25;
     const SORT_FIELDS: [&str; 3] = ["username", "email", "created_at"];
+    const PERCENT_EMAIL_SEED: usize = 3;
+    const X_EMAIL_SEED: usize = 4;
+    const NULL_EMAIL_SEED: usize = 10;
 
     struct Seed {
         id: Uuid,
         user_id: Uuid,
         username: String,
-        email: String,
+        email: Option<String>,
         enabled: bool,
         created_minute: i32,
     }
@@ -45,7 +48,7 @@ mod tests {
                 id: Uuid::new_v4(),
                 user_id: Uuid::new_v4(),
                 username: format!("member-{i:02}"),
-                email: format!("mail{:02}@{domain}", (i * 7) % SEED_COUNT),
+                email: email_of(i, domain),
                 enabled: !i.is_multiple_of(4),
                 created_minute: i32::try_from(i / 3).expect("small index"),
             }
@@ -54,16 +57,35 @@ mod tests {
         fn key(&self, field: &str) -> SortKey {
             match field {
                 "username" => SortKey::Text(self.username.clone()),
-                "email" => SortKey::Text(self.email.clone()),
+                "email" => {
+                    SortKey::Nullable(self.email.is_none(), self.email.clone().unwrap_or_default())
+                }
                 "created_at" => SortKey::Minute(self.created_minute),
                 other => panic!("no sort key for {other}"),
             }
         }
     }
 
+    fn email_of(i: usize, domain: &str) -> Option<String> {
+        let tag = match i {
+            NULL_EMAIL_SEED => return None,
+            PERCENT_EMAIL_SEED => "%",
+            X_EMAIL_SEED => "x",
+            _ => "",
+        };
+        Some(format!("mail{:02}{tag}@{domain}", (i * 7) % SEED_COUNT))
+    }
+
+    fn email_has(seed: &Seed, needle: &str) -> bool {
+        seed.email
+            .as_deref()
+            .is_some_and(|email| email.contains(needle))
+    }
+
     #[derive(PartialEq, Eq, PartialOrd, Ord)]
     enum SortKey {
         Text(String),
+        Nullable(bool, String),
         Minute(i32),
     }
 
@@ -199,7 +221,7 @@ mod tests {
                 realm_id,
                 seed.user_id,
                 &seed.username,
-                Some(&seed.email),
+                seed.email.as_deref(),
                 seed.enabled,
                 user_minute,
             )
@@ -681,7 +703,7 @@ mod tests {
             assert_eq!(first["user_id"], seed.user_id.to_string());
             assert_eq!(first["group_id"], ctx().group_id.to_string());
             assert_eq!(first["username"], seed.username);
-            assert_eq!(first["email"], seed.email);
+            assert_eq!(first["email"], json!(seed.email));
             assert_eq!(first["enabled"], seed.enabled);
         });
     }
@@ -714,6 +736,14 @@ mod tests {
                     assert_eq!(second["metadata"]["prev_page"], 1, "{query}");
                 }
             }
+
+            let null_email = ctx().seeds[NULL_EMAIL_SEED].id;
+            let ascending = list_main(&server, "order_by=email&order=asc&page=2").await;
+            assert_eq!(ids(&ascending).last(), Some(&null_email));
+            assert_eq!(ascending["data"][4]["email"], Value::Null);
+            let descending = list_main(&server, "order_by=email&order=desc").await;
+            assert_eq!(ids(&descending).first(), Some(&null_email));
+            assert_eq!(descending["data"][0]["email"], Value::Null);
         });
     }
 
@@ -726,8 +756,8 @@ mod tests {
                 "username=MEMBER-1",
                 matching(|s| s.username.contains("member-1")),
             ),
-            ("email=CORP", matching(|s| s.email.contains("corp"))),
-            ("email=mail0", matching(|s| s.email.contains("mail0"))),
+            ("email=CORP", matching(|s| email_has(s, "corp"))),
+            ("email=mail0", matching(|s| email_has(s, "mail0"))),
             ("enabled=true", matching(|s| s.enabled)),
             ("enabled=false", matching(|s| !s.enabled)),
             (
@@ -736,7 +766,7 @@ mod tests {
             ),
             (
                 "username=member-2&email=example",
-                matching(|s| s.username.contains("member-2") && s.email.contains("example")),
+                matching(|s| s.username.contains("member-2") && email_has(s, "example")),
             ),
             ("username=", matching(|_| true)),
         ];
@@ -898,10 +928,12 @@ mod tests {
             assert_eq!(usernames(&backslash), ["back\\slash"]);
             assert_eq!(total(&backslash), 1);
 
-            let email_witness = list_main(&server, "email=mail&limit=100").await;
-            assert_eq!(total(&email_witness), SEED_COUNT as u64);
+            let seeds = &ctx().seeds;
+            let email_witness = list_main(&server, "email=x%40").await;
+            assert_eq!(ids(&email_witness), [seeds[X_EMAIL_SEED].id]);
             let email_percent = list_main(&server, "email=%25").await;
-            assert_eq!(total(&email_percent), 0, "{email_percent}");
+            assert_eq!(ids(&email_percent), [seeds[PERCENT_EMAIL_SEED].id]);
+            assert_eq!(total(&email_percent), 1);
         });
     }
 
