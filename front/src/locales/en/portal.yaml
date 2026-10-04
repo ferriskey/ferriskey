@@ -233,6 +233,7 @@ detail:
       label: Portal layout
       description: Optional. Without a layout the portal renders the page tree on its own.
     option_none: No layout — render the page bare
+    default: default
     locked: While this theme uses it, “{{name}}” cannot be deleted.
     detaching: >-
       Saving detaches “{{name}}” from this theme; it becomes deletable unless another theme holds

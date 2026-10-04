@@ -1,5 +1,6 @@
 import { useParams } from 'react-router'
 import type { RelationOption, RelationSource } from '@/components/kit'
+import { translate } from '@/lib/i18n'
 import { RouterParams } from '@/routes/router'
 import type { Schemas } from './api.client'
 import {
@@ -11,6 +12,7 @@ import {
 const toOption = (layout: Schemas.PortalLayout): RelationOption => ({
   id: layout.id,
   label: layout.name,
+  sublabel: layout.is_default ? translate('portal:detail.layout.default') : undefined,
 })
 
 function useRealm() {

@@ -34,13 +34,9 @@ export default function ThemeLayoutTab({
             value={layoutId === NO_LAYOUT ? undefined : layoutId}
             onChange={(id) => onLayoutChange(id ?? NO_LAYOUT)}
             label={t('detail.layout.field.label')}
+            noneLabel={t('detail.layout.option_none')}
           />
 
-          {layoutId === NO_LAYOUT && (
-            <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
-              {t('detail.layout.option_none')}
-            </p>
-          )}
           {selectedName && (
             <p className='mt-1.5 text-xs text-neutral-400 dark:text-neutral-500'>
               {t('detail.layout.locked', { name: selectedName })}
