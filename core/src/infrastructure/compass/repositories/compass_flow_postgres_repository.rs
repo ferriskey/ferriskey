@@ -146,6 +146,10 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
             CoreError::InternalServerError
         })?;
 
+        if models.is_empty() {
+            return Ok(Page::new(Vec::new(), total, request.page, request.limit));
+        }
+
         let flow_ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
         let mut steps = compass_flow_steps::Entity::find()
             .filter(compass_flow_steps::Column::FlowId.is_in(flow_ids))
