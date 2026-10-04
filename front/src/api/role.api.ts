@@ -10,7 +10,7 @@ import {
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
-import { USER_IDS_BATCH, idBatches } from './user-ids'
+import { ID_BATCH, idBatches } from './id-batches'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 
@@ -38,6 +38,15 @@ export type RolesQuery = NonNullable<Endpoints.get_Get_roles['parameters']['quer
 export type RolesFilter = Omit<RolesQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const ROLE_SEARCH_LIMIT = 20
+
+export const ROLE_FILTER_KEYS = [
+  'name',
+  'description',
+  'require_mfa',
+  'client_id',
+  'scope',
+  'has_permissions',
+] as const
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -73,7 +82,7 @@ export const useRolesByIds = ({ realm, ids }: BaseQuery & { ids: readonly string
     queries: batches.map((batch) => ({
       ...window.tanstackApi.get('/realms/{realm_name}/roles', {
         path: { realm_name: realm || 'master' },
-        query: { ids: batch, limit: USER_IDS_BATCH },
+        query: { ids: batch, limit: ID_BATCH },
       }).queryOptions,
     })),
     combine: combineRoles,

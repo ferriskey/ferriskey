@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { USER_IDS_BATCH, idBatches } from './user-ids.ts'
+import { ID_BATCH, idBatches } from './id-batches.ts'
 
 const id = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`
 
@@ -14,12 +14,12 @@ test('duplicates collapse and order is stable', () => {
 })
 
 test('ids split into batches of at most the page limit', () => {
-  const ids = Array.from({ length: 2 * USER_IDS_BATCH + 1 }, (_, n) => id(n))
+  const ids = Array.from({ length: 2 * ID_BATCH + 1 }, (_, n) => id(n))
   const batches = idBatches(ids)
   assert.equal(batches.length, 3)
   assert.deepEqual(
     batches.map((batch) => batch.split(',').length),
-    [USER_IDS_BATCH, USER_IDS_BATCH, 1]
+    [ID_BATCH, ID_BATCH, 1]
   )
-  assert.equal(USER_IDS_BATCH, 100)
+  assert.equal(ID_BATCH, 100)
 })
