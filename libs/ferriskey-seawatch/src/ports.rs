@@ -3,19 +3,21 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::scope::Unscoped;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
+use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::SecurityEvent;
 use super::hashing::VerifyResult;
-use super::value_objects::{FetchEventsInput, SecurityEventFilter};
+use super::value_objects::{SecurityEventFilter, SecurityEventSortField};
 
 pub trait SecurityEventService: Send + Sync {
-    fn fetch_events(
+    fn list_events(
         &self,
         identity: Identity,
-        input: FetchEventsInput,
-    ) -> impl Future<Output = Result<Vec<SecurityEvent>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<SecurityEventFilter, SecurityEventSortField>,
+    ) -> impl Future<Output = Result<Page<SecurityEvent>, CoreError>> + Send;
 
     fn verify_realm_chain(
         &self,
@@ -38,22 +40,16 @@ pub trait SecurityEventRepository: Send + Sync {
         event: SecurityEvent,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn get_events(
+    fn list(
         &self,
-        realm_id: RealmId,
-        filter: SecurityEventFilter,
-    ) -> impl Future<Output = Result<Vec<SecurityEvent>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<SecurityEventFilter, SecurityEventSortField>,
+    ) -> impl Future<Output = Result<Page<SecurityEvent>, CoreError>> + Send;
 
     fn get_by_id(
         &self,
         id: Uuid,
     ) -> impl Future<Output = Result<Unscoped<SecurityEvent>, CoreError>> + Send;
-
-    fn count_events(
-        &self,
-        realm_id: Uuid,
-        filter: SecurityEventFilter,
-    ) -> impl Future<Output = Result<i64, CoreError>> + Send;
 
     /// Return all events for the realm ordered by insertion (created_at ASC) for
     /// chain verification.

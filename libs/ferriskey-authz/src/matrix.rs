@@ -1718,7 +1718,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 270,
     },
     AuthzRow {
-        service_fn: "fetch_events",
+        service_fn: "list_events",
         policy_fn: "can_view_events",
         action: actions::SECURITY_EVENT_READ,
         resource: EntityType::REALM,
@@ -1729,7 +1729,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-seawatch/src/services.rs",
-        line: 67,
+        line: 69,
     },
     AuthzRow {
         service_fn: "verify_realm_chain",
@@ -1739,7 +1739,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageEvents],
         self_bypass: false,
         file: "libs/ferriskey-seawatch/src/services.rs",
-        line: 87,
+        line: 84,
     },
     AuthzRow {
         service_fn: "list_webhooks",

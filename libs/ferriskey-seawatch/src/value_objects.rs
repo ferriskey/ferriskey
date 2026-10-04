@@ -1,18 +1,29 @@
-use super::entities::SecurityEventType;
+use super::entities::{EventStatus, SecurityEventType};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SecurityEventFilter {
-    pub user_id: Option<Uuid>,
     pub client_id: Option<Uuid>,
     pub actor_id: Option<Uuid>,
     pub event_types: Option<Vec<SecurityEventType>>,
+    pub status: Option<EventStatus>,
+    pub target_type: Option<String>,
     pub from_timestamp: Option<DateTime<Utc>>,
     pub to_timestamp: Option<DateTime<Utc>>,
     pub ip_address: Option<String>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SecurityEventSortField {
+    EventType,
+    Status,
+    Timestamp,
+    #[default]
+    CreatedAt,
 }
 
 #[derive(Debug, Clone)]
@@ -27,25 +38,4 @@ pub enum ExportFormat {
     Json,
     Csv,
     Xlsx,
-}
-
-impl Default for SecurityEventFilter {
-    fn default() -> Self {
-        Self {
-            user_id: None,
-            actor_id: None,
-            client_id: None,
-            event_types: None,
-            from_timestamp: None,
-            to_timestamp: None,
-            ip_address: None,
-            limit: Some(100),
-            offset: Some(0),
-        }
-    }
-}
-
-pub struct FetchEventsInput {
-    pub realm_name: String,
-    pub filter: SecurityEventFilter,
 }
