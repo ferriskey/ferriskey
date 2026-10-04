@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use ferriskey_core::domain::abyss::federation::{
-    entities::{FederationProvider, FederationProviderFilter},
+    entities::{FederationProvider, FederationProviderFamily, FederationProviderFilter},
     value_objects::{SyncResult, TestConnectionResult},
 };
 use serde::{Deserialize, Serialize};
@@ -134,6 +134,8 @@ pub struct FederationProviderListParams {
     pub name: Option<String>,
     #[param(example = "Ldap")]
     pub provider_type: Option<String>,
+    #[param(inline)]
+    pub provider_family: Option<FederationProviderFamily>,
     pub enabled: Option<bool>,
     pub sync_enabled: Option<bool>,
     pub synced: Option<bool>,
@@ -147,6 +149,7 @@ impl From<FederationProviderListParams> for FederationProviderFilter {
             enabled: params.enabled,
             sync_enabled: params.sync_enabled,
             synced: params.synced,
+            provider_family: params.provider_family,
         }
     }
 }

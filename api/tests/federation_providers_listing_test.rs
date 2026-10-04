@@ -739,6 +739,21 @@ mod tests {
                 "name=fed-1&provider_type=Kerberos",
                 matching(|s| s.name.contains("fed-1") && s.provider_type == "Kerberos"),
             ),
+            (
+                "provider_family=ldap",
+                matching(|s| s.provider_type == "Ldap" || s.provider_type == "ActiveDirectory"),
+            ),
+            (
+                "provider_family=kerberos",
+                matching(|s| s.provider_type == "Kerberos"),
+            ),
+            (
+                "provider_family=ldap&enabled=false",
+                matching(|s| {
+                    (s.provider_type == "Ldap" || s.provider_type == "ActiveDirectory")
+                        && !s.enabled
+                }),
+            ),
             ("name=", matching(|_| true)),
         ];
 
@@ -915,6 +930,8 @@ mod tests {
                 ("enabled=maybe", "enabled"),
                 ("sync_enabled=maybe", "sync_enabled"),
                 ("synced=maybe", "synced"),
+                ("provider_family=Ldap", "provider_family"),
+                ("provider_family=custom", "provider_family"),
                 ("name=a&name=b", "name"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;

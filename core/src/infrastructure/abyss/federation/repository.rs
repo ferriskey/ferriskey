@@ -47,6 +47,16 @@ fn listing_select(
         .apply_if(filter.provider_type.as_deref(), |select, value| {
             select.filter(Column::ProviderType.eq(value))
         })
+        .apply_if(filter.provider_family, |select, family| {
+            select.filter(
+                Column::ProviderType.is_in(
+                    family
+                        .provider_types()
+                        .iter()
+                        .map(FederationType::to_string),
+                ),
+            )
+        })
         .apply_if(filter.enabled, |select, value| {
             select.filter(Column::Enabled.eq(value))
         })
@@ -408,7 +418,9 @@ mod tests {
     use uuid::Uuid;
 
     use super::listing_select;
-    use crate::domain::abyss::federation::entities::FederationProviderFilter;
+    use crate::domain::abyss::federation::entities::{
+        FederationProviderFamily, FederationProviderFilter,
+    };
 
     fn sql(filter: &FederationProviderFilter) -> String {
         listing_select(Uuid::nil(), filter)
@@ -460,6 +472,29 @@ mod tests {
         assert!(
             sql.contains(r#""user_federation_providers"."sync_enabled" = TRUE"#),
             "{sql}"
+        );
+    }
+
+    #[test]
+    fn provider_family_lists_its_stored_types() {
+        let ldap = sql(&FederationProviderFilter {
+            provider_family: Some(FederationProviderFamily::Ldap),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            ldap.contains(
+                r#""user_federation_providers"."provider_type" IN ('Ldap', 'ActiveDirectory')"#
+            ),
+            "{ldap}"
+        );
+
+        let kerberos = sql(&FederationProviderFilter {
+            provider_family: Some(FederationProviderFamily::Kerberos),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            kerberos.contains(r#""user_federation_providers"."provider_type" IN ('Kerberos')"#),
+            "{kerberos}"
         );
     }
 

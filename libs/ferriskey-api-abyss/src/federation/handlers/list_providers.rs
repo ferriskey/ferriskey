@@ -20,7 +20,7 @@ use ferriskey_api_core::app_state::AppState;
     get,
     path = "/federation/providers",
     summary = "List the federation providers of a realm",
-    description = "Returns one page of the realm's user federation providers. The name filter matches case-insensitively anywhere in the value; provider_type, enabled and sync_enabled match exactly; synced=true keeps providers that have synchronized at least once, synced=false keeps the ones that never did. Filters combine with AND. Sorting on last_sync_at puts never-synchronized providers last in ascending order and first in descending order. Bind credentials stay masked.",
+    description = "Returns one page of the realm's user federation providers. The name filter matches case-insensitively anywhere in the value; provider_type is an exact, case-sensitive match on the stored type (Ldap, ActiveDirectory, Kerberos), so an unknown or custom value returns an empty page; enabled and sync_enabled match exactly; provider_family=ldap keeps Ldap and ActiveDirectory providers, provider_family=kerberos keeps Kerberos providers; synced=true keeps providers that have synchronized at least once, synced=false keeps the ones that never did. Filters combine with AND. Sorting on last_sync_at puts never-synchronized providers last in ascending order and first in descending order. Bind credentials stay masked.",
     responses(
         (status = 200, description = "One page of federation providers", body = Paginated<ProviderResponse>),
         (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
@@ -56,7 +56,9 @@ pub async fn list_providers(
 #[cfg(test)]
 mod tests {
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
-    use ferriskey_core::domain::abyss::federation::entities::FederationProviderFilter;
+    use ferriskey_core::domain::abyss::federation::entities::{
+        FederationProviderFamily, FederationProviderFilter,
+    };
     use ferriskey_core::domain::common::pagination::SortOrder;
 
     use super::*;
@@ -64,7 +66,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<FederationProviderListParams, FederationProviderSortField>(
-            "order_by=last_sync_at&order=asc&name=corp&provider_type=Ldap&enabled=false&sync_enabled=true&synced=false",
+            "order_by=last_sync_at&order=asc&name=corp&provider_type=Ldap&provider_family=ldap&enabled=false&sync_enabled=true&synced=false",
         )
         .expect("valid query");
 
@@ -78,6 +80,7 @@ mod tests {
                 enabled: Some(false),
                 sync_enabled: Some(true),
                 synced: Some(false),
+                provider_family: Some(FederationProviderFamily::Ldap),
             }
         );
     }
@@ -110,6 +113,8 @@ mod tests {
             "order_by=sync_mode",
             "enabled=maybe",
             "synced=never",
+            "provider_family=Ldap",
+            "provider_family=custom",
         ] {
             assert!(
                 parse_list_query::<FederationProviderListParams, FederationProviderSortField>(
