@@ -16,9 +16,10 @@ use crate::{
             ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
             ListOrganizationAttributesInput, ListOrganizationMembersInput,
             ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
-            OrganizationMember, OrganizationMemberRoleService, OrganizationService,
-            OrganizationSortField, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
-            RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput, UpdateOrganizationInput,
+            OrganizationMember, OrganizationMemberFilter, OrganizationMemberRoleService,
+            OrganizationMemberSortField, OrganizationService, OrganizationSortField,
+            RemoveGroupMemberInput, RemoveOrganizationMemberInput, RevokeGroupRoleInput,
+            RevokeMemberRoleInput, UpdateGroupInput, UpdateOrganizationInput,
             UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
         },
         role::entities::Role,
@@ -129,9 +130,10 @@ impl OrganizationService for ApplicationService {
         &self,
         identity: Identity,
         input: ListOrganizationMembersInput,
-    ) -> Result<Vec<OrganizationMember>, CoreError> {
+        request: PageRequest<OrganizationMemberFilter, OrganizationMemberSortField>,
+    ) -> Result<Page<OrganizationMember>, CoreError> {
         self.organization_service
-            .list_members(identity, input)
+            .list_members(identity, input, request)
             .await
     }
 
