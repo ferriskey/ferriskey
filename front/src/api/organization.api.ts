@@ -344,6 +344,7 @@ export const useRemoveUserFromOrganization = () => {
             variables.path.organization_id
           ),
         }),
+        queryClient.invalidateQueries({ queryKey: realmUsersKey(variables.path.realm_name) }),
         queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) }),
       ])
     },
