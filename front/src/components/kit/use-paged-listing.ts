@@ -20,19 +20,32 @@ export interface PagedListing {
   clearFilters: () => void
 }
 
+export type ListingParamsUpdate = (next: (current: URLSearchParams) => URLSearchParams) => void
+
 export function usePagedListing(filterKeys: readonly string[], delay = 300): PagedListing {
   const [params, setParams] = useSearchParams()
+  const update = useCallback<ListingParamsUpdate>(
+    (next) => setParams(next(new URLSearchParams(window.location.search)), { replace: true }),
+    [setParams],
+  )
+  return usePagedListingWith(params, update, filterKeys, delay)
+}
+
+export function usePagedListingWith(
+  params: URLSearchParams,
+  update: ListingParamsUpdate,
+  filterKeys: readonly string[],
+  delay = 300,
+): PagedListing {
   const state = useMemo(() => readListingState(params, filterKeys), [params, filterKeys])
   const [pending, setPending] = useState<Record<string, string>>({})
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const drafts = useMemo(() => ({ ...state.filters, ...pending }), [state.filters, pending])
 
   const commit = useCallback(
-    (patch: Partial<ListingState>) => {
-      const current = new URLSearchParams(window.location.search)
-      setParams(writeListingState(current, patch, filterKeys), { replace: true })
-    },
-    [setParams, filterKeys],
+    (patch: Partial<ListingState>) =>
+      update((current) => writeListingState(current, patch, filterKeys)),
+    [update, filterKeys],
   )
 
   const settle = useCallback((keys: readonly string[]) => {
