@@ -800,7 +800,6 @@ export namespace Schemas {
     value: string;
   };
   export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> };
-  export type ListPortalLayoutsResponse = { data: Array<PortalLayout> };
   export type LogoutRequestValidator = Partial<{
     client_id: string | null;
     id_token_hint: string | null;
@@ -985,6 +984,10 @@ export namespace Schemas {
       redirect_url?: (string | null) | undefined;
       updated_at: string;
     }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_PortalLayoutListItem = {
+    data: Array<PortalLayout & { theme_count: number }>;
     metadata: PageMetadata;
   };
   export type Paginated_PortalTheme = {
@@ -1199,6 +1202,7 @@ export namespace Schemas {
     | "view_email_templates"
     | "manage_organizations"
     | "view_organizations";
+  export type PortalLayoutListItem = PortalLayout & { theme_count: number };
   export type PostConsentRequest = { approved_scopes?: Array<string> | undefined; consent_token: string };
   export type PostConsentResponse = { redirect_url: string };
   export type ProtocolMapper = {
@@ -3647,12 +3651,24 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/portal-layouts";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        is_default: boolean;
+        in_use: boolean;
+        ids: string;
+        order_by: "name" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.ListPortalLayoutsResponse;
+      200: Schemas.Paginated_PortalLayoutListItem;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };
