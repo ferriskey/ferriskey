@@ -7,7 +7,8 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::scope::Unscoped;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
+use ferriskey_domain::realm::scope::{RealmScope, Unscoped};
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use crate::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
@@ -15,15 +16,18 @@ use crate::entities::webhook_delivery::{
     DeliveryFilter, DeliveryOutcome, DeliveryPage, WebhookDelivery, WebhookDeliveryId,
 };
 use crate::entities::{
-    webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
+    webhook::{Webhook, WebhookFilter, WebhookSortField},
+    webhook_payload::WebhookPayload,
+    webhook_trigger::WebhookTrigger,
 };
 
 pub trait WebhookService: Send + Sync {
-    fn get_webhooks_by_realm(
+    fn list_webhooks(
         &self,
         identity: Identity,
-        input: GetWebhooksInput,
-    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<WebhookFilter, WebhookSortField>,
+    ) -> impl Future<Output = Result<Page<Webhook>, CoreError>> + Send;
 
     fn get_webhooks_by_subscribers(
         &self,
@@ -82,10 +86,11 @@ pub trait WebhookService: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait WebhookRepository: Send + Sync {
-    fn fetch_webhooks_by_realm(
+    fn list(
         &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Vec<Webhook>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<WebhookFilter, WebhookSortField>,
+    ) -> impl Future<Output = Result<Page<Webhook>, CoreError>> + Send;
 
     fn fetch_webhooks_by_subscriber(
         &self,
@@ -225,10 +230,6 @@ pub trait WebhookPolicy: Send + Sync {
         identity: &Identity,
         target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-}
-
-pub struct GetWebhooksInput {
-    pub realm_name: String,
 }
 
 pub struct GetWebhookInput {

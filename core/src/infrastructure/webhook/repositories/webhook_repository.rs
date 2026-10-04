@@ -1,25 +1,31 @@
 use std::collections::HashMap;
 
 use ferriskey_domain::realm::RealmId;
+use ferriskey_domain::realm::scope::RealmScope;
 use ferriskey_webhook::signing::generate_secret;
 use serde::Serialize;
 use serde_json::to_value;
 use uuid::Uuid;
 
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::{
     common::entities::app_errors::CoreError,
     webhook::{
         entities::{
-            webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
+            webhook::{Webhook, WebhookFilter, WebhookSortField},
+            webhook_payload::WebhookPayload,
+            webhook_trigger::WebhookTrigger,
         },
         ports::WebhookRepository,
     },
 };
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, RelationTrait,
+    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
+    RelationTrait, Select,
 };
 use tokio::sync::mpsc;
 use tracing::{error, warn};
@@ -81,18 +87,106 @@ impl PostgresWebhookRepository {
     }
 }
 
-impl WebhookRepository for PostgresWebhookRepository {
-    async fn fetch_webhooks_by_realm(&self, realm_id: RealmId) -> Result<Vec<Webhook>, CoreError> {
-        let webhooks = WebhookEntity::find()
-            .filter(WebhookColumn::RealmId.eq::<Uuid>(realm_id.into()))
-            .all(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .iter()
-            .map(Webhook::from)
-            .collect::<Vec<Webhook>>();
+impl SortColumn<WebhookEntity> for WebhookSortField {
+    fn column(&self) -> WebhookColumn {
+        match self {
+            WebhookSortField::Name => WebhookColumn::Name,
+            WebhookSortField::Endpoint => WebhookColumn::Endpoint,
+            WebhookSortField::TriggeredAt => WebhookColumn::TriggeredAt,
+            WebhookSortField::CreatedAt => WebhookColumn::CreatedAt,
+            WebhookSortField::UpdatedAt => WebhookColumn::UpdatedAt,
+        }
+    }
+}
 
-        Ok(webhooks)
+const SECURE_ENDPOINT_PATTERN: &str = "https://%";
+
+fn listing_select(realm_id: Uuid, filter: &WebhookFilter) -> Select<WebhookEntity> {
+    WebhookEntity::find()
+        .filter(WebhookColumn::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(WebhookColumn::Name, value))
+        })
+        .apply_if(filter.endpoint.as_deref(), |select, value| {
+            select.filter(contains(WebhookColumn::Endpoint, value))
+        })
+        .apply_if(filter.last_delivery_status.as_deref(), |select, value| {
+            select.filter(WebhookColumn::LastDeliveryStatus.eq(value))
+        })
+        .apply_if(filter.triggered, |select, triggered| {
+            select.filter(if triggered {
+                WebhookColumn::TriggeredAt.is_not_null()
+            } else {
+                WebhookColumn::TriggeredAt.is_null()
+            })
+        })
+        .apply_if(filter.has_subscribers, |select, present| {
+            let subscribed = WebhookSubscriberEntity::find()
+                .select_only()
+                .column(WebhookSubscriberColumn::WebhookId)
+                .into_query();
+            select.filter(if present {
+                WebhookColumn::Id.in_subquery(subscribed)
+            } else {
+                WebhookColumn::Id.not_in_subquery(subscribed)
+            })
+        })
+        .apply_if(filter.secure_endpoint, |select, secure| {
+            select.filter(if secure {
+                WebhookColumn::Endpoint.like(SECURE_ENDPOINT_PATTERN)
+            } else {
+                WebhookColumn::Endpoint.not_like(SECURE_ENDPOINT_PATTERN)
+            })
+        })
+}
+
+impl WebhookRepository for PostgresWebhookRepository {
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<WebhookFilter, WebhookSortField>,
+    ) -> Result<Page<Webhook>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing webhooks: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        let webhook_ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
+        let mut subscribers: HashMap<Uuid, Vec<WebhookSubscriber>> = HashMap::new();
+        if !webhook_ids.is_empty() {
+            let rows = WebhookSubscriberEntity::find()
+                .filter(WebhookSubscriberColumn::WebhookId.is_in(webhook_ids))
+                .order_by_asc(WebhookSubscriberColumn::Id)
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    error!("error loading subscribers of listed webhooks: {:?}", e);
+                    CoreError::InternalServerError
+                })?;
+            for row in rows {
+                let subscriber = WebhookSubscriber::try_from(row).map_err(|e| {
+                    error!("invalid subscriber of a listed webhook: {:?}", e);
+                    CoreError::InternalServerError
+                })?;
+                subscribers
+                    .entry(subscriber.webhook_id)
+                    .or_default()
+                    .push(subscriber);
+            }
+        }
+
+        let webhooks = models
+            .into_iter()
+            .map(|model| {
+                let id = model.id;
+                let mut webhook = Webhook::from(model);
+                webhook.subscribers = subscribers.remove(&id).unwrap_or_default();
+                webhook
+            })
+            .collect();
+
+        Ok(Page::new(webhooks, total, request.page, request.limit))
     }
 
     async fn fetch_webhooks_by_subscriber(
@@ -628,6 +722,120 @@ mod tests {
                 .map(|s| s.name.clone())
                 .collect::<Vec<_>>(),
             vec![WebhookTrigger::UserDeleted]
+        );
+    }
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::webhook::entities::webhook::WebhookFilter;
+
+    fn sql(filter: &WebhookFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&WebhookFilter::default());
+        assert!(
+            sql.contains(r#""webhooks"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&WebhookFilter {
+            name: Some("a%".to_string()),
+            endpoint: Some("b".to_string()),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            sql.contains(r#""webhooks"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""webhooks"."endpoint" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn last_delivery_status_is_an_equality() {
+        let sql = sql(&WebhookFilter {
+            last_delivery_status: Some("failed".to_string()),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            sql.contains(r#""webhooks"."last_delivery_status" = 'failed'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn triggered_tests_the_trigger_timestamp_for_null() {
+        let yes = sql(&WebhookFilter {
+            triggered: Some(true),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            yes.contains(r#""webhooks"."triggered_at" IS NOT NULL"#),
+            "{yes}"
+        );
+        let no = sql(&WebhookFilter {
+            triggered: Some(false),
+            ..WebhookFilter::default()
+        });
+        assert!(no.contains(r#""webhooks"."triggered_at" IS NULL"#), "{no}");
+    }
+
+    #[test]
+    fn subscriber_presence_is_a_subquery_on_webhook_subscribers() {
+        let with = sql(&WebhookFilter {
+            has_subscribers: Some(true),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            with.contains(
+                r#""webhooks"."id" IN (SELECT "webhook_subscribers"."webhook_id" FROM "webhook_subscribers")"#
+            ),
+            "{with}"
+        );
+        let without = sql(&WebhookFilter {
+            has_subscribers: Some(false),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            without.contains(
+                r#""webhooks"."id" NOT IN (SELECT "webhook_subscribers"."webhook_id" FROM "webhook_subscribers")"#
+            ),
+            "{without}"
+        );
+    }
+
+    #[test]
+    fn secure_endpoint_is_a_case_sensitive_https_prefix() {
+        let secure = sql(&WebhookFilter {
+            secure_endpoint: Some(true),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            secure.contains(r#""webhooks"."endpoint" LIKE 'https://%'"#),
+            "{secure}"
+        );
+        let insecure = sql(&WebhookFilter {
+            secure_endpoint: Some(false),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            insecure.contains(r#""webhooks"."endpoint" NOT LIKE 'https://%'"#),
+            "{insecure}"
         );
     }
 }
