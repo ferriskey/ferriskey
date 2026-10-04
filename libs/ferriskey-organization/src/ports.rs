@@ -12,14 +12,15 @@ use crate::entities::{
     CreateGroupInput, CreateGroupParams, CreateOrganizationInput, CreateOrganizationParams,
     DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
     DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
-    GroupFilter, GroupId, GroupListItem, GroupMember, GroupMemberDetail, GroupMemberPage,
-    GroupRoleMapping, GroupSortField, ListGroupAttributesInput, ListGroupMembersInput,
-    ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput, ListOrganizationAttributesInput,
-    ListOrganizationMembersInput, ListUserOrganizationsInput, Organization, OrganizationAttribute,
-    OrganizationFilter, OrganizationId, OrganizationMember, OrganizationSortField,
-    RemoveGroupMemberInput, RemoveOrganizationMemberInput, RevokeGroupRoleInput,
-    RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams, UpdateOrganizationInput,
-    UpdateOrganizationParams, UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
+    GroupFilter, GroupId, GroupListItem, GroupMember, GroupMemberDetail, GroupMemberFilter,
+    GroupMemberSortField, GroupRoleMapping, GroupSortField, ListGroupAttributesInput,
+    ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
+    ListOrganizationAttributesInput, ListOrganizationMembersInput, ListUserOrganizationsInput,
+    Organization, OrganizationAttribute, OrganizationFilter, OrganizationId, OrganizationMember,
+    OrganizationSortField, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
+    RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams,
+    UpdateOrganizationInput, UpdateOrganizationParams, UpsertGroupAttributeInput,
+    UpsertOrganizationAttributeInput,
 };
 
 /// Repository trait for Organization persistence
@@ -274,21 +275,11 @@ pub trait GroupMemberRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    /// Members of a group (enriched with user identity), paginated + optionally filtered.
-    fn list_members(
+    fn list(
         &self,
-        group_id: GroupId,
-        limit: u32,
-        offset: u32,
-        search: Option<String>,
-    ) -> impl Future<Output = Result<Vec<GroupMemberDetail>, CoreError>> + Send;
-
-    /// Total number of members matching `search` (for pagination totals).
-    fn count_members(
-        &self,
-        group_id: GroupId,
-        search: Option<String>,
-    ) -> impl Future<Output = Result<i64, CoreError>> + Send;
+        group: &Group,
+        request: &PageRequest<GroupMemberFilter, GroupMemberSortField>,
+    ) -> impl Future<Output = Result<Page<GroupMemberDetail>, CoreError>> + Send;
 
     fn get_member(
         &self,
@@ -452,7 +443,8 @@ pub trait GroupService: Send + Sync {
         &self,
         identity: Identity,
         input: ListGroupMembersInput,
-    ) -> impl Future<Output = Result<GroupMemberPage, CoreError>> + Send;
+        request: PageRequest<GroupMemberFilter, GroupMemberSortField>,
+    ) -> impl Future<Output = Result<Page<GroupMemberDetail>, CoreError>> + Send;
 
     fn assign_role(
         &self,

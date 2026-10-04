@@ -450,15 +450,6 @@ pub struct GroupMemberDetail {
     pub created_at: DateTime<Utc>,
 }
 
-/// A page of group members plus the total count (for server-side pagination).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct GroupMemberPage {
-    pub data: Vec<GroupMemberDetail>,
-    pub total: i64,
-    pub limit: u32,
-    pub offset: u32,
-}
-
 /// A role assigned to a group. Members (recursively) inherit the role.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct GroupRoleMapping {
@@ -532,6 +523,22 @@ pub enum GroupSortField {
     UpdatedAt,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GroupMemberFilter {
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupMemberSortField {
+    Username,
+    Email,
+    #[default]
+    CreatedAt,
+}
+
 // --- Group input structs ---
 
 pub struct CreateGroupInput {
@@ -586,10 +593,6 @@ pub struct ListGroupMembersInput {
     pub realm_name: String,
     pub organization_id: OrganizationId,
     pub group_id: GroupId,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-    /// Case-insensitive filter on username/email.
-    pub search: Option<String>,
 }
 
 pub struct AssignGroupRoleInput {

@@ -19,11 +19,11 @@ use crate::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, CreateGroupParams,
     DeleteGroupAttributeInput, DeleteGroupInput, GetGroupInput, Group, GroupAttribute,
     GroupAttributeRepository, GroupConfig, GroupFilter, GroupId, GroupListItem, GroupMember,
-    GroupMemberPage, GroupMemberRepository, GroupRepository, GroupRoleRepository, GroupService,
-    GroupSortField, ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput,
-    ListGroupsInput, Organization, OrganizationId, OrganizationPolicy, OrganizationRepository,
-    RemoveGroupMemberInput, RevokeGroupRoleInput, UpdateGroupInput, UpdateGroupParams,
-    UpsertGroupAttributeInput, validate_membership_realms,
+    GroupMemberDetail, GroupMemberFilter, GroupMemberRepository, GroupMemberSortField,
+    GroupRepository, GroupRoleRepository, GroupService, GroupSortField, ListGroupAttributesInput,
+    ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, Organization, OrganizationId,
+    OrganizationPolicy, OrganizationRepository, RemoveGroupMemberInput, RevokeGroupRoleInput,
+    UpdateGroupInput, UpdateGroupParams, UpsertGroupAttributeInput, validate_membership_realms,
 };
 
 #[derive(Clone, Debug)]
@@ -416,7 +416,8 @@ where
         &self,
         identity: Identity,
         input: ListGroupMembersInput,
-    ) -> Result<GroupMemberPage, CoreError> {
+        request: PageRequest<GroupMemberFilter, GroupMemberSortField>,
+    ) -> Result<Page<GroupMemberDetail>, CoreError> {
         let (scope, org) = self
             .load_organization_in_realm(&input.realm_name, input.organization_id)
             .await?;
@@ -431,25 +432,7 @@ where
             .load_group_of_organization(input.group_id, &org)
             .await?;
 
-        // Clamp pagination to sane bounds (default page of 50, hard max of 200).
-        let limit = input.limit.unwrap_or(50).clamp(1, 200);
-        let offset = input.offset.unwrap_or(0);
-
-        let data = self
-            .group_member_repository
-            .list_members(group.id, limit, offset, input.search.clone())
-            .await?;
-        let total = self
-            .group_member_repository
-            .count_members(group.id, input.search)
-            .await?;
-
-        Ok(GroupMemberPage {
-            data,
-            total,
-            limit,
-            offset,
-        })
+        self.group_member_repository.list(&group, &request).await
     }
 
     async fn assign_role(
@@ -1193,5 +1176,163 @@ mod tests {
             matches!(result, Err(CoreError::NotFound)),
             "a role of another realm must not be attachable to this group, got {result:?}"
         );
+    }
+
+    fn members_request() -> PageRequest<GroupMemberFilter, GroupMemberSortField> {
+        PageRequest {
+            filter: GroupMemberFilter {
+                username: Some("jo".to_string()),
+                enabled: Some(true),
+                ..GroupMemberFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    fn group_repo_returning(group: Group) -> MockGroupRepository {
+        let mut group_repo = MockGroupRepository::new();
+        group_repo.expect_get_group_by_id().returning(move |_| {
+            let g = group.clone();
+            Box::pin(async move { Ok(Some(g)) })
+        });
+        group_repo
+    }
+
+    #[tokio::test]
+    async fn list_members_refuses_a_caller_without_view_rights_before_listing() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_role_repo) = same_realm_actor(realm_id, &[]);
+        let org = make_org(realm_id);
+        let org_id = org.id;
+        let group = make_group(org_id);
+        let group_id = group.id;
+
+        let mut group_member_repo = MockGroupMemberRepository::new();
+        group_member_repo.expect_list().never();
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo_returning(org),
+            group_repo_returning(group),
+            group_member_repo,
+        );
+
+        let result = service
+            .list_members(
+                identity,
+                ListGroupMembersInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    group_id,
+                },
+                members_request(),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_members_refuses_a_group_of_another_organization_before_listing() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_role_repo) =
+            same_realm_actor(realm_id, &["view_organizations"]);
+        let org = make_org(realm_id);
+        let org_id = org.id;
+        let foreign = make_group(OrganizationId::new(Uuid::new_v4()));
+        let foreign_id = foreign.id;
+
+        let mut group_member_repo = MockGroupMemberRepository::new();
+        group_member_repo.expect_list().never();
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo_returning(org),
+            group_repo_returning(foreign),
+            group_member_repo,
+        );
+
+        let result = service
+            .list_members(
+                identity,
+                ListGroupMembersInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    group_id: foreign_id,
+                },
+                members_request(),
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)), "got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn list_members_pages_the_proven_group_with_the_request() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let (identity, realm_repo, user_role_repo) =
+            same_realm_actor(realm_id, &["view_organizations"]);
+        let org = make_org(realm_id);
+        let org_id = org.id;
+        let group = make_group(org_id);
+        let group_id = group.id;
+        let member = GroupMemberDetail {
+            id: Uuid::new_v4(),
+            group_id,
+            user_id: Uuid::new_v4(),
+            username: "jo".to_string(),
+            email: None,
+            firstname: None,
+            lastname: None,
+            enabled: true,
+            created_at: Utc::now(),
+        };
+        let expected = member.clone();
+
+        let mut group_member_repo = MockGroupMemberRepository::new();
+        group_member_repo
+            .expect_list()
+            .withf(move |group, request| {
+                group.id == group_id
+                    && group.organization_id == org_id
+                    && *request == members_request()
+            })
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![member], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            org_repo_returning(org),
+            group_repo_returning(group),
+            group_member_repo,
+        );
+
+        let page = service
+            .list_members(
+                identity,
+                ListGroupMembersInput {
+                    realm_name: "test-realm".to_string(),
+                    organization_id: org_id,
+                    group_id,
+                },
+                members_request(),
+            )
+            .await
+            .expect("members page");
+
+        assert_eq!(page.data(), [expected]);
+        assert_eq!(page.metadata().total, 1);
     }
 }
