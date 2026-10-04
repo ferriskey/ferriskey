@@ -59,7 +59,10 @@ export default function PageOverviewFeature() {
   const compassRealm = settings?.compass_enabled ? realm : undefined
 
   const { data: activityResponse } = useGetDailyActivityStats({ realm: compassRealm })
-  const { data: flowsResponse } = useGetFlows({ realm: compassRealm, limit: EVENT_COUNT })
+  const { data: flowsResponse } = useGetFlows({
+    realm: compassRealm,
+    query: { limit: EVENT_COUNT, order_by: 'started_at' },
+  })
 
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])

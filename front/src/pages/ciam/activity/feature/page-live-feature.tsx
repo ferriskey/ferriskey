@@ -35,7 +35,7 @@ export default function PageLiveFeature() {
 
   const { data: flowsResponse, isLoading: isLoadingFlows } = useGetFlows({
     realm: compassRealm,
-    limit: FLOW_COUNT,
+    query: { limit: FLOW_COUNT, order_by: 'started_at' },
   })
 
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])

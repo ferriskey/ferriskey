@@ -46,8 +46,6 @@ duration:
   seconds: '{{value}} s'
 
 list:
-  search_hint: Filters are applied by the server; the search box narrows the executions loaded above.
-  search_placeholder: Filter by id, client or user…
   columns:
     started_at: Started
     grant_type: Grant type
@@ -56,6 +54,13 @@ list:
     user_id: User
     steps: Steps
     duration: Duration
+  filter_fields:
+    ip_address: IP address
+    status: Outcome
+    grant_type: Grant type
+    grant_type_placeholder: Exact grant type, e.g. authorization_code
+    client_id: Client
+    user_id: User
   client:
     unresolved: unresolved
   user:
@@ -80,10 +85,6 @@ list:
     duration:
       label: Average duration
       hint: completed executions
-  filters:
-    failed: Failed
-    unfinished: Unfinished
-    anonymous: No user
   aggregates:
     executions_one: '{{count}} execution'
     executions_other: '{{count}} executions'
@@ -96,8 +97,8 @@ list:
     failed:
       title_one: '{{count}} failed execution'
       title_other: '{{count}} failed executions'
-      # {{step}} is a step label from the catalogue above; {{total}} is how many executions failed there.
-      detail: '{{step}} accounts for {{total}} of them.'
+      # {{step}} is a step label from the catalogue above; {{total}} is how many of the {{sample}} most recent failed executions failed there.
+      detail_recent: '{{step}} accounts for {{total}} of the {{sample}} most recent.'
       no_step: No failing step recorded
     expired:
       title_one: '{{count}} expired execution'
