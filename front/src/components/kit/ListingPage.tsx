@@ -6,6 +6,10 @@ import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
 import { DataView, type CardSpec, type Column, type ViewMode } from './DataView'
 import { PageShell } from './page-shell'
+import { FilterBar, type FilterField } from './FilterBar'
+import { PaginationBar } from './PaginationBar'
+import type { PaginationMetadata } from './listing-query-state'
+import type { PagedListing } from './use-paged-listing'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { useLayoutTier } from '@/hooks/use-media-query'
@@ -40,6 +44,11 @@ export interface ListingPageProps<T> {
     onFilterChange: (key: string) => void
     draft?: string
     onDraftChange?: (v: string) => void
+  }
+  paged?: {
+    listing: PagedListing
+    pagination: PaginationMetadata | undefined
+    filterFields: FilterField[]
   }
   searchScopeHint?: string
   searchPlaceholder?: string
@@ -79,6 +88,7 @@ export function ListingPage<T>({
   alerts,
   filters,
   server,
+  paged,
   searchScopeHint,
   searchPlaceholder,
   querySyntax,
@@ -110,6 +120,7 @@ export function ListingPage<T>({
   const setFilter = server ? server.onFilterChange : setLocalFilter
 
   const filtered = useMemo(() => {
+    if (paged) return rows
     let out = rows
     const activeKey = server ? server.filter : localFilter
     const predicate = filters?.find((f) => f.key === activeKey)?.predicate
@@ -119,11 +130,28 @@ export function ListingPage<T>({
       out = out.filter((r) => searchIn(r).toLowerCase().includes(q))
     }
     return out
-  }, [rows, filters, localFilter, localQuery, searchIn, server, serverSearch])
+  }, [rows, filters, localFilter, localQuery, searchIn, server, serverSearch, paged])
 
-  const narrowed = Boolean(query.trim()) || filter !== ALL_FILTER_KEY
+  const narrowed = paged
+    ? Object.values(paged.listing.state.filters).some(Boolean)
+    : Boolean(query.trim()) || filter !== ALL_FILTER_KEY
   const filteredOut =
-    narrowed && filtered.length === 0 && (server ? true : rows.length > 0)
+    narrowed && filtered.length === 0 && (server || paged ? true : rows.length > 0)
+
+  const clearNarrowing = () => {
+    if (paged) {
+      paged.listing.clearFilters()
+      return
+    }
+    setQuery('')
+    setFilter(ALL_FILTER_KEY)
+  }
+
+  const entryCount = paged
+    ? paged.pagination && t('data_view.entry_count', { count: paged.pagination.total })
+    : filtered.length === rows.length
+      ? t('data_view.entry_count', { count: rows.length })
+      : t('data_view.shown_of_total', { shown: filtered.length, total: rows.length })
 
   return (
     <PageShell>
@@ -183,44 +211,50 @@ export function ListingPage<T>({
         <MetricsBand metrics={metrics ?? []} />
 
         <div className='flex flex-wrap items-center gap-2'>
-          <label className='relative flex h-8 min-w-[15rem] flex-1 items-center'>
-            <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
-            <input
-              type='search'
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={
-                tokens.toolbar.showQuerySyntax && querySyntax
-                  ? querySyntax
-                  : (searchPlaceholder ?? t('data_view.search_placeholder'))
-              }
-              className={cn(
-                'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
-                tokens.toolbar.showQuerySyntax && querySyntax
-                  ? 'font-mono-ui text-xs placeholder:text-neutral-300'
-                  : 'text-sm'
-              )}
-            />
-          </label>
-
-          {filters && filters.length > 0 && (
-            <div className='flex gap-1'>
-              {[{ key: ALL_FILTER_KEY, label: t('data_view.filter_all') }, ...filters].map((f) => (
-                <button
-                  key={f.key}
-                  type='button'
-                  onClick={() => setFilter(f.key)}
+          {paged ? (
+            <FilterBar fields={paged.filterFields} listing={paged.listing} />
+          ) : (
+            <>
+              <label className='relative flex h-8 min-w-[15rem] flex-1 items-center'>
+                <Search className='pointer-events-none absolute left-2.5 size-3.5 text-neutral-400 dark:text-neutral-500' />
+                <input
+                  type='search'
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={
+                    tokens.toolbar.showQuerySyntax && querySyntax
+                      ? querySyntax
+                      : (searchPlaceholder ?? t('data_view.search_placeholder'))
+                  }
                   className={cn(
-                    'cursor-pointer rounded-md px-2.5 py-1.5 text-xs transition-colors',
-                    f.key === filter
-                      ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
-                      : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
+                    'h-full w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface pl-8 pr-3 outline-none placeholder:text-neutral-400 focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15',
+                    tokens.toolbar.showQuerySyntax && querySyntax
+                      ? 'font-mono-ui text-xs placeholder:text-neutral-300'
+                      : 'text-sm'
                   )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+                />
+              </label>
+
+              {filters && filters.length > 0 && (
+                <div className='flex gap-1'>
+                  {[{ key: ALL_FILTER_KEY, label: t('data_view.filter_all') }, ...filters].map((f) => (
+                    <button
+                      key={f.key}
+                      type='button'
+                      onClick={() => setFilter(f.key)}
+                      className={cn(
+                        'cursor-pointer rounded-md px-2.5 py-1.5 text-xs transition-colors',
+                        f.key === filter
+                          ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
+                          : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-fk-raised'
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {tokens.toolbar.showViewToggle && tier !== 'phone' && (
@@ -259,10 +293,12 @@ export function ListingPage<T>({
           view={effectiveView}
           loading={loading}
           aggregates={aggregates}
+          sort={paged?.listing.state.sort}
+          onSortChange={paged?.listing.setSort}
           emptyLabel={filteredOut ? t('data_view.no_match') : emptyLabel}
           emptyHint={
             filteredOut
-              ? server
+              ? server || paged
                 ? t('data_view.no_match_server_hint')
                 : t('data_view.hidden_by_filter', { count: rows.length })
               : emptyHint
@@ -272,10 +308,7 @@ export function ListingPage<T>({
               <div className='flex flex-wrap items-center justify-center gap-2'>
                 <Button
                   variant='outline'
-                  onClick={() => {
-                    setQuery('')
-                    setFilter(ALL_FILTER_KEY)
-                  }}
+                  onClick={clearNarrowing}
                 >
                   {t('data_view.clear_filter')}
                 </Button>
@@ -287,12 +320,12 @@ export function ListingPage<T>({
           }
         />
 
-        {!loading && rows.length > 0 && (
-          <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>
-            {filtered.length === rows.length
-              ? t('data_view.entry_count', { count: rows.length })
-              : t('data_view.shown_of_total', { shown: filtered.length, total: rows.length })}
-          </p>
+        {paged?.pagination && (
+          <PaginationBar pagination={paged.pagination} onPageChange={paged.listing.setPage} />
+        )}
+
+        {!loading && rows.length > 0 && entryCount && (
+          <p className='tnum text-xs text-neutral-400 dark:text-neutral-500'>{entryCount}</p>
         )}
       </div>
     </PageShell>

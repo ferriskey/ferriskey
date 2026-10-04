@@ -43,6 +43,9 @@ pub enum CoreError {
     #[error("Invalid web origin: {0}")]
     InvalidWebOrigin(String),
 
+    #[error("Invalid pagination: {0}")]
+    InvalidPagination(String),
+
     #[error("Invalid token exchange policy: {0}")]
     InvalidTokenExchangePolicy(String),
 
@@ -425,6 +428,7 @@ impl CoreError {
             CoreError::InvalidRedirectUri => "invalid_redirect_uri",
             CoreError::WebOriginNotFound => "web_origin_not_found",
             CoreError::InvalidWebOrigin(_) => "invalid_web_origin",
+            CoreError::InvalidPagination(_) => "invalid_pagination",
             CoreError::InvalidTokenExchangePolicy(_) => "invalid_token_exchange_policy",
             CoreError::TokenExchangePolicyAlreadyExists => "token_exchange_policy_already_exists",
             CoreError::SamlConfigNotFound => "saml_config_not_found",
@@ -593,6 +597,10 @@ mod tests {
             (
                 CoreError::InvalidWebOrigin(payload.clone()),
                 "invalid_web_origin",
+            ),
+            (
+                CoreError::InvalidPagination(payload.clone()),
+                "invalid_pagination",
             ),
             (
                 CoreError::InvalidTokenExchangePolicy(payload.clone()),
@@ -903,7 +911,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 125);
+        assert_eq!(every_variant_with_expected_reason().len(), 126);
     }
 
     #[test]

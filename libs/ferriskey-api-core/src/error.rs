@@ -69,6 +69,9 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidWebOrigin(detail) => {
                 Self::BadRequest(CoreError::InvalidWebOrigin(detail).to_string().into())
             }
+            CoreError::InvalidPagination(detail) => {
+                Self::BadRequest(CoreError::InvalidPagination(detail).to_string().into())
+            }
             CoreError::InvalidTokenExchangePolicy(detail) => Self::BadRequest(
                 CoreError::InvalidTokenExchangePolicy(detail).to_string().into(),
             ),
