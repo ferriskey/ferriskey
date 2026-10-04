@@ -12,6 +12,8 @@ pub struct FlowFilter {
     pub grant_type: Option<String>,
     pub status: Option<FlowStatus>,
     pub ip_address: Option<String>,
+    pub identified: Option<bool>,
+    pub completed: Option<bool>,
     pub from_timestamp: Option<DateTime<Utc>>,
     pub to_timestamp: Option<DateTime<Utc>>,
 }

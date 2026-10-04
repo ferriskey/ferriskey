@@ -38,6 +38,8 @@ pub struct FlowListParams {
     pub status: Option<FlowStatus>,
     #[param(example = "192.168.")]
     pub ip_address: Option<String>,
+    pub identified: Option<bool>,
+    pub completed: Option<bool>,
     #[param(example = "2026-01-01T00:00:00Z")]
     pub from: Option<DateTime<Utc>>,
     #[param(example = "2026-01-31T23:59:59Z")]
@@ -52,6 +54,8 @@ impl From<FlowListParams> for FlowFilter {
             grant_type: params.grant_type,
             status: params.status,
             ip_address: params.ip_address,
+            identified: params.identified,
+            completed: params.completed,
             from_timestamp: params.from,
             to_timestamp: params.to,
         }
@@ -61,7 +65,7 @@ impl From<FlowListParams> for FlowFilter {
 #[utoipa::path(
     get,
     summary = "Get Compass Flows",
-    description = "Returns one page of the realm's authentication flows, with their steps. ip_address matches case-insensitively anywhere in the value and never matches a flow without an address. client_id (the OAuth client_id string), user_id, grant_type and status match exactly. from and to bound started_at, both inclusive. Filters combine with AND. Sorting on duration_ms puts unfinished flows last in ascending order and first in descending order.",
+    description = "Returns one page of the realm's authentication flows, with their steps. ip_address matches case-insensitively anywhere in the value and never matches a flow without an address. client_id (the OAuth client_id string), user_id, grant_type and status match exactly. identified=true keeps flows tied to a user, identified=false the anonymous ones; completed=true keeps flows with a completion date, completed=false the unfinished ones. from and to bound started_at, both inclusive. Filters combine with AND. Sorting on duration_ms puts unfinished flows last in ascending order and first in descending order.",
     path = "/compass/v1/flows",
     tag = "compass",
     params(
@@ -105,7 +109,7 @@ mod tests {
     fn every_filter_and_sort_field_is_read() {
         let user_id = Uuid::new_v4();
         let request = parse_list_query::<FlowListParams, FlowSortField>(&format!(
-            "order_by=duration_ms&order=asc&client_id=web-app&user_id={user_id}&grant_type=password&status=failure&ip_address=10.0&from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z"
+            "order_by=duration_ms&order=asc&client_id=web-app&user_id={user_id}&grant_type=password&status=failure&ip_address=10.0&identified=false&completed=true&from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z"
         ))
         .expect("valid query");
 
@@ -119,6 +123,8 @@ mod tests {
                 grant_type: Some("password".to_string()),
                 status: Some(FlowStatus::Failure),
                 ip_address: Some("10.0".to_string()),
+                identified: Some(false),
+                completed: Some(true),
                 from_timestamp: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
                 to_timestamp: Utc.with_ymd_and_hms(2026, 1, 2, 0, 0, 0).single(),
             }
@@ -147,6 +153,8 @@ mod tests {
             "status=done",
             "user_id=nope",
             "from=yesterday",
+            "identified=maybe",
+            "completed=1",
         ] {
             assert!(
                 parse_list_query::<FlowListParams, FlowSortField>(query).is_err(),

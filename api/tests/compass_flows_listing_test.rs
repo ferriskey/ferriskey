@@ -76,6 +76,10 @@ mod tests {
             }
         }
 
+        fn completed(&self) -> bool {
+            matches!(self.status, "success" | "failure")
+        }
+
         fn step_count(&self) -> usize {
             if self.status == "failure" { 2 } else { 1 }
         }
@@ -322,7 +326,8 @@ mod tests {
         sqlx::query(
             "INSERT INTO compass_flows (id, realm_id, client_id, user_id, grant_type, status, ip_address, user_agent, started_at, completed_at, duration_ms, created_at) \
              VALUES ($1::uuid, $2::uuid, $3, $4::uuid, $5, $6, $7, 'seed-agent', \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8), NULL, $9, \
+             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8), \
+             CASE WHEN $11 THEN TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8, secs => 30) END, $9, \
              TIMESTAMP '2026-02-01 00:00:00' + make_interval(mins => $10))",
         )
         .bind(seed.id.to_string())
@@ -335,6 +340,7 @@ mod tests {
         .bind(seed.started_minute)
         .bind(seed.duration_ms)
         .bind(seed.created_minute)
+        .bind(seed.completed())
         .execute(pool)
         .await
         .expect("insert compass flow");
@@ -671,6 +677,11 @@ mod tests {
             assert_eq!(first["ip_address"].as_str(), seed.ip_address.as_deref());
             assert_eq!(first["duration_ms"].as_i64(), seed.duration_ms);
             assert!(first["started_at"].is_string(), "{first}");
+            assert_eq!(
+                first["completed_at"].is_string(),
+                seed.completed(),
+                "{first}"
+            );
         });
     }
 
@@ -815,6 +826,20 @@ mod tests {
             (
                 "from=2026-01-01T00:03:00Z&to=2026-01-01T00:06:00Z".to_string(),
                 matching(|s| (3..=6).contains(&s.started_minute)),
+            ),
+            (
+                "identified=true".to_string(),
+                matching(|s| s.user.is_some()),
+            ),
+            (
+                "identified=false".to_string(),
+                matching(|s| s.user.is_none()),
+            ),
+            ("completed=true".to_string(), matching(Seed::completed)),
+            ("completed=false".to_string(), matching(|s| !s.completed())),
+            (
+                "identified=false&completed=false".to_string(),
+                matching(|s| s.user.is_none() && !s.completed()),
             ),
             (
                 "status=success&client_id=web-app".to_string(),
@@ -978,6 +1003,8 @@ mod tests {
                 ("status=done", "status"),
                 ("user_id=nope", "user_id"),
                 ("from=yesterday", "from"),
+                ("identified=maybe", "identified"),
+                ("completed=1", "completed"),
                 ("ip_address=a&ip_address=b", "ip_address"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;

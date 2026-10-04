@@ -64,6 +64,20 @@ fn listing_select(realm_id: Uuid, filter: &FlowFilter) -> Select<compass_flows::
         .apply_if(filter.ip_address.as_deref(), |select, value| {
             select.filter(contains(Column::IpAddress, value))
         })
+        .apply_if(filter.identified, |select, value| {
+            select.filter(if value {
+                Column::UserId.is_not_null()
+            } else {
+                Column::UserId.is_null()
+            })
+        })
+        .apply_if(filter.completed, |select, value| {
+            select.filter(if value {
+                Column::CompletedAt.is_not_null()
+            } else {
+                Column::CompletedAt.is_null()
+            })
+        })
         .apply_if(filter.from_timestamp, |select, value| {
             select.filter(Column::StartedAt.gte(value.naive_utc()))
         })
@@ -484,6 +498,37 @@ mod tests {
             "{sql}"
         );
         assert!(!sql.contains("ILIKE"), "{sql}");
+    }
+
+    #[test]
+    fn identified_and_completed_test_for_presence() {
+        let present = sql(&FlowFilter {
+            identified: Some(true),
+            completed: Some(true),
+            ..FlowFilter::default()
+        });
+        assert!(
+            present.contains(r#""compass_flows"."user_id" IS NOT NULL"#),
+            "{present}"
+        );
+        assert!(
+            present.contains(r#""compass_flows"."completed_at" IS NOT NULL"#),
+            "{present}"
+        );
+
+        let absent = sql(&FlowFilter {
+            identified: Some(false),
+            completed: Some(false),
+            ..FlowFilter::default()
+        });
+        assert!(
+            absent.contains(r#""compass_flows"."user_id" IS NULL"#),
+            "{absent}"
+        );
+        assert!(
+            absent.contains(r#""compass_flows"."completed_at" IS NULL"#),
+            "{absent}"
+        );
     }
 
     #[test]
