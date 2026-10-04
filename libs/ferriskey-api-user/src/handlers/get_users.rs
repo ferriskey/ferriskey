@@ -33,6 +33,7 @@ pub struct UserListParams {
     pub role_id: Option<Uuid>,
     #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f,0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e70")]
     pub ids: Option<String>,
+    pub not_in_group: Option<Uuid>,
 }
 
 impl TryFrom<UserListParams> for UserFilter {
@@ -53,6 +54,7 @@ impl TryFrom<UserListParams> for UserFilter {
                 .as_deref()
                 .map(|raw| parse_id_list("ids", raw))
                 .transpose()?,
+            not_in_group: params.not_in_group,
         })
     }
 }
@@ -62,7 +64,7 @@ impl TryFrom<UserListParams> for UserFilter {
     path = "",
     tag = "user",
     summary = "List the users of a realm",
-    description = "Returns one page of the realm's users. Text filters (username, email, firstname, lastname) match case-insensitively anywhere in the value; enabled, email_verified, service_account and role_id match exactly; ids takes a comma-separated list of at most 100 user ids. Filters combine with AND.",
+    description = "Returns one page of the realm's users. Text filters (username, email, firstname, lastname) match case-insensitively anywhere in the value; enabled, email_verified, service_account and role_id match exactly; ids takes a comma-separated list of at most 100 user ids; not_in_group takes an organization group id and keeps the users that are not members of that group. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         PaginationParams,
@@ -109,8 +111,9 @@ mod tests {
         let role_id = Uuid::new_v4();
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
+        let group_id = Uuid::new_v4();
         let request = parse_list_query::<UserListParams, UserSortField>(&format!(
-            "order_by=updated_at&order=asc&username=jo&email=ex&firstname=a&lastname=b&enabled=true&email_verified=false&service_account=true&role_id={role_id}&ids={first},{second}"
+            "order_by=updated_at&order=asc&username=jo&email=ex&firstname=a&lastname=b&enabled=true&email_verified=false&service_account=true&role_id={role_id}&ids={first},{second}&not_in_group={group_id}"
         ))
         .expect("valid query");
 
@@ -128,6 +131,7 @@ mod tests {
                 service_account: Some(true),
                 role_id: Some(role_id),
                 ids: Some(vec![first, second]),
+                not_in_group: Some(group_id),
             }
         );
     }
@@ -153,7 +157,12 @@ mod tests {
 
     #[test]
     fn unknown_filters_and_columns_are_refused() {
-        for query in ["password=x", "order_by=password", "role_id=nope"] {
+        for query in [
+            "password=x",
+            "order_by=password",
+            "role_id=nope",
+            "not_in_group=nope",
+        ] {
             assert!(
                 parse_list_query::<UserListParams, UserSortField>(query).is_err(),
                 "{query}"
