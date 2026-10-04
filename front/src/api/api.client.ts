@@ -4071,6 +4071,7 @@ export namespace Endpoints {
         email_verified: boolean;
         service_account: boolean;
         role_id: string;
+        ids: string;
         order_by: "username" | "email" | "firstname" | "lastname" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };

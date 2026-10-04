@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
+import { USER_IDS_BATCH, idBatches } from './user-ids'
 import { translate } from '@/lib/i18n'
 
 export interface UserMutateContract<T> {
@@ -51,21 +52,19 @@ export const useUserCount = ({ realm, filter }: BaseQuery & { filter?: UsersFilt
   return { count: data?.metadata.total ?? 0, isLoading }
 }
 
-const combineUsers = (results: UseQueryResult<Schemas.UserResponse>[]) => ({
-  users: results
-    .map((result) => result.data?.data)
-    .filter((user): user is Schemas.User => user !== undefined),
+const combineUsers = (results: UseQueryResult<Schemas.Paginated_User>[]) => ({
+  users: results.flatMap((result) => result.data?.data ?? []),
   isLoading: results.some((result) => result.isLoading),
 })
 
 export const useUsersByIds = ({ realm, ids }: BaseQuery & { ids: readonly string[] }) => {
-  const unique = useMemo(() => [...new Set(ids)].sort(), [ids])
+  const batches = useMemo(() => idBatches(ids), [ids])
   return useQueries({
-    queries: unique.map((userId) => ({
-      ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}', {
-        path: { realm_name: realm || 'master', user_id: userId },
+    queries: batches.map((batch) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/users', {
+        path: { realm_name: realm || 'master' },
+        query: { ids: batch, limit: USER_IDS_BATCH },
       }).queryOptions,
-      retry: false,
     })),
     combine: combineUsers,
   })
