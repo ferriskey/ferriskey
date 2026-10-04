@@ -884,8 +884,6 @@ mod tests {
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_cross_realm_test -- --ignored"]
     fn list_organizations_is_denied_across_realms() {
-        // Enumeration. `list_organizations_by_realm` is scoped to the URL's realm, so a
-        // permissive policy hands the attacker the victim realm's inventory verbatim.
         rt().block_on(async {
             let server = make_server();
 

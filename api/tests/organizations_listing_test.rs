@@ -81,6 +81,7 @@ mod tests {
         realm: String,
         other_realm: String,
         member_id: Uuid,
+        foreign_member_id: Uuid,
         seeds: Vec<Seed>,
         foreign_organization_id: Uuid,
     }
@@ -265,6 +266,7 @@ mod tests {
             realm,
             other_realm,
             member_id,
+            foreign_member_id,
             seeds,
             foreign_organization_id,
         }
@@ -727,14 +729,32 @@ mod tests {
             assert!(found.is_disjoint(&joined), "{body}");
             assert_eq!(total(&body), (SEED_COUNT - joined.len()) as u64);
 
-            let stranger = Uuid::new_v4();
+            let foreign_member_id = ctx().foreign_member_id;
             let everything = list_ok(
                 &server,
                 &ctx().realm,
-                &format!("without_member={stranger}&limit=100"),
+                &format!("without_member={foreign_member_id}&limit=100"),
             )
             .await;
             assert_eq!(total(&everything), SEED_COUNT as u64);
+            assert_eq!(
+                ids(&everything).into_iter().collect::<HashSet<_>>(),
+                matching(|_| true)
+            );
+
+            let foreign = ctx().foreign_organization_id;
+            let witness = list_ok(&server, &ctx().other_realm, "limit=100").await;
+            assert!(ids(&witness).contains(&foreign), "{witness}");
+            let other_total = total(&witness);
+
+            let excluded = list_ok(
+                &server,
+                &ctx().other_realm,
+                &format!("without_member={foreign_member_id}&limit=100"),
+            )
+            .await;
+            assert!(!ids(&excluded).contains(&foreign), "{excluded}");
+            assert_eq!(total(&excluded), other_total - 1);
         });
     }
 
