@@ -4502,6 +4502,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         username: string;
         email: string;
         firstname: string;
@@ -4513,6 +4514,8 @@ export namespace Endpoints {
         ids: string;
         not_in_group: string;
         not_in_organization: string;
+        created_from: string;
+        created_to: string;
         order_by: "username" | "email" | "firstname" | "lastname" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -4570,6 +4573,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         display_name: string;
         order_by: "name" | "created_at" | "updated_at";
@@ -5067,9 +5071,12 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         ip_address: string;
         user_agent: string;
         persistent: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "last_seen_at" | "expires_at" | "created_at";
       }>;
       path: { realm_name: string; user_id: string };

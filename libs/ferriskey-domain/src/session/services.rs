@@ -357,6 +357,7 @@ mod tests {
                 ip_address: Some("10.0".to_string()),
                 user_agent: Some("firefox".to_string()),
                 persistent: Some(true),
+                ..SessionFilter::default()
             },
             sort: crate::common::pagination::Sort {
                 field: SessionSortField::LastSeenAt,

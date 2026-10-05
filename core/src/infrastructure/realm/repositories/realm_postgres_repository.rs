@@ -1,6 +1,6 @@
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryTrait, Select,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryTrait, Select,
 };
 
 use crate::{
@@ -37,6 +37,13 @@ impl SortColumn<realms::Entity> for RealmSortField {
 fn listing_select(accessible: &[RealmId], filter: &RealmFilter) -> Select<realms::Entity> {
     RealmEntity::find()
         .filter(realms::Column::Id.is_in(accessible.iter().map(|id| Uuid::from(*id))))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(
+                Condition::any()
+                    .add(contains(realms::Column::Name, value))
+                    .add(contains(realms::Column::DisplayName, value)),
+            )
+        })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(realms::Column::Name, value))
         })
@@ -475,11 +482,29 @@ mod tests {
             &RealmFilter {
                 name: Some("a%".to_string()),
                 display_name: Some("b".to_string()),
+                ..RealmFilter::default()
             },
         );
         assert!(sql.contains(r#""realms"."name" ILIKE E'%a\\%%'"#), "{sql}");
         assert!(
             sql.contains(r#""realms"."display_name" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_display_name() {
+        let sql = sql(
+            &[RealmId::new(Uuid::nil())],
+            &RealmFilter {
+                search: Some("a%".to_string()),
+                ..RealmFilter::default()
+            },
+        );
+        assert!(
+            sql.contains(
+                r#"(("realms"."name" ILIKE E'%a\\%%') OR ("realms"."display_name" ILIKE E'%a\\%%'))"#
+            ),
             "{sql}"
         );
     }

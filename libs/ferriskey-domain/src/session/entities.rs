@@ -4,6 +4,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::common::pagination::DateRange;
 use crate::realm::RealmId;
 use crate::realm::scope::RealmOwned;
 
@@ -88,9 +89,11 @@ impl UserSession {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SessionFilter {
+    pub search: Option<String>,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub persistent: Option<bool>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

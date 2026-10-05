@@ -816,6 +816,123 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test user_sessions_listing_test -- --ignored"]
+    fn search_matches_the_ip_address_or_the_user_agent() {
+        let server = make_server();
+        let cases: [(&str, &str, HashSet<Uuid>); 3] = [
+            (
+                "10.0.1.",
+                "10.0.1.",
+                matching(|s| ip_contains(s, "10.0.1.")),
+            ),
+            (
+                "CHROME",
+                "chrome",
+                matching(|s| agent_contains(s, "chrome")),
+            ),
+            ("/", "/", matching(|s| agent_contains(s, "/"))),
+        ];
+
+        rt().block_on(async {
+            for (value, needle, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{value}: the fixture must make this search discriminating"
+                );
+                assert_eq!(
+                    matching(|s| ip_contains(s, needle) || agent_contains(s, needle)),
+                    expected,
+                    "{value}: only one field may carry the needle"
+                );
+                let body = list_target(&server, &format!("search={value}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{value}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{value}: total");
+            }
+
+            let combined = list_target(&server, "search=firefox&persistent=true&limit=100").await;
+            let expected = matching(|s| agent_contains(s, "firefox") && s.persistent);
+            let found: HashSet<Uuid> = ids(&combined).into_iter().collect();
+            assert_eq!(found, expected);
+            assert_eq!(total(&combined), expected.len() as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test user_sessions_listing_test -- --ignored"]
+    fn search_matches_like_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let realm = &ctx().other_realm;
+            let foreign = ctx().foreign_id;
+            let token = &ctx().admin_token;
+            for (value, expected) in [
+                ("%25", "pct%agent"),
+                ("_", "under_score"),
+                ("%5C", "back\\slash"),
+            ] {
+                let body =
+                    list_ok_as(&server, token, realm, foreign, &format!("search={value}")).await;
+                assert_eq!(agents(&body), [expected], "{value}");
+                assert_eq!(total(&body), 1, "{value}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test user_sessions_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: [(&str, HashSet<Uuid>); 6] = [
+            (
+                "created_from=2026-01-01T00:05:00Z",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_to=2026-01-01T00:02:00Z",
+                matching(|s| s.created_minute < 2),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z",
+                matching(|s| (2..5).contains(&s.created_minute)),
+            ),
+            (
+                "created_from=2026-01-01T00:03:00Z&created_to=2026-01-01T00:04:00Z",
+                matching(|s| s.created_minute == 3),
+            ),
+            (
+                "created_to=2026-01-01T00:03:00Z",
+                matching(|s| s.created_minute < 3),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00",
+                matching(|s| s.created_minute >= 5),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_target(&server, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let inverted = list_target(
+                &server,
+                "created_from=2026-01-01T00:05:00Z&created_to=2026-01-01T00:02:00Z",
+            )
+            .await;
+            assert!(ids(&inverted).is_empty(), "{inverted}");
+            assert_eq!(total(&inverted), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test user_sessions_listing_test -- --ignored"]
     fn expired_sessions_stay_listed() {
         let server = make_server();
         rt().block_on(async {
@@ -1109,6 +1226,9 @@ mod tests {
                 ("unknown=1", "unknown"),
                 ("persistent=maybe", "persistent"),
                 ("user_agent=a&user_agent=b", "user_agent"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
             ] {
                 let response = list(
                     &server,

@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    QueryTrait, Select, prelude::Expr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
+    QueryFilter, QueryTrait, Select, prelude::Expr,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -14,7 +14,7 @@ use crate::domain::session::{
 };
 use crate::domain::user::entities::User;
 use crate::entity::user_sessions;
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within_naive};
 
 impl SortColumn<user_sessions::Entity> for SessionSortField {
     fn column(&self) -> user_sessions::Column {
@@ -36,6 +36,14 @@ fn listing_select(
     user_sessions::Entity::find()
         .filter(Column::UserId.eq(user_id))
         .filter(Column::RealmId.eq(realm_id))
+        .filter(within_naive(Column::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(
+                Condition::any()
+                    .add(contains(Column::IpAddress, value))
+                    .add(contains(Column::UserAgent, value)),
+            )
+        })
         .apply_if(filter.ip_address.as_deref(), |select, value| {
             select.filter(contains(Column::IpAddress, value))
         })
@@ -340,7 +348,10 @@ mod tests {
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
+    use chrono::{TimeZone, Utc};
+
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::session::entities::SessionFilter;
 
     fn sql(filter: &SessionFilter) -> String {
@@ -377,6 +388,39 @@ mod tests {
         );
         assert!(
             sql.contains(r#""user_sessions"."user_agent" ILIKE E'%fire\\_%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_ip_address_or_the_user_agent() {
+        let sql = sql(&SessionFilter {
+            search: Some("a%".to_string()),
+            ..SessionFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("user_sessions"."ip_address" ILIKE E'%a\\%%') OR ("user_sessions"."user_agent" ILIKE E'%a\\%%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&SessionFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..SessionFilter::default()
+        });
+        assert!(
+            sql.contains(r#""user_sessions"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""user_sessions"."created_at" < '2026-02-01 00:00:00.000000'"#),
             "{sql}"
         );
     }

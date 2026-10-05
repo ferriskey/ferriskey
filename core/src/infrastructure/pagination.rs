@@ -87,7 +87,6 @@ pub fn within<C: ColumnTrait>(column: C, range: &DateRange) -> Condition {
         .add_option(range.to.map(|to| column.lt(to)))
 }
 
-#[cfg_attr(not(test), expect(dead_code))]
 pub fn within_naive<C: ColumnTrait>(column: C, range: &DateRange) -> Condition {
     Condition::all()
         .add_option(range.from.map(|from| column.gte(from.naive_utc())))
