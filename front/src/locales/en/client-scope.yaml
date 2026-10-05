@@ -48,8 +48,6 @@ list:
   search_placeholder: Search by name or description…
   filter_fields:
     created: Created
-    name: Name
-    description: Description
     protocol: Protocol
     default_scope_type: Assignment
     has_protocol_mappers: With mappers

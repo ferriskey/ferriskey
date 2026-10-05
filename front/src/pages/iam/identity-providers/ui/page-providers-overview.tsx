@@ -162,16 +162,12 @@ export default function PageProvidersOverview({
       header: t('list.columns.provider'),
       render: (p) => providerName(p),
       sortKey: 'display_name',
-      filters: [
-        { kind: 'text', key: 'display_name', label: t('list.filter_fields.display_name') },
-      ],
     },
     {
       key: 'alias',
       header: t('list.columns.alias'),
       render: (p) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{p.alias}</span>,
       sortKey: 'alias',
-      filters: [{ kind: 'text', key: 'alias', label: t('list.filter_fields.alias') }],
     },
     {
       key: 'type',

@@ -21,8 +21,6 @@ export type GroupsQuery = NonNullable<Endpoints.get_List_groups['parameters']['q
 
 export const GROUP_FILTER_KEYS = [
   'search',
-  'name',
-  'description',
   'parent_group_id',
   'is_root',
   'created_from',
@@ -46,8 +44,6 @@ export type GroupMembersQuery = NonNullable<
 
 export const GROUP_MEMBER_FILTER_KEYS = [
   'search',
-  'username',
-  'email',
   'enabled',
   'created_from',
   'created_to',

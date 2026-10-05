@@ -203,7 +203,7 @@ export default function PageLogs({
     { ...columns.outcome, sortKey: 'status', filters: filters.status },
     { ...columns.actor, filters: filters.actor },
     { ...columns.target, filters: filters.target },
-    { ...columns.origin, filters: filters.ip_address },
+    columns.origin,
     { ...columns.when, sortKey: 'timestamp' },
   ]
 

@@ -137,7 +137,6 @@ export default function PageProvidersOverview({
       header: t('list.columns.name'),
       render: (p) => p.name,
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'endpoint',

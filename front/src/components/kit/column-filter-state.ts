@@ -1,7 +1,6 @@
 import type { RelationSource } from './RelationSelect'
 
 export type ColumnFilterField =
-  | { kind: 'text'; key: string; label: string; placeholder?: string }
   | { kind: 'boolean'; key: string; label: string }
   | { kind: 'enum'; key: string; label: string; options: { value: string; label: string }[] }
   | { kind: 'relation'; key: string; label: string; relation: RelationSource }

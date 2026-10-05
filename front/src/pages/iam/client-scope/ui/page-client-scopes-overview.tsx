@@ -75,7 +75,6 @@ export default function PageClientScopesOverview({
       header: t('list.columns.name'),
       render: (s) => s.name,
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'description',
@@ -88,7 +87,6 @@ export default function PageClientScopesOverview({
             {t('scope.identifier', { id: s.id })}
           </span>
         ),
-      filters: [{ kind: 'text', key: 'description', label: t('list.filter_fields.description') }],
     },
     {
       key: 'type',

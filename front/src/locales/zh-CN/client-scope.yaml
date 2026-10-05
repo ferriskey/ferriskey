@@ -59,8 +59,6 @@ list:
   search_placeholder: 按名称或描述搜索…
   filter_fields:
     created: 创建时间
-    name: 名称
-    description: 描述
     protocol: 协议
     default_scope_type: 分配方式
     has_protocol_mappers: 含映射器

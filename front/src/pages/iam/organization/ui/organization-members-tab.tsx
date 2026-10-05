@@ -161,9 +161,6 @@ export default function OrganizationMembersTab({
         </div>
       ),
       sortKey: 'username',
-      filters: [
-        { kind: 'text', key: 'username', label: t('detail.members.filter_fields.username') },
-      ],
     },
     {
       key: 'email',
@@ -174,7 +171,6 @@ export default function OrganizationMembersTab({
         </span>
       ),
       sortKey: 'email',
-      filters: [{ kind: 'text', key: 'email', label: t('detail.members.filter_fields.email') }],
     },
     {
       key: 'status',

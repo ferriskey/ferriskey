@@ -119,7 +119,6 @@ export default function PagePortalLayouts({
       header: t('layouts.columns.name'),
       sortKey: 'name',
       filters: [
-        { kind: 'text', key: 'name', label: t('layouts.filters.name') },
         { kind: 'boolean', key: 'is_default', label: t('layouts.filters.is_default') },
         { kind: 'boolean', key: 'in_use', label: t('layouts.filters.in_use') },
       ],

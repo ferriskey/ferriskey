@@ -68,9 +68,6 @@ export default function PageIdentities({
         </span>
       ),
       sortKey: 'username',
-      filters: [
-        { kind: 'text', key: 'username', label: t('identities.list.filter_fields.username') },
-      ],
     },
     {
       key: 'email',
@@ -92,7 +89,6 @@ export default function PageIdentities({
         ),
       sortKey: 'email',
       filters: [
-        { kind: 'text', key: 'email', label: t('identities.list.filter_fields.email') },
         {
           kind: 'boolean',
           key: 'email_verified',

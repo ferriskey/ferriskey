@@ -90,7 +90,6 @@ list:
       detail: '{{names}} — 目前尚未导入任何账户。'
       action: 查看
   filter_fields:
-    name: 名称
     provider_type: 类型
     provider_family: 类别
     provider_family_values:

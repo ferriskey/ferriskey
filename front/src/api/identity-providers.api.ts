@@ -48,8 +48,6 @@ export type IdentityProvidersFilter = Omit<
 
 export const IDENTITY_PROVIDER_FILTER_KEYS = [
   'search',
-  'alias',
-  'display_name',
   'provider_id',
   'enabled',
   'health',

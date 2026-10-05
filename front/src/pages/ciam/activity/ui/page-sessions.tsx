@@ -149,7 +149,7 @@ export default function PageSessions({
     { ...columns.event, sortKey: 'event_type' },
     { ...columns.outcome, sortKey: 'status' },
     { ...columns.actor, filters: filters.actor },
-    { ...columns.origin, filters: filters.ip_address },
+    columns.origin,
     { ...columns.when, sortKey: 'timestamp' },
   ]
 

@@ -13,7 +13,12 @@ import {
 } from './column-filter-state.ts'
 
 const enabled: ColumnFilterField = { kind: 'boolean', key: 'enabled', label: 'Enabled' }
-const username: ColumnFilterField = { kind: 'text', key: 'username', label: 'Username' }
+const role: ColumnFilterField = {
+  kind: 'enum',
+  key: 'role',
+  label: 'Role',
+  options: [{ value: 'admin', label: 'Admin' }],
+}
 const created: ColumnFilterField = {
   kind: 'date-range',
   fromKey: 'created_from',
@@ -29,16 +34,16 @@ const status: ColumnFilterField = {
 
 test('a date range exposes both of its keys', () => {
   assert.deepEqual(fieldKeys(created), ['created_from', 'created_to'])
-  assert.deepEqual(fieldKeys(username), ['username'])
+  assert.deepEqual(fieldKeys(role), ['role'])
 })
 
 test('no active filter gives no indicator', () => {
-  assert.deepEqual(columnFilterIndicator([enabled, username], {}), { kind: 'none' })
-  assert.deepEqual(columnFilterIndicator([enabled, username], { username: '', enabled: '' }), { kind: 'none' })
+  assert.deepEqual(columnFilterIndicator([enabled, role], {}), { kind: 'none' })
+  assert.deepEqual(columnFilterIndicator([enabled, role], { role: '', enabled: '' }), { kind: 'none' })
 })
 
 test('a single active boolean shows its value', () => {
-  assert.deepEqual(columnFilterIndicator([enabled, username], { enabled: 'true' }), {
+  assert.deepEqual(columnFilterIndicator([enabled, role], { enabled: 'true' }), {
     kind: 'value',
     key: 'enabled',
     value: 'true',
@@ -50,12 +55,12 @@ test('a single active boolean shows its value', () => {
   })
 })
 
-test('a single active text filter shows the active icon', () => {
-  assert.deepEqual(columnFilterIndicator([enabled, username], { username: 'jo' }), { kind: 'active' })
+test('a single active enum filter shows the active icon', () => {
+  assert.deepEqual(columnFilterIndicator([enabled, role], { role: 'admin' }), { kind: 'active' })
 })
 
 test('two active filters show a count', () => {
-  assert.deepEqual(columnFilterIndicator([enabled, username], { enabled: 'true', username: 'jo' }), {
+  assert.deepEqual(columnFilterIndicator([enabled, role], { enabled: 'true', role: 'admin' }), {
     kind: 'count',
     count: 2,
   })
@@ -74,9 +79,9 @@ test('a date range with both bounds counts once', () => {
 })
 
 test('active filters are counted across every column regardless of visibility', () => {
-  const columns = [{ filters: [enabled, username] }, {}, { filters: [created, status] }]
+  const columns = [{ filters: [enabled, role] }, {}, { filters: [created, status] }]
   assert.equal(
-    countActiveFilters(columns, { enabled: 'true', username: '', created_to: '2026-10-05T00:00:00Z', status: 'open' }),
+    countActiveFilters(columns, { enabled: 'true', role: '', created_to: '2026-10-05T00:00:00Z', status: 'open' }),
     3,
   )
 })
@@ -107,5 +112,4 @@ test('booleans and enums of up to three options render as option cards', () => {
     usesOptionCards({ kind: 'enum', key: 'p', label: 'P', options: ['a', 'b', 'c', 'd'].map(option) }),
     false,
   )
-  assert.equal(usesOptionCards({ kind: 'text', key: 'name', label: 'Name' }), false)
 })

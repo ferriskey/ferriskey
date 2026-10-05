@@ -102,7 +102,6 @@ list:
   search_placeholder: Search by name or client ID…
   filter_fields:
     created: Created
-    name: Name
     enabled: Enabled
     public_client: Public
     service_account_enabled: Service account

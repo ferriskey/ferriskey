@@ -73,7 +73,6 @@ export default function PageWebhooksOverview({
           <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
         ),
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'endpoint',
@@ -83,7 +82,6 @@ export default function PageWebhooksOverview({
       ),
       sortKey: 'endpoint',
       filters: [
-        { kind: 'text', key: 'endpoint', label: t('list.filter_fields.endpoint') },
         { kind: 'boolean', key: 'secure_endpoint', label: t('list.filter_fields.secure_endpoint') },
       ],
     },

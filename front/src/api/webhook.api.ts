@@ -8,8 +8,6 @@ export type WebhooksQuery = NonNullable<Endpoints.get_Fetch_webhooks['parameters
 export type WebhooksFilter = Omit<WebhooksQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const WEBHOOK_FILTER_KEYS = [
-  'name',
-  'endpoint',
   'triggered',
   'has_subscribers',
   'secure_endpoint',
@@ -101,9 +99,9 @@ export type WebhookDeliveriesFilter = Omit<
 >
 
 export const DELIVERY_FILTER_KEYS = [
+  'search',
   'status',
   'event',
-  'resource_id',
   'created_from',
   'created_to',
 ] as const

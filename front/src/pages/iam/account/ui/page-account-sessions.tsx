@@ -89,9 +89,6 @@ export default function PageAccountSessions({
           </p>
         </div>
       ),
-      filters: [
-        { kind: 'text', key: 'user_agent', label: t('sessions.filter_fields.user_agent') },
-      ],
     },
     {
       key: 'ip_address',
@@ -101,9 +98,6 @@ export default function PageAccountSessions({
           {session.ip_address ?? t('sessions.unknown_ip')}
         </span>
       ),
-      filters: [
-        { kind: 'text', key: 'ip_address', label: t('sessions.filter_fields.ip_address') },
-      ],
     },
     {
       key: 'persistent',

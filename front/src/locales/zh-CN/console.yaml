@@ -266,7 +266,6 @@ applications:
       enabled: 已启用
       disabled: 已禁用
     filter_fields:
-      name: 名称
       created: 创建时间
       enabled: 已启用
       application_type: 类型
@@ -648,8 +647,6 @@ identities:
     filter_fields:
       created: 创建时间
       role: 角色
-      username: 用户名
-      email: 邮箱
       enabled: 活跃
       email_verified: 邮箱已验证
     empty:

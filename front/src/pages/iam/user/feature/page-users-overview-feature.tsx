@@ -12,10 +12,6 @@ const UNVERIFIED_PREVIEW = 5
 
 const USER_FILTER_KEYS = [
   'search',
-  'username',
-  'email',
-  'firstname',
-  'lastname',
   'enabled',
   'email_verified',
   'service_account',

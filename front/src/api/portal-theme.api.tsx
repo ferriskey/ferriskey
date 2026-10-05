@@ -55,7 +55,6 @@ export type PortalThemesFilter = Omit<PortalThemesQuery, 'page' | 'limit' | 'ord
 
 export const PORTAL_THEME_FILTER_KEYS = [
   'search',
-  'name',
   'layout_id',
   'activatable',
   'created_from',

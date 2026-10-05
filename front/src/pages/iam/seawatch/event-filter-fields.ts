@@ -21,7 +21,6 @@ export interface SecurityEventColumnFilters {
   status: ColumnFilterField[]
   actor: ColumnFilterField[]
   target: ColumnFilterField[]
-  ip_address: ColumnFilterField[]
 }
 
 export const securityEventColumnFilters = (): SecurityEventColumnFilters => ({
@@ -70,13 +69,6 @@ export const securityEventColumnFilters = (): SecurityEventColumnFilters => ({
         value: type,
         label: translate(`seawatch:stream.target_types.${type}`),
       })),
-    },
-  ],
-  ip_address: [
-    {
-      kind: 'text',
-      key: 'ip_address',
-      label: translate('seawatch:stream.filter_fields.ip_address'),
     },
   ],
 })

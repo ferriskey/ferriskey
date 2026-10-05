@@ -75,7 +75,6 @@ stream:
   description: Filters and sorting are applied by the server to every recorded event.
   search_placeholder: Search by IP address…
   filter_fields:
-    ip_address: IP address
     event_types: Event
     status: Outcome
     target_type: Target type

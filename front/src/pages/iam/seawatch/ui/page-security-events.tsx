@@ -240,7 +240,6 @@ export default function PageSecurityEvents({
             {t('stream.ip.not_recorded')}
           </span>
         ),
-      filters: filters.ip_address,
     },
     {
       key: 'timestamp',

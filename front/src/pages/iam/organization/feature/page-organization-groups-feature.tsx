@@ -222,9 +222,6 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
         </div>
       ),
       sortKey: 'username',
-      filters: [
-        { kind: 'text', key: 'username', label: t('groups.members.filter_fields.username') },
-      ],
     },
     {
       key: 'email',
@@ -233,7 +230,6 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
         <span className='text-sm text-muted-foreground'>{member.email ?? EMPTY_VALUE}</span>
       ),
       sortKey: 'email',
-      filters: [{ kind: 'text', key: 'email', label: t('groups.members.filter_fields.email') }],
     },
     {
       key: 'status',
@@ -663,7 +659,6 @@ function GroupsTable({
         </button>
       ),
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('groups.list.filter_fields.name') }],
     },
     {
       key: 'description',
@@ -671,9 +666,6 @@ function GroupsTable({
       render: (group) => (
         <span className='text-sm text-muted-foreground'>{group.description || EMPTY_VALUE}</span>
       ),
-      filters: [
-        { kind: 'text', key: 'description', label: t('groups.list.filter_fields.description') },
-      ],
     },
     {
       key: 'parent',

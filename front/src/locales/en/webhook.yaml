@@ -32,8 +32,6 @@ list:
   search_placeholder: Search by name or endpoint…
   filter_fields:
     created: Created
-    name: Name
-    endpoint: Endpoint
     triggered: Already triggered
     has_subscribers: With events
     secure_endpoint: Over HTTPS
@@ -200,6 +198,7 @@ delivery:
   title: Deliveries
   description: Every attempt FerrisKey made to call this endpoint, newest first.
   error: Delivery history is unavailable. Try again in a moment.
+  search_placeholder: Search by resource ID…
   retry_failed: Could not queue this delivery
   toast:
     retry_queued: Delivery queued for another attempt
@@ -221,7 +220,6 @@ delivery:
     created: Created
     status: Status
     event: Event
-    resource_id: Resource ID
   inspect: Inspect
   retry: Send again
   failed_total_one: '{{count}} failed in total'

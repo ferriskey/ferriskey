@@ -68,14 +68,12 @@ export default function PageOrganizationsOverview({
       header: t('list.columns.name'),
       render: (o) => o.name,
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'alias',
       header: t('list.columns.alias'),
       render: (o) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{o.alias}</span>,
       sortKey: 'alias',
-      filters: [{ kind: 'text', key: 'alias', label: t('list.filter_fields.alias') }],
     },
     {
       key: 'domain',
@@ -89,7 +87,6 @@ export default function PageOrganizationsOverview({
           </span>
         ),
       filters: [
-        { kind: 'text', key: 'domain', label: t('list.filter_fields.domain') },
         { kind: 'boolean', key: 'has_domain', label: t('list.filter_fields.has_domain') },
       ],
     },
@@ -104,9 +101,6 @@ export default function PageOrganizationsOverview({
             {t('organization.identifier', { id: o.id })}
           </span>
         ),
-      filters: [
-        { kind: 'text', key: 'description', label: t('list.filter_fields.description') },
-      ],
     },
     {
       key: 'status',

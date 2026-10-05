@@ -164,7 +164,6 @@ export default function PagePortalThemes({
       header: t('themes.columns.name'),
       sortKey: 'name',
       filters: [
-        { kind: 'text', key: 'name', label: t('themes.filters.name') },
         { kind: 'boolean', key: 'activatable', label: t('themes.filters.activatable') },
       ],
       render: ({ theme, isActive, failures }) => (

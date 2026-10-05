@@ -63,7 +63,6 @@ list:
     empty: 本域中没有此类型的模板。
     picker_label: 模板
   filters:
-    name: 名称
     email_type: 类型
     created: 创建时间
   columns:

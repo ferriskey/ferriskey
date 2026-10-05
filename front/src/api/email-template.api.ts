@@ -17,7 +17,6 @@ export type EmailTemplatesFilter = Omit<
 
 export const EMAIL_TEMPLATE_FILTER_KEYS = [
   'search',
-  'name',
   'email_type',
   'created_from',
   'created_to',

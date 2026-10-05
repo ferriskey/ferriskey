@@ -256,7 +256,6 @@ applications:
       enabled: Enabled
       disabled: Disabled
     filter_fields:
-      name: Name
       created: Created
       enabled: Enabled
       application_type: Type
@@ -646,8 +645,6 @@ identities:
     filter_fields:
       created: Created
       role: Role
-      username: Username
-      email: Email
       enabled: Active
       email_verified: Email verified
     empty:

@@ -17,8 +17,6 @@ export type ClientScopesFilter = Omit<ClientScopesQuery, 'page' | 'limit' | 'ord
 
 export const CLIENT_SCOPE_FILTER_KEYS = [
   'search',
-  'name',
-  'description',
   'protocol',
   'default_scope_type',
   'has_protocol_mappers',

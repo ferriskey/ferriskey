@@ -11,7 +11,6 @@ export type SecurityEventsFilter = Omit<SecurityEventsQuery, 'page' | 'limit' | 
 
 export const SECURITY_EVENT_FILTER_KEYS = [
   'search',
-  'ip_address',
   'event_types',
   'status',
   'target_type',

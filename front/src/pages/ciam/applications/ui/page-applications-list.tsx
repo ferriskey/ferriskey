@@ -92,7 +92,6 @@ export default function PageApplicationsList({
       header: t('applications.list.columns.name'),
       render: (c) => displayName(c),
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('applications.list.filter_fields.name') }],
     },
     {
       key: 'client_id',

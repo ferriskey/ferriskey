@@ -51,10 +51,6 @@ list:
   search_placeholder: Search by username, email, first or last name…
   filter_fields:
     created: Created
-    username: Username
-    email: Email
-    firstname: First name
-    lastname: Last name
     enabled: Enabled
     email_verified: Email verified
     service_account: Service account

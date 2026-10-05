@@ -82,7 +82,6 @@ list:
       detail: '{{names}} — no account imported so far.'
       action: Review
   filter_fields:
-    name: Name
     provider_type: Type
     provider_family: Family
     provider_family_values:

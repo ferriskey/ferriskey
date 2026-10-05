@@ -80,7 +80,6 @@ export default function PageUsersOverview({
       ),
       sortKey: 'username',
       filters: [
-        { kind: 'text', key: 'username', label: t('list.filter_fields.username') },
         {
           kind: 'relation',
           key: 'role_id',
@@ -94,14 +93,12 @@ export default function PageUsersOverview({
       header: t('list.columns.firstname'),
       render: (u) => dimmed(u.firstname),
       sortKey: 'firstname',
-      filters: [{ kind: 'text', key: 'firstname', label: t('list.filter_fields.firstname') }],
     },
     {
       key: 'lastname',
       header: t('list.columns.lastname'),
       render: (u) => dimmed(u.lastname),
       sortKey: 'lastname',
-      filters: [{ kind: 'text', key: 'lastname', label: t('list.filter_fields.lastname') }],
     },
     {
       key: 'email',
@@ -121,7 +118,6 @@ export default function PageUsersOverview({
         ),
       sortKey: 'email',
       filters: [
-        { kind: 'text', key: 'email', label: t('list.filter_fields.email') },
         { kind: 'boolean', key: 'email_verified', label: t('list.filter_fields.email_verified') },
       ],
     },

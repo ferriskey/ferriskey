@@ -15,10 +15,6 @@ export type OrganizationsFilter = Omit<OrganizationsQuery, 'page' | 'limit' | 'o
 
 export const ORGANIZATION_FILTER_KEYS = [
   'search',
-  'name',
-  'alias',
-  'domain',
-  'description',
   'enabled',
   'has_domain',
   'created_from',
@@ -33,8 +29,6 @@ export type OrganizationMembersQuery = NonNullable<
 
 export const ORGANIZATION_MEMBER_FILTER_KEYS = [
   'search',
-  'username',
-  'email',
   'enabled',
   'created_from',
   'created_to',

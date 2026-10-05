@@ -22,7 +22,6 @@ export type PortalLayoutsFilter = Omit<PortalLayoutsQuery, 'page' | 'limit' | 'o
 
 export const PORTAL_LAYOUT_FILTER_KEYS = [
   'search',
-  'name',
   'is_default',
   'in_use',
   'created_from',

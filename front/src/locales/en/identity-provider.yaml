@@ -113,8 +113,6 @@ list:
       detail_other: '{{names}} — most providers reject an authorization request without a scope.'
       action: Review
   filter_fields:
-    alias: Alias
-    display_name: Display name
     provider_id: Type
     enabled: Enabled
     health: Configuration

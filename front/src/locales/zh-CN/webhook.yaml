@@ -45,8 +45,6 @@ list:
   search_placeholder: 按名称或端点搜索…
   filter_fields:
     created: 创建时间
-    name: 名称
-    endpoint: 端点
     triggered: 已触发
     has_subscribers: 含事件
     secure_endpoint: 通过 HTTPS
@@ -211,6 +209,7 @@ delivery:
   title: 投递
   description: FerrisKey 调用此端点的每一次尝试，最新的在前。
   error: 投递历史不可用。请稍后重试。
+  search_placeholder: 按资源 ID 搜索…
   retry_failed: 无法将此投递加入队列
   toast:
     retry_queued: 已将此投递重新加入队列
@@ -232,7 +231,6 @@ delivery:
     created: 创建时间
     status: 状态
     event: 事件
-    resource_id: 资源 ID
   inspect: 查看详情
   retry: 重新发送
   failed_total_other: '共 {{count}} 次失败'

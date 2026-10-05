@@ -78,7 +78,6 @@ export default function PageClientsOverview({
       header: t('list.columns.name'),
       render: (c) => c.name,
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'client_id',

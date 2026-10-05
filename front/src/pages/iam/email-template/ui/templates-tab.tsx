@@ -112,7 +112,6 @@ export default function TemplatesTab({
       key: 'name',
       header: t('list.columns.name'),
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filters.name') }],
       render: (template) => (
         <div className='flex min-w-0 items-center gap-3'>
           {templateIcon(template)}

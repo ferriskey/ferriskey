@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -37,7 +37,6 @@ import { DELIVERY_STATUSES, describeDeliveryStatus, isReplayable } from '../webh
 import DeliverySummary = Schemas.DeliverySummary
 
 const DELIVERY_VIEW: ViewMode = 'list'
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const EVENT_OPTIONS = (Object.keys(catalogedTriggers) as Schemas.WebhookTrigger[])
   .sort()
   .map((event) => ({ value: event, label: event }))
@@ -51,15 +50,6 @@ function outcomeOf(delivery: DeliverySummary): string {
   if (delivery.last_status_code) return `HTTP ${delivery.last_status_code}`
   if (delivery.last_error_code) return delivery.last_error_code
   return '—'
-}
-
-function deliveriesQuery(apiQuery: Record<string, string | number>): WebhookDeliveriesQuery {
-  const { resource_id: resourceId, ...rest } = apiQuery
-  const query = rest as WebhookDeliveriesQuery
-  if (typeof resourceId === 'string' && UUID_PATTERN.test(resourceId.trim())) {
-    return { ...query, resource_id: resourceId.trim() }
-  }
-  return query
 }
 
 function TimestampCell({ value }: { value?: string | null }) {
@@ -81,11 +71,10 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   const listing = usePagedListing(DELIVERY_FILTER_KEYS)
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
 
-  const query = useMemo(() => deliveriesQuery(listing.apiQuery), [listing.apiQuery])
   const { data, isLoading, isError } = useGetWebhookDeliveries({
     realm,
     webhookId,
-    query,
+    query: listing.apiQuery as WebhookDeliveriesQuery,
     keepPrevious: true,
   })
   const { count: failedTotal } = useWebhookDeliveryCount({
@@ -169,11 +158,6 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
           label: t('delivery.filter_fields.event'),
           options: EVENT_OPTIONS,
         },
-        {
-          kind: 'text',
-          key: 'resource_id',
-          label: t('delivery.filter_fields.resource_id'),
-        },
       ],
     },
     {
@@ -248,7 +232,12 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   return (
     <>
       <Section title={t('delivery.title')} description={t('delivery.description')} contained={false}>
-        <ListingToolbar listing={listing} columns={columns} className='mb-3' />
+        <ListingToolbar
+          listing={listing}
+          columns={columns}
+          search={{ placeholder: t('delivery.search_placeholder') }}
+          className='mb-3'
+        />
         {isError ? (
           <div className='rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5 text-sm text-fk-danger'>
             {t('delivery.error')}

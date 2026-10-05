@@ -60,8 +60,6 @@ sessions:
     expires_at: Expires
     created_at: Signed in
   filter_fields:
-    user_agent: Device
-    ip_address: IP address
     persistent: Remembered
     created: Signed in
   persistent_state:

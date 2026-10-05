@@ -13,7 +13,6 @@ export type FederationProvidersFilter = Omit<
 
 export const FEDERATION_PROVIDER_FILTER_KEYS = [
   'search',
-  'name',
   'provider_type',
   'provider_family',
   'enabled',

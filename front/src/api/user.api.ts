@@ -138,8 +138,6 @@ export type UserSessionsQuery = NonNullable<
 
 export const USER_SESSION_FILTER_KEYS = [
   'search',
-  'ip_address',
-  'user_agent',
   'persistent',
   'created_from',
   'created_to',

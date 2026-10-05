@@ -64,7 +64,6 @@ export default function PageRolesOverview({
       header: t('list.columns.name'),
       render: (r) => r.name,
       sortKey: 'name',
-      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'description',
@@ -77,7 +76,6 @@ export default function PageRolesOverview({
             {t('role.identifier', { id: r.id })}
           </span>
         ),
-      filters: [{ kind: 'text', key: 'description', label: t('list.filter_fields.description') }],
     },
     {
       key: 'scope',

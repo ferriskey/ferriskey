@@ -18,7 +18,6 @@ export const CLIENT_SEARCH_LIMIT = 20
 
 export const APPLICATION_FILTER_KEYS = [
   'search',
-  'name',
   'enabled',
   'application_type',
   'created_from',
@@ -27,7 +26,6 @@ export const APPLICATION_FILTER_KEYS = [
 
 export const CLIENT_FILTER_KEYS = [
   'search',
-  'name',
   'enabled',
   'public_client',
   'service_account_enabled',

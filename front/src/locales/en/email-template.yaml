@@ -56,7 +56,6 @@ list:
     empty: No template of this type in this realm.
     picker_label: Template
   filters:
-    name: Name
     email_type: Type
     created: Created
   columns:

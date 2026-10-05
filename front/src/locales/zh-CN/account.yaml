@@ -66,8 +66,6 @@ sessions:
     expires_at: 过期时间
     created_at: 登录于
   filter_fields:
-    user_agent: 设备
-    ip_address: IP 地址
     persistent: 记住登录
     created: 登录于
   persistent_state:

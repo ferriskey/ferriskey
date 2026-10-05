@@ -79,7 +79,6 @@ themes:
     label: No theme yet
     hint: A theme carries the colours, the typography and the {{total}} pages the portal renders.
   filters:
-    name: Name
     layout: Layout
     activatable: Activatable
     created: Created
@@ -154,7 +153,6 @@ layouts:
     label: No layout yet
     hint: A theme without a layout renders its pages bare, which is a valid composition.
   filters:
-    name: Name
     is_default: Default
     in_use: Attached to a theme
     created: Created

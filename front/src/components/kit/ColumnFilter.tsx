@@ -111,17 +111,6 @@ function FieldControl({ field, listing }: { field: ColumnFilterField; listing: P
   const { t } = useTranslation()
 
   switch (field.kind) {
-    case 'text':
-      return (
-        <input
-          type='search'
-          aria-label={field.label}
-          value={listing.drafts[field.key] ?? ''}
-          onChange={(e) => listing.setDraft(field.key, e.target.value)}
-          placeholder={field.placeholder ?? field.label}
-          className={cn(CONTROL_CLASS, 'px-2 placeholder:text-neutral-400')}
-        />
-      )
     case 'boolean':
     case 'enum': {
       const options =

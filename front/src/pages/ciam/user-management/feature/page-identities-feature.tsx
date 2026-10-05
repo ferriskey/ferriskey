@@ -12,8 +12,6 @@ const IDENTITIES: UsersFilter = { service_account: false }
 
 const IDENTITY_FILTER_KEYS = [
   'search',
-  'username',
-  'email',
   'enabled',
   'email_verified',
   'role_id',
