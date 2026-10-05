@@ -373,6 +373,29 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidPasswordHash(details) => {
                 Self::validation_error("secret_data", reason, details)
             }
+            CoreError::InvalidAuthorizationPolicy(issues) => Self::validation_errors(
+                issues
+                    .into_iter()
+                    .map(|issue| {
+                        let field = issue.policy.unwrap_or_else(|| "schema".to_string());
+                        let message = match (issue.line, issue.column) {
+                            (Some(line), Some(column)) => {
+                                format!("{line}:{column}: {}", issue.message)
+                            }
+                            _ => issue.message,
+                        };
+                        ValidationError::new(field, reason, message)
+                    })
+                    .collect(),
+            ),
+            CoreError::AuthorizationConflict => Self::Conflict(ApiErrorBody::new(
+                "The authorization rules of this realm changed since they were read",
+                reason,
+            )),
+            CoreError::AuthorizationTemplateInUse => Self::Conflict(ApiErrorBody::new(
+                "This policy template is linked by one or more policies",
+                reason,
+            )),
             CoreError::PasswordCredentialAlreadyExists => {
                 Self::Conflict("User already has a password credential".into())
             }

@@ -38,6 +38,7 @@ use uuid::Uuid;
 
 use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_authz::matrix::{AUTHZ_MATRIX, AuthzRow};
+use ferriskey_authz::tenant::ports::TenantAuthorizationPolicy;
 
 type Engine = FerriskeyPolicy<MockUserRepository, MockClientRepository, MockUserRoleRepository>;
 
@@ -391,6 +392,60 @@ async fn realm_role_and_client_policies_agree_with_their_matrix_rows() {
             assert!(granted, "{label} denied a subject holding {permission:?}");
         }
     }
+}
+
+#[tokio::test]
+async fn tenant_authorization_policies_agree_with_their_matrix_rows() {
+    let target = realm(TARGET);
+    let user = user_in(&target);
+    let identity = Identity::User(user.clone());
+
+    for (row, label) in [
+        (
+            row_for("list_policies", "can_view_authorization"),
+            "can_view_authorization",
+        ),
+        (
+            row_for("create_policy", "can_manage_authorization"),
+            "can_manage_authorization",
+        ),
+    ] {
+        for permission in Permissions::ALL {
+            let e = engine(vec![role_with(target.id, None, &[permission])], None);
+            let granted = match label {
+                "can_view_authorization" => e.can_view_authorization(&identity, &target).await,
+                _ => e.can_manage_authorization(&identity, &target).await,
+            }
+            .expect("policy must not error");
+
+            assert_eq!(
+                granted,
+                row.permissions.contains(&permission),
+                "{label} disagrees with its matrix row for {permission:?}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn evaluating_authorization_grants_no_right_over_the_rules() {
+    let target = realm(TARGET);
+    let identity = Identity::User(user_in(&target));
+    let e = engine(
+        vec![role_with(
+            target.id,
+            None,
+            &[Permissions::EvaluateAuthorization],
+        )],
+        None,
+    );
+
+    assert!(!e.can_view_authorization(&identity, &target).await.unwrap());
+    assert!(
+        !e.can_manage_authorization(&identity, &target)
+            .await
+            .unwrap()
+    );
 }
 
 #[tokio::test]

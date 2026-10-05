@@ -2,7 +2,9 @@ access_denied: The authorization request was denied.
 account_locked: Your account is temporarily locked after too many failed sign-in attempts. Try again later.
 already_exists: This resource already exists.
 authorization_code_storage_failed: The sign-in could not be completed. Please start again.
+authorization_conflict: The authorization rules of this realm changed in the meantime. Reload and try again.
 authorization_pending: Waiting for you to approve this device.
+authorization_template_in_use: This policy template is linked by one or more policies and cannot be deleted.
 breached_password: This password has appeared in a data breach. Choose a different one.
 broker_session_expired: The single sign-on session has expired. Please start again.
 broker_session_not_found: The single sign-on session could not be found. Please start again.
@@ -35,6 +37,7 @@ idp_user_info_failed: The identity provider did not return the user profile.
 insufficient_entropy: This password is not strong enough. Make it longer, or mix uppercase and lowercase letters, numbers and symbols.
 internal_server_error: Something went wrong on our side. Please try again.
 invalid: This resource is invalid.
+invalid_authorization_policy: The authorization rules are invalid.
 invalid_broker_state: The single sign-on state is invalid. Please start again.
 invalid_client: This client is invalid.
 invalid_client_secret: This client secret is invalid.

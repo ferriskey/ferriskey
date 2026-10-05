@@ -14,6 +14,7 @@ pub mod entities;
 pub mod error;
 pub mod matrix;
 pub mod ports;
+pub mod tenant;
 
 mod engine;
 

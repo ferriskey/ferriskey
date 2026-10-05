@@ -10,7 +10,9 @@ access_denied: 授权请求被拒绝。
 account_locked: 由于登录失败次数过多，您的账户已被临时锁定。请稍后重试。
 already_exists: 该资源已存在。
 authorization_code_storage_failed: 登录未能完成。请重新开始。
+authorization_conflict: 此域的授权规则已被修改。请重新加载后重试。
 authorization_pending: 正在等待您批准此设备。
+authorization_template_in_use: 该策略模板正被一个或多个策略引用，无法删除。
 breached_password: 该密码曾出现在数据泄露事件中。请换一个密码。
 broker_session_expired: 单点登录会话已过期。请重新开始。
 broker_session_not_found: 未找到单点登录会话。请重新开始。
@@ -49,6 +51,7 @@ internal_server_error: 服务器端出现问题。请重试。
 invalid: 该资源无效。
 # AMBIGUOUS IN ENGLISH: "the single sign-on state" may mean the OAuth `state` parameter (as in
 # invalid_state below) or the brokered session state. Read here as the session state.
+invalid_authorization_policy: 授权规则无效。
 invalid_broker_state: 单点登录状态无效。请重新开始。
 invalid_client: 该客户端无效。
 invalid_client_secret: 该客户端密钥无效。

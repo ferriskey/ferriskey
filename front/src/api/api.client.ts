@@ -1184,7 +1184,8 @@ export namespace Schemas {
     | "manage_email_templates"
     | "view_email_templates"
     | "manage_organizations"
-    | "view_organizations";
+    | "view_organizations"
+    | "evaluate_authorization";
   export type PostConsentRequest = { approved_scopes?: Array<string> | undefined; consent_token: string };
   export type PostConsentResponse = { redirect_url: string };
   export type ProtocolMapper = {

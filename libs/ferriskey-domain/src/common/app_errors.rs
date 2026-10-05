@@ -410,6 +410,27 @@ pub enum CoreError {
 
     #[error("User already has a password credential")]
     PasswordCredentialAlreadyExists,
+
+    #[error("Invalid authorization policy set")]
+    InvalidAuthorizationPolicy(Vec<PolicyIssue>),
+
+    #[error("The authorization rules of this realm changed since they were read")]
+    AuthorizationConflict,
+
+    #[error("Authorization policy template is linked by one or more policies")]
+    AuthorizationTemplateInUse,
+}
+
+/// One problem a policy engine found in a realm's authorization rules.
+///
+/// `policy` names the offending policy or template, `None` when the problem is
+/// in the schema itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyIssue {
+    pub policy: Option<String>,
+    pub message: String,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
 }
 
 impl CoreError {
@@ -549,6 +570,9 @@ impl CoreError {
             CoreError::PasswordPolicyViolation(_) => "password_policy_violation",
             CoreError::InvalidPasswordHash(_) => "invalid_password_hash",
             CoreError::PasswordCredentialAlreadyExists => "password_credential_already_exists",
+            CoreError::InvalidAuthorizationPolicy(_) => "invalid_authorization_policy",
+            CoreError::AuthorizationConflict => "authorization_conflict",
+            CoreError::AuthorizationTemplateInUse => "authorization_template_in_use",
         }
     }
 }
@@ -880,6 +904,15 @@ mod tests {
                 CoreError::PasswordCredentialAlreadyExists,
                 "password_credential_already_exists",
             ),
+            (
+                CoreError::InvalidAuthorizationPolicy(Vec::new()),
+                "invalid_authorization_policy",
+            ),
+            (CoreError::AuthorizationConflict, "authorization_conflict"),
+            (
+                CoreError::AuthorizationTemplateInUse,
+                "authorization_template_in_use",
+            ),
         ]
     }
 
@@ -911,7 +944,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 126);
+        assert_eq!(every_variant_with_expected_reason().len(), 129);
     }
 
     #[test]
