@@ -1,9 +1,17 @@
 import { Loader, Monitor, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
-import type { CardSpec, Column, ListingAlert } from '@/components/kit'
-import type { ListingQuery } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  ListingAlert,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { Schemas } from '@/api/api.client'
+import { clientIdRelationSource } from '@/api/client.relation'
+import { userRelationSource } from '@/api/user.relation'
 import {
   failingStep,
   flowStatusTone,
@@ -16,28 +24,51 @@ import {
 
 import CompassFlow = Schemas.CompassFlow
 import FlowStats = Schemas.FlowStats
+import FlowStatus = Schemas.FlowStatus
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
+
+export interface FlowCounts {
+  failed: number
+  expired: number
+  failedInView: number
+  expiredInView: number
+}
 
 export interface PageFlowsProps {
   flows: CompassFlow[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   stats: FlowStats | null
+  counts: FlowCounts
+  recentFailures: CompassFlow[]
   isLoading: boolean
   isError: boolean
-  listing: ListingQuery
   directory: RealmDirectory
   flowHref: (flow: CompassFlow) => string
 }
 
 const SLOW_FLOW_MS = 5000
 
-const QUERY_SYNTAX = 'status:failure  grant:password  client:admin-cli'
+const FLOW_STATUSES: FlowStatus[] = ['pending', 'success', 'failure', 'expired']
+
+const GRANT_TYPES = [
+  { value: 'authorization_code', key: 'authorization_code' },
+  { value: 'password', key: 'password' },
+  { value: 'credentials', key: 'credentials' },
+  { value: 'urn:ietf:params:oauth:grant-type:device_code', key: 'device_code' },
+  { value: 'urn:ietf:params:oauth:grant-type:token-exchange', key: 'token_exchange' },
+  { value: 'saml_sso', key: 'saml_sso' },
+] as const
 
 export default function PageFlows({
   flows,
+  pagination,
+  listing,
   stats,
+  counts,
+  recentFailures,
   isLoading,
   isError,
-  listing,
   directory,
   flowHref,
 }: PageFlowsProps) {
@@ -55,7 +86,7 @@ export default function PageFlows({
           </p>
         </div>
       ),
-      sortValue: (f) => f.started_at,
+      sortKey: 'started_at',
     },
     {
       key: 'grant_type',
@@ -65,7 +96,6 @@ export default function PageFlows({
           {f.grant_type}
         </Pill>
       ),
-      sortValue: (f) => f.grant_type,
     },
     {
       key: 'status',
@@ -89,7 +119,7 @@ export default function PageFlows({
           </div>
         )
       },
-      sortValue: (f) => f.status,
+      sortKey: 'status',
     },
     {
       key: 'client_id',
@@ -102,7 +132,6 @@ export default function PageFlows({
             {t('list.client.unresolved')}
           </span>
         ),
-      sortValue: (f) => f.client_id ?? '',
     },
     {
       key: 'user_id',
@@ -124,14 +153,12 @@ export default function PageFlows({
           </div>
         )
       },
-      sortValue: (f) => directory.userLabel(f.user_id) ?? f.user_id ?? '',
     },
     {
       key: 'steps',
       header: t('list.columns.steps'),
       align: 'right',
       render: (f) => <span className='tnum text-neutral-600 dark:text-neutral-400'>{f.steps.length}</span>,
-      sortValue: (f) => f.steps.length,
     },
     {
       key: 'duration_ms',
@@ -148,7 +175,7 @@ export default function PageFlows({
           {formatDuration(f.duration_ms)}
         </span>
       ),
-      sortValue: (f) => f.duration_ms ?? -1,
+      sortKey: 'duration_ms',
     },
   ]
 
@@ -189,10 +216,40 @@ export default function PageFlows({
     ),
   }
 
-  const failed = flows.filter((f) => f.status === 'failure')
-  const expired = flows.filter((f) => f.status === 'expired')
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'ip_address', label: t('list.filter_fields.ip_address') },
+    {
+      kind: 'enum',
+      key: 'status',
+      label: t('list.filter_fields.status'),
+      options: FLOW_STATUSES.map((status) => ({ value: status, label: status })),
+    },
+    {
+      kind: 'enum',
+      key: 'grant_type',
+      label: t('list.filter_fields.grant_type'),
+      options: GRANT_TYPES.map((grant) => ({
+        value: grant.value,
+        label: t(`list.grant_types.${grant.key}`),
+      })),
+    },
+    {
+      kind: 'relation',
+      key: 'client_id',
+      label: t('list.filter_fields.client_id'),
+      relation: clientIdRelationSource,
+    },
+    {
+      kind: 'relation',
+      key: 'user_id',
+      label: t('list.filter_fields.user_id'),
+      relation: userRelationSource,
+    },
+    { kind: 'boolean', key: 'identified', label: t('list.card.flags.user') },
+    { kind: 'boolean', key: 'completed', label: t('list.card.flags.completed') },
+  ]
 
-  const dominantFailure = failed.reduce<Record<string, number>>((acc, f) => {
+  const dominantFailure = recentFailures.reduce<Record<string, number>>((acc, f) => {
     const step = failingStep(f)
     const key = step ? stepLabel(step) : t('list.alerts.failed.no_step')
     acc[key] = (acc[key] ?? 0) + 1
@@ -217,25 +274,26 @@ export default function PageFlows({
           },
         ]
       : []),
-    ...(failed.length > 0
+    ...(counts.failed > 0
       ? [
           {
             tone: 'error' as const,
-            title: t('list.alerts.failed.title', { count: failed.length }),
+            title: t('list.alerts.failed.title', { count: counts.failed }),
             detail: topFailure
-              ? t('list.alerts.failed.detail', {
+              ? t('list.alerts.failed.detail_recent', {
                   step: topFailure[0],
                   total: topFailure[1],
+                  sample: recentFailures.length,
                 })
               : undefined,
           },
         ]
       : []),
-    ...(expired.length > 0
+    ...(counts.expired > 0
       ? [
           {
             tone: 'warn' as const,
-            title: t('list.alerts.expired.title', { count: expired.length }),
+            title: t('list.alerts.expired.title', { count: counts.expired }),
             detail: t('list.alerts.expired.detail'),
           },
         ]
@@ -253,18 +311,21 @@ export default function PageFlows({
           label: t('list.metrics.total.label'),
           value: stats?.total ?? 0,
           hint: t('list.metrics.total.hint'),
+          series: [stats?.total ?? 0, stats?.total ?? 0],
         },
         {
           key: 'success',
           label: t('list.metrics.success.label'),
           value: stats?.success_count ?? 0,
           hint: successRate,
+          series: [stats?.success_count ?? 0, stats?.success_count ?? 0],
         },
         {
           key: 'failure',
           label: t('list.metrics.failure.label'),
           value: stats?.failure_count ?? 0,
           hint: t('list.metrics.failure.hint'),
+          series: [stats?.failure_count ?? 0, stats?.failure_count ?? 0],
         },
         {
           key: 'duration',
@@ -277,35 +338,17 @@ export default function PageFlows({
         },
       ]}
       alerts={alerts}
-      server={{ filter: listing.filter, onFilterChange: listing.setFilter }}
-      searchScopeHint={t('list.search_hint')}
-      filters={[
-        { key: 'failed', label: t('list.filters.failed') },
-        {
-          key: 'unfinished',
-          label: t('list.filters.unfinished'),
-          predicate: (f) => !f.completed_at,
-        },
-        {
-          key: 'anonymous',
-          label: t('list.filters.anonymous'),
-          predicate: (f) => !f.user_id,
-        },
-      ]}
-      searchPlaceholder={t('list.search_placeholder')}
-      querySyntax={QUERY_SYNTAX}
-      searchIn={(f) =>
-        `${f.id} ${f.grant_type} ${f.client_id ?? ''} ${f.user_id ?? ''} ${f.ip_address ?? ''} ${f.user_agent ?? ''} ${f.status}`
-      }
+      paged={{ listing, pagination, filterFields }}
       rows={flows}
       columns={columns}
       card={card}
       getKey={(f) => f.id}
       getHref={flowHref}
       aggregates={{
-        started_at: t('list.aggregates.executions', { count: flows.length }),
-        status: t('list.aggregates.unfinished', { total: failed.length + expired.length }),
-        steps: flows.reduce((n, f) => n + f.steps.length, 0),
+        started_at: t('list.aggregates.executions', { count: pagination?.total ?? 0 }),
+        status: t('list.aggregates.unfinished', {
+          total: counts.failedInView + counts.expiredInView,
+        }),
       }}
       emptyLabel={t('list.empty.label')}
       emptyHint={t('list.empty.hint')}

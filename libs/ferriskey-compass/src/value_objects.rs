@@ -3,38 +3,29 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::entities::StepStatus;
+use crate::entities::{FlowStatus, StepStatus};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FlowFilter {
     pub client_id: Option<String>,
     pub user_id: Option<Uuid>,
     pub grant_type: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<FlowStatus>,
+    pub ip_address: Option<String>,
+    pub identified: Option<bool>,
+    pub completed: Option<bool>,
     pub from_timestamp: Option<DateTime<Utc>>,
     pub to_timestamp: Option<DateTime<Utc>>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
 }
 
-impl Default for FlowFilter {
-    fn default() -> Self {
-        Self {
-            client_id: None,
-            user_id: None,
-            grant_type: None,
-            status: None,
-            from_timestamp: None,
-            to_timestamp: None,
-            limit: Some(50),
-            offset: Some(0),
-        }
-    }
-}
-
-pub struct FetchFlowsInput {
-    pub realm_name: String,
-    pub filter: FlowFilter,
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FlowSortField {
+    Status,
+    StartedAt,
+    DurationMs,
+    #[default]
+    CreatedAt,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

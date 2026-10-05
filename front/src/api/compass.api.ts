@@ -1,36 +1,38 @@
 import { useQuery } from '@tanstack/react-query'
 import { BaseQuery } from '.'
+import type { Endpoints } from './api.client'
+
+export type FlowsQuery = NonNullable<Endpoints.get_Get_flows['parameters']['query']>
+
+export type FlowsFilter = Omit<FlowsQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const FLOW_FILTER_KEYS = [
+  'ip_address',
+  'status',
+  'grant_type',
+  'client_id',
+  'user_id',
+  'identified',
+  'completed',
+] as const
 
 export const useGetFlows = ({
   realm,
-  clientId,
-  userId,
-  grantType,
-  status,
-  limit,
-  offset,
-}: BaseQuery & {
-  clientId?: string
-  userId?: string
-  grantType?: string
-  status?: string
-  limit?: number
-  offset?: number
-}) => {
+  query,
+  enabled = true,
+}: BaseQuery & { query?: FlowsQuery; enabled?: boolean }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/compass/v1/flows', {
       path: { realm_name: realm! },
-      query: {
-        client_id: clientId,
-        user_id: userId,
-        grant_type: grantType,
-        status,
-        limit,
-        offset,
-      },
+      query: query ?? {},
     }).queryOptions,
-    enabled: !!realm,
+    enabled: !!realm && enabled,
   })
+}
+
+export const useFlowCount = ({ realm, filter }: BaseQuery & { filter?: FlowsFilter }) => {
+  const { data, isLoading } = useGetFlows({ realm, query: { ...filter, limit: 1 } })
+  return { count: data?.metadata.total ?? 0, isLoading }
 }
 
 export const useGetFlow = ({ realm, flowId }: BaseQuery & { flowId: string }) => {

@@ -648,7 +648,6 @@ export namespace Schemas {
   export type GetEmailTemplateResponse = { data: EmailTemplate };
   export type GetEmailTemplatesResponse = { data: Array<EmailTemplate> };
   export type GetFlowResponse = { data: CompassFlow };
-  export type GetFlowsResponse = { data: Array<CompassFlow> };
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string;
     backchannel_logout_session_supported: boolean;
@@ -953,6 +952,23 @@ export namespace Schemas {
       protocol_mappers?: (Array<ProtocolMapper> | null) | undefined;
       realm_id: RealmId;
       updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_CompassFlow = {
+    data: Array<{
+      client_id?: (string | null) | undefined;
+      completed_at?: (string | null) | undefined;
+      duration_ms?: (number | null) | undefined;
+      grant_type: string;
+      id: FlowId;
+      ip_address?: (string | null) | undefined;
+      realm_id: RealmId;
+      started_at: string;
+      status: FlowStatus;
+      steps: Array<CompassFlowStep>;
+      user_agent?: (string | null) | undefined;
+      user_id?: (string | null) | undefined;
     }>;
     metadata: PageMetadata;
   };
@@ -2454,19 +2470,28 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
         client_id: string;
         user_id: string;
         grant_type: string;
-        status: string;
-        limit: number;
-        offset: number;
+        status: "pending" | "success" | "failure" | "expired";
+        ip_address: string;
+        identified: boolean;
+        completed: boolean;
+        from: string;
+        to: string;
+        order_by: "status" | "started_at" | "duration_ms" | "created_at";
       }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.GetFlowsResponse;
+      200: Schemas.Paginated_CompassFlow;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };

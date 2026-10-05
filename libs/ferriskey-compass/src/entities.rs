@@ -65,7 +65,7 @@ impl From<FlowStepId> for Uuid {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum FlowStatus {
     #[serde(rename = "pending")]
     Pending,

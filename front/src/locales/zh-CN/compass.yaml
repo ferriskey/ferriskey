@@ -54,8 +54,6 @@ duration:
   seconds: '{{value}} s'
 
 list:
-  search_hint: 筛选条件由服务器应用；搜索框只在上方已加载的执行记录中缩小范围。
-  search_placeholder: 按 id、客户端或用户筛选…
   columns:
     started_at: 开始时间
     grant_type: 授权类型
@@ -64,6 +62,19 @@ list:
     user_id: 用户
     steps: 步骤
     duration: 耗时
+  filter_fields:
+    ip_address: IP 地址
+    status: 结果
+    grant_type: 授权类型
+    client_id: 客户端
+    user_id: 用户
+  grant_types:
+    authorization_code: 授权码
+    password: 密码
+    credentials: 客户端凭据
+    device_code: 设备码
+    token_exchange: 令牌交换
+    saml_sso: SAML 单点登录
   client:
     unresolved: 未解析
   user:
@@ -88,10 +99,6 @@ list:
     duration:
       label: 平均耗时
       hint: 已完成的执行
-  filters:
-    failed: 失败
-    unfinished: 未完成
-    anonymous: 无用户
   aggregates:
     executions_other: '{{count}} 次执行'
     # Never inflects: the noun it qualifies is the column header, not a word in this string.
@@ -101,12 +108,12 @@ list:
       title: 流程不可用
       detail: 我们无法获取最新的流程。请稍后重试。
     failed:
-      title_other: '{{count}} 次执行失败'
-      # {{step}} is a step label from the catalogue above; {{total}} is how many executions failed there.
-      detail: '{{step}} 占其中 {{total}} 次。'
+      title_other: '此域中 {{count}} 次执行失败'
+      # {{step}} is a step label from the catalogue above; {{total}} is how many of the {{sample}} most recent failed executions failed there.
+      detail_recent: '在最近的 {{sample}} 次中，{{step}} 占 {{total}} 次。'
       no_step: 未记录失败步骤
     expired:
-      title_other: '{{count}} 次执行已过期'
+      title_other: '此域中 {{count}} 次执行已过期'
       detail: 已转到外部提供商后再未返回，没有任何步骤失败。
   empty:
     label: 未记录任何执行
