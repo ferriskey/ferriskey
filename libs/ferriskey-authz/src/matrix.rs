@@ -1415,7 +1415,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 102,
+        line: 103,
     },
     AuthzRow {
         service_fn: "get_organization",
@@ -1429,7 +1429,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 152,
+        line: 153,
     },
     AuthzRow {
         service_fn: "list_organizations",
@@ -1443,7 +1443,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 170,
+        line: 171,
     },
     AuthzRow {
         service_fn: "update_organization",
@@ -1453,7 +1453,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 190,
+        line: 191,
     },
     AuthzRow {
         service_fn: "delete_organization",
@@ -1463,7 +1463,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 231,
+        line: 232,
     },
     AuthzRow {
         service_fn: "list_attributes",
@@ -1477,7 +1477,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 251,
+        line: 252,
     },
     AuthzRow {
         service_fn: "upsert_attribute",
@@ -1487,7 +1487,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 273,
+        line: 274,
     },
     AuthzRow {
         service_fn: "delete_attribute",
@@ -1497,7 +1497,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 305,
+        line: 306,
     },
     AuthzRow {
         service_fn: "add_member",
@@ -1507,7 +1507,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 327,
+        line: 328,
     },
     AuthzRow {
         service_fn: "remove_member",
@@ -1517,7 +1517,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 376,
+        line: 377,
     },
     AuthzRow {
         service_fn: "list_members",
@@ -1531,7 +1531,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 404,
+        line: 406,
     },
     AuthzRow {
         service_fn: "list_user_organizations",
@@ -1545,7 +1545,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/services.rs",
-        line: 423,
+        line: 425,
     },
     AuthzRow {
         service_fn: "get_policy",

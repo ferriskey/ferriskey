@@ -17,10 +17,10 @@ use crate::entities::{
     ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
     ListOrganizationAttributesInput, ListOrganizationMembersInput, ListUserOrganizationsInput,
     Organization, OrganizationAttribute, OrganizationFilter, OrganizationId, OrganizationMember,
-    OrganizationSortField, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
-    RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams,
-    UpdateOrganizationInput, UpdateOrganizationParams, UpsertGroupAttributeInput,
-    UpsertOrganizationAttributeInput,
+    OrganizationMemberFilter, OrganizationMemberSortField, OrganizationSortField,
+    RemoveGroupMemberInput, RemoveOrganizationMemberInput, RevokeGroupRoleInput,
+    RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams, UpdateOrganizationInput,
+    UpdateOrganizationParams, UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
 };
 
 /// Repository trait for Organization persistence
@@ -103,10 +103,11 @@ pub trait OrganizationMemberRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn list_members(
+    fn list(
         &self,
-        organization_id: OrganizationId,
-    ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
+        organization: &Scoped<Organization>,
+        request: &PageRequest<OrganizationMemberFilter, OrganizationMemberSortField>,
+    ) -> impl Future<Output = Result<Page<OrganizationMember>, CoreError>> + Send;
 
     fn list_organizations_for_user(
         &self,
@@ -209,7 +210,8 @@ pub trait OrganizationService: Send + Sync {
         &self,
         identity: Identity,
         input: ListOrganizationMembersInput,
-    ) -> impl Future<Output = Result<Vec<OrganizationMember>, CoreError>> + Send;
+        request: PageRequest<OrganizationMemberFilter, OrganizationMemberSortField>,
+    ) -> impl Future<Output = Result<Page<OrganizationMember>, CoreError>> + Send;
 
     fn list_user_organizations(
         &self,

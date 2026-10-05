@@ -16,6 +16,12 @@ export const ORGANIZATION_FILTER_KEYS = ['name', 'alias', 'domain', 'enabled', '
 
 export const ORGANIZATION_SEARCH_LIMIT = 20
 
+export type OrganizationMembersQuery = NonNullable<
+  Endpoints.get_List_members['parameters']['query']
+>
+
+export const ORGANIZATION_MEMBER_FILTER_KEYS = ['username', 'email', 'enabled'] as const
+
 const SEARCH_DEBOUNCE_MS = 300
 
 export const organizationsKey = (realm: string) =>
@@ -225,13 +231,27 @@ export const useDeleteOrganizationAttribute = () => {
   })
 }
 
+const organizationMembersKey = (realm: string, organizationId: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/members', {
+    path: { realm_name: realm, organization_id: organizationId },
+    query: {},
+  }).queryKey
+
+const realmUsersKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/users', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
+
 export const useGetOrganizationMembers = ({
   realm,
   organizationId,
-}: BaseQuery & { organizationId?: string }) => {
+  query,
+}: BaseQuery & { organizationId?: string; query?: OrganizationMembersQuery }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/members', {
       path: { realm_name: realm!, organization_id: organizationId! },
+      query: query ?? {},
     }).queryOptions,
     enabled: !!realm && !!organizationId,
   })
@@ -245,17 +265,16 @@ export const useRemoveOrganizationMember = () => {
       '/realms/{realm_name}/organizations/{organization_id}/members/{user_id}'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
-      const keys = window.tanstackApi.get(
-        '/realms/{realm_name}/organizations/{organization_id}/members',
-        {
-          path: {
-            realm_name: variables.path.realm_name,
-            organization_id: variables.path.organization_id,
-          },
-        }
-      ).queryKey
       toast.success(translate('common:toast.organization.member_removed'))
-      await queryClient.invalidateQueries({ queryKey: keys })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: organizationMembersKey(
+            variables.path.realm_name,
+            variables.path.organization_id
+          ),
+        }),
+        queryClient.invalidateQueries({ queryKey: realmUsersKey(variables.path.realm_name) }),
+      ])
     },
   })
 }
@@ -286,19 +305,16 @@ export const useAddUserToOrganization = () => {
           user_id: variables.body.user_id,
         },
       }).queryKey
-      const orgMembersKeys = window.tanstackApi.get(
-        '/realms/{realm_name}/organizations/{organization_id}/members',
-        {
-          path: {
-            realm_name: variables.path.realm_name,
-            organization_id: variables.path.organization_id,
-          },
-        }
-      ).queryKey
       toast.success(translate('common:toast.organization.user_added'))
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: userOrgsKeys }),
-        queryClient.invalidateQueries({ queryKey: orgMembersKeys }),
+        queryClient.invalidateQueries({
+          queryKey: organizationMembersKey(
+            variables.path.realm_name,
+            variables.path.organization_id
+          ),
+        }),
+        queryClient.invalidateQueries({ queryKey: realmUsersKey(variables.path.realm_name) }),
         queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) }),
       ])
     },
@@ -322,6 +338,13 @@ export const useRemoveUserFromOrganization = () => {
       toast.success(translate('common:toast.organization.user_removed'))
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: keys }),
+        queryClient.invalidateQueries({
+          queryKey: organizationMembersKey(
+            variables.path.realm_name,
+            variables.path.organization_id
+          ),
+        }),
+        queryClient.invalidateQueries({ queryKey: realmUsersKey(variables.path.realm_name) }),
         queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) }),
       ])
     },

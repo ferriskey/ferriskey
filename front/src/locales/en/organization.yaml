@@ -167,9 +167,18 @@ detail:
       submit_other: Add {{count}} members
     title: Members ({{total}})
     description: Accounts attached to this organization, with their organization-scoped roles.
-    search_placeholder: Search members…
+    columns:
+      member: Member
+      email: Email
+      status: Status
+      joined: Joined
+    filter_fields:
+      username: Username
+      email: Email
+      enabled: Enabled
     empty: This organization has no member yet.
-    no_match: No member matches this search.
+    no_match: No member matches these filters.
+    show_all: Show all members
     manage_roles: Manage roles
     manage_roles_for: Manage roles of {{name}}
     remove: Remove from organization

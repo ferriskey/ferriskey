@@ -2,17 +2,15 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import {
-  useAddUserToOrganization,
   useDeleteOrganization,
   useDeleteOrganizationAttribute,
   useGetOrganization,
   useGetOrganizationAttributes,
-  useGetOrganizationMembers,
   useRemoveOrganizationMember,
   useUpdateOrganization,
   useUpsertOrganizationAttribute,
 } from '@/api/organization.api'
-import { useUserSearch, useUsersByIds } from '@/api/user.api'
+import OrganizationMembersTabFeature from '@/pages/iam/organization/feature/organization-members-tab-feature'
 import { RouterParams } from '@/routes/router'
 import { useRouteTabs, type TabItem } from '@/components/kit'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
@@ -68,11 +66,6 @@ export default function PageOrganizationDetailFeature() {
   const { mutate: upsertAttribute } = useUpsertOrganizationAttribute()
   const { mutate: deleteAttribute } = useDeleteOrganizationAttribute()
 
-  const { data: members, isLoading: isLoadingMembers } = useGetOrganizationMembers({
-    realm,
-    organizationId,
-  })
-  const { mutate: addMember } = useAddUserToOrganization()
   const { mutate: removeMember } = useRemoveOrganizationMember()
   const { confirm, ask, close } = useConfirmDeleteAlert()
 
@@ -131,24 +124,6 @@ export default function PageOrganizationDetailFeature() {
           name: parsed.error.issues.find((i) => i.path[0] === 'name')?.message,
           alias: parsed.error.issues.find((i) => i.path[0] === 'alias')?.message,
         }
-
-  const memberIds = useMemo(() => (members ?? []).map((member) => member.user_id), [members])
-  const { users: resolvedMembers, isLoading: isLoadingUsers } = useUsersByIds({
-    realm,
-    ids: memberIds,
-  })
-  const memberUsers = useMemo<User[]>(() => {
-    const byId = new Map(resolvedMembers.map((user) => [user.id, user]))
-    return memberIds
-      .map((id) => byId.get(id))
-      .filter((user): user is User => user !== undefined)
-  }, [memberIds, resolvedMembers])
-
-  const userSearch = useUserSearch({ realm })
-  const availableUsers = useMemo<User[]>(
-    () => userSearch.users.filter((user) => !memberIds.includes(user.id)),
-    [userSearch.users, memberIds]
-  )
 
   const handleSave = () => {
     if (!organization || !parsed.success) return
@@ -225,22 +200,16 @@ export default function PageOrganizationDetailFeature() {
             path: { realm_name: realm, organization_id: organizationId, key },
           })
         }}
-        members={memberUsers}
-        availableUsers={availableUsers}
-        onSearchUsers={userSearch.setSearch}
-        isSearchingUsers={userSearch.isLoading}
-        isLoadingMembers={isLoadingMembers || isLoadingUsers}
-        onAddMembers={(userIds) => {
-          if (!organizationId) return
-          for (const userId of userIds) {
-            addMember({
-              path: { realm_name: realm, organization_id: organizationId },
-              body: { user_id: userId },
-            })
-          }
-        }}
-        onRemoveMember={handleRemoveMember}
-        onManageRoles={setRolesUser}
+        members={
+          organizationId ? (
+            <OrganizationMembersTabFeature
+              realm={realm}
+              organizationId={organizationId}
+              onRemove={handleRemoveMember}
+              onManageRoles={setRolesUser}
+            />
+          ) : null
+        }
         groups={<PageOrganizationGroupsFeature />}
         onBack={() => navigate(ORGANIZATIONS_URL(realm))}
       />

@@ -278,6 +278,22 @@ pub struct ListOrganizationMembersInput {
     pub organization_id: OrganizationId,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OrganizationMemberFilter {
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationMemberSortField {
+    Username,
+    Email,
+    #[default]
+    CreatedAt,
+}
+
 pub struct ListUserOrganizationsInput {
     pub realm_name: String,
     pub user_id: Uuid,

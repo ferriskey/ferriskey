@@ -70,6 +70,7 @@ pub struct UserFilter {
     pub role_id: Option<Uuid>,
     pub ids: Option<Vec<Uuid>>,
     pub not_in_group: Option<Uuid>,
+    pub not_in_organization: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

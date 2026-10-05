@@ -551,8 +551,8 @@ mod tests {
 
         assert_eq!(response.status_code(), 200);
         let body: Value = response.json();
-        assert!(body.is_array());
-        assert_eq!(body.as_array().unwrap().len(), 0);
+        assert_eq!(body["data"].as_array().unwrap().len(), 0);
+        assert_eq!(body["metadata"]["total"], 0);
     }
 
     #[tokio::test]
@@ -589,8 +589,8 @@ mod tests {
 
         assert_eq!(list_response.status_code(), 200);
         let members: Value = list_response.json();
-        assert_eq!(members.as_array().unwrap().len(), 1);
-        assert_eq!(members[0]["user_id"], user_id);
+        assert_eq!(members["data"].as_array().unwrap().len(), 1);
+        assert_eq!(members["data"][0]["user_id"], user_id);
     }
 
     #[tokio::test]
@@ -631,7 +631,7 @@ mod tests {
             .await;
 
         let members: Value = list_response.json();
-        assert_eq!(members.as_array().unwrap().len(), 0);
+        assert_eq!(members["data"].as_array().unwrap().len(), 0);
     }
 
     #[tokio::test]
