@@ -13,7 +13,8 @@ use ferriskey_domain::realm::{Realm, RealmId};
 
 use crate::entities::retry_policy::{RetryPolicy, RetryPolicyOverride};
 use crate::entities::webhook_delivery::{
-    DeliveryFilter, DeliveryOutcome, DeliveryPage, WebhookDelivery, WebhookDeliveryId,
+    DeliveryOutcome, WebhookDelivery, WebhookDeliveryFilter, WebhookDeliveryId,
+    WebhookDeliverySortField,
 };
 use crate::entities::{
     webhook::{Webhook, WebhookFilter, WebhookSortField},
@@ -59,11 +60,13 @@ pub trait WebhookService: Send + Sync {
         input: DeleteWebhookInput,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn get_webhook_deliveries(
+    fn list_webhook_deliveries(
         &self,
         identity: Identity,
-        input: GetWebhookDeliveriesInput,
-    ) -> impl Future<Output = Result<DeliveryPage, CoreError>> + Send;
+        realm_name: String,
+        webhook_id: Uuid,
+        request: PageRequest<WebhookDeliveryFilter, WebhookDeliverySortField>,
+    ) -> impl Future<Output = Result<Page<WebhookDelivery>, CoreError>> + Send;
 
     fn get_webhook_delivery(
         &self,
@@ -175,12 +178,12 @@ pub trait WebhookDeliveryRepository: Send + Sync {
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 
-    fn list_by_webhook(
+    fn list(
         &self,
-        realm_id: RealmId,
-        webhook_id: Uuid,
-        filter: DeliveryFilter,
-    ) -> impl Future<Output = Result<DeliveryPage, CoreError>> + Send;
+        scope: &RealmScope,
+        webhook: &Webhook,
+        request: &PageRequest<WebhookDeliveryFilter, WebhookDeliverySortField>,
+    ) -> impl Future<Output = Result<Page<WebhookDelivery>, CoreError>> + Send;
 
     fn get(
         &self,
@@ -267,12 +270,6 @@ pub struct UpdateWebhookInput {
 pub struct DeleteWebhookInput {
     pub realm_name: String,
     pub webhook_id: Uuid,
-}
-
-pub struct GetWebhookDeliveriesInput {
-    pub realm_name: String,
-    pub webhook_id: Uuid,
-    pub filter: DeliveryFilter,
 }
 
 pub struct GetWebhookDeliveryInput {

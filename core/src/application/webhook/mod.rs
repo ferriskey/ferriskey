@@ -8,16 +8,18 @@ use crate::{
         },
         webhook::{
             entities::webhook::{Webhook, WebhookFilter, WebhookSortField},
-            entities::webhook_delivery::{DeliveryPage, WebhookDelivery},
+            entities::webhook_delivery::{
+                WebhookDelivery, WebhookDeliveryFilter, WebhookDeliverySortField,
+            },
             ports::{
-                CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput,
-                GetWebhookDeliveryInput, GetWebhookInput, GetWebhookSubscribersInput,
-                RetryWebhookDeliveryInput, RotateWebhookSecretInput, UpdateWebhookInput,
-                WebhookService,
+                CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveryInput, GetWebhookInput,
+                GetWebhookSubscribersInput, RetryWebhookDeliveryInput, RotateWebhookSecretInput,
+                UpdateWebhookInput, WebhookService,
             },
         },
     },
 };
+use uuid::Uuid;
 
 impl WebhookService for ApplicationService {
     async fn create_webhook(
@@ -73,13 +75,15 @@ impl WebhookService for ApplicationService {
         self.webhook_service.update_webhook(identity, input).await
     }
 
-    async fn get_webhook_deliveries(
+    async fn list_webhook_deliveries(
         &self,
         identity: Identity,
-        input: GetWebhookDeliveriesInput,
-    ) -> Result<DeliveryPage, CoreError> {
+        realm_name: String,
+        webhook_id: Uuid,
+        request: PageRequest<WebhookDeliveryFilter, WebhookDeliverySortField>,
+    ) -> Result<Page<WebhookDelivery>, CoreError> {
         self.webhook_service
-            .get_webhook_deliveries(identity, input)
+            .list_webhook_deliveries(identity, realm_name, webhook_id, request)
             .await
     }
 

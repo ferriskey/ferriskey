@@ -621,7 +621,6 @@ export namespace Schemas {
     tree: Array<Record<string, unknown>>;
     version: number;
   };
-  export type FetchDeliveriesResponse = { data: Array<DeliverySummary>; total: number };
   export type FlowStats = {
     avg_duration_ms?: (number | null) | undefined;
     failure_count: number;
@@ -983,6 +982,24 @@ export namespace Schemas {
       protocol_mappers?: (Array<ProtocolMapper> | null) | undefined;
       realm_id: RealmId;
       updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_DeliverySummary = {
+    data: Array<{
+      attempt_count: number;
+      created_at: string;
+      event: WebhookTrigger;
+      id: string;
+      last_attempt_at?: (string | null) | undefined;
+      last_error_code?: (string | null) | undefined;
+      last_error_detail?: (string | null) | undefined;
+      last_status_code?: (number | null) | undefined;
+      next_attempt_at?: (string | null) | undefined;
+      resource_id: string;
+      status: string;
+      updated_at: string;
+      webhook_id: string;
     }>;
     metadata: PageMetadata;
   };
@@ -4898,7 +4915,9 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       query: Partial<{
-        status: string;
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
         event:
           | "user.created"
           | "user.email_verified"
@@ -4938,16 +4957,17 @@ export namespace Endpoints {
           | "webhook.deleted"
           | "client.maintenance.enabled"
           | "client.maintenance.disabled";
-        limit: number;
-        offset: number;
+        status: "pending" | "delivering" | "succeeded" | "failed";
+        resource_id: string;
+        order_by: "status" | "attempt_count" | "last_attempt_at" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string; webhook_id: string };
     };
     responses: {
-      200: Schemas.FetchDeliveriesResponse;
+      200: Schemas.Paginated_DeliverySummary;
       400: Schemas.ApiErrorResponse;
-      401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };

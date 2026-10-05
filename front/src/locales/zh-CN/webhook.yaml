@@ -218,21 +218,21 @@ delivery:
     delivering: 发送中
     succeeded: 已投递
     failed: 失败
-  filters:
-    all: 全部
   columns:
     status: 状态
     event: 事件
     attempts: 尝试次数
     outcome: 结果
     created_at: 时间
+    last_attempt_at: 最近尝试
+    updated_at: 更新时间
+  filter_fields:
+    status: 状态
+    event: 事件
+    resource_id: 资源 ID
   inspect: 查看详情
   retry: 重新发送
-  # Footer aggregate of the current page only, never inflected.
-  failed_on_page: '本页有 {{total}} 次失败'
-  range: '第 {{from}}-{{to}} 项，共 {{total}} 项'
-  previous: 上一页
-  next: 下一页
+  failed_total_other: '共 {{count}} 次失败'
   show_all: 显示全部
   empty:
     all:

@@ -1,17 +1,21 @@
 use axum::{
     Extension,
-    extract::{Path, Query, State},
+    extract::{Path, State},
 };
 use chrono::{DateTime, Utc};
-use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
-use ferriskey_api_core::api_entities::response::Response;
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    list_query::{ListQuery, PaginationParams},
+    paginated::Paginated,
+    response::Response,
+};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::webhook::entities::webhook_delivery::{
-    DeliveryFilter, DeliveryStatus, WebhookDelivery,
+    DeliveryStatus, WebhookDelivery, WebhookDeliveryFilter, WebhookDeliverySortField,
 };
 use ferriskey_core::domain::webhook::entities::webhook_trigger::WebhookTrigger;
-use ferriskey_core::domain::webhook::ports::{GetWebhookDeliveriesInput, WebhookService};
+use ferriskey_core::domain::webhook::ports::WebhookService;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -53,35 +57,24 @@ impl From<WebhookDelivery> for DeliverySummary {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
-pub struct FetchDeliveriesResponse {
-    pub data: Vec<DeliverySummary>,
-    pub total: u64,
-}
-
-#[derive(Debug, Clone, Deserialize, IntoParams)]
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
-pub struct FetchDeliveriesQuery {
-    pub status: Option<String>,
+pub struct WebhookDeliveryListParams {
+    #[param(inline)]
     pub event: Option<WebhookTrigger>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
+    #[param(inline)]
+    pub status: Option<DeliveryStatus>,
+    pub resource_id: Option<Uuid>,
 }
 
-impl TryFrom<FetchDeliveriesQuery> for DeliveryFilter {
-    type Error = ApiError;
-
-    fn try_from(query: FetchDeliveriesQuery) -> Result<Self, Self::Error> {
-        let status = match query.status.as_deref() {
-            Some(raw) => Some(
-                DeliveryStatus::parse(raw)
-                    .ok_or_else(|| ApiError::BadRequest(format!("unknown status: {raw}").into()))?,
-            ),
-            None => None,
-        };
-
-        DeliveryFilter::new(status, query.event, query.limit, query.offset)
-            .map_err(|error| ApiError::BadRequest(error.to_string().into()))
+impl From<WebhookDeliveryListParams> for WebhookDeliveryFilter {
+    fn from(params: WebhookDeliveryListParams) -> Self {
+        Self {
+            event: params.event,
+            status: params.status,
+            resource_id: params.resource_id,
+        }
     }
 }
 
@@ -90,17 +83,19 @@ impl TryFrom<FetchDeliveriesQuery> for DeliveryFilter {
     path = "/{webhook_id}/deliveries",
     tag = "webhook",
     summary = "List webhook deliveries",
-    description = "Lists the recorded delivery attempts for one webhook, newest first.",
+    description = "Returns one page of the recorded delivery attempts of one webhook of the realm. Payloads are not included; read a single delivery to get its payload. event matches one webhook trigger exactly; status matches exactly one of pending, delivering, succeeded, failed; resource_id matches the id of the resource the event is about. Filters combine with AND. Deliveries never attempted sort last on last_attempt_at in ascending order and first in descending order.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
         ("webhook_id" = Uuid, Path, description = "Webhook ID"),
-        FetchDeliveriesQuery,
+        PaginationParams,
+        WebhookDeliveryListParams,
+        ("order_by" = inline(Option<WebhookDeliverySortField>), Query, description = "Sort column, `created_at` by default"),
     ),
     responses(
-        (status = 200, description = "Deliveries retrieved successfully", body = FetchDeliveriesResponse),
-        (status = 400, description = "Invalid filter or page size", body = ApiErrorResponse),
-        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 200, description = "One page of deliveries", body = Paginated<DeliverySummary>),
+        (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Realm or webhook not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
@@ -108,25 +103,92 @@ pub async fn fetch_deliveries(
     Path((realm_name, webhook_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    Query(query): Query<FetchDeliveriesQuery>,
-) -> Result<Response<FetchDeliveriesResponse>, ApiError> {
-    let filter = DeliveryFilter::try_from(query)?;
-
+    ListQuery(request): ListQuery<WebhookDeliveryListParams, WebhookDeliverySortField>,
+) -> Result<Response<Paginated<DeliverySummary>>, ApiError> {
     let page = state
         .service
-        .get_webhook_deliveries(
+        .list_webhook_deliveries(
             identity,
-            GetWebhookDeliveriesInput {
-                realm_name,
-                webhook_id,
-                filter,
-            },
+            realm_name,
+            webhook_id,
+            request.map_filter(WebhookDeliveryFilter::from),
         )
-        .await
-        .map_err(ApiError::from)?;
+        .await?;
 
-    Ok(Response::OK(FetchDeliveriesResponse {
-        data: page.items.into_iter().map(DeliverySummary::from).collect(),
-        total: page.total,
-    }))
+    Ok(Response::OK(Paginated::from(
+        page.map(DeliverySummary::from),
+    )))
+}
+
+#[cfg(test)]
+mod tests {
+    use ferriskey_api_core::api_entities::list_query::parse_list_query;
+    use ferriskey_core::domain::common::pagination::SortOrder;
+
+    use super::*;
+
+    #[test]
+    fn every_filter_and_sort_field_is_read() {
+        let resource = Uuid::from_u128(7);
+        let request = parse_list_query::<WebhookDeliveryListParams, WebhookDeliverySortField>(
+            &format!(
+                "order_by=last_attempt_at&order=asc&event=user.created&status=failed&resource_id={resource}"
+            ),
+        )
+        .expect("valid query");
+
+        assert_eq!(request.sort.field, WebhookDeliverySortField::LastAttemptAt);
+        assert_eq!(request.sort.order, SortOrder::Asc);
+        assert_eq!(
+            WebhookDeliveryFilter::from(request.filter),
+            WebhookDeliveryFilter {
+                event: Some(WebhookTrigger::UserCreated),
+                status: Some(DeliveryStatus::Failed),
+                resource_id: Some(resource),
+            }
+        );
+    }
+
+    #[test]
+    fn every_documented_sort_value_parses() {
+        for value in [
+            "status",
+            "attempt_count",
+            "last_attempt_at",
+            "created_at",
+            "updated_at",
+        ] {
+            assert!(
+                parse_list_query::<WebhookDeliveryListParams, WebhookDeliverySortField>(&format!(
+                    "order_by={value}"
+                ))
+                .is_ok(),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_filters_and_columns_are_refused() {
+        for query in [
+            "offset=10",
+            "payload=x",
+            "realm_id=x",
+            "webhook_id=x",
+            "order_by=payload",
+            "order_by=next_attempt_at",
+            "order_by=event",
+            "status=exploded",
+            "status=FAILED",
+            "event=user.exploded",
+            "event=%25",
+            "resource_id=nope",
+        ] {
+            assert!(
+                parse_list_query::<WebhookDeliveryListParams, WebhookDeliverySortField>(query)
+                    .is_err(),
+                "{query}"
+            );
+        }
+    }
 }

@@ -85,27 +85,48 @@ export const useDeleteWebhook = () => {
   })
 }
 
+export type WebhookDeliveriesQuery = NonNullable<
+  Endpoints.get_Fetch_deliveries['parameters']['query']
+>
+
+export type WebhookDeliveriesFilter = Omit<
+  WebhookDeliveriesQuery,
+  'page' | 'limit' | 'order' | 'order_by'
+>
+
+export const DELIVERY_FILTER_KEYS = ['status', 'event', 'resource_id'] as const
+
 export const useGetWebhookDeliveries = ({
   realm = 'master',
   webhookId,
-  status,
-  limit,
-  offset,
-}: BaseQuery & { webhookId: string; status?: string; limit: number; offset: number }) => {
+  query,
+  enabled = true,
+}: BaseQuery & { webhookId: string; query?: WebhookDeliveriesQuery; enabled?: boolean }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/webhooks/{webhook_id}/deliveries', {
       path: {
         realm_name: realm,
         webhook_id: webhookId,
       },
-      query: {
-        status: status || undefined,
-        limit,
-        offset,
-      },
+      query: query ?? {},
     }).queryOptions,
-    enabled: Boolean(webhookId),
+    enabled: enabled && Boolean(webhookId),
   })
+}
+
+export const useWebhookDeliveryCount = ({
+  realm,
+  webhookId,
+  filter,
+  enabled = true,
+}: BaseQuery & { webhookId: string; filter?: WebhookDeliveriesFilter; enabled?: boolean }) => {
+  const { data, isLoading } = useGetWebhookDeliveries({
+    realm,
+    webhookId,
+    query: { ...filter, limit: 1 },
+    enabled,
+  })
+  return { count: data?.metadata.total ?? 0, isLoading }
 }
 
 export const useGetWebhookDelivery = ({
