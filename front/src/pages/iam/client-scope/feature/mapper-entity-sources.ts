@@ -6,8 +6,12 @@ import { RouterParams } from '@/routes/router'
 import type { Schemas } from '@/api/api.client'
 import type { MapperEntityOptions } from '../ui/mapper-config-fields'
 import type { MapperEntityOption } from '../ui/mapper-entity-field'
-
-const LOOKUP_LIMIT = 100
+import {
+  pickSelectedRole,
+  roleValue,
+  selectedClientQuery,
+  selectedRoleQuery,
+} from './mapper-entity-lookup'
 
 function useRealm() {
   const { realm_name } = useParams<RouterParams>()
@@ -36,16 +40,11 @@ function useClientOptions(search: string) {
 function useSelectedClient(value: string) {
   const { data, isLoading } = useGetClients({
     realm: useRealm(),
-    query: { client_id: value, limit: LOOKUP_LIMIT },
+    query: selectedClientQuery(value),
     enabled: value !== '',
   })
   const client = data?.data.find((candidate) => candidate.client_id === value)
   return { option: client ? toClientOption(client) : undefined, loading: value !== '' && isLoading }
-}
-
-const roleValue = (role: Schemas.Role) => {
-  const clientId = role.client?.client_id
-  return clientId ? `${clientId}.${role.name}` : role.name
 }
 
 function useRoleOption() {
@@ -73,14 +72,13 @@ function useRoleOptions(search: string) {
 
 function useSelectedRole(value: string) {
   const toOption = useRoleOption()
-  const needle = value.slice(value.lastIndexOf('.') + 1)
   const { data, isLoading } = useGetRoles({
     realm: useRealm(),
-    query: { name: needle, limit: LOOKUP_LIMIT },
-    enabled: needle !== '',
+    query: selectedRoleQuery(value),
+    enabled: value !== '',
   })
-  const role = data?.data.find((candidate) => roleValue(candidate) === value)
-  return { option: role ? toOption(role) : undefined, loading: needle !== '' && isLoading }
+  const role = pickSelectedRole(data?.data, value)
+  return { option: role ? toOption(role) : undefined, loading: value !== '' && isLoading }
 }
 
 export const MAPPER_ENTITY_SOURCES: MapperEntityOptions = {

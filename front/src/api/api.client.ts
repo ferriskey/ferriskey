@@ -1763,6 +1763,7 @@ export namespace Endpoints {
         search: string;
         name: string;
         client_id: string;
+        client_id_exact: string;
         enabled: boolean;
         public_client: boolean;
         service_account_enabled: boolean;
@@ -3954,6 +3955,7 @@ export namespace Endpoints {
         order: "asc" | "desc";
         search: string;
         name: string;
+        qualified_name: string;
         description: string;
         require_mfa: boolean;
         client_id: string;
