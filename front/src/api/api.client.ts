@@ -5135,11 +5135,14 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         endpoint: string;
         triggered: boolean;
         has_subscribers: boolean;
         secure_endpoint: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "endpoint" | "triggered_at" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -5264,6 +5267,8 @@ export namespace Endpoints {
           | "client.maintenance.disabled";
         status: "pending" | "delivering" | "succeeded" | "failed";
         resource_id: string;
+        created_from: string;
+        created_to: string;
         order_by: "status" | "attempt_count" | "last_attempt_at" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string; webhook_id: string };
