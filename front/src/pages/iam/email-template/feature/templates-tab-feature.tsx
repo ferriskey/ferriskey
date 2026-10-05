@@ -1,7 +1,14 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { useDeleteEmailTemplate, useGetEmailTemplates } from '@/api/email-template.api'
+import {
+  EMAIL_TEMPLATE_FILTER_KEYS,
+  useDeleteEmailTemplate,
+  useEmailTemplateCount,
+  useGetEmailTemplates,
+  type EmailTemplatesQuery,
+} from '@/api/email-template.api'
+import { usePagedListing } from '@/components/kit'
 import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { downloadEmailTemplateExport } from '@/api/builder-export'
 import { toast } from 'sonner'
@@ -18,7 +25,18 @@ export default function TemplatesTabFeature() {
   const realm = realm_name ?? 'master'
   const listUrl = emailTemplatesBase
 
-  const { data: templatesResponse, isLoading } = useGetEmailTemplates({ realm })
+  const listing = usePagedListing(EMAIL_TEMPLATE_FILTER_KEYS)
+  const { data: templatesResponse, isLoading } = useGetEmailTemplates({
+    realm,
+    query: listing.apiQuery as EmailTemplatesQuery,
+  })
+  const total = useEmailTemplateCount({ realm })
+  const resetPassword = useEmailTemplateCount({ realm, filter: { email_type: 'reset_password' } })
+  const magicLink = useEmailTemplateCount({ realm, filter: { email_type: 'magic_link' } })
+  const emailVerification = useEmailTemplateCount({
+    realm,
+    filter: { email_type: 'email_verification' },
+  })
   const { data: realmResponse } = useGetRealm({ realm })
   const { mutate: deleteTemplate } = useDeleteEmailTemplate()
   const { mutate: updateSettings } = useUpdateRealmSettings()
@@ -38,6 +56,21 @@ export default function TemplatesTabFeature() {
   return (
     <TemplatesTab
       templates={templates}
+      listing={listing}
+      pagination={templatesResponse?.metadata}
+      counts={{
+        total: total.count,
+        byType: {
+          reset_password: resetPassword.count,
+          magic_link: magicLink.count,
+          email_verification: emailVerification.count,
+        },
+        loadingByType: {
+          reset_password: resetPassword.isLoading,
+          magic_link: magicLink.isLoading,
+          email_verification: emailVerification.isLoading,
+        },
+      }}
       isLoading={isLoading}
       assignments={assignments}
       templateHref={(id: string) => `${listUrl}/${id}`}

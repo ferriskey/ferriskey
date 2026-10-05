@@ -11,8 +11,6 @@ void preloadNamespaces(EMAIL_TEMPLATE_NAMESPACE).catch(() => undefined)
 
 export const DEFAULT_EMAIL_TYPE: EmailType = 'reset_password'
 
-export const ALL_EMAIL_TYPES = 'all'
-
 export const EXPORT_JSON = 'json'
 
 export const EXPORT_MJML = 'mjml'

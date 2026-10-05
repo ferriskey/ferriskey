@@ -2,26 +2,30 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         email_template::{
-            entities::EmailTemplate,
+            entities::{EmailTemplate, EmailTemplateFilter, EmailTemplateSortField},
             ports::{
                 CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplateService,
-                GetEmailTemplateInput, GetEmailTemplatesInput, ImportEmailTemplateInput,
-                RenderEmailTemplateInput, UpdateEmailTemplateInput,
+                GetEmailTemplateInput, ImportEmailTemplateInput, RenderEmailTemplateInput,
+                UpdateEmailTemplateInput,
             },
         },
     },
 };
 
 impl EmailTemplateService for ApplicationService {
-    async fn get_templates_by_realm(
+    async fn list_templates(
         &self,
         identity: Identity,
-        input: GetEmailTemplatesInput,
-    ) -> Result<Vec<EmailTemplate>, CoreError> {
+        realm_name: String,
+        request: PageRequest<EmailTemplateFilter, EmailTemplateSortField>,
+    ) -> Result<Page<EmailTemplate>, CoreError> {
         self.email_template_service
-            .get_templates_by_realm(identity, input)
+            .list_templates(identity, realm_name, request)
             .await
     }
 

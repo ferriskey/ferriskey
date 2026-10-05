@@ -1166,7 +1166,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 100,
     },
     AuthzRow {
-        service_fn: "get_templates_by_realm",
+        service_fn: "list_templates",
         policy_fn: "can_view_email_template",
         action: actions::EMAIL_TEMPLATE_READ,
         resource: EntityType::REALM,
@@ -1177,7 +1177,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 75,
+        line: 78,
     },
     AuthzRow {
         service_fn: "get_template",
@@ -1191,7 +1191,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 94,
+        line: 95,
     },
     AuthzRow {
         service_fn: "create_template",
@@ -1201,7 +1201,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageEmailTemplates],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 116,
+        line: 117,
     },
     AuthzRow {
         service_fn: "update_template",
@@ -1211,7 +1211,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageEmailTemplates],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 148,
+        line: 149,
     },
     AuthzRow {
         service_fn: "delete_template",
@@ -1221,7 +1221,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageEmailTemplates],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 181,
+        line: 182,
     },
     AuthzRow {
         service_fn: "render_template_html",
@@ -1235,7 +1235,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 205,
+        line: 206,
     },
     AuthzRow {
         service_fn: "import_template",
@@ -1245,7 +1245,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageEmailTemplates],
         self_bypass: false,
         file: "libs/ferriskey-mail/src/email_template/services.rs",
-        line: 229,
+        line: 230,
     },
     AuthzRow {
         service_fn: "create_group",

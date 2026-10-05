@@ -1,17 +1,28 @@
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait,
+    Select, Set,
+};
 use tracing::error;
 use uuid::Uuid;
 
 use crate::{
     domain::{
-        common::{entities::app_errors::CoreError, generate_timestamp},
-        email_template::{entities::EmailTemplate, ports::EmailTemplateRepository},
-        realm::entities::{Scoped, Unscoped},
+        common::{
+            entities::app_errors::CoreError,
+            generate_timestamp,
+            pagination::{Page, PageRequest},
+        },
+        email_template::{
+            entities::{EmailTemplate, EmailTemplateFilter, EmailTemplateSortField},
+            ports::EmailTemplateRepository,
+        },
+        realm::entities::{RealmScope, Scoped, Unscoped},
     },
     entity::email_templates::{
         ActiveModel as EmailTemplateActiveModel, Column as EmailTemplateColumn,
         Entity as EmailTemplateEntity,
     },
+    infrastructure::pagination::{SortColumn, contains, paginate},
 };
 
 #[derive(Debug, Clone)]
@@ -25,17 +36,51 @@ impl PostgresEmailTemplateRepository {
     }
 }
 
+impl SortColumn<EmailTemplateEntity> for EmailTemplateSortField {
+    fn column(&self) -> EmailTemplateColumn {
+        match self {
+            EmailTemplateSortField::Name => EmailTemplateColumn::Name,
+            EmailTemplateSortField::EmailType => EmailTemplateColumn::EmailType,
+            EmailTemplateSortField::CreatedAt => EmailTemplateColumn::CreatedAt,
+            EmailTemplateSortField::UpdatedAt => EmailTemplateColumn::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(realm_id: Uuid, filter: &EmailTemplateFilter) -> Select<EmailTemplateEntity> {
+    EmailTemplateEntity::find()
+        .filter(EmailTemplateColumn::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(EmailTemplateColumn::Name, value))
+        })
+        .apply_if(filter.email_type.as_ref(), |select, value| {
+            select.filter(EmailTemplateColumn::EmailType.eq(value.to_string()))
+        })
+}
+
 impl EmailTemplateRepository for PostgresEmailTemplateRepository {
-    async fn fetch_by_realm(&self, realm_id: Uuid) -> Result<Vec<EmailTemplate>, CoreError> {
-        EmailTemplateEntity::find()
-            .filter(EmailTemplateColumn::RealmId.eq(realm_id))
-            .all(&self.db)
-            .await
-            .map(|models| models.into_iter().map(EmailTemplate::from).collect())
-            .map_err(|e| {
-                error!("Failed to fetch email templates: {}", e);
-                CoreError::InternalServerError
-            })
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<EmailTemplateFilter, EmailTemplateSortField>,
+    ) -> Result<Page<EmailTemplate>, CoreError> {
+        let (models, total) = paginate(
+            &self.db,
+            listing_select(scope.id().into(), &request.filter),
+            request,
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to list email templates: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(Page::new(
+            models.into_iter().map(EmailTemplate::from).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
     }
 
     async fn get_by_id(
@@ -130,5 +175,57 @@ impl EmailTemplateRepository for PostgresEmailTemplateRepository {
                 error!("Failed to delete email template: {}", e);
                 CoreError::InternalServerError
             })
+    }
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::email_template::entities::{EmailTemplateFilter, EmailType};
+
+    fn sql(filter: &EmailTemplateFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&EmailTemplateFilter::default());
+        assert!(
+            sql.contains(
+                r#""email_templates"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!sql.contains(r#""email_type" ="#), "{sql}");
+    }
+
+    #[test]
+    fn name_is_an_escaped_contains_match() {
+        let sql = sql(&EmailTemplateFilter {
+            name: Some("a%".to_string()),
+            ..EmailTemplateFilter::default()
+        });
+        assert!(
+            sql.contains(r#""email_templates"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn email_type_is_an_equality_on_its_stored_name() {
+        let sql = sql(&EmailTemplateFilter {
+            email_type: Some(EmailType::EmailVerification),
+            ..EmailTemplateFilter::default()
+        });
+        assert!(
+            sql.contains(r#""email_templates"."email_type" = 'email_verification'"#),
+            "{sql}"
+        );
     }
 }

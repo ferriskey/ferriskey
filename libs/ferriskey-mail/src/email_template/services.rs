@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use crate::email_template::entities::EmailTemplate;
+use crate::email_template::entities::{EmailTemplate, EmailTemplateFilter, EmailTemplateSortField};
 use crate::email_template::ports::{
     CreateEmailTemplateInput, DeleteEmailTemplateInput, EmailTemplatePolicy,
     EmailTemplateRepository, EmailTemplateService, EmailTemplateSource, GetEmailTemplateInput,
-    GetEmailTemplatesInput, ImportEmailTemplateInput, RenderEmailTemplateInput, TemplateRenderer,
-    UpdateEmailTemplateInput,
+    ImportEmailTemplateInput, RenderEmailTemplateInput, TemplateRenderer, UpdateEmailTemplateInput,
 };
 use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped, UnscopedOption};
@@ -65,12 +65,13 @@ where
     ET: EmailTemplateRepository,
     TR: TemplateRenderer,
 {
-    async fn get_templates_by_realm(
+    async fn list_templates(
         &self,
         identity: Identity,
-        input: GetEmailTemplatesInput,
-    ) -> Result<Vec<EmailTemplate>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        request: PageRequest<EmailTemplateFilter, EmailTemplateSortField>,
+    ) -> Result<Page<EmailTemplate>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
             self.policy
@@ -79,9 +80,7 @@ where
             "insufficient permissions",
         )?;
 
-        self.email_template_repository
-            .fetch_by_realm(scope.id().into())
-            .await
+        self.email_template_repository.list(&scope, &request).await
     }
 
     async fn get_template(
@@ -260,10 +259,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::email_template::entities::EmailType;
+    use crate::email_template::entities::{EmailTemplateFilter, EmailTemplateSortField, EmailType};
     use crate::email_template::ports::MockEmailTemplateRepository;
     use chrono::Utc;
     use ferriskey_domain::client::ports::MockClientRepository;
+    use ferriskey_domain::common::pagination::{Page, PageRequest};
     use ferriskey_domain::realm::scope::Unscoped;
     use ferriskey_domain::realm::{Realm, ports::MockRealmRepository};
     use ferriskey_domain::role::entities::Role;
@@ -491,6 +491,11 @@ mod tests {
     /// Policy granting `manage_realm` on `realm` to `user` — the attacker is a
     /// legitimate admin *of their own realm*, so `ensure_policy` passes.
     fn admin_policy_for(realm: &Realm, user: &User) -> Arc<TestPolicy> {
+        policy_granting(realm, user, &["manage_realm"])
+    }
+
+    fn policy_granting(realm: &Realm, user: &User, permissions: &[&str]) -> Arc<TestPolicy> {
+        let permissions: Vec<String> = permissions.iter().map(|p| p.to_string()).collect();
         let mut user_repo = MockUserRepository::new();
         let u = user.clone();
         user_repo.expect_get_by_id().returning(move |_| {
@@ -502,12 +507,13 @@ mod tests {
         let rid = realm.id;
         user_role_repo.expect_get_user_roles().returning(move |_| {
             let rid = rid;
+            let permissions = permissions.clone();
             Box::pin(async move {
                 Ok(vec![Role {
                     id: uuid::Uuid::new_v4(),
                     name: "admin".to_string(),
                     description: None,
-                    permissions: vec!["manage_realm".to_string()],
+                    permissions,
                     realm_id: rid,
                     client_id: None,
                     client: None,
@@ -523,6 +529,73 @@ mod tests {
             Arc::new(MockClientRepository::new()),
             Arc::new(user_role_repo),
         ))
+    }
+
+    fn list_request() -> PageRequest<EmailTemplateFilter, EmailTemplateSortField> {
+        PageRequest {
+            filter: EmailTemplateFilter {
+                name: Some("welcome".to_string()),
+                email_type: Some(EmailType::MagicLink),
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_templates_refuses_a_caller_without_rights_before_listing() {
+        let realm = named_realm("listing-realm");
+        let user = test_user(&realm);
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo.expect_list().never();
+
+        let service = EmailTemplateServiceImpl::new(
+            Arc::new(realm_repo_for(&realm)),
+            Arc::new(et_repo),
+            Arc::new(TestRenderer),
+            policy_granting(&realm, &user, &[]),
+        );
+
+        let result = service
+            .list_templates(Identity::User(user), realm.name.clone(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_templates_pages_the_resolved_realm_with_the_request() {
+        let realm = named_realm("listing-realm");
+        let realm_id = realm.id;
+        let user = test_user(&realm);
+        let listed = test_template(&realm);
+        let expected = listed.clone();
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 4, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = EmailTemplateServiceImpl::new(
+            Arc::new(realm_repo_for(&realm)),
+            Arc::new(et_repo),
+            Arc::new(TestRenderer),
+            policy_granting(&realm, &user, &["view_email_templates"]),
+        );
+
+        let page = service
+            .list_templates(Identity::User(user), realm.name.clone(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 4);
+        assert_eq!(page.data(), [expected]);
     }
 
     #[tokio::test]

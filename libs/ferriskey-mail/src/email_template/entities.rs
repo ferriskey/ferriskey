@@ -113,6 +113,22 @@ impl RealmOwned for EmailTemplate {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EmailTemplateFilter {
+    pub name: Option<String>,
+    pub email_type: Option<EmailType>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EmailTemplateSortField {
+    Name,
+    EmailType,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 /// Interpolates template variables into HTML content.
 /// All variable values are HTML-escaped before substitution.
 pub fn interpolate_variables(html: &str, variables: &HashMap<String, String>) -> String {
