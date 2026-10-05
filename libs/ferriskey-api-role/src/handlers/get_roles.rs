@@ -58,7 +58,7 @@ impl TryFrom<RoleListParams> for RoleFilter {
 #[utoipa::path(
     get,
     summary = "List the roles of a realm",
-    description = "Returns one page of the realm's roles. search matches case-insensitively a role whose name contains the value, a client role whose client identifier (client_id string) contains the value, or, when the value contains a dot, a client role whose client identifier contains the part before the last dot and whose name contains the part after it (so `app-web.admin` finds the `admin` role of client `app-web`). Text filters (name, description) match case-insensitively anywhere in the value; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
+    description = "Returns one page of the realm's roles. search matches case-insensitively a role whose name contains the value, a client role whose client identifier (client_id string) contains the value, or a client role whose qualified value `<client identifier>.<role name>` contains the value (so `app-web.admin` finds the `admin` role of client `app-web`, and `app-web.ns.admin` finds its `ns.admin` role). Text filters (name, description) match case-insensitively anywhere in the value; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
     path = "",
     tag = "role",
     params(

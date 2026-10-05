@@ -5,7 +5,7 @@ use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
     ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select,
-    sea_query::{Query, SimpleExpr},
+    sea_query::{Expr, LikeExpr, Query, SimpleExpr, extension::postgres::PgExpr},
 };
 use tracing::error;
 use uuid::Uuid;
@@ -24,7 +24,7 @@ use crate::domain::{
     },
 };
 use crate::entity::{clients, roles};
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, escape_like, paginate};
 
 impl SortColumn<roles::Entity> for RoleSortField {
     fn column(&self) -> roles::Column {
@@ -47,15 +47,31 @@ fn client_identifier_contains(realm_id: Uuid, value: &str) -> SimpleExpr {
     )
 }
 
+fn qualified_value_contains(realm_id: Uuid, value: &str) -> SimpleExpr {
+    Expr::exists(
+        Query::select()
+            .expr(Expr::val(1))
+            .from(clients::Entity)
+            .and_where(
+                Expr::col((clients::Entity, clients::Column::Id))
+                    .equals((roles::Entity, roles::Column::ClientId)),
+            )
+            .and_where(clients::Column::RealmId.eq(realm_id))
+            .and_where(
+                Expr::col((clients::Entity, clients::Column::ClientId))
+                    .concat(".")
+                    .concat(Expr::col((roles::Entity, roles::Column::Name)))
+                    .ilike(LikeExpr::new(escape_like(value))),
+            )
+            .to_owned(),
+    )
+}
+
 fn search_condition(realm_id: Uuid, value: &str) -> Condition {
     Condition::any()
         .add(contains(roles::Column::Name, value))
         .add(client_identifier_contains(realm_id, value))
-        .add_option(value.rsplit_once('.').map(|(prefix, suffix)| {
-            Condition::all()
-                .add(client_identifier_contains(realm_id, prefix))
-                .add(contains(roles::Column::Name, suffix))
-        }))
+        .add(qualified_value_contains(realm_id, value))
 }
 
 fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> {
@@ -409,29 +425,21 @@ mod tests {
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')))"#),
+            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#),
             "{sql}"
         );
     }
 
     #[test]
-    fn search_with_a_dot_also_matches_the_qualified_value_split_at_the_last_dot() {
+    fn search_also_matches_the_full_qualified_client_value() {
         let sql = sql(&RoleFilter {
-            search: Some("app.web.adm_".to_string()),
+            search: Some("app-web.ns.adm_".to_string()),
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"OR ("roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE '%app.web%')) AND ("roles"."name" ILIKE E'%adm\\_%')))"#),
+            sql.contains(r#"OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND (("clients"."client_id" || '.' || "roles"."name") ILIKE E'%app-web.ns.adm\\_%')))"#),
             "{sql}"
         );
-    }
-
-    #[test]
-    fn search_without_a_dot_has_no_qualified_branch() {
-        let sql = sql(&RoleFilter {
-            search: Some("app".to_string()),
-            ..RoleFilter::default()
-        });
-        assert_eq!(sql.matches("IN (SELECT").count(), 1, "{sql}");
+        assert_eq!(sql.matches("ILIKE").count(), 3, "{sql}");
     }
 }

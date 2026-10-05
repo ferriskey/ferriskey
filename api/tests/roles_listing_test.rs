@@ -89,6 +89,8 @@ mod tests {
         foreign_client: Uuid,
         seeds: Vec<Seed>,
         foreign_role_id: Uuid,
+        dotted_realm: String,
+        dotted_role_id: Uuid,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -188,8 +190,10 @@ mod tests {
         let suffix = Uuid::new_v4().simple().to_string();
         let realm = format!("listing-{}", &suffix[..8]);
         let other_realm = format!("other-{}", &suffix[..8]);
+        let dotted_realm = format!("dotted-{}", &suffix[..8]);
         create_realm(&server, &admin_token, &realm).await;
         create_realm(&server, &admin_token, &other_realm).await;
+        create_realm(&server, &admin_token, &dotted_realm).await;
 
         let realm_id = realm_id_of(&pool, &realm).await;
         let other_realm_id = realm_id_of(&pool, &other_realm).await;
@@ -231,6 +235,13 @@ mod tests {
             insert_plain_role(&pool, other_realm_id, name, None).await;
         }
 
+        let dotted_realm_id = realm_id_of(&pool, &dotted_realm).await;
+        let app_web = insert_client(&pool, dotted_realm_id, "app-web").await;
+        let dotted_role_id =
+            insert_plain_role(&pool, dotted_realm_id, "ns.admin", Some(app_web)).await;
+        insert_plain_role(&pool, dotted_realm_id, "admin", Some(app_web)).await;
+        insert_plain_role(&pool, dotted_realm_id, "web.ns", None).await;
+
         let viewer_username = format!("viewer-{}", &suffix[..8]);
         let viewer_id = create_user(&server, &admin_token, &other_realm, &viewer_username).await;
         set_password(
@@ -271,6 +282,8 @@ mod tests {
             foreign_client,
             seeds,
             foreign_role_id,
+            dotted_realm,
+            dotted_role_id,
         }
     }
 
@@ -701,8 +714,8 @@ mod tests {
                 matching(|s| s.link == Link::First && s.name.contains("role-0")),
             ),
             (
-                "search=st-app.0",
-                matching(|s| s.link == Link::First && s.name.contains('0')),
+                "search=st-app.role-0",
+                matching(|s| s.link == Link::First && s.name.starts_with("role-0")),
             ),
             (
                 "search=second&name=role-1",
@@ -728,6 +741,28 @@ mod tests {
 
             let empty = list_ok(&server, &ctx().realm, "search=&limit=100").await;
             assert_eq!(total(&empty), SEED_COUNT as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn search_matches_a_qualified_value_whose_role_name_contains_a_dot() {
+        let server = make_server();
+        rt().block_on(async {
+            let witness = list_ok(&server, &ctx().dotted_realm, "limit=100").await;
+            assert_eq!(total(&witness), 3);
+
+            let body = list_ok(&server, &ctx().dotted_realm, "search=app-web.ns.admin").await;
+            assert_eq!(ids(&body), [ctx().dotted_role_id]);
+            assert_eq!(total(&body), 1);
+
+            let partial = list_ok(&server, &ctx().dotted_realm, "search=WEB.NS.ADM").await;
+            assert_eq!(ids(&partial), [ctx().dotted_role_id]);
+            assert_eq!(total(&partial), 1);
+
+            let elsewhere = list_ok(&server, &ctx().realm, "search=app-web.ns.admin").await;
+            assert!(ids(&elsewhere).is_empty(), "{elsewhere}");
+            assert_eq!(total(&elsewhere), 0);
         });
     }
 
