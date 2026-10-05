@@ -11,9 +11,9 @@ use crate::{
             AssignMemberRoleInput, CreateGroupInput, CreateOrganizationInput,
             DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
             DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
-            GroupMember, GroupMemberPage, GroupNode, GroupService, ListGroupAttributesInput,
-            ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
-            ListOrganizationAttributesInput, ListOrganizationMembersInput,
+            GroupFilter, GroupListItem, GroupMember, GroupMemberPage, GroupService, GroupSortField,
+            ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
+            ListMemberRolesInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
             ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
             OrganizationMember, OrganizationMemberRoleService, OrganizationService,
             OrganizationSortField, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
@@ -166,8 +166,11 @@ impl GroupService for ApplicationService {
         &self,
         identity: Identity,
         input: ListGroupsInput,
-    ) -> Result<Vec<GroupNode>, CoreError> {
-        self.group_service.list_groups(identity, input).await
+        request: PageRequest<GroupFilter, GroupSortField>,
+    ) -> Result<Page<GroupListItem>, CoreError> {
+        self.group_service
+            .list_groups(identity, input, request)
+            .await
     }
 
     async fn update_group(

@@ -507,14 +507,29 @@ impl GroupAttribute {
     }
 }
 
-/// A node in the group tree, used for hierarchical responses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct GroupNode {
+pub struct GroupListItem {
     #[serde(flatten)]
     pub group: Group,
-    /// Breaks the self-referential schema so utoipa's OpenAPI generation doesn't recurse forever.
-    #[schema(no_recursion)]
-    pub children: Vec<GroupNode>,
+    pub child_count: u64,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GroupFilter {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub parent_group_id: Option<Uuid>,
+    pub is_root: Option<bool>,
+    pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupSortField {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
 }
 
 // --- Group input structs ---

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronRight, Plus, Search, Trash2 } from 'lucide-react'
+import { FolderTree, Plus, Search, Trash2 } from 'lucide-react'
 
 import { RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
@@ -31,29 +31,49 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
+import {
+  DataView,
+  FilterBar,
+  PaginationBar,
+  usePagedListing,
+  type Column,
+  type FilterField,
+  type PagedListing,
+  type ViewMode,
+} from '@/components/kit'
 import { useUserSearch } from '@/api/user.api'
 import { useRoleSearch } from '@/api/role.api'
 import { apiErrorMessage } from '@/lib/api-error'
+import { formatRelative } from '@/utils/format-date'
+import { groupRelationSource } from '@/api/group.relation'
+import { groupFilterPatch, walkDownPatch } from './group-filter-patch'
 import {
-  GroupNode,
+  GROUP_FILTER_KEYS,
+  GROUP_SEARCH_LIMIT,
   useAddGroupMember,
   useAssignGroupRole,
   useCreateGroup,
   useDeleteGroup,
   useDeleteGroupAttribute,
+  useGroup,
   useGroupAttributes,
   useGroupMembers,
   useGroupRoles,
   useGroups,
+  useGroupsByIds,
   useRemoveGroupMember,
   useRevokeGroupRole,
   useUpsertGroupAttribute,
+  type Group,
+  type GroupListItem,
+  type GroupsQuery,
 } from '@/api/group.api'
 
 const PAGE_SIZE = 50
 
 const EMPTY_VALUE = '—'
 
+const GROUPS_VIEW: ViewMode = 'list'
 
 const GROUP_TAB = {
   members: 'members',
@@ -63,103 +83,6 @@ const GROUP_TAB = {
 } as const
 
 const fail = (e: unknown) => toast.error(apiErrorMessage(e, 'Request failed'))
-
-/** Find a node by id in the group tree (so the detail stays fresh after refetches). */
-function findNode(nodes: GroupNode[], id: string): GroupNode | undefined {
-  for (const node of nodes) {
-    if (node.id === id) return node
-    const found = findNode(node.children, id)
-    if (found) return found
-  }
-  return undefined
-}
-
-/* ------------------------------------------------------------------ tree --- */
-
-interface TreeProps {
-  nodes: GroupNode[]
-  depth: number
-  selectedId?: string
-  onSelect: (node: GroupNode) => void
-  onAddChild: (parentId: string) => void
-  onDelete: (node: GroupNode) => void
-}
-
-function GroupTree({ nodes, depth, selectedId, onSelect, onAddChild, onDelete }: TreeProps) {
-  const { t } = useTranslation('organization')
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-
-  return (
-    <div className='flex flex-col'>
-      {nodes.map((node) => {
-        const hasChildren = node.children.length > 0
-        const isCollapsed = collapsed[node.id]
-        return (
-          <div key={node.id}>
-            <div
-              className={`group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm ${
-                selectedId === node.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-              }`}
-              style={{ paddingLeft: `${depth * 16 + 8}px` }}
-            >
-              <button
-                type='button'
-                className='shrink-0 text-muted-foreground'
-                onClick={() => setCollapsed((c) => ({ ...c, [node.id]: !c[node.id] }))}
-                aria-label={t('groups.tree.toggle')}
-              >
-                {hasChildren ? (
-                  isCollapsed ? (
-                    <ChevronRight className='h-4 w-4' />
-                  ) : (
-                    <ChevronDown className='h-4 w-4' />
-                  )
-                ) : (
-                  <span className='inline-block w-4' />
-                )}
-              </button>
-              <button
-                type='button'
-                className='flex-1 truncate text-left'
-                onClick={() => onSelect(node)}
-              >
-                {node.name}
-              </button>
-              <button
-                type='button'
-                className='shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100'
-                title={t('groups.tree.add_child')}
-                onClick={() => onAddChild(node.id)}
-              >
-                <Plus className='h-3.5 w-3.5' />
-              </button>
-              <button
-                type='button'
-                className='shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100'
-                title={t('groups.tree.delete')}
-                onClick={() => onDelete(node)}
-              >
-                <Trash2 className='h-3.5 w-3.5' />
-              </button>
-            </div>
-            {hasChildren && !isCollapsed && (
-              <GroupTree
-                nodes={node.children}
-                depth={depth + 1}
-                selectedId={selectedId}
-                onSelect={onSelect}
-                onAddChild={onAddChild}
-                onDelete={onDelete}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-/* --------------------------------------------------------------- members --- */
 
 function AddMembersDialog({
   realm,
@@ -258,7 +181,7 @@ function AddMembersDialog({
   )
 }
 
-function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; group: GroupNode }) {
+function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; group: Group }) {
   const { t } = useTranslation('organization')
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -384,9 +307,7 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
   )
 }
 
-/* ----------------------------------------------------------------- roles --- */
-
-function RolesTab({ realm, orgId, group }: { realm?: string; orgId?: string; group: GroupNode }) {
+function RolesTab({ realm, orgId, group }: { realm?: string; orgId?: string; group: Group }) {
   const { t } = useTranslation('organization')
   const { data: assigned } = useGroupRoles(realm, orgId, group.id)
   const { roles: found, setSearch } = useRoleSearch({ realm })
@@ -431,8 +352,6 @@ function RolesTab({ realm, orgId, group }: { realm?: string; orgId?: string; gro
   )
 }
 
-/* ------------------------------------------------------------ attributes --- */
-
 function AttributesTab({
   realm,
   orgId,
@@ -440,7 +359,7 @@ function AttributesTab({
 }: {
   realm?: string
   orgId?: string
-  group: GroupNode
+  group: Group
 }) {
   const { t } = useTranslation('organization')
   const { data: attributes } = useGroupAttributes(realm, orgId, group.id)
@@ -520,22 +439,36 @@ function AttributesTab({
   )
 }
 
-/* ------------------------------------------------------------- subgroups --- */
-
 function SubGroupsTab({
   realm,
   orgId,
   group,
   onSelect,
+  onBrowse,
 }: {
   realm?: string
   orgId?: string
-  group: GroupNode
+  group: Group
   onSelect: (id: string) => void
+  onBrowse: (id: string) => void
 }) {
   const { t } = useTranslation('organization')
   const createGroup = useCreateGroup(realm, orgId)
   const [name, setName] = useState('')
+  const [page, setPage] = useState(1)
+  const { data } = useGroups({
+    realm,
+    orgId,
+    query: {
+      parent_group_id: group.id,
+      order_by: 'name',
+      order: 'asc',
+      limit: GROUP_SEARCH_LIMIT,
+      page,
+    },
+  })
+  const children = data?.data ?? []
+  const pagination = data?.metadata
 
   const create = () => {
     if (!name) return
@@ -557,14 +490,17 @@ function SubGroupsTab({
         <Button variant='outline' disabled={!name} onClick={create}>
           {t('groups.subgroups.add')}
         </Button>
+        <Button variant='ghost' onClick={() => onBrowse(group.id)}>
+          {t('groups.subgroups.browse')}
+        </Button>
       </div>
       <div className='flex flex-col divide-y rounded-md border'>
-        {group.children.length === 0 ? (
+        {children.length === 0 ? (
           <p className='px-3 py-4 text-center text-sm text-muted-foreground'>
             {t('groups.subgroups.empty')}
           </p>
         ) : (
-          group.children.map((child) => (
+          children.map((child) => (
             <button
               key={child.id}
               type='button'
@@ -572,31 +508,34 @@ function SubGroupsTab({
               onClick={() => onSelect(child.id)}
             >
               {child.name}
-              {child.children.length > 0 && (
+              {child.child_count > 0 && (
                 <span className='ml-2 text-xs text-muted-foreground'>
-                  {t('groups.subgroups.child_count', { total: child.children.length })}
+                  {t('groups.subgroups.child_count', { total: child.child_count })}
                 </span>
               )}
             </button>
           ))
         )}
       </div>
+      {pagination && pagination.total > pagination.limit && (
+        <PaginationBar pagination={pagination} onPageChange={setPage} />
+      )}
     </div>
   )
 }
-
-/* ---------------------------------------------------------------- detail --- */
 
 function GroupDetail({
   realm,
   orgId,
   group,
   onSelect,
+  onBrowse,
 }: {
   realm?: string
   orgId?: string
-  group: GroupNode
+  group: Group
   onSelect: (id: string) => void
+  onBrowse: (id: string) => void
 }) {
   const { t } = useTranslation('organization')
 
@@ -626,90 +565,262 @@ function GroupDetail({
           <AttributesTab realm={realm} orgId={orgId} group={group} />
         </TabsContent>
         <TabsContent value={GROUP_TAB.subgroups} className='pt-4'>
-          <SubGroupsTab realm={realm} orgId={orgId} group={group} onSelect={onSelect} />
+          <SubGroupsTab
+            key={group.id}
+            realm={realm}
+            orgId={orgId}
+            group={group}
+            onSelect={onSelect}
+            onBrowse={onBrowse}
+          />
         </TabsContent>
       </Tabs>
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ page --- */
+function GroupsTable({
+  realm,
+  orgId,
+  listing,
+  selectedId,
+  onSelect,
+  onAddChild,
+  onDelete,
+}: {
+  realm?: string
+  orgId?: string
+  listing: PagedListing
+  selectedId?: string
+  onSelect: (id: string) => void
+  onAddChild: (group: Group) => void
+  onDelete: (group: Group) => void
+}) {
+  const { t } = useTranslation('organization')
+  const { data, isLoading } = useGroups({
+    realm,
+    orgId,
+    query: listing.apiQuery as GroupsQuery,
+  })
+  const groups = useMemo(() => data?.data ?? [], [data])
+  const parentIds = useMemo(
+    () => groups.flatMap((group) => (group.parent_group_id ? [group.parent_group_id] : [])),
+    [groups]
+  )
+  const { groups: parents } = useGroupsByIds({ realm, orgId, ids: parentIds })
+  const parentNames = useMemo(
+    () => new Map(parents.map((parent) => [parent.id, parent.name])),
+    [parents]
+  )
+  const narrowed = Object.values(listing.state.filters).some(Boolean)
+  const filterListing = useMemo<PagedListing>(
+    () => ({
+      ...listing,
+      setFilter: (key, value) => listing.setFilters(groupFilterPatch(key, value)),
+    }),
+    [listing]
+  )
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('groups.list.filter_fields.name') },
+    { kind: 'text', key: 'description', label: t('groups.list.filter_fields.description') },
+    {
+      kind: 'relation',
+      key: 'parent_group_id',
+      label: t('groups.list.filter_fields.parent'),
+      relation: groupRelationSource,
+    },
+    { kind: 'boolean', key: 'is_root', label: t('groups.list.filter_fields.is_root') },
+  ]
+
+  const parentLabel = (group: GroupListItem) =>
+    group.parent_group_id
+      ? (parentNames.get(group.parent_group_id) ?? EMPTY_VALUE)
+      : t('groups.list.top_level')
+
+  const columns: Column<GroupListItem>[] = [
+    {
+      key: 'name',
+      header: t('groups.list.columns.name'),
+      render: (group) => (
+        <button
+          type='button'
+          className={`truncate text-left font-medium ${
+            selectedId === group.id ? 'text-primary' : 'hover:text-primary'
+          }`}
+          onClick={() => onSelect(group.id)}
+        >
+          {group.name}
+        </button>
+      ),
+      sortKey: 'name',
+    },
+    {
+      key: 'description',
+      header: t('groups.list.columns.description'),
+      render: (group) => (
+        <span className='text-sm text-muted-foreground'>{group.description || EMPTY_VALUE}</span>
+      ),
+    },
+    {
+      key: 'parent',
+      header: t('groups.list.columns.parent'),
+      render: (group) => (
+        <span className='text-sm text-muted-foreground'>{parentLabel(group)}</span>
+      ),
+    },
+    {
+      key: 'created',
+      header: t('groups.list.columns.created'),
+      render: (group) => <span className='tnum'>{formatRelative(group.created_at)}</span>,
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('groups.list.columns.updated'),
+      render: (group) => <span className='tnum'>{formatRelative(group.updated_at)}</span>,
+      sortKey: 'updated_at',
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      render: (group) => (
+        <div className='flex justify-end gap-1'>
+          {group.child_count > 0 && (
+            <button
+              type='button'
+              className='text-muted-foreground hover:text-foreground'
+              title={t('groups.list.show_subgroups')}
+              onClick={() => listing.setFilters(walkDownPatch(group.id))}
+            >
+              <FolderTree className='h-4 w-4' />
+            </button>
+          )}
+          <button
+            type='button'
+            className='text-muted-foreground hover:text-foreground'
+            title={t('groups.tree.add_child')}
+            onClick={() => onAddChild(group)}
+          >
+            <Plus className='h-4 w-4' />
+          </button>
+          <button
+            type='button'
+            className='text-muted-foreground hover:text-destructive'
+            title={t('groups.tree.delete')}
+            onClick={() => onDelete(group)}
+          >
+            <Trash2 className='h-4 w-4' />
+          </button>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div className='flex flex-col gap-3'>
+      <div className='flex'>
+        <FilterBar fields={filterFields} listing={filterListing} />
+      </div>
+      <DataView
+        rows={groups}
+        columns={columns}
+        card={{
+          title: (group) => group.name,
+          subtitle: parentLabel,
+          footer: (group) => group.description || EMPTY_VALUE,
+        }}
+        getKey={(group) => group.id}
+        view={GROUPS_VIEW}
+        loading={isLoading}
+        sort={listing.state.sort}
+        onSortChange={listing.setSort}
+        emptyLabel={narrowed ? t('groups.list.no_match') : t('groups.tree.empty')}
+        emptyAction={
+          narrowed ? (
+            <Button variant='outline' onClick={listing.clearFilters}>
+              {t('groups.list.show_all')}
+            </Button>
+          ) : undefined
+        }
+      />
+      {data?.metadata && (
+        <PaginationBar pagination={data.metadata} onPageChange={listing.setPage} />
+      )}
+    </div>
+  )
+}
 
 export default function PageOrganizationGroupsFeature() {
   const { realm_name, organizationId } = useParams<
     RouterParams & { organizationId: string }
   >()
   const { t } = useTranslation('organization')
-  const { data: tree, isLoading } = useGroups(realm_name, organizationId)
+  const listing = usePagedListing(GROUP_FILTER_KEYS)
   const createGroup = useCreateGroup(realm_name, organizationId)
   const deleteGroup = useDeleteGroup(realm_name, organizationId)
 
   const [selectedId, setSelectedId] = useState<string | undefined>()
   const [newName, setNewName] = useState('')
-
-  // Sub-group creation dialog: holds the target parent id (open when set) and its draft name.
-  const [addParentId, setAddParentId] = useState<string | undefined>()
+  const [addParent, setAddParent] = useState<Group | undefined>()
   const [childName, setChildName] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Group | undefined>()
 
-  // Group being deleted (open the confirmation dialog when set).
-  const [deleteTarget, setDeleteTarget] = useState<GroupNode | undefined>()
-
-  // Re-derive the selected node from the freshest tree so it updates after mutations.
-  const selected = useMemo(
-    () => (selectedId ? findNode(tree ?? [], selectedId) : undefined),
-    [tree, selectedId]
-  )
-
-  const addParent = useMemo(
-    () => (addParentId ? findNode(tree ?? [], addParentId) : undefined),
-    [tree, addParentId]
-  )
+  const selectedQuery = useGroup({
+    realm: realm_name,
+    orgId: organizationId,
+    groupId: selectedId,
+  })
+  const selected = selectedQuery.isError ? undefined : selectedQuery.data
 
   const createRoot = () => {
     if (!newName) return
     createGroup.mutate({ name: newName }, { onError: fail, onSuccess: () => setNewName('') })
   }
 
-  const addChild = (parentId: string) => {
+  const addChild = (parent: Group) => {
     setChildName('')
-    setAddParentId(parentId)
+    setAddParent(parent)
   }
 
+  const browse = (parentId: string) => listing.setFilters(walkDownPatch(parentId))
+
   const submitChild = () => {
-    if (!childName || !addParentId) return
+    if (!childName || !addParent) return
     createGroup.mutate(
-      { name: childName, parent_group_id: addParentId },
+      { name: childName, parent_group_id: addParent.id },
       {
         onError: fail,
         onSuccess: () => {
           setChildName('')
-          setAddParentId(undefined)
+          setAddParent(undefined)
         },
       }
     )
   }
 
-  const remove = (node: GroupNode) => {
-    setDeleteTarget(node)
-  }
-
   const confirmDelete = () => {
     if (!deleteTarget) return
-    const node = deleteTarget
-    deleteGroup.mutate(node.id, {
+    const target = deleteTarget
+    deleteGroup.mutate(target.id, {
       onError: fail,
       onSuccess: () => {
-        setSelectedId((id) => (id === node.id ? undefined : id))
+        setSelectedId((id) => (id === target.id ? undefined : id))
         setDeleteTarget(undefined)
+        if (listing.state.filters.parent_group_id === target.id) {
+          listing.setFilter('parent_group_id', '')
+        }
       },
     })
   }
 
   return (
-    <div className='grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]'>
+    <div className='flex flex-col gap-6'>
       <div className='flex flex-col gap-3 rounded-md border p-3'>
         <div className='flex items-center gap-2'>
           <Input
+            className='max-w-sm'
             placeholder={t('groups.tree.new_placeholder')}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -719,20 +830,15 @@ export default function PageOrganizationGroupsFeature() {
             {t('groups.tree.add')}
           </Button>
         </div>
-        {isLoading ? (
-          <p className='text-sm text-muted-foreground'>{t('groups.tree.loading')}</p>
-        ) : (tree ?? []).length === 0 ? (
-          <p className='text-sm text-muted-foreground'>{t('groups.tree.empty')}</p>
-        ) : (
-          <GroupTree
-            nodes={tree ?? []}
-            depth={0}
-            selectedId={selectedId}
-            onSelect={(n) => setSelectedId(n.id)}
-            onAddChild={addChild}
-            onDelete={remove}
-          />
-        )}
+        <GroupsTable
+          realm={realm_name}
+          orgId={organizationId}
+          listing={listing}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onAddChild={addChild}
+          onDelete={setDeleteTarget}
+        />
       </div>
 
       <div className='rounded-md border p-4'>
@@ -742,6 +848,7 @@ export default function PageOrganizationGroupsFeature() {
             orgId={organizationId}
             group={selected}
             onSelect={setSelectedId}
+            onBrowse={browse}
           />
         ) : (
           <p className='text-sm text-muted-foreground'>{t('groups.no_selection')}</p>
@@ -749,8 +856,8 @@ export default function PageOrganizationGroupsFeature() {
       </div>
 
       <Dialog
-        open={addParentId !== undefined}
-        onOpenChange={(open) => !open && setAddParentId(undefined)}
+        open={addParent !== undefined}
+        onOpenChange={(open) => !open && setAddParent(undefined)}
       >
         <DialogContent className='!max-w-md'>
           <DialogHeader>
@@ -771,7 +878,7 @@ export default function PageOrganizationGroupsFeature() {
             />
           </DialogBody>
           <DialogFooter>
-            <Button variant='ghost' onClick={() => setAddParentId(undefined)}>
+            <Button variant='ghost' onClick={() => setAddParent(undefined)}>
               {t('groups.create.cancel')}
             </Button>
             <Button disabled={!childName || createGroup.isPending} onClick={submitChild}>

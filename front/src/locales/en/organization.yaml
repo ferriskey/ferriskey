@@ -189,12 +189,25 @@ groups:
   tree:
     new_placeholder: New top-level group
     add: Add
-    loading: Loading…
     empty: No groups yet.
-    # Screen-reader label of the chevron that folds a branch of the tree.
-    toggle: toggle
     add_child: Add sub-group
     delete: Delete group
+  list:
+    columns:
+      name: Name
+      description: Description
+      parent: Parent
+      created: Created
+      updated: Updated
+    filter_fields:
+      name: Name
+      description: Description
+      parent: Parent group
+      is_root: Top-level
+    top_level: Top level
+    show_subgroups: Show sub-groups
+    no_match: No groups match these filters.
+    show_all: Show all groups
   no_selection: Select a group to manage its members, roles and attributes.
   tabs:
     members: Members
@@ -246,7 +259,7 @@ groups:
     name_placeholder: New sub-group name
     add: Add
     empty: No sub-groups.
-    # Number of sub-groups a child carries, shown right after its name.
+    browse: Show in the list
     child_count: ({{total}})
   create:
     title: Add sub-group

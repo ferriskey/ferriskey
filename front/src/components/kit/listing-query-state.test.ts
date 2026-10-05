@@ -101,3 +101,14 @@ test('the api query carries only what is set', () => {
     { page: 2, limit: 50, order_by: 'email', order: 'asc' },
   )
 })
+
+test('a patch of several filters sets and clears them in one write and resets the page', () => {
+  const next = writeListingState(
+    new URLSearchParams('page=3&enabled=true'),
+    { filters: { username: 'jo', enabled: '' } },
+    keys,
+  )
+  assert.equal(next.get('page'), null)
+  assert.equal(next.get('username'), 'jo')
+  assert.equal(next.has('enabled'), false)
+})

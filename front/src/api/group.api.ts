@@ -1,24 +1,26 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import { authStore } from '@/store/auth.store'
 import { errorMessageFromBody, type ApiRequestError } from '@/lib/api-error'
+import type { Endpoints, Schemas } from './api.client'
+import { ID_BATCH, idBatches } from './id-batches'
 
-// Hierarchical groups scoped to an organization. These hooks use `fetch` directly (like
-// usePublicPasswordPolicy) because the generated OpenAPI client does not yet expose the group
-// endpoints; regenerate `api.client.ts` to migrate onto `window.tanstackApi`.
+export type Group = Schemas.Group
 
-export interface Group {
-  id: string
-  organization_id: string
-  parent_group_id: string | null
-  name: string
-  description: string | null
-  created_at: string
-  updated_at: string
-}
+export type GroupListItem = Schemas.GroupListItem
 
-export interface GroupNode extends Group {
-  children: GroupNode[]
-}
+export type GroupsQuery = NonNullable<Endpoints.get_List_groups['parameters']['query']>
+
+export const GROUP_FILTER_KEYS = ['name', 'description', 'parent_group_id', 'is_root'] as const
+
+export const GROUP_SEARCH_LIMIT = 20
 
 export interface GroupMember {
   id: string
@@ -112,13 +114,97 @@ function groupsBase(realm: string, orgId: string): string {
   return `/realms/${encodeURIComponent(realm)}/organizations/${orgId}/groups`
 }
 
-const groupsKey = (realm?: string, orgId?: string) => ['org-groups', realm, orgId]
+const groupsPath = (realm?: string, orgId?: string) => ({
+  realm_name: realm ?? 'master',
+  organization_id: orgId ?? '',
+})
 
-export function useGroups(realm?: string, orgId?: string) {
-  return useQuery<GroupNode[]>({
-    queryKey: groupsKey(realm, orgId),
-    queryFn: () => request<GroupNode[]>('GET', groupsBase(realm!, orgId!)),
-    enabled: !!realm && !!orgId,
+export const groupsKey = (realm?: string, orgId?: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/groups', {
+    path: groupsPath(realm, orgId),
+    query: {},
+  }).queryKey
+
+const groupKey = (realm?: string, orgId?: string, groupId?: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}', {
+    path: { ...groupsPath(realm, orgId), group_id: groupId ?? '' },
+  }).queryKey
+
+const groupDetailsKey = (realm?: string, orgId?: string) => [
+  {
+    _id: '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}',
+    path: groupsPath(realm, orgId),
+  },
+]
+
+const refreshGroups = (qc: QueryClient, realm?: string, orgId?: string, groupId?: string) =>
+  Promise.all([
+    qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
+    groupId ? qc.invalidateQueries({ queryKey: groupKey(realm, orgId, groupId) }) : undefined,
+  ])
+
+export function useGroups({
+  realm,
+  orgId,
+  query,
+  enabled = true,
+}: {
+  realm?: string
+  orgId?: string
+  query?: GroupsQuery
+  enabled?: boolean
+}) {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/groups', {
+      path: groupsPath(realm, orgId),
+      query: query ?? {},
+    }).queryOptions,
+    enabled: enabled && !!realm && !!orgId,
+  })
+}
+
+const combineGroups = (results: UseQueryResult<Schemas.Paginated_GroupListItem>[]) => ({
+  groups: results.flatMap((result) => result.data?.data ?? []),
+  isLoading: results.some((result) => result.isLoading),
+})
+
+export function useGroupsByIds({
+  realm,
+  orgId,
+  ids,
+}: {
+  realm?: string
+  orgId?: string
+  ids: readonly string[]
+}) {
+  const batches = useMemo(() => idBatches(ids), [ids])
+  return useQueries({
+    queries: batches.map((batch) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/groups', {
+        path: groupsPath(realm, orgId),
+        query: { ids: batch, limit: ID_BATCH },
+      }).queryOptions,
+      enabled: !!realm && !!orgId,
+    })),
+    combine: combineGroups,
+  })
+}
+
+export function useGroup({
+  realm,
+  orgId,
+  groupId,
+}: {
+  realm?: string
+  orgId?: string
+  groupId?: string
+}) {
+  return useQuery({
+    ...window.tanstackApi.get(
+      '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}',
+      { path: { ...groupsPath(realm, orgId), group_id: groupId ?? '' } }
+    ).queryOptions,
+    enabled: !!realm && !!orgId && !!groupId,
   })
 }
 
@@ -127,7 +213,7 @@ export function useCreateGroup(realm?: string, orgId?: string) {
   return useMutation({
     mutationFn: (body: { name: string; description?: string; parent_group_id?: string }) =>
       request<Group>('POST', groupsBase(realm!, orgId!), body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
+    onSuccess: () => refreshGroups(qc, realm, orgId),
   })
 }
 
@@ -143,7 +229,7 @@ export function useUpdateGroup(realm?: string, orgId?: string) {
       description?: string
       parent_group_id?: string
     }) => request<Group>('PUT', `${groupsBase(realm!, orgId!)}/${groupId}`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
+    onSuccess: (_, { groupId }) => refreshGroups(qc, realm, orgId, groupId),
   })
 }
 
@@ -152,7 +238,13 @@ export function useDeleteGroup(realm?: string, orgId?: string) {
   return useMutation({
     mutationFn: (groupId: string) =>
       request<void>('DELETE', `${groupsBase(realm!, orgId!)}/${groupId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
+    onSuccess: (_, groupId) => {
+      qc.removeQueries({ queryKey: groupKey(realm, orgId, groupId) })
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: groupsKey(realm, orgId) }),
+        qc.invalidateQueries({ queryKey: groupDetailsKey(realm, orgId) }),
+      ])
+    },
   })
 }
 

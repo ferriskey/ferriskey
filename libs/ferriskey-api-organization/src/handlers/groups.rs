@@ -4,12 +4,13 @@ use axum::{
     http::StatusCode,
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::common::pagination::PageRequest;
 use ferriskey_core::domain::organization::ports::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, DeleteGroupAttributeInput,
-    DeleteGroupInput, GetGroupInput, Group, GroupAttribute, GroupId, GroupMember, GroupMemberPage,
-    GroupNode, GroupService, ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput,
-    ListGroupsInput, OrganizationId, RemoveGroupMemberInput, RevokeGroupRoleInput,
-    UpdateGroupInput, UpsertGroupAttributeInput,
+    DeleteGroupInput, GetGroupInput, Group, GroupAttribute, GroupFilter, GroupId, GroupListItem,
+    GroupMember, GroupMemberPage, GroupService, GroupSortField, ListGroupAttributesInput,
+    ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, OrganizationId,
+    RemoveGroupMemberInput, RevokeGroupRoleInput, UpdateGroupInput, UpsertGroupAttributeInput,
 };
 use ferriskey_core::domain::role::entities::Role;
 use serde::Deserialize;
@@ -30,22 +31,66 @@ use crate::validators::{
     UpsertAttributeValidator,
 };
 use ferriskey_api_core::api_entities::{
-    api_error::{ApiError, ApiErrorResponse, ValidateJson},
+    api_error::{ApiError, ApiErrorBody, ApiErrorResponse, ValidateJson},
+    list_query::{ListQuery, PaginationParams, parse_id_list},
+    paginated::Paginated,
     response::Response,
 };
 use ferriskey_api_core::app_state::AppState;
+
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub struct GroupListParams {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub parent_group_id: Option<Uuid>,
+    pub is_root: Option<bool>,
+    #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f,0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e70")]
+    pub ids: Option<String>,
+}
+
+impl TryFrom<GroupListParams> for GroupFilter {
+    type Error = ApiError;
+
+    fn try_from(params: GroupListParams) -> Result<Self, Self::Error> {
+        if params.is_root == Some(true) && params.parent_group_id.is_some() {
+            return Err(ApiError::BadRequest(ApiErrorBody::new(
+                "Invalid query parameter `is_root`: cannot be combined with parent_group_id",
+                "invalid_query",
+            )));
+        }
+        Ok(Self {
+            name: params.name,
+            description: params.description,
+            parent_group_id: params.parent_group_id,
+            is_root: params.is_root,
+            ids: params
+                .ids
+                .as_deref()
+                .map(|raw| parse_id_list("ids", raw))
+                .transpose()?,
+        })
+    }
+}
 
 #[utoipa::path(
     get,
     path = "/{organization_id}/groups",
     tag = "organization",
-    summary = "List an organization's groups as a tree",
+    summary = "List an organization's groups",
+    description = "Returns one page of the organization's groups as a flat list. Text filters (name, description) match case-insensitively anywhere in the value; parent_group_id keeps the direct children of that group; is_root keeps top-level groups (true) or nested groups (false), and is_root=true cannot be combined with parent_group_id; child_count is the number of direct sub-groups; ids takes a comma-separated list of at most 100 group ids. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
+        PaginationParams,
+        GroupListParams,
+        ("order_by" = inline(Option<GroupSortField>), Query, description = "Sort column, `created_at` by default"),
     ),
     responses(
-        (status = 200, description = "Group tree", body = Vec<GroupNode>),
+        (status = 200, description = "One page of groups", body = Paginated<GroupListItem>),
+        (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "Organization not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
@@ -55,8 +100,15 @@ pub async fn list_groups(
     Path((realm_name, organization_id)): Path<(String, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<Vec<GroupNode>>, ApiError> {
-    state
+    ListQuery(request): ListQuery<GroupListParams, GroupSortField>,
+) -> Result<Response<Paginated<GroupListItem>>, ApiError> {
+    let request = PageRequest {
+        filter: GroupFilter::try_from(request.filter)?,
+        page: request.page,
+        limit: request.limit,
+        sort: request.sort,
+    };
+    let page = state
         .service
         .list_groups(
             identity,
@@ -64,10 +116,11 @@ pub async fn list_groups(
                 realm_name,
                 organization_id: OrganizationId::new(organization_id),
             },
+            request,
         )
-        .await
-        .map(Response::OK)
-        .map_err(ApiError::from)
+        .await?;
+
+    Ok(Response::OK(Paginated::from(page)))
 }
 
 #[utoipa::path(
@@ -569,4 +622,98 @@ pub async fn delete_group_attribute(
         .await
         .map(|_| StatusCode::NO_CONTENT)
         .map_err(ApiError::from)
+}
+
+#[cfg(test)]
+mod list_groups_tests {
+    use ferriskey_api_core::api_entities::list_query::parse_list_query;
+    use ferriskey_core::domain::common::pagination::SortOrder;
+
+    use super::*;
+
+    #[test]
+    fn every_filter_and_sort_field_is_read() {
+        let first = Uuid::new_v4();
+        let second = Uuid::new_v4();
+        let parent = Uuid::new_v4();
+        let request = parse_list_query::<GroupListParams, GroupSortField>(&format!(
+            "order_by=name&order=asc&name=eng&description=team&parent_group_id={parent}&is_root=false&ids={first},{second}"
+        ))
+        .expect("valid query");
+
+        assert_eq!(request.sort.field, GroupSortField::Name);
+        assert_eq!(request.sort.order, SortOrder::Asc);
+        assert_eq!(
+            GroupFilter::try_from(request.filter).expect("valid filter"),
+            GroupFilter {
+                name: Some("eng".to_string()),
+                description: Some("team".to_string()),
+                parent_group_id: Some(parent),
+                is_root: Some(false),
+                ids: Some(vec![first, second]),
+            }
+        );
+    }
+
+    #[test]
+    fn every_documented_sort_value_parses() {
+        for value in ["name", "created_at", "updated_at"] {
+            assert!(
+                parse_list_query::<GroupListParams, GroupSortField>(&format!("order_by={value}"))
+                    .is_ok(),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_filters_and_columns_are_refused() {
+        for query in [
+            "search=x",
+            "order_by=description",
+            "is_root=maybe",
+            "parent_group_id=nope",
+        ] {
+            assert!(
+                parse_list_query::<GroupListParams, GroupSortField>(query).is_err(),
+                "{query}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_root_filter_cannot_be_combined_with_a_parent() {
+        let parent = Uuid::new_v4();
+        let refused = parse_list_query::<GroupListParams, GroupSortField>(&format!(
+            "is_root=true&parent_group_id={parent}"
+        ))
+        .expect("each parameter is valid on its own");
+        assert!(matches!(
+            GroupFilter::try_from(refused.filter),
+            Err(ApiError::BadRequest(ref body))
+                if body.message.contains("is_root") && body.message.contains("parent_group_id")
+        ));
+
+        let allowed = parse_list_query::<GroupListParams, GroupSortField>(&format!(
+            "is_root=false&parent_group_id={parent}"
+        ))
+        .expect("valid query");
+        assert!(GroupFilter::try_from(allowed.filter).is_ok());
+    }
+
+    #[test]
+    fn invalid_ids_name_the_parameter() {
+        for ids in ["nope".to_string(), ",".to_string()] {
+            let request =
+                parse_list_query::<GroupListParams, GroupSortField>(&format!("ids={ids}"))
+                    .expect("ids is read as text");
+            assert!(
+                matches!(
+                    GroupFilter::try_from(request.filter),
+                    Err(ApiError::BadRequest(ref body)) if body.message.contains("ids")
+                ),
+                "{ids}"
+            );
+        }
+    }
 }

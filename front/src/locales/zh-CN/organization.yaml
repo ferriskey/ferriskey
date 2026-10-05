@@ -197,12 +197,25 @@ groups:
   tree:
     new_placeholder: 新建顶级组
     add: 添加
-    loading: 加载中…
     empty: 暂无组。
-    # Screen-reader label of the chevron that folds a branch of the tree.
-    toggle: 展开或折叠
     add_child: 添加子组
     delete: 删除组
+  list:
+    columns:
+      name: 名称
+      description: 描述
+      parent: 父组
+      created: 创建时间
+      updated: 更新时间
+    filter_fields:
+      name: 名称
+      description: 描述
+      parent: 父组
+      is_root: 顶级
+    top_level: 顶级
+    show_subgroups: 查看子组
+    no_match: 没有组与这些筛选条件匹配。
+    show_all: 显示所有组
   no_selection: 选择一个组以管理其成员、角色和属性。
   tabs:
     members: 成员
@@ -252,7 +265,7 @@ groups:
     name_placeholder: 新子组的名称
     add: 添加
     empty: 暂无子组。
-    # Number of sub-groups a child carries, shown right after its name.
+    browse: 在列表中查看
     child_count: '（{{total}}）'
   create:
     title: 添加子组

@@ -11,15 +11,15 @@ use crate::entities::{
     AddGroupMemberInput, AddOrganizationMemberInput, AssignGroupRoleInput, AssignMemberRoleInput,
     CreateGroupInput, CreateGroupParams, CreateOrganizationInput, CreateOrganizationParams,
     DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
-    DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute, GroupId,
-    GroupMember, GroupMemberDetail, GroupMemberPage, GroupNode, GroupRoleMapping,
-    ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
-    ListMemberRolesInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
-    ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
-    OrganizationId, OrganizationMember, OrganizationSortField, RemoveGroupMemberInput,
-    RemoveOrganizationMemberInput, RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput,
-    UpdateGroupParams, UpdateOrganizationInput, UpdateOrganizationParams,
-    UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
+    DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
+    GroupFilter, GroupId, GroupListItem, GroupMember, GroupMemberDetail, GroupMemberPage,
+    GroupRoleMapping, GroupSortField, ListGroupAttributesInput, ListGroupMembersInput,
+    ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput, ListOrganizationAttributesInput,
+    ListOrganizationMembersInput, ListUserOrganizationsInput, Organization, OrganizationAttribute,
+    OrganizationFilter, OrganizationId, OrganizationMember, OrganizationSortField,
+    RemoveGroupMemberInput, RemoveOrganizationMemberInput, RevokeGroupRoleInput,
+    RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams, UpdateOrganizationInput,
+    UpdateOrganizationParams, UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
 };
 
 /// Repository trait for Organization persistence
@@ -234,11 +234,16 @@ pub trait GroupRepository: Send + Sync {
         id: GroupId,
     ) -> impl Future<Output = Result<Option<Group>, CoreError>> + Send;
 
-    /// Flat list of all groups in an organization (tree built in the service layer).
     fn list_groups_by_organization(
         &self,
         organization_id: OrganizationId,
     ) -> impl Future<Output = Result<Vec<Group>, CoreError>> + Send;
+
+    fn list(
+        &self,
+        organization: &Scoped<Organization>,
+        request: &PageRequest<GroupFilter, GroupSortField>,
+    ) -> impl Future<Output = Result<Page<GroupListItem>, CoreError>> + Send;
 
     fn update_group(
         &self,
@@ -412,12 +417,12 @@ pub trait GroupService: Send + Sync {
         input: GetGroupInput,
     ) -> impl Future<Output = Result<Group, CoreError>> + Send;
 
-    /// Returns the organization's groups as a tree.
     fn list_groups(
         &self,
         identity: Identity,
         input: ListGroupsInput,
-    ) -> impl Future<Output = Result<Vec<GroupNode>, CoreError>> + Send;
+        request: PageRequest<GroupFilter, GroupSortField>,
+    ) -> impl Future<Output = Result<Page<GroupListItem>, CoreError>> + Send;
 
     fn update_group(
         &self,
