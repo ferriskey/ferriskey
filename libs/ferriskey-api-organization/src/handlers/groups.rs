@@ -3,8 +3,9 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use chrono::{DateTime, Utc};
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::common::pagination::PageRequest;
+use ferriskey_core::domain::common::pagination::{DateRange, PageRequest};
 use ferriskey_core::domain::organization::ports::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, DeleteGroupAttributeInput,
     DeleteGroupInput, GetGroupInput, Group, GroupAttribute, GroupFilter, GroupId, GroupListItem,
@@ -34,12 +35,15 @@ use ferriskey_api_core::app_state::AppState;
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct GroupListParams {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub parent_group_id: Option<Uuid>,
     pub is_root: Option<bool>,
     #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f,0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e70")]
     pub ids: Option<String>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<GroupListParams> for GroupFilter {
@@ -53,6 +57,7 @@ impl TryFrom<GroupListParams> for GroupFilter {
             )));
         }
         Ok(Self {
+            search: params.search,
             name: params.name,
             description: params.description,
             parent_group_id: params.parent_group_id,
@@ -62,6 +67,7 @@ impl TryFrom<GroupListParams> for GroupFilter {
                 .as_deref()
                 .map(|raw| parse_id_list("ids", raw))
                 .transpose()?,
+            created: DateRange::new(params.created_from, params.created_to),
         })
     }
 }
@@ -71,7 +77,7 @@ impl TryFrom<GroupListParams> for GroupFilter {
     path = "/{organization_id}/groups",
     tag = "organization",
     summary = "List an organization's groups",
-    description = "Returns one page of the organization's groups as a flat list. Text filters (name, description) match case-insensitively anywhere in the value; parent_group_id keeps the direct children of that group; is_root keeps top-level groups (true) or nested groups (false), and is_root=true cannot be combined with parent_group_id; child_count is the number of direct sub-groups; ids takes a comma-separated list of at most 100 group ids. Filters combine with AND.",
+    description = "Returns one page of the organization's groups as a flat list. search matches case-insensitively a group whose name or description contains the value; a group without a description only matches by name. Text filters (name, description) match case-insensitively anywhere in the value; parent_group_id keeps the direct children of that group; is_root keeps top-level groups (true) or nested groups (false), and is_root=true cannot be combined with parent_group_id; child_count is the number of direct sub-groups; ids takes a comma-separated list of at most 100 group ids; created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
@@ -273,17 +279,22 @@ pub async fn delete_group(
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct GroupMemberListParams {
+    pub search: Option<String>,
     pub username: Option<String>,
     pub email: Option<String>,
     pub enabled: Option<bool>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<GroupMemberListParams> for GroupMemberFilter {
     fn from(params: GroupMemberListParams) -> Self {
         Self {
+            search: params.search,
             username: params.username,
             email: params.email,
             enabled: params.enabled,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
@@ -293,7 +304,7 @@ impl From<GroupMemberListParams> for GroupMemberFilter {
     path = "/{organization_id}/groups/{group_id}/members",
     tag = "organization",
     summary = "List group members",
-    description = "Returns one page of the group's members with their user identity. Text filters (username, email) match case-insensitively anywhere in the user's value; enabled matches the user's enabled flag exactly. Filters combine with AND. created_at is the date the user joined the group.",
+    description = "Returns one page of the group's members with their user identity. search matches case-insensitively a member whose username or email contains the value; a member without an email only matches by username. Text filters (username, email) match case-insensitively anywhere in the user's value; enabled matches the user's enabled flag exactly; created_from (inclusive) and created_to (exclusive) bound the membership date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND. created_at is the date the user joined the group.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
@@ -647,6 +658,7 @@ pub async fn delete_group_attribute(
 
 #[cfg(test)]
 mod list_groups_tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -658,7 +670,7 @@ mod list_groups_tests {
         let second = Uuid::new_v4();
         let parent = Uuid::new_v4();
         let request = parse_list_query::<GroupListParams, GroupSortField>(&format!(
-            "order_by=name&order=asc&name=eng&description=team&parent_group_id={parent}&is_root=false&ids={first},{second}"
+            "order_by=name&order=asc&search=en&name=eng&description=team&parent_group_id={parent}&is_root=false&ids={first},{second}&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00"
         ))
         .expect("valid query");
 
@@ -667,11 +679,16 @@ mod list_groups_tests {
         assert_eq!(
             GroupFilter::try_from(request.filter).expect("valid filter"),
             GroupFilter {
+                search: Some("en".to_string()),
                 name: Some("eng".to_string()),
                 description: Some("team".to_string()),
                 parent_group_id: Some(parent),
                 is_root: Some(false),
                 ids: Some(vec![first, second]),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -690,7 +707,9 @@ mod list_groups_tests {
     #[test]
     fn unknown_filters_and_columns_are_refused() {
         for query in [
-            "search=x",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
             "order_by=description",
             "is_root=maybe",
             "parent_group_id=nope",
@@ -741,6 +760,7 @@ mod list_groups_tests {
 
 #[cfg(test)]
 mod list_group_members_tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -749,7 +769,7 @@ mod list_group_members_tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<GroupMemberListParams, GroupMemberSortField>(
-            "order_by=email&order=asc&username=jo&email=corp&enabled=false",
+            "order_by=email&order=asc&search=mem&username=jo&email=corp&enabled=false&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00",
         )
         .expect("valid query");
 
@@ -758,9 +778,14 @@ mod list_group_members_tests {
         assert_eq!(
             GroupMemberFilter::from(request.filter),
             GroupMemberFilter {
+                search: Some("mem".to_string()),
                 username: Some("jo".to_string()),
                 email: Some("corp".to_string()),
                 enabled: Some(false),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -781,7 +806,9 @@ mod list_group_members_tests {
     #[test]
     fn the_former_paging_parameters_and_unknown_columns_are_refused() {
         for query in [
-            "search=jo",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
             "offset=0",
             "order_by=firstname",
             "enabled=maybe",

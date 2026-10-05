@@ -80,7 +80,6 @@ pub fn contains<C: ColumnTrait>(column: C, value: &str) -> SimpleExpr {
     Expr::col((column.entity_name(), column)).ilike(LikeExpr::new(escape_like(value)))
 }
 
-#[cfg_attr(not(test), expect(dead_code))]
 pub fn within<C: ColumnTrait>(column: C, range: &DateRange) -> Condition {
     Condition::all()
         .add_option(range.from.map(|from| column.gte(from)))

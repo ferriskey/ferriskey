@@ -1,7 +1,9 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::sea_query::{Expr, SimpleExpr};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select};
+use sea_orm::{
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select,
+};
 use tracing::error;
 use uuid::Uuid;
 
@@ -18,7 +20,7 @@ use crate::entity::organization_group_members::{
     Model as MemberModel,
 };
 use crate::entity::users::{Column as UserColumn, Entity as UserEntity, Model as UserModel};
-use crate::infrastructure::pagination::{SortExpr, contains, paginate_also};
+use crate::infrastructure::pagination::{SortExpr, contains, paginate_also, within};
 
 #[derive(Debug, Clone)]
 pub struct PostgresGroupMemberRepository {
@@ -40,10 +42,20 @@ fn member_to_domain(model: MemberModel) -> GroupMember {
     }
 }
 
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(UserColumn::Username, value))
+        .add(contains(UserColumn::Email, value))
+}
+
 fn listing_select(group_id: Uuid, filter: &GroupMemberFilter) -> Select<MemberEntity> {
     MemberEntity::find()
         .inner_join(UserEntity)
         .filter(MemberColumn::GroupId.eq(group_id))
+        .filter(within(MemberColumn::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.username.as_deref(), |select, value| {
             select.filter(contains(UserColumn::Username, value))
         })
@@ -170,11 +182,12 @@ impl GroupMemberRepository for PostgresGroupMemberRepository {
 
 #[cfg(test)]
 mod listing_tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::{UserEntity, listing_select, tie_breaker};
-    use crate::domain::common::pagination::{PageRequest, Sort, SortOrder};
+    use crate::domain::common::pagination::{DateRange, PageRequest, Sort, SortOrder};
     use crate::infrastructure::pagination::page_by_expr;
     use ferriskey_organization::{GroupMemberFilter, GroupMemberSortField};
 
@@ -182,6 +195,54 @@ mod listing_tests {
         listing_select(Uuid::nil(), filter)
             .build(DbBackend::Postgres)
             .to_string()
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&GroupMemberFilter::default());
+        assert!(
+            !sql.contains(r#""organization_group_members"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !sql.contains(r#""organization_group_members"."created_at" <"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&GroupMemberFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..GroupMemberFilter::default()
+        });
+        assert!(
+            sql.contains(r#""organization_group_members"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(
+                r#""organization_group_members"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_joined_username_or_email() {
+        let sql = sql(&GroupMemberFilter {
+            search: Some("a_".to_string()),
+            ..GroupMemberFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("users"."username" ILIKE E'%a\\_%') OR ("users"."email" ILIKE E'%a\\_%'))"#
+            ),
+            "{sql}"
+        );
     }
 
     fn ordered(field: GroupMemberSortField, order: SortOrder) -> String {
