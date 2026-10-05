@@ -65,7 +65,7 @@ function useRoleOptions(search: string) {
   const { data, isLoading } = useGetRoles({
     realm: useRealm(),
     query: {
-      name: search.trim() || undefined,
+      search: search.trim() || undefined,
       order_by: 'name',
       order: 'asc',
       limit: ROLE_SEARCH_LIMIT,

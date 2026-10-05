@@ -3902,6 +3902,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         description: string;
         require_mfa: boolean;

@@ -106,7 +106,7 @@ export const useRoleSearch = ({
     realm,
     query: {
       ...filter,
-      name: debounced || undefined,
+      search: debounced || undefined,
       order_by: 'name',
       order: 'asc',
       limit: ROLE_SEARCH_LIMIT,
