@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from './button'
 import {
+  activeFieldCount,
   clearColumnFilters,
   columnFilterIndicator,
   fieldKeys,
@@ -28,7 +29,7 @@ const TRUE_VALUE = 'true'
 const FALSE_VALUE = 'false'
 
 const CONTROL_CLASS =
-  'h-7 w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface text-[13px] outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+  'h-7 w-full rounded-md border border-neutral-300 bg-white text-[13px] text-neutral-900 dark:border-neutral-600 dark:bg-fk-canvas dark:text-neutral-100 outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
 
 function OptionCards({
   label,
@@ -45,7 +46,7 @@ function OptionCards({
     <div
       role='group'
       aria-label={label}
-      className='flex h-7 w-full divide-x divide-fk-line overflow-hidden rounded-md border border-fk-line bg-white dark:bg-fk-surface'
+      className='flex h-7 w-full divide-x divide-neutral-300 overflow-hidden rounded-md border border-neutral-300 bg-white dark:divide-neutral-600 dark:border-neutral-600 dark:bg-fk-canvas'
     >
       {options.map((option) => {
         const selected = value === option.value
@@ -229,26 +230,31 @@ export function ColumnFilter({
           <IndicatorMark indicator={indicator} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align='start' sideOffset={6} className='w-56 space-y-2 p-2'>
-        {fields.map((field) => (
-          <div key={fieldKeys(field).join(':')} className='flex flex-col gap-1'>
-            <span className='text-[11px] font-medium text-neutral-500 dark:text-neutral-400'>
-              {field.label}
-            </span>
-            <FieldControl field={field} listing={listing} />
-          </div>
-        ))}
-        <div className='-mx-2 flex justify-end border-t border-fk-line-soft px-1 pt-1'>
-          <Button
-            variant='ghost'
-            size='xs'
-            disabled={!engaged}
-            onClick={() => listing.setFilters(clearColumnFilters(fields))}
-          >
-            <X />
-            {t('column_filter.clear')}
-          </Button>
-        </div>
+      <PopoverContent align='start' sideOffset={4} className='w-52 space-y-1.5 border-neutral-300 bg-white p-1.5 shadow-lg shadow-black/10 dark:border-neutral-700 dark:bg-fk-raised dark:shadow-black/50'>
+        {fields.map((field) => {
+          const active = activeFieldCount([field], listing.state.filters) > 0
+          return (
+            <div key={fieldKeys(field).join(':')} className='flex flex-col gap-0.5'>
+              <div className='flex h-5 items-center justify-between gap-2 px-0.5'>
+                <span className='text-[11px] font-medium text-neutral-600 dark:text-neutral-300'>
+                  {field.label}
+                </span>
+                {active && (
+                  <Button
+                    variant='ghost'
+                    size='icon-xs'
+                    className='size-5'
+                    aria-label={`${t('column_filter.clear')} ${field.label}`}
+                    onClick={() => listing.setFilters(clearColumnFilters([field]))}
+                  >
+                    <X />
+                  </Button>
+                )}
+              </div>
+              <FieldControl field={field} listing={listing} />
+            </div>
+          )
+        })}
       </PopoverContent>
     </Popover>
   )

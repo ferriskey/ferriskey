@@ -79,7 +79,9 @@ export function RelationSelect({
           aria-label={compact ? label : undefined}
           className={cn(
             'inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-fk-line bg-white outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15 dark:bg-fk-surface',
-            compact ? 'h-7 w-full px-2 text-[13px]' : 'h-8 max-w-[16rem] px-2.5 text-sm',
+            compact
+              ? 'h-7 w-full border-neutral-300 px-2 text-[13px] dark:border-neutral-600 dark:bg-fk-canvas'
+              : 'h-8 max-w-[16rem] px-2.5 text-sm',
             value && 'border-fk-primary-border'
           )}
         >
