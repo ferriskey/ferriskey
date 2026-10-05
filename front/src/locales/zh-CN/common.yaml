@@ -198,6 +198,15 @@ filter_bar:
   no: 否
   clear: 清除筛选
   search: 搜索…
+column_filter:
+  open: 筛选
+  clear: 清除
+  from: 从
+  to: 至
+  yes: 是
+  no: 否
+listing:
+  clear_filters_other: '清除筛选（{{count}}）'
 entity_picker:
   search_placeholder: 搜索…
   no_match: 无匹配项。

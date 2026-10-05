@@ -5,8 +5,11 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
+import { ColumnFilter } from './ColumnFilter'
+import type { ColumnFilterField } from './column-filter-state'
 import { EmptyState } from './empty-state'
 import { nextSort, type SortState } from './listing-query-state'
+import type { PagedListing } from './use-paged-listing'
 
 export type ViewMode = 'list' | 'cards'
 
@@ -21,6 +24,7 @@ export interface Column<T> {
   render: (row: T) => ReactNode
   sortValue?: (row: T) => string | number
   sortKey?: string
+  filters?: ColumnFilterField[]
   align?: 'right'
   headerClassName?: string
   cellClassName?: string
@@ -49,6 +53,7 @@ export interface DataViewProps<T> {
   loading?: boolean
   sort?: SortState | null
   onSortChange?: (sort: SortState | null) => void
+  listing?: PagedListing
 }
 
 function ServerSortButton({
@@ -93,6 +98,7 @@ export function DataView<T>({
   loading = false,
   sort: serverSort,
   onSortChange,
+  listing,
 }: DataViewProps<T>) {
   const { t } = useTranslation()
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null)
@@ -112,6 +118,23 @@ export function DataView<T>({
     })
   }, [rows, sort, columns, onSortChange])
 
+  const filterRow =
+    listing && columns.some((col) => col.filters && col.filters.length > 0) ? (
+      <div className='flex flex-wrap items-center gap-1.5'>
+        {columns.map((col) =>
+          col.filters && col.filters.length > 0 ? (
+            <ColumnFilter
+              key={col.key}
+              fields={col.filters}
+              listing={listing}
+              label={col.header}
+              showLabel
+            />
+          ) : null
+        )}
+      </div>
+    ) : null
+
   if (loading) {
     return (
       <div className={cn(tokens.surface.panel, tokens.surface.divider)}>
@@ -127,12 +150,20 @@ export function DataView<T>({
   }
 
   if (rows.length === 0) {
-    return (
+    const empty = (
       <EmptyState
         label={emptyLabel ?? t('data_view.no_results')}
         hint={emptyHint}
         action={emptyAction}
       />
+    )
+    return filterRow ? (
+      <div className={tokens.page.sectionGap}>
+        {filterRow}
+        {empty}
+      </div>
+    ) : (
+      empty
     )
   }
 
@@ -145,6 +176,7 @@ export function DataView<T>({
   if (view === 'cards') {
     return (
       <div className={tokens.page.sectionGap}>
+        {filterRow}
         <div className={cn('grid grid-cols-1', tokens.card.gap, tokens.card.columns)}>
           {sorted.map((row) => {
             const key = getKey(row)
@@ -285,38 +317,43 @@ export function DataView<T>({
                   col.headerClassName
                 )}
               >
-                {onSortChange ? (
-                  col.sortKey ? (
-                    <ServerSortButton
-                      header={col.header}
-                      sortKey={col.sortKey}
-                      sort={serverSort ?? null}
-                      onSortChange={onSortChange}
-                    />
+                <span className='inline-flex items-center gap-1'>
+                  {onSortChange ? (
+                    col.sortKey ? (
+                      <ServerSortButton
+                        header={col.header}
+                        sortKey={col.sortKey}
+                        sort={serverSort ?? null}
+                        onSortChange={onSortChange}
+                      />
+                    ) : (
+                      col.header
+                    )
+                  ) : tokens.table.sortable && col.sortValue ? (
+                    <button
+                      type='button'
+                      onClick={() =>
+                        setSort((s) =>
+                          s?.key === col.key
+                            ? { key: col.key, dir: s.dir === 1 ? -1 : 1 }
+                            : { key: col.key, dir: 1 }
+                        )
+                      }
+                      className={cn(
+                        'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-neutral-700 dark:hover:text-neutral-300',
+                        sort?.key === col.key && 'text-fk-primary-text'
+                      )}
+                    >
+                      {col.header}
+                      <ArrowUpDown className='size-3' />
+                    </button>
                   ) : (
                     col.header
-                  )
-                ) : tokens.table.sortable && col.sortValue ? (
-                  <button
-                    type='button'
-                    onClick={() =>
-                      setSort((s) =>
-                        s?.key === col.key
-                          ? { key: col.key, dir: s.dir === 1 ? -1 : 1 }
-                          : { key: col.key, dir: 1 }
-                      )
-                    }
-                    className={cn(
-                      'inline-flex cursor-pointer items-center gap-1 transition-colors hover:text-neutral-700 dark:hover:text-neutral-300',
-                      sort?.key === col.key && 'text-fk-primary-text'
-                    )}
-                  >
-                    {col.header}
-                    <ArrowUpDown className='size-3' />
-                  </button>
-                ) : (
-                  col.header
-                )}
+                  )}
+                  {listing && col.filters && col.filters.length > 0 && (
+                    <ColumnFilter fields={col.filters} listing={listing} label={col.header} />
+                  )}
+                </span>
               </th>
             ))}
           </tr>

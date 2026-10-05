@@ -217,6 +217,18 @@ filter_bar:
   clear: Clear filters
   search: Search…
 
+column_filter:
+  open: Filter
+  clear: Clear
+  from: From
+  to: To
+  yes: Yes
+  no: No
+
+listing:
+  clear_filters_one: 'Clear filters ({{count}})'
+  clear_filters_other: 'Clear filters ({{count}})'
+
 entity_picker:
   search_placeholder: Search…
   no_match: No match.
