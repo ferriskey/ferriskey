@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
 use serde::{Deserialize, Serialize};
@@ -33,10 +34,12 @@ pub struct PortalLayoutListItem {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PortalLayoutFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub is_default: Option<bool>,
     pub in_use: Option<bool>,
     pub ids: Option<Vec<Uuid>>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

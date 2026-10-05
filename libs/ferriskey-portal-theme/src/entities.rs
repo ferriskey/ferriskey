@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
 use serde::{Deserialize, Serialize};
@@ -334,9 +335,11 @@ pub enum ThemeShadow {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PortalThemeFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub layout_id: Option<Uuid>,
     pub activatable: Option<bool>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

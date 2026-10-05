@@ -2626,8 +2626,11 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         email_type: "reset_password" | "magic_link" | "email_verification";
+        created_from: string;
+        created_to: string;
         order_by: "name" | "email_type" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -3715,10 +3718,13 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         is_default: boolean;
         in_use: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -3945,9 +3951,12 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         layout_id: string;
         activatable: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };

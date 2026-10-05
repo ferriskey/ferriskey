@@ -556,6 +556,17 @@ mod tests {
         }
     }
 
+    fn created_at(minute: i32) -> String {
+        format!("2026-01-01T00:{minute:02}:00Z")
+    }
+
+    fn created_within(from: Option<i32>, to: Option<i32>) -> HashSet<Uuid> {
+        matching(|s| {
+            from.is_none_or(|from| s.created_minute >= from)
+                && to.is_none_or(|to| s.created_minute < to)
+        })
+    }
+
     fn matching(predicate: impl Fn(&Seed) -> bool) -> HashSet<Uuid> {
         ctx()
             .seeds
@@ -650,12 +661,22 @@ mod tests {
                 matching(|s| s.name.contains("layout-0") && s.in_use()),
             ),
             ("name=".to_string(), matching(|_| true)),
+            (
+                "search=LAYOUT-1".to_string(),
+                matching(|s| s.name.contains("layout-1")),
+            ),
+            ("search=0".to_string(), matching(|s| s.name.contains('0'))),
+            (
+                "search=layout-0&name=layout-01".to_string(),
+                matching(|s| s.name == "layout-01"),
+            ),
+            ("search=".to_string(), matching(|_| true)),
         ];
 
         rt().block_on(async {
             for (query, expected) in cases {
                 assert!(
-                    (!expected.is_empty() && expected.len() < SEED_COUNT) || query == "name=",
+                    (!expected.is_empty() && expected.len() < SEED_COUNT) || query.ends_with('='),
                     "{query}: the fixture must make this filter discriminating"
                 );
                 let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
@@ -866,6 +887,10 @@ mod tests {
                 ("in_use=maybe", "in_use"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());
@@ -875,6 +900,110 @@ mod tests {
                     response.text()
                 );
             }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test portal_layouts_listing_test -- --ignored"]
+    fn search_matches_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let realm = &ctx().other_realm;
+            let percent = list_ok(&server, realm, "search=%25").await;
+            assert_eq!(names(&percent), ["pct%layout"]);
+            assert_eq!(total(&percent), 1);
+
+            let underscore = list_ok(&server, realm, "search=_").await;
+            assert_eq!(names(&underscore), ["under_layout"]);
+            assert_eq!(total(&underscore), 1);
+
+            let backslash = list_ok(&server, realm, "search=%5C").await;
+            assert_eq!(names(&backslash), ["back\\layout"]);
+            assert_eq!(total(&backslash), 1);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test portal_layouts_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("created_from={}", created_at(5)),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}", created_at(2)),
+                created_within(None, Some(2)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(2),
+                    created_at(5)
+                ),
+                created_within(Some(2), Some(5)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(3),
+                    created_at(4)
+                ),
+                created_within(Some(3), Some(4)),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00".to_string(),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}&search=layout-0", created_at(6)),
+                matching(|s| s.created_minute < 6 && s.name.contains("layout-0")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let at_bound = matching(|s| s.created_minute == 4);
+            assert!(!at_bound.is_empty());
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("created_to={}&limit=100", created_at(4)),
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(found.is_disjoint(&at_bound), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test portal_layouts_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!(
+                    "created_from={}&created_to={}",
+                    created_at(5),
+                    created_at(2)
+                ),
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
         });
     }
 }

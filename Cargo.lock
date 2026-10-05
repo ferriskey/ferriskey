@@ -1857,6 +1857,7 @@ name = "ferriskey-api-portal-layouts"
 version = "0.9.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
@@ -1871,6 +1872,7 @@ name = "ferriskey-api-portal-theme"
 version = "0.9.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",

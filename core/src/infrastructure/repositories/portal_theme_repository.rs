@@ -26,7 +26,7 @@ use crate::{
         realm::entities::{RealmScope, Scoped, Unscoped},
     },
     entity::portal_themes::{ActiveModel, Column, Entity, Model},
-    infrastructure::pagination::{SortColumn, contains, paginate},
+    infrastructure::pagination::{SortColumn, contains, paginate, within_naive},
 };
 
 #[derive(Debug, Clone)]
@@ -173,6 +173,10 @@ fn every_required_block_present() -> Condition {
 fn listing_select(realm_id: Uuid, filter: &PortalThemeFilter) -> Select<Entity> {
     Entity::find()
         .filter(Column::RealmId.eq(realm_id))
+        .filter(within_naive(Column::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(contains(Column::Name, value))
+        })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(Column::Name, value))
         })
@@ -485,11 +489,51 @@ where
 
 #[cfg(test)]
 mod listing_tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::portal_theme::{entities::PortalThemeFilter, validation::REQUIRED_BLOCKS};
+
+    #[test]
+    fn search_is_an_escaped_contains_match_on_the_name() {
+        let sql = sql(&PortalThemeFilter {
+            search: Some("a%".to_string()),
+            ..PortalThemeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_themes"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&PortalThemeFilter::default());
+        assert!(!sql.contains(r#""portal_themes"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""portal_themes"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&PortalThemeFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..PortalThemeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_themes"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""portal_themes"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+    }
 
     fn sql(filter: &PortalThemeFilter) -> String {
         listing_select(Uuid::nil(), filter)
