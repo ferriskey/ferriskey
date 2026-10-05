@@ -1,16 +1,51 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-    prelude::Expr,
+    QueryTrait, Select, prelude::Expr,
 };
 use tracing::error;
 use uuid::Uuid;
 
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{Scoped, Unscoped};
 use crate::domain::session::{
-    entities::{SessionError, UserSession},
+    entities::{SessionError, SessionFilter, SessionSortField, UserSession},
     ports::UserSessionRepository,
 };
+use crate::domain::user::entities::User;
+use crate::entity::user_sessions;
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<user_sessions::Entity> for SessionSortField {
+    fn column(&self) -> user_sessions::Column {
+        match self {
+            SessionSortField::LastSeenAt => user_sessions::Column::LastSeenAt,
+            SessionSortField::ExpiresAt => user_sessions::Column::ExpiresAt,
+            SessionSortField::CreatedAt => user_sessions::Column::CreatedAt,
+        }
+    }
+}
+
+fn listing_select(
+    user_id: Uuid,
+    realm_id: Uuid,
+    filter: &SessionFilter,
+) -> Select<user_sessions::Entity> {
+    use user_sessions::Column;
+
+    user_sessions::Entity::find()
+        .filter(Column::UserId.eq(user_id))
+        .filter(Column::RealmId.eq(realm_id))
+        .apply_if(filter.ip_address.as_deref(), |select, value| {
+            select.filter(contains(Column::IpAddress, value))
+        })
+        .apply_if(filter.user_agent.as_deref(), |select, value| {
+            select.filter(contains(Column::UserAgent, value))
+        })
+        .apply_if(filter.persistent, |select, value| {
+            select.filter(Column::Persistent.eq(value))
+        })
+}
 
 impl From<crate::entity::user_sessions::Model> for UserSession {
     fn from(model: crate::entity::user_sessions::Model) -> Self {
@@ -100,6 +135,26 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             })?;
 
         Ok(sessions.into_iter().map(|m| m.into()).collect())
+    }
+
+    async fn list(
+        &self,
+        user: &Scoped<User>,
+        request: &PageRequest<SessionFilter, SessionSortField>,
+    ) -> Result<Page<UserSession>, SessionError> {
+        let user = user.get();
+        let select = listing_select(user.id, user.realm_id.into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("Error listing user sessions: {:?}", e);
+            SessionError::NotFound
+        })?;
+
+        Ok(Page::new(
+            models.into_iter().map(UserSession::from).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
     }
 
     async fn find_by_sso_token_hash(
@@ -277,5 +332,64 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::session::entities::SessionFilter;
+
+    fn sql(filter: &SessionFilter) -> String {
+        listing_select(Uuid::nil(), Uuid::max(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_user_and_its_realm() {
+        let sql = sql(&SessionFilter::default());
+        assert!(
+            sql.contains(r#""user_sessions"."user_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""user_sessions"."realm_id" = 'ffffffff-ffff-ffff-ffff-ffffffffffff'"#),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!sql.contains(r#""persistent" ="#), "{sql}");
+    }
+
+    #[test]
+    fn ip_address_and_user_agent_are_escaped_contains_matches() {
+        let sql = sql(&SessionFilter {
+            ip_address: Some("10.%".to_string()),
+            user_agent: Some("fire_".to_string()),
+            ..SessionFilter::default()
+        });
+        assert!(
+            sql.contains(r#""user_sessions"."ip_address" ILIKE E'%10.\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""user_sessions"."user_agent" ILIKE E'%fire\\_%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn persistent_is_an_exact_match() {
+        let sql = sql(&SessionFilter {
+            persistent: Some(true),
+            ..SessionFilter::default()
+        });
+        assert!(
+            sql.contains(r#""user_sessions"."persistent" = TRUE"#),
+            "{sql}"
+        );
     }
 }

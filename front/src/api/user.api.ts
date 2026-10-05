@@ -129,13 +129,24 @@ export const useUpdateOwnProfile = () => {
   })
 }
 
-export const useGetUserSessions = ({ realm, userId }: GetUserQueryParams) => {
+export type UserSessionsQuery = NonNullable<
+  Endpoints.get_List_user_sessions['parameters']['query']
+>
+
+export const USER_SESSION_FILTER_KEYS = ['ip_address', 'user_agent', 'persistent'] as const
+
+export const useGetUserSessions = ({
+  realm,
+  userId,
+  query,
+}: GetUserQueryParams & { query?: UserSessionsQuery }) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/sessions', {
       path: {
         realm_name: realm!,
         user_id: userId!,
       },
+      query: query ?? {},
     }).queryOptions,
     enabled: !!userId && !!realm,
   })
@@ -154,6 +165,7 @@ export const useRevokeUserSession = () => {
           realm_name: variables.path.realm_name,
           user_id: variables.path.user_id,
         },
+        query: {},
       }).queryKey
       queryClient.invalidateQueries({ queryKey: keys })
     },

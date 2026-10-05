@@ -49,7 +49,22 @@ sessions:
   unknown_ip: Unknown IP
   never: never
   current: current
-  meta: '{{ip}} · last seen {{lastSeen}} · signed in {{signedIn}}'
+  empty_filtered: No session matches these filters.
+  show_all: Show all sessions
+  columns:
+    device: Device
+    ip_address: IP address
+    persistent: Remembered
+    last_seen_at: Last seen
+    expires_at: Expires
+    created_at: Signed in
+  filter_fields:
+    user_agent: Device
+    ip_address: IP address
+    persistent: Remembered
+  persistent_state:
+    remembered: remembered
+    browser: browser session
   revoke: Revoke
   revoke_label: Revoke the session on {{device}}
   confirm:

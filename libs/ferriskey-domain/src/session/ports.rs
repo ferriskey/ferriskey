@@ -3,8 +3,10 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
+use crate::common::pagination::{Page, PageRequest};
 use crate::realm::scope::{Scoped, Unscoped};
-use crate::session::entities::{SessionError, UserSession};
+use crate::session::entities::{SessionError, SessionFilter, SessionSortField, UserSession};
+use crate::user::entities::User;
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait TokenRevocationPort: Send + Sync {
@@ -38,7 +40,8 @@ pub trait UserSessionManagementService: Send + Sync {
         identity: Identity,
         realm_name: String,
         user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<UserSession>, CoreError>> + Send;
+        request: PageRequest<SessionFilter, SessionSortField>,
+    ) -> impl Future<Output = Result<Page<UserSession>, CoreError>> + Send;
 
     /// Revoke a session by hard-deleting its row. Returns the session as it was
     /// just before deletion so callers can emit an audit event for it — the row
@@ -69,6 +72,12 @@ pub trait UserSessionRepository: Send + Sync {
         user_id: Uuid,
         realm_id: Uuid,
     ) -> impl Future<Output = Result<Vec<UserSession>, SessionError>> + Send;
+
+    fn list(
+        &self,
+        user: &Scoped<User>,
+        request: &PageRequest<SessionFilter, SessionSortField>,
+    ) -> impl Future<Output = Result<Page<UserSession>, SessionError>> + Send;
 
     fn find_by_id(
         &self,

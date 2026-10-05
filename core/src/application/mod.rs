@@ -684,6 +684,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         email_verification_service,
         user_session_management_service: UserSessionManagementServiceImpl::new(
             realm.clone(),
+            user.clone(),
             user_session.clone(),
             policy.clone(),
             token_revocation.clone(),

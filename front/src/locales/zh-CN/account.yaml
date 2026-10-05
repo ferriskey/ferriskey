@@ -55,7 +55,22 @@ sessions:
   unknown_ip: 未知 IP
   never: 从未
   current: 当前
-  meta: '{{ip}} · 最后活动 {{lastSeen}} · 登录于 {{signedIn}}'
+  empty_filtered: 没有符合这些筛选条件的会话。
+  show_all: 显示全部会话
+  columns:
+    device: 设备
+    ip_address: IP 地址
+    persistent: 记住登录
+    last_seen_at: 最后活动
+    expires_at: 过期时间
+    created_at: 登录于
+  filter_fields:
+    user_agent: 设备
+    ip_address: IP 地址
+    persistent: 记住登录
+  persistent_state:
+    remembered: 已记住
+    browser: 浏览器会话
   # ⚠ "Revoke" has no glossary entry and the product is already split: console.yaml says 撤销,
   # errors.yaml says 撤销. This file follows 撤销, the majority rendering, so the user side and
   # the admin side name one action the same way. 注销 was avoided on purpose — 注销账号 reads
