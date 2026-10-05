@@ -771,6 +771,58 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored"]
+    fn search_matches_the_resource_id() {
+        let server = make_server();
+        let resource = ctx().resources[2];
+        let whole = resource.to_string();
+        let fragment = whole[..8].to_uppercase();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("search={whole}"),
+                matching(|s| s.resource_id == resource),
+            ),
+            (
+                format!("search={fragment}"),
+                matching(|s| s.resource_id.to_string().contains(&whole[..8])),
+            ),
+            (
+                format!("search={fragment}&status=failed"),
+                matching(|s| s.resource_id.to_string().contains(&whole[..8]) && s.failed()),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_seeded(&server, &format!("{query}&limit=100")).await;
+                assert_eq!(id_set(&body), expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            for query in ["search=zz", "search=%25", "search=_", "search=%5C"] {
+                let body = list_seeded(&server, &format!("{query}&limit=100")).await;
+                assert!(ids(&body).is_empty(), "{query}: {body}");
+                assert_eq!(total(&body), 0, "{query}: total");
+            }
+
+            let everything = list_seeded(&server, "search=&limit=100").await;
+            assert_eq!(total(&everything), SEED_COUNT as u64);
+
+            let shared = ctx().resources[0];
+            let body = list_seeded(&server, &format!("search={shared}&limit=100")).await;
+            assert_eq!(id_set(&body), matching(|s| s.resource_id == shared));
+            assert!(
+                id_set(&body).is_disjoint(&ctx().sibling_deliveries),
+                "{body}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored"]
     fn listed_deliveries_keep_their_summary_shape() {
         let server = make_server();
         rt().block_on(async {
@@ -1072,7 +1124,7 @@ mod tests {
                 ("created_from=2026-10-05", "created_from"),
                 ("created_to=2026-10-05", "created_to"),
                 ("created_from=yesterday", "created_from"),
-                ("search=x", "search"),
+                ("search=a&search=b", "search"),
             ] {
                 let response = list(
                     &server,

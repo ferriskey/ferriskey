@@ -287,6 +287,7 @@ impl WebhookDelivery {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WebhookDeliveryFilter {
+    pub search: Option<String>,
     pub event: Option<WebhookTrigger>,
     pub status: Option<DeliveryStatus>,
     pub resource_id: Option<Uuid>,

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use sea_orm::ActiveValue::Set;
+use sea_orm::sea_query::{Alias, Expr, LikeExpr, SimpleExpr, extension::postgres::PgExpr};
 use sea_orm::{
     ColumnTrait, DatabaseConnection, DbBackend, EntityTrait, QueryFilter, QueryTrait, Select,
     Statement,
@@ -27,7 +28,7 @@ use crate::entity::webhook_deliveries::{
     Entity as WebhookDeliveryEntity,
 };
 use crate::entity::webhooks::{Column as WebhookColumn, Entity as WebhookEntity};
-use crate::infrastructure::pagination::{SortColumn, paginate, within_naive};
+use crate::infrastructure::pagination::{SortColumn, escape_like, paginate, within_naive};
 
 fn optional_u32(value: Option<i32>) -> Option<u32> {
     value.and_then(|value| u32::try_from(value).ok())
@@ -103,6 +104,12 @@ impl SortColumn<WebhookDeliveryEntity> for WebhookDeliverySortField {
     }
 }
 
+fn search(value: &str) -> SimpleExpr {
+    Expr::col((WebhookDeliveryEntity, WebhookDeliveryColumn::ResourceId))
+        .cast_as(Alias::new("text"))
+        .ilike(LikeExpr::new(escape_like(value)))
+}
+
 fn listing_select(
     realm_id: Uuid,
     webhook_id: Uuid,
@@ -115,6 +122,9 @@ fn listing_select(
             WebhookDeliveryColumn::CreatedAt,
             &filter.created,
         ))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.event.as_ref(), |select, event| {
             select.filter(WebhookDeliveryColumn::Event.eq(event.to_string()))
         })
@@ -1164,6 +1174,18 @@ mod listing_tests {
             "{sql}"
         );
         assert!(!sql.contains("LIKE"), "{sql}");
+    }
+
+    #[test]
+    fn search_matches_the_resource_id_as_escaped_text() {
+        let sql = sql(&WebhookDeliveryFilter {
+            search: Some("a%b".to_string()),
+            ..WebhookDeliveryFilter::default()
+        });
+        assert!(
+            sql.contains(r#"CAST("webhook_deliveries"."resource_id" AS text) ILIKE E'%a\\%b%'"#),
+            "{sql}"
+        );
     }
 
     #[test]

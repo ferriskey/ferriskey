@@ -98,6 +98,7 @@ fn qualified_name_equals(realm_id: Uuid, value: &str) -> Condition {
 fn search_condition(realm_id: Uuid, value: &str) -> Condition {
     Condition::any()
         .add(contains(roles::Column::Name, value))
+        .add(contains(roles::Column::Description, value))
         .add(client_identifier_contains(realm_id, value))
         .add(qualified_value_contains(realm_id, value))
 }
@@ -492,13 +493,13 @@ mod tests {
     }
 
     #[test]
-    fn search_matches_the_name_or_the_client_identifier() {
+    fn search_matches_the_name_the_description_or_the_client_identifier() {
         let sql = sql(&RoleFilter {
             search: Some("app%".to_string()),
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#),
+            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR ("roles"."description" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#),
             "{sql}"
         );
     }
@@ -513,6 +514,6 @@ mod tests {
             sql.contains(r#"OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND (("clients"."client_id" || '.' || "roles"."name") ILIKE E'%app-web.ns.adm\\_%')))"#),
             "{sql}"
         );
-        assert_eq!(sql.matches("ILIKE").count(), 3, "{sql}");
+        assert_eq!(sql.matches("ILIKE").count(), 4, "{sql}");
     }
 }

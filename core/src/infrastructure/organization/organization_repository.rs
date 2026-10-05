@@ -68,6 +68,8 @@ fn search(value: &str) -> Condition {
     Condition::any()
         .add(contains(OrganizationColumn::Name, value))
         .add(contains(OrganizationColumn::Alias, value))
+        .add(contains(OrganizationColumn::Domain, value))
+        .add(contains(OrganizationColumn::Description, value))
 }
 
 fn listing_select(realm_id: Uuid, filter: &OrganizationFilter) -> Select<OrganizationEntity> {
@@ -360,14 +362,14 @@ mod listing_tests {
     }
 
     #[test]
-    fn search_matches_the_name_or_the_alias() {
+    fn search_matches_the_name_the_alias_the_domain_or_the_description() {
         let sql = sql(&OrganizationFilter {
             search: Some("acme".to_string()),
             ..OrganizationFilter::default()
         });
         assert!(
             sql.contains(
-                r#"(("organizations"."name" ILIKE '%acme%') OR ("organizations"."alias" ILIKE '%acme%'))"#
+                r#"(("organizations"."name" ILIKE '%acme%') OR ("organizations"."alias" ILIKE '%acme%') OR ("organizations"."domain" ILIKE '%acme%') OR ("organizations"."description" ILIKE '%acme%'))"#
             ),
             "{sql}"
         );

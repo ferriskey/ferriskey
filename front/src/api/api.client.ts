@@ -5256,6 +5256,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         event:
           | "user.created"
           | "user.email_verified"

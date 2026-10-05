@@ -751,6 +751,38 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
+    fn search_matches_the_domain_and_the_description() {
+        let server = make_server();
+        let cases: Vec<(&str, HashSet<Uuid>)> = vec![
+            ("search=CORP", matching(|s| domain_contains(s, "corp"))),
+            (
+                "search=example",
+                matching(|s| domain_contains(s, "example")),
+            ),
+            (
+                "search=SUPPORT",
+                matching(|s| description_contains(s, "support")),
+            ),
+            ("search=team", matching(|s| description_contains(s, "team"))),
+            ("search=%20", matching(|s| s.description.is_some())),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
     fn without_member_keeps_only_the_organizations_the_user_has_not_joined() {
         let server = make_server();
         rt().block_on(async {

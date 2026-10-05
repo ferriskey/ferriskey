@@ -762,6 +762,33 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn search_matches_the_description_and_never_a_missing_one() {
+        let server = make_server();
+        let cases: Vec<(&str, HashSet<Uuid>)> = vec![
+            ("search=GAMMA", matching(|s| described(s, "gamma"))),
+            ("search=desc", matching(|s| s.description.is_some())),
+            (
+                "search=alpha&require_mfa=true",
+                matching(|s| described(s, "alpha") && s.require_mfa),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
     fn search_matches_a_qualified_value_whose_role_name_contains_a_dot() {
         let server = make_server();
         rt().block_on(async {
