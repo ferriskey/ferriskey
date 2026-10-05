@@ -81,6 +81,9 @@ fn listing_select(realm_id: Uuid, filter: &SecurityEventFilter) -> Select<securi
         .apply_if(filter.target_type.as_deref(), |select, value| {
             select.filter(Column::TargetType.eq(value))
         })
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(contains(Column::IpAddress, value))
+        })
         .apply_if(filter.ip_address.as_deref(), |select, value| {
             select.filter(contains(Column::IpAddress, value))
         })
@@ -232,6 +235,19 @@ mod tests {
             ),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn search_is_an_escaped_contains_match_on_the_ip_address() {
+        let sql = sql(&SecurityEventFilter {
+            search: Some("a%_\\".to_string()),
+            ..SecurityEventFilter::default()
+        });
+        assert!(
+            sql.contains(r#""security_events"."ip_address" ILIKE E'%a\\%\\_\\\\%'"#),
+            "{sql}"
+        );
+        assert!(!sql.contains(r#""user_agent" ILIKE"#), "{sql}");
     }
 
     #[test]

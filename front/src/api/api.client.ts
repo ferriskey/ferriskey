@@ -2529,6 +2529,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         client_id: string;
         user_id: string;
         grant_type: string;
@@ -4419,6 +4420,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         actor_id: string;
         client_id: string;
         event_types: string;

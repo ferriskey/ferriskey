@@ -29,6 +29,8 @@ use ferriskey_api_core::{
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct FlowListParams {
+    #[param(example = "192.168.")]
+    pub search: Option<String>,
     #[param(example = "web-app")]
     pub client_id: Option<String>,
     pub user_id: Option<Uuid>,
@@ -49,6 +51,7 @@ pub struct FlowListParams {
 impl From<FlowListParams> for FlowFilter {
     fn from(params: FlowListParams) -> Self {
         Self {
+            search: params.search,
             client_id: params.client_id,
             user_id: params.user_id,
             grant_type: params.grant_type,
@@ -65,7 +68,7 @@ impl From<FlowListParams> for FlowFilter {
 #[utoipa::path(
     get,
     summary = "Get Compass Flows",
-    description = "Returns one page of the realm's authentication flows, with their steps. ip_address matches case-insensitively anywhere in the value and never matches a flow without an address. client_id (the OAuth client_id string), user_id, grant_type and status match exactly. identified=true keeps flows tied to a user, identified=false the anonymous ones; completed=true keeps flows with a completion date, completed=false the unfinished ones. from and to bound started_at, both inclusive. Filters combine with AND. Sorting on duration_ms puts unfinished flows last in ascending order and first in descending order.",
+    description = "Returns one page of the realm's authentication flows, with their steps. search matches case-insensitively anywhere in the ip_address and never matches a flow without an address. ip_address matches case-insensitively anywhere in the value and never matches a flow without an address. client_id (the OAuth client_id string), user_id, grant_type and status match exactly. identified=true keeps flows tied to a user, identified=false the anonymous ones; completed=true keeps flows with a completion date, completed=false the unfinished ones. from and to bound started_at, both inclusive. Filters combine with AND. Sorting on duration_ms puts unfinished flows last in ascending order and first in descending order.",
     path = "/compass/v1/flows",
     tag = "compass",
     params(
@@ -109,7 +112,7 @@ mod tests {
     fn every_filter_and_sort_field_is_read() {
         let user_id = Uuid::new_v4();
         let request = parse_list_query::<FlowListParams, FlowSortField>(&format!(
-            "order_by=duration_ms&order=asc&client_id=web-app&user_id={user_id}&grant_type=password&status=failure&ip_address=10.0&identified=false&completed=true&from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z"
+            "order_by=duration_ms&order=asc&search=168.1&client_id=web-app&user_id={user_id}&grant_type=password&status=failure&ip_address=10.0&identified=false&completed=true&from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z"
         ))
         .expect("valid query");
 
@@ -118,6 +121,7 @@ mod tests {
         assert_eq!(
             FlowFilter::from(request.filter),
             FlowFilter {
+                search: Some("168.1".to_string()),
                 client_id: Some("web-app".to_string()),
                 user_id: Some(user_id),
                 grant_type: Some("password".to_string()),
@@ -146,7 +150,9 @@ mod tests {
     fn unknown_filters_values_and_columns_are_refused() {
         for query in [
             "offset=10",
-            "search=x",
+            "search=a&search=b",
+            "created_from=2026-01-01T00:00:00Z",
+            "created_to=2026-01-01T00:00:00Z",
             "user_agent=firefox",
             "order_by=ip_address",
             "order_by=grant_type",
