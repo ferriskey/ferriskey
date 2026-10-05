@@ -12,6 +12,9 @@ export const WEBHOOK_FILTER_KEYS = [
   'triggered',
   'has_subscribers',
   'secure_endpoint',
+  'search',
+  'created_from',
+  'created_to',
 ] as const
 
 export const webhooksKey = (realm: string) =>
@@ -94,7 +97,13 @@ export type WebhookDeliveriesFilter = Omit<
   'page' | 'limit' | 'order' | 'order_by'
 >
 
-export const DELIVERY_FILTER_KEYS = ['status', 'event', 'resource_id'] as const
+export const DELIVERY_FILTER_KEYS = [
+  'status',
+  'event',
+  'resource_id',
+  'created_from',
+  'created_to',
+] as const
 
 export const useGetWebhookDeliveries = ({
   realm = 'master',

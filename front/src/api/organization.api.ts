@@ -12,7 +12,17 @@ export type OrganizationsQuery = NonNullable<
 
 export type OrganizationsFilter = Omit<OrganizationsQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
-export const ORGANIZATION_FILTER_KEYS = ['name', 'alias', 'domain', 'enabled', 'has_domain'] as const
+export const ORGANIZATION_FILTER_KEYS = [
+  'search',
+  'name',
+  'alias',
+  'domain',
+  'description',
+  'enabled',
+  'has_domain',
+  'created_from',
+  'created_to',
+] as const
 
 export const ORGANIZATION_SEARCH_LIMIT = 20
 
@@ -20,7 +30,14 @@ export type OrganizationMembersQuery = NonNullable<
   Endpoints.get_List_members['parameters']['query']
 >
 
-export const ORGANIZATION_MEMBER_FILTER_KEYS = ['username', 'email', 'enabled'] as const
+export const ORGANIZATION_MEMBER_FILTER_KEYS = [
+  'search',
+  'username',
+  'email',
+  'enabled',
+  'created_from',
+  'created_to',
+] as const
 
 const SEARCH_DEBOUNCE_MS = 300
 

@@ -1,19 +1,20 @@
 import { useState } from 'react'
-import { Shield, Trash2, UserPlus } from 'lucide-react'
+import { Shield, Trash2, UserPlus, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  clearColumnFilters,
+  countActiveFilters,
   DataView,
   EntityPicker,
-  FilterBar,
   IconTile,
   PaginationBar,
   Pill,
+  SearchInput,
   Section,
   StatusDot,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
   type PickableEntity,
@@ -29,6 +30,7 @@ import User = Schemas.User
 const SERVICE_ACCOUNT_INITIAL = 'S'
 const FALLBACK_INITIAL = 'U'
 const EMPTY_VALUE = '—'
+const SEARCH_KEY = 'search'
 const MEMBERS_VIEW: ViewMode = 'list'
 
 export interface OrganizationMemberRow {
@@ -76,12 +78,6 @@ export default function OrganizationMembersTab({
         label: memberDisplayName(user),
         sublabel: user.email ?? user.username,
       })),
-  ]
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'username', label: t('detail.members.filter_fields.username') },
-    { kind: 'text', key: 'email', label: t('detail.members.filter_fields.email') },
-    { kind: 'boolean', key: 'enabled', label: t('detail.members.filter_fields.enabled') },
   ]
 
   const avatar = ({ user }: OrganizationMemberRow) => {
@@ -168,6 +164,9 @@ export default function OrganizationMembersTab({
         </div>
       ),
       sortKey: 'username',
+      filters: [
+        { kind: 'text', key: 'username', label: t('detail.members.filter_fields.username') },
+      ],
     },
     {
       key: 'email',
@@ -178,17 +177,29 @@ export default function OrganizationMembersTab({
         </span>
       ),
       sortKey: 'email',
+      filters: [{ kind: 'text', key: 'email', label: t('detail.members.filter_fields.email') }],
     },
     {
       key: 'status',
       header: t('detail.members.columns.status'),
       render: status,
+      filters: [
+        { kind: 'boolean', key: 'enabled', label: t('detail.members.filter_fields.enabled') },
+      ],
     },
     {
       key: 'joined',
       header: t('detail.members.columns.joined'),
       render: (row) => <span className='tnum'>{formatRelative(row.joinedAt)}</span>,
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('detail.members.filter_fields.joined'),
+        },
+      ],
     },
     {
       key: 'actions',
@@ -197,6 +208,10 @@ export default function OrganizationMembersTab({
       render: actions,
     },
   ]
+
+  const activeFilters = countActiveFilters(columns, listing.state.filters)
+  const clearColumns = () =>
+    listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
 
   return (
     <>
@@ -237,8 +252,18 @@ export default function OrganizationMembersTab({
         contained={false}
       >
         <div className='flex flex-col gap-3'>
-          <div className='flex'>
-            <FilterBar fields={filterFields} listing={listing} />
+          <div className='flex flex-wrap items-center gap-2'>
+            <SearchInput
+              value={listing.drafts[SEARCH_KEY] ?? ''}
+              onChange={(value) => listing.setDraft(SEARCH_KEY, value)}
+              placeholder={t('detail.members.search_placeholder')}
+            />
+            {activeFilters > 0 && (
+              <Button variant='ghost' size='sm' onClick={clearColumns}>
+                <X />
+                {t('common:listing.clear_filters', { count: activeFilters })}
+              </Button>
+            )}
           </div>
           <DataView
             rows={rows}
@@ -258,6 +283,7 @@ export default function OrganizationMembersTab({
             getKey={(row) => row.id}
             view={MEMBERS_VIEW}
             loading={isLoading}
+            listing={listing}
             sort={listing.state.sort}
             onSortChange={listing.setSort}
             emptyLabel={narrowed ? t('detail.members.no_match') : t('detail.members.empty')}

@@ -5,7 +5,6 @@ import { IconTile, ListingPage, Pill } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
@@ -17,6 +16,7 @@ import { formatDateTime, formatRelative } from '@/utils/format-date'
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
+const NO = 'false'
 
 export interface WebhookCounts {
   total: number
@@ -73,6 +73,7 @@ export default function PageWebhooksOverview({
           <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
         ),
       sortKey: 'name',
+      filters: [{ kind: 'text', key: 'name', label: t('list.filter_fields.name') }],
     },
     {
       key: 'endpoint',
@@ -81,6 +82,10 @@ export default function PageWebhooksOverview({
         <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{w.endpoint}</span>
       ),
       sortKey: 'endpoint',
+      filters: [
+        { kind: 'text', key: 'endpoint', label: t('list.filter_fields.endpoint') },
+        { kind: 'boolean', key: 'secure_endpoint', label: t('list.filter_fields.secure_endpoint') },
+      ],
     },
     {
       key: 'subscribers',
@@ -92,6 +97,9 @@ export default function PageWebhooksOverview({
         ) : (
           <span className='tnum text-fk-danger'>0</span>
         ),
+      filters: [
+        { kind: 'boolean', key: 'has_subscribers', label: t('list.filter_fields.has_subscribers') },
+      ],
     },
     {
       key: 'triggered_at',
@@ -107,6 +115,7 @@ export default function PageWebhooksOverview({
           </span>
         ),
       sortKey: 'triggered_at',
+      filters: [{ kind: 'boolean', key: 'triggered', label: t('list.filter_fields.triggered') }],
     },
     {
       key: 'created',
@@ -117,6 +126,14 @@ export default function PageWebhooksOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -163,14 +180,6 @@ export default function PageWebhooksOverview({
     ),
   }
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
-    { kind: 'text', key: 'endpoint', label: t('list.filter_fields.endpoint') },
-    { kind: 'boolean', key: 'triggered', label: t('list.filter_fields.triggered') },
-    { kind: 'boolean', key: 'has_subscribers', label: t('list.filter_fields.has_subscribers') },
-    { kind: 'boolean', key: 'secure_endpoint', label: t('list.filter_fields.secure_endpoint') },
-  ]
-
   const createButton = (
     <Button onClick={onCreate}>
       <Plus /> {t('list.create')}
@@ -190,6 +199,7 @@ export default function PageWebhooksOverview({
           value: counts.total,
           hint: t('list.metrics.total.hint'),
           series: [counts.total, counts.total],
+          onSelect: () => listing.setFilters({ triggered: '', has_subscribers: '' }),
         },
         {
           key: 'never',
@@ -197,6 +207,7 @@ export default function PageWebhooksOverview({
           value: counts.never,
           hint: t('list.metrics.never.hint'),
           series: [counts.never, counts.never],
+          onSelect: () => listing.setFilters({ triggered: NO }),
         },
         {
           key: 'silent',
@@ -204,6 +215,7 @@ export default function PageWebhooksOverview({
           value: counts.silent,
           hint: t('list.metrics.silent.hint'),
           series: [counts.silent, counts.silent],
+          onSelect: () => listing.setFilters({ has_subscribers: NO }),
         },
       ]}
       alerts={[
@@ -228,7 +240,7 @@ export default function PageWebhooksOverview({
             ]
           : []),
       ]}
-      paged={{ listing, pagination, filterFields }}
+      paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
       rows={webhooks}
       columns={columns}
       card={card}

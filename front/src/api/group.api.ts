@@ -18,7 +18,15 @@ export type GroupListItem = Schemas.GroupListItem
 
 export type GroupsQuery = NonNullable<Endpoints.get_List_groups['parameters']['query']>
 
-export const GROUP_FILTER_KEYS = ['name', 'description', 'parent_group_id', 'is_root'] as const
+export const GROUP_FILTER_KEYS = [
+  'search',
+  'name',
+  'description',
+  'parent_group_id',
+  'is_root',
+  'created_from',
+  'created_to',
+] as const
 
 export const GROUP_SEARCH_LIMIT = 20
 
@@ -35,7 +43,14 @@ export type GroupMembersQuery = NonNullable<
   Endpoints.get_List_group_members['parameters']['query']
 >
 
-export const GROUP_MEMBER_FILTER_KEYS = ['username', 'email', 'enabled'] as const
+export const GROUP_MEMBER_FILTER_KEYS = [
+  'search',
+  'username',
+  'email',
+  'enabled',
+  'created_from',
+  'created_to',
+] as const
 
 export interface GroupAttribute {
   id: string

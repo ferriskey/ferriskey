@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { RotateCcw } from 'lucide-react'
+import { RotateCcw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   Button,
   Column,
+  clearColumnFilters,
+  countActiveFilters,
   DataView,
-  FilterBar,
   PaginationBar,
   Pill,
   Section,
   usePagedListing,
-  type FilterField,
   type ViewMode,
 } from '@/components/kit'
 import {
@@ -107,29 +107,6 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     return { tone: descriptor.tone, label: descriptor.labelKey ? t(descriptor.labelKey) : value }
   }
 
-  const filterFields: FilterField[] = [
-    {
-      kind: 'enum',
-      key: 'status',
-      label: t('delivery.filter_fields.status'),
-      options: DELIVERY_STATUSES.map((status) => ({
-        value: status,
-        label: statusOf(status).label,
-      })),
-    },
-    {
-      kind: 'enum',
-      key: 'event',
-      label: t('delivery.filter_fields.event'),
-      options: EVENT_OPTIONS,
-    },
-    {
-      kind: 'text',
-      key: 'resource_id',
-      label: t('delivery.filter_fields.resource_id'),
-    },
-  ]
-
   const onRetry = (delivery: DeliverySummary) => {
     retryDelivery(
       {
@@ -161,6 +138,17 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
         )
       },
       sortKey: 'status',
+      filters: [
+        {
+          kind: 'enum',
+          key: 'status',
+          label: t('delivery.filter_fields.status'),
+          options: DELIVERY_STATUSES.map((status) => ({
+            value: status,
+            label: statusOf(status).label,
+          })),
+        },
+      ],
     },
     {
       key: 'event',
@@ -170,6 +158,19 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
           {delivery.event}
         </span>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'event',
+          label: t('delivery.filter_fields.event'),
+          options: EVENT_OPTIONS,
+        },
+        {
+          kind: 'text',
+          key: 'resource_id',
+          label: t('delivery.filter_fields.resource_id'),
+        },
+      ],
     },
     {
       key: 'attempts',
@@ -206,6 +207,14 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
       align: 'right',
       render: (delivery) => <TimestampCell value={delivery.created_at} />,
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('delivery.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'actions',
@@ -232,12 +241,21 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     },
   ]
 
+  const activeFilters = countActiveFilters(columns, listing.state.filters)
+  const clearColumns = () =>
+    listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
+
   return (
     <>
       <Section title={t('delivery.title')} description={t('delivery.description')} contained={false}>
-        <div className='mb-3 flex'>
-          <FilterBar fields={filterFields} listing={listing} />
-        </div>
+        {activeFilters > 0 && (
+          <div className='mb-3 flex'>
+            <Button variant='ghost' size='sm' onClick={clearColumns}>
+              <X />
+              {t('common:listing.clear_filters', { count: activeFilters })}
+            </Button>
+          </div>
+        )}
         {isError ? (
           <div className='rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5 text-sm text-fk-danger'>
             {t('delivery.error')}
@@ -262,6 +280,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
             getKey={(delivery) => delivery.id}
             view={DELIVERY_VIEW}
             loading={isLoading}
+            listing={listing}
             sort={listing.state.sort}
             onSortChange={listing.setSort}
             aggregates={

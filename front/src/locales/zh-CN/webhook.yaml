@@ -42,7 +42,9 @@ list:
     triggered_at: 最近触发
     created: 创建时间
     updated: 更新时间
+  search_placeholder: 按名称或端点搜索…
   filter_fields:
+    created: 创建时间
     name: 名称
     endpoint: 端点
     triggered: 已触发
@@ -227,6 +229,7 @@ delivery:
     last_attempt_at: 最近尝试
     updated_at: 更新时间
   filter_fields:
+    created: 创建时间
     status: 状态
     event: 事件
     resource_id: 资源 ID

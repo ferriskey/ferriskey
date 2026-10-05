@@ -89,7 +89,10 @@ list:
       detail_one: '{{names}} — members cannot reach it.'
       detail_other: '{{names}} — members cannot reach them.'
       action: Review
+  search_placeholder: Search by name or alias…
   filter_fields:
+    created: Created
+    description: Description
     name: Name
     alias: Alias
     domain: Domain
@@ -172,7 +175,9 @@ detail:
       email: Email
       status: Status
       joined: Joined
+    search_placeholder: Search by username or email…
     filter_fields:
+      joined: Joined
       username: Username
       email: Email
       enabled: Enabled
@@ -208,7 +213,9 @@ groups:
       parent: Parent
       created: Created
       updated: Updated
+    search_placeholder: Search by name or description…
     filter_fields:
+      created: Created
       name: Name
       description: Description
       parent: Parent group
@@ -237,7 +244,9 @@ groups:
       email: Email
       status: Status
       joined: Joined
+    search_placeholder: Search by username or email…
     filter_fields:
+      joined: Joined
       username: Username
       email: Email
       enabled: Enabled

@@ -98,7 +98,10 @@ list:
       # "names" is the list of disabled organizations, already joined.
       detail_other: '{{names}}，其成员无法访问。'
       action: 检查
+  search_placeholder: 按名称或别名搜索…
   filter_fields:
+    created: 创建时间
+    description: 描述
     name: 名称
     alias: 别名
     domain: 域名
@@ -180,7 +183,9 @@ detail:
       email: 邮箱
       status: 状态
       joined: 加入时间
+    search_placeholder: 按用户名或邮箱搜索…
     filter_fields:
+      joined: 加入时间
       username: 用户名
       email: 邮箱
       enabled: 已启用
@@ -216,7 +221,9 @@ groups:
       parent: 父组
       created: 创建时间
       updated: 更新时间
+    search_placeholder: 按名称或描述搜索…
     filter_fields:
+      created: 创建时间
       name: 名称
       description: 描述
       parent: 父组
@@ -245,7 +252,9 @@ groups:
       email: 邮箱
       status: 状态
       joined: 加入时间
+    search_placeholder: 按用户名或邮箱搜索…
     filter_fields:
+      joined: 加入时间
       username: 用户名
       email: 邮箱
       enabled: 已启用

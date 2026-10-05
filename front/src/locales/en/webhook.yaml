@@ -29,7 +29,9 @@ list:
     triggered_at: Last triggered
     created: Created
     updated: Updated
+  search_placeholder: Search by name or endpoint…
   filter_fields:
+    created: Created
     name: Name
     endpoint: Endpoint
     triggered: Already triggered
@@ -216,6 +218,7 @@ delivery:
     last_attempt_at: Last attempt
     updated_at: Updated
   filter_fields:
+    created: Created
     status: Status
     event: Event
     resource_id: Resource ID
