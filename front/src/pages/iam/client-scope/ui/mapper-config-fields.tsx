@@ -10,9 +10,9 @@ import {
 import { FieldRow, SwitchField } from '@/components/kit'
 import type { ConfigFieldDef } from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
 import { MAPPER_ENTITY_FIELDS, type MapperEntityKind } from '../config-values'
-import MapperEntityField, { type MapperEntityOption } from './mapper-entity-field'
+import MapperEntityField, { type MapperEntitySource } from './mapper-entity-field'
 
-export type MapperEntityOptions = Record<MapperEntityKind, MapperEntityOption[]>
+export type MapperEntityOptions = Record<MapperEntityKind, MapperEntitySource>
 
 const entityCopyKeys: Record<
   MapperEntityKind,
@@ -81,7 +81,7 @@ export default function MapperConfigFields({
             ) : entityKind ? (
               <MapperEntityField
                 id={id}
-                options={entityOptions[entityKind]}
+                source={entityOptions[entityKind]}
                 value={value}
                 placeholder={t(entityCopyKeys[entityKind].placeholder)}
                 searchPlaceholder={t(entityCopyKeys[entityKind].searchPlaceholder)}

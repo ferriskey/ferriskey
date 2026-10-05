@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
-import { USER_IDS_BATCH, idBatches } from './user-ids'
+import { ID_BATCH, idBatches } from './id-batches'
 import { translate } from '@/lib/i18n'
 
 export interface UserMutateContract<T> {
@@ -63,7 +63,7 @@ export const useUsersByIds = ({ realm, ids }: BaseQuery & { ids: readonly string
     queries: batches.map((batch) => ({
       ...window.tanstackApi.get('/realms/{realm_name}/users', {
         path: { realm_name: realm || 'master' },
-        query: { ids: batch, limit: USER_IDS_BATCH },
+        query: { ids: batch, limit: ID_BATCH },
       }).queryOptions,
     })),
     combine: combineUsers,

@@ -54,13 +54,14 @@ list:
   title: 角色
   description: 适用于此域账户的权限与策略。
   create: 新建角色
-  search_placeholder: 按名称筛选…
   count_other: '{{count}} 个角色'
   columns:
     name: 角色
     description: 描述
     scope: 作用域
     permissions: 权限
+    created: 创建时间
+    updated: 更新时间
   metrics:
     total:
       label: 总计
@@ -83,7 +84,13 @@ list:
   filters:
     realm: 域
     client: 客户端
-    without_permissions: 无权限
+  filter_fields:
+    name: 名称
+    description: 描述
+    require_mfa: 需要 MFA
+    client: 客户端
+    scope: 作用域
+    has_permissions: 含权限
   card:
     flags:
       grants: 至少授予一项权限

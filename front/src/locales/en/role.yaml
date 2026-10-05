@@ -44,7 +44,6 @@ list:
   title: Roles
   description: Permissions and policies applicable to the accounts of this realm.
   create: New role
-  search_placeholder: Filter by name…
   count_one: '{{count}} role'
   count_other: '{{count}} roles'
   columns:
@@ -52,6 +51,8 @@ list:
     description: Description
     scope: Scope
     permissions: Permissions
+    created: Created
+    updated: Updated
   metrics:
     total:
       label: Total
@@ -75,7 +76,13 @@ list:
   filters:
     realm: Realm
     client: Client
-    without_permissions: Without permissions
+  filter_fields:
+    name: Name
+    description: Description
+    require_mfa: MFA required
+    client: Client
+    scope: Scope
+    has_permissions: With permissions
   card:
     flags:
       grants: Grants at least one permission

@@ -2,11 +2,12 @@ use uuid::Uuid;
 
 use crate::auth::Identity;
 use crate::common::app_errors::CoreError;
-use crate::realm::scope::{Scoped, Unscoped};
-use crate::realm::{Realm, RealmId};
+use crate::common::pagination::{Page, PageRequest};
+use crate::realm::Realm;
+use crate::realm::scope::{RealmScope, Scoped, Unscoped};
 use crate::role::{
     commands::{CreateRoleInput, UpdateRoleInput},
-    entities::Role,
+    entities::{Role, RoleFilter, RoleSortField},
     value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
 };
 
@@ -28,11 +29,12 @@ pub trait RoleService: Send + Sync {
         realm_name: String,
         role_id: Uuid,
     ) -> impl Future<Output = Result<Role, CoreError>> + Send;
-    fn get_roles(
+    fn list_roles(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+        request: PageRequest<RoleFilter, RoleSortField>,
+    ) -> impl Future<Output = Result<Page<Role>, CoreError>> + Send;
     fn update_role_permissions(
         &self,
         identity: Identity,
@@ -101,10 +103,11 @@ pub trait RoleRepository: Send + Sync {
         role: &Scoped<Role>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn find_by_realm_id(
+    fn list(
         &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Vec<Role>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<RoleFilter, RoleSortField>,
+    ) -> impl Future<Output = Result<Page<Role>, CoreError>> + Send;
     fn find_by_name(
         &self,
         name: String,

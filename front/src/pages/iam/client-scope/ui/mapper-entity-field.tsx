@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, ChevronsUpDown, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
@@ -20,9 +20,16 @@ export interface MapperEntityOption {
   sublabel?: string
 }
 
+export interface MapperEntitySource {
+  useOptions: (search: string) => { options: MapperEntityOption[]; loading: boolean }
+  useSelected: (value: string) => { option: MapperEntityOption | undefined; loading: boolean }
+}
+
+const SEARCH_DEBOUNCE_MS = 300
+
 export interface MapperEntityFieldProps {
   id: string
-  options: MapperEntityOption[]
+  source: MapperEntitySource
   value: string
   placeholder: string
   searchPlaceholder: string
@@ -32,7 +39,7 @@ export interface MapperEntityFieldProps {
 
 export default function MapperEntityField({
   id,
-  options,
+  source,
   value,
   placeholder,
   searchPlaceholder,
@@ -41,11 +48,26 @@ export default function MapperEntityField({
 }: MapperEntityFieldProps) {
   const { t } = useTranslation('client-scope')
   const [open, setOpen] = useState(false)
-  const selected = options.find((option) => option.value === value)
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+  const { options, loading } = source.useOptions(debounced)
+  const { option: selected, loading: resolving } = source.useSelected(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const changeOpen = (next: boolean) => {
+    setOpen(next)
+    if (next) return
+    setSearch('')
+    setDebounced('')
+  }
 
   return (
     <div className='flex max-w-sm items-center gap-1.5'>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={changeOpen}>
         <PopoverTrigger asChild>
           <Button
             id={id}
@@ -58,7 +80,9 @@ export default function MapperEntityField({
             {value ? (
               <span className='flex min-w-0 items-center gap-2'>
                 <span className='min-w-0 truncate font-mono-ui text-xs'>{value}</span>
-                {!selected && <Pill tone='amber'>{t('mapper_entity.unknown')}</Pill>}
+                {!selected && !resolving && (
+                  <Pill tone='amber'>{t('mapper_entity.unknown')}</Pill>
+                )}
               </span>
             ) : (
               <span className='text-neutral-500 dark:text-neutral-400'>{placeholder}</span>
@@ -67,10 +91,21 @@ export default function MapperEntityField({
           </Button>
         </PopoverTrigger>
         <PopoverContent className='w-(--radix-popover-trigger-width) p-0' align='start'>
-          <Command>
-            <CommandInput placeholder={searchPlaceholder} className='h-9' />
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={searchPlaceholder}
+              value={search}
+              onValueChange={setSearch}
+              className='h-9'
+            />
             <CommandList>
-              <CommandEmpty>{emptyLabel}</CommandEmpty>
+              {loading ? (
+                <div className='flex justify-center py-6'>
+                  <Loader2 className='size-4 animate-spin text-neutral-400' />
+                </div>
+              ) : (
+                <CommandEmpty>{emptyLabel}</CommandEmpty>
+              )}
               <CommandGroup>
                 {options.map((option) => (
                   <CommandItem
@@ -78,7 +113,7 @@ export default function MapperEntityField({
                     value={`${option.label} ${option.sublabel ?? ''} ${option.value}`}
                     onSelect={() => {
                       onChange(option.value)
-                      setOpen(false)
+                      changeOpen(false)
                     }}
                   >
                     <span className='min-w-0 flex-1'>

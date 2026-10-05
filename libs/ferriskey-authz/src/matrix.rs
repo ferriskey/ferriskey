@@ -734,7 +734,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 209,
     },
     AuthzRow {
-        service_fn: "get_roles",
+        service_fn: "list_roles",
         policy_fn: "can_view_role",
         action: actions::ROLE_READ,
         resource: EntityType::REALM,
@@ -746,7 +746,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/role/services.rs",
-        line: 228,
+        line: 229,
     },
     AuthzRow {
         service_fn: "update_role",

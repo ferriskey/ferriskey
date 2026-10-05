@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { RouterParams } from '@/routes/router'
 import { useListingQuery } from '@/components/kit'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
+import { eventRoleIds } from '@/hooks/event-role-ids'
 import { eventFamilies } from '@/pages/iam/seawatch/event-catalogue'
 import { useWindowEvents } from './use-window-events'
 import PageLogs from '../ui/page-logs'
@@ -22,7 +23,8 @@ export default function PageLogsFeature() {
     eventFamilies[listing.filter]
   )
   const userIds = useMemo(() => eventUserIds(events), [events])
-  const directory = useRealmDirectory(realm, userIds)
+  const roleIds = useMemo(() => eventRoleIds(events), [events])
+  const directory = useRealmDirectory(realm, userIds, roleIds)
 
   return (
     <PageLogs

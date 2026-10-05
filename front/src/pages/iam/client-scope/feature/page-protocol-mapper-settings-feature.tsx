@@ -7,7 +7,7 @@ import { clientScopeMappersUrl } from '../urls'
 import { configFromStrings, configToStrings, parseJsonConfig } from '../config-values'
 import { templateForType } from '../mapper-templates'
 import PageProtocolMapperSettings from '../ui/page-protocol-mapper-settings'
-import { useMapperEntityOptions } from './use-mapper-entity-options'
+import { MAPPER_ENTITY_SOURCES } from './mapper-entity-sources'
 
 interface Draft {
   key: string
@@ -25,7 +25,6 @@ export default function PageProtocolMapperSettingsFeature() {
 
   const { data: scope, isLoading } = useGetClientScope({ realm, scopeId: scope_id })
   const { mutate: updateProtocolMapper, isPending } = useUpdateProtocolMapper()
-  const entityOptions = useMapperEntityOptions(realm)
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
 
@@ -86,7 +85,7 @@ export default function PageProtocolMapperSettingsFeature() {
       name={current.name}
       configJson={current.configJson}
       configValues={current.config}
-      entityOptions={entityOptions}
+      entityOptions={MAPPER_ENTITY_SOURCES}
       nameError={nameError}
       configError={configError}
       hasChanges={hasChanges}

@@ -8,6 +8,8 @@ export interface RealmMaintenanceTabProps {
   onSearchUsers: (search: string) => void
   isSearchingUsers: boolean
   roles: PickableEntity[]
+  onSearchRoles: (search: string) => void
+  isSearchingRoles: boolean
   selectedUserIds: string[]
   selectedRoleIds: string[]
   onUsersChange: (next: string[]) => void
@@ -19,6 +21,8 @@ export default function RealmMaintenanceTab({
   onSearchUsers,
   isSearchingUsers,
   roles,
+  onSearchRoles,
+  isSearchingRoles,
   selectedUserIds,
   selectedRoleIds,
   onUsersChange,
@@ -66,6 +70,8 @@ export default function RealmMaintenanceTab({
             items={roles}
             value={selectedRoleIds}
             onChange={onRolesChange}
+            onSearchChange={onSearchRoles}
+            loading={isSearchingRoles}
             addLabel={t('maintenance.roles.add')}
             searchPlaceholder={t('maintenance.roles.search_placeholder')}
             emptyHint={t('maintenance.roles.empty_hint')}

@@ -8,6 +8,7 @@ use crate::domain::{
     client::ports::ClientRepository,
     common::{
         entities::app_errors::CoreError,
+        pagination::{Page, PageRequest},
         policies::{FerriskeyPolicy, ensure_policy},
     },
     realm::{
@@ -15,7 +16,7 @@ use crate::domain::{
         ports::RealmRepository,
     },
     role::{
-        entities::{CreateRoleInput, Role, UpdateRoleInput},
+        entities::{CreateRoleInput, Role, RoleFilter, RoleSortField, UpdateRoleInput},
         ports::{RolePolicy, RoleRepository, RoleService},
         value_objects::{CreateRoleRequest, UpdateRolePermissionsRequest, UpdateRoleRequest},
     },
@@ -216,24 +217,20 @@ where
             .map(Scoped::into_inner)
     }
 
-    async fn get_roles(
+    async fn list_roles(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> Result<Vec<Role>, CoreError> {
+        request: PageRequest<RoleFilter, RoleSortField>,
+    ) -> Result<Page<Role>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
-        let realm = scope.realm().clone();
 
-        let realm_id = realm.id;
         ensure_policy(
-            self.policy.can_view_role(&identity, &realm).await,
+            self.policy.can_view_role(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
-        self.role_repository
-            .find_by_realm_id(realm_id)
-            .await
-            .map_err(|_| CoreError::NotFound)
+        self.role_repository.list(&scope, &request).await
     }
 
     async fn update_role(
@@ -357,6 +354,7 @@ mod tests {
         client::{entities::Client, ports::MockClientRepository},
         common::{
             entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
             policies::FerriskeyPolicy,
             services::tests::{
                 assert_core_erro, assert_success, create_test_realm, create_test_realm_with_name,
@@ -369,7 +367,10 @@ mod tests {
             ports::MockRealmRepository,
         },
         role::{
-            entities::{CreateRoleInput, Role, UpdateRoleInput, permission::Permissions},
+            entities::{
+                CreateRoleInput, Role, RoleFilter, RoleSortField, UpdateRoleInput,
+                permission::Permissions,
+            },
             ports::{MockRoleRepository, RoleService},
             services::RoleServiceImpl,
             value_objects::CreateRoleRequest,
@@ -1080,5 +1081,79 @@ mod tests {
 
         let returned = assert_success(result);
         assert_eq!(returned.permissions, vec![Permissions::ViewUsers.name()]);
+    }
+
+    fn list_request() -> PageRequest<RoleFilter, RoleSortField> {
+        PageRequest {
+            filter: RoleFilter {
+                name: Some("adm".to_string()),
+                require_mfa: Some(true),
+                ..RoleFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_roles_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let identity = Identity::User(user.clone());
+
+        let mut builder = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_no_user_roles();
+        Arc::get_mut(&mut builder.role_repo)
+            .unwrap()
+            .expect_list()
+            .never();
+        let service = builder.build();
+
+        let result = service
+            .list_roles(identity, realm.name.clone(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_roles_pages_the_resolved_realm_with_the_request() {
+        let realm = create_test_realm();
+        let user = create_test_user_with_realm(&realm);
+        let identity = Identity::User(user.clone());
+        let viewer = create_test_role_with_params(
+            realm.id,
+            "viewer-role",
+            vec![Permissions::ViewRoles.name()],
+            None,
+        );
+        let listed = create_test_role(realm.id);
+        let expected_id = listed.id;
+        let realm_id = realm.id;
+
+        let mut builder = RoleServiceTestBuilder::new()
+            .with_successful_realm_lookup(&realm.name, realm.clone())
+            .with_user_roles(user.id, vec![viewer]);
+        Arc::get_mut(&mut builder.role_repo)
+            .unwrap()
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+        let service = builder.build();
+
+        let page = service
+            .list_roles(identity, realm.name.clone(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }

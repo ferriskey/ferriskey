@@ -2,13 +2,14 @@ use std::fmt::Display;
 
 use axum::{extract::FromRequestParts, http::request::Parts};
 use ferriskey_core::domain::common::pagination::{
-    PageLimit, PageNumber, PageRequest, Sort, SortOrder,
+    MAX_PAGE_LIMIT, PageLimit, PageNumber, PageRequest, Sort, SortOrder,
 };
 use serde::{
     Deserialize,
     de::{DeserializeOwned, IntoDeserializer, value},
 };
 use utoipa::IntoParams;
+use uuid::Uuid;
 
 use super::api_error::{ApiError, ApiErrorBody};
 
@@ -89,6 +90,18 @@ fn parse_filter<F: DeserializeOwned>(filters: &[(String, String)]) -> Result<F, 
 
 fn from_str<T: DeserializeOwned>(raw: &str) -> Result<T, value::Error> {
     T::deserialize(raw.into_deserializer())
+}
+
+pub fn parse_id_list(param: &str, raw: &str) -> Result<Vec<Uuid>, ApiError> {
+    let ids = raw
+        .split(',')
+        .map(|part| Uuid::parse_str(part.trim()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| invalid(param, e))?;
+    if ids.len() > MAX_PAGE_LIMIT as usize {
+        return Err(invalid(param, format!("at most {MAX_PAGE_LIMIT} ids")));
+    }
+    Ok(ids)
 }
 
 fn invalid(param: &str, detail: impl Display) -> ApiError {
@@ -207,6 +220,40 @@ mod tests {
         match parse("limit=101").expect_err("too large") {
             ApiError::BadRequest(body) => assert_eq!(body.reason, Some("invalid_query")),
             other => panic!("{other:?}"),
+        }
+    }
+
+    fn ids(count: usize) -> String {
+        (0..count)
+            .map(|_| uuid::Uuid::new_v4().to_string())
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+
+    #[test]
+    fn id_lists_up_to_the_page_limit_are_parsed() {
+        let first = uuid::Uuid::new_v4();
+        let second = uuid::Uuid::new_v4();
+        assert_eq!(
+            parse_id_list("ids", &format!("{first}, {second}")).expect("two ids"),
+            vec![first, second]
+        );
+        assert_eq!(
+            parse_id_list("ids", &ids(100)).map(|ids| ids.len()).ok(),
+            Some(100)
+        );
+    }
+
+    #[test]
+    fn invalid_id_lists_name_the_parameter() {
+        for raw in [ids(101), "nope".to_string(), ",".to_string()] {
+            match parse_id_list("role_ids", &raw) {
+                Err(ApiError::BadRequest(body)) => {
+                    assert!(body.message.contains("`role_ids`"), "{}", body.message);
+                    assert_eq!(body.reason, Some("invalid_query"));
+                }
+                other => panic!("{raw}: {other:?}"),
+            }
         }
     }
 }

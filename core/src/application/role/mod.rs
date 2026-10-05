@@ -4,9 +4,12 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         role::{
-            entities::{CreateRoleInput, Role, UpdateRoleInput},
+            entities::{CreateRoleInput, Role, RoleFilter, RoleSortField, UpdateRoleInput},
             ports::RoleService,
         },
     },
@@ -43,12 +46,15 @@ impl RoleService for ApplicationService {
             .await
     }
 
-    async fn get_roles(
+    async fn list_roles(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> Result<Vec<Role>, CoreError> {
-        self.role_service.get_roles(identity, realm_name).await
+        request: PageRequest<RoleFilter, RoleSortField>,
+    ) -> Result<Page<Role>, CoreError> {
+        self.role_service
+            .list_roles(identity, realm_name, request)
+            .await
     }
 
     async fn update_role(

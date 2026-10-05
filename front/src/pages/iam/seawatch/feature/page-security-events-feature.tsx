@@ -4,6 +4,7 @@ import { useParams } from 'react-router'
 import { RouterParams } from '@/routes/router'
 import { useListingQuery } from '@/components/kit'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
+import { eventRoleIds } from '@/hooks/event-role-ids'
 import { useGetDailyActivityStats } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
 import { eventFamilies } from '../event-catalogue'
@@ -73,7 +74,8 @@ export default function PageSecurityEventsFeature() {
 
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
   const userIds = useMemo(() => eventUserIds(events), [events])
-  const directory = useRealmDirectory(realm, userIds)
+  const roleIds = useMemo(() => eventRoleIds(events), [events])
+  const directory = useRealmDirectory(realm, userIds, roleIds)
 
   return (
     <PageSecurityEvents

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useUsersByIds } from '@/api/user.api'
 import { useGetClients } from '@/api/client.api'
-import { useGetRoles } from '@/api/role.api'
+import { useRolesByIds } from '@/api/role.api'
 import type { Schemas } from '@/api/api.client'
 
 export interface RealmDirectory {
@@ -11,6 +11,7 @@ export interface RealmDirectory {
 }
 
 const USER_KINDS: readonly (string | null | undefined)[] = ['user', 'service_account', 'admin']
+const NO_IDS: readonly string[] = []
 
 export function eventUserIds(events: readonly Schemas.SecurityEvent[]): string[] {
   return events.flatMap((event) => [
@@ -19,17 +20,21 @@ export function eventUserIds(events: readonly Schemas.SecurityEvent[]): string[]
   ])
 }
 
-export function useRealmDirectory(realm: string, userIds: readonly string[]): RealmDirectory {
+export function useRealmDirectory(
+  realm: string,
+  userIds: readonly string[],
+  roleIds: readonly string[] = NO_IDS
+): RealmDirectory {
   const { users: resolved, isLoading: loadingUsers } = useUsersByIds({ realm, ids: userIds })
   const { data: clientsResponse, isLoading: loadingClients } = useGetClients({ realm })
-  const { data: rolesResponse, isLoading: loadingRoles } = useGetRoles({ realm })
+  const { roles: resolvedRoles, isLoading: loadingRoles } = useRolesByIds({ realm, ids: roleIds })
 
   return useMemo(() => {
     const users = new Map(resolved.map((u) => [u.id, u.username]))
     const clients = new Map(
       (clientsResponse?.data ?? []).map((c) => [c.id, c.name || c.client_id])
     )
-    const roles = new Map((rolesResponse?.data ?? []).map((r) => [r.id, r.name]))
+    const roles = new Map(resolvedRoles.map((r) => [r.id, r.name]))
 
     const userLabel = (id?: string | null) => (id ? (users.get(id) ?? null) : null)
 
@@ -53,5 +58,5 @@ export function useRealmDirectory(realm: string, userIds: readonly string[]): Re
       userLabel,
       label,
     }
-  }, [resolved, clientsResponse, rolesResponse, loadingUsers, loadingClients, loadingRoles])
+  }, [resolved, clientsResponse, resolvedRoles, loadingUsers, loadingClients, loadingRoles])
 }
