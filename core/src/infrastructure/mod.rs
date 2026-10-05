@@ -1,6 +1,11 @@
 pub mod abyss;
 pub mod account_security;
 pub mod aegis;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "wired once the Cedar policy compiler exists")
+)]
+pub mod authz;
 pub mod backchannel_logout;
 pub mod client;
 pub mod client_metadata;
