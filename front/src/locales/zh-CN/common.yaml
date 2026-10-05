@@ -194,9 +194,6 @@ data_view:
     confirm_hint: 点击确认以永久删除
 filter_bar:
   any: 全部
-  yes: 是
-  no: 否
-  clear: 清除筛选
   search: 搜索…
 column_filter:
   open: 筛选

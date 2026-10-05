@@ -13,28 +13,25 @@ export function ListingToolbar({
   listing,
   columns,
   search,
-  leading,
   trailing,
   className,
 }: {
   listing: PagedListing
   columns: { filters?: ColumnFilterField[] }[]
   search?: { placeholder: string }
-  leading?: ReactNode
   trailing?: ReactNode
   className?: string
 }) {
   const { t } = useTranslation()
   const activeFilters = countActiveFilters(columns, listing.state.filters)
 
-  if (!search && activeFilters === 0 && !leading && !trailing) return null
+  if (!search && activeFilters === 0 && !trailing) return null
 
   const clear = () =>
     listing.setFilters(clearColumnFilters(columns.flatMap((column) => column.filters ?? [])))
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      {leading}
       {search && (
         <SearchInput
           value={listing.drafts[SEARCH_KEY] ?? ''}

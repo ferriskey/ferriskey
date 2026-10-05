@@ -56,7 +56,6 @@ list:
     steps: Steps
     duration: Duration
   filter_fields:
-    ip_address: IP address
     status: Outcome
     grant_type: Grant type
     client_id: Client

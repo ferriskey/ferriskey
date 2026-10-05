@@ -6,7 +6,6 @@ import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
 import { DataView, type CardSpec, type Column, type ViewMode } from './DataView'
 import { PageShell } from './page-shell'
-import { FilterBar, type FilterField } from './FilterBar'
 import { ListingToolbar } from './ListingToolbar'
 import type { TileFilter } from './metric-tile-filter'
 import { PaginationBar } from './PaginationBar'
@@ -46,7 +45,6 @@ export interface ListingPageProps<T> {
     listing: PagedListing
     pagination: PaginationMetadata | undefined
     search?: { placeholder: string }
-    filterFields?: FilterField[]
   }
   searchScopeHint?: string
   rows: T[]
@@ -171,12 +169,9 @@ export function ListingPage<T>({
           listing={paged.listing}
           columns={columns}
           search={paged.search}
-          leading={
-            paged.filterFields && <FilterBar fields={paged.filterFields} listing={paged.listing} />
-          }
           trailing={
             <>
-              {!paged.filterFields && !paged.search && <div className='flex-1' />}
+              {!paged.search && <div className='flex-1' />}
               {tokens.toolbar.showViewToggle && tier !== 'phone' && (
                 <div className='flex rounded-md border border-fk-line p-0.5'>
                   {VIEW_MODES.map(([mode, Icon]) => (

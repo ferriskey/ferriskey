@@ -212,9 +212,6 @@ data_view:
 
 filter_bar:
   any: Any
-  yes: Yes
-  no: No
-  clear: Clear filters
   search: Search…
 
 column_filter:

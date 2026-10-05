@@ -52,8 +52,6 @@ export type {
   ListingState,
 } from './listing-query-state'
 export { PaginationBar } from './PaginationBar'
-export { FilterBar } from './FilterBar'
-export type { FilterField } from './FilterBar'
 export { ColumnFilter } from './ColumnFilter'
 export { DateRangeFilter } from './DateRangeFilter'
 export { SearchInput } from './SearchInput'

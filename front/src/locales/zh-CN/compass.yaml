@@ -64,7 +64,6 @@ list:
     steps: 步骤
     duration: 耗时
   filter_fields:
-    ip_address: IP 地址
     status: 结果
     grant_type: 授权类型
     client_id: 客户端

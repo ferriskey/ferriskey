@@ -259,7 +259,6 @@ applications:
       name: Name
       client_id: Client ID
       created: Created
-      search: Search
       enabled: Enabled
       application_type: Type
     alerts:
