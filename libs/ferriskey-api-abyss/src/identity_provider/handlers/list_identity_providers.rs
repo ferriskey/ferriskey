@@ -19,7 +19,7 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
     get,
     path = "/identity-providers",
     summary = "List the identity providers of a realm",
-    description = "Returns one page of the realm's identity providers. Text filters (alias, display_name) match case-insensitively anywhere in the value; provider_id and enabled match exactly; health is the configuration status shown by the console: error when client_id, client_secret, authorization_url or token_url is missing, degraded when scopes is missing, healthy otherwise. Filters combine with AND. Client secrets stay masked.",
+    description = "Returns one page of the realm's identity providers. search matches case-insensitively a provider whose alias or display_name contains the value; a provider without a display name only matches by alias. Text filters (alias, display_name) match case-insensitively anywhere in the value; provider_id and enabled match exactly; health is the configuration status shown by the console: error when client_id, client_secret, authorization_url or token_url is missing, degraded when scopes is missing, healthy otherwise; created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND. Client secrets stay masked.",
     responses(
         (status = 200, body = Paginated<IdentityProviderResponse>, description = "One page of identity providers"),
         (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
@@ -57,18 +57,19 @@ pub async fn list_identity_providers(
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::abyss::identity_provider::{
         IdentityProviderFilter, IdentityProviderHealth,
     };
-    use ferriskey_core::domain::common::pagination::SortOrder;
+    use ferriskey_core::domain::common::pagination::{DateRange, SortOrder};
 
     use super::*;
 
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<IdentityProviderListParams, IdentityProviderSortField>(
-            "order_by=display_name&order=asc&alias=git&display_name=Hub&provider_id=oidc&enabled=false&health=degraded",
+            "order_by=display_name&order=asc&search=gi&alias=git&display_name=Hub&provider_id=oidc&enabled=false&health=degraded&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00",
         )
         .expect("valid query");
 
@@ -77,11 +78,16 @@ mod tests {
         assert_eq!(
             IdentityProviderFilter::from(request.filter),
             IdentityProviderFilter {
+                search: Some("gi".to_string()),
                 alias: Some("git".to_string()),
                 display_name: Some("Hub".to_string()),
                 provider_id: Some("oidc".to_string()),
                 enabled: Some(false),
                 health: Some(IdentityProviderHealth::Degraded),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -113,6 +119,9 @@ mod tests {
             "order_by=config",
             "health=broken",
             "enabled=maybe",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
         ] {
             assert!(
                 parse_list_query::<IdentityProviderListParams, IdentityProviderSortField>(query)

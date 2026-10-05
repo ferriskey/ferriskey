@@ -7,6 +7,7 @@ use serde_json::Value as JsonValue;
 use utoipa::ToSchema;
 use uuid::{NoContext, Timestamp, Uuid};
 
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
 
@@ -275,11 +276,13 @@ pub enum IdentityProviderHealth {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct IdentityProviderFilter {
+    pub search: Option<String>,
     pub alias: Option<String>,
     pub display_name: Option<String>,
     pub provider_id: Option<String>,
     pub enabled: Option<bool>,
     pub health: Option<IdentityProviderHealth>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

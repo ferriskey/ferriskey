@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use ferriskey_core::domain::abyss::identity_provider::{
     IdentityProvider, IdentityProviderFilter, IdentityProviderHealth,
 };
+use ferriskey_core::domain::common::pagination::DateRange;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -144,6 +145,7 @@ pub struct DeleteIdentityProviderResponse {
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct IdentityProviderListParams {
+    pub search: Option<String>,
     pub alias: Option<String>,
     pub display_name: Option<String>,
     #[param(example = "oidc")]
@@ -151,16 +153,20 @@ pub struct IdentityProviderListParams {
     pub enabled: Option<bool>,
     #[param(inline)]
     pub health: Option<IdentityProviderHealth>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<IdentityProviderListParams> for IdentityProviderFilter {
     fn from(params: IdentityProviderListParams) -> Self {
         Self {
+            search: params.search,
             alias: params.alias,
             display_name: params.display_name,
             provider_id: params.provider_id,
             enabled: params.enabled,
             health: params.health,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
