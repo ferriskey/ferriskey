@@ -40,7 +40,7 @@ export const useUserRealmSearch = ({
   const { data, isLoading } = useGetUserRealmsQuery({
     realm,
     query: {
-      name: debounced || undefined,
+      search: debounced || undefined,
       order_by: 'name',
       order: 'asc',
       limit: REALM_SEARCH_LIMIT,

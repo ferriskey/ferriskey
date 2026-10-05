@@ -32,7 +32,7 @@ export interface JournalSectionProps<T> {
   pagination: PaginationMetadata | undefined
   listing: PagedListing
   tabs: JournalTab[]
-  search: { placeholder: string }
+  search?: { placeholder: string }
   columns: Column<T>[]
   card: CardSpec<T>
   getKey: (row: T) => string

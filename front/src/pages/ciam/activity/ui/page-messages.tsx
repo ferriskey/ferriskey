@@ -266,7 +266,6 @@ export default function PageMessages({
         pagination={journal.pagination}
         listing={journal.listing}
         tabs={tabs}
-        search={{ placeholder: t('seawatch:stream.search_placeholder') }}
         columns={journalColumns}
         card={eventCard(directory, t)}
         getKey={(e) => e.id}

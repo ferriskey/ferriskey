@@ -8,10 +8,9 @@ import {
   type SecurityEventsQuery,
 } from '@/api/sea-watch.api'
 import { useLocalPagedListing } from '@/pages/iam/organization/feature/use-local-paged-listing'
+import { JOURNAL_FILTER_KEYS } from './journal-filter-keys'
 
 import SecurityEventType = Schemas.SecurityEventType
-
-export const JOURNAL_FILTER_KEYS = ['search', 'event_types', 'ip_address', 'actor_id'] as const
 
 export interface EventJournal {
   listing: PagedListing
@@ -25,9 +24,10 @@ export interface EventJournal {
 
 export function useEventJournal(
   realm: string,
-  [first, second]: readonly [SecurityEventType, SecurityEventType]
+  [first, second]: readonly [SecurityEventType, SecurityEventType],
+  filterKeys: readonly string[] = JOURNAL_FILTER_KEYS
 ): EventJournal {
-  const listing = useLocalPagedListing(JOURNAL_FILTER_KEYS)
+  const listing = useLocalPagedListing(filterKeys)
   const filter = listing.state.filters as SecurityEventsFilter
 
   const { data, isLoading, isError } = useGetSecurityEvents({
