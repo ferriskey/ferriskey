@@ -732,7 +732,6 @@ export namespace Schemas {
   export type GetThemeResponse = { data: PortalThemeConfig };
   export type GetUserCredentialsResponse = { data: Array<CredentialOverview> };
   export type GetUserRolesResponse = { data: Array<Role> };
-  export type GetWebhooksResponse = { data: Array<Webhook> };
   export type GrantType =
     | "authorization_code"
     | "password"
@@ -1032,6 +1031,21 @@ export namespace Schemas {
       roles?: (Array<Role> | null) | undefined;
       updated_at: string;
       username: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_Webhook = {
+    data: Array<{
+      created_at: string;
+      description?: (string | null) | undefined;
+      effective_retry_policy?: (null | RetryPolicyOverride) | undefined;
+      endpoint: string;
+      id: string;
+      name?: (string | null) | undefined;
+      retry_policy?: RetryPolicyOverride | undefined;
+      subscribers: Array<WebhookSubscriber>;
+      triggered_at?: (string | null) | undefined;
+      updated_at: string;
     }>;
     metadata: PageMetadata;
   };
@@ -4795,12 +4809,24 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/webhooks";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        endpoint: string;
+        triggered: boolean;
+        has_subscribers: boolean;
+        secure_endpoint: boolean;
+        order_by: "name" | "endpoint" | "triggered_at" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.GetWebhooksResponse;
-      401: Schemas.ApiErrorResponse;
+      200: Schemas.Paginated_Webhook;
+      400: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };

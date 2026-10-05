@@ -72,6 +72,26 @@ impl Webhook {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WebhookFilter {
+    pub name: Option<String>,
+    pub endpoint: Option<String>,
+    pub triggered: Option<bool>,
+    pub has_subscribers: Option<bool>,
+    pub secure_endpoint: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookSortField {
+    Name,
+    Endpoint,
+    TriggeredAt,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

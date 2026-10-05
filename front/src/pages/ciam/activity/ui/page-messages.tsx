@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { MetricsBand, Pill, Section } from '@/components/kit'
 import type { Column, Metric } from '@/components/kit'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,8 @@ const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 export interface PageMessagesProps {
   events: SecurityEvent[]
   webhooks: Webhook[]
+  webhookTotal: number
+  webhooksHref: string
   smtpConfigured: boolean
   isLoading: boolean
   isLoadingSmtp: boolean
@@ -56,6 +59,8 @@ const recipientId = (event: SecurityEvent) =>
 export default function PageMessages({
   events,
   webhooks,
+  webhookTotal,
+  webhooksHref,
   smtpConfigured,
   isLoading,
   isLoadingSmtp,
@@ -276,9 +281,26 @@ export default function PageMessages({
         description={t('activity.messages.webhooks.description')}
         contained={false}
         action={
-          <span className='tnum text-[11px] text-neutral-400 dark:text-neutral-500'>
-            {t('activity.messages.webhooks.count', { count: webhooks.length })}
-          </span>
+          webhookTotal > webhooks.length ? (
+            <span className='flex items-center gap-2 text-[11px] text-neutral-400 dark:text-neutral-500'>
+              <span className='tnum'>
+                {t('activity.messages.webhooks.showing', {
+                  shown: webhooks.length,
+                  count: webhookTotal,
+                })}
+              </span>
+              <Link
+                to={webhooksHref}
+                className='underline-offset-2 hover:text-fk-primary-text hover:underline'
+              >
+                {t('activity.messages.webhooks.view_all')}
+              </Link>
+            </span>
+          ) : (
+            <span className='tnum text-[11px] text-neutral-400 dark:text-neutral-500'>
+              {t('activity.messages.webhooks.count', { count: webhookTotal })}
+            </span>
+          )
         }
       >
         <div className={cn(tokens.surface.panel, tokens.surface.divider)}>

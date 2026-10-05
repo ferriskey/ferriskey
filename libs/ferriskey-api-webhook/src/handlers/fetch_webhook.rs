@@ -2,49 +2,146 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
-use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
-use ferriskey_api_core::api_entities::response::Response;
-use ferriskey_api_core::app_state::AppState;
-use ferriskey_core::domain::webhook::entities::webhook::Webhook;
-use ferriskey_core::domain::webhook::ports::WebhookService;
-use ferriskey_core::domain::{
-    authentication::value_objects::Identity, webhook::ports::GetWebhooksInput,
+use ferriskey_api_core::api_entities::{
+    api_error::{ApiError, ApiErrorResponse},
+    list_query::{ListQuery, PaginationParams},
+    paginated::Paginated,
+    response::Response,
 };
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use ferriskey_api_core::app_state::AppState;
+use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::webhook::entities::webhook::{
+    Webhook, WebhookFilter, WebhookSortField,
+};
+use ferriskey_core::domain::webhook::ports::WebhookService;
+use serde::Deserialize;
+use utoipa::IntoParams;
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct GetWebhooksResponse {
-    pub data: Vec<Webhook>,
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub struct WebhookListParams {
+    pub name: Option<String>,
+    pub endpoint: Option<String>,
+    pub triggered: Option<bool>,
+    pub has_subscribers: Option<bool>,
+    pub secure_endpoint: Option<bool>,
+}
+
+impl From<WebhookListParams> for WebhookFilter {
+    fn from(params: WebhookListParams) -> Self {
+        Self {
+            name: params.name,
+            endpoint: params.endpoint,
+            triggered: params.triggered,
+            has_subscribers: params.has_subscribers,
+            secure_endpoint: params.secure_endpoint,
+        }
+    }
 }
 
 #[utoipa::path(
     get,
     path = "",
     tag = "webhook",
-    summary = "Fetch all webhooks",
-    description = "Retrieves a list of all webhooks available in the system related to the current realm.",
+    summary = "List the webhooks of a realm",
+    description = "Returns one page of the realm's webhooks, each with its subscribers. Stored secrets and header values are never returned. Text filters (name, endpoint) match case-insensitively anywhere in the value; triggered keeps webhooks that fired at least once (true) or never (false); has_subscribers keeps webhooks with at least one subscribed trigger (true) or none (false); secure_endpoint keeps endpoints starting with `https://` (true) or not (false). Filters combine with AND. Webhooks without a name or never triggered sort last in ascending order and first in descending order.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
+        PaginationParams,
+        WebhookListParams,
+        ("order_by" = inline(Option<WebhookSortField>), Query, description = "Sort column, `created_at` by default"),
     ),
     responses(
-        (status = 200, description = "Webhooks retrieved successfully", body = GetWebhooksResponse),
-        (status = 401, description = "Realm not found", body = ApiErrorResponse),
+        (status = 200, description = "One page of webhooks", body = Paginated<Webhook>),
+        (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
         (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
+        (status = 404, description = "Realm not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
 )]
-
 pub async fn fetch_webhooks(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-) -> Result<Response<GetWebhooksResponse>, ApiError> {
-    let webhooks = state
+    ListQuery(request): ListQuery<WebhookListParams, WebhookSortField>,
+) -> Result<Response<Paginated<Webhook>>, ApiError> {
+    let page = state
         .service
-        .get_webhooks_by_realm(identity, GetWebhooksInput { realm_name })
-        .await
-        .map_err(ApiError::from)?;
+        .list_webhooks(
+            identity,
+            realm_name,
+            request.map_filter(WebhookFilter::from),
+        )
+        .await?;
 
-    Ok(Response::OK(GetWebhooksResponse { data: webhooks }))
+    Ok(Response::OK(Paginated::from(page)))
+}
+
+#[cfg(test)]
+mod tests {
+    use ferriskey_api_core::api_entities::list_query::parse_list_query;
+    use ferriskey_core::domain::common::pagination::SortOrder;
+
+    use super::*;
+
+    #[test]
+    fn every_filter_and_sort_field_is_read() {
+        let request = parse_list_query::<WebhookListParams, WebhookSortField>(
+            "order_by=triggered_at&order=asc&name=hook&endpoint=example&triggered=true&has_subscribers=false&secure_endpoint=false",
+        )
+        .expect("valid query");
+
+        assert_eq!(request.sort.field, WebhookSortField::TriggeredAt);
+        assert_eq!(request.sort.order, SortOrder::Asc);
+        assert_eq!(
+            WebhookFilter::from(request.filter),
+            WebhookFilter {
+                name: Some("hook".to_string()),
+                endpoint: Some("example".to_string()),
+                triggered: Some(true),
+                has_subscribers: Some(false),
+                secure_endpoint: Some(false),
+            }
+        );
+    }
+
+    #[test]
+    fn every_documented_sort_value_parses() {
+        for value in [
+            "name",
+            "endpoint",
+            "triggered_at",
+            "created_at",
+            "updated_at",
+        ] {
+            assert!(
+                parse_list_query::<WebhookListParams, WebhookSortField>(&format!(
+                    "order_by={value}"
+                ))
+                .is_ok(),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_filters_and_columns_are_refused() {
+        for query in [
+            "realm_id=x",
+            "secret=x",
+            "headers=x",
+            "order_by=secret",
+            "order_by=last_delivery_status",
+            "triggered=maybe",
+            "has_subscribers=maybe",
+            "secure_endpoint=maybe",
+            "last_delivery_status=failed",
+        ] {
+            assert!(
+                parse_list_query::<WebhookListParams, WebhookSortField>(query).is_err(),
+                "{query}"
+            );
+        }
+    }
 }

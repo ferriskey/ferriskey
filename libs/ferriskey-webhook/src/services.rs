@@ -4,6 +4,7 @@ use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::RealmScope;
@@ -13,11 +14,13 @@ use crate::endpoint::{PrivateEndpoints, reject_reserved_headers, validate_endpoi
 use crate::entities::retry_policy::RetryPolicy;
 use crate::entities::webhook_delivery::{DeliveryPage, WebhookDelivery};
 use crate::entities::{
-    webhook::Webhook, webhook_payload::WebhookPayload, webhook_trigger::WebhookTrigger,
+    webhook::{Webhook, WebhookFilter, WebhookSortField},
+    webhook_payload::WebhookPayload,
+    webhook_trigger::WebhookTrigger,
 };
 use crate::ports::{
     CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput, GetWebhookDeliveryInput,
-    GetWebhookInput, GetWebhookSubscribersInput, GetWebhooksInput, RetryWebhookDeliveryInput,
+    GetWebhookInput, GetWebhookSubscribersInput, RetryWebhookDeliveryInput,
     RotateWebhookSecretInput, UpdateWebhookInput, WebhookDeliveryRepository, WebhookPolicy,
     WebhookRepository, WebhookService,
 };
@@ -75,25 +78,20 @@ where
     W: WebhookRepository,
     D: WebhookDeliveryRepository,
 {
-    async fn get_webhooks_by_realm(
+    async fn list_webhooks(
         &self,
         identity: Identity,
-        input: GetWebhooksInput,
-    ) -> Result<Vec<Webhook>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        request: PageRequest<WebhookFilter, WebhookSortField>,
+    ) -> Result<Page<Webhook>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let realm_id = scope.id();
         ensure_policy(
             self.policy.can_view_webhook(&identity, scope.realm()).await,
             "insufficient permissions",
         )?;
 
-        let webhooks = self
-            .webhook_repository
-            .fetch_webhooks_by_realm(realm_id)
-            .await?;
-
-        Ok(webhooks)
+        self.webhook_repository.list(&scope, &request).await
     }
 
     async fn get_webhooks_by_subscribers(
@@ -734,5 +732,82 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+    }
+
+    fn list_request() -> PageRequest<WebhookFilter, WebhookSortField> {
+        PageRequest {
+            filter: WebhookFilter {
+                name: Some("hook".to_string()),
+                has_subscribers: Some(false),
+                secure_endpoint: Some(true),
+                ..WebhookFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn list_webhooks_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = test_realm();
+        let user = test_user(&realm);
+        let (realm_repo, _) = allowing_realm_and_role_mocks(&realm);
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(vec![]) }));
+
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo.expect_list().never();
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            webhook_repo,
+        );
+
+        let result = service
+            .list_webhooks(Identity::User(user), realm.name.clone(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_webhooks_pages_the_resolved_realm_with_the_request() {
+        let realm = test_realm();
+        let realm_id = realm.id;
+        let user = test_user(&realm);
+        let (realm_repo, user_role_repo) = allowing_realm_and_role_mocks(&realm);
+        let listed = owned_webhook(Uuid::new_v4());
+        let expected_id = listed.id;
+
+        let mut webhook_repo = MockWebhookRepository::new();
+        webhook_repo
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 1, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+
+        let service = build_service(
+            realm_repo,
+            MockUserRepository::new(),
+            user_role_repo,
+            webhook_repo,
+        );
+
+        let page = service
+            .list_webhooks(Identity::User(user), realm.name.clone(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 1);
+        assert_eq!(page.data()[0].id, expected_id);
     }
 }

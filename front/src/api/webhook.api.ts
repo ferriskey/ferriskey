@@ -1,14 +1,52 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
+import type { Endpoints } from './api.client'
 
-export const useGetWebhooks = ({ realm = 'master' }: BaseQuery) => {
-  return useQuery(
-    window.tanstackApi.get('/realms/{realm_name}/webhooks', {
+export type WebhooksQuery = NonNullable<Endpoints.get_Fetch_webhooks['parameters']['query']>
+
+export type WebhooksFilter = Omit<WebhooksQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const WEBHOOK_FILTER_KEYS = [
+  'name',
+  'endpoint',
+  'triggered',
+  'has_subscribers',
+  'secure_endpoint',
+] as const
+
+export const webhooksKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/webhooks', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
+
+export const useGetWebhooks = ({
+  realm = 'master',
+  query,
+  enabled = true,
+}: BaseQuery & { query?: WebhooksQuery; enabled?: boolean }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/webhooks', {
       path: {
         realm_name: realm,
       },
-    }).queryOptions
-  )
+      query: query ?? {},
+    }).queryOptions,
+    enabled,
+  })
+}
+
+export const useWebhookCount = ({
+  realm,
+  filter,
+  enabled = true,
+}: BaseQuery & { filter?: WebhooksFilter; enabled?: boolean }) => {
+  const { data, isLoading } = useGetWebhooks({
+    realm,
+    query: { ...filter, limit: 1 },
+    enabled,
+  })
+  return { count: data?.metadata.total ?? 0, isLoading }
 }
 
 export const useGetWebhook = ({ realm = 'master', webhookId }: BaseQuery & { webhookId: string }) => {
@@ -40,14 +78,8 @@ export const useDeleteWebhook = () => {
     ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/webhooks/{webhook_id}')
       .mutationOptions,
     onSuccess: async (data) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/webhooks', {
-        path: {
-          realm_name: data.realm_name,
-        },
-      }).queryKey
-
       await queryClient.invalidateQueries({
-        queryKey: keys,
+        queryKey: webhooksKey(data.realm_name),
       })
     },
   })

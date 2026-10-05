@@ -2,15 +2,18 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         webhook::{
-            entities::webhook::Webhook,
+            entities::webhook::{Webhook, WebhookFilter, WebhookSortField},
             entities::webhook_delivery::{DeliveryPage, WebhookDelivery},
             ports::{
                 CreateWebhookInput, DeleteWebhookInput, GetWebhookDeliveriesInput,
                 GetWebhookDeliveryInput, GetWebhookInput, GetWebhookSubscribersInput,
-                GetWebhooksInput, RetryWebhookDeliveryInput, RotateWebhookSecretInput,
-                UpdateWebhookInput, WebhookService,
+                RetryWebhookDeliveryInput, RotateWebhookSecretInput, UpdateWebhookInput,
+                WebhookService,
             },
         },
     },
@@ -41,13 +44,14 @@ impl WebhookService for ApplicationService {
         self.webhook_service.get_webhook(identity, input).await
     }
 
-    async fn get_webhooks_by_realm(
+    async fn list_webhooks(
         &self,
         identity: Identity,
-        input: GetWebhooksInput,
-    ) -> Result<Vec<Webhook>, CoreError> {
+        realm_name: String,
+        request: PageRequest<WebhookFilter, WebhookSortField>,
+    ) -> Result<Page<Webhook>, CoreError> {
         self.webhook_service
-            .get_webhooks_by_realm(identity, input)
+            .list_webhooks(identity, realm_name, request)
             .await
     }
 

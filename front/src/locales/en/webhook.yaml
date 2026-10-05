@@ -20,7 +20,6 @@ list:
   title: Webhooks
   description: Endpoints notified of the events of this realm.
   create: New webhook
-  search_placeholder: Filter by name or endpoint…
   count_one: '{{count}} webhook'
   count_other: '{{count}} webhooks'
   columns:
@@ -28,14 +27,19 @@ list:
     endpoint: Endpoint
     subscribers: Events
     triggered_at: Last triggered
+    created: Created
+    updated: Updated
+  filter_fields:
+    name: Name
+    endpoint: Endpoint
+    triggered: Already triggered
+    has_subscribers: With events
+    secure_endpoint: Over HTTPS
   never_triggered: never
   metrics:
     total:
       label: Total
       hint: endpoints
-    subscriptions:
-      label: Subscriptions
-      hint: 'of {{total}} triggers'
     never:
       label: Never triggered
       hint: no delivery yet
@@ -44,16 +48,15 @@ list:
       hint: will never fire
   alerts:
     silent:
-      title: '{{name}} subscribes to nothing'
-      detail: It carries no trigger, so it will never be called.
+      title_one: '{{count}} webhook subscribes to nothing'
+      title_other: '{{count}} webhooks subscribe to nothing'
+      detail: '{{names}} — carries no trigger, so it will never be called.'
       action: Review
     insecure:
-      title: '{{name}} delivers over plain HTTP'
-      detail: '{{endpoint}} — the payload and its signature headers travel unencrypted.'
+      title_one: '{{count}} webhook delivers over plain HTTP'
+      title_other: '{{count}} webhooks deliver over plain HTTP'
+      detail: '{{names}} — the payload and its signature headers travel unencrypted.'
       action: Review
-  filters:
-    triggered: Already triggered
-    silent: Without event
   card:
     triggered: triggered
     never_triggered: never triggered

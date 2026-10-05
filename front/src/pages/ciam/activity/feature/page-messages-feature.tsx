@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
+import { RouterParams, WEBHOOKS_URL } from '@/routes/router'
 import { useGetSmtpConfig } from '@/api/smtp.api'
 import { useGetWebhooks } from '@/api/webhook.api'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
@@ -11,6 +11,8 @@ import { useWindowEvents } from './use-window-events'
 import PageMessages from '../ui/page-messages'
 
 const EMAIL_EVENTS = ['email_sent', 'email_not_sent'] as const
+
+const WEBHOOK_PREVIEW = 20
 
 export default function PageMessagesFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -32,7 +34,7 @@ export default function PageMessagesFeature() {
   const directory = useRealmDirectory(realm, userIds, roleIds, clientIds)
 
   const { data: smtpConfig, isLoading: isLoadingSmtp } = useGetSmtpConfig({ realm })
-  const { data: webhooksResponse } = useGetWebhooks({ realm })
+  const { data: webhooksResponse } = useGetWebhooks({ realm, query: { limit: WEBHOOK_PREVIEW } })
 
   const webhooks = useMemo(() => webhooksResponse?.data ?? [], [webhooksResponse])
 
@@ -40,6 +42,8 @@ export default function PageMessagesFeature() {
     <PageMessages
       events={events}
       webhooks={webhooks}
+      webhookTotal={webhooksResponse?.metadata.total ?? 0}
+      webhooksHref={WEBHOOKS_URL(realm)}
       smtpConfigured={Boolean(smtpConfig)}
       isLoading={isLoading}
       isLoadingSmtp={isLoadingSmtp}
