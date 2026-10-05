@@ -2,11 +2,14 @@ use std::future::Future;
 
 use uuid::Uuid;
 
-use crate::entities::{PortalPageType, PortalTheme, PortalThemeConfig};
+use crate::entities::{
+    PortalPageType, PortalTheme, PortalThemeConfig, PortalThemeFilter, PortalThemeSortField,
+};
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::realm::Realm;
-use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 
 pub trait PortalThemeService: Send + Sync {
     // ---------- Legacy single-theme-per-realm API (still wired to the old
@@ -34,8 +37,9 @@ pub trait PortalThemeService: Send + Sync {
     fn list_themes(
         &self,
         identity: Identity,
-        input: ListThemesInput,
-    ) -> impl Future<Output = Result<Vec<PortalTheme>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<PortalThemeFilter, PortalThemeSortField>,
+    ) -> impl Future<Output = Result<Page<PortalTheme>, CoreError>> + Send;
 
     fn get_theme_by_id(
         &self,
@@ -92,10 +96,11 @@ pub trait PortalThemeRepository: Send + Sync {
         config: PortalThemeConfig,
     ) -> impl Future<Output = Result<PortalTheme, CoreError>> + Send;
 
-    fn list_by_realm(
+    fn list(
         &self,
-        realm_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<PortalTheme>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<PortalThemeFilter, PortalThemeSortField>,
+    ) -> impl Future<Output = Result<Page<PortalTheme>, CoreError>> + Send;
 
     fn get_by_id(
         &self,

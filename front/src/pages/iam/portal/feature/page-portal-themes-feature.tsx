@@ -10,8 +10,12 @@ import {
   useGetPortalPageRequirements,
   useImportPortalTheme,
   useListPortalThemes,
+  usePortalThemeCount,
   useUpdatePortalThemePage,
+  PORTAL_THEME_FILTER_KEYS,
+  type PortalThemesQuery,
 } from '@/api/portal-theme.api'
+import { usePagedListing } from '@/components/kit'
 import { useGetPortalLayouts } from '@/api/portal-layouts.api'
 import { downloadPortalThemeExport, readExportFile } from '@/api/builder-export'
 import { DEFAULT_PAGE_TYPES, defaultPageTree } from '@/lib/builder-portal'
@@ -28,7 +32,13 @@ export default function PagePortalThemesFeature() {
   const navigate = useNavigate()
   const realm = realm_name ?? 'master'
 
-  const { data: listData, isLoading } = useListPortalThemes({ realm })
+  const listing = usePagedListing(PORTAL_THEME_FILTER_KEYS)
+  const { data: listData, isLoading } = useListPortalThemes({
+    realm,
+    query: listing.apiQuery as PortalThemesQuery,
+  })
+  const total = usePortalThemeCount({ realm })
+  const activatable = usePortalThemeCount({ realm, filter: { activatable: true } })
   const { data: activeData } = useGetActivePortalTheme({ realm, pageType: 'login' })
   const { data: layoutsData } = useGetPortalLayouts({ realm })
   const { data: requirementsData } = useGetPortalPageRequirements({ realm })
@@ -98,6 +108,13 @@ export default function PagePortalThemesFeature() {
   return (
     <PagePortalThemes
       rows={rows}
+      listing={listing}
+      pagination={listData?.metadata}
+      counts={{
+        total: total.count,
+        active: activeThemeId ? 1 : 0,
+        activatable: activatable.count,
+      }}
       isLoading={isLoading}
       isCreating={isCreating}
       themeHref={(themeId) => `${portal.theme(themeId)}/theme`}

@@ -1635,7 +1635,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-theme/src/services.rs",
-        line: 69,
+        line: 70,
     },
     AuthzRow {
         service_fn: "update_theme",
@@ -1645,7 +1645,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-theme/src/services.rs",
-        line: 89,
+        line: 90,
     },
     AuthzRow {
         service_fn: "list_themes",
@@ -1655,7 +1655,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm],
         self_bypass: false,
         file: "libs/ferriskey-portal-theme/src/services.rs",
-        line: 117,
+        line: 119,
     },
     AuthzRow {
         service_fn: "get_theme_by_id",

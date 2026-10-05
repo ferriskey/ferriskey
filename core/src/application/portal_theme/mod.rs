@@ -2,10 +2,13 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         portal_layouts::ports::{ImportLayoutInput, PortalLayoutsService},
         portal_theme::{
-            entities::{PortalTheme, PortalThemeConfig},
+            entities::{PortalTheme, PortalThemeConfig, PortalThemeFilter, PortalThemeSortField},
             ports::{
                 CreateThemeInput, GetThemeByIdInput, GetThemeInput, ImportPortalThemeInput,
                 ListThemesInput, PortalThemeService, UpdateThemeInput, UpdateThemeMetadataInput,
@@ -41,9 +44,12 @@ impl PortalThemeService for ApplicationService {
     async fn list_themes(
         &self,
         identity: Identity,
-        input: ListThemesInput,
-    ) -> Result<Vec<PortalTheme>, CoreError> {
-        self.portal_theme_service.list_themes(identity, input).await
+        realm_name: String,
+        request: PageRequest<PortalThemeFilter, PortalThemeSortField>,
+    ) -> Result<Page<PortalTheme>, CoreError> {
+        self.portal_theme_service
+            .list_themes(identity, realm_name, request)
+            .await
     }
 
     async fn get_theme_by_id(

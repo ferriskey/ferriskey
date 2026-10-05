@@ -75,9 +75,19 @@ themes:
   section:
     title: Themes
     description: Only one theme is active at a time; it is the one the portal renders.
-  empty: >-
-    No theme yet. A theme carries the colours, the typography and the {{total}} pages the portal
-    renders.
+  empty:
+    label: No theme yet
+    hint: A theme carries the colours, the typography and the {{total}} pages the portal renders.
+  filters:
+    name: Name
+    layout: Layout
+    activatable: Activatable
+  columns:
+    name: Name
+    layout: Layout
+    colors: Colours
+    updated_at: Updated
+    created_at: Created
   metrics:
     total:
       label: Themes
@@ -98,9 +108,7 @@ themes:
     # <num> wraps the "valid/total" counter so it can be rendered with tabular figures. Never
     # inflects: both numbers are raw counters, which is why they are not {{count}}.
     pages_valid: <num>{{valid}}/{{total}}</num> pages valid
-    layout: Layout {{name}}
     no_layout: No layout
-    summary: '{{layout}} · updated {{date}}'
     # "theme_id" is the API field name, keep it verbatim.
     identifier: 'theme_id: {{id}}'
     incomplete_pages_one: <num>{{count}}</num> incomplete page

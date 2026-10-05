@@ -1,21 +1,32 @@
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
+    ActiveValue::Set,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryTrait, Select,
     TransactionTrait,
+    sea_query::{Alias, Expr, Func, SimpleExpr},
 };
 use tracing::{error, warn};
 use uuid::Uuid;
 
 use crate::{
     domain::{
-        common::{entities::app_errors::CoreError, generate_uuid_v7},
-        portal_theme::{
-            entities::{PortalPageType, PortalTheme, PortalThemeConfig, PortalThemePages},
-            ports::PortalThemeRepository,
+        common::{
+            entities::app_errors::CoreError,
+            generate_uuid_v7,
+            pagination::{Page, PageRequest},
         },
-        realm::entities::{Scoped, Unscoped},
+        portal_theme::{
+            entities::{
+                PortalPageType, PortalTheme, PortalThemeConfig, PortalThemeFilter,
+                PortalThemePages, PortalThemeSortField,
+            },
+            ports::PortalThemeRepository,
+            validation::REQUIRED_BLOCKS,
+        },
+        realm::entities::{RealmScope, Scoped, Unscoped},
     },
     entity::portal_themes::{ActiveModel, Column, Entity, Model},
+    infrastructure::pagination::{SortColumn, contains, paginate},
 };
 
 #[derive(Debug, Clone)]
@@ -126,6 +137,57 @@ fn page_column(page_type: PortalPageType) -> Column {
     }
 }
 
+impl SortColumn<Entity> for PortalThemeSortField {
+    fn column(&self) -> Column {
+        match self {
+            PortalThemeSortField::Name => Column::Name,
+            PortalThemeSortField::CreatedAt => Column::CreatedAt,
+            PortalThemeSortField::UpdatedAt => Column::UpdatedAt,
+        }
+    }
+}
+
+fn page_holds_block(page_type: PortalPageType, block: &str) -> SimpleExpr {
+    Func::cust(Alias::new("jsonb_path_exists"))
+        .arg(Expr::col((Entity, page_column(page_type))))
+        .arg(
+            Expr::val(format!("strict $.** ? (@.type == \"{block}\")"))
+                .cast_as(Alias::new("jsonpath")),
+        )
+        .arg(Expr::val("{}").cast_as(Alias::new("jsonb")))
+        .arg(Expr::val(true))
+        .into()
+}
+
+fn every_required_block_present() -> Condition {
+    REQUIRED_BLOCKS
+        .iter()
+        .flat_map(|(page_type, blocks)| {
+            blocks
+                .iter()
+                .map(|block| page_holds_block(*page_type, block))
+        })
+        .fold(Condition::all(), Condition::add)
+}
+
+fn listing_select(realm_id: Uuid, filter: &PortalThemeFilter) -> Select<Entity> {
+    Entity::find()
+        .filter(Column::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(Column::Name, value))
+        })
+        .apply_if(filter.layout_id, |select, value| {
+            select.filter(Column::LayoutId.eq(value))
+        })
+        .apply_if(filter.activatable, |select, activatable| {
+            select.filter(if activatable {
+                every_required_block_present()
+            } else {
+                every_required_block_present().not()
+            })
+        })
+}
+
 fn config_to_json(config: &PortalThemeConfig) -> Result<serde_json::Value, CoreError> {
     serde_json::to_value(config).map_err(|e| {
         error!("failed to serialize portal theme design_tokens: {e}");
@@ -181,18 +243,23 @@ impl PortalThemeRepository for PostgresPortalThemeRepository {
 
     // ---------- Collection API ----------
 
-    async fn list_by_realm(&self, realm_id: Uuid) -> Result<Vec<PortalTheme>, CoreError> {
-        let models = Entity::find()
-            .filter(Column::RealmId.eq(realm_id))
-            .order_by_asc(Column::CreatedAt)
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("failed to list portal themes: {e}");
-                CoreError::InternalServerError
-            })?;
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<PortalThemeFilter, PortalThemeSortField>,
+    ) -> Result<Page<PortalTheme>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("failed to list portal themes: {e}");
+            CoreError::InternalServerError
+        })?;
 
-        models.into_iter().map(model_to_domain).collect()
+        let themes = models
+            .into_iter()
+            .map(model_to_domain)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Page::new(themes, total, request.page, request.limit))
     }
 
     async fn get_by_id(
@@ -414,4 +481,81 @@ where
     })?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::portal_theme::{entities::PortalThemeFilter, validation::REQUIRED_BLOCKS};
+
+    fn sql(filter: &PortalThemeFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&PortalThemeFilter::default());
+        assert!(
+            sql.contains(r#""portal_themes"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!sql.contains("jsonb_path_exists"), "{sql}");
+    }
+
+    #[test]
+    fn name_is_an_escaped_contains_match() {
+        let sql = sql(&PortalThemeFilter {
+            name: Some("a%".to_string()),
+            ..PortalThemeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_themes"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn layout_is_an_equality() {
+        let sql = sql(&PortalThemeFilter {
+            layout_id: Some(Uuid::nil()),
+            ..PortalThemeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""portal_themes"."layout_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn activatable_requires_every_required_block_on_every_page() {
+        let sql = sql(&PortalThemeFilter {
+            activatable: Some(true),
+            ..PortalThemeFilter::default()
+        });
+        let required: usize = REQUIRED_BLOCKS.iter().map(|(_, blocks)| blocks.len()).sum();
+        assert_eq!(sql.matches("jsonb_path_exists").count(), required, "{sql}");
+        assert!(
+            sql.contains(
+                r#"jsonb_path_exists("portal_themes"."page_login", CAST(E'strict $.** ? (@.type == \"email_input\")' AS jsonpath), CAST('{}' AS jsonb), TRUE)"#
+            ),
+            "{sql}"
+        );
+        assert!(sql.contains(r#""portal_themes"."page_consent""#), "{sql}");
+        assert!(!sql.contains("NOT"), "{sql}");
+    }
+
+    #[test]
+    fn not_activatable_negates_the_whole_requirement() {
+        let sql = sql(&PortalThemeFilter {
+            activatable: Some(false),
+            ..PortalThemeFilter::default()
+        });
+        assert!(sql.contains("NOT (jsonb_path_exists("), "{sql}");
+    }
 }

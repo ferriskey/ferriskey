@@ -801,7 +801,6 @@ export namespace Schemas {
   };
   export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> };
   export type ListPortalLayoutsResponse = { data: Array<PortalLayout> };
-  export type ListThemesResponse = { data: Array<PortalTheme> };
   export type LogoutRequestValidator = Partial<{
     client_id: string | null;
     id_token_hint: string | null;
@@ -984,6 +983,19 @@ export namespace Schemas {
       name: string;
       realm_id: RealmId;
       redirect_url?: (string | null) | undefined;
+      updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_PortalTheme = {
+    data: Array<{
+      config: PortalThemeConfig;
+      created_at: string;
+      id: string;
+      layout_id?: (string | null) | undefined;
+      name: string;
+      pages: PortalThemePages;
+      realm_id: RealmId;
       updated_at: string;
     }>;
     metadata: PageMetadata;
@@ -3853,12 +3865,23 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/portal/themes";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        layout_id: string;
+        activatable: boolean;
+        order_by: "name" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.ListThemesResponse;
+      200: Schemas.Paginated_PortalTheme;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };

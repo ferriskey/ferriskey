@@ -4,7 +4,6 @@ import { Trans, useTranslation } from 'react-i18next'
 import { AlertTriangle, Check, Download, Palette, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -13,10 +12,25 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { IconTile, MetricsBand, PageShell, Pill, Section } from '@/components/kit'
+import {
+  DataView,
+  FilterBar,
+  IconTile,
+  MetricsBand,
+  PageShell,
+  PaginationBar,
+  Pill,
+  Section,
+  type Column,
+  type FilterField,
+  type PagedListing,
+  type PaginationMetadata,
+  type ViewMode,
+} from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import type { Schemas } from '@/api/api.client'
+import { portalLayoutRelationSource } from '@/api/portal-layout.relation'
 import { PORTAL_PAGES, labelForPortalPage, humanizeBlockType } from '../portal-pages'
 import type { PortalPageStatus } from '../theme-validation'
 import { PORTAL_TAB_THEMES, PortalPageHeader } from './portal-page-header'
@@ -30,8 +44,17 @@ export interface PortalThemeRow {
   failures: PortalPageStatus[]
 }
 
+export interface PortalThemeCounts {
+  total: number
+  active: number
+  activatable: number
+}
+
 export interface PagePortalThemesProps {
   rows: PortalThemeRow[]
+  listing: PagedListing
+  pagination: PaginationMetadata | undefined
+  counts: PortalThemeCounts
   isLoading: boolean
   isCreating: boolean
   themeHref: (themeId: string) => string
@@ -41,6 +64,8 @@ export interface PagePortalThemesProps {
   onExport: (themeId: string) => void
   onImport: (file: File) => void
 }
+
+const THEMES_VIEW: ViewMode = 'list'
 
 const SWATCH_KEYS = [
   'primaryButton',
@@ -82,6 +107,9 @@ function describeFailures(failures: PortalPageStatus[]) {
 
 export default function PagePortalThemes({
   rows,
+  listing,
+  pagination,
+  counts,
   isLoading,
   isCreating,
   themeHref,
@@ -102,14 +130,177 @@ export default function PagePortalThemes({
     setCreateOpen(false)
   }
 
-  const activatable = rows.filter((r) => r.failures.length === 0).length
-  const activeCount = rows.filter((r) => r.isActive).length
+  const narrowed = Object.values(listing.state.filters).some(Boolean)
 
   const createButton = (
     <Button onClick={() => setCreateOpen(true)}>
       <Plus /> {t('themes.create')}
     </Button>
   )
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('themes.filters.name') },
+    {
+      kind: 'relation',
+      key: 'layout_id',
+      label: t('themes.filters.layout'),
+      relation: portalLayoutRelationSource,
+    },
+    { kind: 'boolean', key: 'activatable', label: t('themes.filters.activatable') },
+  ]
+
+  const pagesPill = (failures: PortalPageStatus[]) => (
+    <Pill tone={failures.length === 0 ? 'neutral' : 'amber'}>
+      <Trans
+        i18nKey='portal:themes.row.pages_valid'
+        values={{
+          valid: PORTAL_PAGES.length - failures.length,
+          total: PORTAL_PAGES.length,
+        }}
+        components={{ num: <span className='tnum' /> }}
+      />
+    </Pill>
+  )
+
+  const activePill = (
+    <Pill tone='success'>
+      <Check className='size-3' strokeWidth={3} />
+      {t('themes.row.active')}
+    </Pill>
+  )
+
+  const columns: Column<PortalThemeRow>[] = [
+    {
+      key: 'name',
+      header: t('themes.columns.name'),
+      sortKey: 'name',
+      render: ({ theme, isActive, failures }) => (
+        <div className='flex min-w-0 items-center gap-3'>
+          <IconTile tone={isActive ? 'primary' : 'info'}>
+            <Palette className='size-4' strokeWidth={1.75} />
+          </IconTile>
+          <div className='min-w-0'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <Link
+                to={themeHref(theme.id)}
+                className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100 hover:underline'
+              >
+                {theme.name}
+              </Link>
+              {isActive && activePill}
+              {pagesPill(failures)}
+            </div>
+            <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
+              {t('themes.row.identifier', { id: theme.id })}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'layout',
+      header: t('themes.columns.layout'),
+      render: ({ layoutName }) => (
+        <span className='text-xs text-neutral-500 dark:text-neutral-400'>
+          {layoutName ?? t('themes.row.no_layout')}
+        </span>
+      ),
+    },
+    {
+      key: 'colors',
+      header: t('themes.columns.colors'),
+      render: ({ theme }) => <Swatches config={theme.config} />,
+    },
+    {
+      key: 'updated_at',
+      header: t('themes.columns.updated_at'),
+      sortKey: 'updated_at',
+      render: ({ theme }) => (
+        <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
+          {formatDate(theme.updated_at)}
+        </span>
+      ),
+    },
+    {
+      key: 'created_at',
+      header: t('themes.columns.created_at'),
+      sortKey: 'created_at',
+      render: ({ theme }) => (
+        <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
+          {formatDate(theme.created_at)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      render: ({ theme, isActive, failures }) => (
+        <div className='flex items-center justify-end gap-1'>
+          {isActive ? (
+            <span className='px-2 text-xs text-neutral-400 dark:text-neutral-500'>
+              {t('themes.row.active_theme')}
+            </span>
+          ) : failures.length > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className='inline-flex items-center gap-1.5 px-2 text-xs text-fk-amber'>
+                  <AlertTriangle className='size-3.5' strokeWidth={2} />
+                  <Trans
+                    i18nKey='portal:themes.row.incomplete_pages'
+                    count={failures.length}
+                    components={{ num: <span className='tnum' /> }}
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side='left' className='max-w-xs'>
+                {t('themes.row.activation_blocked', {
+                  detail: describeFailures(failures),
+                })}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button variant='outline' size='sm' onClick={() => onActivate(theme.id)}>
+              {t('themes.row.activate')}
+            </Button>
+          )}
+
+          <Button
+            variant='ghost'
+            size='icon'
+            className='size-8 text-neutral-400 dark:text-neutral-500'
+            aria-label={t('themes.row.export', { name: theme.name })}
+            onClick={() => onExport(theme.id)}
+          >
+            <Download className='size-4' />
+          </Button>
+
+          {isActive ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className='grid size-8 place-items-center text-neutral-200'>
+                  <Trash2 className='size-4' />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side='left' className='max-w-xs'>
+                {t('themes.row.delete_blocked')}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant='ghost'
+              size='icon'
+              aria-label={t('themes.row.delete', { name: theme.name })}
+              className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
+              onClick={() => onDelete(theme.id)}
+            >
+              <Trash2 className='size-4' />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
 
   return (
     <PageShell>
@@ -121,29 +312,33 @@ export default function PagePortalThemes({
             {
               key: 'total',
               label: t('themes.metrics.total.label'),
-              value: rows.length,
+              value: counts.total,
               hint: t('themes.metrics.total.hint'),
+              series: [counts.total, counts.total],
             },
             {
               key: 'active',
               label: t('themes.metrics.active.label'),
-              value: activeCount,
+              value: counts.active,
               hint:
-                activeCount > 0
+                counts.active > 0
                   ? t('themes.metrics.active.hint')
                   : t('themes.metrics.active.empty_hint'),
+              series: [counts.active, counts.active],
             },
             {
               key: 'activatable',
               label: t('themes.metrics.activatable.label'),
-              value: activatable,
+              value: counts.activatable,
               hint: t('themes.metrics.activatable.hint'),
+              series: [counts.activatable, counts.activatable],
             },
             {
               key: 'pages',
               label: t('themes.metrics.pages.label'),
               value: PORTAL_PAGES.length,
               hint: t('themes.metrics.pages.hint'),
+              series: [PORTAL_PAGES.length, PORTAL_PAGES.length],
             },
           ]}
         />
@@ -153,138 +348,60 @@ export default function PagePortalThemes({
           description={t('themes.section.description')}
           action={<ImportButton label={t('actions.import')} onImport={onImport} />}
         >
-          {isLoading ? (
-            <ul className={tokens.surface.divider}>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <li key={i} className='flex items-center gap-3 py-3'>
-                  <Skeleton className='size-9 rounded-md' />
-                  <div className='flex-1 space-y-2'>
-                    <Skeleton className='h-4 w-40' />
-                    <Skeleton className='h-3 w-56' />
-                  </div>
-                  <Skeleton className='h-6 w-20 rounded-md' />
-                </li>
-              ))}
-            </ul>
-          ) : rows.length === 0 ? (
-            <div className='grid place-items-center gap-3 py-16'>
-              <Palette className='size-8 text-neutral-300 dark:text-neutral-600' strokeWidth={1.5} />
-              <p className='max-w-sm text-center text-sm text-neutral-500 dark:text-neutral-400'>
-                {t('themes.empty', { total: PORTAL_PAGES.length })}
-              </p>
-              {createButton}
+          <div className='mb-3 flex'>
+            <FilterBar fields={filterFields} listing={listing} />
+          </div>
+
+          <DataView
+            rows={rows}
+            columns={columns}
+            card={{
+              avatar: ({ isActive }) => (
+                <IconTile tone={isActive ? 'primary' : 'info'}>
+                  <Palette className='size-4' strokeWidth={1.75} />
+                </IconTile>
+              ),
+              title: ({ theme }) => theme.name,
+              subtitle: ({ theme }) => t('themes.row.identifier', { id: theme.id }),
+              badges: ({ isActive, failures }) => (
+                <>
+                  {isActive && activePill}
+                  {pagesPill(failures)}
+                </>
+              ),
+              footer: ({ theme, layoutName }) => (
+                <>
+                  <span>{layoutName ?? t('themes.row.no_layout')}</span>
+                  <span>{formatDate(theme.updated_at)}</span>
+                </>
+              ),
+            }}
+            getKey={({ theme }) => theme.id}
+            view={THEMES_VIEW}
+            loading={isLoading}
+            sort={listing.state.sort}
+            onSortChange={listing.setSort}
+            emptyLabel={narrowed ? t('common:data_view.no_match') : t('themes.empty.label')}
+            emptyHint={
+              narrowed
+                ? t('common:data_view.no_match_server_hint')
+                : t('themes.empty.hint', { total: PORTAL_PAGES.length })
+            }
+            emptyAction={
+              narrowed ? (
+                <Button variant='outline' onClick={listing.clearFilters}>
+                  {t('common:data_view.clear_filter')}
+                </Button>
+              ) : (
+                createButton
+              )
+            }
+          />
+
+          {pagination && (
+            <div className='mt-3 px-1'>
+              <PaginationBar pagination={pagination} onPageChange={listing.setPage} />
             </div>
-          ) : (
-            <ul className={tokens.surface.divider}>
-              {rows.map(({ theme, isActive, layoutName, failures }) => (
-                <li key={theme.id} className='flex items-center gap-3 py-3'>
-                  <IconTile tone={isActive ? 'primary' : 'info'}>
-                    <Palette className='size-4' strokeWidth={1.75} />
-                  </IconTile>
-
-                  <div className='min-w-0 flex-1'>
-                    <div className='flex flex-wrap items-center gap-2'>
-                      <Link
-                        to={themeHref(theme.id)}
-                        className='text-[13px] font-medium text-neutral-900 dark:text-neutral-100 hover:underline'
-                      >
-                        {theme.name}
-                      </Link>
-                      {isActive && (
-                        <Pill tone='success'>
-                          <Check className='size-3' strokeWidth={3} />
-                          {t('themes.row.active')}
-                        </Pill>
-                      )}
-                      <Pill tone={failures.length === 0 ? 'neutral' : 'amber'}>
-                        <Trans
-                          i18nKey='portal:themes.row.pages_valid'
-                          values={{
-                            valid: PORTAL_PAGES.length - failures.length,
-                            total: PORTAL_PAGES.length,
-                          }}
-                          components={{ num: <span className='tnum' /> }}
-                        />
-                      </Pill>
-                    </div>
-                    <p className='mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400'>
-                      {t('themes.row.summary', {
-                        layout: layoutName
-                          ? t('themes.row.layout', { name: layoutName })
-                          : t('themes.row.no_layout'),
-                        date: formatDate(theme.updated_at),
-                      })}
-                    </p>
-                    <p className='font-mono-ui mt-0.5 truncate text-[11px] text-neutral-400 dark:text-neutral-500'>
-                      {t('themes.row.identifier', { id: theme.id })}
-                    </p>
-                  </div>
-
-                  <Swatches config={theme.config} />
-
-                  {isActive ? (
-                    <span className='px-2 text-xs text-neutral-400 dark:text-neutral-500'>
-                      {t('themes.row.active_theme')}
-                    </span>
-                  ) : failures.length > 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className='inline-flex items-center gap-1.5 px-2 text-xs text-fk-amber'>
-                          <AlertTriangle className='size-3.5' strokeWidth={2} />
-                          <Trans
-                            i18nKey='portal:themes.row.incomplete_pages'
-                            count={failures.length}
-                            components={{ num: <span className='tnum' /> }}
-                          />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side='left' className='max-w-xs'>
-                        {t('themes.row.activation_blocked', {
-                          detail: describeFailures(failures),
-                        })}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button variant='outline' size='sm' onClick={() => onActivate(theme.id)}>
-                      {t('themes.row.activate')}
-                    </Button>
-                  )}
-
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className='size-8 text-neutral-400 dark:text-neutral-500'
-                    aria-label={t('themes.row.export', { name: theme.name })}
-                    onClick={() => onExport(theme.id)}
-                  >
-                    <Download className='size-4' />
-                  </Button>
-
-                  {isActive ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className='grid size-8 place-items-center text-neutral-200'>
-                          <Trash2 className='size-4' />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side='left' className='max-w-xs'>
-                        {t('themes.row.delete_blocked')}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      aria-label={t('themes.row.delete', { name: theme.name })}
-                      className='size-8 text-neutral-400 dark:text-neutral-500 hover:text-fk-danger'
-                      onClick={() => onDelete(theme.id)}
-                    >
-                      <Trash2 className='size-4' />
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
           )}
         </Section>
       </div>

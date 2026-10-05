@@ -55,7 +55,7 @@ export interface PagePortalLayoutBuilderProps {
   isNew: boolean
   isSaving: boolean
   isDefault: boolean
-  usedBy: string[]
+  usedByCount: number
   cssVars: CSSProperties
   onTreeChange: (tree: BuilderNode[]) => void
   onNameChange: (name: string) => void
@@ -70,7 +70,7 @@ export default function PagePortalLayoutBuilder({
   isNew,
   isSaving,
   isDefault,
-  usedBy,
+  usedByCount,
   cssVars,
   onTreeChange,
   onNameChange,
@@ -118,8 +118,8 @@ export default function PagePortalLayoutBuilder({
           />
 
           {isDefault && <Pill tone='violet'>{t('layouts.row.default')}</Pill>}
-          {usedBy.length > 0 && (
-            <Pill tone='info'>{t('layouts.row.theme_count', { count: usedBy.length })}</Pill>
+          {usedByCount > 0 && (
+            <Pill tone='info'>{t('layouts.row.theme_count', { count: usedByCount })}</Pill>
           )}
 
           <div className='ml-auto flex items-center gap-3'>
