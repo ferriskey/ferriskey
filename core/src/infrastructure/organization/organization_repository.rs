@@ -1,22 +1,30 @@
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter};
+use sea_orm::{
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QuerySelect, QueryTrait, Select,
+};
 use tracing::error;
 use uuid::Uuid;
 
 use ferriskey_domain::realm::RealmId;
-use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 use ferriskey_organization::{
-    CreateOrganizationParams, Organization, OrganizationId, OrganizationRepository,
-    UpdateOrganizationParams,
+    CreateOrganizationParams, Organization, OrganizationFilter, OrganizationId,
+    OrganizationRepository, OrganizationSortField, UpdateOrganizationParams,
 };
 
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_timestamp;
+use crate::domain::common::pagination::{Page, PageRequest};
+use crate::entity::organization_members::{
+    Column as OrganizationMemberColumn, Entity as OrganizationMemberEntity,
+};
 use crate::entity::organizations::{
     ActiveModel as OrganizationActiveModel, Column as OrganizationColumn,
     Entity as OrganizationEntity, Model as OrganizationModel,
 };
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 #[derive(Debug, Clone)]
 pub struct PostgresOrganizationRepository {
@@ -42,6 +50,62 @@ fn model_to_domain(model: OrganizationModel) -> Organization {
         created_at: model.created_at.with_timezone(&Utc),
         updated_at: model.updated_at.with_timezone(&Utc),
     }
+}
+
+impl SortColumn<OrganizationEntity> for OrganizationSortField {
+    fn column(&self) -> OrganizationColumn {
+        match self {
+            OrganizationSortField::Name => OrganizationColumn::Name,
+            OrganizationSortField::Alias => OrganizationColumn::Alias,
+            OrganizationSortField::Enabled => OrganizationColumn::Enabled,
+            OrganizationSortField::CreatedAt => OrganizationColumn::CreatedAt,
+            OrganizationSortField::UpdatedAt => OrganizationColumn::UpdatedAt,
+        }
+    }
+}
+
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(OrganizationColumn::Name, value))
+        .add(contains(OrganizationColumn::Alias, value))
+}
+
+fn listing_select(realm_id: Uuid, filter: &OrganizationFilter) -> Select<OrganizationEntity> {
+    OrganizationEntity::find()
+        .filter(OrganizationColumn::RealmId.eq(realm_id))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(OrganizationColumn::Name, value))
+        })
+        .apply_if(filter.alias.as_deref(), |select, value| {
+            select.filter(contains(OrganizationColumn::Alias, value))
+        })
+        .apply_if(filter.domain.as_deref(), |select, value| {
+            select.filter(contains(OrganizationColumn::Domain, value))
+        })
+        .apply_if(filter.enabled, |select, value| {
+            select.filter(OrganizationColumn::Enabled.eq(value))
+        })
+        .apply_if(filter.has_domain, |select, present| {
+            select.filter(if present {
+                OrganizationColumn::Domain.is_not_null()
+            } else {
+                OrganizationColumn::Domain.is_null()
+            })
+        })
+        .apply_if(filter.without_member, |select, user_id| {
+            let joined = OrganizationMemberEntity::find()
+                .select_only()
+                .column(OrganizationMemberColumn::OrganizationId)
+                .filter(OrganizationMemberColumn::UserId.eq(user_id))
+                .into_query();
+            select.filter(OrganizationColumn::Id.not_in_subquery(joined))
+        })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(OrganizationColumn::Id.is_in(ids.iter().copied()))
+        })
 }
 
 impl OrganizationRepository for PostgresOrganizationRepository {
@@ -108,20 +172,23 @@ impl OrganizationRepository for PostgresOrganizationRepository {
         Ok(model.map(model_to_domain))
     }
 
-    async fn list_organizations_by_realm(
+    async fn list(
         &self,
-        realm_id: RealmId,
-    ) -> Result<Vec<Organization>, CoreError> {
-        let models = OrganizationEntity::find()
-            .filter(OrganizationColumn::RealmId.eq::<Uuid>(realm_id.into()))
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("Failed to list organizations by realm: {}", e);
-                CoreError::InternalServerError
-            })?;
+        scope: &RealmScope,
+        request: &PageRequest<OrganizationFilter, OrganizationSortField>,
+    ) -> Result<Page<Organization>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("Failed to list organizations: {}", e);
+            CoreError::InternalServerError
+        })?;
 
-        Ok(models.into_iter().map(model_to_domain).collect())
+        Ok(Page::new(
+            models.into_iter().map(model_to_domain).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
     }
 
     async fn update_organization(
@@ -200,5 +267,128 @@ impl OrganizationRepository for PostgresOrganizationRepository {
             })?;
 
         Ok(count > 0)
+    }
+}
+
+#[cfg(test)]
+mod listing_tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use ferriskey_organization::OrganizationFilter;
+
+    fn sql(filter: &OrganizationFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&OrganizationFilter::default());
+        assert!(
+            sql.contains(r#""organizations"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&OrganizationFilter {
+            name: Some("a%".to_string()),
+            alias: Some("b".to_string()),
+            domain: Some("c_".to_string()),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(r#""organizations"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""organizations"."alias" ILIKE '%b%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""organizations"."domain" ILIKE E'%c\\_%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_alias() {
+        let sql = sql(&OrganizationFilter {
+            search: Some("acme".to_string()),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("organizations"."name" ILIKE '%acme%') OR ("organizations"."alias" ILIKE '%acme%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn enabled_is_an_equality() {
+        let sql = sql(&OrganizationFilter {
+            enabled: Some(false),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(r#""organizations"."enabled" = FALSE"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn has_domain_tests_the_domain_for_null() {
+        let with = sql(&OrganizationFilter {
+            has_domain: Some(true),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            with.contains(r#""organizations"."domain" IS NOT NULL"#),
+            "{with}"
+        );
+        let without = sql(&OrganizationFilter {
+            has_domain: Some(false),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            without.contains(r#""organizations"."domain" IS NULL"#),
+            "{without}"
+        );
+    }
+
+    #[test]
+    fn without_member_excludes_the_organizations_of_that_user() {
+        let user_id = Uuid::from_u128(7);
+        let sql = sql(&OrganizationFilter {
+            without_member: Some(user_id),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(
+                r#""organizations"."id" NOT IN (SELECT "organization_members"."organization_id" FROM "organization_members" WHERE "organization_members"."user_id" = '{user_id}')"#
+            )),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(&OrganizationFilter {
+            ids: Some(vec![first, second]),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(
+                r#""organizations"."id" IN ('{first}', '{second}')"#
+            )),
+            "{sql}"
+        );
     }
 }

@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
   useAddUserToOrganization,
-  useGetOrganizations,
   useGetUserOrganizations,
+  useOrganizationSearch,
+  useOrganizationsByIds,
   useRemoveUserFromOrganization,
 } from '@/api/organization.api'
+import { Schemas } from '@/api/api.client'
 import { RouterParams } from '@/routes/router'
 import { assignOrganizationSchema } from '@/pages/iam/user/schemas/assign-organization.schema'
 import UserOrganizationsTab, { type UserMembership } from '../ui/user-organizations-tab'
@@ -22,25 +24,39 @@ export default function UserOrganizationsFeature() {
     isLoading: isLoadingMemberships,
     isError,
   } = useGetUserOrganizations({ realm, userId: user_id })
-  const { data: allOrgsResponse, isLoading: isLoadingOrgs } = useGetOrganizations({ realm })
   const { mutateAsync: addToOrganization } = useAddUserToOrganization()
   const { mutate: removeFromOrganization } = useRemoveUserFromOrganization()
 
   const [selectedOrganizationIds, setSelectedOrganizationIds] = useState<string[]>([])
 
+  const memberOrganizationIds = useMemo(
+    () => (userOrgs ?? []).map((member) => member.organization_id),
+    [userOrgs]
+  )
+  const joined = useOrganizationsByIds({ realm, ids: memberOrganizationIds })
+  const selected = useOrganizationsByIds({ realm, ids: selectedOrganizationIds })
+  const search = useOrganizationSearch({
+    realm,
+    filter: { without_member: user_id },
+    enabled: !!user_id,
+  })
+
   const memberships = useMemo<UserMembership[]>(() => {
-    if (!userOrgs || !allOrgsResponse) return []
-    const organizations = new Map(allOrgsResponse.data.map((org) => [org.id, org]))
+    if (!userOrgs) return []
+    const organizations = new Map(joined.organizations.map((org) => [org.id, org]))
     return userOrgs.flatMap((member) => {
       const organization = organizations.get(member.organization_id)
       return organization ? [{ organization, joinedAt: member.created_at }] : []
     })
-  }, [userOrgs, allOrgsResponse])
+  }, [userOrgs, joined.organizations])
 
   const availableOrganizations = useMemo(() => {
-    const assigned = new Set(memberships.map((m) => m.organization.id))
-    return (allOrgsResponse?.data ?? []).filter((org) => !assigned.has(org.id))
-  }, [memberships, allOrgsResponse])
+    const byId = new Map<string, Schemas.Organization>()
+    for (const organization of [...selected.organizations, ...search.organizations]) {
+      byId.set(organization.id, organization)
+    }
+    return [...byId.values()]
+  }, [selected.organizations, search.organizations])
 
   const handleAssign = async () => {
     if (!user_id || !realm_name) {
@@ -85,8 +101,10 @@ export default function UserOrganizationsFeature() {
     <UserOrganizationsTab
       memberships={memberships}
       availableOrganizations={availableOrganizations}
-      isLoading={isLoadingMemberships || isLoadingOrgs}
-      isError={isError}
+      onSearchOrganizations={search.setSearch}
+      isSearchingOrganizations={search.isLoading}
+      isLoading={isLoadingMemberships || joined.isLoading}
+      isError={isError || joined.isError}
       selectedOrganizationIds={selectedOrganizationIds}
       onSelectedOrganizationIdsChange={setSelectedOrganizationIds}
       onAssign={handleAssign}

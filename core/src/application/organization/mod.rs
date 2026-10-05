@@ -2,7 +2,10 @@ use crate::{
     ApplicationService,
     domain::{
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         organization::ports::{
             AddGroupMemberInput, AddOrganizationMemberInput, AssignGroupRoleInput,
             AssignMemberRoleInput, CreateGroupInput, CreateOrganizationInput,
@@ -10,12 +13,12 @@ use crate::{
             DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
             GroupMember, GroupMemberPage, GroupNode, GroupService, ListGroupAttributesInput,
             ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
-            ListOrganizationAttributesInput, ListOrganizationMembersInput, ListOrganizationsInput,
-            ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationMember,
-            OrganizationMemberRoleService, OrganizationService, RemoveGroupMemberInput,
-            RemoveOrganizationMemberInput, RevokeGroupRoleInput, RevokeMemberRoleInput,
-            UpdateGroupInput, UpdateOrganizationInput, UpsertGroupAttributeInput,
-            UpsertOrganizationAttributeInput,
+            ListOrganizationAttributesInput, ListOrganizationMembersInput,
+            ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
+            OrganizationMember, OrganizationMemberRoleService, OrganizationService,
+            OrganizationSortField, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
+            RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput, UpdateOrganizationInput,
+            UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
         },
         role::entities::Role,
     },
@@ -45,10 +48,11 @@ impl OrganizationService for ApplicationService {
     async fn list_organizations(
         &self,
         identity: Identity,
-        input: ListOrganizationsInput,
-    ) -> Result<Vec<Organization>, CoreError> {
+        realm_name: String,
+        request: PageRequest<OrganizationFilter, OrganizationSortField>,
+    ) -> Result<Page<Organization>, CoreError> {
         self.organization_service
-            .list_organizations(identity, input)
+            .list_organizations(identity, realm_name, request)
             .await
     }
 

@@ -2,16 +2,44 @@ import { Building2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { IconTile, ListingPage, Pill, StatusDot } from '@/components/kit'
-import type { CardSpec, Column } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { Schemas } from '@/api/api.client'
+import { formatRelative } from '@/utils/format-date'
 
 import Organization = Schemas.Organization
 
-const QUERY_SYNTAX = 'name:acme*  alias:acme  domain:*.com'
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
+export interface OrganizationCounts {
+  total: number
+  enabled: number
+  disabled: number
+  withDomain: number
+}
+
+export interface OrganizationPreview {
+  total: number
+  names: string[]
+}
+
+const previewNames = (preview: OrganizationPreview) =>
+  preview.names.join(NAME_SEPARATOR) +
+  (preview.total > preview.names.length ? TRUNCATION_MARK : '')
 
 export interface PageOrganizationsOverviewProps {
   organizations: Organization[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: OrganizationCounts
+  disabled: OrganizationPreview
   organizationHref: (organization: Organization) => string
   onCreate: () => void
   onReviewDisabled: () => void
@@ -19,7 +47,11 @@ export interface PageOrganizationsOverviewProps {
 
 export default function PageOrganizationsOverview({
   organizations,
+  pagination,
+  listing,
   isLoading,
+  counts,
+  disabled,
   organizationHref,
   onCreate,
   onReviewDisabled,
@@ -34,13 +66,13 @@ export default function PageOrganizationsOverview({
       key: 'name',
       header: t('list.columns.name'),
       render: (o) => o.name,
-      sortValue: (o) => o.name,
+      sortKey: 'name',
     },
     {
       key: 'alias',
       header: t('list.columns.alias'),
       render: (o) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{o.alias}</span>,
-      sortValue: (o) => o.alias,
+      sortKey: 'alias',
     },
     {
       key: 'domain',
@@ -53,7 +85,6 @@ export default function PageOrganizationsOverview({
             {t('organization.no_domain')}
           </span>
         ),
-      sortValue: (o) => o.domain ?? '',
     },
     {
       key: 'description',
@@ -76,7 +107,27 @@ export default function PageOrganizationsOverview({
           {statusLabel(o.enabled)}
         </span>
       ),
-      sortValue: (o) => statusLabel(o.enabled),
+      sortKey: 'enabled',
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (o) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(o.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (o) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(o.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
     },
   ]
 
@@ -109,9 +160,13 @@ export default function PageOrganizationsOverview({
     ),
   }
 
-  const enabled = organizations.filter((o) => o.enabled)
-  const disabled = organizations.filter((o) => !o.enabled)
-  const withDomain = organizations.filter((o) => Boolean(o.domain))
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
+    { kind: 'text', key: 'alias', label: t('list.filter_fields.alias') },
+    { kind: 'text', key: 'domain', label: t('list.filter_fields.domain') },
+    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
+    { kind: 'boolean', key: 'has_domain', label: t('list.filter_fields.has_domain') },
+  ]
 
   const createButton = (
     <Button onClick={onCreate}>
@@ -129,42 +184,46 @@ export default function PageOrganizationsOverview({
         {
           key: 'total',
           label: t('list.metrics.total.label'),
-          value: organizations.length,
-          hint: t('list.metrics.total.hint', { count: organizations.length }),
+          value: counts.total,
+          hint: t('list.metrics.total.hint', { count: counts.total }),
+          series: [counts.total, counts.total],
         },
         {
           key: 'enabled',
           label: t('list.metrics.enabled.label'),
-          value: enabled.length,
+          value: counts.enabled,
           hint:
-            enabled.length > 0 && organizations.length > 0
+            counts.enabled > 0 && counts.total > 0
               ? t('list.metrics.enabled.hint', {
-                  percent: ((enabled.length / organizations.length) * 100).toFixed(0),
+                  percent: ((counts.enabled / counts.total) * 100).toFixed(0),
                 })
               : t('list.metrics.enabled.empty_hint'),
+          series: [counts.enabled, counts.enabled],
         },
         {
           key: 'disabled',
           label: t('list.metrics.disabled.label'),
-          value: disabled.length,
+          value: counts.disabled,
           hint: t('list.metrics.disabled.hint'),
+          series: [counts.disabled, counts.disabled],
         },
         {
           key: 'domain',
           label: t('list.metrics.domain.label'),
-          value: withDomain.length,
+          value: counts.withDomain,
           hint: t('list.metrics.domain.hint'),
+          series: [counts.withDomain, counts.withDomain],
         },
       ]}
       alerts={
-        disabled.length
+        disabled.total
           ? [
               {
                 tone: 'warn' as const,
-                title: t('list.alerts.disabled.title', { count: disabled.length }),
+                title: t('list.alerts.disabled.title', { count: disabled.total }),
                 detail: t('list.alerts.disabled.detail', {
-                  count: disabled.length,
-                  names: disabled.map((o) => o.name).join(', '),
+                  count: disabled.total,
+                  names: previewNames(disabled),
                 }),
                 action: t('list.alerts.disabled.action'),
                 onAction: onReviewDisabled,
@@ -172,22 +231,15 @@ export default function PageOrganizationsOverview({
             ]
           : []
       }
-      filters={[
-        { key: 'enabled', label: t('list.filters.enabled'), predicate: (o) => o.enabled },
-        { key: 'disabled', label: t('list.filters.disabled'), predicate: (o) => !o.enabled },
-        { key: 'nodomain', label: t('list.filters.without_domain'), predicate: (o) => !o.domain },
-      ]}
-      searchPlaceholder={t('list.search_placeholder')}
-      querySyntax={QUERY_SYNTAX}
-      searchIn={(o) => `${o.name} ${o.alias} ${o.domain ?? ''}`}
+      paged={{ listing, pagination, filterFields }}
       rows={organizations}
       columns={columns}
       card={card}
       getKey={(o) => o.id}
       getHref={organizationHref}
       aggregates={{
-        name: t('list.count', { count: organizations.length }),
-        status: t('list.aggregates.status', { total: enabled.length }),
+        name: t('list.count', { count: counts.total }),
+        status: t('list.aggregates.status', { total: counts.enabled }),
       }}
       emptyLabel={t('list.empty.label')}
       emptyHint={t('list.empty.hint')}

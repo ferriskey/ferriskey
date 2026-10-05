@@ -852,19 +852,6 @@ export namespace Schemas {
     value: string;
   };
   export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> };
-  export type Organization = {
-    alias: string;
-    created_at: string;
-    description?: (string | null) | undefined;
-    domain?: (string | null) | undefined;
-    enabled: boolean;
-    id: OrganizationId;
-    name: string;
-    realm_id: RealmId;
-    redirect_url?: (string | null) | undefined;
-    updated_at: string;
-  };
-  export type ListOrganizationsResponse = { data: Array<Organization> };
   export type ListPortalLayoutsResponse = { data: Array<PortalLayout> };
   export type ProviderResponse = {
     config: unknown;
@@ -902,6 +889,18 @@ export namespace Schemas {
     state: string | null;
   }>;
   export type OAuth2ErrorResponse = { error: string; error_description: string };
+  export type Organization = {
+    alias: string;
+    created_at: string;
+    description?: (string | null) | undefined;
+    domain?: (string | null) | undefined;
+    enabled: boolean;
+    id: OrganizationId;
+    name: string;
+    realm_id: RealmId;
+    redirect_url?: (string | null) | undefined;
+    updated_at: string;
+  };
   export type OrganizationMember = { created_at: string; id: string; organization_id: OrganizationId; user_id: string };
   export type OtpVerifyRequest = { code: string; label: string };
   export type OwnCredentialDto = {
@@ -1000,6 +999,21 @@ export namespace Schemas {
       status: string;
       updated_at: string;
       webhook_id: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_Organization = {
+    data: Array<{
+      alias: string;
+      created_at: string;
+      description?: (string | null) | undefined;
+      domain?: (string | null) | undefined;
+      enabled: boolean;
+      id: OrganizationId;
+      name: string;
+      realm_id: RealmId;
+      redirect_url?: (string | null) | undefined;
+      updated_at: string;
     }>;
     metadata: PageMetadata;
   };
@@ -3013,12 +3027,28 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/organizations";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        search: string;
+        name: string;
+        alias: string;
+        domain: string;
+        enabled: boolean;
+        has_domain: boolean;
+        without_member: string;
+        ids: string;
+        order_by: "name" | "alias" | "enabled" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.ListOrganizationsResponse;
+      200: Schemas.Paginated_Organization;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };

@@ -52,7 +52,6 @@ list:
   title: Organizations
   description: Groups of accounts sharing a domain, a redirection and their own roles.
   create: New organization
-  search_placeholder: Filter by name, alias or domain…
   count_one: '{{count}} organization'
   count_other: '{{count}} organizations'
   columns:
@@ -61,6 +60,8 @@ list:
     domain: Domain
     description: Description
     status: Status
+    created: Created
+    updated: Updated
   metrics:
     total:
       label: Total
@@ -88,10 +89,12 @@ list:
       detail_one: '{{names}} — members cannot reach it.'
       detail_other: '{{names}} — members cannot reach them.'
       action: Review
-  filters:
+  filter_fields:
+    name: Name
+    alias: Alias
+    domain: Domain
     enabled: Enabled
-    disabled: Disabled
-    without_domain: Without domain
+    has_domain: With a domain
   card:
     flags:
       reachable: Reachable by its members

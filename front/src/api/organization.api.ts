@@ -1,14 +1,106 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQueries, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import type { Endpoints, Schemas } from './api.client'
+import { ID_BATCH, idBatches } from './id-batches'
 import { translate } from '@/lib/i18n'
 
-export const useGetOrganizations = ({ realm }: BaseQuery) => {
-  return useQuery(
-    window.tanstackApi.get('/realms/{realm_name}/organizations', {
+export type OrganizationsQuery = NonNullable<
+  Endpoints.get_List_organizations['parameters']['query']
+>
+
+export type OrganizationsFilter = Omit<OrganizationsQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const ORGANIZATION_FILTER_KEYS = ['name', 'alias', 'domain', 'enabled', 'has_domain'] as const
+
+export const ORGANIZATION_SEARCH_LIMIT = 20
+
+const SEARCH_DEBOUNCE_MS = 300
+
+export const organizationsKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/organizations', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
+
+export const useGetOrganizations = ({
+  realm,
+  query,
+  enabled = true,
+}: BaseQuery & { query?: OrganizationsQuery; enabled?: boolean }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/organizations', {
       path: { realm_name: realm ?? 'master' },
-    }).queryOptions
-  )
+      query: query ?? {},
+    }).queryOptions,
+    enabled,
+  })
+}
+
+export const useOrganizationCount = ({
+  realm,
+  filter,
+  enabled = true,
+}: BaseQuery & { filter?: OrganizationsFilter; enabled?: boolean }) => {
+  const { data, isLoading } = useGetOrganizations({
+    realm,
+    query: { ...filter, limit: 1 },
+    enabled,
+  })
+  return { count: data?.metadata.total ?? 0, isLoading }
+}
+
+const combineOrganizations = (results: UseQueryResult<Schemas.Paginated_Organization>[]) => ({
+  organizations: results.flatMap((result) => result.data?.data ?? []),
+  isLoading: results.some((result) => result.isLoading),
+  isError: results.some((result) => result.isError),
+})
+
+export const useOrganizationsByIds = ({ realm, ids }: BaseQuery & { ids: readonly string[] }) => {
+  const batches = useMemo(() => idBatches(ids), [ids])
+  return useQueries({
+    queries: batches.map((batch) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/organizations', {
+        path: { realm_name: realm ?? 'master' },
+        query: { ids: batch, limit: ID_BATCH },
+      }).queryOptions,
+    })),
+    combine: combineOrganizations,
+  })
+}
+
+export const useOrganizationSearch = ({
+  realm,
+  filter,
+  enabled = true,
+}: BaseQuery & { filter?: OrganizationsFilter; enabled?: boolean }) => {
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data, isLoading } = useGetOrganizations({
+    realm,
+    query: {
+      ...filter,
+      search: debounced || undefined,
+      order_by: 'name',
+      order: 'asc',
+      limit: ORGANIZATION_SEARCH_LIMIT,
+    },
+    enabled,
+  })
+
+  return {
+    search,
+    setSearch,
+    organizations: data?.data ?? [],
+    isLoading,
+  }
 }
 
 export const useGetOrganization = ({
@@ -28,11 +120,8 @@ export const useCreateOrganization = () => {
   return useMutation({
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/organizations').mutationOptions,
     onSuccess: async (payload, variables) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/organizations', {
-        path: { realm_name: variables.path.realm_name },
-      }).queryKey
       toast.success(translate('common:toast.organization.created', { name: payload.name }))
-      await queryClient.invalidateQueries({ queryKey: keys })
+      await queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) })
     },
   })
 }
@@ -53,7 +142,10 @@ export const useUpdateOrganization = () => {
         }
       ).queryKey
       toast.success(translate('common:toast.organization.updated', { name: payload.name }))
-      queryClient.invalidateQueries({ queryKey: keys })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys }),
+        queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) }),
+      ])
     },
   })
 }
@@ -66,11 +158,8 @@ export const useDeleteOrganization = () => {
       '/realms/{realm_name}/organizations/{organization_id}'
     ).mutationOptions,
     onSuccess: async (_, variables) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/organizations', {
-        path: { realm_name: variables.path.realm_name },
-      }).queryKey
       toast.success(translate('common:toast.organization.deleted'))
-      await queryClient.invalidateQueries({ queryKey: keys })
+      await queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) })
     },
   })
 }
@@ -210,6 +299,7 @@ export const useAddUserToOrganization = () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: userOrgsKeys }),
         queryClient.invalidateQueries({ queryKey: orgMembersKeys }),
+        queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) }),
       ])
     },
   })
@@ -230,7 +320,10 @@ export const useRemoveUserFromOrganization = () => {
         },
       }).queryKey
       toast.success(translate('common:toast.organization.user_removed'))
-      await queryClient.invalidateQueries({ queryKey: keys })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys }),
+        queryClient.invalidateQueries({ queryKey: organizationsKey(variables.path.realm_name) }),
+      ])
     },
   })
 }

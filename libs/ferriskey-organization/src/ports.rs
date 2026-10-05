@@ -2,7 +2,8 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::common::pagination::{Page, PageRequest};
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 use ferriskey_domain::realm::{Realm, RealmId};
 use ferriskey_domain::role::entities::Role;
 
@@ -14,11 +15,11 @@ use crate::entities::{
     GroupMember, GroupMemberDetail, GroupMemberPage, GroupNode, GroupRoleMapping,
     ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
     ListMemberRolesInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
-    ListOrganizationsInput, ListUserOrganizationsInput, Organization, OrganizationAttribute,
-    OrganizationId, OrganizationMember, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
-    RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput, UpdateGroupParams,
-    UpdateOrganizationInput, UpdateOrganizationParams, UpsertGroupAttributeInput,
-    UpsertOrganizationAttributeInput,
+    ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
+    OrganizationId, OrganizationMember, OrganizationSortField, RemoveGroupMemberInput,
+    RemoveOrganizationMemberInput, RevokeGroupRoleInput, RevokeMemberRoleInput, UpdateGroupInput,
+    UpdateGroupParams, UpdateOrganizationInput, UpdateOrganizationParams,
+    UpsertGroupAttributeInput, UpsertOrganizationAttributeInput,
 };
 
 /// Repository trait for Organization persistence
@@ -40,10 +41,11 @@ pub trait OrganizationRepository: Send + Sync {
         alias: &str,
     ) -> impl Future<Output = Result<Option<Organization>, CoreError>> + Send;
 
-    fn list_organizations_by_realm(
+    fn list(
         &self,
-        realm_id: RealmId,
-    ) -> impl Future<Output = Result<Vec<Organization>, CoreError>> + Send;
+        scope: &RealmScope,
+        request: &PageRequest<OrganizationFilter, OrganizationSortField>,
+    ) -> impl Future<Output = Result<Page<Organization>, CoreError>> + Send;
 
     fn update_organization(
         &self,
@@ -156,8 +158,9 @@ pub trait OrganizationService: Send + Sync {
     fn list_organizations(
         &self,
         identity: Identity,
-        input: ListOrganizationsInput,
-    ) -> impl Future<Output = Result<Vec<Organization>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<OrganizationFilter, OrganizationSortField>,
+    ) -> impl Future<Output = Result<Page<Organization>, CoreError>> + Send;
 
     fn update_organization(
         &self,
