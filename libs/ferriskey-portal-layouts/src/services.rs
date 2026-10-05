@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::entities::{PortalLayout, validate_tree};
+use crate::entities::{
+    PortalLayout, PortalLayoutFilter, PortalLayoutListItem, PortalLayoutSortField, validate_tree,
+};
 use crate::ports::{
     CreateLayoutInput, GetLayoutInput, ImportLayoutInput, ListLayoutsInput, PortalLayoutsPolicy,
     PortalLayoutsRepository, PortalLayoutsService, UpdateLayoutInput,
@@ -9,6 +11,7 @@ use ferriskey_authz::FerriskeyPolicy;
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::client::ports::ClientRepository;
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::{Page, PageRequest};
 use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped, UnscopedOption};
@@ -60,9 +63,10 @@ where
     async fn list_layouts(
         &self,
         identity: Identity,
-        input: ListLayoutsInput,
-    ) -> Result<Vec<PortalLayout>, CoreError> {
-        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        realm_name: String,
+        request: PageRequest<PortalLayoutFilter, PortalLayoutSortField>,
+    ) -> Result<Page<PortalLayoutListItem>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
             self.policy
@@ -71,9 +75,7 @@ where
             "insufficient permissions",
         )?;
 
-        self.layouts_repository
-            .list_by_realm(scope.id().into())
-            .await
+        self.layouts_repository.list(&scope, &request).await
     }
 
     async fn get_layout(
@@ -400,44 +402,61 @@ mod tests {
         repo
     }
 
+    fn list_request() -> PageRequest<PortalLayoutFilter, PortalLayoutSortField> {
+        PageRequest {
+            filter: PortalLayoutFilter {
+                name: Some("shell".to_string()),
+                is_default: Some(false),
+                in_use: Some(true),
+                ids: Some(vec![Uuid::nil()]),
+            },
+            ..PageRequest::default()
+        }
+    }
+
     #[tokio::test]
-    async fn list_layouts_forbidden_when_policy_denies() {
+    async fn list_layouts_refuses_a_caller_without_rights_before_listing() {
         let realm = test_realm();
         let user = test_user(&realm);
+        let mut layouts_repo = MockPortalLayoutsRepository::new();
+        layouts_repo.expect_list().never();
 
         let service = build_service(
             realm_repo_returning(realm.clone()),
             user_repo_returning(user.clone()),
             user_role_repo_returning(vec![empty_role(&realm)]),
-            MockPortalLayoutsRepository::new(),
+            layouts_repo,
         );
 
         let result = service
-            .list_layouts(
-                Identity::User(user),
-                ListLayoutsInput {
-                    realm_name: realm.name.clone(),
-                },
-            )
+            .list_layouts(Identity::User(user), realm.name.clone(), list_request())
             .await;
 
-        assert!(matches!(result, Err(CoreError::Forbidden(_))));
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
     }
 
     #[tokio::test]
-    async fn list_layouts_returns_repo_results_when_allowed() {
+    async fn list_layouts_pages_the_resolved_realm_with_the_request() {
         let realm = test_realm();
+        let realm_id = realm.id;
         let user = test_user(&realm);
-
+        let listed = PortalLayoutListItem {
+            layout: stored_layout(&realm, "Layout A", true),
+            theme_count: 3,
+        };
+        let expected = listed.clone();
         let mut layouts_repo = MockPortalLayoutsRepository::new();
-        let realm_for_repo = realm.clone();
-        layouts_repo.expect_list_by_realm().returning(move |_| {
-            let layouts = vec![
-                stored_layout(&realm_for_repo, "Layout A", true),
-                stored_layout(&realm_for_repo, "Layout B", false),
-            ];
-            Box::pin(async move { Ok(layouts) })
-        });
+        layouts_repo
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![listed], 4, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
 
         let service = build_service(
             realm_repo_returning(realm.clone()),
@@ -446,18 +465,13 @@ mod tests {
             layouts_repo,
         );
 
-        let result = service
-            .list_layouts(
-                Identity::User(user),
-                ListLayoutsInput {
-                    realm_name: realm.name.clone(),
-                },
-            )
+        let page = service
+            .list_layouts(Identity::User(user), realm.name.clone(), list_request())
             .await
-            .expect("list should succeed");
+            .expect("listing succeeds");
 
-        assert_eq!(result.len(), 2);
-        assert_eq!(result[0].name, "Layout A");
+        assert_eq!(page.metadata().total, 4);
+        assert_eq!(page.data(), [expected]);
     }
 
     #[tokio::test]

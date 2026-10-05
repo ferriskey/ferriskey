@@ -39,11 +39,13 @@ export function RelationSelect({
   value,
   onChange,
   label,
+  noneLabel,
 }: {
   source: RelationSource
   value: string | undefined
   onChange: (id: string | undefined) => void
   label: string
+  noneLabel?: string
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -51,7 +53,8 @@ export function RelationSelect({
   const [debounced, resetDebounced] = useDebounced(search, SEARCH_DEBOUNCE_MS)
   const { options, loading } = source.useOptions(debounced)
   const selected = source.useSelected(value)
-  const shown = value ? (selected?.label ?? value) : t('filter_bar.any')
+  const emptyLabel = noneLabel ?? t('filter_bar.any')
+  const shown = value ? (selected?.label ?? value) : emptyLabel
 
   const changeOpen = (next: boolean) => {
     setOpen(next)
@@ -96,7 +99,7 @@ export function RelationSelect({
                 className='px-1.5 py-1 text-[13px]'
                 onSelect={() => pick(undefined)}
               >
-                {t('filter_bar.any')}
+                {emptyLabel}
               </CommandItem>
               {options.map((option) => (
                 <CommandItem

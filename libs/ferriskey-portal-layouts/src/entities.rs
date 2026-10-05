@@ -24,6 +24,30 @@ impl RealmOwned for PortalLayout {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct PortalLayoutListItem {
+    #[serde(flatten)]
+    pub layout: PortalLayout,
+    pub theme_count: u64,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PortalLayoutFilter {
+    pub name: Option<String>,
+    pub is_default: Option<bool>,
+    pub in_use: Option<bool>,
+    pub ids: Option<Vec<Uuid>>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PortalLayoutSortField {
+    Name,
+    #[default]
+    CreatedAt,
+    UpdatedAt,
+}
+
 /// Checks that a layout tree is a well-formed builder tree before it is stored.
 ///
 /// The builder itself only ever produces valid trees, so this exists for

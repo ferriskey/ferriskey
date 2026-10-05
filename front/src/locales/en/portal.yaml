@@ -148,8 +148,17 @@ layouts:
   section:
     title: Layouts
     description: 'The page structure a theme reuses: where the card, the visual and the footer sit.'
-  empty: >-
-    No layout yet. A theme without a layout renders its pages bare, which is a valid composition.
+  empty:
+    label: No layout yet
+    hint: A theme without a layout renders its pages bare, which is a valid composition.
+  filters:
+    name: Name
+    is_default: Default
+    in_use: Attached to a theme
+  columns:
+    name: Name
+    updated_at: Updated
+    created_at: Created
   metrics:
     total:
       label: Layouts
@@ -224,7 +233,7 @@ detail:
       label: Portal layout
       description: Optional. Without a layout the portal renders the page tree on its own.
     option_none: No layout — render the page bare
-    option_default: '{{name}} · default'
+    default: default
     locked: While this theme uses it, “{{name}}” cannot be deleted.
     detaching: >-
       Saving detaches “{{name}}” from this theme; it becomes deletable unless another theme holds
