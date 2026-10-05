@@ -4,6 +4,7 @@ import { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type EmailTemplatesQuery = NonNullable<
   Endpoints.get_Fetch_templates['parameters']['query']
@@ -14,7 +15,12 @@ export type EmailTemplatesFilter = Omit<
   'page' | 'limit' | 'order' | 'order_by'
 >
 
-export const EMAIL_TEMPLATE_FILTER_KEYS = ['name', 'email_type'] as const
+export const EMAIL_TEMPLATE_FILTER_KEYS = [
+  'search',
+  'email_type',
+  'created_from',
+  'created_to',
+] as const
 
 export const EMAIL_TEMPLATE_SEARCH_LIMIT = 20
 
@@ -27,13 +33,15 @@ export const emailTemplatesKey = (realm: string) =>
 export const useGetEmailTemplates = ({
   realm = 'master',
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: EmailTemplatesQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: EmailTemplatesQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/email-templates', {
       path: { realm_name: realm },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: enabled && !!realm,
   })
 }

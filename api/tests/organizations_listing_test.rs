@@ -30,6 +30,7 @@ mod tests {
         name: String,
         alias: String,
         domain: Option<String>,
+        description: Option<String>,
         enabled: bool,
         member: bool,
         created_minute: i32,
@@ -43,11 +44,18 @@ mod tests {
                 n if n % 2 == 0 => Some(format!("d{n}.example.org")),
                 n => Some(format!("d{n}.corp.test")),
             };
+            let description = match i % 4 {
+                0 => None,
+                1 => Some(format!("Sales team {i:02}")),
+                2 => Some(format!("Support 100% remote {i:02}")),
+                _ => Some(format!("support_desk {i:02}")),
+            };
             Self {
                 id: Uuid::new_v4(),
                 name: format!("org-{:02}", i / 2),
                 alias: format!("alias-{:02}", (i * 7) % SEED_COUNT),
                 domain,
+                description,
                 enabled: !i.is_multiple_of(4),
                 member: i.is_multiple_of(3),
                 created_minute: i32::try_from(i / 3).expect("small index"),
@@ -283,10 +291,10 @@ mod tests {
 
     async fn insert_organization(pool: &PgPool, realm_id: Uuid, seed: &Seed) {
         sqlx::query(
-            "INSERT INTO organizations (id, realm_id, name, alias, domain, enabled, created_at, updated_at) \
-             VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $7), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $8))",
+            "INSERT INTO organizations (id, realm_id, name, alias, domain, description, enabled, created_at, updated_at) \
+             VALUES ($1::uuid, $2::uuid, $3, $4, $5, $9, $6, \
+             TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $7), \
+             TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $8))",
         )
         .bind(seed.id.to_string())
         .bind(realm_id.to_string())
@@ -296,6 +304,7 @@ mod tests {
         .bind(seed.enabled)
         .bind(seed.created_minute)
         .bind(seed.updated_minute)
+        .bind(seed.description.as_deref())
         .execute(pool)
         .await
         .expect("insert organization");
@@ -563,6 +572,23 @@ mod tests {
             .collect()
     }
 
+    fn description_contains(seed: &Seed, needle: &str) -> bool {
+        seed.description
+            .as_deref()
+            .is_some_and(|description| description.to_lowercase().contains(needle))
+    }
+
+    fn created_at(minute: i32) -> String {
+        format!("2026-01-01T00:{minute:02}:00Z")
+    }
+
+    fn created_within(from: Option<i32>, to: Option<i32>) -> HashSet<Uuid> {
+        matching(|s| {
+            from.is_none_or(|from| s.created_minute >= from)
+                && to.is_none_or(|to| s.created_minute < to)
+        })
+    }
+
     fn domain_contains(seed: &Seed, needle: &str) -> bool {
         seed.domain
             .as_deref()
@@ -665,6 +691,22 @@ mod tests {
                 matching(|s| !s.member),
             ),
             (
+                "description=SUPPORT".to_string(),
+                matching(|s| description_contains(s, "support")),
+            ),
+            (
+                "description=team".to_string(),
+                matching(|s| description_contains(s, "team")),
+            ),
+            (
+                "description=e".to_string(),
+                matching(|s| s.description.is_some()),
+            ),
+            (
+                "description=support&enabled=true".to_string(),
+                matching(|s| description_contains(s, "support") && s.enabled),
+            ),
+            (
                 "name=org-1&enabled=true".to_string(),
                 matching(|s| s.name.contains("org-1") && s.enabled),
             ),
@@ -704,6 +746,38 @@ mod tests {
             let found: HashSet<Uuid> = ids(&body).into_iter().collect();
             assert!(found.contains(&by_name_only.id));
             assert!(found.contains(&by_alias_only.id));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
+    fn search_matches_the_domain_and_the_description() {
+        let server = make_server();
+        let cases: Vec<(&str, HashSet<Uuid>)> = vec![
+            ("search=CORP", matching(|s| domain_contains(s, "corp"))),
+            (
+                "search=example",
+                matching(|s| domain_contains(s, "example")),
+            ),
+            (
+                "search=SUPPORT",
+                matching(|s| description_contains(s, "support")),
+            ),
+            ("search=team", matching(|s| description_contains(s, "team"))),
+            ("search=%20", matching(|s| s.description.is_some())),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
         });
     }
 
@@ -914,6 +988,11 @@ mod tests {
                 ("without_member=not-a-uuid", "without_member"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
+                ("description=a&description=b", "description"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());
@@ -923,6 +1002,143 @@ mod tests {
                     response.text()
                 );
             }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
+    fn description_matches_literally_and_never_matches_a_missing_description() {
+        let server = make_server();
+        rt().block_on(async {
+            let percent = list_ok(&server, &ctx().realm, "description=%25&limit=100").await;
+            let expected = matching(|s| description_contains(s, "%"));
+            assert!(!expected.is_empty() && expected.len() < SEED_COUNT);
+            assert_eq!(ids(&percent).into_iter().collect::<HashSet<_>>(), expected);
+            assert_eq!(total(&percent), expected.len() as u64);
+
+            let underscore = list_ok(&server, &ctx().realm, "description=_&limit=100").await;
+            let expected = matching(|s| description_contains(s, "_"));
+            assert_eq!(
+                ids(&underscore).into_iter().collect::<HashSet<_>>(),
+                expected
+            );
+            assert_eq!(total(&underscore), expected.len() as u64);
+
+            let backslash = list_ok(&server, &ctx().realm, "description=%5C").await;
+            assert_eq!(total(&backslash), 0, "{backslash}");
+
+            let missing = matching(|s| s.description.is_none());
+            assert!(!missing.is_empty());
+            let any = list_ok(&server, &ctx().realm, "description=%20&limit=100").await;
+            let found: HashSet<Uuid> = ids(&any).into_iter().collect();
+            assert!(found.is_disjoint(&missing), "{any}");
+            assert_eq!(total(&any), (SEED_COUNT - missing.len()) as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
+    fn search_matches_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let realm = &ctx().other_realm;
+            let percent = list_ok(&server, realm, "search=%25").await;
+            assert_eq!(names(&percent), ["pct%org"]);
+            assert_eq!(total(&percent), 1);
+
+            let underscore = list_ok(&server, realm, "search=_").await;
+            assert_eq!(names(&underscore), ["under_score"]);
+            assert_eq!(total(&underscore), 1);
+
+            let backslash = list_ok(&server, realm, "search=%5C").await;
+            assert_eq!(names(&backslash), ["back\\slash"]);
+            assert_eq!(total(&backslash), 1);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("created_from={}", created_at(5)),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}", created_at(2)),
+                created_within(None, Some(2)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(2),
+                    created_at(5)
+                ),
+                created_within(Some(2), Some(5)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(3),
+                    created_at(4)
+                ),
+                created_within(Some(3), Some(4)),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00".to_string(),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}&search=-1", created_at(4)),
+                matching(|s| {
+                    s.created_minute < 4 && (s.name.contains("-1") || s.alias.contains("-1"))
+                }),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let at_bound = matching(|s| s.created_minute == 4);
+            assert!(!at_bound.is_empty());
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("created_to={}&limit=100", created_at(4)),
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(found.is_disjoint(&at_bound), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organizations_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!(
+                    "created_from={}&created_to={}",
+                    created_at(5),
+                    created_at(2)
+                ),
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
         });
     }
 }

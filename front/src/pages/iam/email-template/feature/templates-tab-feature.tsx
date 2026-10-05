@@ -29,6 +29,7 @@ export default function TemplatesTabFeature() {
   const { data: templatesResponse, isLoading } = useGetEmailTemplates({
     realm,
     query: listing.apiQuery as EmailTemplatesQuery,
+    keepPrevious: true,
   })
   const total = useEmailTemplateCount({ realm })
   const resetPassword = useEmailTemplateCount({ realm, filter: { email_type: 'reset_password' } })

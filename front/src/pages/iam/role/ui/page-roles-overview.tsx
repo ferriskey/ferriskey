@@ -5,7 +5,6 @@ import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
@@ -41,6 +40,9 @@ export interface PageRolesOverviewProps {
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
+const YES = 'true'
+const REALM_SCOPE = 'realm'
+const CLIENT_SCOPE = 'client'
 
 const isClientRole = (role: Role) => Boolean(role.client_id)
 
@@ -83,6 +85,23 @@ export default function PageRolesOverview({
           {t(roleScopeLabelKey(isClientRole(r)))}
         </Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'scope',
+          label: t('list.filter_fields.scope'),
+          options: [
+            { value: REALM_SCOPE, label: t('list.filters.realm') },
+            { value: CLIENT_SCOPE, label: t('list.filters.client') },
+          ],
+        },
+        {
+          kind: 'relation',
+          key: 'client_id',
+          label: t('list.filter_fields.client'),
+          relation: clientRelationSource,
+        },
+      ],
     },
     {
       key: 'permissions',
@@ -94,6 +113,14 @@ export default function PageRolesOverview({
         ) : (
           <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         ),
+      filters: [
+        {
+          kind: 'boolean',
+          key: 'has_permissions',
+          label: t('list.filter_fields.has_permissions'),
+        },
+        { kind: 'boolean', key: 'require_mfa', label: t('list.filter_fields.require_mfa') },
+      ],
     },
     {
       key: 'created',
@@ -104,6 +131,14 @@ export default function PageRolesOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -114,32 +149,6 @@ export default function PageRolesOverview({
         </span>
       ),
       sortKey: 'updated_at',
-    },
-  ]
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
-    { kind: 'text', key: 'description', label: t('list.filter_fields.description') },
-    { kind: 'boolean', key: 'require_mfa', label: t('list.filter_fields.require_mfa') },
-    {
-      kind: 'enum',
-      key: 'scope',
-      label: t('list.filter_fields.scope'),
-      options: [
-        { value: 'realm', label: t('list.filters.realm') },
-        { value: 'client', label: t('list.filters.client') },
-      ],
-    },
-    {
-      kind: 'boolean',
-      key: 'has_permissions',
-      label: t('list.filter_fields.has_permissions'),
-    },
-    {
-      kind: 'relation',
-      key: 'client_id',
-      label: t('list.filter_fields.client'),
-      relation: clientRelationSource,
     },
   ]
 
@@ -198,6 +207,7 @@ export default function PageRolesOverview({
           hint: t('list.metrics.total.hint'),
           series: [counts.total, counts.total],
           tone: 'info',
+          filter: {},
         },
         {
           key: 'realm',
@@ -211,6 +221,7 @@ export default function PageRolesOverview({
               : t('list.metrics.realm.empty_hint'),
           series: [counts.realm, counts.realm],
           tone: 'info',
+          filter: { scope: REALM_SCOPE },
         },
         {
           key: 'client',
@@ -219,6 +230,7 @@ export default function PageRolesOverview({
           hint: t('list.metrics.client.hint'),
           series: [counts.client, counts.client],
           tone: 'violet',
+          filter: { scope: CLIENT_SCOPE },
         },
         {
           key: 'granting',
@@ -227,6 +239,7 @@ export default function PageRolesOverview({
           hint: t('list.metrics.granting.hint'),
           series: [counts.granting, counts.granting],
           tone: 'success',
+          filter: { has_permissions: YES },
         },
       ]}
       alerts={
@@ -245,7 +258,7 @@ export default function PageRolesOverview({
             ]
           : []
       }
-      paged={{ listing, pagination, filterFields }}
+      paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
       rows={roles}
       columns={columns}
       card={card}

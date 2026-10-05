@@ -5,6 +5,7 @@ import type { Endpoints } from './api.client'
 import { toast } from 'sonner'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 type ProtocolMapperQuery = BaseQuery & { scopeId: string }
 
@@ -15,11 +16,12 @@ export type ClientScopesQuery = NonNullable<
 export type ClientScopesFilter = Omit<ClientScopesQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const CLIENT_SCOPE_FILTER_KEYS = [
-  'name',
-  'description',
+  'search',
   'protocol',
   'default_scope_type',
   'has_protocol_mappers',
+  'created_from',
+  'created_to',
 ] as const
 
 export const CLIENT_SCOPE_SEARCH_LIMIT = 20
@@ -35,8 +37,9 @@ export const clientScopesKey = (realm: string) =>
 export const useGetClientScopes = ({
   realm = 'master',
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: ClientScopesQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: ClientScopesQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/client-scopes', {
       path: {
@@ -44,6 +47,7 @@ export const useGetClientScopes = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }

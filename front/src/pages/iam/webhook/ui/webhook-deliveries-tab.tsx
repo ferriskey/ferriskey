@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -6,12 +6,11 @@ import {
   Button,
   Column,
   DataView,
-  FilterBar,
+  ListingToolbar,
   PaginationBar,
   Pill,
   Section,
   usePagedListing,
-  type FilterField,
   type ViewMode,
 } from '@/components/kit'
 import {
@@ -38,7 +37,6 @@ import { DELIVERY_STATUSES, describeDeliveryStatus, isReplayable } from '../webh
 import DeliverySummary = Schemas.DeliverySummary
 
 const DELIVERY_VIEW: ViewMode = 'list'
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const EVENT_OPTIONS = (Object.keys(catalogedTriggers) as Schemas.WebhookTrigger[])
   .sort()
   .map((event) => ({ value: event, label: event }))
@@ -52,15 +50,6 @@ function outcomeOf(delivery: DeliverySummary): string {
   if (delivery.last_status_code) return `HTTP ${delivery.last_status_code}`
   if (delivery.last_error_code) return delivery.last_error_code
   return '—'
-}
-
-function deliveriesQuery(apiQuery: Record<string, string | number>): WebhookDeliveriesQuery {
-  const { resource_id: resourceId, ...rest } = apiQuery
-  const query = rest as WebhookDeliveriesQuery
-  if (typeof resourceId === 'string' && UUID_PATTERN.test(resourceId.trim())) {
-    return { ...query, resource_id: resourceId.trim() }
-  }
-  return query
 }
 
 function TimestampCell({ value }: { value?: string | null }) {
@@ -82,8 +71,12 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   const listing = usePagedListing(DELIVERY_FILTER_KEYS)
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
 
-  const query = useMemo(() => deliveriesQuery(listing.apiQuery), [listing.apiQuery])
-  const { data, isLoading, isError } = useGetWebhookDeliveries({ realm, webhookId, query })
+  const { data, isLoading, isError } = useGetWebhookDeliveries({
+    realm,
+    webhookId,
+    query: listing.apiQuery as WebhookDeliveriesQuery,
+    keepPrevious: true,
+  })
   const { count: failedTotal } = useWebhookDeliveryCount({
     realm,
     webhookId,
@@ -106,29 +99,6 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     const descriptor = describeDeliveryStatus(value)
     return { tone: descriptor.tone, label: descriptor.labelKey ? t(descriptor.labelKey) : value }
   }
-
-  const filterFields: FilterField[] = [
-    {
-      kind: 'enum',
-      key: 'status',
-      label: t('delivery.filter_fields.status'),
-      options: DELIVERY_STATUSES.map((status) => ({
-        value: status,
-        label: statusOf(status).label,
-      })),
-    },
-    {
-      kind: 'enum',
-      key: 'event',
-      label: t('delivery.filter_fields.event'),
-      options: EVENT_OPTIONS,
-    },
-    {
-      kind: 'text',
-      key: 'resource_id',
-      label: t('delivery.filter_fields.resource_id'),
-    },
-  ]
 
   const onRetry = (delivery: DeliverySummary) => {
     retryDelivery(
@@ -161,6 +131,17 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
         )
       },
       sortKey: 'status',
+      filters: [
+        {
+          kind: 'enum',
+          key: 'status',
+          label: t('delivery.filter_fields.status'),
+          options: DELIVERY_STATUSES.map((status) => ({
+            value: status,
+            label: statusOf(status).label,
+          })),
+        },
+      ],
     },
     {
       key: 'event',
@@ -170,6 +151,14 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
           {delivery.event}
         </span>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'event',
+          label: t('delivery.filter_fields.event'),
+          options: EVENT_OPTIONS,
+        },
+      ],
     },
     {
       key: 'attempts',
@@ -206,6 +195,14 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
       align: 'right',
       render: (delivery) => <TimestampCell value={delivery.created_at} />,
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('delivery.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'actions',
@@ -235,9 +232,12 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   return (
     <>
       <Section title={t('delivery.title')} description={t('delivery.description')} contained={false}>
-        <div className='mb-3 flex'>
-          <FilterBar fields={filterFields} listing={listing} />
-        </div>
+        <ListingToolbar
+          listing={listing}
+          columns={columns}
+          search={{ placeholder: t('delivery.search_placeholder') }}
+          className='mb-3'
+        />
         {isError ? (
           <div className='rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5 text-sm text-fk-danger'>
             {t('delivery.error')}
@@ -262,6 +262,7 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
             getKey={(delivery) => delivery.id}
             view={DELIVERY_VIEW}
             loading={isLoading}
+            listing={listing}
             sort={listing.state.sort}
             onSortChange={listing.setSort}
             aggregates={

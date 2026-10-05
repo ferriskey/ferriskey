@@ -19,7 +19,7 @@ use crate::domain::common::generate_uuid_v7;
 use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::entity::{client_scope_mappings, client_scope_protocol_mappers, client_scopes};
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within_naive};
 
 impl SortColumn<client_scopes::Entity> for ClientScopeSortField {
     fn column(&self) -> client_scopes::Column {
@@ -34,6 +34,10 @@ impl SortColumn<client_scopes::Entity> for ClientScopeSortField {
 fn listing_select(realm_id: Uuid, filter: &ClientScopeFilter) -> Select<client_scopes::Entity> {
     client_scopes::Entity::find()
         .filter(client_scopes::Column::RealmId.eq(realm_id))
+        .filter(within_naive(
+            client_scopes::Column::CreatedAt,
+            &filter.created,
+        ))
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(client_scopes::Column::Name, value))
         })
@@ -287,16 +291,44 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
     use crate::domain::aegis::entities::{ClientScopeFilter, ScopeType};
+    use crate::domain::common::pagination::DateRange;
 
     fn sql(filter: &ClientScopeFilter) -> String {
         listing_select(Uuid::nil(), filter)
             .build(DbBackend::Postgres)
             .to_string()
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&ClientScopeFilter::default());
+        assert!(!sql.contains(r#""client_scopes"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""client_scopes"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&ClientScopeFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..ClientScopeFilter::default()
+        });
+        assert!(
+            sql.contains(r#""client_scopes"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""client_scopes"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
     }
 
     #[test]

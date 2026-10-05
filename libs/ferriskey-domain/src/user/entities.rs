@@ -6,6 +6,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::common::pagination::DateRange;
 use crate::generate_uuid_v7;
 use crate::realm::scope::RealmOwned;
 use crate::realm::{Realm, RealmId};
@@ -60,6 +61,7 @@ impl RealmOwned for User {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UserFilter {
+    pub search: Option<String>,
     pub username: Option<String>,
     pub email: Option<String>,
     pub firstname: Option<String>,
@@ -71,6 +73,7 @@ pub struct UserFilter {
     pub ids: Option<Vec<Uuid>>,
     pub not_in_group: Option<Uuid>,
     pub not_in_organization: Option<Uuid>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

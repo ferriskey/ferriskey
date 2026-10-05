@@ -24,7 +24,9 @@ use crate::domain::{
     },
 };
 use crate::entity::{clients, roles};
-use crate::infrastructure::pagination::{SortColumn, contains, escape_like, paginate};
+use crate::infrastructure::pagination::{
+    SortColumn, contains, escape_like, paginate, within_naive,
+};
 
 impl SortColumn<roles::Entity> for RoleSortField {
     fn column(&self) -> roles::Column {
@@ -96,6 +98,7 @@ fn qualified_name_equals(realm_id: Uuid, value: &str) -> Condition {
 fn search_condition(realm_id: Uuid, value: &str) -> Condition {
     Condition::any()
         .add(contains(roles::Column::Name, value))
+        .add(contains(roles::Column::Description, value))
         .add(client_identifier_contains(realm_id, value))
         .add(qualified_value_contains(realm_id, value))
 }
@@ -103,6 +106,7 @@ fn search_condition(realm_id: Uuid, value: &str) -> Condition {
 fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> {
     roles::Entity::find()
         .filter(roles::Column::RealmId.eq(realm_id))
+        .filter(within_naive(roles::Column::CreatedAt, &filter.created))
         .apply_if(filter.search.as_deref(), |select, value| {
             select.filter(search_condition(realm_id, value))
         })
@@ -349,16 +353,44 @@ impl RoleRepository for PostgresRoleRepository {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::role::entities::{RoleFilter, RoleScope};
 
     fn sql(filter: &RoleFilter) -> String {
         listing_select(Uuid::nil(), filter)
             .build(DbBackend::Postgres)
             .to_string()
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&RoleFilter::default());
+        assert!(!sql.contains(r#""roles"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""roles"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&RoleFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..RoleFilter::default()
+        });
+        assert!(
+            sql.contains(r#""roles"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""roles"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
     }
 
     #[test]
@@ -461,13 +493,13 @@ mod tests {
     }
 
     #[test]
-    fn search_matches_the_name_or_the_client_identifier() {
+    fn search_matches_the_name_the_description_or_the_client_identifier() {
         let sql = sql(&RoleFilter {
             search: Some("app%".to_string()),
             ..RoleFilter::default()
         });
         assert!(
-            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#),
+            sql.contains(r#"AND (("roles"."name" ILIKE E'%app\\%%') OR ("roles"."description" ILIKE E'%app\\%%') OR "roles"."client_id" IN (SELECT "clients"."id" FROM "clients" WHERE "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" ILIKE E'%app\\%%')) OR EXISTS("#),
             "{sql}"
         );
     }
@@ -482,6 +514,6 @@ mod tests {
             sql.contains(r#"OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND (("clients"."client_id" || '.' || "roles"."name") ILIKE E'%app-web.ns.adm\\_%')))"#),
             "{sql}"
         );
-        assert_eq!(sql.matches("ILIKE").count(), 3, "{sql}");
+        assert_eq!(sql.matches("ILIKE").count(), 4, "{sql}");
     }
 }

@@ -1,5 +1,6 @@
 use std::num::NonZeroU32;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -165,9 +166,31 @@ impl<T> Page<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DateRange {
+    pub from: Option<DateTime<Utc>>,
+    pub to: Option<DateTime<Utc>>,
+}
+
+impl DateRange {
+    pub fn new(from: Option<DateTime<Utc>>, to: Option<DateTime<Utc>>) -> Self {
+        Self { from, to }
+    }
+
+    pub fn is_unbounded(&self) -> bool {
+        self.from.is_none() && self.to.is_none()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn date_range_is_unbounded_without_bounds() {
+        assert!(DateRange::default().is_unbounded());
+        assert!(!DateRange::new(Some(Utc::now()), None).is_unbounded());
+    }
 
     fn page(n: u32) -> PageNumber {
         PageNumber::try_from(n).expect("valid page")

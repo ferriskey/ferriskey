@@ -76,6 +76,17 @@ mod tests {
         Some(format!("mail{:02}{tag}@{domain}", (i * 7) % SEED_COUNT))
     }
 
+    fn created_at(minute: i32) -> String {
+        format!("2026-01-01T00:{minute:02}:00Z")
+    }
+
+    fn created_within(from: Option<i32>, to: Option<i32>) -> HashSet<Uuid> {
+        matching(|s| {
+            from.is_none_or(|from| s.created_minute >= from)
+                && to.is_none_or(|to| s.created_minute < to)
+        })
+    }
+
     fn email_has(seed: &Seed, needle: &str) -> bool {
         seed.email
             .as_deref()
@@ -229,7 +240,7 @@ mod tests {
             sqlx::query(
                 "INSERT INTO organization_group_members (id, group_id, user_id, created_at) \
                  VALUES ($1::uuid, $2::uuid, $3::uuid, \
-                 TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $4))",
+                 TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $4))",
             )
             .bind(seed.id.to_string())
             .bind(group_id.to_string())
@@ -768,6 +779,19 @@ mod tests {
                 "username=member-2&email=example",
                 matching(|s| s.username.contains("member-2") && email_has(s, "example")),
             ),
+            (
+                "search=MEMBER-1",
+                matching(|s| s.username.contains("member-1")),
+            ),
+            ("search=CORP", matching(|s| email_has(s, "corp"))),
+            (
+                "search=1",
+                matching(|s| s.username.contains('1') || email_has(s, "1")),
+            ),
+            (
+                "search=example&enabled=true",
+                matching(|s| email_has(s, "example") && s.enabled),
+            ),
             ("username=", matching(|_| true)),
         ];
 
@@ -1047,7 +1071,10 @@ mod tests {
                 ("limit=0", "limit"),
                 ("order_by=firstname", "order_by"),
                 ("unknown=1", "unknown"),
-                ("search=member", "search"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
                 ("offset=0", "offset"),
                 ("enabled=maybe", "enabled"),
                 ("username=a&username=b", "username"),
@@ -1068,6 +1095,124 @@ mod tests {
                     response.text()
                 );
             }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test group_members_listing_test -- --ignored"]
+    fn search_matches_a_member_without_email_by_username_only() {
+        let server = make_server();
+        rt().block_on(async {
+            let seed = &ctx().seeds[NULL_EMAIL_SEED];
+            let body = list_main(&server, &format!("search={}", seed.username)).await;
+            assert_eq!(ids(&body), [seed.id]);
+            assert_eq!(total(&body), 1);
+
+            let body = list_main(&server, "search=%40&limit=100").await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(!found.contains(&seed.id), "{body}");
+            assert_eq!(total(&body), (SEED_COUNT - 1) as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test group_members_listing_test -- --ignored"]
+    fn search_matches_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let percent = list_foreign(&server, "search=%25").await;
+            assert_eq!(usernames(&percent), ["pct%user"]);
+            assert_eq!(total(&percent), 1);
+
+            let underscore = list_foreign(&server, "search=_").await;
+            assert_eq!(usernames(&underscore), ["under_score"]);
+            assert_eq!(total(&underscore), 1);
+
+            let backslash = list_foreign(&server, "search=%5C").await;
+            assert_eq!(usernames(&backslash), ["back\\slash"]);
+            assert_eq!(total(&backslash), 1);
+
+            let email_percent = list_main(&server, "search=%25").await;
+            assert_eq!(ids(&email_percent), [ctx().seeds[PERCENT_EMAIL_SEED].id]);
+            assert_eq!(total(&email_percent), 1);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test group_members_listing_test -- --ignored"]
+    fn created_range_bounds_the_membership_date() {
+        let server = make_server();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("created_from={}", created_at(5)),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}", created_at(2)),
+                created_within(None, Some(2)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(2),
+                    created_at(5)
+                ),
+                created_within(Some(2), Some(5)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(3),
+                    created_at(4)
+                ),
+                created_within(Some(3), Some(4)),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00".to_string(),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}&search=corp", created_at(4)),
+                matching(|s| s.created_minute < 4 && email_has(s, "corp")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_main(&server, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let at_bound = matching(|s| s.created_minute == 4);
+            assert!(!at_bound.is_empty());
+            let body = list_main(&server, &format!("created_to={}&limit=100", created_at(4))).await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(found.is_disjoint(&at_bound), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test group_members_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_main(
+                &server,
+                &format!(
+                    "created_from={}&created_to={}",
+                    created_at(5),
+                    created_at(2)
+                ),
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
         });
     }
 }

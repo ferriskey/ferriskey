@@ -12,6 +12,7 @@ import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type PortalLayoutsQuery = NonNullable<
   Endpoints.get_List_layouts['parameters']['query']
@@ -19,7 +20,13 @@ export type PortalLayoutsQuery = NonNullable<
 
 export type PortalLayoutsFilter = Omit<PortalLayoutsQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
-export const PORTAL_LAYOUT_FILTER_KEYS = ['name', 'is_default', 'in_use'] as const
+export const PORTAL_LAYOUT_FILTER_KEYS = [
+  'search',
+  'is_default',
+  'in_use',
+  'created_from',
+  'created_to',
+] as const
 
 export const PORTAL_LAYOUT_SEARCH_LIMIT = 20
 
@@ -32,13 +39,15 @@ export const portalLayoutsKey = (realm: string) =>
 export const useGetPortalLayouts = ({
   realm = 'master',
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: PortalLayoutsQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: PortalLayoutsQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/portal-layouts', {
       path: { realm_name: realm },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: enabled && !!realm,
   })
 }

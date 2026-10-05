@@ -8,6 +8,7 @@ import { eventRoleIds } from '@/hooks/event-role-ids'
 import { eventClientIds } from '@/hooks/event-client-ids'
 import { detailString } from '../ui/event-journal'
 import { useEventJournal } from './use-event-journal'
+import { MESSAGES_JOURNAL_FILTER_KEYS } from './journal-filter-keys'
 import { useWindowCount, useWindowEvents } from './use-window-events'
 import PageMessages from '../ui/page-messages'
 
@@ -23,7 +24,7 @@ export default function PageMessagesFeature() {
     useWindowEvents(realm, EMAIL_EVENTS)
   const delivered = useWindowCount(realm, range, { event_types: 'email_sent' })
   const failed = useWindowCount(realm, range, { event_types: 'email_not_sent' })
-  const journal = useEventJournal(realm, EMAIL_EVENTS)
+  const journal = useEventJournal(realm, EMAIL_EVENTS, MESSAGES_JOURNAL_FILTER_KEYS)
   const known = useMemo(() => [...events, ...journal.events], [events, journal.events])
   const userIds = useMemo(
     () => [

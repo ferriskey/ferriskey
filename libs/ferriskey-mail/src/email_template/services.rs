@@ -536,6 +536,7 @@ mod tests {
             filter: EmailTemplateFilter {
                 name: Some("welcome".to_string()),
                 email_type: Some(EmailType::MagicLink),
+                ..EmailTemplateFilter::default()
             },
             ..PageRequest::default()
         }

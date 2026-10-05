@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::generate_timestamp;
 
 use crate::entities::retry_policy::RetryPolicyOverride;
@@ -74,11 +75,13 @@ impl Webhook {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WebhookFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub endpoint: Option<String>,
     pub triggered: Option<bool>,
     pub has_subscribers: Option<bool>,
     pub secure_endpoint: Option<bool>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

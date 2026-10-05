@@ -10,7 +10,14 @@ import User = Schemas.User
 
 const IDENTITIES: UsersFilter = { service_account: false }
 
-const IDENTITY_FILTER_KEYS = ['username', 'email', 'enabled', 'email_verified'] as const
+const IDENTITY_FILTER_KEYS = [
+  'search',
+  'enabled',
+  'email_verified',
+  'role_id',
+  'created_from',
+  'created_to',
+] as const
 
 export default function PageIdentitiesFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -21,6 +28,7 @@ export default function PageIdentitiesFeature() {
   const { data: usersResponse, isLoading } = useGetUsers({
     realm,
     query: { ...(listing.apiQuery as UsersQuery), ...IDENTITIES },
+    keepPrevious: true,
   })
 
   const total = useUserCount({ realm, filter: IDENTITIES })

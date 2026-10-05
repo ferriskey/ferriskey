@@ -81,6 +81,7 @@ list:
   description: 联合到此域的外部认证源。
   add: 添加提供商
   row_delete: '删除 {{name}}'
+  search_placeholder: 按别名或显示名称搜索…
   columns:
     provider: 提供商
     alias: 别名
@@ -115,11 +116,10 @@ list:
       detail_other: '{{names}} — 大多数提供商会拒绝没有作用域的授权请求。'
       action: 检查
   filter_fields:
-    alias: 别名
-    display_name: 显示名称
     provider_id: 类型
     enabled: 已启用
     health: 配置
+    created: 创建时间
     health_values:
       healthy: 完整
       degraded: 无作用域

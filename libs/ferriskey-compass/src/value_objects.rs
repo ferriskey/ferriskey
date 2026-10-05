@@ -7,6 +7,7 @@ use crate::entities::{FlowStatus, StepStatus};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FlowFilter {
+    pub search: Option<String>,
     pub client_id: Option<String>,
     pub user_id: Option<Uuid>,
     pub grant_type: Option<String>,

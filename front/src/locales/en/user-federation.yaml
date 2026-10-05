@@ -34,6 +34,7 @@ list:
   title: User Federation
   description: External directories whose accounts are imported into this realm.
   create: Add provider
+  search_placeholder: Search by name…
   count_one: '{{count}} provider'
   count_other: '{{count}} providers'
   no_endpoint: no endpoint
@@ -81,7 +82,6 @@ list:
       detail: '{{names}} — no account imported so far.'
       action: Review
   filter_fields:
-    name: Name
     provider_type: Type
     provider_family: Family
     provider_family_values:
@@ -90,6 +90,8 @@ list:
     enabled: Enabled
     sync_enabled: Scheduled sync
     synced: Synchronised at least once
+    sync_mode: Sync mode
+    created: Created
   aggregates:
     # Footer total, never inflected — it always reads as a raw count of enabled providers.
     status: '{{total}} enabled'

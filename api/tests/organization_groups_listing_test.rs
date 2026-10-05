@@ -292,8 +292,8 @@ mod tests {
         sqlx::query(
             "INSERT INTO organization_groups (id, organization_id, parent_group_id, name, description, created_at, updated_at) \
              VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $6), \
-             TIMESTAMP '2026-01-01 00:00:00' + make_interval(mins => $7))",
+             TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $6), \
+             TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $7))",
         )
         .bind(seed.id.to_string())
         .bind(organization_id.to_string())
@@ -565,6 +565,17 @@ mod tests {
             .is_some_and(|description| description.to_lowercase().contains(needle))
     }
 
+    fn created_at(minute: i32) -> String {
+        format!("2026-01-01T00:{minute:02}:00Z")
+    }
+
+    fn created_within(from: Option<i32>, to: Option<i32>) -> HashSet<Uuid> {
+        matching(|s| {
+            from.is_none_or(|from| s.created_minute >= from)
+                && to.is_none_or(|to| s.created_minute < to)
+        })
+    }
+
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
     fn no_params_returns_the_first_twenty_newest_groups() {
@@ -661,6 +672,22 @@ mod tests {
             (
                 format!("is_root=false&parent_group_id={root_a}"),
                 matching(|s| s.parent == Some(0)),
+            ),
+            (
+                "search=GRP-1".to_string(),
+                matching(|s| s.name.contains("grp-1")),
+            ),
+            (
+                "search=DESK".to_string(),
+                matching(|s| description_contains(s, "desk")),
+            ),
+            (
+                "search=1".to_string(),
+                matching(|s| s.name.contains('1') || description_contains(s, "1")),
+            ),
+            (
+                format!("search=team&parent_group_id={root_a}"),
+                matching(|s| description_contains(s, "team") && s.parent == Some(0)),
             ),
             ("name=".to_string(), matching(|_| true)),
         ];
@@ -960,6 +987,10 @@ mod tests {
                 ("parent_group_id=not-a-uuid", "parent_group_id"),
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
                 (
                     "is_root=true&parent_group_id=00000000-0000-0000-0000-000000000001",
                     "is_root",
@@ -980,6 +1011,127 @@ mod tests {
                     response.text()
                 );
             }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
+    fn search_never_matches_a_missing_description() {
+        let server = make_server();
+        let missing: Vec<&Seed> = ctx()
+            .seeds
+            .iter()
+            .filter(|s| s.description.is_none())
+            .collect();
+        assert!(!missing.is_empty());
+        rt().block_on(async {
+            let body = list_main(&server, "search=%20&limit=100").await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(missing.iter().all(|s| !found.contains(&s.id)), "{body}");
+            assert_eq!(total(&body), (SEED_COUNT - missing.len()) as u64);
+
+            let named = missing[0];
+            let body = list_main(&server, &format!("search={}&limit=100", named.name)).await;
+            assert!(ids(&body).contains(&named.id), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
+    fn search_matches_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let realm = &ctx().other_realm;
+            let foreign = ctx().foreign_organization_id;
+            let percent = list_ok(&server, realm, foreign, "search=%25").await;
+            assert_eq!(names(&percent), ["pct%grp"]);
+            assert_eq!(total(&percent), 1);
+
+            let underscore = list_ok(&server, realm, foreign, "search=_").await;
+            assert_eq!(names(&underscore), ["under_score"]);
+            assert_eq!(total(&underscore), 1);
+
+            let backslash = list_ok(&server, realm, foreign, "search=%5C").await;
+            assert_eq!(names(&backslash), ["back\\slash"]);
+            assert_eq!(total(&backslash), 1);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("created_from={}", created_at(5)),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}", created_at(2)),
+                created_within(None, Some(2)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(2),
+                    created_at(5)
+                ),
+                created_within(Some(2), Some(5)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(3),
+                    created_at(4)
+                ),
+                created_within(Some(3), Some(4)),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00".to_string(),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}&search=team", created_at(4)),
+                matching(|s| s.created_minute < 4 && description_contains(s, "team")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_main(&server, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let at_bound = matching(|s| s.created_minute == 4);
+            assert!(!at_bound.is_empty());
+            let body = list_main(&server, &format!("created_to={}&limit=100", created_at(4))).await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(found.is_disjoint(&at_bound), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test organization_groups_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_main(
+                &server,
+                &format!(
+                    "created_from={}&created_to={}",
+                    created_at(5),
+                    created_at(2)
+                ),
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
         });
     }
 }

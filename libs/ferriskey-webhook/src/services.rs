@@ -853,6 +853,7 @@ mod tests {
                 event: Some(WebhookTrigger::UserCreated),
                 status: Some(DeliveryStatus::Failed),
                 resource_id: Some(Uuid::nil()),
+                ..WebhookDeliveryFilter::default()
             },
             ..PageRequest::default()
         }

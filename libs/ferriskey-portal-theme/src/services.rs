@@ -931,6 +931,7 @@ mod tests {
                 name: Some("brand".to_string()),
                 layout_id: Some(Uuid::nil()),
                 activatable: Some(true),
+                ..PortalThemeFilter::default()
             },
             ..PageRequest::default()
         }

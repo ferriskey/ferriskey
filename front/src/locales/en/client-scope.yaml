@@ -45,9 +45,9 @@ list:
     mappers: Mappers
     created: Created
     updated: Updated
+  search_placeholder: Search by name or description…
   filter_fields:
-    name: Name
-    description: Description
+    created: Created
     protocol: Protocol
     default_scope_type: Assignment
     has_protocol_mappers: With mappers

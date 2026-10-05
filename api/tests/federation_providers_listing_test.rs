@@ -26,6 +26,7 @@ mod tests {
     const SECRET_MARK: &str = "s3cr3t-value";
     const MASK: &str = "********";
     const PROVIDER_TYPES: [&str; 3] = ["Ldap", "ActiveDirectory", "Kerberos"];
+    const SYNC_MODES: [&str; 3] = ["Import", "Force", "LinkOnly"];
     const SORT_FIELDS: [&str; 6] = [
         "name",
         "priority",
@@ -42,6 +43,7 @@ mod tests {
         enabled: bool,
         priority: i32,
         sync_enabled: bool,
+        sync_mode: &'static str,
         last_sync_minute: Option<i32>,
         created_minute: i32,
         updated_minute: i32,
@@ -57,6 +59,7 @@ mod tests {
                 enabled: !i.is_multiple_of(4),
                 priority: (index % 5) * 10,
                 sync_enabled: i.is_multiple_of(3),
+                sync_mode: SYNC_MODES[(i / 2) % SYNC_MODES.len()],
                 last_sync_minute: if i % 5 == 2 { None } else { Some(index / 4) },
                 created_minute: index / 3,
                 updated_minute: i32::try_from(((i * 11) % SEED_COUNT) / 2).expect("small index"),
@@ -311,7 +314,7 @@ mod tests {
     async fn insert_seed(pool: &PgPool, realm_id: Uuid, seed: &Seed) {
         sqlx::query(
             "INSERT INTO user_federation_providers (id, realm_id, name, provider_type, enabled, priority, config, sync_enabled, sync_mode, sync_interval_minutes, last_sync_at, created_at, updated_at) \
-             VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::jsonb, $8, 'Import', 60, \
+             VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::jsonb, $8, $12, 60, \
              CASE WHEN $9::int IS NULL THEN NULL ELSE TIMESTAMPTZ '2026-02-01 00:00:00+00' + make_interval(mins => $9::int) END, \
              TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $10), \
              TIMESTAMPTZ '2026-01-01 00:00:00+00' + make_interval(mins => $11))",
@@ -327,6 +330,7 @@ mod tests {
         .bind(seed.last_sync_minute)
         .bind(seed.created_minute)
         .bind(seed.updated_minute)
+        .bind(seed.sync_mode)
         .execute(pool)
         .await
         .expect("insert federation provider");
@@ -576,6 +580,17 @@ mod tests {
             .collect()
     }
 
+    fn created_at(minute: i32) -> String {
+        format!("2026-01-01T00:{minute:02}:00Z")
+    }
+
+    fn created_within(from: Option<i32>, to: Option<i32>) -> HashSet<Uuid> {
+        matching(|s| {
+            from.is_none_or(|from| s.created_minute >= from)
+                && to.is_none_or(|to| s.created_minute < to)
+        })
+    }
+
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test federation_providers_listing_test -- --ignored"]
     fn no_params_returns_the_first_twenty_newest_providers() {
@@ -605,7 +620,7 @@ mod tests {
             assert_eq!(first["enabled"], seed.enabled);
             assert_eq!(first["priority"], seed.priority);
             assert_eq!(first["sync_enabled"], seed.sync_enabled);
-            assert_eq!(first["sync_mode"], "Import");
+            assert_eq!(first["sync_mode"], seed.sync_mode);
             assert_eq!(first["sync_interval_minutes"], 60);
             assert_eq!(
                 first["last_sync_at"].is_null(),
@@ -753,6 +768,26 @@ mod tests {
                     (s.provider_type == "Ldap" || s.provider_type == "ActiveDirectory")
                         && !s.enabled
                 }),
+            ),
+            ("search=FED-1", matching(|s| s.name.contains("fed-1"))),
+            ("search=d-2", matching(|s| s.name.contains("d-2"))),
+            (
+                "search=fed-1&enabled=false",
+                matching(|s| s.name.contains("fed-1") && !s.enabled),
+            ),
+            ("sync_mode=Import", matching(|s| s.sync_mode == "Import")),
+            ("sync_mode=Force", matching(|s| s.sync_mode == "Force")),
+            (
+                "sync_mode=LinkOnly",
+                matching(|s| s.sync_mode == "LinkOnly"),
+            ),
+            (
+                "sync_mode=Force&enabled=true",
+                matching(|s| s.sync_mode == "Force" && s.enabled),
+            ),
+            (
+                "sync_mode=LinkOnly&search=fed-1",
+                matching(|s| s.sync_mode == "LinkOnly" && s.name.contains("fed-1")),
             ),
             ("name=", matching(|_| true)),
         ];
@@ -933,6 +968,13 @@ mod tests {
                 ("provider_family=Ldap", "provider_family"),
                 ("provider_family=custom", "provider_family"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
+                ("sync_mode=import", "sync_mode"),
+                ("sync_mode=Custom", "sync_mode"),
+                ("sync_mode=Import&sync_mode=Force", "sync_mode"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());
@@ -942,6 +984,135 @@ mod tests {
                     response.text()
                 );
             }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test federation_providers_listing_test -- --ignored"]
+    fn search_matches_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            let realm = &ctx().other_realm;
+            let percent = list_ok(&server, realm, "search=%25").await;
+            assert_eq!(names(&percent), ["pct%fed"]);
+            assert_eq!(total(&percent), 1);
+
+            let underscore = list_ok(&server, realm, "search=_").await;
+            assert_eq!(names(&underscore), ["under_score"]);
+            assert_eq!(total(&underscore), 1);
+
+            let backslash = list_ok(&server, realm, "search=%5C").await;
+            assert_eq!(names(&backslash), ["back\\slash"]);
+            assert_eq!(total(&backslash), 1);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test federation_providers_listing_test -- --ignored"]
+    fn sync_mode_matches_the_stored_value_exactly() {
+        let server = make_server();
+        rt().block_on(async {
+            let mut seen = 0;
+            for mode in SYNC_MODES {
+                let body = list_ok(
+                    &server,
+                    &ctx().realm,
+                    &format!("sync_mode={mode}&limit=100"),
+                )
+                .await;
+                assert!(
+                    rows(&body)
+                        .iter()
+                        .all(|provider| provider["sync_mode"] == mode),
+                    "{mode}: {body}"
+                );
+                seen += total(&body);
+            }
+            assert_eq!(seen, SEED_COUNT as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test federation_providers_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("created_from={}", created_at(5)),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}", created_at(2)),
+                created_within(None, Some(2)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(2),
+                    created_at(5)
+                ),
+                created_within(Some(2), Some(5)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(3),
+                    created_at(4)
+                ),
+                created_within(Some(3), Some(4)),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00".to_string(),
+                created_within(Some(5), None),
+            ),
+            (
+                format!("created_to={}&search=fed-0", created_at(2)),
+                matching(|s| s.created_minute < 2 && s.name.contains("fed-0")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let at_bound = matching(|s| s.created_minute == 4);
+            assert!(!at_bound.is_empty());
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!("created_to={}&limit=100", created_at(4)),
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert!(found.is_disjoint(&at_bound), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test federation_providers_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                &format!(
+                    "created_from={}&created_to={}",
+                    created_at(5),
+                    created_at(2)
+                ),
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
         });
     }
 }

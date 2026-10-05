@@ -13,6 +13,7 @@ export function useOrganizationsOverview(realm: string) {
   const { data: response, isLoading } = useGetOrganizations({
     realm,
     query: listing.apiQuery as OrganizationsQuery,
+    keepPrevious: true,
   })
   const total = useOrganizationCount({ realm })
   const enabled = useOrganizationCount({ realm, filter: { enabled: true } })

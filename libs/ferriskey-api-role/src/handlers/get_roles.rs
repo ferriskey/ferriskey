@@ -2,6 +2,7 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     list_query::{ListQuery, PaginationParams, parse_id_list},
@@ -10,7 +11,7 @@ use ferriskey_api_core::api_entities::{
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
-use ferriskey_core::domain::common::pagination::PageRequest;
+use ferriskey_core::domain::common::pagination::{DateRange, PageRequest};
 use ferriskey_core::domain::role::entities::{Role, RoleFilter, RoleScope, RoleSortField};
 use ferriskey_core::domain::role::ports::RoleService;
 use serde::Deserialize;
@@ -34,6 +35,8 @@ pub struct RoleListParams {
     pub has_permissions: Option<bool>,
     #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f,0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e70")]
     pub ids: Option<String>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<RoleListParams> for RoleFilter {
@@ -54,6 +57,7 @@ impl TryFrom<RoleListParams> for RoleFilter {
                 .as_deref()
                 .map(|raw| parse_id_list("ids", raw))
                 .transpose()?,
+            created: DateRange::new(params.created_from, params.created_to),
         })
     }
 }
@@ -61,7 +65,7 @@ impl TryFrom<RoleListParams> for RoleFilter {
 #[utoipa::path(
     get,
     summary = "List the roles of a realm",
-    description = "Returns one page of the realm's roles. search matches case-insensitively a role whose name contains the value, a client role whose client identifier (client_id string) contains the value, or a client role whose qualified value `<client identifier>.<role name>` contains the value (so `app-web.admin` finds the `admin` role of client `app-web`, and `app-web.ns.admin` finds its `ns.admin` role). Text filters (name, description) match case-insensitively anywhere in the value; qualified_name matches exactly and case-sensitively a realm role whose name equals the value or a client role whose `<client identifier>.<role name>` equals the value, so a realm role `a.b` and the `b` role of client `a` are both returned for `a.b`; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. Filters combine with AND.",
+    description = "Returns one page of the realm's roles. search matches case-insensitively a role whose name or description contains the value (a role without a description never matches it through its description), a client role whose client identifier (client_id string) contains the value, or a client role whose qualified value `<client identifier>.<role name>` contains the value (so `app-web.admin` finds the `admin` role of client `app-web`, and `app-web.ns.admin` finds its `ns.admin` role). Text filters (name, description) match case-insensitively anywhere in the value; qualified_name matches exactly and case-sensitively a realm role whose name equals the value or a client role whose `<client identifier>.<role name>` equals the value, so a realm role `a.b` and the `b` role of client `a` are both returned for `a.b`; require_mfa and client_id match exactly; scope keeps realm roles (no client) or client roles; has_permissions keeps roles granting at least one permission (true) or none (false); ids takes a comma-separated list of at most 100 role ids. created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND.",
     path = "",
     tag = "role",
     params(
@@ -99,6 +103,7 @@ pub async fn get_roles(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -110,7 +115,7 @@ mod tests {
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
         let request = parse_list_query::<RoleListParams, RoleSortField>(&format!(
-            "order_by=name&order=asc&search=app-web.adm&name=adm&qualified_name=app-web.ns.admin&description=ops&require_mfa=true&client_id={client_id}&scope=client&has_permissions=false&ids={first},{second}"
+            "order_by=name&order=asc&search=app-web.adm&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00&name=adm&qualified_name=app-web.ns.admin&description=ops&require_mfa=true&client_id={client_id}&scope=client&has_permissions=false&ids={first},{second}"
         ))
         .expect("valid query");
 
@@ -128,6 +133,10 @@ mod tests {
                 scope: Some(RoleScope::Client),
                 has_permissions: Some(false),
                 ids: Some(vec![first, second]),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -151,6 +160,8 @@ mod tests {
             "client_id=nope",
             "scope=global",
             "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
         ] {
             assert!(
                 parse_list_query::<RoleListParams, RoleSortField>(query).is_err(),

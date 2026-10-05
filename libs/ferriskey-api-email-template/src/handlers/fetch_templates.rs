@@ -2,9 +2,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    common::pagination::PageRequest,
+    common::pagination::{DateRange, PageRequest},
     email_template::{
         entities::{EmailTemplate, EmailTemplateFilter, EmailTemplateSortField, EmailType},
         ports::EmailTemplateService,
@@ -25,16 +26,21 @@ use ferriskey_api_core::app_state::AppState;
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct EmailTemplateListParams {
+    pub search: Option<String>,
     pub name: Option<String>,
     #[param(inline)]
     pub email_type: Option<EmailType>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<EmailTemplateListParams> for EmailTemplateFilter {
     fn from(params: EmailTemplateListParams) -> Self {
         Self {
+            search: params.search,
             name: params.name,
             email_type: params.email_type,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
@@ -44,7 +50,7 @@ impl From<EmailTemplateListParams> for EmailTemplateFilter {
     path = "",
     tag = "email-template",
     summary = "Fetch email templates",
-    description = "Returns one page of the realm's email templates, each with its structure and mjml. The name filter matches case-insensitively anywhere in the value; email_type matches exactly. Filters combine with AND.",
+    description = "Returns one page of the realm's email templates, each with its structure and mjml. search and the name filter match case-insensitively anywhere in the name; email_type matches exactly; created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
         PaginationParams,
@@ -82,6 +88,7 @@ pub async fn fetch_templates(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -90,7 +97,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<EmailTemplateListParams, EmailTemplateSortField>(
-            "order_by=email_type&order=asc&name=welcome&email_type=magic_link",
+            "order_by=email_type&order=asc&search=wel&name=welcome&email_type=magic_link&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00",
         )
         .expect("valid query");
 
@@ -99,8 +106,13 @@ mod tests {
         assert_eq!(
             EmailTemplateFilter::from(request.filter),
             EmailTemplateFilter {
+                search: Some("wel".to_string()),
                 name: Some("welcome".to_string()),
                 email_type: Some(EmailType::MagicLink),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -136,6 +148,9 @@ mod tests {
             "order_by=mjml",
             "order_by=structure",
             "email_type=welcome",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
         ] {
             assert!(
                 parse_list_query::<EmailTemplateListParams, EmailTemplateSortField>(query).is_err(),

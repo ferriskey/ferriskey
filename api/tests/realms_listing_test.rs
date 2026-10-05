@@ -579,6 +579,86 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test realms_listing_test -- --ignored"]
+    fn search_matches_the_name_or_the_display_name() {
+        let server = make_server();
+        let prefix = &ctx().prefix;
+        let searched = |s: &Seed, needle: &str| {
+            s.name.to_lowercase().contains(needle)
+                || s.display_name
+                    .as_deref()
+                    .is_some_and(|d| d.to_lowercase().contains(needle))
+        };
+        let cases: Vec<(String, String, HashSet<Uuid>)> = vec![
+            (
+                format!("{}-1", prefix.to_uppercase()),
+                format!("{prefix}-1"),
+                matching(|s| s.name.contains(&format!("{prefix}-1"))),
+            ),
+            (
+                "alpha".to_string(),
+                "alpha".to_string(),
+                matching(|s| {
+                    s.display_name
+                        .as_deref()
+                        .is_some_and(|d| d.contains("Alpha"))
+                }),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (value, needle, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{value}: the fixture must make this search discriminating"
+                );
+                assert_eq!(
+                    matching(|s| searched(s, &needle)),
+                    expected,
+                    "{value}: only one field may carry the needle"
+                );
+                let body = lister_list(&server, &format!("search={value}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{value}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{value}: total");
+            }
+
+            let combined = lister_list(
+                &server,
+                &format!("search={prefix}-1&display_name=beta&limit=100"),
+            )
+            .await;
+            let expected = matching(|s| {
+                s.name.contains(&format!("{prefix}-1"))
+                    && s.display_name
+                        .as_deref()
+                        .is_some_and(|d| d.contains("Beta"))
+            });
+            let found: HashSet<Uuid> = ids(&combined).into_iter().collect();
+            assert_eq!(found, expected);
+            assert_eq!(total(&combined), expected.len() as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test realms_listing_test -- --ignored"]
+    fn search_matches_like_wildcards_literally() {
+        let server = make_server();
+        let token = &ctx().witness_token;
+        rt().block_on(async {
+            for (value, name) in [("%25", "pct-a"), ("_", "und-a"), ("%5C", "bsl-a")] {
+                let body = list_ok(&server, token, &format!("search={value}")).await;
+                assert_eq!(
+                    names(&body),
+                    [format!("{}-{name}", ctx().prefix)],
+                    "{value}"
+                );
+                assert_eq!(total(&body), 1, "{value}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test realms_listing_test -- --ignored"]
     fn realms_outside_the_callers_rights_are_never_listed() {
         let server = make_server();
         let prefix = &ctx().prefix;
@@ -656,6 +736,8 @@ mod tests {
                 ("order_by=display_name", "order_by"),
                 ("unknown=1", "unknown"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-01-01T00:00:00Z", "created_from"),
             ] {
                 let response = list(&server, &ctx().lister_token, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());

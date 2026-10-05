@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type FlowsQuery = NonNullable<Endpoints.get_Get_flows['parameters']['query']>
 
 export type FlowsFilter = Omit<FlowsQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const FLOW_FILTER_KEYS = [
-  'ip_address',
+  'search',
   'status',
   'grant_type',
   'client_id',
@@ -19,13 +20,15 @@ export const FLOW_FILTER_KEYS = [
 export const useGetFlows = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: FlowsQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: FlowsQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/compass/v1/flows', {
       path: { realm_name: realm! },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: !!realm && enabled,
   })
 }

@@ -89,10 +89,9 @@ list:
       detail_one: '{{names}} — members cannot reach it.'
       detail_other: '{{names}} — members cannot reach them.'
       action: Review
+  search_placeholder: Search by name, alias, domain or description…
   filter_fields:
-    name: Name
-    alias: Alias
-    domain: Domain
+    created: Created
     enabled: Enabled
     has_domain: With a domain
   card:
@@ -172,9 +171,9 @@ detail:
       email: Email
       status: Status
       joined: Joined
+    search_placeholder: Search by username or email…
     filter_fields:
-      username: Username
-      email: Email
+      joined: Joined
       enabled: Enabled
     empty: This organization has no member yet.
     no_match: No member matches these filters.
@@ -208,9 +207,9 @@ groups:
       parent: Parent
       created: Created
       updated: Updated
+    search_placeholder: Search by name or description…
     filter_fields:
-      name: Name
-      description: Description
+      created: Created
       parent: Parent group
       is_root: Top-level
     top_level: Top level
@@ -237,9 +236,9 @@ groups:
       email: Email
       status: Status
       joined: Joined
+    search_placeholder: Search by username or email…
     filter_fields:
-      username: Username
-      email: Email
+      joined: Joined
       enabled: Enabled
     add:
       trigger: Add members

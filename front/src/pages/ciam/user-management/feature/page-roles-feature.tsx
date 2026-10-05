@@ -24,6 +24,7 @@ export default function PageRolesFeature() {
   const { data: rolesResponse, isLoading } = useGetRoles({
     realm,
     query: listing.apiQuery as RolesQuery,
+    keepPrevious: true,
   })
   const total = useRoleCount({ realm })
   const realmRoles = useRoleCount({ realm, filter: { scope: 'realm' } })

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::domain::common::pagination::DateRange;
 use crate::domain::realm::entities::{RealmId, RealmOwned};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -28,7 +29,7 @@ impl fmt::Display for FederationType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum SyncMode {
     Import,
     Force,
@@ -110,12 +111,15 @@ pub struct FederatedUser {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FederationProviderFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub provider_type: Option<String>,
     pub enabled: Option<bool>,
     pub sync_enabled: Option<bool>,
     pub synced: Option<bool>,
     pub provider_family: Option<FederationProviderFamily>,
+    pub sync_mode: Option<SyncMode>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

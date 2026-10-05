@@ -5,7 +5,6 @@ import { IconTile, ListingPage, Pill, Squircle, StatusDot } from '@/components/k
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
@@ -36,6 +35,8 @@ export interface PageUsersOverviewProps {
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
+const YES = 'true'
+const NO = 'false'
 
 export default function PageUsersOverview({
   users,
@@ -78,6 +79,14 @@ export default function PageUsersOverview({
         </span>
       ),
       sortKey: 'username',
+      filters: [
+        {
+          kind: 'relation',
+          key: 'role_id',
+          label: t('list.filter_fields.role'),
+          relation: roleRelationSource,
+        },
+      ],
     },
     {
       key: 'firstname',
@@ -108,6 +117,9 @@ export default function PageUsersOverview({
           <span className='text-neutral-400 dark:text-neutral-500'>{t('list.no_email')}</span>
         ),
       sortKey: 'email',
+      filters: [
+        { kind: 'boolean', key: 'email_verified', label: t('list.filter_fields.email_verified') },
+      ],
     },
     {
       key: 'type',
@@ -117,6 +129,9 @@ export default function PageUsersOverview({
           {typeLabel(u)}
         </Pill>
       ),
+      filters: [
+        { kind: 'boolean', key: 'service_account', label: t('list.filter_fields.service_account') },
+      ],
     },
     {
       key: 'status',
@@ -128,6 +143,7 @@ export default function PageUsersOverview({
         </span>
       ),
       sortKey: 'enabled',
+      filters: [{ kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') }],
     },
     {
       key: 'created',
@@ -138,6 +154,14 @@ export default function PageUsersOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -148,22 +172,6 @@ export default function PageUsersOverview({
         </span>
       ),
       sortKey: 'updated_at',
-    },
-  ]
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'username', label: t('list.filter_fields.username') },
-    { kind: 'text', key: 'email', label: t('list.filter_fields.email') },
-    { kind: 'text', key: 'firstname', label: t('list.filter_fields.firstname') },
-    { kind: 'text', key: 'lastname', label: t('list.filter_fields.lastname') },
-    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
-    { kind: 'boolean', key: 'email_verified', label: t('list.filter_fields.email_verified') },
-    { kind: 'boolean', key: 'service_account', label: t('list.filter_fields.service_account') },
-    {
-      kind: 'relation',
-      key: 'role_id',
-      label: t('list.filter_fields.role'),
-      relation: roleRelationSource,
     },
   ]
 
@@ -221,6 +229,7 @@ export default function PageUsersOverview({
           hint: t('list.metrics.total.hint'),
           series: [counts.total, counts.total],
           tone: 'info',
+          filter: {},
         },
         {
           key: 'enabled',
@@ -234,6 +243,7 @@ export default function PageUsersOverview({
               : t('list.metrics.enabled.empty_hint'),
           series: [counts.enabled, counts.enabled],
           tone: 'success',
+          filter: { enabled: YES },
         },
         {
           key: 'disabled',
@@ -242,6 +252,7 @@ export default function PageUsersOverview({
           hint: t('list.metrics.disabled.hint'),
           series: [counts.disabled, counts.disabled],
           tone: 'amber',
+          filter: { enabled: NO },
         },
         {
           key: 'verified',
@@ -250,6 +261,7 @@ export default function PageUsersOverview({
           hint: t('list.metrics.verified.hint'),
           series: [counts.verified, counts.verified],
           tone: 'success',
+          filter: { email_verified: YES },
         },
       ]}
       alerts={
@@ -264,7 +276,7 @@ export default function PageUsersOverview({
             ]
           : []
       }
-      paged={{ listing, pagination, filterFields }}
+      paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
       rows={users}
       columns={columns}
       card={card}

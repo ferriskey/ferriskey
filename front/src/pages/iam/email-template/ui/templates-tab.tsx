@@ -6,15 +6,14 @@ import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import {
   DataView,
-  FilterBar,
   IconTile,
+  ListingToolbar,
   MetricsBand,
   PaginationBar,
   Pill,
   RelationSelect,
   Section,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
   type ViewMode,
@@ -88,21 +87,6 @@ export default function TemplatesTab({
 
   const narrowed = Object.values(listing.state.filters).some(Boolean)
 
-  const filterFields: FilterField[] = [
-    {
-      kind: 'text',
-      key: 'name',
-      label: t('list.filters.name'),
-      placeholder: t('list.templates.search_placeholder'),
-    },
-    {
-      kind: 'enum',
-      key: 'email_type',
-      label: t('list.filters.email_type'),
-      options: EMAIL_TYPES.map((spec) => ({ value: spec.key, label: t(spec.shortKey) })),
-    },
-  ]
-
   const createButton = (
     <Button size='sm' onClick={onCreate}>
       <Plus /> {t('list.empty.create')}
@@ -155,6 +139,14 @@ export default function TemplatesTab({
       key: 'email_type',
       header: t('list.columns.email_type'),
       sortKey: 'email_type',
+      filters: [
+        {
+          kind: 'enum',
+          key: 'email_type',
+          label: t('list.filters.email_type'),
+          options: EMAIL_TYPES.map((spec) => ({ value: spec.key, label: t(spec.shortKey) })),
+        },
+      ],
       render: (template) => (
         <Pill tone='neutral' mono>
           {template.email_type}
@@ -175,6 +167,14 @@ export default function TemplatesTab({
       key: 'created_at',
       header: t('list.columns.created_at'),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filters.created'),
+        },
+      ],
       render: (template) => (
         <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
           {formatDate(template.created_at)}
@@ -250,6 +250,7 @@ export default function TemplatesTab({
               value: counts.total,
               hint: t('list.metrics.total.hint'),
               series: [counts.total, counts.total],
+              filter: {},
             },
             ...EMAIL_TYPES.map((spec) => ({
               key: spec.key,
@@ -259,8 +260,10 @@ export default function TemplatesTab({
                 ? t('list.metrics.type.assigned')
                 : t('list.metrics.type.none'),
               series: [counts.byType[spec.key], counts.byType[spec.key]],
+              filter: { email_type: spec.key },
             })),
           ]}
+          filtering={{ filters: listing.state.filters, onChange: listing.setFilters }}
         />
 
         <Section
@@ -307,11 +310,15 @@ export default function TemplatesTab({
           title={t('list.templates.title')}
           description={t('list.templates.description')}
         >
-          <div className='mb-3 flex'>
-            <FilterBar fields={filterFields} listing={listing} />
-          </div>
+          <ListingToolbar
+            listing={listing}
+            columns={columns}
+            search={{ placeholder: t('list.templates.search_placeholder') }}
+            className='mb-3'
+          />
 
           <DataView
+            listing={listing}
             rows={templates}
             columns={columns}
             card={{

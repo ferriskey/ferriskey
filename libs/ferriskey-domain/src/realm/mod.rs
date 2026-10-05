@@ -107,6 +107,7 @@ pub struct Realm {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RealmFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub display_name: Option<String>,
 }

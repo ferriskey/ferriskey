@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
-    Select,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    QueryTrait, Select,
 };
 use tracing::error;
 use uuid::Uuid;
@@ -22,7 +22,7 @@ use crate::entity::organization_groups::{
     ActiveModel as GroupActiveModel, Column as GroupColumn, Entity as GroupEntity,
     Model as GroupModel,
 };
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within};
 
 #[derive(Debug, Clone)]
 pub struct PostgresGroupRepository {
@@ -92,9 +92,19 @@ impl SortColumn<GroupEntity> for GroupSortField {
     }
 }
 
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(GroupColumn::Name, value))
+        .add(contains(GroupColumn::Description, value))
+}
+
 fn listing_select(organization_id: Uuid, filter: &GroupFilter) -> Select<GroupEntity> {
     GroupEntity::find()
         .filter(GroupColumn::OrganizationId.eq(organization_id))
+        .filter(within(GroupColumn::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(GroupColumn::Name, value))
         })
@@ -264,11 +274,63 @@ impl GroupRepository for PostgresGroupRepository {
 
 #[cfg(test)]
 mod listing_tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use ferriskey_organization::GroupFilter;
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&GroupFilter::default());
+        assert!(
+            !sql.contains(r#""organization_groups"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !sql.contains(r#""organization_groups"."created_at" <"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&GroupFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..GroupFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#""organization_groups"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(
+                r#""organization_groups"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_description() {
+        let sql = sql(&GroupFilter {
+            search: Some("a%".to_string()),
+            ..GroupFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("organization_groups"."name" ILIKE E'%a\\%%') OR ("organization_groups"."description" ILIKE E'%a\\%%'))"#
+            ),
+            "{sql}"
+        );
+    }
 
     fn sql(filter: &GroupFilter) -> String {
         listing_select(Uuid::nil(), filter)

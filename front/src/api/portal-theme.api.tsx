@@ -5,6 +5,7 @@ import { BaseQuery } from '.'
 import { preloadNamespaces, translate } from '@/lib/i18n'
 import type { Endpoints, Schemas } from './api.client'
 import { portalLayoutsKey } from './portal-layouts.api'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 const PORTAL_NAMESPACE = 'portal'
 
@@ -52,7 +53,13 @@ export type PortalThemesQuery = NonNullable<
 
 export type PortalThemesFilter = Omit<PortalThemesQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
-export const PORTAL_THEME_FILTER_KEYS = ['name', 'layout_id', 'activatable'] as const
+export const PORTAL_THEME_FILTER_KEYS = [
+  'search',
+  'layout_id',
+  'activatable',
+  'created_from',
+  'created_to',
+] as const
 
 export const USED_BY_PREVIEW = 5
 
@@ -65,13 +72,15 @@ const portalThemesKey = (realm: string) =>
 export const useListPortalThemes = ({
   realm = 'master',
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: PortalThemesQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: PortalThemesQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/portal/themes', {
       path: { realm_name: realm },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: enabled && !!realm,
   })
 }

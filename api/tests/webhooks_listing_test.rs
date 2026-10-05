@@ -836,6 +836,144 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhooks_listing_test -- --ignored"]
+    fn search_matches_the_name_or_the_endpoint() {
+        let server = make_server();
+        let cases: [(&str, HashSet<Uuid>); 5] = [
+            ("search=HOOK-1", matching(|s| s.named("hook-1"))),
+            ("search=E03", matching(|s| s.endpoint.contains("e03"))),
+            ("search=hook-", matching(|s| s.name.is_some())),
+            (
+                "search=1",
+                matching(|s| s.named("1") || s.endpoint.contains('1')),
+            ),
+            (
+                "search=e05&name=hook",
+                matching(|s| s.endpoint.contains("e05") && s.name.is_some()),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let unnamed = list_ok(&server, &ctx().realm, "search=e05&limit=100").await;
+            let found: HashSet<Uuid> = ids(&unnamed).into_iter().collect();
+            assert_eq!(found, matching(|s| s.endpoint.contains("e05")));
+            assert!(
+                ctx()
+                    .seeds
+                    .iter()
+                    .any(|s| s.name.is_none() && found.contains(&s.id)),
+                "an unnamed webhook still matches by endpoint"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhooks_listing_test -- --ignored"]
+    fn search_matches_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            for (query, expected) in [
+                ("search=%25", "pct%hook"),
+                ("search=_", "under_hook"),
+                ("search=%5C", "back\\hook"),
+            ] {
+                let body = list_ok(&server, &ctx().other_realm, query).await;
+                assert_eq!(names(&body), [expected], "{query}");
+                assert_eq!(total(&body), 1, "{query}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhooks_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: [(&str, HashSet<Uuid>); 6] = [
+            (
+                "created_from=2026-01-01T00:05:00Z",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_to=2026-01-01T00:02:00Z",
+                matching(|s| s.created_minute < 2),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z",
+                matching(|s| (2..5).contains(&s.created_minute)),
+            ),
+            (
+                "created_from=2026-01-01T00:03:00Z&created_to=2026-01-01T00:04:00Z",
+                matching(|s| s.created_minute == 3),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z&search=hook-0",
+                matching(|s| (2..5).contains(&s.created_minute) && s.named("hook-0")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let edge = list_ok(
+                &server,
+                &ctx().realm,
+                "created_to=2026-01-01T00:03:00Z&limit=100",
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&edge).into_iter().collect();
+            assert!(
+                ctx()
+                    .seeds
+                    .iter()
+                    .filter(|s| s.created_minute == 3)
+                    .all(|s| !found.contains(&s.id)),
+                "a row created exactly at created_to is excluded"
+            );
+            assert_eq!(found, matching(|s| s.created_minute < 3));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhooks_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                "created_from=2026-01-01T00:05:00Z&created_to=2026-01-01T00:02:00Z",
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhooks_listing_test -- --ignored"]
     fn invalid_query_parameters_are_rejected() {
         let server = make_server();
         rt().block_on(async {
@@ -851,6 +989,10 @@ mod tests {
                 ("secure_endpoint=maybe", "secure_endpoint"),
                 ("last_delivery_status=failed", "last_delivery_status"),
                 ("name=a&name=b", "name"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());

@@ -48,11 +48,9 @@ list:
       title_other: '{{count}} accounts have an unverified email'
       detail: '{{names}} — password recovery will not reach them.'
       action: Review
+  search_placeholder: Search by username, email, first or last name…
   filter_fields:
-    username: Username
-    email: Email
-    firstname: First name
-    lastname: Last name
+    created: Created
     enabled: Enabled
     email_verified: Email verified
     service_account: Service account

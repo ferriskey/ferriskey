@@ -24,7 +24,7 @@ use crate::entity::organizations::{
     ActiveModel as OrganizationActiveModel, Column as OrganizationColumn,
     Entity as OrganizationEntity, Model as OrganizationModel,
 };
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within};
 
 #[derive(Debug, Clone)]
 pub struct PostgresOrganizationRepository {
@@ -68,11 +68,14 @@ fn search(value: &str) -> Condition {
     Condition::any()
         .add(contains(OrganizationColumn::Name, value))
         .add(contains(OrganizationColumn::Alias, value))
+        .add(contains(OrganizationColumn::Domain, value))
+        .add(contains(OrganizationColumn::Description, value))
 }
 
 fn listing_select(realm_id: Uuid, filter: &OrganizationFilter) -> Select<OrganizationEntity> {
     OrganizationEntity::find()
         .filter(OrganizationColumn::RealmId.eq(realm_id))
+        .filter(within(OrganizationColumn::CreatedAt, &filter.created))
         .apply_if(filter.search.as_deref(), |select, value| {
             select.filter(search(value))
         })
@@ -84,6 +87,9 @@ fn listing_select(realm_id: Uuid, filter: &OrganizationFilter) -> Select<Organiz
         })
         .apply_if(filter.domain.as_deref(), |select, value| {
             select.filter(contains(OrganizationColumn::Domain, value))
+        })
+        .apply_if(filter.description.as_deref(), |select, value| {
+            select.filter(contains(OrganizationColumn::Description, value))
         })
         .apply_if(filter.enabled, |select, value| {
             select.filter(OrganizationColumn::Enabled.eq(value))
@@ -272,11 +278,51 @@ impl OrganizationRepository for PostgresOrganizationRepository {
 
 #[cfg(test)]
 mod listing_tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use ferriskey_organization::OrganizationFilter;
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&OrganizationFilter::default());
+        assert!(!sql.contains(r#""organizations"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""organizations"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&OrganizationFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(r#""organizations"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""organizations"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn description_is_an_escaped_contains_match() {
+        let sql = sql(&OrganizationFilter {
+            description: Some("d%".to_string()),
+            ..OrganizationFilter::default()
+        });
+        assert!(
+            sql.contains(r#""organizations"."description" ILIKE E'%d\\%%'"#),
+            "{sql}"
+        );
+    }
 
     fn sql(filter: &OrganizationFilter) -> String {
         listing_select(Uuid::nil(), filter)
@@ -316,14 +362,14 @@ mod listing_tests {
     }
 
     #[test]
-    fn search_matches_the_name_or_the_alias() {
+    fn search_matches_the_name_the_alias_the_domain_or_the_description() {
         let sql = sql(&OrganizationFilter {
             search: Some("acme".to_string()),
             ..OrganizationFilter::default()
         });
         assert!(
             sql.contains(
-                r#"(("organizations"."name" ILIKE '%acme%') OR ("organizations"."alias" ILIKE '%acme%'))"#
+                r#"(("organizations"."name" ILIKE '%acme%') OR ("organizations"."alias" ILIKE '%acme%') OR ("organizations"."domain" ILIKE '%acme%') OR ("organizations"."description" ILIKE '%acme%'))"#
             ),
             "{sql}"
         );

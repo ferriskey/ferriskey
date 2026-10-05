@@ -29,7 +29,7 @@ export default function PageFlowsFeature() {
     data: flowsResponse,
     isLoading: isLoadingFlows,
     isError,
-  } = useGetFlows({ realm, query: listing.apiQuery as FlowsQuery })
+  } = useGetFlows({ realm, query: listing.apiQuery as FlowsQuery, keepPrevious: true })
 
   const { data: statsResponse, isLoading: isLoadingStats } = useGetStats({ realm })
   const { data: failuresResponse } = useGetFlows({

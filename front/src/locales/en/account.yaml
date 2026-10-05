@@ -51,6 +51,7 @@ sessions:
   current: current
   empty_filtered: No session matches these filters.
   show_all: Show all sessions
+  search_placeholder: Search by IP address or device…
   columns:
     device: Device
     ip_address: IP address
@@ -59,9 +60,8 @@ sessions:
     expires_at: Expires
     created_at: Signed in
   filter_fields:
-    user_agent: Device
-    ip_address: IP address
     persistent: Remembered
+    created: Signed in
   persistent_state:
     remembered: remembered
     browser: browser session

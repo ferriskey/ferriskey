@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
 
@@ -115,8 +116,10 @@ impl RealmOwned for EmailTemplate {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EmailTemplateFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub email_type: Option<EmailType>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

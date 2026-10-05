@@ -19,7 +19,7 @@ use crate::domain::{
     },
 };
 use crate::entity::{organization_group_members, organization_members, user_role, users};
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within_naive};
 
 impl SortColumn<users::Entity> for UserSortField {
     fn column(&self) -> users::Column {
@@ -35,9 +35,21 @@ impl SortColumn<users::Entity> for UserSortField {
     }
 }
 
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(users::Column::Username, value))
+        .add(contains(users::Column::Email, value))
+        .add(contains(users::Column::Firstname, value))
+        .add(contains(users::Column::Lastname, value))
+}
+
 fn listing_select(realm_id: Uuid, filter: &UserFilter) -> Select<users::Entity> {
     users::Entity::find()
         .filter(users::Column::RealmId.eq(realm_id))
+        .filter(within_naive(users::Column::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.username.as_deref(), |select, value| {
             select.filter(contains(users::Column::Username, value))
         })
@@ -531,7 +543,10 @@ mod tests {
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
+    use chrono::{TimeZone, Utc};
+
     use super::{UserUniqueViolation, classify_user_unique_violation_message, listing_select};
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::user::entities::UserFilter;
 
     fn sql(filter: &UserFilter) -> String {
@@ -543,6 +558,9 @@ mod tests {
     #[test]
     fn listing_is_always_bound_to_the_realm() {
         let sql = sql(&UserFilter::default());
+        assert!(!sql.contains(r#""users"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""users"."created_at" <"#), "{sql}");
+        assert!(!sql.contains("TRUE"), "{sql}");
         assert!(
             sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
             "{sql}"
@@ -565,6 +583,39 @@ mod tests {
         assert!(sql.contains(r#""users"."email" ILIKE '%b%'"#), "{sql}");
         assert!(sql.contains(r#""users"."firstname" ILIKE '%c%'"#), "{sql}");
         assert!(sql.contains(r#""users"."lastname" ILIKE '%d%'"#), "{sql}");
+    }
+
+    #[test]
+    fn search_matches_any_of_the_text_fields() {
+        let sql = sql(&UserFilter {
+            search: Some("a%".to_string()),
+            ..UserFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("users"."username" ILIKE E'%a\\%%') OR ("users"."email" ILIKE E'%a\\%%') OR ("users"."firstname" ILIKE E'%a\\%%') OR ("users"."lastname" ILIKE E'%a\\%%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&UserFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..UserFilter::default()
+        });
+        assert!(
+            sql.contains(r#""users"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""users"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
     }
 
     #[test]

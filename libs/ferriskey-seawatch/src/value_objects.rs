@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SecurityEventFilter {
+    pub search: Option<String>,
     pub client_id: Option<Uuid>,
     pub actor_id: Option<Uuid>,
     pub event_types: Option<Vec<SecurityEventType>>,

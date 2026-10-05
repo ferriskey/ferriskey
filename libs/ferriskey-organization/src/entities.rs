@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::realm::scope::RealmOwned;
 use ferriskey_domain::{generate_timestamp, realm::RealmId};
 use serde::{Deserialize, Serialize};
@@ -229,9 +230,11 @@ pub struct OrganizationFilter {
     pub alias: Option<String>,
     pub domain: Option<String>,
     pub enabled: Option<bool>,
+    pub description: Option<String>,
     pub has_domain: Option<bool>,
     pub without_member: Option<Uuid>,
     pub ids: Option<Vec<Uuid>>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
@@ -280,9 +283,11 @@ pub struct ListOrganizationMembersInput {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct OrganizationMemberFilter {
+    pub search: Option<String>,
     pub username: Option<String>,
     pub email: Option<String>,
     pub enabled: Option<bool>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
@@ -523,11 +528,13 @@ pub struct GroupListItem {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GroupFilter {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub parent_group_id: Option<Uuid>,
     pub is_root: Option<bool>,
     pub ids: Option<Vec<Uuid>>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
@@ -541,9 +548,11 @@ pub enum GroupSortField {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GroupMemberFilter {
+    pub search: Option<String>,
     pub username: Option<String>,
     pub email: Option<String>,
     pub enabled: Option<bool>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

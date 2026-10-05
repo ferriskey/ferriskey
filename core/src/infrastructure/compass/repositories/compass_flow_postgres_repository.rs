@@ -61,6 +61,9 @@ fn listing_select(realm_id: Uuid, filter: &FlowFilter) -> Select<compass_flows::
         .apply_if(filter.status.as_ref(), |select, value| {
             select.filter(Column::Status.eq(value.to_string()))
         })
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(contains(Column::IpAddress, value))
+        })
         .apply_if(filter.ip_address.as_deref(), |select, value| {
             select.filter(contains(Column::IpAddress, value))
         })
@@ -461,6 +464,19 @@ mod tests {
             ),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn search_is_an_escaped_contains_match_on_the_ip_address() {
+        let sql = sql(&FlowFilter {
+            search: Some("a%_\\".to_string()),
+            ..FlowFilter::default()
+        });
+        assert!(
+            sql.contains(r#""compass_flows"."ip_address" ILIKE E'%a\\%\\_\\\\%'"#),
+            "{sql}"
+        );
+        assert!(!sql.contains(r#""user_agent" ILIKE"#), "{sql}");
     }
 
     #[test]

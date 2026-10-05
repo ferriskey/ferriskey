@@ -11,14 +11,13 @@ import User = Schemas.User
 const UNVERIFIED_PREVIEW = 5
 
 const USER_FILTER_KEYS = [
-  'username',
-  'email',
-  'firstname',
-  'lastname',
+  'search',
   'enabled',
   'email_verified',
   'service_account',
   'role_id',
+  'created_from',
+  'created_to',
 ] as const
 
 export default function PageUsersOverviewFeature() {
@@ -30,6 +29,7 @@ export default function PageUsersOverviewFeature() {
   const { data: usersResponse, isLoading } = useGetUsers({
     realm,
     query: listing.apiQuery as UsersQuery,
+    keepPrevious: true,
   })
 
   const total = useUserCount({ realm })

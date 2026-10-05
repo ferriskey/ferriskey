@@ -14,15 +14,14 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DataView,
-  FilterBar,
   IconTile,
+  ListingToolbar,
   MetricsBand,
   PageShell,
   PaginationBar,
   Pill,
   Section,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
   type ViewMode,
@@ -66,6 +65,7 @@ export interface PagePortalThemesProps {
 }
 
 const THEMES_VIEW: ViewMode = 'list'
+const YES = 'true'
 
 const SWATCH_KEYS = [
   'primaryButton',
@@ -138,17 +138,6 @@ export default function PagePortalThemes({
     </Button>
   )
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('themes.filters.name') },
-    {
-      kind: 'relation',
-      key: 'layout_id',
-      label: t('themes.filters.layout'),
-      relation: portalLayoutRelationSource,
-    },
-    { kind: 'boolean', key: 'activatable', label: t('themes.filters.activatable') },
-  ]
-
   const pagesPill = (failures: PortalPageStatus[]) => (
     <Pill tone={failures.length === 0 ? 'neutral' : 'amber'}>
       <Trans
@@ -174,6 +163,9 @@ export default function PagePortalThemes({
       key: 'name',
       header: t('themes.columns.name'),
       sortKey: 'name',
+      filters: [
+        { kind: 'boolean', key: 'activatable', label: t('themes.filters.activatable') },
+      ],
       render: ({ theme, isActive, failures }) => (
         <div className='flex min-w-0 items-center gap-3'>
           <IconTile tone={isActive ? 'primary' : 'info'}>
@@ -200,6 +192,14 @@ export default function PagePortalThemes({
     {
       key: 'layout',
       header: t('themes.columns.layout'),
+      filters: [
+        {
+          kind: 'relation',
+          key: 'layout_id',
+          label: t('themes.filters.layout'),
+          relation: portalLayoutRelationSource,
+        },
+      ],
       render: ({ layoutName }) => (
         <span className='text-xs text-neutral-500 dark:text-neutral-400'>
           {layoutName ?? t('themes.row.no_layout')}
@@ -225,6 +225,14 @@ export default function PagePortalThemes({
       key: 'created_at',
       header: t('themes.columns.created_at'),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('themes.filters.created'),
+        },
+      ],
       render: ({ theme }) => (
         <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
           {formatDate(theme.created_at)}
@@ -315,6 +323,7 @@ export default function PagePortalThemes({
               value: counts.total,
               hint: t('themes.metrics.total.hint'),
               series: [counts.total, counts.total],
+              filter: {},
             },
             {
               key: 'active',
@@ -332,6 +341,7 @@ export default function PagePortalThemes({
               value: counts.activatable,
               hint: t('themes.metrics.activatable.hint'),
               series: [counts.activatable, counts.activatable],
+              filter: { activatable: YES },
             },
             {
               key: 'pages',
@@ -341,6 +351,7 @@ export default function PagePortalThemes({
               series: [PORTAL_PAGES.length, PORTAL_PAGES.length],
             },
           ]}
+          filtering={{ filters: listing.state.filters, onChange: listing.setFilters }}
         />
 
         <Section
@@ -348,11 +359,15 @@ export default function PagePortalThemes({
           description={t('themes.section.description')}
           action={<ImportButton label={t('actions.import')} onImport={onImport} />}
         >
-          <div className='mb-3 flex'>
-            <FilterBar fields={filterFields} listing={listing} />
-          </div>
+          <ListingToolbar
+            listing={listing}
+            columns={columns}
+            search={{ placeholder: t('themes.search_placeholder') }}
+            className='mb-3'
+          />
 
           <DataView
+            listing={listing}
             rows={rows}
             columns={columns}
             card={{

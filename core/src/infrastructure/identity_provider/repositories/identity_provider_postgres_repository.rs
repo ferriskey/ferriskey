@@ -18,7 +18,7 @@ use crate::domain::common::generate_uuid_v7;
 use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::entity::identity_providers::{ActiveModel, Column, Entity as IdentityProviderEntity};
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within};
 
 impl SortColumn<IdentityProviderEntity> for IdentityProviderSortField {
     fn column(&self) -> Column {
@@ -63,12 +63,22 @@ fn health(value: IdentityProviderHealth) -> Condition {
     }
 }
 
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(Column::Alias, value))
+        .add(contains(Column::DisplayName, value))
+}
+
 fn listing_select(
     realm_id: Uuid,
     filter: &IdentityProviderFilter,
 ) -> Select<IdentityProviderEntity> {
     IdentityProviderEntity::find()
         .filter(Column::RealmId.eq(realm_id))
+        .filter(within(Column::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.alias.as_deref(), |select, value| {
             select.filter(contains(Column::Alias, value))
         })
@@ -328,11 +338,63 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
     use crate::domain::abyss::identity_provider::{IdentityProviderFilter, IdentityProviderHealth};
+    use crate::domain::common::pagination::DateRange;
+
+    #[test]
+    fn search_matches_the_alias_or_the_display_name() {
+        let sql = sql(&IdentityProviderFilter {
+            search: Some("a%".to_string()),
+            ..IdentityProviderFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("identity_providers"."alias" ILIKE E'%a\\%%') OR ("identity_providers"."display_name" ILIKE E'%a\\%%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&IdentityProviderFilter::default());
+        assert!(
+            !sql.contains(r#""identity_providers"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !sql.contains(r#""identity_providers"."created_at" <"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&IdentityProviderFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..IdentityProviderFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#""identity_providers"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(
+                r#""identity_providers"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+    }
 
     fn sql(filter: &IdentityProviderFilter) -> String {
         listing_select(Uuid::nil(), filter)

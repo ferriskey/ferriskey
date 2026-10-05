@@ -13,6 +13,7 @@ import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 const invalidateRole = async (
   queryClient: QueryClient,
@@ -40,12 +41,13 @@ export type RolesFilter = Omit<RolesQuery, 'page' | 'limit' | 'order' | 'order_b
 export const ROLE_SEARCH_LIMIT = 20
 
 export const ROLE_FILTER_KEYS = [
-  'name',
-  'description',
+  'search',
   'require_mfa',
   'client_id',
   'scope',
   'has_permissions',
+  'created_from',
+  'created_to',
 ] as const
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -53,8 +55,9 @@ const SEARCH_DEBOUNCE_MS = 300
 export const useGetRoles = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: RolesQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: RolesQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/roles', {
       path: {
@@ -62,6 +65,7 @@ export const useGetRoles = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }

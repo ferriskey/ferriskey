@@ -194,10 +194,19 @@ data_view:
     confirm_hint: 点击确认以永久删除
 filter_bar:
   any: 全部
+  search: 搜索…
+column_filter:
+  open: 筛选
+  clear: 清除
+  from: 从
+  to: 至
   yes: 是
   no: 否
-  clear: 清除筛选
-  search: 搜索…
+  state_count_other: '{{label}}，{{count}} 个已启用'
+  state_value: '{{label}}，{{value}}'
+  state_active: '{{label}}，已启用'
+listing:
+  clear_filters_other: '清除筛选（{{count}}）'
 entity_picker:
   search_placeholder: 搜索…
   no_match: 无匹配项。

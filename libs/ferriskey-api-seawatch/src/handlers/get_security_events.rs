@@ -29,6 +29,8 @@ use ferriskey_api_core::{
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct SecurityEventListParams {
+    #[param(example = "10.0.")]
+    pub search: Option<String>,
     pub actor_id: Option<Uuid>,
     pub client_id: Option<Uuid>,
     #[param(example = "login_failure,session_revoked")]
@@ -62,6 +64,7 @@ impl TryFrom<SecurityEventListParams> for SecurityEventFilter {
 
     fn try_from(params: SecurityEventListParams) -> Result<Self, Self::Error> {
         Ok(Self {
+            search: params.search,
             client_id: params.client_id,
             actor_id: params.actor_id,
             event_types: params
@@ -81,7 +84,7 @@ impl TryFrom<SecurityEventListParams> for SecurityEventFilter {
 #[utoipa::path(
     get,
     summary = "Get Security Events",
-    description = "Returns one page of the realm's security events. ip_address matches case-insensitively anywhere in the value and never matches an event without an address. event_types takes a comma-separated list of event types and keeps the events of any of them. status, target_type, actor_id and client_id (the event's target id) match exactly. from_timestamp and to_timestamp bound timestamp, both inclusive. Filters combine with AND.",
+    description = "Returns one page of the realm's security events. search matches case-insensitively anywhere in the ip_address and never matches an event without an address. ip_address matches case-insensitively anywhere in the value and never matches an event without an address. event_types takes a comma-separated list of event types and keeps the events of any of them. status, target_type, actor_id and client_id (the event's target id) match exactly. from_timestamp and to_timestamp bound timestamp, both inclusive. Filters combine with AND.",
     path = "/seawatch/v1/security-events",
     tag = "seawatch",
     params(
@@ -151,7 +154,7 @@ mod tests {
         let actor = Uuid::new_v4();
         let client = Uuid::new_v4();
         let request = parse(&format!(
-            "order_by=event_type&order=asc&actor_id={actor}&client_id={client}&event_types=login_failure,session_revoked&status=failure&target_type=client&from_timestamp=2026-01-01T00:00:00Z&to_timestamp=2026-01-02T00:00:00Z&ip_address=10.0"
+            "order_by=event_type&order=asc&search=0.1&actor_id={actor}&client_id={client}&event_types=login_failure,session_revoked&status=failure&target_type=client&from_timestamp=2026-01-01T00:00:00Z&to_timestamp=2026-01-02T00:00:00Z&ip_address=10.0"
         ))
         .expect("valid query");
 
@@ -160,6 +163,7 @@ mod tests {
         assert_eq!(
             request.filter,
             SecurityEventFilter {
+                search: Some("0.1".to_string()),
                 client_id: Some(client),
                 actor_id: Some(actor),
                 event_types: Some(vec![
@@ -188,6 +192,9 @@ mod tests {
             ("offset=10", "offset"),
             ("limit=1000", "limit"),
             ("user_agent=firefox", "user_agent"),
+            ("search=a&search=b", "search"),
+            ("created_from=2026-01-01T00:00:00Z", "created_from"),
+            ("created_to=2026-01-01T00:00:00Z", "created_to"),
             ("order_by=ip_address", "order_by"),
             ("order_by=actor_id", "order_by"),
             ("status=done", "status"),

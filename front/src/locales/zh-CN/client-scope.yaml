@@ -56,9 +56,9 @@ list:
     mappers: 映射器
     created: 创建时间
     updated: 更新时间
+  search_placeholder: 按名称或描述搜索…
   filter_fields:
-    name: 名称
-    description: 描述
+    created: 创建时间
     protocol: 协议
     default_scope_type: 分配方式
     has_protocol_mappers: 含映射器

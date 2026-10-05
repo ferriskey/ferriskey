@@ -33,11 +33,11 @@ import {
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
 import {
   DataView,
-  FilterBar,
+  ListingToolbar,
   PaginationBar,
   usePagedListing,
   type Column,
-  type FilterField,
+  type ColumnFilterField,
   type PagedListing,
   type ViewMode,
 } from '@/components/kit'
@@ -192,17 +192,12 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
     orgId,
     groupId: group.id,
     query: listing.apiQuery as GroupMembersQuery,
+    keepPrevious: true,
   })
   const removeMember = useRemoveGroupMember(realm, orgId, group.id)
 
   const members = data?.data ?? []
   const narrowed = Object.values(listing.state.filters).some(Boolean)
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'username', label: t('groups.members.filter_fields.username') },
-    { kind: 'text', key: 'email', label: t('groups.members.filter_fields.email') },
-    { kind: 'boolean', key: 'enabled', label: t('groups.members.filter_fields.enabled') },
-  ]
 
   const displayName = (member: GroupMemberDetail) =>
     [member.firstname, member.lastname].filter(Boolean).join(' ') || member.username
@@ -240,12 +235,23 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
       key: 'status',
       header: t('groups.members.columns.status'),
       render: statusBadge,
+      filters: [
+        { kind: 'boolean', key: 'enabled', label: t('groups.members.filter_fields.enabled') },
+      ],
     },
     {
       key: 'joined',
       header: t('groups.members.columns.joined'),
       render: (member) => <span className='tnum'>{formatRelative(member.created_at)}</span>,
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('groups.members.filter_fields.joined'),
+        },
+      ],
     },
     {
       key: 'actions',
@@ -272,9 +278,11 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
         </h2>
         <AddMembersDialog realm={realm} orgId={orgId} groupId={group.id} />
       </div>
-      <div className='flex'>
-        <FilterBar fields={filterFields} listing={listing} />
-      </div>
+      <ListingToolbar
+        listing={listing}
+        columns={columns}
+        search={{ placeholder: t('groups.members.search_placeholder') }}
+      />
       <DataView
         rows={members}
         columns={columns}
@@ -286,6 +294,7 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
         getKey={(member) => member.id}
         view={GROUPS_VIEW}
         loading={isLoading}
+        listing={listing}
         sort={listing.state.sort}
         onSortChange={listing.setSort}
         emptyLabel={narrowed ? t('groups.members.no_match') : t('groups.members.empty')}
@@ -598,6 +607,7 @@ function GroupsTable({
     realm,
     orgId,
     query: listing.apiQuery as GroupsQuery,
+    keepPrevious: true,
   })
   const groups = useMemo(() => data?.data ?? [], [data])
   const parentIds = useMemo(
@@ -618,9 +628,7 @@ function GroupsTable({
     [listing]
   )
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('groups.list.filter_fields.name') },
-    { kind: 'text', key: 'description', label: t('groups.list.filter_fields.description') },
+  const parentFilters: ColumnFilterField[] = [
     {
       kind: 'relation',
       key: 'parent_group_id',
@@ -665,12 +673,21 @@ function GroupsTable({
       render: (group) => (
         <span className='text-sm text-muted-foreground'>{parentLabel(group)}</span>
       ),
+      filters: parentFilters,
     },
     {
       key: 'created',
       header: t('groups.list.columns.created'),
       render: (group) => <span className='tnum'>{formatRelative(group.created_at)}</span>,
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('groups.list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -717,9 +734,11 @@ function GroupsTable({
 
   return (
     <div className='flex flex-col gap-3'>
-      <div className='flex'>
-        <FilterBar fields={filterFields} listing={filterListing} />
-      </div>
+      <ListingToolbar
+        listing={listing}
+        columns={columns}
+        search={{ placeholder: t('groups.list.search_placeholder') }}
+      />
       <DataView
         rows={groups}
         columns={columns}
@@ -731,6 +750,7 @@ function GroupsTable({
         getKey={(group) => group.id}
         view={GROUPS_VIEW}
         loading={isLoading}
+        listing={filterListing}
         sort={listing.state.sort}
         onSortChange={listing.setSort}
         emptyLabel={narrowed ? t('groups.list.no_match') : t('groups.tree.empty')}

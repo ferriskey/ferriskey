@@ -16,7 +16,7 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::entity::{user_federation_mappings, user_federation_providers};
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within};
 
 impl SortColumn<user_federation_providers::Entity> for FederationProviderSortField {
     fn column(&self) -> user_federation_providers::Column {
@@ -41,6 +41,10 @@ fn listing_select(
 
     user_federation_providers::Entity::find()
         .filter(Column::RealmId.eq(realm_id))
+        .filter(within(Column::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(contains(Column::Name, value))
+        })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(Column::Name, value))
         })
@@ -62,6 +66,9 @@ fn listing_select(
         })
         .apply_if(filter.sync_enabled, |select, value| {
             select.filter(Column::SyncEnabled.eq(value))
+        })
+        .apply_if(filter.sync_mode, |select, value| {
+            select.filter(Column::SyncMode.eq(value.to_string()))
         })
         .apply_if(filter.synced, |select, value| {
             select.filter(if value {
@@ -414,13 +421,70 @@ impl FederationRepository for FederationRepositoryImpl {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
     use crate::domain::abyss::federation::entities::{
-        FederationProviderFamily, FederationProviderFilter,
+        FederationProviderFamily, FederationProviderFilter, SyncMode,
     };
+    use crate::domain::common::pagination::DateRange;
+
+    #[test]
+    fn search_is_an_escaped_contains_match_on_the_name() {
+        let sql = sql(&FederationProviderFilter {
+            search: Some("b_".to_string()),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            sql.contains(r#""user_federation_providers"."name" ILIKE E'%b\\_%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn sync_mode_is_an_exact_match_on_the_stored_value() {
+        for (mode, stored) in [
+            (SyncMode::Import, "Import"),
+            (SyncMode::Force, "Force"),
+            (SyncMode::LinkOnly, "LinkOnly"),
+        ] {
+            let sql = sql(&FederationProviderFilter {
+                sync_mode: Some(mode),
+                ..FederationProviderFilter::default()
+            });
+            assert!(
+                sql.contains(&format!(
+                    r#""user_federation_providers"."sync_mode" = '{stored}'"#
+                )),
+                "{sql}"
+            );
+        }
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&FederationProviderFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#""user_federation_providers"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(
+                r#""user_federation_providers"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#
+            ),
+            "{sql}"
+        );
+    }
 
     fn sql(filter: &FederationProviderFilter) -> String {
         listing_select(Uuid::nil(), filter)

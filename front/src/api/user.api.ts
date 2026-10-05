@@ -11,6 +11,7 @@ import { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export interface UserMutateContract<T> {
   realm?: string
@@ -34,8 +35,9 @@ const SEARCH_DEBOUNCE_MS = 300
 export const useGetUsers = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: UsersQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: UsersQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/users', {
       path: {
@@ -43,6 +45,7 @@ export const useGetUsers = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }
@@ -133,13 +136,19 @@ export type UserSessionsQuery = NonNullable<
   Endpoints.get_List_user_sessions['parameters']['query']
 >
 
-export const USER_SESSION_FILTER_KEYS = ['ip_address', 'user_agent', 'persistent'] as const
+export const USER_SESSION_FILTER_KEYS = [
+  'search',
+  'persistent',
+  'created_from',
+  'created_to',
+] as const
 
 export const useGetUserSessions = ({
   realm,
   userId,
   query,
-}: GetUserQueryParams & { query?: UserSessionsQuery }) => {
+  keepPrevious = false,
+}: GetUserQueryParams & { query?: UserSessionsQuery } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/users/{user_id}/sessions', {
       path: {
@@ -148,6 +157,7 @@ export const useGetUserSessions = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: !!userId && !!realm,
   })
 }

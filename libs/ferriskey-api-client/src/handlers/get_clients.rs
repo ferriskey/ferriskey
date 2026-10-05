@@ -2,6 +2,7 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     list_query::{ListQuery, PaginationParams, parse_id_list},
@@ -15,7 +16,7 @@ use ferriskey_core::domain::client::entities::{
     ApplicationType, Client, ClientFilter, ClientSortField, ClientType,
 };
 use ferriskey_core::domain::client::ports::ClientService;
-use ferriskey_core::domain::common::pagination::PageRequest;
+use ferriskey_core::domain::common::pagination::{DateRange, PageRequest};
 use serde::Deserialize;
 use utoipa::IntoParams;
 
@@ -42,6 +43,8 @@ pub struct ClientListParams {
     pub maintenance_enabled: Option<bool>,
     #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f,0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e70")]
     pub ids: Option<String>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<ClientListParams> for ClientFilter {
@@ -67,6 +70,7 @@ impl TryFrom<ClientListParams> for ClientFilter {
                 .as_deref()
                 .map(|raw| parse_id_list("ids", raw))
                 .transpose()?,
+            created: DateRange::new(params.created_from, params.created_to),
         })
     }
 }
@@ -75,7 +79,7 @@ impl TryFrom<ClientListParams> for ClientFilter {
     get,
     path = "",
     summary = "List the clients of a realm",
-    description = "Returns one page of the realm's clients. search matches case-insensitively anywhere in the name or the client_id; the text filters name and client_id match case-insensitively anywhere in that value; client_id_exact keeps the client whose client_id equals the value exactly, case-sensitive; enabled, public_client, service_account_enabled, protocol and client_type match exactly; oauth_device_code_grant_enabled treats an unset value as false; application_type keeps m2m clients (service account), device clients (device grant and no redirect URI), spa and native clients (public client type, with or without public_client) and web clients (any other client type); has_redirect_uris keeps clients with at least one redirect URI (true) or none (false), disabled redirect URIs included; maintenance_enabled keeps clients in maintenance (true) or not (false); ids takes a comma-separated list of at most 100 client ids. Filters combine with AND.",
+    description = "Returns one page of the realm's clients. search matches case-insensitively anywhere in the name or the client_id; the text filters name and client_id match case-insensitively anywhere in that value; client_id_exact keeps the client whose client_id equals the value exactly, case-sensitive; enabled, public_client, service_account_enabled, protocol and client_type match exactly; oauth_device_code_grant_enabled treats an unset value as false; application_type keeps m2m clients (service account), device clients (device grant and no redirect URI), spa and native clients (public client type, with or without public_client) and web clients (any other client type); has_redirect_uris keeps clients with at least one redirect URI (true) or none (false), disabled redirect URIs included; maintenance_enabled keeps clients in maintenance (true) or not (false); ids takes a comma-separated list of at most 100 client ids. created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         PaginationParams,
@@ -113,6 +117,7 @@ pub async fn get_clients(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
     use uuid::Uuid;
@@ -124,7 +129,7 @@ mod tests {
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
         let request = parse_list_query::<ClientListParams, ClientSortField>(&format!(
-            "order_by=client_id&order=asc&search=po&name=web&client_id=app&client_id_exact=App-Web&enabled=true&public_client=false&service_account_enabled=true&oauth_device_code_grant_enabled=false&protocol=openid-connect&client_type=public&application_type=native&has_redirect_uris=false&maintenance_enabled=true&ids={first},{second}"
+            "order_by=client_id&order=asc&search=po&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00&name=web&client_id=app&client_id_exact=App-Web&enabled=true&public_client=false&service_account_enabled=true&oauth_device_code_grant_enabled=false&protocol=openid-connect&client_type=public&application_type=native&has_redirect_uris=false&maintenance_enabled=true&ids={first},{second}"
         ))
         .expect("valid query");
 
@@ -147,6 +152,10 @@ mod tests {
                 has_redirect_uris: Some(false),
                 maintenance_enabled: Some(true),
                 ids: Some(vec![first, second]),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -171,6 +180,9 @@ mod tests {
             "client_type=robot",
             "application_type=robot",
             "enabled=maybe",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
         ] {
             assert!(
                 parse_list_query::<ClientListParams, ClientSortField>(query).is_err(),

@@ -1,10 +1,10 @@
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, Iterable, Order, PaginatorTrait,
+    ColumnTrait, Condition, ConnectionTrait, DbErr, EntityTrait, Iterable, Order, PaginatorTrait,
     PrimaryKeyToColumn, QueryOrder, QuerySelect, Select,
     sea_query::{Expr, LikeExpr, SimpleExpr, extension::postgres::PgExpr},
 };
 
-use crate::domain::common::pagination::{PageRequest, SortOrder};
+use crate::domain::common::pagination::{DateRange, PageRequest, SortOrder};
 
 pub trait SortColumn<E: EntityTrait> {
     fn column(&self) -> E::Column;
@@ -80,6 +80,18 @@ pub fn contains<C: ColumnTrait>(column: C, value: &str) -> SimpleExpr {
     Expr::col((column.entity_name(), column)).ilike(LikeExpr::new(escape_like(value)))
 }
 
+pub fn within<C: ColumnTrait>(column: C, range: &DateRange) -> Condition {
+    Condition::all()
+        .add_option(range.from.map(|from| column.gte(from)))
+        .add_option(range.to.map(|to| column.lt(to)))
+}
+
+pub fn within_naive<C: ColumnTrait>(column: C, range: &DateRange) -> Condition {
+    Condition::all()
+        .add_option(range.from.map(|from| column.gte(from.naive_utc())))
+        .add_option(range.to.map(|to| column.lt(to.naive_utc())))
+}
+
 pub fn order<E, F, S>(select: Select<E>, request: &PageRequest<F, S>) -> Select<E>
 where
     E: EntityTrait,
@@ -113,8 +125,12 @@ mod tests {
     use sea_orm::{DbBackend, EntityTrait, QueryFilter, QueryTrait};
 
     use super::*;
-    use crate::domain::common::pagination::{PageLimit, PageNumber, PageRequest, Sort, SortOrder};
-    use crate::entity::{realms, users};
+    use chrono::{TimeZone, Utc};
+
+    use crate::domain::common::pagination::{
+        DateRange, PageLimit, PageNumber, PageRequest, Sort, SortOrder,
+    };
+    use crate::entity::{organizations, realms, users};
 
     #[derive(Debug, Clone, Copy, Default)]
     enum TestSort {
@@ -238,5 +254,61 @@ mod tests {
             .to_string();
         assert!(sql.contains(r#""realms"."name" ILIKE E'%a\\_b%'"#), "{sql}");
         assert!(!sql.contains("ESCAPE"), "{sql}");
+    }
+
+    #[test]
+    fn within_naive_bounds_from_inclusive_to_exclusive() {
+        let from = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single();
+        let to = Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single();
+        let sql = realms::Entity::find()
+            .filter(within_naive(
+                realms::Column::CreatedAt,
+                &DateRange::new(from, to),
+            ))
+            .build(DbBackend::Postgres)
+            .to_string();
+        assert!(
+            sql.contains(r#""realms"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""realms"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn within_bounds_a_timestamptz_column() {
+        let from = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single();
+        let to = Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single();
+        let sql = organizations::Entity::find()
+            .filter(within(
+                organizations::Column::CreatedAt,
+                &DateRange::new(from, to),
+            ))
+            .build(DbBackend::Postgres)
+            .to_string();
+        assert!(
+            sql.contains(r#""organizations"."created_at" >= '2026-01-01 00:00:00.000000 +00:00'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""organizations"."created_at" < '2026-02-01 00:00:00.000000 +00:00'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn unbounded_range_adds_no_condition() {
+        let sql = realms::Entity::find()
+            .filter(within_naive(
+                realms::Column::CreatedAt,
+                &DateRange::default(),
+            ))
+            .build(DbBackend::Postgres)
+            .to_string();
+        assert!(sql.ends_with("WHERE TRUE"), "{sql}");
+        assert!(!sql.contains(r#""realms"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""realms"."created_at" <"#), "{sql}");
     }
 }

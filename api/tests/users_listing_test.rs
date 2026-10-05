@@ -691,6 +691,158 @@ mod tests {
         });
     }
 
+    fn searched(seed: &Seed, needle: &str) -> bool {
+        [
+            seed.username.as_str(),
+            seed.email.as_str(),
+            seed.firstname,
+            seed.lastname.as_str(),
+        ]
+        .iter()
+        .any(|value| value.to_lowercase().contains(needle))
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
+    fn search_matches_any_of_the_text_fields() {
+        let server = make_server();
+        let cases: [(&str, &str, HashSet<Uuid>); 4] = [
+            (
+                "USER-1",
+                "user-1",
+                matching(|s| s.username.contains("user-1")),
+            ),
+            ("corp", "corp", matching(|s| s.email.contains("corp"))),
+            ("AR", "ar", matching(|s| s.firstname.contains("ar"))),
+            ("last0", "last0", matching(|s| s.lastname.contains("last0"))),
+        ];
+
+        rt().block_on(async {
+            for (value, needle, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{value}: the fixture must make this search discriminating"
+                );
+                assert_eq!(
+                    matching(|s| searched(s, needle)),
+                    expected,
+                    "{value}: only one field may carry the needle"
+                );
+                let body =
+                    list_ok(&server, &ctx().realm, &format!("search={value}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{value}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{value}: total");
+            }
+
+            let combined = list_ok(
+                &server,
+                &ctx().realm,
+                "search=user-1&enabled=true&limit=100",
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&combined).into_iter().collect();
+            let expected = matching(|s| s.username.contains("user-1") && s.enabled);
+            assert_eq!(found, expected);
+            assert_eq!(total(&combined), expected.len() as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
+    fn search_matches_like_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            for (value, expected) in [
+                ("%25", "pct%user"),
+                ("_", "under_score"),
+                ("%5C", "back\\slash"),
+            ] {
+                let body = list_ok(&server, &ctx().other_realm, &format!("search={value}")).await;
+                assert_eq!(usernames(&body), [expected], "{value}");
+                assert_eq!(total(&body), 1, "{value}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: [(&str, HashSet<Uuid>); 6] = [
+            (
+                "created_from=2026-01-01T00:05:00Z",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_to=2026-01-01T00:02:00Z",
+                matching(|s| s.created_minute < 2),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z",
+                matching(|s| (2..5).contains(&s.created_minute)),
+            ),
+            (
+                "created_from=2026-01-01T00:03:00Z&created_to=2026-01-01T00:04:00Z",
+                matching(|s| s.created_minute == 3),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z&search=alice",
+                matching(|s| (2..5).contains(&s.created_minute) && s.firstname == "alice"),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let edge = list_ok(
+                &server,
+                &ctx().realm,
+                "created_to=2026-01-01T00:03:00Z&limit=100",
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&edge).into_iter().collect();
+            assert!(
+                ctx()
+                    .seeds
+                    .iter()
+                    .filter(|s| s.created_minute == 3)
+                    .all(|s| !found.contains(&s.id)),
+                "a row created exactly at created_to is excluded"
+            );
+            assert_eq!(found, matching(|s| s.created_minute < 3));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                "created_from=2026-01-01T00:05:00Z&created_to=2026-01-01T00:02:00Z",
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+        });
+    }
+
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test users_listing_test -- --ignored"]
     fn users_of_another_realm_are_never_listed() {
@@ -841,6 +993,10 @@ mod tests {
                 ("role_id=not-a-uuid", "role_id"),
                 ("ids=not-a-uuid", "ids"),
                 ("username=a&username=b", "username"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());

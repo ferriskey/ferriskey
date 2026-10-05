@@ -16,7 +16,7 @@ import {
   eventColumns,
   type ConsoleTranslate,
 } from './event-journal'
-import { journalFilterFields } from '@/pages/iam/seawatch/event-filter-fields'
+import { securityEventColumnFilters } from '@/pages/iam/seawatch/event-filter-fields'
 import type { EventJournal } from '../feature/use-event-journal'
 import { JournalSection } from './journal-section'
 
@@ -240,7 +240,13 @@ export default function PageMessages({
   const journalColumns = [
     messageColumn,
     { ...shared.outcome, sortKey: 'status' },
-    recipientColumn,
+    {
+      ...recipientColumn,
+      filters: securityEventColumnFilters().actor.map((field) => ({
+        ...field,
+        label: t('activity.messages.columns.recipient'),
+      })),
+    },
     { ...shared.when, sortKey: 'timestamp' },
   ]
 
@@ -260,7 +266,6 @@ export default function PageMessages({
         pagination={journal.pagination}
         listing={journal.listing}
         tabs={tabs}
-        filterFields={journalFilterFields()}
         columns={journalColumns}
         card={eventCard(directory, t)}
         getKey={(e) => e.id}

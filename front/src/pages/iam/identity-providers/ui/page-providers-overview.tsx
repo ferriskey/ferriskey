@@ -7,7 +7,6 @@ import type {
   CardSpec,
   Choice,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
   PillTone,
@@ -82,6 +81,10 @@ const DEFAULT_PROTOCOL: ProviderProtocol = 'oidc'
 const HEALTH_ERROR = 'error'
 
 const HEALTH_DEGRADED = 'degraded'
+
+const YES = 'true'
+
+const NO = 'false'
 
 const popularTemplates = PROVIDER_TEMPLATES.filter((template) =>
   POPULAR_TEMPLATE_IDS.includes(template.id)
@@ -175,6 +178,14 @@ export default function PageProvidersOverview({
         </Pill>
       ),
       sortKey: 'provider_id',
+      filters: [
+        {
+          kind: 'enum',
+          key: 'provider_id',
+          label: t('list.filter_fields.provider_id'),
+          options: providerTypeOptions(),
+        },
+      ],
     },
     {
       key: 'configuration',
@@ -188,6 +199,18 @@ export default function PageProvidersOverview({
           </div>
         )
       },
+      filters: [
+        {
+          kind: 'enum',
+          key: 'health',
+          label: t('list.filter_fields.health'),
+          options: [
+            { value: 'healthy', label: t('list.filter_fields.health_values.healthy') },
+            { value: 'degraded', label: t('list.filter_fields.health_values.degraded') },
+            { value: 'error', label: t('list.filter_fields.health_values.error') },
+          ],
+        },
+      ],
     },
     {
       key: 'status',
@@ -199,6 +222,7 @@ export default function PageProvidersOverview({
         </span>
       ),
       sortKey: 'enabled',
+      filters: [{ kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') }],
     },
     {
       key: 'created',
@@ -209,6 +233,14 @@ export default function PageProvidersOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -265,28 +297,6 @@ export default function PageProvidersOverview({
     footer: (p) => <span className='truncate'>{providerStatus(p).detail}</span>,
   }
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'alias', label: t('list.filter_fields.alias') },
-    { kind: 'text', key: 'display_name', label: t('list.filter_fields.display_name') },
-    {
-      kind: 'enum',
-      key: 'provider_id',
-      label: t('list.filter_fields.provider_id'),
-      options: providerTypeOptions(),
-    },
-    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
-    {
-      kind: 'enum',
-      key: 'health',
-      label: t('list.filter_fields.health'),
-      options: [
-        { value: 'healthy', label: t('list.filter_fields.health_values.healthy') },
-        { value: 'degraded', label: t('list.filter_fields.health_values.degraded') },
-        { value: 'error', label: t('list.filter_fields.health_values.error') },
-      ],
-    },
-  ]
-
   const reviewHealth = (health: string) => () =>
     listing.setFilters({ health })
 
@@ -310,6 +320,7 @@ export default function PageProvidersOverview({
             value: counts.total,
             hint: t('list.metrics.total.hint'),
             series: [counts.total, counts.total],
+            filter: {},
           },
           {
             key: 'enabled',
@@ -322,6 +333,7 @@ export default function PageProvidersOverview({
                   })
                 : t('list.metrics.enabled.empty_hint'),
             series: [counts.enabled, counts.enabled],
+            filter: { enabled: YES },
           },
           {
             key: 'disabled',
@@ -329,6 +341,7 @@ export default function PageProvidersOverview({
             value: counts.disabled,
             hint: t('list.metrics.disabled.hint'),
             series: [counts.disabled, counts.disabled],
+            filter: { enabled: NO },
           },
         ]}
         alerts={[
@@ -361,7 +374,7 @@ export default function PageProvidersOverview({
               ]
             : []),
         ]}
-        paged={{ listing, pagination, filterFields }}
+        paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
         rows={providers}
         columns={columns}
         card={card}

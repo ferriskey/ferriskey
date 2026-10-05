@@ -989,6 +989,61 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test compass_flows_listing_test -- --ignored"]
+    fn search_matches_the_ip_address_only() {
+        let server = make_server();
+        let cases: [(&str, HashSet<Uuid>); 3] = [
+            ("192.168.1.", matching(|s| ip_contains(s, "192.168.1."))),
+            (".2", matching(|s| ip_contains(s, ".2"))),
+            ("192.168.", matching(|s| s.ip_address.is_some())),
+        ];
+
+        rt().block_on(async {
+            for (value, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{value}: the fixture must make this search discriminating"
+                );
+                let body = list_realm(&server, &format!("search={value}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{value}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{value}: total");
+                assert!(
+                    found.iter().all(|id| seed_of(*id).ip_address.is_some()),
+                    "{value}: a row without an address never matches"
+                );
+            }
+
+            let unknown = list_realm(&server, "search=seed-agent&limit=100").await;
+            assert_eq!(total(&unknown), 0, "search ignores the user agent");
+
+            let combined = list_realm(&server, "search=192.168.1.&status=failure&limit=100").await;
+            let expected = matching(|s| ip_contains(s, "192.168.1.") && s.status == "failure");
+            assert!(!expected.is_empty());
+            let found: HashSet<Uuid> = ids(&combined).into_iter().collect();
+            assert_eq!(found, expected);
+            assert_eq!(total(&combined), expected.len() as u64);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test compass_flows_listing_test -- --ignored"]
+    fn search_matches_like_wildcards_literally() {
+        let server = make_server();
+        rt().block_on(async {
+            for (value, expected) in [
+                ("%25", "ip%literal"),
+                ("_", "under_ip"),
+                ("%5C", "back\\ip"),
+            ] {
+                let body = list_other(&server, &format!("search={value}")).await;
+                assert_eq!(ips(&body), [expected], "{value}");
+                assert_eq!(total(&body), 1, "{value}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test compass_flows_listing_test -- --ignored"]
     fn invalid_query_parameters_are_rejected() {
         let server = make_server();
         rt().block_on(async {
@@ -1006,6 +1061,9 @@ mod tests {
                 ("identified=maybe", "identified"),
                 ("completed=1", "completed"),
                 ("ip_address=a&ip_address=b", "ip_address"),
+                ("search=a&search=b", "search"),
+                ("created_from=2026-01-01T00:00:00Z", "created_from"),
+                ("created_to=2026-01-01T00:00:00Z", "created_to"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());

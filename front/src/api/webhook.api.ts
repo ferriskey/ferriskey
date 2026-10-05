@@ -1,17 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type WebhooksQuery = NonNullable<Endpoints.get_Fetch_webhooks['parameters']['query']>
 
 export type WebhooksFilter = Omit<WebhooksQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const WEBHOOK_FILTER_KEYS = [
-  'name',
-  'endpoint',
   'triggered',
   'has_subscribers',
   'secure_endpoint',
+  'search',
+  'created_from',
+  'created_to',
 ] as const
 
 export const webhooksKey = (realm: string) =>
@@ -23,8 +25,9 @@ export const webhooksKey = (realm: string) =>
 export const useGetWebhooks = ({
   realm = 'master',
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: WebhooksQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: WebhooksQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/webhooks', {
       path: {
@@ -32,6 +35,7 @@ export const useGetWebhooks = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }
@@ -94,14 +98,21 @@ export type WebhookDeliveriesFilter = Omit<
   'page' | 'limit' | 'order' | 'order_by'
 >
 
-export const DELIVERY_FILTER_KEYS = ['status', 'event', 'resource_id'] as const
+export const DELIVERY_FILTER_KEYS = [
+  'search',
+  'status',
+  'event',
+  'created_from',
+  'created_to',
+] as const
 
 export const useGetWebhookDeliveries = ({
   realm = 'master',
   webhookId,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { webhookId: string; query?: WebhookDeliveriesQuery; enabled?: boolean }) => {
+}: BaseQuery & { webhookId: string; query?: WebhookDeliveriesQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/webhooks/{webhook_id}/deliveries', {
       path: {
@@ -110,6 +121,7 @@ export const useGetWebhookDeliveries = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: enabled && Boolean(webhookId),
   })
 }

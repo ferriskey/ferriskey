@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::generate_uuid_v7;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
@@ -286,9 +287,11 @@ impl WebhookDelivery {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WebhookDeliveryFilter {
+    pub search: Option<String>,
     pub event: Option<WebhookTrigger>,
     pub status: Option<DeliveryStatus>,
     pub resource_id: Option<Uuid>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

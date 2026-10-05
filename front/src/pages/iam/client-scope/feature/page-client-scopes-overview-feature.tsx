@@ -26,6 +26,7 @@ export default function PageClientScopesOverviewFeature() {
   const { data: response, isLoading } = useGetClientScopes({
     realm,
     query: listing.apiQuery as ClientScopesQuery,
+    keepPrevious: true,
   })
   const total = useClientScopeCount({ realm })
   const defaults = useClientScopeCount({ realm, filter: { default_scope_type: 'DEFAULT' } })

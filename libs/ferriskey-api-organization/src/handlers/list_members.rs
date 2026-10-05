@@ -2,9 +2,10 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
-    common::pagination::PageRequest,
+    common::pagination::{DateRange, PageRequest},
     organization::ports::{
         ListOrganizationMembersInput, OrganizationId, OrganizationMember, OrganizationMemberFilter,
         OrganizationMemberSortField, OrganizationService,
@@ -26,17 +27,22 @@ use ferriskey_api_core::app_state::AppState;
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct OrganizationMemberListParams {
+    pub search: Option<String>,
     pub username: Option<String>,
     pub email: Option<String>,
     pub enabled: Option<bool>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<OrganizationMemberListParams> for OrganizationMemberFilter {
     fn from(params: OrganizationMemberListParams) -> Self {
         Self {
+            search: params.search,
             username: params.username,
             email: params.email,
             enabled: params.enabled,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
@@ -46,7 +52,7 @@ impl From<OrganizationMemberListParams> for OrganizationMemberFilter {
     path = "/{organization_id}/members",
     tag = "organization",
     summary = "List members of an organization",
-    description = "Returns one page of the organization's memberships. Text filters (username, email) match case-insensitively anywhere in the member's user value; enabled matches the user's enabled flag exactly. Filters combine with AND. created_at is the date the user joined the organization.",
+    description = "Returns one page of the organization's memberships. search matches case-insensitively a member whose username or email contains the value; a member without an email only matches by username. Text filters (username, email) match case-insensitively anywhere in the member's user value; enabled matches the user's enabled flag exactly; created_from (inclusive) and created_to (exclusive) bound the membership date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND. created_at is the date the user joined the organization.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
@@ -92,6 +98,7 @@ pub async fn list_members(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -101,7 +108,7 @@ mod tests {
     fn every_filter_and_sort_field_is_read() {
         let request =
             parse_list_query::<OrganizationMemberListParams, OrganizationMemberSortField>(
-                "order_by=username&order=asc&username=jo&email=corp&enabled=false",
+                "order_by=username&order=asc&search=mem&username=jo&email=corp&enabled=false&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00",
             )
             .expect("valid query");
 
@@ -110,9 +117,14 @@ mod tests {
         assert_eq!(
             OrganizationMemberFilter::from(request.filter),
             OrganizationMemberFilter {
+                search: Some("mem".to_string()),
                 username: Some("jo".to_string()),
                 email: Some("corp".to_string()),
                 enabled: Some(false),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -133,7 +145,9 @@ mod tests {
     #[test]
     fn unknown_filters_and_columns_are_refused() {
         for query in [
-            "search=jo",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
             "user_id=x",
             "order_by=firstname",
             "enabled=maybe",

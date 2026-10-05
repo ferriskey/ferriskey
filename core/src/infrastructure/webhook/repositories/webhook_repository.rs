@@ -19,13 +19,13 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within_naive};
 
 use chrono::Utc;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
-    RelationTrait, Select,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    QueryTrait, RelationTrait, Select,
 };
 use tokio::sync::mpsc;
 use tracing::{error, warn};
@@ -101,9 +101,19 @@ impl SortColumn<WebhookEntity> for WebhookSortField {
 
 const SECURE_ENDPOINT_PATTERN: &str = "https://%";
 
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(WebhookColumn::Name, value))
+        .add(contains(WebhookColumn::Endpoint, value))
+}
+
 fn listing_select(realm_id: Uuid, filter: &WebhookFilter) -> Select<WebhookEntity> {
     WebhookEntity::find()
         .filter(WebhookColumn::RealmId.eq(realm_id))
+        .filter(within_naive(WebhookColumn::CreatedAt, &filter.created))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(WebhookColumn::Name, value))
         })
@@ -725,10 +735,12 @@ mod tests {
 
 #[cfg(test)]
 mod listing_tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::webhook::entities::webhook::WebhookFilter;
 
     fn sql(filter: &WebhookFilter) -> String {
@@ -742,6 +754,46 @@ mod listing_tests {
         let sql = sql(&WebhookFilter::default());
         assert!(
             sql.contains(r#""webhooks"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_endpoint() {
+        let sql = sql(&WebhookFilter {
+            search: Some("a%".to_string()),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("webhooks"."name" ILIKE E'%a\\%%') OR ("webhooks"."endpoint" ILIKE E'%a\\%%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&WebhookFilter::default());
+        assert!(!sql.contains(r#""webhooks"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""webhooks"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&WebhookFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..WebhookFilter::default()
+        });
+        assert!(
+            sql.contains(r#""webhooks"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""webhooks"."created_at" < '2026-02-01 00:00:00.000000'"#),
             "{sql}"
         );
     }

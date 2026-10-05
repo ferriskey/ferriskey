@@ -4,6 +4,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::common::pagination::DateRange;
 use ferriskey_core::domain::session::entities::{SessionFilter, SessionSortField, UserSession};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -52,17 +53,22 @@ impl From<UserSession> for UserSessionDto {
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct UserSessionListParams {
+    pub search: Option<String>,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub persistent: Option<bool>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<UserSessionListParams> for SessionFilter {
     fn from(params: UserSessionListParams) -> Self {
         Self {
+            search: params.search,
             ip_address: params.ip_address,
             user_agent: params.user_agent,
             persistent: params.persistent,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
@@ -72,7 +78,7 @@ impl From<UserSessionListParams> for SessionFilter {
     path = "/{user_id}/sessions",
     tag = "user",
     summary = "List the sessions of a user",
-    description = "Returns one page of the user's sessions in the realm, expired ones included. ip_address and user_agent match case-insensitively anywhere in the value and never match a session where the value is unknown; persistent matches exactly. Filters combine with AND. Sorting on last_seen_at puts never-seen sessions last in ascending order and first in descending order. Requires ManageUsers, ManageRealm or ViewUsers, unless the caller is the user themselves. A user that is not in the realm is a 404.",
+    description = "Returns one page of the user's sessions in the realm, expired ones included. search matches case-insensitively anywhere in the ip_address or user_agent and never matches a session where both are unknown. created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. ip_address and user_agent match case-insensitively anywhere in the value and never match a session where the value is unknown; persistent matches exactly. Filters combine with AND. Sorting on last_seen_at puts never-seen sessions last in ascending order and first in descending order. Requires ManageUsers, ManageRealm or ViewUsers, unless the caller is the user themselves. A user that is not in the realm is a 404.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("user_id" = Uuid, Path, description = "User ID"),
@@ -112,6 +118,7 @@ pub async fn list_user_sessions(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -120,7 +127,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<UserSessionListParams, SessionSortField>(
-            "order_by=last_seen_at&order=asc&ip_address=10.0&user_agent=firefox&persistent=true",
+            "order_by=last_seen_at&order=asc&search=fox&ip_address=10.0&user_agent=firefox&persistent=true&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00Z",
         )
         .expect("valid query");
 
@@ -129,9 +136,14 @@ mod tests {
         assert_eq!(
             SessionFilter::from(request.filter),
             SessionFilter {
+                search: Some("fox".to_string()),
                 ip_address: Some("10.0".to_string()),
                 user_agent: Some("firefox".to_string()),
                 persistent: Some(true),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+                ),
             }
         );
     }
@@ -152,7 +164,8 @@ mod tests {
     #[test]
     fn unknown_filters_and_columns_are_refused() {
         for query in [
-            "search=firefox",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
             "sso_token_hash=x",
             "order_by=user_agent",
             "order_by=sso_token_hash",

@@ -5,7 +5,6 @@ import { IconTile, ListingPage, Pill, StatusDot } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
@@ -16,6 +15,8 @@ import Organization = Schemas.Organization
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
+const YES = 'true'
+const NO = 'false'
 
 export interface OrganizationCounts {
   total: number
@@ -85,6 +86,9 @@ export default function PageOrganizationsOverview({
             {t('organization.no_domain')}
           </span>
         ),
+      filters: [
+        { kind: 'boolean', key: 'has_domain', label: t('list.filter_fields.has_domain') },
+      ],
     },
     {
       key: 'description',
@@ -108,6 +112,7 @@ export default function PageOrganizationsOverview({
         </span>
       ),
       sortKey: 'enabled',
+      filters: [{ kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') }],
     },
     {
       key: 'created',
@@ -118,6 +123,14 @@ export default function PageOrganizationsOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -160,14 +173,6 @@ export default function PageOrganizationsOverview({
     ),
   }
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
-    { kind: 'text', key: 'alias', label: t('list.filter_fields.alias') },
-    { kind: 'text', key: 'domain', label: t('list.filter_fields.domain') },
-    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
-    { kind: 'boolean', key: 'has_domain', label: t('list.filter_fields.has_domain') },
-  ]
-
   const createButton = (
     <Button onClick={onCreate}>
       <Plus /> {t('list.create')}
@@ -187,6 +192,7 @@ export default function PageOrganizationsOverview({
           value: counts.total,
           hint: t('list.metrics.total.hint', { count: counts.total }),
           series: [counts.total, counts.total],
+          filter: {},
         },
         {
           key: 'enabled',
@@ -199,6 +205,7 @@ export default function PageOrganizationsOverview({
                 })
               : t('list.metrics.enabled.empty_hint'),
           series: [counts.enabled, counts.enabled],
+          filter: { enabled: YES },
         },
         {
           key: 'disabled',
@@ -206,6 +213,7 @@ export default function PageOrganizationsOverview({
           value: counts.disabled,
           hint: t('list.metrics.disabled.hint'),
           series: [counts.disabled, counts.disabled],
+          filter: { enabled: NO },
         },
         {
           key: 'domain',
@@ -213,6 +221,7 @@ export default function PageOrganizationsOverview({
           value: counts.withDomain,
           hint: t('list.metrics.domain.hint'),
           series: [counts.withDomain, counts.withDomain],
+          filter: { has_domain: YES },
         },
       ]}
       alerts={
@@ -231,7 +240,7 @@ export default function PageOrganizationsOverview({
             ]
           : []
       }
-      paged={{ listing, pagination, filterFields }}
+      paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
       rows={organizations}
       columns={columns}
       card={card}

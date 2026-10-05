@@ -26,6 +26,7 @@ export default function PageClientsOverviewFeature() {
   const { data: clientsResponse, isLoading } = useGetClients({
     realm,
     query: listing.apiQuery as ClientsQuery,
+    keepPrevious: true,
   })
   const total = useClientCount({ realm })
   const active = useClientCount({ realm, filter: { enabled: true } })

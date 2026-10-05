@@ -45,6 +45,7 @@ list:
   title: 用户联合
   description: 账户会被导入此域的外部目录。
   create: 添加提供商
+  search_placeholder: 按名称搜索…
   count_other: '{{count}} 个提供商'
   no_endpoint: 无端点
   never_synced: 从未同步
@@ -89,7 +90,6 @@ list:
       detail: '{{names}} — 目前尚未导入任何账户。'
       action: 查看
   filter_fields:
-    name: 名称
     provider_type: 类型
     provider_family: 类别
     provider_family_values:
@@ -98,6 +98,8 @@ list:
     enabled: 已启用
     sync_enabled: 计划同步
     synced: 至少同步过一次
+    sync_mode: 同步模式
+    created: 创建时间
   aggregates:
     # Footer total, never inflected — it always reads as a raw count of enabled providers.
     status: '{{total}} 个已启用'

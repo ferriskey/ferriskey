@@ -46,6 +46,7 @@ duration:
   seconds: '{{value}} s'
 
 list:
+  search_placeholder: Search by IP address…
   columns:
     started_at: Started
     grant_type: Grant type
@@ -55,7 +56,6 @@ list:
     steps: Steps
     duration: Duration
   filter_fields:
-    ip_address: IP address
     status: Outcome
     grant_type: Grant type
     client_id: Client

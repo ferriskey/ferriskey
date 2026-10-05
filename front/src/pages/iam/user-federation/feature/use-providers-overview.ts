@@ -20,6 +20,7 @@ export function useProvidersOverview(realm: string) {
   const { data: response, isLoading } = useGetUserFederations({
     realm,
     query: listing.apiQuery as FederationProvidersQuery,
+    keepPrevious: true,
   })
   const total = useFederationProviderCount({ realm })
   const enabled = useFederationProviderCount({ realm, filter: { enabled: true } })

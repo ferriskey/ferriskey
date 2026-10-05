@@ -98,10 +98,9 @@ list:
       # "names" is the list of disabled organizations, already joined.
       detail_other: '{{names}}，其成员无法访问。'
       action: 检查
+  search_placeholder: 按名称、别名、域名或描述搜索…
   filter_fields:
-    name: 名称
-    alias: 别名
-    domain: 域名
+    created: 创建时间
     enabled: 已启用
     has_domain: 已设置域名
   card:
@@ -180,9 +179,9 @@ detail:
       email: 邮箱
       status: 状态
       joined: 加入时间
+    search_placeholder: 按用户名或邮箱搜索…
     filter_fields:
-      username: 用户名
-      email: 邮箱
+      joined: 加入时间
       enabled: 已启用
     empty: 此组织暂无成员。
     no_match: 没有成员与这些筛选条件匹配。
@@ -216,9 +215,9 @@ groups:
       parent: 父组
       created: 创建时间
       updated: 更新时间
+    search_placeholder: 按名称或描述搜索…
     filter_fields:
-      name: 名称
-      description: 描述
+      created: 创建时间
       parent: 父组
       is_root: 顶级
     top_level: 顶级
@@ -245,9 +244,9 @@ groups:
       email: 邮箱
       status: 状态
       joined: 加入时间
+    search_placeholder: 按用户名或邮箱搜索…
     filter_fields:
-      username: 用户名
-      email: 邮箱
+      joined: 加入时间
       enabled: 已启用
     add:
       trigger: 添加成员

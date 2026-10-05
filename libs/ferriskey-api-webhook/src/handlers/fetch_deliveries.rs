@@ -11,6 +11,7 @@ use ferriskey_api_core::api_entities::{
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::common::pagination::DateRange;
 use ferriskey_core::domain::webhook::entities::webhook_delivery::{
     DeliveryStatus, WebhookDelivery, WebhookDeliveryFilter, WebhookDeliverySortField,
 };
@@ -61,19 +62,24 @@ impl From<WebhookDelivery> for DeliverySummary {
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct WebhookDeliveryListParams {
+    pub search: Option<String>,
     #[param(inline)]
     pub event: Option<WebhookTrigger>,
     #[param(inline)]
     pub status: Option<DeliveryStatus>,
     pub resource_id: Option<Uuid>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<WebhookDeliveryListParams> for WebhookDeliveryFilter {
     fn from(params: WebhookDeliveryListParams) -> Self {
         Self {
+            search: params.search,
             event: params.event,
             status: params.status,
             resource_id: params.resource_id,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
@@ -83,7 +89,7 @@ impl From<WebhookDeliveryListParams> for WebhookDeliveryFilter {
     path = "/{webhook_id}/deliveries",
     tag = "webhook",
     summary = "List webhook deliveries",
-    description = "Returns one page of the recorded delivery attempts of one webhook of the realm. Payloads are not included; read a single delivery to get its payload. event matches one webhook trigger exactly; status matches exactly one of pending, delivering, succeeded, failed; resource_id matches the id of the resource the event is about. Filters combine with AND. Deliveries never attempted sort last on last_attempt_at in ascending order and first in descending order.",
+    description = "Returns one page of the recorded delivery attempts of one webhook of the realm. Payloads are not included; read a single delivery to get its payload. search matches case-insensitively a delivery whose resource_id, written as a lowercase hyphenated UUID, contains the value. event matches one webhook trigger exactly; status matches exactly one of pending, delivering, succeeded, failed; resource_id matches the id of the resource the event is about. created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND. Deliveries never attempted sort last on last_attempt_at in ascending order and first in descending order.",
     params(
         ("realm_name" = String, Path, description = "Name of the realm"),
         ("webhook_id" = Uuid, Path, description = "Webhook ID"),
@@ -122,6 +128,7 @@ pub async fn fetch_deliveries(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -132,7 +139,7 @@ mod tests {
         let resource = Uuid::from_u128(7);
         let request = parse_list_query::<WebhookDeliveryListParams, WebhookDeliverySortField>(
             &format!(
-                "order_by=last_attempt_at&order=asc&event=user.created&status=failed&resource_id={resource}"
+                "order_by=last_attempt_at&order=asc&search=ab-cd&event=user.created&status=failed&resource_id={resource}&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00"
             ),
         )
         .expect("valid query");
@@ -142,9 +149,14 @@ mod tests {
         assert_eq!(
             WebhookDeliveryFilter::from(request.filter),
             WebhookDeliveryFilter {
+                search: Some("ab-cd".to_string()),
                 event: Some(WebhookTrigger::UserCreated),
                 status: Some(DeliveryStatus::Failed),
                 resource_id: Some(resource),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
+                ),
             }
         );
     }
@@ -183,6 +195,9 @@ mod tests {
             "event=user.exploded",
             "event=%25",
             "resource_id=nope",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
         ] {
             assert!(
                 parse_list_query::<WebhookDeliveryListParams, WebhookDeliverySortField>(query)

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use sea_orm::ActiveValue::Set;
+use sea_orm::sea_query::{Alias, Expr, LikeExpr, SimpleExpr, extension::postgres::PgExpr};
 use sea_orm::{
     ColumnTrait, DatabaseConnection, DbBackend, EntityTrait, QueryFilter, QueryTrait, Select,
     Statement,
@@ -27,7 +28,7 @@ use crate::entity::webhook_deliveries::{
     Entity as WebhookDeliveryEntity,
 };
 use crate::entity::webhooks::{Column as WebhookColumn, Entity as WebhookEntity};
-use crate::infrastructure::pagination::{SortColumn, paginate};
+use crate::infrastructure::pagination::{SortColumn, escape_like, paginate, within_naive};
 
 fn optional_u32(value: Option<i32>) -> Option<u32> {
     value.and_then(|value| u32::try_from(value).ok())
@@ -103,6 +104,12 @@ impl SortColumn<WebhookDeliveryEntity> for WebhookDeliverySortField {
     }
 }
 
+fn search(value: &str) -> SimpleExpr {
+    Expr::col((WebhookDeliveryEntity, WebhookDeliveryColumn::ResourceId))
+        .cast_as(Alias::new("text"))
+        .ilike(LikeExpr::new(escape_like(value)))
+}
+
 fn listing_select(
     realm_id: Uuid,
     webhook_id: Uuid,
@@ -111,6 +118,13 @@ fn listing_select(
     WebhookDeliveryEntity::find()
         .filter(WebhookDeliveryColumn::RealmId.eq(realm_id))
         .filter(WebhookDeliveryColumn::WebhookId.eq(webhook_id))
+        .filter(within_naive(
+            WebhookDeliveryColumn::CreatedAt,
+            &filter.created,
+        ))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
         .apply_if(filter.event.as_ref(), |select, event| {
             select.filter(WebhookDeliveryColumn::Event.eq(event.to_string()))
         })
@@ -1069,10 +1083,12 @@ mod tests {
 
 #[cfg(test)]
 mod listing_tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::webhook::entities::webhook_delivery::{
         DeliveryStatus, WebhookDeliveryFilter,
     };
@@ -1103,12 +1119,45 @@ mod listing_tests {
     }
 
     #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&WebhookDeliveryFilter::default());
+        assert!(
+            !sql.contains(r#""webhook_deliveries"."created_at" >"#),
+            "{sql}"
+        );
+        assert!(
+            !sql.contains(r#""webhook_deliveries"."created_at" <"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&WebhookDeliveryFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..WebhookDeliveryFilter::default()
+        });
+        assert!(
+            sql.contains(r#""webhook_deliveries"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""webhook_deliveries"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
     fn every_filter_is_an_equality() {
         let resource = Uuid::from_u128(3);
         let sql = sql(&WebhookDeliveryFilter {
             event: Some(WebhookTrigger::UserCreated),
             status: Some(DeliveryStatus::Failed),
             resource_id: Some(resource),
+            ..WebhookDeliveryFilter::default()
         });
         assert!(
             sql.contains(r#""webhook_deliveries"."event" = 'user.created'"#),
@@ -1125,6 +1174,18 @@ mod listing_tests {
             "{sql}"
         );
         assert!(!sql.contains("LIKE"), "{sql}");
+    }
+
+    #[test]
+    fn search_matches_the_resource_id_as_escaped_text() {
+        let sql = sql(&WebhookDeliveryFilter {
+            search: Some("a%b".to_string()),
+            ..WebhookDeliveryFilter::default()
+        });
+        assert!(
+            sql.contains(r#"CAST("webhook_deliveries"."resource_id" AS text) ILIKE E'%a\\%b%'"#),
+            "{sql}"
+        );
     }
 
     #[test]

@@ -6,14 +6,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   DataView,
   EntityPicker,
-  FilterBar,
   IconTile,
+  ListingToolbar,
   PaginationBar,
   Pill,
   Section,
   StatusDot,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
   type PickableEntity,
@@ -76,12 +75,6 @@ export default function OrganizationMembersTab({
         label: memberDisplayName(user),
         sublabel: user.email ?? user.username,
       })),
-  ]
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'username', label: t('detail.members.filter_fields.username') },
-    { kind: 'text', key: 'email', label: t('detail.members.filter_fields.email') },
-    { kind: 'boolean', key: 'enabled', label: t('detail.members.filter_fields.enabled') },
   ]
 
   const avatar = ({ user }: OrganizationMemberRow) => {
@@ -183,12 +176,23 @@ export default function OrganizationMembersTab({
       key: 'status',
       header: t('detail.members.columns.status'),
       render: status,
+      filters: [
+        { kind: 'boolean', key: 'enabled', label: t('detail.members.filter_fields.enabled') },
+      ],
     },
     {
       key: 'joined',
       header: t('detail.members.columns.joined'),
       render: (row) => <span className='tnum'>{formatRelative(row.joinedAt)}</span>,
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('detail.members.filter_fields.joined'),
+        },
+      ],
     },
     {
       key: 'actions',
@@ -237,9 +241,11 @@ export default function OrganizationMembersTab({
         contained={false}
       >
         <div className='flex flex-col gap-3'>
-          <div className='flex'>
-            <FilterBar fields={filterFields} listing={listing} />
-          </div>
+          <ListingToolbar
+            listing={listing}
+            columns={columns}
+            search={{ placeholder: t('detail.members.search_placeholder') }}
+          />
           <DataView
             rows={rows}
             columns={columns}
@@ -258,6 +264,7 @@ export default function OrganizationMembersTab({
             getKey={(row) => row.id}
             view={MEMBERS_VIEW}
             loading={isLoading}
+            listing={listing}
             sort={listing.state.sort}
             onSortChange={listing.setSort}
             emptyLabel={narrowed ? t('detail.members.no_match') : t('detail.members.empty')}

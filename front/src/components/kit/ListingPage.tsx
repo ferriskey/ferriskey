@@ -6,7 +6,8 @@ import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
 import { DataView, type CardSpec, type Column, type ViewMode } from './DataView'
 import { PageShell } from './page-shell'
-import { FilterBar, type FilterField } from './FilterBar'
+import { ListingToolbar } from './ListingToolbar'
+import type { TileFilter } from './metric-tile-filter'
 import { PaginationBar } from './PaginationBar'
 import type { PaginationMetadata } from './listing-query-state'
 import type { PagedListing } from './use-paged-listing'
@@ -22,6 +23,7 @@ export interface ListingMetric {
   delta?: number
   series?: (number | null)[]
   tone?: ChartTone
+  filter?: TileFilter
 }
 
 export interface ListingAlert {
@@ -42,7 +44,7 @@ export interface ListingPageProps<T> {
   paged: {
     listing: PagedListing
     pagination: PaginationMetadata | undefined
-    filterFields: FilterField[]
+    search?: { placeholder: string }
   }
   searchScopeHint?: string
   rows: T[]
@@ -156,41 +158,51 @@ export function ListingPage<T>({
           </ul>
         )}
 
-        <MetricsBand metrics={metrics ?? []} />
+        <MetricsBand
+          metrics={metrics ?? []}
+          filtering={{ filters: paged.listing.state.filters, onChange: paged.listing.setFilters }}
+        />
 
         {insights}
 
-        <div className='flex flex-wrap items-center gap-2'>
-          <FilterBar fields={paged.filterFields} listing={paged.listing} />
-
-          {tokens.toolbar.showViewToggle && tier !== 'phone' && (
-            <div className='flex rounded-md border border-fk-line p-0.5'>
-              {VIEW_MODES.map(([mode, Icon]) => (
-                <button
-                  key={mode}
-                  type='button'
-                  onClick={() => setView(mode)}
-                  aria-label={t(`data_view.view_mode.${mode}`)}
-                  aria-pressed={view === mode}
-                  className={cn(
-                    'grid size-6 cursor-pointer place-items-center rounded transition-colors',
-                    view === mode
-                      ? 'bg-fk-primary-soft text-fk-primary-text'
-                      : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
-                  )}
-                >
-                  <Icon className='size-3.5' />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ListingToolbar
+          listing={paged.listing}
+          columns={columns}
+          search={paged.search}
+          trailing={
+            <>
+              {!paged.search && <div className='flex-1' />}
+              {tokens.toolbar.showViewToggle && tier !== 'phone' && (
+                <div className='flex rounded-md border border-fk-line p-0.5'>
+                  {VIEW_MODES.map(([mode, Icon]) => (
+                    <button
+                      key={mode}
+                      type='button'
+                      onClick={() => setView(mode)}
+                      aria-label={t(`data_view.view_mode.${mode}`)}
+                      aria-pressed={view === mode}
+                      className={cn(
+                        'grid size-6 cursor-pointer place-items-center rounded transition-colors',
+                        view === mode
+                          ? 'bg-fk-primary-soft text-fk-primary-text'
+                          : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
+                      )}
+                    >
+                      <Icon className='size-3.5' />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          }
+        />
 
         {searchScopeHint && (
           <p className='-mt-1 text-xs text-neutral-400 dark:text-neutral-500'>{searchScopeHint}</p>
         )}
 
         <DataView
+          listing={paged.listing}
           rows={rows}
           columns={columns}
           card={card}

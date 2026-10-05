@@ -7,7 +7,6 @@ import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
@@ -22,6 +21,7 @@ const SCOPE_TYPES: ScopeType[] = ['DEFAULT', 'OPTIONAL', 'NONE']
 const PROTOCOLS = ['openid-connect', 'saml'] as const
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
+const YES = 'true'
 
 const mapperCount = (scope: ClientScope) => scope.protocol_mappers?.length ?? 0
 
@@ -96,6 +96,17 @@ export default function PageClientScopesOverview({
           {t(scopeTypeLabelKey(s.default_scope_type))}
         </Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'default_scope_type',
+          label: t('list.filter_fields.default_scope_type'),
+          options: SCOPE_TYPES.map((scopeType) => ({
+            value: scopeType,
+            label: t(scopeTypeLabelKey(scopeType)),
+          })),
+        },
+      ],
     },
     {
       key: 'protocol',
@@ -103,6 +114,14 @@ export default function PageClientScopesOverview({
       render: (s) => (
         <Pill mono>{s.protocol}</Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'protocol',
+          label: t('list.filter_fields.protocol'),
+          options: PROTOCOLS.map((protocol) => ({ value: protocol, label: protocol })),
+        },
+      ],
     },
     {
       key: 'mappers',
@@ -114,6 +133,13 @@ export default function PageClientScopesOverview({
         ) : (
           <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         ),
+      filters: [
+        {
+          kind: 'boolean',
+          key: 'has_protocol_mappers',
+          label: t('list.filter_fields.has_protocol_mappers'),
+        },
+      ],
     },
     {
       key: 'created',
@@ -124,6 +150,14 @@ export default function PageClientScopesOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -185,31 +219,6 @@ export default function PageClientScopesOverview({
     ),
   }
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
-    { kind: 'text', key: 'description', label: t('list.filter_fields.description') },
-    {
-      kind: 'enum',
-      key: 'protocol',
-      label: t('list.filter_fields.protocol'),
-      options: PROTOCOLS.map((protocol) => ({ value: protocol, label: protocol })),
-    },
-    {
-      kind: 'enum',
-      key: 'default_scope_type',
-      label: t('list.filter_fields.default_scope_type'),
-      options: SCOPE_TYPES.map((scopeType) => ({
-        value: scopeType,
-        label: t(scopeTypeLabelKey(scopeType)),
-      })),
-    },
-    {
-      kind: 'boolean',
-      key: 'has_protocol_mappers',
-      label: t('list.filter_fields.has_protocol_mappers'),
-    },
-  ]
-
   const createButton = (
     <Button onClick={onCreate}>
       <Plus /> {t('list.create')}
@@ -231,6 +240,7 @@ export default function PageClientScopesOverview({
             hint: t('list.metrics.total.hint'),
             series: [counts.total, counts.total],
             tone: 'info',
+            filter: {},
           },
           {
             key: 'default',
@@ -244,6 +254,7 @@ export default function PageClientScopesOverview({
                 : t('list.metrics.default.empty_hint'),
             series: [counts.default, counts.default],
             tone: 'success',
+            filter: { default_scope_type: 'DEFAULT' },
           },
           {
             key: 'optional',
@@ -252,6 +263,7 @@ export default function PageClientScopesOverview({
             hint: t('list.metrics.optional.hint'),
             series: [counts.optional, counts.optional],
             tone: 'violet',
+            filter: { default_scope_type: 'OPTIONAL' },
           },
           {
             key: 'mappers',
@@ -260,6 +272,7 @@ export default function PageClientScopesOverview({
             hint: t('list.metrics.mappers.hint'),
             series: [counts.withMappers, counts.withMappers],
             tone: 'info',
+            filter: { has_protocol_mappers: YES },
           },
         ]}
         alerts={
@@ -276,7 +289,7 @@ export default function PageClientScopesOverview({
               ]
             : []
         }
-        paged={{ listing, pagination, filterFields }}
+        paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
         rows={scopes}
         columns={columns}
         card={card}

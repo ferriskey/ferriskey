@@ -84,9 +84,10 @@ themes:
     label: 尚无主题
     hint: 主题承载颜色、排版以及门户渲染的 {{total}} 个页面。
   filters:
-    name: 名称
     layout: 布局
     activatable: 可启用
+    created: 创建时间
+  search_placeholder: 按名称搜索…
   columns:
     name: 名称
     layout: 布局
@@ -155,9 +156,10 @@ layouts:
     label: 尚无布局
     hint: 没有布局的主题会裸渲染其页面，这也是一种有效的组合。
   filters:
-    name: 名称
     is_default: 默认
     in_use: 已附加到主题
+    created: 创建时间
+  search_placeholder: 按名称搜索…
   columns:
     name: 名称
     updated_at: 更新时间

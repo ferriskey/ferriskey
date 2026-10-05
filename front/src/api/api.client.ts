@@ -1880,6 +1880,8 @@ export namespace Endpoints {
         default_scope_type: "NONE" | "OPTIONAL" | "DEFAULT";
         has_protocol_mappers: boolean;
         not_assigned_to_client: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -1986,6 +1988,8 @@ export namespace Endpoints {
         has_redirect_uris: boolean;
         maintenance_enabled: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "client_id" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -2525,6 +2529,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         client_id: string;
         user_id: string;
         grant_type: string;
@@ -2621,8 +2626,11 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         email_type: "reset_password" | "magic_link" | "email_verification";
+        created_from: string;
+        created_to: string;
         order_by: "name" | "email_type" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -2743,12 +2751,16 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         provider_type: string;
         provider_family: "ldap" | "kerberos";
         enabled: boolean;
         sync_enabled: boolean;
         synced: boolean;
+        sync_mode: "Import" | "Force" | "LinkOnly";
+        created_from: string;
+        created_to: string;
         order_by: "name" | "priority" | "enabled" | "last_sync_at" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -2854,11 +2866,14 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         alias: string;
         display_name: string;
         provider_id: string;
         enabled: boolean;
         health: "healthy" | "degraded" | "error";
+        created_from: string;
+        created_to: string;
         order_by: "alias" | "display_name" | "provider_id" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -3217,10 +3232,13 @@ export namespace Endpoints {
         name: string;
         alias: string;
         domain: string;
+        description: string;
         enabled: boolean;
         has_domain: boolean;
         without_member: string;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "alias" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -3359,11 +3377,14 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         description: string;
         parent_group_id: string;
         is_root: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string; organization_id: string };
@@ -3465,9 +3486,12 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         username: string;
         email: string;
         enabled: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "username" | "email" | "created_at";
       }>;
       path: { realm_name: string; organization_id: string; group_id: string };
@@ -3544,9 +3568,12 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         username: string;
         email: string;
         enabled: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "username" | "email" | "created_at";
       }>;
       path: { realm_name: string; organization_id: string };
@@ -3691,10 +3718,13 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         is_default: boolean;
         in_use: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -3921,9 +3951,12 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         layout_id: string;
         activatable: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -4300,6 +4333,8 @@ export namespace Endpoints {
         scope: "realm" | "client";
         has_permissions: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -4394,6 +4429,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         actor_id: string;
         client_id: string;
         event_types: string;
@@ -4502,6 +4538,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         username: string;
         email: string;
         firstname: string;
@@ -4513,6 +4550,8 @@ export namespace Endpoints {
         ids: string;
         not_in_group: string;
         not_in_organization: string;
+        created_from: string;
+        created_to: string;
         order_by: "username" | "email" | "firstname" | "lastname" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -4570,6 +4609,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         display_name: string;
         order_by: "name" | "created_at" | "updated_at";
@@ -5067,9 +5107,12 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         ip_address: string;
         user_agent: string;
         persistent: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "last_seen_at" | "expires_at" | "created_at";
       }>;
       path: { realm_name: string; user_id: string };
@@ -5122,11 +5165,14 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         name: string;
         endpoint: string;
         triggered: boolean;
         has_subscribers: boolean;
         secure_endpoint: boolean;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "endpoint" | "triggered_at" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -5210,6 +5256,7 @@ export namespace Endpoints {
         page: number;
         limit: number;
         order: "asc" | "desc";
+        search: string;
         event:
           | "user.created"
           | "user.email_verified"
@@ -5251,6 +5298,8 @@ export namespace Endpoints {
           | "client.maintenance.disabled";
         status: "pending" | "delivering" | "succeeded" | "failed";
         resource_id: string;
+        created_from: string;
+        created_to: string;
         order_by: "status" | "attempt_count" | "last_attempt_at" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string; webhook_id: string };

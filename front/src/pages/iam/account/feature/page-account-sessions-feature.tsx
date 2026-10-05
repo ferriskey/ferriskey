@@ -41,6 +41,7 @@ export default function PageAccountSessionsFeature() {
     realm: realm_name,
     userId,
     query: listing.apiQuery as UserSessionsQuery,
+    keepPrevious: true,
   })
   const { mutate: revokeSession } = useRevokeUserSession()
 

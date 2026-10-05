@@ -10,7 +10,6 @@ import {
   type CardSpec,
   type Choice,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
 } from '@/components/kit'
@@ -25,6 +24,8 @@ import {
   isLdapLike,
   ldapConnectionUrl,
   priorityFromScore,
+  SYNC_MODES,
+  type SyncMode,
 } from '../provider-config'
 
 import ProviderResponse = Schemas.ProviderResponse
@@ -65,6 +66,15 @@ const PROVIDER_TYPE_OPTIONS = [
   ACTIVE_DIRECTORY_PROVIDER_TYPE,
   KERBEROS_PROVIDER_TYPE,
 ].map((value) => ({ value, label: value }))
+
+const SYNC_MODE_LABEL_KEYS: Record<SyncMode, string> = {
+  Import: 'form.sync.mode.choices.import.label',
+  Force: 'form.sync.mode.choices.force.label',
+  LinkOnly: 'form.sync.mode.choices.link_only.label',
+}
+
+const YES = 'true'
+const NO = 'false'
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
@@ -150,6 +160,23 @@ export default function PageProvidersOverview({
           {p.provider_type}
         </Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'provider_type',
+          label: t('list.filter_fields.provider_type'),
+          options: PROVIDER_TYPE_OPTIONS,
+        },
+        {
+          kind: 'enum',
+          key: 'provider_family',
+          label: t('list.filter_fields.provider_family'),
+          options: [
+            { value: 'ldap', label: t('list.filter_fields.provider_family_values.ldap') },
+            { value: 'kerberos', label: t('list.filter_fields.provider_family_values.kerberos') },
+          ],
+        },
+      ],
     },
     {
       key: 'priority',
@@ -165,6 +192,14 @@ export default function PageProvidersOverview({
       key: 'sync_mode',
       header: t('list.columns.sync_mode'),
       render: (p) => <Pill mono>{p.sync_mode}</Pill>,
+      filters: [
+        {
+          kind: 'enum',
+          key: 'sync_mode',
+          label: t('list.filter_fields.sync_mode'),
+          options: SYNC_MODES.map((mode) => ({ value: mode, label: t(SYNC_MODE_LABEL_KEYS[mode]) })),
+        },
+      ],
     },
     {
       key: 'schedule',
@@ -179,6 +214,9 @@ export default function PageProvidersOverview({
             {t('list.schedule.on_demand')}
           </span>
         ),
+      filters: [
+        { kind: 'boolean', key: 'sync_enabled', label: t('list.filter_fields.sync_enabled') },
+      ],
     },
     {
       key: 'last_sync',
@@ -190,6 +228,7 @@ export default function PageProvidersOverview({
           </span>
         ),
       sortKey: 'last_sync_at',
+      filters: [{ kind: 'boolean', key: 'synced', label: t('list.filter_fields.synced') }],
     },
     {
       key: 'status',
@@ -201,6 +240,7 @@ export default function PageProvidersOverview({
         </span>
       ),
       sortKey: 'enabled',
+      filters: [{ kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') }],
     },
     {
       key: 'created',
@@ -211,6 +251,14 @@ export default function PageProvidersOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -253,29 +301,7 @@ export default function PageProvidersOverview({
     ),
   }
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
-    {
-      kind: 'enum',
-      key: 'provider_type',
-      label: t('list.filter_fields.provider_type'),
-      options: PROVIDER_TYPE_OPTIONS,
-    },
-    {
-      kind: 'enum',
-      key: 'provider_family',
-      label: t('list.filter_fields.provider_family'),
-      options: [
-        { value: 'ldap', label: t('list.filter_fields.provider_family_values.ldap') },
-        { value: 'kerberos', label: t('list.filter_fields.provider_family_values.kerberos') },
-      ],
-    },
-    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
-    { kind: 'boolean', key: 'sync_enabled', label: t('list.filter_fields.sync_enabled') },
-    { kind: 'boolean', key: 'synced', label: t('list.filter_fields.synced') },
-  ]
-
-  const reviewNeverSynced = () => listing.setFilters({ synced: 'false' })
+  const reviewNeverSynced = () => listing.setFilters({ synced: NO })
 
   const createButton = (
     <Button onClick={() => onPickerOpenChange(true)}>
@@ -297,6 +323,7 @@ export default function PageProvidersOverview({
             value: counts.total,
             hint: t('list.metrics.total.hint'),
             series: [counts.total, counts.total],
+            filter: {},
           },
           {
             key: 'enabled',
@@ -307,6 +334,7 @@ export default function PageProvidersOverview({
                 ? t('list.metrics.enabled.hint', { total: counts.disabled })
                 : t('list.metrics.enabled.empty_hint'),
             series: [counts.enabled, counts.enabled],
+            filter: { enabled: YES },
           },
           {
             key: 'scheduled',
@@ -314,6 +342,7 @@ export default function PageProvidersOverview({
             value: counts.scheduled,
             hint: t('list.metrics.scheduled.hint'),
             series: [counts.scheduled, counts.scheduled],
+            filter: { sync_enabled: YES },
           },
           {
             key: 'stale',
@@ -324,6 +353,7 @@ export default function PageProvidersOverview({
                 ? t('list.metrics.stale.hint')
                 : t('list.metrics.stale.empty_hint'),
             series: [neverSynced.total, neverSynced.total],
+            filter: { synced: NO },
           },
         ]}
         alerts={
@@ -341,7 +371,7 @@ export default function PageProvidersOverview({
               ]
             : []
         }
-        paged={{ listing, pagination, filterFields }}
+        paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
         rows={providers}
         columns={columns}
         card={card}

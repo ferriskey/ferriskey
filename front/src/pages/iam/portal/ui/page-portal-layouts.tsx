@@ -4,15 +4,14 @@ import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DataView,
-  FilterBar,
   IconTile,
+  ListingToolbar,
   MetricsBand,
   PageShell,
   PaginationBar,
   Pill,
   Section,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
   type ViewMode,
@@ -52,6 +51,8 @@ export interface PagePortalLayoutsProps {
 }
 
 const LAYOUTS_VIEW: ViewMode = 'list'
+const YES = 'true'
+const NO = 'false'
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
 
@@ -102,12 +103,6 @@ export default function PagePortalLayouts({
     </Button>
   )
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('layouts.filters.name') },
-    { kind: 'boolean', key: 'is_default', label: t('layouts.filters.is_default') },
-    { kind: 'boolean', key: 'in_use', label: t('layouts.filters.in_use') },
-  ]
-
   const defaultPill = <Pill tone='violet'>{t('layouts.row.default')}</Pill>
 
   const usagePill = (layout: Schemas.PortalLayoutListItem) => (
@@ -123,6 +118,10 @@ export default function PagePortalLayouts({
       key: 'name',
       header: t('layouts.columns.name'),
       sortKey: 'name',
+      filters: [
+        { kind: 'boolean', key: 'is_default', label: t('layouts.filters.is_default') },
+        { kind: 'boolean', key: 'in_use', label: t('layouts.filters.in_use') },
+      ],
       render: ({ layout, nodes }) => (
         <div className='flex min-w-0 items-center gap-3'>
           <IconTile tone={layout.is_default ? 'violet' : 'info'}>
@@ -169,6 +168,14 @@ export default function PagePortalLayouts({
       key: 'created_at',
       header: t('layouts.columns.created_at'),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('layouts.filters.created'),
+        },
+      ],
       render: ({ layout }) => (
         <span className='tnum text-xs text-neutral-500 dark:text-neutral-400'>
           {formatDate(layout.created_at)}
@@ -247,6 +254,7 @@ export default function PagePortalLayouts({
               value: counts.total,
               hint: t('layouts.metrics.total.hint'),
               series: [counts.total, counts.total],
+              filter: {},
             },
             {
               key: 'default',
@@ -254,6 +262,7 @@ export default function PagePortalLayouts({
               value: counts.defaults,
               hint: t('layouts.metrics.default.hint'),
               series: [counts.defaults, counts.defaults],
+              filter: { is_default: YES },
             },
             {
               key: 'used',
@@ -261,6 +270,7 @@ export default function PagePortalLayouts({
               value: counts.used,
               hint: t('layouts.metrics.used.hint'),
               series: [counts.used, counts.used],
+              filter: { in_use: YES },
             },
             {
               key: 'free',
@@ -268,8 +278,10 @@ export default function PagePortalLayouts({
               value: counts.free,
               hint: t('layouts.metrics.free.hint'),
               series: [counts.free, counts.free],
+              filter: { in_use: NO, is_default: NO },
             },
           ]}
+          filtering={{ filters: listing.state.filters, onChange: listing.setFilters }}
         />
 
         <Section
@@ -277,11 +289,15 @@ export default function PagePortalLayouts({
           description={t('layouts.section.description')}
           action={<ImportButton label={t('actions.import')} onImport={onImport} />}
         >
-          <div className='mb-3 flex'>
-            <FilterBar fields={filterFields} listing={listing} />
-          </div>
+          <ListingToolbar
+            listing={listing}
+            columns={columns}
+            search={{ placeholder: t('layouts.search_placeholder') }}
+            className='mb-3'
+          />
 
           <DataView
+            listing={listing}
             rows={rows}
             columns={columns}
             card={{

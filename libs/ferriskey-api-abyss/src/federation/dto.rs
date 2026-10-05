@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use ferriskey_core::domain::abyss::federation::{
-    entities::{FederationProvider, FederationProviderFamily, FederationProviderFilter},
+    entities::{FederationProvider, FederationProviderFamily, FederationProviderFilter, SyncMode},
     value_objects::{SyncResult, TestConnectionResult},
 };
+use ferriskey_core::domain::common::pagination::DateRange;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -131,6 +132,7 @@ impl From<FederationProvider> for ProviderResponse {
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct FederationProviderListParams {
+    pub search: Option<String>,
     pub name: Option<String>,
     #[param(example = "Ldap")]
     pub provider_type: Option<String>,
@@ -139,17 +141,24 @@ pub struct FederationProviderListParams {
     pub enabled: Option<bool>,
     pub sync_enabled: Option<bool>,
     pub synced: Option<bool>,
+    #[param(inline)]
+    pub sync_mode: Option<SyncMode>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<FederationProviderListParams> for FederationProviderFilter {
     fn from(params: FederationProviderListParams) -> Self {
         Self {
+            search: params.search,
             name: params.name,
             provider_type: params.provider_type,
             enabled: params.enabled,
             sync_enabled: params.sync_enabled,
             synced: params.synced,
             provider_family: params.provider_family,
+            sync_mode: params.sync_mode,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }

@@ -409,6 +409,7 @@ mod tests {
                 is_default: Some(false),
                 in_use: Some(true),
                 ids: Some(vec![Uuid::nil()]),
+                ..PortalLayoutFilter::default()
             },
             ..PageRequest::default()
         }

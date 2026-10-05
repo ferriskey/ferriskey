@@ -7,7 +7,7 @@ import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay } from '../feature/use-window-events'
 import { ActivityPage, NoticeList, type Notice } from './activity-notices'
-import { journalFilterFields } from '@/pages/iam/seawatch/event-filter-fields'
+import { securityEventColumnFilters } from '@/pages/iam/seawatch/event-filter-fields'
 import type { EventJournal } from '../feature/use-event-journal'
 import { eventCard, eventColumns } from './event-journal'
 import { JournalSection } from './journal-section'
@@ -144,10 +144,11 @@ export default function PageSessions({
   ]
 
   const columns = eventColumns(directory, t)
+  const filters = securityEventColumnFilters()
   const journalColumns = [
     { ...columns.event, sortKey: 'event_type' },
     { ...columns.outcome, sortKey: 'status' },
-    columns.actor,
+    { ...columns.actor, filters: filters.actor },
     columns.origin,
     { ...columns.when, sortKey: 'timestamp' },
   ]
@@ -177,7 +178,7 @@ export default function PageSessions({
         pagination={journal.pagination}
         listing={journal.listing}
         tabs={tabs}
-        filterFields={journalFilterFields()}
+        search={{ placeholder: t('seawatch:stream.search_placeholder') }}
         columns={journalColumns}
         card={eventCard(directory, t)}
         getKey={(e) => e.id}

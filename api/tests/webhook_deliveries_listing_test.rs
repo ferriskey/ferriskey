@@ -4,6 +4,7 @@ mod tests {
 
     use axum::{Router, http::HeaderValue};
     use axum_test::{TestResponse, TestServer};
+    use chrono::{FixedOffset, NaiveDateTime, SecondsFormat, TimeDelta};
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -112,6 +113,7 @@ mod tests {
         other_webhook: Uuid,
         resources: Vec<Uuid>,
         seeds: Vec<Seed>,
+        seed_base: NaiveDateTime,
         sibling_deliveries: HashSet<Uuid>,
         other_deliveries: HashSet<Uuid>,
         misplaced_delivery: Uuid,
@@ -287,6 +289,8 @@ mod tests {
             other_webhook,
             resources,
             seeds,
+            seed_base: NaiveDateTime::parse_from_str(&seed_base, "%Y-%m-%d %H:%M:%S")
+                .expect("seed base parses"),
             sibling_deliveries,
             other_deliveries,
             misplaced_delivery,
@@ -601,6 +605,21 @@ mod tests {
         }
     }
 
+    fn created_at(minute: i64) -> String {
+        (ctx().seed_base + TimeDelta::minutes(minute))
+            .and_utc()
+            .to_rfc3339_opts(SecondsFormat::Secs, true)
+    }
+
+    fn created_at_plus_two_hours(minute: i64) -> String {
+        let offset = FixedOffset::east_opt(2 * 3600).expect("valid offset");
+        (ctx().seed_base + TimeDelta::minutes(minute))
+            .and_utc()
+            .with_timezone(&offset)
+            .to_rfc3339_opts(SecondsFormat::Secs, true)
+            .replace('+', "%2B")
+    }
+
     fn matching(predicate: impl Fn(&Seed) -> bool) -> HashSet<Uuid> {
         ctx()
             .seeds
@@ -747,6 +766,58 @@ mod tests {
                 assert_eq!(id_set(&body), expected, "{query}: rows");
                 assert_eq!(total(&body), expected.len() as u64, "{query}: total");
             }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored"]
+    fn search_matches_the_resource_id() {
+        let server = make_server();
+        let resource = ctx().resources[2];
+        let whole = resource.to_string();
+        let fragment = whole[..8].to_uppercase();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("search={whole}"),
+                matching(|s| s.resource_id == resource),
+            ),
+            (
+                format!("search={fragment}"),
+                matching(|s| s.resource_id.to_string().contains(&whole[..8])),
+            ),
+            (
+                format!("search={fragment}&status=failed"),
+                matching(|s| s.resource_id.to_string().contains(&whole[..8]) && s.failed()),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this search discriminating"
+                );
+                let body = list_seeded(&server, &format!("{query}&limit=100")).await;
+                assert_eq!(id_set(&body), expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            for query in ["search=zz", "search=%25", "search=_", "search=%5C"] {
+                let body = list_seeded(&server, &format!("{query}&limit=100")).await;
+                assert!(ids(&body).is_empty(), "{query}: {body}");
+                assert_eq!(total(&body), 0, "{query}: total");
+            }
+
+            let everything = list_seeded(&server, "search=&limit=100").await;
+            assert_eq!(total(&everything), SEED_COUNT as u64);
+
+            let shared = ctx().resources[0];
+            let body = list_seeded(&server, &format!("search={shared}&limit=100")).await;
+            assert_eq!(id_set(&body), matching(|s| s.resource_id == shared));
+            assert!(
+                id_set(&body).is_disjoint(&ctx().sibling_deliveries),
+                "{body}"
+            );
         });
     }
 
@@ -944,6 +1015,94 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: Vec<(String, HashSet<Uuid>)> = vec![
+            (
+                format!("created_from={}", created_at(5)),
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                format!("created_to={}", created_at(2)),
+                matching(|s| s.created_minute < 2),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(2),
+                    created_at(5)
+                ),
+                matching(|s| (2..5).contains(&s.created_minute)),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}",
+                    created_at(3),
+                    created_at(4)
+                ),
+                matching(|s| s.created_minute == 3),
+            ),
+            (
+                format!("created_from={}", created_at_plus_two_hours(5)),
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                format!(
+                    "created_from={}&created_to={}&status=failed",
+                    created_at(2),
+                    created_at(8)
+                ),
+                matching(|s| (2..8).contains(&s.created_minute) && s.failed()),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_seeded(&server, &format!("{query}&limit=100")).await;
+                assert_eq!(id_set(&body), expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let edge =
+                list_seeded(&server, &format!("created_to={}&limit=100", created_at(3))).await;
+            let found = id_set(&edge);
+            assert!(
+                ctx()
+                    .seeds
+                    .iter()
+                    .filter(|s| s.created_minute == 3)
+                    .all(|s| !found.contains(&s.id)),
+                "a row created exactly at created_to is excluded"
+            );
+            assert_eq!(found, matching(|s| s.created_minute < 3));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_seeded(
+                &server,
+                &format!(
+                    "created_from={}&created_to={}",
+                    created_at(5),
+                    created_at(2)
+                ),
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test webhook_deliveries_listing_test -- --ignored"]
     fn invalid_query_parameters_are_rejected() {
         let server = make_server();
         rt().block_on(async {
@@ -962,6 +1121,10 @@ mod tests {
                 ("event=user.exploded", "event"),
                 ("resource_id=nope", "resource_id"),
                 ("status=failed&status=pending", "status"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
+                ("search=a&search=b", "search"),
             ] {
                 let response = list(
                     &server,

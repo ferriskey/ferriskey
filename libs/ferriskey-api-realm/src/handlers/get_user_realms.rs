@@ -19,6 +19,7 @@ use utoipa::IntoParams;
 #[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
 pub struct RealmListParams {
+    pub search: Option<String>,
     pub name: Option<String>,
     pub display_name: Option<String>,
 }
@@ -26,6 +27,7 @@ pub struct RealmListParams {
 impl From<RealmListParams> for RealmFilter {
     fn from(params: RealmListParams) -> Self {
         Self {
+            search: params.search,
             name: params.name,
             display_name: params.display_name,
         }
@@ -35,7 +37,7 @@ impl From<RealmListParams> for RealmFilter {
 #[utoipa::path(
     get,
     summary = "Get user realms",
-    description = "Returns one page of the realms the caller may access. Text filters (name, display_name) match case-insensitively anywhere in the value and combine with AND.",
+    description = "Returns one page of the realms the caller may access. search matches case-insensitively anywhere in the name or display_name. Text filters (name, display_name) match case-insensitively anywhere in the value and combine with AND.",
     path = "/{realm_name}/users/@me/realms",
     tag = "realm",
     params(
@@ -79,7 +81,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<RealmListParams, RealmSortField>(
-            "order_by=name&order=asc&name=ma&display_name=Main",
+            "order_by=name&order=asc&search=ai&name=ma&display_name=Main",
         )
         .expect("valid query");
 
@@ -88,6 +90,7 @@ mod tests {
         assert_eq!(
             RealmFilter::from(request.filter),
             RealmFilter {
+                search: Some("ai".to_string()),
                 name: Some("ma".to_string()),
                 display_name: Some("Main".to_string()),
             }
@@ -107,7 +110,12 @@ mod tests {
 
     #[test]
     fn unknown_filters_and_columns_are_refused() {
-        for query in ["id=x", "order_by=display_name", "order_by=id"] {
+        for query in [
+            "id=x",
+            "order_by=display_name",
+            "order_by=id",
+            "created_from=2026-01-01T00:00:00Z",
+        ] {
             assert!(
                 parse_list_query::<RealmListParams, RealmSortField>(query).is_err(),
                 "{query}"

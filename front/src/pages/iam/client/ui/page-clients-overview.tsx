@@ -5,7 +5,6 @@ import { CreatePickerDialog, ListingPage, Pill, Squircle, StatusDot } from '@/co
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
@@ -49,6 +48,8 @@ export interface PageClientsOverviewProps {
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'
+const YES = 'true'
+const NO = 'false'
 
 const previewNames = (preview: ClientPreview) =>
   preview.names.join(NAME_SEPARATOR) +
@@ -92,6 +93,24 @@ export default function PageClientsOverview({
           {t(`shared.authentication.${clientAuthenticationOf(c.public_client)}`)}
         </Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'client_type',
+          label: t('list.filter_fields.client_type'),
+          options: [
+            { value: 'confidential', label: t('list.filter_fields.client_types.confidential') },
+            { value: 'public', label: t('list.filter_fields.client_types.public') },
+            { value: 'system', label: t('list.filter_fields.client_types.system') },
+          ],
+        },
+        { kind: 'boolean', key: 'public_client', label: t('list.filter_fields.public_client') },
+        {
+          kind: 'boolean',
+          key: 'service_account_enabled',
+          label: t('list.filter_fields.service_account_enabled'),
+        },
+      ],
     },
     {
       key: 'protocol',
@@ -101,6 +120,17 @@ export default function PageClientsOverview({
           {c.protocol}
         </Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'protocol',
+          label: t('list.filter_fields.protocol'),
+          options: protocolChoices(t).map((choice) => ({
+            value: choice.value,
+            label: choice.label,
+          })),
+        },
+      ],
     },
     {
       key: 'redirects',
@@ -112,6 +142,13 @@ export default function PageClientsOverview({
         ) : (
           <span className='tnum text-fk-amber'>0</span>
         ),
+      filters: [
+        {
+          kind: 'boolean',
+          key: 'has_redirect_uris',
+          label: t('list.filter_fields.has_redirect_uris'),
+        },
+      ],
     },
     {
       key: 'status',
@@ -123,6 +160,14 @@ export default function PageClientsOverview({
         </span>
       ),
       sortKey: 'enabled',
+      filters: [
+        { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
+        {
+          kind: 'boolean',
+          key: 'maintenance_enabled',
+          label: t('list.filter_fields.maintenance_enabled'),
+        },
+      ],
     },
     {
       key: 'created',
@@ -133,6 +178,14 @@ export default function PageClientsOverview({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'updated',
@@ -143,44 +196,6 @@ export default function PageClientsOverview({
         </span>
       ),
       sortKey: 'updated_at',
-    },
-  ]
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
-    { kind: 'text', key: 'client_id', label: t('list.filter_fields.client_id') },
-    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
-    { kind: 'boolean', key: 'public_client', label: t('list.filter_fields.public_client') },
-    {
-      kind: 'boolean',
-      key: 'service_account_enabled',
-      label: t('list.filter_fields.service_account_enabled'),
-    },
-    {
-      kind: 'enum',
-      key: 'protocol',
-      label: t('list.filter_fields.protocol'),
-      options: protocolChoices(t).map((choice) => ({ value: choice.value, label: choice.label })),
-    },
-    {
-      kind: 'enum',
-      key: 'client_type',
-      label: t('list.filter_fields.client_type'),
-      options: [
-        { value: 'confidential', label: t('list.filter_fields.client_types.confidential') },
-        { value: 'public', label: t('list.filter_fields.client_types.public') },
-        { value: 'system', label: t('list.filter_fields.client_types.system') },
-      ],
-    },
-    {
-      kind: 'boolean',
-      key: 'has_redirect_uris',
-      label: t('list.filter_fields.has_redirect_uris'),
-    },
-    {
-      kind: 'boolean',
-      key: 'maintenance_enabled',
-      label: t('list.filter_fields.maintenance_enabled'),
     },
   ]
 
@@ -239,6 +254,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.total.hint'),
             series: [counts.total, counts.total],
             tone: 'info',
+            filter: {},
           },
           {
             key: 'active',
@@ -247,6 +263,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.active.hint'),
             series: [counts.active, counts.active],
             tone: 'success',
+            filter: { enabled: YES },
           },
           {
             key: 'public',
@@ -255,6 +272,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.public.hint'),
             series: [counts.public, counts.public],
             tone: 'info',
+            filter: { public_client: YES },
           },
           {
             key: 'confidential',
@@ -263,6 +281,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.confidential.hint'),
             series: [counts.confidential, counts.confidential],
             tone: 'violet',
+            filter: { public_client: NO },
           },
         ]}
         alerts={[
@@ -291,7 +310,7 @@ export default function PageClientsOverview({
               ]
             : []),
         ]}
-        paged={{ listing, pagination, filterFields }}
+        paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
         rows={clients}
         columns={columns}
         card={card}
