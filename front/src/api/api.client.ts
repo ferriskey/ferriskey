@@ -194,7 +194,6 @@ export namespace Schemas {
     value?: (string | null) | undefined;
   };
   export type ClientScopeMapping = { client_id: string; default_scope_type: ScopeType; scope_id: string };
-  export type ClientScopesResponse = { data: Array<ClientScope> };
   export type ClientSecretResponse = Partial<{ client_secret: string | null }>;
   export type CodeChallengeMethod = "S256" | "PLAIN";
   export type FlowId = string;
@@ -973,6 +972,21 @@ export namespace Schemas {
     }>;
     metadata: PageMetadata;
   };
+  export type Paginated_ClientScope = {
+    data: Array<{
+      attributes?: (Array<ClientScopeAttribute> | null) | undefined;
+      created_at: string;
+      default_scope_type: ScopeType;
+      description?: (string | null) | undefined;
+      id: string;
+      name: string;
+      protocol: string;
+      protocol_mappers?: (Array<ProtocolMapper> | null) | undefined;
+      realm_id: RealmId;
+      updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_Realm = {
     data: Array<{
       created_at: string;
@@ -1676,9 +1690,28 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/client-scopes";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        description: string;
+        search: string;
+        protocol: string;
+        default_scope_type: "NONE" | "OPTIONAL" | "DEFAULT";
+        has_protocol_mappers: boolean;
+        not_assigned_to_client: string;
+        order_by: "name" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
-    responses: { 200: Schemas.ClientScopesResponse };
+    responses: {
+      200: Schemas.Paginated_ClientScope;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Create_client_scope = {
     method: "POST";

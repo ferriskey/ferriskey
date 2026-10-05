@@ -4,21 +4,51 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { ListingPage, IconTile, Pill } from '@/components/kit'
-import type { CardSpec, Column } from '@/components/kit'
+import type {
+  CardSpec,
+  Column,
+  FilterField,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { Schemas } from '@/api/api.client'
+import { formatRelative } from '@/utils/format-date'
 
 import ClientScope = Schemas.ClientScope
-import { cumulativeSeries } from '@/utils/cumulative-series'
+import ScopeType = Schemas.ScopeType
 import { SCOPE_TYPE_TONE, scopeTypeLabelKey } from '../scope-type'
 
-const QUERY_SYNTAX = 'name:profile*  type:optional  protocol:openid-connect'
+const SCOPE_TYPES: ScopeType[] = ['DEFAULT', 'OPTIONAL', 'NONE']
+const PROTOCOLS = ['openid-connect', 'saml'] as const
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
 
 const mapperCount = (scope: ClientScope) => scope.protocol_mappers?.length ?? 0
 
+export interface ClientScopeCounts {
+  total: number
+  default: number
+  optional: number
+  withMappers: number
+}
+
+export interface ClientScopePreview {
+  total: number
+  names: string[]
+}
+
+const previewNames = (preview: ClientScopePreview) =>
+  preview.names.join(NAME_SEPARATOR) +
+  (preview.total > preview.names.length ? TRUNCATION_MARK : '')
+
 export interface PageClientScopesOverviewProps {
   scopes: ClientScope[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
   isDeleting: boolean
+  counts: ClientScopeCounts
+  withoutMappers: ClientScopePreview
   scopeHref: (scope: ClientScope) => string
   onCreate: () => void
   onDelete: (scope: ClientScope) => void
@@ -26,8 +56,12 @@ export interface PageClientScopesOverviewProps {
 
 export default function PageClientScopesOverview({
   scopes,
+  pagination,
+  listing,
   isLoading,
   isDeleting,
+  counts,
+  withoutMappers,
   scopeHref,
   onCreate,
   onDelete,
@@ -40,7 +74,7 @@ export default function PageClientScopesOverview({
       key: 'name',
       header: t('list.columns.name'),
       render: (s) => s.name,
-      sortValue: (s) => s.name,
+      sortKey: 'name',
     },
     {
       key: 'description',
@@ -62,7 +96,6 @@ export default function PageClientScopesOverview({
           {t(scopeTypeLabelKey(s.default_scope_type))}
         </Pill>
       ),
-      sortValue: (s) => t(scopeTypeLabelKey(s.default_scope_type)),
     },
     {
       key: 'protocol',
@@ -70,7 +103,6 @@ export default function PageClientScopesOverview({
       render: (s) => (
         <Pill mono>{s.protocol}</Pill>
       ),
-      sortValue: (s) => s.protocol,
     },
     {
       key: 'mappers',
@@ -82,7 +114,26 @@ export default function PageClientScopesOverview({
         ) : (
           <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         ),
-      sortValue: (s) => mapperCount(s),
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (s) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(s.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (s) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(s.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
     },
     {
       key: 'actions',
@@ -134,10 +185,30 @@ export default function PageClientScopesOverview({
     ),
   }
 
-  const defaultScopes = scopes.filter((s) => s.default_scope_type === 'DEFAULT')
-  const optionalScopes = scopes.filter((s) => s.default_scope_type === 'OPTIONAL')
-  const withMappers = scopes.filter((s) => mapperCount(s) > 0)
-  const withoutMappers = scopes.filter((s) => mapperCount(s) === 0)
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
+    { kind: 'text', key: 'description', label: t('list.filter_fields.description') },
+    {
+      kind: 'enum',
+      key: 'protocol',
+      label: t('list.filter_fields.protocol'),
+      options: PROTOCOLS.map((protocol) => ({ value: protocol, label: protocol })),
+    },
+    {
+      kind: 'enum',
+      key: 'default_scope_type',
+      label: t('list.filter_fields.default_scope_type'),
+      options: SCOPE_TYPES.map((scopeType) => ({
+        value: scopeType,
+        label: t(scopeTypeLabelKey(scopeType)),
+      })),
+    },
+    {
+      kind: 'boolean',
+      key: 'has_protocol_mappers',
+      label: t('list.filter_fields.has_protocol_mappers'),
+    },
+  ]
 
   const createButton = (
     <Button onClick={onCreate}>
@@ -156,83 +227,63 @@ export default function PageClientScopesOverview({
           {
             key: 'total',
             label: t('list.metrics.total.label'),
-            value: scopes.length,
+            value: counts.total,
             hint: t('list.metrics.total.hint'),
-            series: cumulativeSeries(scopes.map((r) => r.created_at)),
+            series: [counts.total, counts.total],
             tone: 'info',
           },
           {
             key: 'default',
             label: t('list.metrics.default.label'),
-            value: defaultScopes.length,
+            value: counts.default,
             hint:
-              defaultScopes.length > 0 && scopes.length > 0
+              counts.default > 0 && counts.total > 0
                 ? t('list.metrics.default.hint', {
-                    percent: ((defaultScopes.length / scopes.length) * 100).toFixed(0),
+                    percent: ((counts.default / counts.total) * 100).toFixed(0),
                   })
                 : t('list.metrics.default.empty_hint'),
-            series: cumulativeSeries(defaultScopes.map((r) => r.created_at)),
+            series: [counts.default, counts.default],
             tone: 'success',
           },
           {
             key: 'optional',
             label: t('list.metrics.optional.label'),
-            value: optionalScopes.length,
+            value: counts.optional,
             hint: t('list.metrics.optional.hint'),
-            series: cumulativeSeries(optionalScopes.map((r) => r.created_at)),
+            series: [counts.optional, counts.optional],
             tone: 'violet',
           },
           {
             key: 'mappers',
             label: t('list.metrics.mappers.label'),
-            value: withMappers.length,
+            value: counts.withMappers,
             hint: t('list.metrics.mappers.hint'),
-            series: cumulativeSeries(withMappers.map((r) => r.created_at)),
+            series: [counts.withMappers, counts.withMappers],
             tone: 'info',
           },
         ]}
         alerts={
-          withoutMappers.length
+          withoutMappers.total
             ? [
                 {
                   tone: 'warn' as const,
-                  title: t('list.alerts.without_mappers.title', { count: withoutMappers.length }),
+                  title: t('list.alerts.without_mappers.title', { count: withoutMappers.total }),
                   detail: t('list.alerts.without_mappers.detail', {
-                    names: withoutMappers.map((s) => s.name).join(', '),
+                    names: previewNames(withoutMappers),
                   }),
                   action: t('list.alerts.without_mappers.action'),
                 },
               ]
             : []
         }
-        filters={[
-          {
-            key: 'default',
-            label: t('list.filters.default'),
-            predicate: (s) => s.default_scope_type === 'DEFAULT',
-          },
-          {
-            key: 'optional',
-            label: t('list.filters.optional'),
-            predicate: (s) => s.default_scope_type === 'OPTIONAL',
-          },
-          {
-            key: 'empty',
-            label: t('list.filters.without_mappers'),
-            predicate: (s) => mapperCount(s) === 0,
-          },
-        ]}
-        searchPlaceholder={t('list.search_placeholder')}
-        querySyntax={QUERY_SYNTAX}
-        searchIn={(s) => `${s.name} ${s.description ?? ''} ${s.protocol}`}
+        paged={{ listing, pagination, filterFields }}
         rows={scopes}
         columns={columns}
         card={card}
         getKey={(s) => s.id}
         getHref={scopeHref}
         aggregates={{
-          name: t('list.count', { count: scopes.length }),
-          mappers: scopes.reduce((n, s) => n + mapperCount(s), 0),
+          name: t('list.count', { count: counts.total }),
         }}
         emptyLabel={t('list.empty.label')}
         emptyHint={t('list.empty.hint')}

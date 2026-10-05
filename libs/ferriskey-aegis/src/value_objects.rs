@@ -57,11 +57,6 @@ pub struct GetClientScopeInput {
     pub scope_id: Uuid,
 }
 
-/// Input struct for retrieving all client scopes within a realm, containing only the realm name.
-pub struct GetClientScopesInput {
-    pub realm_name: String,
-}
-
 /// Input struct for updating a client scope, containing the realm name, scope ID, and the update payload.
 pub struct UpdateClientScopeInput {
     pub realm_name: String,

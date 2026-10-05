@@ -138,6 +138,9 @@ jobs:
       - name: run clients listing integration tests
         run: cargo test -p ferriskey-api --test clients_listing_test -- --ignored
 
+      - name: run client scopes listing integration tests
+        run: cargo test -p ferriskey-api --test client_scopes_listing_test -- --ignored
+
       - name: run cross-realm client isolation integration tests
         run: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored
 

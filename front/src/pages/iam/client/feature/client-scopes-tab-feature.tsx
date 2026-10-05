@@ -5,7 +5,7 @@ import {
   useGetClientScopes,
   useUnassignScope,
 } from '@/api/client.api'
-import { useGetClientScopes as useGetRealmClientScopes } from '@/api/client-scope.api'
+import { useClientScopeCount, useClientScopeSearch } from '@/api/client-scope.api'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
 import ClientScopesTab, { type AssignableScopeType } from '../ui/client-scopes-tab'
@@ -24,16 +24,21 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
     realm,
     clientId: client.id,
   })
-  const { data: realmScopesResponse, isLoading: isLoadingAvailable } = useGetRealmClientScopes({
-    realm,
-  })
-
   const assignScope = useAssignScope()
   const unassignScope = useUnassignScope()
   const evaluate = useEvaluateClientScopes()
 
   const [view, setView] = useState('assigned')
   const [addOpen, setAddOpen] = useState(false)
+  const unassigned = useClientScopeCount({
+    realm,
+    filter: { not_assigned_to_client: client.id },
+  })
+  const scopeSearch = useClientScopeSearch({
+    realm,
+    filter: { not_assigned_to_client: client.id },
+    enabled: addOpen,
+  })
   const [userId, setUserId] = useState('')
   const [selectedOptional, setSelectedOptional] = useState<string[]>([])
 
@@ -42,13 +47,7 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
     return Array.isArray(raw) ? (raw as ClientScope[]) : []
   }, [clientScopesData])
 
-  const availableScopes = useMemo(
-    () =>
-      (realmScopesResponse?.data ?? []).filter(
-        (scope) => !assignedScopes.some((assigned) => assigned.id === scope.id)
-      ),
-    [realmScopesResponse, assignedScopes]
-  )
+  const hasAvailable = unassigned.count > 0
 
   const optionalScopes = useMemo(
     () => assignedScopes.filter((s) => s.default_scope_type === 'OPTIONAL'),
@@ -98,9 +97,12 @@ export default function ClientScopesTabFeature({ client, realm }: ClientScopesTa
       view={view}
       onViewChange={setView}
       assignedScopes={assignedScopes}
-      availableScopes={availableScopes}
+      availableScopes={scopeSearch.scopes}
+      hasAvailable={hasAvailable}
+      search={scopeSearch.search}
+      onSearchChange={scopeSearch.setSearch}
       isLoading={isLoading}
-      isLoadingAvailable={isLoadingAvailable}
+      isLoadingAvailable={scopeSearch.isLoading}
       isAssigning={assignScope.isPending || unassignScope.isPending}
       addOpen={addOpen}
       scopeHref={(scope) => `${CLIENT_SCOPES_URL(realm)}/${scope.id}`}
