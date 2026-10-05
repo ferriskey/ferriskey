@@ -133,7 +133,14 @@ export type UserSessionsQuery = NonNullable<
   Endpoints.get_List_user_sessions['parameters']['query']
 >
 
-export const USER_SESSION_FILTER_KEYS = ['ip_address', 'user_agent', 'persistent'] as const
+export const USER_SESSION_FILTER_KEYS = [
+  'search',
+  'ip_address',
+  'user_agent',
+  'persistent',
+  'created_from',
+  'created_to',
+] as const
 
 export const useGetUserSessions = ({
   realm,

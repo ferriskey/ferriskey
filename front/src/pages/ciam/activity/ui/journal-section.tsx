@@ -1,11 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LayoutGrid, List } from 'lucide-react'
-import { Button, DataView, FilterBar, PaginationBar, Section } from '@/components/kit'
+import { Button, DataView, ListingToolbar, PaginationBar, Section } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
   ViewMode,
@@ -33,7 +32,7 @@ export interface JournalSectionProps<T> {
   pagination: PaginationMetadata | undefined
   listing: PagedListing
   tabs: JournalTab[]
-  filterFields: FilterField[]
+  search: { placeholder: string }
   columns: Column<T>[]
   card: CardSpec<T>
   getKey: (row: T) => string
@@ -50,7 +49,7 @@ export function JournalSection<T>({
   pagination,
   listing,
   tabs,
-  filterFields,
+  search,
   columns,
   card,
   getKey,
@@ -118,11 +117,10 @@ export function JournalSection<T>({
       }
     >
       <div className={tokens.page.sectionGap}>
-        <div className='flex flex-wrap items-center gap-2'>
-          <FilterBar fields={filterFields} listing={listing} />
-        </div>
+        <ListingToolbar listing={listing} columns={columns} search={search} />
 
         <DataView
+          listing={listing}
           rows={rows}
           columns={columns}
           card={card}

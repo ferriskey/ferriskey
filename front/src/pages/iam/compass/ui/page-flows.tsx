@@ -4,7 +4,6 @@ import { ListingPage, IconTile, Pill } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   ListingAlert,
   PagedListing,
   PaginationMetadata,
@@ -51,6 +50,10 @@ const SLOW_FLOW_MS = 5000
 
 const FLOW_STATUSES: FlowStatus[] = ['pending', 'success', 'failure', 'expired']
 
+const SUCCESS_STATUS: FlowStatus = 'success'
+
+const FAILURE_STATUS: FlowStatus = 'failure'
+
 const GRANT_TYPES = [
   { value: 'authorization_code', key: 'authorization_code' },
   { value: 'password', key: 'password' },
@@ -96,6 +99,17 @@ export default function PageFlows({
           {f.grant_type}
         </Pill>
       ),
+      filters: [
+        {
+          kind: 'enum',
+          key: 'grant_type',
+          label: t('list.filter_fields.grant_type'),
+          options: GRANT_TYPES.map((grant) => ({
+            value: grant.value,
+            label: t(`list.grant_types.${grant.key}`),
+          })),
+        },
+      ],
     },
     {
       key: 'status',
@@ -120,6 +134,15 @@ export default function PageFlows({
         )
       },
       sortKey: 'status',
+      filters: [
+        {
+          kind: 'enum',
+          key: 'status',
+          label: t('list.filter_fields.status'),
+          options: FLOW_STATUSES.map((status) => ({ value: status, label: status })),
+        },
+        { kind: 'boolean', key: 'completed', label: t('list.card.flags.completed') },
+      ],
     },
     {
       key: 'client_id',
@@ -132,6 +155,14 @@ export default function PageFlows({
             {t('list.client.unresolved')}
           </span>
         ),
+      filters: [
+        {
+          kind: 'relation',
+          key: 'client_id',
+          label: t('list.filter_fields.client_id'),
+          relation: clientIdRelationSource,
+        },
+      ],
     },
     {
       key: 'user_id',
@@ -153,6 +184,15 @@ export default function PageFlows({
           </div>
         )
       },
+      filters: [
+        {
+          kind: 'relation',
+          key: 'user_id',
+          label: t('list.filter_fields.user_id'),
+          relation: userRelationSource,
+        },
+        { kind: 'boolean', key: 'identified', label: t('list.card.flags.user') },
+      ],
     },
     {
       key: 'steps',
@@ -215,39 +255,6 @@ export default function PageFlows({
       </>
     ),
   }
-
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'ip_address', label: t('list.filter_fields.ip_address') },
-    {
-      kind: 'enum',
-      key: 'status',
-      label: t('list.filter_fields.status'),
-      options: FLOW_STATUSES.map((status) => ({ value: status, label: status })),
-    },
-    {
-      kind: 'enum',
-      key: 'grant_type',
-      label: t('list.filter_fields.grant_type'),
-      options: GRANT_TYPES.map((grant) => ({
-        value: grant.value,
-        label: t(`list.grant_types.${grant.key}`),
-      })),
-    },
-    {
-      kind: 'relation',
-      key: 'client_id',
-      label: t('list.filter_fields.client_id'),
-      relation: clientIdRelationSource,
-    },
-    {
-      kind: 'relation',
-      key: 'user_id',
-      label: t('list.filter_fields.user_id'),
-      relation: userRelationSource,
-    },
-    { kind: 'boolean', key: 'identified', label: t('list.card.flags.user') },
-    { kind: 'boolean', key: 'completed', label: t('list.card.flags.completed') },
-  ]
 
   const dominantFailure = recentFailures.reduce<Record<string, number>>((acc, f) => {
     const step = failingStep(f)
@@ -312,6 +319,7 @@ export default function PageFlows({
           value: stats?.total ?? 0,
           hint: t('list.metrics.total.hint'),
           series: [stats?.total ?? 0, stats?.total ?? 0],
+          filter: {},
         },
         {
           key: 'success',
@@ -319,6 +327,7 @@ export default function PageFlows({
           value: stats?.success_count ?? 0,
           hint: successRate,
           series: [stats?.success_count ?? 0, stats?.success_count ?? 0],
+          filter: { status: SUCCESS_STATUS },
         },
         {
           key: 'failure',
@@ -326,6 +335,7 @@ export default function PageFlows({
           value: stats?.failure_count ?? 0,
           hint: t('list.metrics.failure.hint'),
           series: [stats?.failure_count ?? 0, stats?.failure_count ?? 0],
+          filter: { status: FAILURE_STATUS },
         },
         {
           key: 'duration',
@@ -338,7 +348,7 @@ export default function PageFlows({
         },
       ]}
       alerts={alerts}
-      paged={{ listing, pagination, filterFields }}
+      paged={{ listing, pagination, search: { placeholder: t('list.search_placeholder') } }}
       rows={flows}
       columns={columns}
       card={card}

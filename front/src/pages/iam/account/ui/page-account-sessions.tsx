@@ -7,15 +7,14 @@ import {
   Button,
   DataView,
   DetailHeader,
-  FilterBar,
   IconTile,
+  ListingToolbar,
   PageShell,
   PageTabs,
   PaginationBar,
   Pill,
   Section,
   type Column,
-  type FilterField,
   type PagedListing,
   type PaginationMetadata,
   type ViewMode,
@@ -71,12 +70,6 @@ export default function PageAccountSessions({
   const narrowed = Object.values(listing.state.filters).some(Boolean)
   const total = pagination?.total ?? sessions.length
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'user_agent', label: t('sessions.filter_fields.user_agent') },
-    { kind: 'text', key: 'ip_address', label: t('sessions.filter_fields.ip_address') },
-    { kind: 'boolean', key: 'persistent', label: t('sessions.filter_fields.persistent') },
-  ]
-
   const columns: Column<UserSessionDto>[] = [
     {
       key: 'device',
@@ -96,6 +89,9 @@ export default function PageAccountSessions({
           </p>
         </div>
       ),
+      filters: [
+        { kind: 'text', key: 'user_agent', label: t('sessions.filter_fields.user_agent') },
+      ],
     },
     {
       key: 'ip_address',
@@ -105,6 +101,9 @@ export default function PageAccountSessions({
           {session.ip_address ?? t('sessions.unknown_ip')}
         </span>
       ),
+      filters: [
+        { kind: 'text', key: 'ip_address', label: t('sessions.filter_fields.ip_address') },
+      ],
     },
     {
       key: 'persistent',
@@ -114,6 +113,9 @@ export default function PageAccountSessions({
           {session.persistent ? t('sessions.persistent_state.remembered') : t('sessions.persistent_state.browser')}
         </Pill>
       ),
+      filters: [
+        { kind: 'boolean', key: 'persistent', label: t('sessions.filter_fields.persistent') },
+      ],
     },
     {
       key: 'last_seen_at',
@@ -143,6 +145,14 @@ export default function PageAccountSessions({
         <span className='tnum whitespace-nowrap'>{formatDateTime(session.created_at)}</span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('sessions.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'actions',
@@ -223,10 +233,14 @@ export default function PageAccountSessions({
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
         <Section title={t('sessions.title', { total })} contained={false}>
-          <div className='mb-3 flex'>
-            <FilterBar fields={filterFields} listing={listing} />
-          </div>
+          <ListingToolbar
+            listing={listing}
+            columns={columns}
+            search={{ placeholder: t('sessions.search_placeholder') }}
+            className='mb-3'
+          />
           <DataView
+            listing={listing}
             rows={sessions}
             columns={columns}
             card={{

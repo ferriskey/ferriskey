@@ -46,6 +46,7 @@ duration:
   seconds: '{{value}} s'
 
 list:
+  search_placeholder: Search by IP address…
   columns:
     started_at: Started
     grant_type: Grant type

@@ -78,6 +78,7 @@ activity:
 
 stream:
   description: 筛选和排序由服务器对所有已记录的事件执行。
+  search_placeholder: 按 IP 地址搜索…
   filter_fields:
     ip_address: IP 地址
     event_types: 事件

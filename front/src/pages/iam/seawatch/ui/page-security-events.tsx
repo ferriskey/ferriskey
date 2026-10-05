@@ -22,7 +22,7 @@ import {
   formatRelative,
   formatTimestamp,
 } from '../event-catalogue'
-import { securityEventFilterFields } from '../event-filter-fields'
+import { securityEventColumnFilters } from '../event-filter-fields'
 
 import SecurityEvent = Schemas.SecurityEvent
 import DailyActivityStats = Schemas.DailyActivityStats
@@ -77,6 +77,8 @@ const riskyActors = (events: SecurityEvent[]): RiskyActor[] => {
     .slice(0, 3)
 }
 
+const FAILURE_STATUS = 'failure'
+
 const latestTimestamp = (events: SecurityEvent[]) => {
   if (events.length === 0) return null
   const latest = events.reduce((acc, event) => {
@@ -128,6 +130,7 @@ export default function PageSecurityEvents({
 }: PageSecurityEventsProps) {
   const { t } = useTranslation('seawatch')
   const windowDays = recent.windowDays
+  const filters = securityEventColumnFilters()
 
   const columns: Column<SecurityEvent>[] = [
     {
@@ -142,6 +145,7 @@ export default function PageSecurityEvents({
         </div>
       ),
       sortKey: 'event_type',
+      filters: filters.event_type,
     },
     {
       key: 'status',
@@ -166,6 +170,7 @@ export default function PageSecurityEvents({
         )
       },
       sortKey: 'status',
+      filters: filters.status,
     },
     {
       key: 'actor',
@@ -194,6 +199,7 @@ export default function PageSecurityEvents({
           </div>
         )
       },
+      filters: filters.actor,
     },
     {
       key: 'target',
@@ -223,6 +229,7 @@ export default function PageSecurityEvents({
           </div>
         )
       },
+      filters: filters.target,
     },
     {
       key: 'ip_address',
@@ -235,6 +242,7 @@ export default function PageSecurityEvents({
             {t('stream.ip.not_recorded')}
           </span>
         ),
+      filters: filters.ip_address,
     },
     {
       key: 'timestamp',
@@ -340,6 +348,7 @@ export default function PageSecurityEvents({
         total
       ),
       tone: 'info',
+      filter: {},
     },
     {
       key: 'failures',
@@ -356,6 +365,7 @@ export default function PageSecurityEvents({
         failed
       ),
       tone: 'brand',
+      filter: { status: FAILURE_STATUS },
     },
     {
       key: 'rate',
@@ -489,7 +499,7 @@ export default function PageSecurityEvents({
       metrics={metrics}
       alerts={alerts}
       insights={insights}
-      paged={{ listing, pagination, filterFields: securityEventFilterFields() }}
+      paged={{ listing, pagination, search: { placeholder: t('stream.search_placeholder') } }}
       searchScopeHint={t('stream.description')}
       rows={events}
       columns={columns}

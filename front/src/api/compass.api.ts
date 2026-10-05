@@ -7,7 +7,7 @@ export type FlowsQuery = NonNullable<Endpoints.get_Get_flows['parameters']['quer
 export type FlowsFilter = Omit<FlowsQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const FLOW_FILTER_KEYS = [
-  'ip_address',
+  'search',
   'status',
   'grant_type',
   'client_id',

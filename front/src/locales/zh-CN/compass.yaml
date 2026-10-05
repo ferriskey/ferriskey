@@ -54,6 +54,7 @@ duration:
   seconds: '{{value}} s'
 
 list:
+  search_placeholder: 按 IP 地址搜索…
   columns:
     started_at: 开始时间
     grant_type: 授权类型

@@ -10,7 +10,7 @@ import type {
 import { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { eventLabel, eventReason } from '@/pages/iam/seawatch/event-catalogue'
-import { securityEventFilterFields } from '@/pages/iam/seawatch/event-filter-fields'
+import { securityEventColumnFilters } from '@/pages/iam/seawatch/event-filter-fields'
 import { formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay, type WindowEvents } from '../feature/use-window-events'
 import { eventCard, eventColumns } from './event-journal'
@@ -32,6 +32,8 @@ export interface PageLogsProps {
 }
 
 const DETAIL_SEPARATOR = ' · '
+
+const FAILURE_STATUS = 'failure'
 
 const dominant = (values: (string | null | undefined)[]) => {
   const counts = new Map<string, number>()
@@ -109,6 +111,7 @@ export default function PageLogs({
         total
       ),
       tone: 'info',
+      filter: {},
     },
     {
       key: 'failures',
@@ -125,6 +128,7 @@ export default function PageLogs({
         failed
       ),
       tone: 'brand',
+      filter: { status: FAILURE_STATUS },
     },
     {
       key: 'rate',
@@ -197,12 +201,13 @@ export default function PageLogs({
   ]
 
   const columns = eventColumns(directory, t)
+  const filters = securityEventColumnFilters()
   const feedColumns = [
-    { ...columns.event, sortKey: 'event_type' },
-    { ...columns.outcome, sortKey: 'status' },
-    columns.actor,
-    columns.target,
-    columns.origin,
+    { ...columns.event, sortKey: 'event_type', filters: filters.event_type },
+    { ...columns.outcome, sortKey: 'status', filters: filters.status },
+    { ...columns.actor, filters: filters.actor },
+    { ...columns.target, filters: filters.target },
+    { ...columns.origin, filters: filters.ip_address },
     { ...columns.when, sortKey: 'timestamp' },
   ]
 
@@ -213,7 +218,7 @@ export default function PageLogs({
       loading={isLoading}
       metrics={metrics}
       alerts={alerts}
-      paged={{ listing, pagination, filterFields: securityEventFilterFields() }}
+      paged={{ listing, pagination, search: { placeholder: t('seawatch:stream.search_placeholder') } }}
       searchScopeHint={t('activity.logs.feed.description')}
       rows={events}
       columns={feedColumns}

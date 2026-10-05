@@ -11,12 +11,16 @@ export type FederationProvidersFilter = Omit<
 >
 
 export const FEDERATION_PROVIDER_FILTER_KEYS = [
+  'search',
   'name',
   'provider_type',
   'provider_family',
   'enabled',
   'sync_enabled',
   'synced',
+  'sync_mode',
+  'created_from',
+  'created_to',
 ] as const
 
 export const federationProvidersKey = (realm: string) =>

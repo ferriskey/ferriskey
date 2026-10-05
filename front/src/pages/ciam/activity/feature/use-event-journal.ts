@@ -11,7 +11,7 @@ import { useLocalPagedListing } from '@/pages/iam/organization/feature/use-local
 
 import SecurityEventType = Schemas.SecurityEventType
 
-export const JOURNAL_FILTER_KEYS = ['event_types', 'ip_address', 'actor_id'] as const
+export const JOURNAL_FILTER_KEYS = ['search', 'event_types', 'ip_address', 'actor_id'] as const
 
 export interface EventJournal {
   listing: PagedListing

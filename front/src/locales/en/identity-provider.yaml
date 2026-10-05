@@ -75,6 +75,7 @@ list:
   description: External authentication sources federated into this realm.
   add: Add provider
   row_delete: Delete {{name}}
+  search_placeholder: Search by alias or display name…
   columns:
     provider: Provider
     alias: Alias
@@ -117,6 +118,7 @@ list:
     provider_id: Type
     enabled: Enabled
     health: Configuration
+    created: Created
     health_values:
       healthy: Complete
       degraded: No scope

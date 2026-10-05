@@ -1,4 +1,4 @@
-import type { FilterField } from '@/components/kit'
+import type { ColumnFilterField } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import { userRelationSource } from '@/api/user.relation'
 import { translate } from '@/lib/i18n'
@@ -16,54 +16,67 @@ const FILTERABLE_EVENT_TYPES = (Object.keys(catalogedEventTypes) as SecurityEven
   (type) => type !== 'unknown'
 )
 
-export const securityEventFilterFields = (): FilterField[] => [
-  {
-    kind: 'text',
-    key: 'ip_address',
-    label: translate('seawatch:stream.filter_fields.ip_address'),
-  },
-  {
-    kind: 'enum',
-    key: 'event_types',
-    label: translate('seawatch:stream.filter_fields.event_types'),
-    options: [
-      ...EVENT_FAMILIES.map((family) => ({
-        value: eventFamilies[family].join(','),
-        label: translate(`seawatch:stream.filters.${family}`),
+export interface SecurityEventColumnFilters {
+  event_type: ColumnFilterField[]
+  status: ColumnFilterField[]
+  actor: ColumnFilterField[]
+  target: ColumnFilterField[]
+  ip_address: ColumnFilterField[]
+}
+
+export const securityEventColumnFilters = (): SecurityEventColumnFilters => ({
+  event_type: [
+    {
+      kind: 'enum',
+      key: 'event_types',
+      label: translate('seawatch:stream.filter_fields.event_types'),
+      options: [
+        ...EVENT_FAMILIES.map((family) => ({
+          value: eventFamilies[family].join(','),
+          label: translate(`seawatch:stream.filters.${family}`),
+        })),
+        ...FILTERABLE_EVENT_TYPES.map((type) => ({
+          value: type,
+          label: translate(`seawatch:event.${type}`),
+        })),
+      ],
+    },
+  ],
+  status: [
+    {
+      kind: 'enum',
+      key: 'status',
+      label: translate('seawatch:stream.filter_fields.status'),
+      options: EVENT_STATUSES.map((status) => ({
+        value: status,
+        label: translate(`seawatch:stream.status_options.${status}`),
       })),
-      ...FILTERABLE_EVENT_TYPES.map((type) => ({
+    },
+  ],
+  actor: [
+    {
+      kind: 'relation',
+      key: 'actor_id',
+      label: translate('seawatch:stream.filter_fields.actor_id'),
+      relation: userRelationSource,
+    },
+  ],
+  target: [
+    {
+      kind: 'enum',
+      key: 'target_type',
+      label: translate('seawatch:stream.filter_fields.target_type'),
+      options: TARGET_TYPES.map((type) => ({
         value: type,
-        label: translate(`seawatch:event.${type}`),
+        label: translate(`seawatch:stream.target_types.${type}`),
       })),
-    ],
-  },
-  {
-    kind: 'enum',
-    key: 'status',
-    label: translate('seawatch:stream.filter_fields.status'),
-    options: EVENT_STATUSES.map((status) => ({
-      value: status,
-      label: translate(`seawatch:stream.status_options.${status}`),
-    })),
-  },
-  {
-    kind: 'enum',
-    key: 'target_type',
-    label: translate('seawatch:stream.filter_fields.target_type'),
-    options: TARGET_TYPES.map((type) => ({
-      value: type,
-      label: translate(`seawatch:stream.target_types.${type}`),
-    })),
-  },
-  {
-    kind: 'relation',
-    key: 'actor_id',
-    label: translate('seawatch:stream.filter_fields.actor_id'),
-    relation: userRelationSource,
-  },
-]
-
-const JOURNAL_FIELD_KEYS: readonly string[] = ['ip_address', 'actor_id']
-
-export const journalFilterFields = (): FilterField[] =>
-  securityEventFilterFields().filter((field) => JOURNAL_FIELD_KEYS.includes(field.key))
+    },
+  ],
+  ip_address: [
+    {
+      kind: 'text',
+      key: 'ip_address',
+      label: translate('seawatch:stream.filter_fields.ip_address'),
+    },
+  ],
+})

@@ -57,6 +57,7 @@ sessions:
   current: 当前
   empty_filtered: 没有符合这些筛选条件的会话。
   show_all: 显示全部会话
+  search_placeholder: 按 IP 地址或设备搜索…
   columns:
     device: 设备
     ip_address: IP 地址
@@ -68,6 +69,7 @@ sessions:
     user_agent: 设备
     ip_address: IP 地址
     persistent: 记住登录
+    created: 登录于
   persistent_state:
     remembered: 已记住
     browser: 浏览器会话
