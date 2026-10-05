@@ -196,7 +196,6 @@ export namespace Schemas {
   export type ClientScopeMapping = { client_id: string; default_scope_type: ScopeType; scope_id: string };
   export type ClientScopesResponse = { data: Array<ClientScope> };
   export type ClientSecretResponse = Partial<{ client_secret: string | null }>;
-  export type ClientsResponse = { data: Array<Client> };
   export type CodeChallengeMethod = "S256" | "PLAIN";
   export type FlowId = string;
   export type FlowStatus = "pending" | "success" | "failure" | "expired";
@@ -942,6 +941,38 @@ export namespace Schemas {
     | "consent";
   export type PageRequirement = { page_type: PortalPageType; required_blocks: Array<string> };
   export type PageRequirementsResponse = { data: Array<PageRequirement> };
+  export type Paginated_Client = {
+    data: Array<{
+      access_token_lifetime?: (number | null) | undefined;
+      backchannel_logout_session_required: boolean;
+      backchannel_logout_uri?: (string | null) | undefined;
+      client_id: string;
+      client_type: ClientType;
+      consent_required: boolean;
+      created_at: string;
+      direct_access_grants_enabled: boolean;
+      enabled: boolean;
+      id: string;
+      id_token_lifetime?: (number | null) | undefined;
+      maintenance_enabled: boolean;
+      maintenance_reason?: (string | null) | undefined;
+      maintenance_session_strategy: MaintenanceSessionStrategy;
+      name: string;
+      oauth_device_code_grant_enabled: boolean;
+      protocol: AuthProtocol;
+      public_client: boolean;
+      realm_id: RealmId;
+      redirect_uris?: (Array<RedirectUri> | null) | undefined;
+      refresh_token_lifetime?: (number | null) | undefined;
+      require_pkce: boolean;
+      secret?: (null | Masked_String) | undefined;
+      service_account_enabled: boolean;
+      temporary_token_lifetime?: (number | null) | undefined;
+      token_exchange_enabled: boolean;
+      updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_Realm = {
     data: Array<{
       created_at: string;
@@ -1725,11 +1756,31 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/clients";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        search: string;
+        name: string;
+        client_id: string;
+        client_id_exact: string;
+        enabled: boolean;
+        public_client: boolean;
+        service_account_enabled: boolean;
+        oauth_device_code_grant_enabled: boolean;
+        protocol: "openid-connect" | "saml";
+        client_type: "confidential" | "public" | "system";
+        application_type: "m2m" | "device" | "spa" | "native" | "web";
+        has_redirect_uris: boolean;
+        maintenance_enabled: boolean;
+        ids: string;
+        order_by: "name" | "client_id" | "enabled" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.ClientsResponse;
-      401: Schemas.ApiErrorResponse;
+      200: Schemas.Paginated_Client;
+      400: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
@@ -3904,6 +3955,7 @@ export namespace Endpoints {
         order: "asc" | "desc";
         search: string;
         name: string;
+        qualified_name: string;
         description: string;
         require_mfa: boolean;
         client_id: string;

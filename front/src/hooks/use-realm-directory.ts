@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useUsersByIds } from '@/api/user.api'
-import { useGetClients } from '@/api/client.api'
+import { useClientsByIds } from '@/api/client.api'
 import { useRolesByIds } from '@/api/role.api'
 import type { Schemas } from '@/api/api.client'
 
@@ -23,17 +23,19 @@ export function eventUserIds(events: readonly Schemas.SecurityEvent[]): string[]
 export function useRealmDirectory(
   realm: string,
   userIds: readonly string[],
-  roleIds: readonly string[] = NO_IDS
+  roleIds: readonly string[] = NO_IDS,
+  clientIds: readonly string[] = NO_IDS
 ): RealmDirectory {
   const { users: resolved, isLoading: loadingUsers } = useUsersByIds({ realm, ids: userIds })
-  const { data: clientsResponse, isLoading: loadingClients } = useGetClients({ realm })
+  const { clients: resolvedClients, isLoading: loadingClients } = useClientsByIds({
+    realm,
+    ids: clientIds,
+  })
   const { roles: resolvedRoles, isLoading: loadingRoles } = useRolesByIds({ realm, ids: roleIds })
 
   return useMemo(() => {
     const users = new Map(resolved.map((u) => [u.id, u.username]))
-    const clients = new Map(
-      (clientsResponse?.data ?? []).map((c) => [c.id, c.name || c.client_id])
-    )
+    const clients = new Map(resolvedClients.map((c) => [c.id, c.name || c.client_id]))
     const roles = new Map(resolvedRoles.map((r) => [r.id, r.name]))
 
     const userLabel = (id?: string | null) => (id ? (users.get(id) ?? null) : null)
@@ -58,5 +60,5 @@ export function useRealmDirectory(
       userLabel,
       label,
     }
-  }, [resolved, clientsResponse, resolvedRoles, loadingUsers, loadingClients, loadingRoles])
+  }, [resolved, resolvedClients, resolvedRoles, loadingUsers, loadingClients, loadingRoles])
 }

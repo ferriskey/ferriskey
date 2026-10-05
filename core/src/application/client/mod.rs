@@ -8,21 +8,25 @@ use crate::{
         authentication::value_objects::Identity,
         client::{
             entities::{
-                Client, CreateClientInput, CreatePostLogoutRedirectUriInput,
-                CreateRedirectUriInput, CreateRoleInput, CreateSamlAttributeMapperInput,
-                CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
-                DeleteRedirectUriInput, DeleteSamlAttributeMapperInput, DeleteWebOriginInput,
-                GetClientInput, GetClientRolesInput, GetClientSamlConfigInput, GetClientsInput,
-                GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
-                GetWebOriginsInput, SetClientSamlConfigInput, UpdateClientInput,
-                UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+                Client, ClientFilter, ClientSortField, CreateClientInput,
+                CreatePostLogoutRedirectUriInput, CreateRedirectUriInput, CreateRoleInput,
+                CreateSamlAttributeMapperInput, CreateWebOriginInput, DeleteClientInput,
+                DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput,
+                DeleteSamlAttributeMapperInput, DeleteWebOriginInput, GetClientInput,
+                GetClientRolesInput, GetClientSamlConfigInput, GetPostLogoutRedirectUrisInput,
+                GetRedirectUrisInput, GetSamlAttributeMappersInput, GetWebOriginsInput,
+                SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
+                UpdateRedirectUriInput,
                 redirect_uri::RedirectUri,
                 saml::{ClientSamlConfig, SamlAttributeMapper},
                 web_origin::{Origin, WebOrigin},
             },
             ports::{ClientService, WebOriginResolver},
         },
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
         role::entities::Role,
     },
 };
@@ -192,12 +196,15 @@ impl ClientService for ApplicationService {
         self.client_service.get_client_roles(identity, input).await
     }
 
-    async fn get_clients(
+    async fn list_clients(
         &self,
         identity: Identity,
-        input: GetClientsInput,
-    ) -> Result<Vec<Client>, CoreError> {
-        self.client_service.get_clients(identity, input).await
+        realm_name: String,
+        request: PageRequest<ClientFilter, ClientSortField>,
+    ) -> Result<Page<Client>, CoreError> {
+        self.client_service
+            .list_clients(identity, realm_name, request)
+            .await
     }
 
     async fn get_redirect_uris(

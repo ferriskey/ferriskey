@@ -1,18 +1,109 @@
 import { CreateClientSchema } from '@/pages/iam/client/schemas/create-client.schema.ts'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQueries, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BaseQuery } from '.'
+import type { Endpoints, Schemas } from './api.client'
+import { ID_BATCH, idBatches } from './id-batches'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 
-export const useGetClients = ({ realm }: BaseQuery) => {
-  return useQuery(
-    window.tanstackApi.get('/realms/{realm_name}/clients', {
+export type ClientsQuery = NonNullable<Endpoints.get_Get_clients['parameters']['query']>
+
+export type ClientsFilter = Omit<ClientsQuery, 'page' | 'limit' | 'order' | 'order_by'>
+
+export const CLIENT_SEARCH_LIMIT = 20
+
+export const APPLICATION_FILTER_KEYS = ['search', 'enabled', 'application_type'] as const
+
+export const CLIENT_FILTER_KEYS = [
+  'name',
+  'client_id',
+  'enabled',
+  'public_client',
+  'service_account_enabled',
+  'protocol',
+  'client_type',
+  'has_redirect_uris',
+  'maintenance_enabled',
+] as const
+
+const SEARCH_DEBOUNCE_MS = 300
+
+const clientsKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/clients', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
+
+export const useGetClients = ({
+  realm,
+  query,
+  enabled = true,
+}: BaseQuery & { query?: ClientsQuery; enabled?: boolean }) => {
+  return useQuery({
+    ...window.tanstackApi.get('/realms/{realm_name}/clients', {
       path: {
         realm_name: realm || 'master',
       },
-    }).queryOptions
-  )
+      query: query ?? {},
+    }).queryOptions,
+    enabled,
+  })
+}
+
+export const useClientCount = ({ realm, filter }: BaseQuery & { filter?: ClientsFilter }) => {
+  const { data, isLoading } = useGetClients({ realm, query: { ...filter, limit: 1 } })
+  return { count: data?.metadata.total ?? 0, isLoading }
+}
+
+const combineClients = (results: UseQueryResult<Schemas.Paginated_Client>[]) => ({
+  clients: results.flatMap((result) => result.data?.data ?? []),
+  isLoading: results.some((result) => result.isLoading),
+})
+
+export const useClientsByIds = ({ realm, ids }: BaseQuery & { ids: readonly string[] }) => {
+  const batches = useMemo(() => idBatches(ids), [ids])
+  return useQueries({
+    queries: batches.map((batch) => ({
+      ...window.tanstackApi.get('/realms/{realm_name}/clients', {
+        path: { realm_name: realm || 'master' },
+        query: { ids: batch, limit: ID_BATCH },
+      }).queryOptions,
+    })),
+    combine: combineClients,
+  })
+}
+
+export const useClientSearch = ({
+  realm,
+  enabled = true,
+}: BaseQuery & { enabled?: boolean }) => {
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const { data, isLoading } = useGetClients({
+    realm,
+    query: {
+      search: debounced || undefined,
+      order_by: 'name',
+      order: 'asc',
+      limit: CLIENT_SEARCH_LIMIT,
+    },
+    enabled,
+  })
+
+  return {
+    search,
+    setSearch,
+    clients: data?.data ?? [],
+    isLoading,
+  }
 }
 
 export const useGetClient = ({ realm, clientId }: BaseQuery & { clientId?: string }) => {
@@ -59,9 +150,9 @@ export const useCreateClient = () => {
 
   return useMutation({
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/clients').mutationOptions,
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
-        queryKey: ['clients'],
+        queryKey: clientsKey(variables.path.realm_name),
       })
     },
   })
@@ -84,6 +175,9 @@ export const useUpdateClient = () => {
       queryClient.invalidateQueries({
         queryKey: keys,
       })
+      queryClient.invalidateQueries({
+        queryKey: clientsKey(variables.path.realm_name),
+      })
     },
   })
 }
@@ -94,13 +188,8 @@ export const useDeleteClient = () => {
     ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/clients/{client_id}')
       .mutationOptions,
     onSuccess: async (res) => {
-      const keys = window.tanstackApi.get('/realms/{realm_name}/clients', {
-        path: {
-          realm_name: res.realm_name,
-        },
-      }).queryKey
       await queryClient.invalidateQueries({
-        queryKey: keys,
+        queryKey: clientsKey(res.realm_name),
       })
     },
   })

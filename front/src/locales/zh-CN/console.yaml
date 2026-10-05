@@ -268,23 +268,27 @@ applications:
     description: '所有与 FerrisKey 通信的程序：移动应用、单页应用、Web 服务器、守护进程。'
     create: 创建应用
     all: 所有应用
-    filters:
-      all: 全部
+    search_placeholder: 按名称或客户端 ID 搜索…
+    columns:
+      name: 应用
+      client_id: 客户端 ID
+      type: 类型
+      status: 状态
+      created: 创建时间
+    status:
       enabled: 已启用
       disabled: 已禁用
-    sorts:
-      recent: 最新优先
-      oldest: 最早优先
-      name: 名称
-    search_placeholder: 按名称或客户端 ID 搜索…
+    filter_fields:
+      search: 搜索
+      enabled: 已启用
+      application_type: 类型
     alerts:
       missing_callback:
-        body_other: '<em>{{count, number}} 个应用没有回调 URL</em>——{{names}}：FerrisKey 无处可以把用户送回，因此登录会以错误告终。'
+        title_other: '{{count, number}} 个应用没有回调 URL'
+        detail: '{{names}}：FerrisKey 无处可以把用户送回，因此登录会以错误告终。'
     empty:
       label: 暂无应用
       hint: '选一种类型，起一个名字，我们就会生成集成所需的一切。'
-      filtered_label: 没有匹配的应用
-      filtered_hint: 该类型下没有名称或客户端 ID 与之匹配的应用。
     card:
       disabled: 已禁用
     picker:

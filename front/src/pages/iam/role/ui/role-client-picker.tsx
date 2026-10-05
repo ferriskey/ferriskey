@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import {
@@ -11,23 +11,29 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Schemas } from '@/api/api.client'
-
-import Client = Schemas.Client
+import type { ClientPicking } from '@/hooks/use-client-picker'
 
 export interface RoleClientPickerProps {
-  clients: Client[]
+  picker: ClientPicking
   value?: string
   onChange: (clientId: string) => void
 }
 
-export default function RoleClientPicker({ clients, value, onChange }: RoleClientPickerProps) {
+export default function RoleClientPicker({ picker, value, onChange }: RoleClientPickerProps) {
   const { t } = useTranslation('role')
   const [open, setOpen] = useState(false)
-  const selected = clients.find((c) => c.id === value)
+  const selected = value
+    ? (picker.clients.find((c) => c.id === value) ??
+      (picker.selected?.id === value ? picker.selected : undefined))
+    : undefined
+
+  const changeOpen = (next: boolean) => {
+    setOpen(next)
+    if (!next) picker.onSearchChange('')
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild>
         <Button
           type='button'
@@ -52,18 +58,23 @@ export default function RoleClientPicker({ clients, value, onChange }: RoleClien
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-(--radix-popover-trigger-width) p-0' align='start'>
-        <Command>
-          <CommandInput placeholder={t('form.client.search_placeholder')} className='h-9' />
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={picker.search}
+            onValueChange={picker.onSearchChange}
+            placeholder={t('form.client.search_placeholder')}
+            className='h-9'
+          />
           <CommandList>
-            <CommandEmpty>{t('form.client.empty')}</CommandEmpty>
+            {!picker.loading && <CommandEmpty>{t('form.client.empty')}</CommandEmpty>}
             <CommandGroup>
-              {clients.map((client) => (
+              {picker.clients.map((client) => (
                 <CommandItem
                   key={client.id}
-                  value={`${client.name} ${client.client_id}`}
+                  value={client.id}
                   onSelect={() => {
                     onChange(client.id)
-                    setOpen(false)
+                    changeOpen(false)
                   }}
                 >
                   <span className='min-w-0 flex-1'>
@@ -78,6 +89,11 @@ export default function RoleClientPicker({ clients, value, onChange }: RoleClien
                 </CommandItem>
               ))}
             </CommandGroup>
+            {picker.loading && (
+              <div className='flex justify-center py-3'>
+                <Loader2 className='size-4 animate-spin text-neutral-400 dark:text-neutral-500' />
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

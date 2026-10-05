@@ -10,13 +10,12 @@ use crate::client::{
         CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
         DeleteRedirectUriInput, DeleteSamlAttributeMapperInput, DeleteTokenExchangePolicyInput,
         DeleteWebOriginInput, GetClientInput, GetClientRolesInput, GetClientSamlConfigInput,
-        GetClientsInput, GetPostLogoutRedirectUrisInput, GetRedirectUrisInput,
-        GetSamlAttributeMappersInput, GetTokenExchangePoliciesInput, GetWebOriginsInput,
-        SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
-        UpdateRedirectUriInput,
+        GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
+        GetTokenExchangePoliciesInput, GetWebOriginsInput, SetClientSamlConfigInput,
+        UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
     },
     entities::{
-        Client,
+        Client, ClientFilter, ClientSortField,
         redirect_uri::RedirectUri,
         saml::{
             ClientSamlConfig, SamlAttributeMapper, SamlAttributeMapperDefinition,
@@ -29,7 +28,8 @@ use crate::client::{
     web_origin_resolution::ClientOriginSources,
 };
 use crate::common::app_errors::CoreError;
-use crate::realm::scope::{Scoped, Unscoped};
+use crate::common::pagination::{Page, PageRequest};
+use crate::realm::scope::{RealmScope, Scoped, Unscoped};
 use crate::realm::{Realm, RealmId};
 use crate::role::entities::Role;
 
@@ -119,11 +119,12 @@ pub trait ClientService: Send + Sync {
         identity: Identity,
         input: GetClientInput,
     ) -> impl Future<Output = Result<Client, CoreError>> + Send;
-    fn get_clients(
+    fn list_clients(
         &self,
         identity: Identity,
-        input: GetClientsInput,
-    ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+        realm_name: String,
+        request: PageRequest<ClientFilter, ClientSortField>,
+    ) -> impl Future<Output = Result<Page<Client>, CoreError>> + Send;
 
     fn reveal_client_secret(
         &self,
@@ -204,6 +205,12 @@ pub trait ClientRepository: Send + Sync {
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Vec<Client>, CoreError>> + Send;
+
+    fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<ClientFilter, ClientSortField>,
+    ) -> impl Future<Output = Result<Page<Client>, CoreError>> + Send;
 
     fn update_client(
         &self,

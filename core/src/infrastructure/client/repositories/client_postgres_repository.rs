@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     domain::common::entities::app_errors::CoreError,
     entity::clients::{ActiveModel, Entity as ClientEntity},
@@ -5,20 +7,153 @@ use crate::{
 };
 use chrono::Utc;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
+    QueryTrait, Select,
+    sea_query::{Expr, Func},
 };
-use tracing::instrument;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
-use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
+use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::domain::{
     client::{
-        entities::{Client, redirect_uri::RedirectUri},
+        entities::{
+            ApplicationType, Client, ClientFilter, ClientSortField, redirect_uri::RedirectUri,
+        },
         ports::ClientRepository,
         value_objects::{CreateClientRequest, UpdateClientRequest},
     },
-    common::{generate_timestamp, generate_uuid_v7},
+    common::{
+        generate_timestamp, generate_uuid_v7,
+        pagination::{Page, PageRequest},
+    },
 };
+use crate::entity::{clients, redirect_uris};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<clients::Entity> for ClientSortField {
+    fn column(&self) -> clients::Column {
+        match self {
+            ClientSortField::Name => clients::Column::Name,
+            ClientSortField::ClientId => clients::Column::ClientId,
+            ClientSortField::Enabled => clients::Column::Enabled,
+            ClientSortField::CreatedAt => clients::Column::CreatedAt,
+            ClientSortField::UpdatedAt => clients::Column::UpdatedAt,
+        }
+    }
+}
+
+fn device_grant() -> Expr {
+    Expr::expr(Func::coalesce([
+        Expr::col((
+            clients::Entity,
+            clients::Column::OauthDeviceCodeGrantEnabled,
+        ))
+        .into(),
+        Expr::val(false).into(),
+    ]))
+}
+
+fn with_redirect_uris() -> sea_orm::sea_query::SelectStatement {
+    redirect_uris::Entity::find()
+        .select_only()
+        .column(redirect_uris::Column::ClientId)
+        .into_query()
+}
+
+fn device_only() -> Condition {
+    Condition::all()
+        .add(device_grant().eq(true))
+        .add(clients::Column::Id.not_in_subquery(with_redirect_uris()))
+}
+
+fn application(kind: ApplicationType) -> Condition {
+    let interactive = Condition::all()
+        .add(clients::Column::ServiceAccountEnabled.eq(false))
+        .add(device_only().not());
+    let public_type = |public_client: bool| {
+        interactive
+            .clone()
+            .add(clients::Column::ClientType.eq("public"))
+            .add(clients::Column::PublicClient.eq(public_client))
+    };
+    match kind {
+        ApplicationType::M2m => {
+            Condition::all().add(clients::Column::ServiceAccountEnabled.eq(true))
+        }
+        ApplicationType::Device => Condition::all()
+            .add(clients::Column::ServiceAccountEnabled.eq(false))
+            .add(device_only()),
+        ApplicationType::Spa => public_type(true),
+        ApplicationType::Native => public_type(false),
+        ApplicationType::Web => interactive.add(clients::Column::ClientType.ne("public")),
+    }
+}
+
+fn search(value: &str) -> Condition {
+    Condition::any()
+        .add(contains(clients::Column::Name, value))
+        .add(contains(clients::Column::ClientId, value))
+}
+
+fn listing_select(realm_id: Uuid, filter: &ClientFilter) -> Select<clients::Entity> {
+    clients::Entity::find()
+        .filter(clients::Column::RealmId.eq(realm_id))
+        .apply_if(filter.search.as_deref(), |select, value| {
+            select.filter(search(value))
+        })
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(clients::Column::Name, value))
+        })
+        .apply_if(filter.client_id.as_deref(), |select, value| {
+            select.filter(contains(clients::Column::ClientId, value))
+        })
+        .apply_if(filter.client_id_exact.as_deref(), |select, value| {
+            select.filter(clients::Column::ClientId.eq(value))
+        })
+        .apply_if(filter.enabled, |select, value| {
+            select.filter(clients::Column::Enabled.eq(value))
+        })
+        .apply_if(filter.public_client, |select, value| {
+            select.filter(clients::Column::PublicClient.eq(value))
+        })
+        .apply_if(filter.service_account_enabled, |select, value| {
+            select.filter(clients::Column::ServiceAccountEnabled.eq(value))
+        })
+        .apply_if(filter.oauth_device_code_grant_enabled, |select, value| {
+            select.filter(device_grant().eq(value))
+        })
+        .apply_if(filter.application_type, |select, kind| {
+            select.filter(application(kind))
+        })
+        .apply_if(filter.protocol, |select, protocol| {
+            select.filter(clients::Column::Protocol.eq(protocol.as_str()))
+        })
+        .apply_if(filter.client_type.as_ref(), |select, client_type| {
+            select.filter(clients::Column::ClientType.eq(client_type.to_string()))
+        })
+        .apply_if(filter.has_redirect_uris, |select, present| {
+            select.filter(if present {
+                clients::Column::Id.in_subquery(with_redirect_uris())
+            } else {
+                clients::Column::Id.not_in_subquery(with_redirect_uris())
+            })
+        })
+        .apply_if(filter.maintenance_enabled, |select, value| {
+            select.filter(if value {
+                Condition::all().add(clients::Column::MaintenanceEnabled.eq(true))
+            } else {
+                Condition::any()
+                    .add(clients::Column::MaintenanceEnabled.eq(false))
+                    .add(clients::Column::MaintenanceEnabled.is_null())
+            })
+        })
+        .apply_if(filter.ids.as_deref(), |select, ids| {
+            select.filter(clients::Column::Id.is_in(ids.iter().copied()))
+        })
+}
 
 #[derive(Debug, Clone)]
 pub struct PostgresClientRepository {
@@ -139,6 +274,47 @@ impl ClientRepository for PostgresClientRepository {
         Ok(clients)
     }
 
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<ClientFilter, ClientSortField>,
+    ) -> Result<Page<Client>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            error!("error listing clients: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+        let ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
+        let mut uris: HashMap<Uuid, Vec<RedirectUri>> = HashMap::new();
+        if !ids.is_empty() {
+            let rows = redirect_uris::Entity::find()
+                .filter(redirect_uris::Column::ClientId.is_in(ids))
+                .order_by_asc(redirect_uris::Column::CreatedAt)
+                .order_by_asc(redirect_uris::Column::Id)
+                .all(&self.db)
+                .await
+                .map_err(|e| {
+                    error!("error loading the redirect uris of listed clients: {:?}", e);
+                    CoreError::InternalServerError
+                })?;
+            for row in rows {
+                uris.entry(row.client_id).or_default().push(row.into());
+            }
+        }
+
+        let clients = models
+            .into_iter()
+            .map(|model| {
+                let redirect_uris = uris.remove(&model.id).unwrap_or_default();
+                let mut client = Client::from(model);
+                client.redirect_uris = Some(redirect_uris);
+                client
+            })
+            .collect();
+
+        Ok(Page::new(clients, total, request.page, request.limit))
+    }
+
     async fn update_client(
         &self,
         client: &Scoped<Client>,
@@ -248,5 +424,235 @@ impl ClientRepository for PostgresClientRepository {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::authentication::entities::AuthProtocol;
+    use crate::domain::client::entities::{ApplicationType, ClientFilter, ClientType};
+
+    fn sql(filter: &ClientFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&ClientFilter::default());
+        assert!(
+            sql.contains(r#""clients"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&ClientFilter {
+            name: Some("a%".to_string()),
+            client_id: Some("b".to_string()),
+            ..ClientFilter::default()
+        });
+        assert!(sql.contains(r#""clients"."name" ILIKE E'%a\\%%'"#), "{sql}");
+        assert!(
+            sql.contains(r#""clients"."client_id" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn exact_client_id_is_a_case_sensitive_equality() {
+        let sql = sql(&ClientFilter {
+            client_id_exact: Some("App_%".to_string()),
+            ..ClientFilter::default()
+        });
+        assert!(sql.contains(r#""clients"."client_id" = 'App_%'"#), "{sql}");
+        assert!(!sql.contains("ILIKE"), "{sql}");
+    }
+
+    #[test]
+    fn exact_filters_are_equalities() {
+        let sql = sql(&ClientFilter {
+            enabled: Some(true),
+            public_client: Some(false),
+            service_account_enabled: Some(true),
+            protocol: Some(AuthProtocol::Saml),
+            client_type: Some(ClientType::System),
+            ..ClientFilter::default()
+        });
+        assert!(sql.contains(r#""clients"."enabled" = TRUE"#), "{sql}");
+        assert!(
+            sql.contains(r#""clients"."public_client" = FALSE"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""clients"."service_account_enabled" = TRUE"#),
+            "{sql}"
+        );
+        assert!(sql.contains(r#""clients"."protocol" = 'saml'"#), "{sql}");
+        assert!(
+            sql.contains(r#""clients"."client_type" = 'system'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn redirect_presence_is_a_subquery_on_redirect_uris() {
+        let with = sql(&ClientFilter {
+            has_redirect_uris: Some(true),
+            ..ClientFilter::default()
+        });
+        assert!(
+            with.contains(
+                r#""clients"."id" IN (SELECT "redirect_uris"."client_id" FROM "redirect_uris")"#
+            ),
+            "{with}"
+        );
+        let without = sql(&ClientFilter {
+            has_redirect_uris: Some(false),
+            ..ClientFilter::default()
+        });
+        assert!(
+            without.contains(
+                r#""clients"."id" NOT IN (SELECT "redirect_uris"."client_id" FROM "redirect_uris")"#
+            ),
+            "{without}"
+        );
+    }
+
+    #[test]
+    fn maintenance_off_includes_unset_rows() {
+        let on = sql(&ClientFilter {
+            maintenance_enabled: Some(true),
+            ..ClientFilter::default()
+        });
+        assert!(
+            on.contains(r#""clients"."maintenance_enabled" = TRUE"#),
+            "{on}"
+        );
+        let off = sql(&ClientFilter {
+            maintenance_enabled: Some(false),
+            ..ClientFilter::default()
+        });
+        assert!(
+            off.contains(r#"("clients"."maintenance_enabled" = FALSE OR "clients"."maintenance_enabled" IS NULL)"#),
+            "{off}"
+        );
+    }
+
+    #[test]
+    fn ids_filter_is_an_in_list() {
+        let first = Uuid::from_u128(1);
+        let second = Uuid::from_u128(2);
+        let sql = sql(&ClientFilter {
+            ids: Some(vec![first, second]),
+            ..ClientFilter::default()
+        });
+        assert!(
+            sql.contains(&format!(r#""clients"."id" IN ('{first}', '{second}')"#)),
+            "{sql}"
+        );
+    }
+
+    const DEVICE: &str = r#"COALESCE("clients"."oauth_device_code_grant_enabled", FALSE) = TRUE AND "clients"."id" NOT IN (SELECT "redirect_uris"."client_id" FROM "redirect_uris")"#;
+
+    fn application(kind: ApplicationType) -> String {
+        sql(&ClientFilter {
+            application_type: Some(kind),
+            ..ClientFilter::default()
+        })
+    }
+
+    #[test]
+    fn search_matches_the_name_or_the_client_id() {
+        let sql = sql(&ClientFilter {
+            search: Some("a%".to_string()),
+            ..ClientFilter::default()
+        });
+        assert!(
+            sql.contains(
+                r#"(("clients"."name" ILIKE E'%a\\%%') OR ("clients"."client_id" ILIKE E'%a\\%%'))"#
+            ),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn device_grant_treats_unset_as_disabled() {
+        let on = sql(&ClientFilter {
+            oauth_device_code_grant_enabled: Some(true),
+            ..ClientFilter::default()
+        });
+        assert!(
+            on.contains(r#"COALESCE("clients"."oauth_device_code_grant_enabled", FALSE) = TRUE"#),
+            "{on}"
+        );
+        let off = sql(&ClientFilter {
+            oauth_device_code_grant_enabled: Some(false),
+            ..ClientFilter::default()
+        });
+        assert!(
+            off.contains(r#"COALESCE("clients"."oauth_device_code_grant_enabled", FALSE) = FALSE"#),
+            "{off}"
+        );
+    }
+
+    #[test]
+    fn m2m_applications_hold_a_service_account() {
+        let sql = application(ApplicationType::M2m);
+        assert!(
+            sql.contains(r#""clients"."service_account_enabled" = TRUE"#),
+            "{sql}"
+        );
+        assert!(!sql.contains("COALESCE"), "{sql}");
+    }
+
+    #[test]
+    fn device_applications_use_the_device_grant_without_redirect() {
+        let sql = application(ApplicationType::Device);
+        assert!(
+            sql.contains(&format!(
+                r#""clients"."service_account_enabled" = FALSE AND ({DEVICE})"#
+            )),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn spa_applications_are_public_and_public_clients() {
+        let sql = application(ApplicationType::Spa);
+        assert!(
+            sql.contains(&format!(
+                r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" = 'public' AND "clients"."public_client" = TRUE"#
+            )),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn native_applications_are_public_without_public_client() {
+        let sql = application(ApplicationType::Native);
+        assert!(
+            sql.contains(&format!(
+                r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" = 'public' AND "clients"."public_client" = FALSE"#
+            )),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn web_applications_are_every_other_client_type() {
+        let sql = application(ApplicationType::Web);
+        assert!(
+            sql.contains(&format!(
+                r#""clients"."service_account_enabled" = FALSE AND (NOT ({DEVICE})) AND "clients"."client_type" <> 'public'"#
+            )),
+            "{sql}"
+        );
     }
 }

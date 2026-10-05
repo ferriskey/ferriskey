@@ -67,6 +67,32 @@ fn qualified_value_contains(realm_id: Uuid, value: &str) -> SimpleExpr {
     )
 }
 
+fn qualified_name_equals(realm_id: Uuid, value: &str) -> Condition {
+    Condition::any()
+        .add(
+            Condition::all()
+                .add(roles::Column::ClientId.is_null())
+                .add(roles::Column::Name.eq(value)),
+        )
+        .add(Expr::exists(
+            Query::select()
+                .expr(Expr::val(1))
+                .from(clients::Entity)
+                .and_where(
+                    Expr::col((clients::Entity, clients::Column::Id))
+                        .equals((roles::Entity, roles::Column::ClientId)),
+                )
+                .and_where(clients::Column::RealmId.eq(realm_id))
+                .and_where(
+                    Expr::col((clients::Entity, clients::Column::ClientId))
+                        .concat(".")
+                        .concat(Expr::col((roles::Entity, roles::Column::Name)))
+                        .eq(value),
+                )
+                .to_owned(),
+        ))
+}
+
 fn search_condition(realm_id: Uuid, value: &str) -> Condition {
     Condition::any()
         .add(contains(roles::Column::Name, value))
@@ -82,6 +108,9 @@ fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> 
         })
         .apply_if(filter.name.as_deref(), |select, value| {
             select.filter(contains(roles::Column::Name, value))
+        })
+        .apply_if(filter.qualified_name.as_deref(), |select, value| {
+            select.filter(qualified_name_equals(realm_id, value))
         })
         .apply_if(filter.description.as_deref(), |select, value| {
             select.filter(contains(roles::Column::Description, value))
@@ -353,6 +382,19 @@ mod tests {
             sql.contains(r#""roles"."description" ILIKE '%b%'"#),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn qualified_name_matches_a_realm_role_name_or_a_client_qualified_value_exactly() {
+        let sql = sql(&RoleFilter {
+            qualified_name: Some("app.ns_%".to_string()),
+            ..RoleFilter::default()
+        });
+        assert!(
+            sql.contains(r#"AND (("roles"."client_id" IS NULL AND "roles"."name" = 'app.ns_%') OR EXISTS(SELECT 1 FROM "clients" WHERE "clients"."id" = "roles"."client_id" AND "clients"."realm_id" = '00000000-0000-0000-0000-000000000000' AND ("clients"."client_id" || '.' || "roles"."name") = 'app.ns_%'))"#),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
     }
 
     #[test]

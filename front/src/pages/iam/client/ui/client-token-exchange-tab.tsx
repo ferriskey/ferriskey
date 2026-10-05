@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react'
-import { useEffect } from 'react'
+import { ArrowLeftRight, Check, ChevronsUpDown, Loader2, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
@@ -22,12 +22,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { ClientPicking } from '@/hooks/use-client-picker'
 import { tokens } from '@/styles/style-tokens'
 import { cn } from '@/lib/utils'
 import { Schemas } from '@/api/api.client'
@@ -42,7 +45,8 @@ import TokenExchangePolicy = Schemas.TokenExchangePolicy
 export interface ClientTokenExchangeTabProps {
   client: Client
   policies: TokenExchangePolicy[]
-  audiences: Client[]
+  audiences: ClientPicking
+  canCreate: boolean
   isLoading: boolean
   isError: boolean
   isCreating: boolean
@@ -54,6 +58,84 @@ export interface ClientTokenExchangeTabProps {
   onRequestDelete: (policy: TokenExchangePolicy) => void
   onCancelDelete: () => void
   onConfirmDelete: () => void
+}
+
+function AudiencePicker({
+  audiences,
+  value,
+  onChange,
+}: {
+  audiences: ClientPicking
+  value: string
+  onChange: (clientId: string) => void
+}) {
+  const { t } = useTranslation('client')
+  const [open, setOpen] = useState(false)
+
+  const changeOpen = (next: boolean) => {
+    setOpen(next)
+    if (!next) audiences.onSearchChange('')
+  }
+
+  return (
+    <Popover open={open} onOpenChange={changeOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type='button'
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className='w-full justify-between font-normal'
+        >
+          {value ? (
+            <span className='min-w-0 truncate font-mono-ui text-xs'>{value}</span>
+          ) : (
+            <span className='text-neutral-500 dark:text-neutral-400'>
+              {t('token_exchange.create.audience.placeholder')}
+            </span>
+          )}
+          <ChevronsUpDown className='opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='w-(--radix-popover-trigger-width) p-0' align='start'>
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={audiences.search}
+            onValueChange={audiences.onSearchChange}
+            placeholder={t('token_exchange.create.audience.search_placeholder')}
+            className='h-9'
+          />
+          <CommandList>
+            {!audiences.loading && (
+              <CommandEmpty>{t('token_exchange.create.audience.empty')}</CommandEmpty>
+            )}
+            <CommandGroup>
+              {audiences.clients.map((candidate) => (
+                <CommandItem
+                  key={candidate.id}
+                  value={candidate.id}
+                  onSelect={() => {
+                    onChange(candidate.client_id)
+                    changeOpen(false)
+                  }}
+                >
+                  <span className='min-w-0 flex-1 truncate font-mono-ui text-xs'>
+                    {candidate.client_id}
+                  </span>
+                  {value === candidate.client_id && <Check className='ml-auto' />}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {audiences.loading && (
+              <div className='flex justify-center py-3'>
+                <Loader2 className='size-4 animate-spin text-neutral-400 dark:text-neutral-500' />
+              </div>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 const EMPTY_FORM: TokenExchangePolicySchema = {
@@ -72,7 +154,7 @@ function CreatePolicyDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  audiences: Client[]
+  audiences: ClientPicking
   isCreating: boolean
   onCreate: (values: TokenExchangePolicySchema) => void
 }) {
@@ -110,18 +192,11 @@ function CreatePolicyDialog({
               control={control}
               name='targetAudience'
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder={t('token_exchange.create.audience.placeholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {audiences.map((candidate) => (
-                      <SelectItem key={candidate.id} value={candidate.client_id}>
-                        {candidate.client_id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AudiencePicker
+                  audiences={audiences}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
               )}
             />
             {errors.targetAudience && (
@@ -199,6 +274,7 @@ export default function ClientTokenExchangeTab({
   client,
   policies,
   audiences,
+  canCreate,
   isLoading,
   isError,
   isCreating,
@@ -214,7 +290,7 @@ export default function ClientTokenExchangeTab({
   const { t } = useTranslation('client')
 
   const addButton = (
-    <Button size='sm' disabled={audiences.length === 0} onClick={() => onCreateOpenChange(true)}>
+    <Button size='sm' disabled={!canCreate} onClick={() => onCreateOpenChange(true)}>
       <Plus /> {t('token_exchange.add')}
     </Button>
   )

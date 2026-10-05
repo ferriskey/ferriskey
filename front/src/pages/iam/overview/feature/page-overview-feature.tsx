@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Compass, LayoutGrid, Shield, Users } from 'lucide-react'
-import { useGetClients } from '@/api/client.api'
+import { useClientCount, useClientsByIds, useGetClients } from '@/api/client.api'
+import { isUuid } from '@/api/uuid'
 import { useUserCount, useUsersByIds } from '@/api/user.api'
 import { useRoleCount } from '@/api/role.api'
 import { useGetDailyActivityStats, useGetFlows, useGetStats } from '@/api/compass.api'
@@ -23,10 +24,10 @@ import PageOverview, {
   type OverviewQuickLink,
 } from '../ui/page-overview'
 import type { OverviewEvent } from '../ui/overview-event-log'
-import { cumulativeSeries } from '@/utils/cumulative-series'
 
 const WINDOW_DAYS = 30
 const EVENT_COUNT = 8
+const DISABLED_PREVIEW = 5
 
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0)
 
@@ -42,7 +43,12 @@ export default function PageOverviewFeature() {
   const currentUser = userStore((s) => s.user)
 
   const { data: realmResponse, isLoading: isLoadingRealm } = useGetRealm({ realm })
-  const { data: clientsResponse, isLoading: isLoadingClients } = useGetClients({ realm })
+  const { count: clientTotal, isLoading: isLoadingClients } = useClientCount({ realm })
+  const { count: activeClients } = useClientCount({ realm, filter: { enabled: true } })
+  const { data: disabledResponse } = useGetClients({
+    realm,
+    query: { enabled: false, limit: DISABLED_PREVIEW },
+  })
   const { count: userTotal, isLoading: isLoadingUsers } = useUserCount({ realm })
   const { count: verifiedUsers } = useUserCount({ realm, filter: { email_verified: true } })
   const { count: unverifiedUsers } = useUserCount({ realm, filter: { email_verified: false } })
@@ -55,7 +61,6 @@ export default function PageOverviewFeature() {
   const { data: activityResponse } = useGetDailyActivityStats({ realm: compassRealm })
   const { data: flowsResponse } = useGetFlows({ realm: compassRealm, limit: EVENT_COUNT })
 
-  const clients = useMemo(() => clientsResponse?.data ?? [], [clientsResponse])
   const activity = useMemo(() => activityResponse?.data ?? [], [activityResponse])
   const flows = useMemo(() => flowsResponse?.data ?? [], [flowsResponse])
   const flowUserIds = useMemo(
@@ -63,6 +68,11 @@ export default function PageOverviewFeature() {
     [flows]
   )
   const { users: flowUsers } = useUsersByIds({ realm, ids: flowUserIds })
+  const flowClientIds = useMemo(
+    () => flows.flatMap((flow) => (flow.client_id && isUuid(flow.client_id) ? [flow.client_id] : [])),
+    [flows]
+  )
+  const { clients: flowClients } = useClientsByIds({ realm, ids: flowClientIds })
   const flowStats = statsResponse?.data ?? null
 
   const greeting = useMemo(() => {
@@ -71,8 +81,10 @@ export default function PageOverviewFeature() {
     return fromName || currentUser.preferred_username || undefined
   }, [currentUser])
 
-  const activeClients = clients.filter((c) => c.enabled).length
-  const disabledClients = clients.filter((c) => !c.enabled)
+  const disabledTotal = disabledResponse?.metadata.total ?? 0
+  const disabledNames =
+    (disabledResponse?.data ?? []).map((c) => c.client_id).join(', ') +
+    (disabledTotal > (disabledResponse?.data.length ?? 0) ? '…' : '')
   const totalFlows = flowStats?.total ?? 0
   const successFlows = flowStats?.success_count ?? 0
   const failedFlows = flowStats?.failure_count ?? 0
@@ -92,12 +104,12 @@ export default function PageOverviewFeature() {
     {
       key: 'clients',
       label: t('metrics.clients.label'),
-      value: clients.length,
+      value: clientTotal,
       hint:
-        clients.length > 0
+        clientTotal > 0
           ? t('metrics.clients.hint', { active: activeClients })
           : t('metrics.clients.empty_hint'),
-      series: cumulativeSeries(clients.map((c) => c.created_at)),
+      series: [clientTotal, clientTotal],
       tone: 'info',
     },
     {
@@ -134,14 +146,14 @@ export default function PageOverviewFeature() {
     })
   }
 
-  if (disabledClients.length > 0) {
+  if (disabledTotal > 0) {
     alerts.push({
       key: 'disabled-clients',
       tone: 'warn',
-      title: t('alerts.disabled_clients.title', { count: disabledClients.length }),
+      title: t('alerts.disabled_clients.title', { count: disabledTotal }),
       detail: t('alerts.disabled_clients.detail', {
-        count: disabledClients.length,
-        names: disabledClients.map((c) => c.client_id).join(', '),
+        count: disabledTotal,
+        names: disabledNames,
       }),
       action: t('alerts.disabled_clients.action'),
       onAction: () => navigate(CLIENTS_URL(realm)),
@@ -210,7 +222,7 @@ export default function PageOverviewFeature() {
   ]
 
   const events: OverviewEvent[] = flows.map((flow) => {
-    const client = clients.find((c) => c.id === flow.client_id || c.client_id === flow.client_id)
+    const client = flowClients.find((c) => c.id === flow.client_id)
     const user = flowUsers.find((u) => u.id === flow.user_id)
     return {
       id: flow.id,

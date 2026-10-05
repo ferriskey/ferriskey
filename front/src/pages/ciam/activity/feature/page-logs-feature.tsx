@@ -5,6 +5,7 @@ import { RouterParams } from '@/routes/router'
 import { useListingQuery } from '@/components/kit'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
 import { eventRoleIds } from '@/hooks/event-role-ids'
+import { eventClientIds } from '@/hooks/event-client-ids'
 import { eventFamilies } from '@/pages/iam/seawatch/event-catalogue'
 import { useWindowEvents } from './use-window-events'
 import PageLogs from '../ui/page-logs'
@@ -24,7 +25,8 @@ export default function PageLogsFeature() {
   )
   const userIds = useMemo(() => eventUserIds(events), [events])
   const roleIds = useMemo(() => eventRoleIds(events), [events])
-  const directory = useRealmDirectory(realm, userIds, roleIds)
+  const clientIds = useMemo(() => eventClientIds(events), [events])
+  const directory = useRealmDirectory(realm, userIds, roleIds, clientIds)
 
   return (
     <PageLogs

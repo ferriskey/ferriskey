@@ -65,6 +65,8 @@ list:
     protocol: Protocol
     redirects: Redirect URIs
     status: Status
+    created: Created
+    updated: Updated
   card:
     flags:
       direct_access_grants: Direct access grants
@@ -97,18 +99,23 @@ list:
       title_other: '{{count}} clients are in maintenance'
       detail: '{{clients}} — only whitelisted accounts can sign in.'
       action: Inspect
-  filters:
-    public: Public
-    confidential: Confidential
-    disabled: Disabled
-  search_placeholder: Filter by name or client_id…
-  # Example of the search query language, shown under the search field. The field
-  # names (name, type, enabled) are literal syntax and must not be translated.
-  query_syntax: 'name:*portal  type:confidential  enabled:true'
+  filter_fields:
+    name: Name
+    client_id: client_id
+    enabled: Enabled
+    public_client: Public
+    service_account_enabled: Service account
+    protocol: Protocol
+    client_type: Client type
+    has_redirect_uris: With redirect URIs
+    maintenance_enabled: In maintenance
+    client_types:
+      confidential: Confidential
+      public: Public
+      system: System
   aggregates:
     count_one: '{{count}} client'
     count_other: '{{count}} clients'
-    enabled: '{{total}} enabled'
   empty:
     label: No client
     hint: Register an application to let it authenticate the accounts of this realm.
@@ -503,6 +510,8 @@ token_exchange:
       label: Target audience
       description: The client the exchanged token is issued for.
       placeholder: Select a client
+      search_placeholder: Search by name or client_id…
+      empty: No client matches.
     scopes:
       label: Allowed scopes
       description: Caps the scopes of the exchanged token. Leave empty for no extra cap.

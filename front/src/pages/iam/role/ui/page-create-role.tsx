@@ -6,16 +6,14 @@ import { Textarea } from '@/components/ui/textarea'
 import SaveBar from '@/components/kit/save-bar'
 import { ChoiceCards, FieldRow, PageShell, Section, type Choice } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { ClientPicking } from '@/hooks/use-client-picker'
 import RoleClientPicker from './role-client-picker'
 import RolePermissionsTab from './role-permissions-tab'
-
-import Client = Schemas.Client
 
 export type RoleScope = 'realm' | 'client'
 
 export interface PageCreateRoleProps {
-  clients: Client[]
+  clientPicker: ClientPicking
   name: string
   description: string
   scope: RoleScope
@@ -38,7 +36,7 @@ const SCOPE_CHOICES = [
 ] as const
 
 export default function PageCreateRole({
-  clients,
+  clientPicker,
   name,
   description,
   scope,
@@ -123,7 +121,7 @@ export default function PageCreateRole({
           {scope === 'client' && (
             <FieldRow label={t('form.client.label')} description={t('form.client.description')}>
               <RoleClientPicker
-                clients={clients}
+                picker={clientPicker}
                 value={clientId}
                 onChange={onClientIdChange}
               />

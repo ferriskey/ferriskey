@@ -359,7 +359,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 865,
     },
     AuthzRow {
-        service_fn: "get_clients",
+        service_fn: "list_clients",
         policy_fn: "can_view_client",
         action: actions::CLIENT_READ,
         resource: EntityType::REALM,
@@ -370,7 +370,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/client/services.rs",
-        line: 890,
+        line: 892,
     },
     AuthzRow {
         service_fn: "get_redirect_uris",
