@@ -11,9 +11,10 @@ use crate::{
             AssignMemberRoleInput, CreateGroupInput, CreateOrganizationInput,
             DeleteGroupAttributeInput, DeleteGroupInput, DeleteOrganizationAttributeInput,
             DeleteOrganizationInput, GetGroupInput, GetOrganizationInput, Group, GroupAttribute,
-            GroupFilter, GroupListItem, GroupMember, GroupMemberPage, GroupService, GroupSortField,
-            ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput,
-            ListMemberRolesInput, ListOrganizationAttributesInput, ListOrganizationMembersInput,
+            GroupFilter, GroupListItem, GroupMember, GroupMemberDetail, GroupMemberFilter,
+            GroupMemberSortField, GroupService, GroupSortField, ListGroupAttributesInput,
+            ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, ListMemberRolesInput,
+            ListOrganizationAttributesInput, ListOrganizationMembersInput,
             ListUserOrganizationsInput, Organization, OrganizationAttribute, OrganizationFilter,
             OrganizationMember, OrganizationMemberRoleService, OrganizationService,
             OrganizationSortField, RemoveGroupMemberInput, RemoveOrganizationMemberInput,
@@ -209,8 +210,11 @@ impl GroupService for ApplicationService {
         &self,
         identity: Identity,
         input: ListGroupMembersInput,
-    ) -> Result<GroupMemberPage, CoreError> {
-        self.group_service.list_members(identity, input).await
+        request: PageRequest<GroupMemberFilter, GroupMemberSortField>,
+    ) -> Result<Page<GroupMemberDetail>, CoreError> {
+        self.group_service
+            .list_members(identity, input, request)
+            .await
     }
 
     async fn assign_role(

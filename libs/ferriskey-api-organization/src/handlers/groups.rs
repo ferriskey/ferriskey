@@ -1,6 +1,6 @@
 use axum::{
     Extension,
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
@@ -8,23 +8,15 @@ use ferriskey_core::domain::common::pagination::PageRequest;
 use ferriskey_core::domain::organization::ports::{
     AddGroupMemberInput, AssignGroupRoleInput, CreateGroupInput, DeleteGroupAttributeInput,
     DeleteGroupInput, GetGroupInput, Group, GroupAttribute, GroupFilter, GroupId, GroupListItem,
-    GroupMember, GroupMemberPage, GroupService, GroupSortField, ListGroupAttributesInput,
-    ListGroupMembersInput, ListGroupRolesInput, ListGroupsInput, OrganizationId,
-    RemoveGroupMemberInput, RevokeGroupRoleInput, UpdateGroupInput, UpsertGroupAttributeInput,
+    GroupMember, GroupMemberDetail, GroupMemberFilter, GroupMemberSortField, GroupService,
+    GroupSortField, ListGroupAttributesInput, ListGroupMembersInput, ListGroupRolesInput,
+    ListGroupsInput, OrganizationId, RemoveGroupMemberInput, RevokeGroupRoleInput,
+    UpdateGroupInput, UpsertGroupAttributeInput,
 };
 use ferriskey_core::domain::role::entities::Role;
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Deserialize, IntoParams)]
-#[into_params(parameter_in = Query)]
-pub struct ListGroupMembersQuery {
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-    /// Case-insensitive filter on username/email.
-    pub search: Option<String>,
-}
 
 use crate::validators::{
     AddGroupMemberValidator, AssignGroupRoleValidator, CreateGroupValidator, UpdateGroupValidator,
@@ -277,19 +269,44 @@ pub async fn delete_group(
         .map_err(ApiError::from)
 }
 
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
+pub struct GroupMemberListParams {
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub enabled: Option<bool>,
+}
+
+impl From<GroupMemberListParams> for GroupMemberFilter {
+    fn from(params: GroupMemberListParams) -> Self {
+        Self {
+            username: params.username,
+            email: params.email,
+            enabled: params.enabled,
+        }
+    }
+}
+
 #[utoipa::path(
     get,
     path = "/{organization_id}/groups/{group_id}/members",
     tag = "organization",
     summary = "List group members",
+    description = "Returns one page of the group's members with their user identity. Text filters (username, email) match case-insensitively anywhere in the user's value; enabled matches the user's enabled flag exactly. Filters combine with AND. created_at is the date the user joined the group.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("organization_id" = Uuid, Path, description = "Organization ID"),
         ("group_id" = Uuid, Path, description = "Group ID"),
+        PaginationParams,
+        GroupMemberListParams,
+        ("order_by" = inline(Option<GroupMemberSortField>), Query, description = "Sort column, `created_at` (membership date) by default"),
     ),
-    params(ListGroupMembersQuery),
     responses(
-        (status = 200, description = "Members page", body = GroupMemberPage),
+        (status = 200, description = "One page of group members", body = Paginated<GroupMemberDetail>),
+        (status = 400, description = "Invalid query parameter", body = ApiErrorResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ApiErrorResponse),
         (status = 404, description = "Not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     ),
@@ -298,9 +315,15 @@ pub async fn list_group_members(
     Path((realm_name, organization_id, group_id)): Path<(String, Uuid, Uuid)>,
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
-    Query(query): Query<ListGroupMembersQuery>,
-) -> Result<Response<GroupMemberPage>, ApiError> {
-    state
+    ListQuery(request): ListQuery<GroupMemberListParams, GroupMemberSortField>,
+) -> Result<Response<Paginated<GroupMemberDetail>>, ApiError> {
+    let request = PageRequest {
+        filter: GroupMemberFilter::from(request.filter),
+        page: request.page,
+        limit: request.limit,
+        sort: request.sort,
+    };
+    let page = state
         .service
         .list_members(
             identity,
@@ -308,14 +331,12 @@ pub async fn list_group_members(
                 realm_name,
                 organization_id: OrganizationId::new(organization_id),
                 group_id: GroupId::new(group_id),
-                limit: query.limit,
-                offset: query.offset,
-                search: query.search,
             },
+            request,
         )
-        .await
-        .map(Response::OK)
-        .map_err(ApiError::from)
+        .await?;
+
+    Ok(Response::OK(Paginated::from(page)))
 }
 
 #[utoipa::path(
@@ -713,6 +734,61 @@ mod list_groups_tests {
                     Err(ApiError::BadRequest(ref body)) if body.message.contains("ids")
                 ),
                 "{ids}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod list_group_members_tests {
+    use ferriskey_api_core::api_entities::list_query::parse_list_query;
+    use ferriskey_core::domain::common::pagination::SortOrder;
+
+    use super::*;
+
+    #[test]
+    fn every_filter_and_sort_field_is_read() {
+        let request = parse_list_query::<GroupMemberListParams, GroupMemberSortField>(
+            "order_by=email&order=asc&username=jo&email=corp&enabled=false",
+        )
+        .expect("valid query");
+
+        assert_eq!(request.sort.field, GroupMemberSortField::Email);
+        assert_eq!(request.sort.order, SortOrder::Asc);
+        assert_eq!(
+            GroupMemberFilter::from(request.filter),
+            GroupMemberFilter {
+                username: Some("jo".to_string()),
+                email: Some("corp".to_string()),
+                enabled: Some(false),
+            }
+        );
+    }
+
+    #[test]
+    fn every_documented_sort_value_parses() {
+        for value in ["username", "email", "created_at"] {
+            assert!(
+                parse_list_query::<GroupMemberListParams, GroupMemberSortField>(&format!(
+                    "order_by={value}"
+                ))
+                .is_ok(),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_former_paging_parameters_and_unknown_columns_are_refused() {
+        for query in [
+            "search=jo",
+            "offset=0",
+            "order_by=firstname",
+            "enabled=maybe",
+        ] {
+            assert!(
+                parse_list_query::<GroupMemberListParams, GroupMemberSortField>(query).is_err(),
+                "{query}"
             );
         }
     }

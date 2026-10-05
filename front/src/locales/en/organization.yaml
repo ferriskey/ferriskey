@@ -216,21 +216,26 @@ groups:
     subgroups: Sub-groups
   members:
     title: Members ({{total}})
-    search_placeholder: Search members...
-    loading: Loading…
-    no_match: No members match your search.
+    no_match: No members match these filters.
     empty: No direct members.
+    show_all: Show all members
     remove: Remove member
     status:
       enabled: enabled
       disabled: disabled
-    pagination:
-      range: '{{from}}-{{to}} of {{total}}'
-      previous: Previous
-      next: Next
+    columns:
+      member: Member
+      email: Email
+      status: Status
+      joined: Joined
+    filter_fields:
+      username: Username
+      email: Email
+      enabled: Enabled
     add:
       trigger: Add members
       title: Add members
+      description: Only accounts of this realm that are not members of this group yet are listed.
       columns:
         username: User
         name: Name

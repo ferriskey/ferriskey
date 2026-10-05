@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -49,6 +49,7 @@ import { groupRelationSource } from '@/api/group.relation'
 import { groupFilterPatch, walkDownPatch } from './group-filter-patch'
 import {
   GROUP_FILTER_KEYS,
+  GROUP_MEMBER_FILTER_KEYS,
   GROUP_SEARCH_LIMIT,
   useAddGroupMember,
   useAssignGroupRole,
@@ -66,10 +67,11 @@ import {
   useUpsertGroupAttribute,
   type Group,
   type GroupListItem,
+  type GroupMemberDetail,
+  type GroupMembersQuery,
   type GroupsQuery,
 } from '@/api/group.api'
-
-const PAGE_SIZE = 50
+import { useLocalPagedListing } from './use-local-paged-listing'
 
 const EMPTY_VALUE = '—'
 
@@ -96,7 +98,8 @@ function AddMembersDialog({
   const { t } = useTranslation('organization')
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Schemas.User[]>([])
-  const { search, setSearch, users } = useUserSearch({ realm })
+  const notInGroup = useMemo(() => ({ not_in_group: groupId }), [groupId])
+  const { search, setSearch, users } = useUserSearch({ realm, filter: notInGroup })
   const addMember = useAddGroupMember(realm, orgId, groupId)
 
   const columns: ColumnDef<Schemas.User>[] = [
@@ -123,7 +126,6 @@ function AddMembersDialog({
 
   const submit = async () => {
     if (selected.length === 0) return
-    // Add each selected user; a 409 means "already a member" — treat as a no-op.
     const results = await Promise.allSettled(
       selected.map((u) => addMember.mutateAsync(u.id))
     )
@@ -148,6 +150,7 @@ function AddMembersDialog({
       </DialogTrigger>
       <DialogContent className='max-w-4xl'>
         <DialogTitle>{t('groups.members.add.title')}</DialogTitle>
+        <DialogDescription>{t('groups.members.add.description')}</DialogDescription>
         <DialogBody>
           <div className='relative mb-3'>
             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
@@ -183,125 +186,119 @@ function AddMembersDialog({
 
 function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; group: Group }) {
   const { t } = useTranslation('organization')
-  const [search, setSearch] = useState('')
-  const [debounced, setDebounced] = useState('')
-  const [offset, setOffset] = useState(0)
-
-  // Debounce the search box and reset to the first page on a new term.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebounced(search)
-      setOffset(0)
-    }, 300)
-    return () => clearTimeout(t)
-  }, [search])
-
-  const { data, isLoading } = useGroupMembers(realm, orgId, group.id, {
-    limit: PAGE_SIZE,
-    offset,
-    search: debounced,
+  const listing = useLocalPagedListing(GROUP_MEMBER_FILTER_KEYS)
+  const { data, isLoading } = useGroupMembers({
+    realm,
+    orgId,
+    groupId: group.id,
+    query: listing.apiQuery as GroupMembersQuery,
   })
   const removeMember = useRemoveGroupMember(realm, orgId, group.id)
 
   const members = data?.data ?? []
-  const total = data?.total ?? 0
-  const from = total === 0 ? 0 : offset + 1
-  const to = offset + members.length
+  const narrowed = Object.values(listing.state.filters).some(Boolean)
+
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'username', label: t('groups.members.filter_fields.username') },
+    { kind: 'text', key: 'email', label: t('groups.members.filter_fields.email') },
+    { kind: 'boolean', key: 'enabled', label: t('groups.members.filter_fields.enabled') },
+  ]
+
+  const displayName = (member: GroupMemberDetail) =>
+    [member.firstname, member.lastname].filter(Boolean).join(' ') || member.username
+
+  const statusBadge = (member: GroupMemberDetail) => (
+    <Badge variant={member.enabled ? 'default' : 'secondary'}>
+      {member.enabled ? t('groups.members.status.enabled') : t('groups.members.status.disabled')}
+    </Badge>
+  )
+
+  const columns: Column<GroupMemberDetail>[] = [
+    {
+      key: 'member',
+      header: t('groups.members.columns.member'),
+      render: (member) => (
+        <div className='flex items-center gap-3'>
+          <EntityAvatar size='sm' label={member.firstname || member.username} />
+          <div>
+            <div className='text-sm font-medium'>{displayName(member)}</div>
+            <div className='text-xs text-muted-foreground'>{member.username}</div>
+          </div>
+        </div>
+      ),
+      sortKey: 'username',
+    },
+    {
+      key: 'email',
+      header: t('groups.members.columns.email'),
+      render: (member) => (
+        <span className='text-sm text-muted-foreground'>{member.email ?? EMPTY_VALUE}</span>
+      ),
+      sortKey: 'email',
+    },
+    {
+      key: 'status',
+      header: t('groups.members.columns.status'),
+      render: statusBadge,
+    },
+    {
+      key: 'joined',
+      header: t('groups.members.columns.joined'),
+      render: (member) => <span className='tnum'>{formatRelative(member.created_at)}</span>,
+      sortKey: 'created_at',
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      render: (member) => (
+        <button
+          type='button'
+          className='text-muted-foreground hover:text-destructive'
+          title={t('groups.members.remove')}
+          onClick={() => removeMember.mutate(member.user_id, { onError: fail })}
+        >
+          <Trash2 className='h-4 w-4' />
+        </button>
+      ),
+    },
+  ]
 
   return (
     <div className='flex flex-col gap-3'>
-      {/* Header — mirrors the OverviewList listings (roles/clients/users) */}
       <div className='flex items-center justify-between'>
         <h2 className='text-base font-semibold'>
-          {t('groups.members.title', { total })}
+          {t('groups.members.title', { total: data?.metadata.total ?? 0 })}
         </h2>
-        <div className='flex items-center gap-2'>
-          <div className='relative'>
-            <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
-            <Input
-              type='search'
-              placeholder={t('groups.members.search_placeholder')}
-              className='h-9 w-64 bg-background pl-9 text-sm'
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <AddMembersDialog realm={realm} orgId={orgId} groupId={group.id} />
-        </div>
+        <AddMembersDialog realm={realm} orgId={orgId} groupId={group.id} />
       </div>
-
-      {/* List body */}
-      <div className='overflow-hidden rounded-md border'>
-        {isLoading ? (
-          <div className='flex h-24 items-center justify-center text-sm text-muted-foreground'>
-            {t('groups.members.loading')}
-          </div>
-        ) : members.length === 0 ? (
-          <div className='flex h-24 items-center justify-center text-sm text-muted-foreground'>
-            {debounced ? t('groups.members.no_match') : t('groups.members.empty')}
-          </div>
-        ) : (
-          members.map((m) => (
-            <div
-              key={m.id}
-              className='flex items-center justify-between border-b px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40'
-            >
-              <div className='flex items-center gap-3'>
-                <EntityAvatar size='sm' label={m.firstname || m.username} />
-                <div>
-                  <div className='text-sm font-medium'>
-                    {[m.firstname, m.lastname].filter(Boolean).join(' ') || m.username}
-                  </div>
-                  <div className='text-xs text-muted-foreground'>{m.email ?? m.username}</div>
-                </div>
-              </div>
-              <div className='flex items-center gap-3'>
-                <Badge variant={m.enabled ? 'default' : 'secondary'}>
-                  {m.enabled
-                    ? t('groups.members.status.enabled')
-                    : t('groups.members.status.disabled')}
-                </Badge>
-                <button
-                  type='button'
-                  className='text-muted-foreground hover:text-destructive'
-                  title={t('groups.members.remove')}
-                  onClick={() => removeMember.mutate(m.user_id, { onError: fail })}
-                >
-                  <Trash2 className='h-4 w-4' />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
+      <div className='flex'>
+        <FilterBar fields={filterFields} listing={listing} />
       </div>
-
-      {/* Pagination */}
-      {total > PAGE_SIZE && (
-        <div className='flex items-center justify-between px-1'>
-          <span className='text-sm text-muted-foreground'>
-            {t('groups.members.pagination.range', { from, to, total })}
-          </span>
-          <div className='flex items-center gap-1'>
-            <Button
-              variant='outline'
-              size='sm'
-              className='h-8'
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-            >
-              {t('groups.members.pagination.previous')}
+      <DataView
+        rows={members}
+        columns={columns}
+        card={{
+          title: displayName,
+          subtitle: (member) => member.email ?? member.username,
+          badges: statusBadge,
+        }}
+        getKey={(member) => member.id}
+        view={GROUPS_VIEW}
+        loading={isLoading}
+        sort={listing.state.sort}
+        onSortChange={listing.setSort}
+        emptyLabel={narrowed ? t('groups.members.no_match') : t('groups.members.empty')}
+        emptyAction={
+          narrowed ? (
+            <Button variant='outline' onClick={listing.clearFilters}>
+              {t('groups.members.show_all')}
             </Button>
-            <Button
-              variant='outline'
-              size='sm'
-              className='h-8'
-              disabled={to >= total}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
-            >
-              {t('groups.members.pagination.next')}
-            </Button>
-          </div>
-        </div>
+          ) : undefined
+        }
+      />
+      {data?.metadata && (
+        <PaginationBar pagination={data.metadata} onPageChange={listing.setPage} />
       )}
     </div>
   )
@@ -556,7 +553,7 @@ function GroupDetail({
           <TabsTrigger value={GROUP_TAB.subgroups}>{t('groups.tabs.subgroups')}</TabsTrigger>
         </TabsList>
         <TabsContent value={GROUP_TAB.members} className='pt-4'>
-          <MembersTab realm={realm} orgId={orgId} group={group} />
+          <MembersTab key={group.id} realm={realm} orgId={orgId} group={group} />
         </TabsContent>
         <TabsContent value={GROUP_TAB.roles} className='pt-4'>
           <RolesTab realm={realm} orgId={orgId} group={group} />

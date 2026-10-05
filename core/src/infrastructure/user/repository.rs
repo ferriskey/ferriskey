@@ -18,7 +18,7 @@ use crate::domain::{
         value_objects::{CreateUserRequest, UpdateUserRequest},
     },
 };
-use crate::entity::{user_role, users};
+use crate::entity::{organization_group_members, user_role, users};
 use crate::infrastructure::pagination::{SortColumn, contains, paginate};
 
 impl SortColumn<users::Entity> for UserSortField {
@@ -73,6 +73,17 @@ fn listing_select(realm_id: Uuid, filter: &UserFilter) -> Select<users::Entity> 
                         .select_only()
                         .column(user_role::Column::UserId)
                         .filter(user_role::Column::RoleId.eq(role_id))
+                        .into_query(),
+                ),
+            )
+        })
+        .apply_if(filter.not_in_group, |select, group_id| {
+            select.filter(
+                users::Column::Id.not_in_subquery(
+                    organization_group_members::Entity::find()
+                        .select_only()
+                        .column(organization_group_members::Column::UserId)
+                        .filter(organization_group_members::Column::GroupId.eq(group_id))
                         .into_query(),
                 ),
             )
@@ -593,6 +604,26 @@ mod tests {
         assert!(!sql.contains("JOIN"), "{sql}");
         assert!(
             sql.contains(r#""users"."id" IN (SELECT "user_role"."user_id" FROM "user_role" WHERE "user_role"."role_id" = '00000000-0000-0000-0000-000000000000')"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn not_in_group_excludes_the_members_of_that_group() {
+        let group_id = Uuid::from_u128(9);
+        let sql = sql(&UserFilter {
+            not_in_group: Some(group_id),
+            ..UserFilter::default()
+        });
+        assert!(!sql.contains("JOIN"), "{sql}");
+        assert!(
+            sql.contains(&format!(
+                r#""users"."id" NOT IN (SELECT "organization_group_members"."user_id" FROM "organization_group_members" WHERE "organization_group_members"."group_id" = '{group_id}')"#
+            )),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""users"."realm_id" = '00000000-0000-0000-0000-000000000000'"#),
             "{sql}"
         );
     }

@@ -1323,7 +1323,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 423,
+        line: 424,
     },
     AuthzRow {
         service_fn: "assign_role",
@@ -1333,7 +1333,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 463,
+        line: 446,
     },
     AuthzRow {
         service_fn: "revoke_role",
@@ -1343,7 +1343,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 489,
+        line: 472,
     },
     AuthzRow {
         service_fn: "list_roles",
@@ -1357,7 +1357,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 513,
+        line: 496,
     },
     AuthzRow {
         service_fn: "list_attributes",
@@ -1371,7 +1371,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 536,
+        line: 519,
     },
     AuthzRow {
         service_fn: "upsert_attribute",
@@ -1381,7 +1381,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 559,
+        line: 542,
     },
     AuthzRow {
         service_fn: "delete_attribute",
@@ -1391,7 +1391,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageOrganizations],
         self_bypass: false,
         file: "libs/ferriskey-organization/src/group_services.rs",
-        line: 587,
+        line: 570,
     },
     AuthzRow {
         service_fn: "create_organization",
