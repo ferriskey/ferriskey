@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { fromRangeBounds, toRangeBounds } from './date-range-bounds.ts'
+import { fromRangeBounds, toRangeBounds, withRangeDay } from './date-range-bounds.ts'
 
 test('from is the start of the picked day in UTC and to is the start of the next day', () => {
   assert.deepEqual(toRangeBounds('2026-10-05', '2026-10-07'), {
@@ -49,4 +49,25 @@ test('round trip keeps the picked days', () => {
     fromDay: '2026-01-01',
     toDay: '2026-01-31',
   })
+})
+
+test('editing the from day keeps the raw stored to bound untouched', () => {
+  assert.deepEqual(
+    withRangeDay({ from: '', to: '2026-10-08T10:30:00+02:00' }, 'from', '2026-10-01'),
+    { from: '2026-10-01T00:00:00Z', to: '2026-10-08T10:30:00+02:00' },
+  )
+})
+
+test('editing the to day keeps the raw stored from bound untouched', () => {
+  assert.deepEqual(
+    withRangeDay({ from: '2026-10-01T06:00:00Z', to: '' }, 'to', '2026-10-07'),
+    { from: '2026-10-01T06:00:00Z', to: '2026-10-08T00:00:00Z' },
+  )
+})
+
+test('clearing one day empties only that bound', () => {
+  assert.deepEqual(
+    withRangeDay({ from: '2026-10-01T06:00:00Z', to: '2026-10-08T10:00:00Z' }, 'to', ''),
+    { from: '2026-10-01T06:00:00Z', to: '' },
+  )
 })

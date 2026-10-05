@@ -157,13 +157,25 @@ export function ColumnFilter({
   const { t } = useTranslation()
   const indicator = columnFilterIndicator(fields, listing.state.filters)
   const engaged = indicator.kind !== 'none'
+  const opener = `${t('column_filter.open')} ${label}`
+  const announced =
+    indicator.kind === 'count'
+      ? t('column_filter.state_count', { label: opener, count: indicator.count })
+      : indicator.kind === 'value'
+        ? t('column_filter.state_value', {
+            label: opener,
+            value: t(indicator.value === TRUE_VALUE ? 'column_filter.yes' : 'column_filter.no'),
+          })
+        : indicator.kind === 'active'
+          ? t('column_filter.state_active', { label: opener })
+          : opener
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type='button'
-          aria-label={`${t('column_filter.open')} ${label}`}
+          aria-label={announced}
           className={cn(
             'inline-flex cursor-pointer items-center gap-1 rounded transition-colors hover:text-neutral-700 dark:hover:text-neutral-300',
             showLabel

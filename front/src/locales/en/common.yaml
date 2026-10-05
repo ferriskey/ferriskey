@@ -224,6 +224,10 @@ column_filter:
   to: To
   yes: Yes
   no: No
+  state_count_one: '{{label}}, {{count}} active'
+  state_count_other: '{{label}}, {{count}} active'
+  state_value: '{{label}}, {{value}}'
+  state_active: '{{label}}, active'
 
 listing:
   clear_filters_one: 'Clear filters ({{count}})'

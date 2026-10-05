@@ -205,6 +205,9 @@ column_filter:
   to: 至
   yes: 是
   no: 否
+  state_count_other: '{{label}}，{{count}} 个已启用'
+  state_value: '{{label}}，{{value}}'
+  state_active: '{{label}}，已启用'
 listing:
   clear_filters_other: '清除筛选（{{count}}）'
 entity_picker:

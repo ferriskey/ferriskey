@@ -48,3 +48,13 @@ export function fromRangeBounds(from: string, to: string): { fromDay: string; to
     toDay: end === null ? '' : formatDay(end - 1),
   }
 }
+
+export function withRangeDay(
+  current: { from: string; to: string },
+  side: 'from' | 'to',
+  day: string,
+): { from: string; to: string } {
+  return side === 'from'
+    ? { from: toRangeBounds(day, '').from, to: current.to }
+    : { from: current.from, to: toRangeBounds('', day).to }
+}
