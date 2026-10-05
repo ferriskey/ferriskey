@@ -1,15 +1,19 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MetricsBand } from '@/components/kit'
-import type { ListingQuery, Metric } from '@/components/kit'
+import { ListingPage } from '@/components/kit'
+import type {
+  ListingAlert,
+  ListingMetric,
+  PagedListing,
+  PaginationMetadata,
+} from '@/components/kit'
 import { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { eventLabel, eventReason } from '@/pages/iam/seawatch/event-catalogue'
+import { securityEventFilterFields } from '@/pages/iam/seawatch/event-filter-fields'
 import { formatTimestamp } from '@/utils/format-date'
-import { bucketPerDay } from '../feature/use-window-events'
-import { ActivityPage, NoticeList, type Notice } from './activity-notices'
-import { eventCard, eventColumns, searchEvent } from './event-journal'
-import { JournalSection } from './journal-section'
+import { bucketPerDay, type WindowEvents } from '../feature/use-window-events'
+import { eventCard, eventColumns } from './event-journal'
 
 import SecurityEvent = Schemas.SecurityEvent
 
@@ -17,12 +21,13 @@ const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 
 export interface PageLogsProps {
   events: SecurityEvent[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
+  recent: WindowEvents
+  failures: WindowEvents
+  failedInView: number
   isLoading: boolean
   isError: boolean
-  truncated: boolean
-  windowDays: number
-  windowLimit: number
-  listing: ListingQuery
   directory: RealmDirectory
 }
 
@@ -49,77 +54,75 @@ const latestTimestamp = (events: SecurityEvent[]) => {
   return latest ? formatTimestamp(latest) : null
 }
 
+const sampled = (window: WindowEvents, series: (number | null)[], value: number) =>
+  !window.truncated && series.length > 0 ? series : [value, value]
+
 export default function PageLogs({
   events,
+  pagination,
+  listing,
+  recent,
+  failures,
+  failedInView,
   isLoading,
   isError,
-  truncated,
-  windowDays,
-  windowLimit,
-  listing,
   directory,
 }: PageLogsProps) {
   const { t } = useTranslation(CONSOLE_NAMESPACES)
 
+  const windowDays = recent.windowDays
   const windowLabel = t('activity.window', { count: windowDays })
   const overWindow = t('activity.over_window', { window: windowLabel })
 
-  const filters = useMemo(
-    () => [
-      { key: 'all', label: t('activity.filter.all') },
-      { key: 'failures', label: t('activity.logs.filters.failures') },
-      { key: 'authentication', label: t('activity.logs.filters.authentication') },
-      { key: 'credentials', label: t('activity.logs.filters.credentials') },
-      { key: 'administration', label: t('activity.logs.filters.administration') },
-    ],
-    [t]
+  const total = recent.total
+  const failed = failures.total
+  const successes = Math.max(total - failed, 0)
+  const successRate = total ? Math.round((successes / total) * 100) : 0
+  const uniqueActors = new Set(recent.events.map((e) => e.actor_id ?? 'unknown')).size
+
+  const topFailure = dominant(failures.events.map((e) => eventLabel(e)))
+  const topErrorCode = dominant(failures.events.map((e) => eventReason(e)?.errorCode))
+
+  const buckets = useMemo(() => bucketPerDay(recent.events, windowDays), [recent.events, windowDays])
+  const failureBuckets = useMemo(
+    () => bucketPerDay(failures.events, windowDays),
+    [failures.events, windowDays]
   )
-
-  const failures = events.filter((e) => e.status === 'failure')
-  const successes = events.length - failures.length
-  const successRate = events.length ? Math.round((successes / events.length) * 100) : 0
-  const uniqueActors = new Set(events.map((e) => e.actor_id ?? 'unknown')).size
-
-  const topFailure = dominant(failures.map((e) => eventLabel(e)))
-  const topErrorCode = dominant(failures.map((e) => eventReason(e)?.errorCode))
-
-  const buckets = useMemo(() => bucketPerDay(events, windowDays), [events, windowDays])
-
-  const measured = (series: (number | null)[]) =>
-    !truncated && series.length > 0 ? series : undefined
 
   const successRatePerDay: (number | null)[] = buckets.map((bucket) => {
     if (bucket.length === 0) return null
-    const failed = bucket.filter((event) => event.status === 'failure').length
-    return Math.round(((bucket.length - failed) / bucket.length) * 100)
+    const failedInBucket = bucket.filter((event) => event.status === 'failure').length
+    return Math.round(((bucket.length - failedInBucket) / bucket.length) * 100)
   })
 
-  const latest = latestTimestamp(events)
+  const latest = latestTimestamp(recent.events)
 
-  const metrics: Metric[] = [
+  const metrics: ListingMetric[] = [
     {
       key: 'total',
       label: t('activity.logs.metrics.events'),
-      value: t('number', { value: events.length }),
-      hint: truncated
-        ? t('activity.logs.metrics.capped', { window: windowLabel })
-        : latest
-          ? t('activity.logs.metrics.latest', { timestamp: latest })
-          : windowLabel,
-      series: measured(buckets.map((bucket) => bucket.length)),
+      value: t('number', { value: total }),
+      hint: latest ? t('activity.logs.metrics.latest', { timestamp: latest }) : windowLabel,
+      series: sampled(
+        recent,
+        buckets.map((bucket) => bucket.length),
+        total
+      ),
       tone: 'info',
     },
     {
       key: 'failures',
       label: t('activity.logs.metrics.failures'),
-      value: t('number', { value: failures.length }),
+      value: t('number', { value: failed }),
       hint: topErrorCode
         ? topErrorCode[0]
         : topFailure
           ? topFailure[0].toLowerCase()
           : t('activity.no_failure'),
-      series: measured(
-        buckets.map((bucket) => bucket.filter((event) => event.status === 'failure').length)
+      series: sampled(
+        failures,
+        failureBuckets.map((bucket) => bucket.length),
+        failed
       ),
       tone: 'brand',
     },
@@ -128,7 +131,7 @@ export default function PageLogs({
       label: t('activity.logs.metrics.rate'),
       value: `${successRate}%`,
       hint: t('activity.logs.metrics.successful', { total: successes }),
-      series: measured(successRatePerDay),
+      series: sampled(recent, successRatePerDay, successRate),
       tone: 'success',
     },
     {
@@ -136,16 +139,16 @@ export default function PageLogs({
       label: t('activity.logs.metrics.actors'),
       value: t('number', { value: uniqueActors }),
       hint: overWindow,
-      series: measured(
-        buckets.map(
-          (bucket) => new Set(bucket.map((event) => event.actor_id ?? 'unknown')).size
-        )
-      ),
+      series: recent.truncated
+        ? undefined
+        : buckets.map(
+            (bucket) => new Set(bucket.map((event) => event.actor_id ?? 'unknown')).size
+          ),
       tone: 'violet',
     },
   ]
 
-  const notices: Notice[] = [
+  const alerts: ListingAlert[] = [
     ...(isError
       ? [
           {
@@ -155,24 +158,24 @@ export default function PageLogs({
           },
         ]
       : []),
-    ...(truncated
+    ...(recent.truncated
       ? [
           {
             tone: 'warn' as const,
-            title: t('activity.capped.title', { limit: windowLimit }),
+            title: t('activity.capped.title', { limit: recent.windowLimit }),
             detail: t('activity.capped.detail_below', {
               window: windowLabel,
-              limit: windowLimit,
+              limit: recent.windowLimit,
             }),
           },
         ]
       : []),
-    ...(failures.length > 0
+    ...(failed > 0
       ? [
           {
             tone: 'error' as const,
             title: t('activity.logs.notices.failures.title', {
-              count: failures.length,
+              count: failed,
               window: windowLabel,
             }),
             detail: [
@@ -194,54 +197,34 @@ export default function PageLogs({
   ]
 
   const columns = eventColumns(directory, t)
-
-  const filtered = useMemo(() => {
-    const out =
-      listing.filter === 'failures' ? events.filter((e) => e.status === 'failure') : events
-    const needle = listing.draft.trim().toLowerCase()
-    if (!needle) return out
-    return out.filter((e) => searchEvent(e).toLowerCase().includes(needle))
-  }, [events, listing.filter, listing.draft])
+  const feedColumns = [
+    { ...columns.event, sortKey: 'event_type' },
+    { ...columns.outcome, sortKey: 'status' },
+    columns.actor,
+    columns.target,
+    columns.origin,
+    { ...columns.when, sortKey: 'timestamp' },
+  ]
 
   return (
-    <ActivityPage
+    <ListingPage
       title={t('activity.logs.title')}
       description={t('activity.logs.description', { window: windowLabel })}
-    >
-      <NoticeList notices={notices} />
-
-      <MetricsBand metrics={metrics} />
-
-      <JournalSection
-        title={t('activity.logs.feed.title')}
-        description={t('activity.logs.feed.description')}
-        rows={filtered}
-        total={events.length}
-        columns={[
-          columns.event,
-          columns.outcome,
-          columns.actor,
-          columns.target,
-          columns.origin,
-          columns.when,
-        ]}
-        card={eventCard(directory, t)}
-        getKey={(e) => e.id}
-        loading={isLoading}
-        filters={filters}
-        filter={listing.filter}
-        onFilter={listing.setFilter}
-        query={listing.draft}
-        onQuery={listing.setDraft}
-        searchPlaceholder={t('activity.logs.feed.search_placeholder')}
-        aggregates={{
-          event_type: t('activity.logs.aggregates.events', { count: events.length }),
-          status: t('activity.logs.aggregates.failed', { total: failures.length }),
-          actor: t('activity.logs.aggregates.accounts', { count: uniqueActors }),
-        }}
-        emptyLabel={t('activity.logs.feed.empty_label')}
-        emptyHint={t('activity.logs.feed.empty_hint', { window: windowLabel })}
-      />
-    </ActivityPage>
+      loading={isLoading}
+      metrics={metrics}
+      alerts={alerts}
+      paged={{ listing, pagination, filterFields: securityEventFilterFields() }}
+      searchScopeHint={t('activity.logs.feed.description')}
+      rows={events}
+      columns={feedColumns}
+      card={eventCard(directory, t)}
+      getKey={(e) => e.id}
+      aggregates={{
+        event_type: t('activity.logs.aggregates.events', { count: pagination?.total ?? 0 }),
+        status: t('activity.logs.aggregates.failed', { total: failedInView }),
+      }}
+      emptyLabel={t('activity.logs.feed.empty_label')}
+      emptyHint={t('activity.logs.feed.empty_hint')}
+    />
   )
 }

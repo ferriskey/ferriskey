@@ -672,57 +672,6 @@ export namespace Schemas {
   export type GetPublicPortalLayoutResponse = Partial<{ data: null | PortalLayout }>;
   export type GetRealmWhitelistResponse = { data: Array<RealmMaintenanceWhitelistEntry> };
   export type GetRoleResponse = { data: Role };
-  export type SecurityEventType =
-    | "login_success"
-    | "login_failure"
-    | "password_reset"
-    | "password_reset_requested"
-    | "password_reset_completed"
-    | "password_imported"
-    | "user_created"
-    | "user_email_verified"
-    | "user_deleted"
-    | "role_assigned"
-    | "role_unassigned"
-    | "role_created"
-    | "role_removed"
-    | "role_updated"
-    | "role_permission_updated"
-    | "client_created"
-    | "client_deleted"
-    | "client_secret_rotated"
-    | "client_secret_viewed"
-    | "realm_config_changed"
-    | "email_not_sent"
-    | "email_sent"
-    | "client_maintenance_enabled"
-    | "client_maintenance_disabled"
-    | "session_created"
-    | "session_revoked"
-    | "identity_provider_link_removed"
-    | "webhook_delivery_exhausted"
-    | "token_exchanged"
-    | "unknown";
-  export type SecurityEventId = string;
-  export type SecurityEvent = {
-    actor_id?: (string | null) | undefined;
-    actor_type?: (null | ActorType) | undefined;
-    details?: unknown | undefined;
-    event_hash?: (Array<number> | null) | undefined;
-    event_type: SecurityEventType;
-    id: SecurityEventId;
-    ip_address?: (string | null) | undefined;
-    prev_hash?: (Array<number> | null) | undefined;
-    realm_id: RealmId;
-    resource?: (string | null) | undefined;
-    status: EventStatus;
-    target_id?: (string | null) | undefined;
-    target_type?: (string | null) | undefined;
-    timestamp: string;
-    trace_id?: (string | null) | undefined;
-    user_agent?: (string | null) | undefined;
-  };
-  export type GetSecurityEventsResponse = { data: Array<SecurityEvent> };
   export type GetStatsResponse = { data: FlowStats };
   export type TemplateVariable = { description: string; name: string };
   export type GetTemplateVariablesResponse = { data: Array<TemplateVariable> };
@@ -1084,6 +1033,59 @@ export namespace Schemas {
     }>;
     metadata: PageMetadata;
   };
+  export type SecurityEventType =
+    | "login_success"
+    | "login_failure"
+    | "password_reset"
+    | "password_reset_requested"
+    | "password_reset_completed"
+    | "password_imported"
+    | "user_created"
+    | "user_email_verified"
+    | "user_deleted"
+    | "role_assigned"
+    | "role_unassigned"
+    | "role_created"
+    | "role_removed"
+    | "role_updated"
+    | "role_permission_updated"
+    | "client_created"
+    | "client_deleted"
+    | "client_secret_rotated"
+    | "client_secret_viewed"
+    | "realm_config_changed"
+    | "email_not_sent"
+    | "email_sent"
+    | "client_maintenance_enabled"
+    | "client_maintenance_disabled"
+    | "session_created"
+    | "session_revoked"
+    | "identity_provider_link_removed"
+    | "webhook_delivery_exhausted"
+    | "token_exchanged"
+    | "unknown";
+  export type SecurityEventId = string;
+  export type Paginated_SecurityEvent = {
+    data: Array<{
+      actor_id?: (string | null) | undefined;
+      actor_type?: (null | ActorType) | undefined;
+      details?: unknown | undefined;
+      event_hash?: (Array<number> | null) | undefined;
+      event_type: SecurityEventType;
+      id: SecurityEventId;
+      ip_address?: (string | null) | undefined;
+      prev_hash?: (Array<number> | null) | undefined;
+      realm_id: RealmId;
+      resource?: (string | null) | undefined;
+      status: EventStatus;
+      target_id?: (string | null) | undefined;
+      target_type?: (string | null) | undefined;
+      timestamp: string;
+      trace_id?: (string | null) | undefined;
+      user_agent?: (string | null) | undefined;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_User = {
     data: Array<{
       client_id?: (string | null) | undefined;
@@ -1287,6 +1289,24 @@ export namespace Schemas {
     updated_at: string;
   };
   export type SamlAuthnRequestParams = { RelayState?: (string | null) | undefined; SAMLRequest: string };
+  export type SecurityEvent = {
+    actor_id?: (string | null) | undefined;
+    actor_type?: (null | ActorType) | undefined;
+    details?: unknown | undefined;
+    event_hash?: (Array<number> | null) | undefined;
+    event_type: SecurityEventType;
+    id: SecurityEventId;
+    ip_address?: (string | null) | undefined;
+    prev_hash?: (Array<number> | null) | undefined;
+    realm_id: RealmId;
+    resource?: (string | null) | undefined;
+    status: EventStatus;
+    target_id?: (string | null) | undefined;
+    target_type?: (string | null) | undefined;
+    timestamp: string;
+    trace_id?: (string | null) | undefined;
+    user_agent?: (string | null) | undefined;
+  };
   export type SendMagicLinkRequest = { email: string; remember_me?: boolean | undefined };
   export type SendMagicLinkResponse = { message: string };
   export type SetClientSamlConfigValidator = Partial<{
@@ -4296,21 +4316,27 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
         actor_id: string;
         client_id: string;
         event_types: string;
+        status: "success" | "failure";
+        target_type: string;
         from_timestamp: string;
         to_timestamp: string;
         ip_address: string;
-        limit: number;
-        offset: number;
+        order_by: "event_type" | "status" | "timestamp" | "created_at";
       }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.GetSecurityEventsResponse;
+      200: Schemas.Paginated_SecurityEvent;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };
   };

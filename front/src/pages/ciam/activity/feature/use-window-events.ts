@@ -1,14 +1,26 @@
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Schemas } from '@/api/api.client'
+import {
+  useGetSecurityEvents,
+  useSecurityEventCount,
+  type SecurityEventsFilter,
+} from '@/api/sea-watch.api'
 
+import EventStatus = Schemas.EventStatus
 import SecurityEventType = Schemas.SecurityEventType
 
 export const WINDOW_DAYS = 7
-export const WINDOW_LIMIT = 500
+export const WINDOW_LIMIT = 100
+
+export interface WindowRange {
+  from_timestamp: string
+  to_timestamp: string
+}
 
 export interface WindowEvents {
   events: Schemas.SecurityEvent[]
+  total: number
+  range: WindowRange
   isLoading: boolean
   isError: boolean
   truncated: boolean
@@ -16,47 +28,49 @@ export interface WindowEvents {
   windowLimit: number
 }
 
-export function useWindowEvents(
-  realm: string,
-  eventTypes?: readonly SecurityEventType[]
-): WindowEvents {
-  const key = eventTypes ? eventTypes.join(',') : undefined
-
-  const range = useMemo(() => {
+export function useWindowRange(): WindowRange {
+  return useMemo(() => {
     const to = new Date()
     const from = new Date(to.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000)
-    return { from: from.toISOString(), to: to.toISOString() }
+    return { from_timestamp: from.toISOString(), to_timestamp: to.toISOString() }
   }, [])
+}
 
-  const { data, isLoading, isError } = useQuery({
-    ...window.tanstackApi.get('/realms/{realm_name}/seawatch/v1/security-events', {
-      path: { realm_name: realm },
-      query: {
-        from_timestamp: range.from,
-        to_timestamp: range.to,
-        limit: WINDOW_LIMIT,
-        event_types: key,
-      },
-    }).queryOptions,
-    enabled: Boolean(realm),
+export function useWindowEvents(
+  realm: string,
+  eventTypes?: readonly SecurityEventType[],
+  status?: EventStatus
+): WindowEvents {
+  const range = useWindowRange()
+
+  const { data, isLoading, isError } = useGetSecurityEvents({
+    realm,
+    query: {
+      ...range,
+      limit: WINDOW_LIMIT,
+      order_by: 'timestamp',
+      event_types: eventTypes ? eventTypes.join(',') : undefined,
+      status,
+    },
   })
 
-  const events = useMemo(
-    () =>
-      [...(data?.data ?? [])].sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      ),
-    [data]
-  )
+  const events = useMemo(() => data?.data ?? [], [data])
+  const total = data?.metadata.total ?? 0
 
   return {
     events,
+    total,
+    range,
     isLoading,
     isError,
-    truncated: events.length >= WINDOW_LIMIT,
+    truncated: total > events.length,
     windowDays: WINDOW_DAYS,
     windowLimit: WINDOW_LIMIT,
   }
+}
+
+export function useWindowCount(realm: string, range: WindowRange, filter: SecurityEventsFilter) {
+  return useSecurityEventCount({ realm, filter: { ...range, ...filter } }).count
 }
 
 const dayKey = (value: string) => {

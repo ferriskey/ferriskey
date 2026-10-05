@@ -309,7 +309,7 @@ mod tests {
     }
 
     async fn login_failures(srv: &TestServer, realm: &str, token: &str) -> Vec<Value> {
-        let body = security_events(srv, realm, token, "event_types=login_failure&limit=1000").await;
+        let body = security_events(srv, realm, token, "event_types=login_failure&limit=100").await;
         body["data"].as_array().expect("events array").clone()
     }
 
@@ -473,7 +473,7 @@ mod tests {
             );
 
             let body =
-                security_events(&srv, &realm, &token, "event_types=login_success&limit=1000").await;
+                security_events(&srv, &realm, &token, "event_types=login_success&limit=100").await;
             let events = body["data"].as_array().expect("events array");
             assert!(
                 events.iter().any(|e| e["actor_id"] == user_id),
@@ -484,7 +484,7 @@ mod tests {
                 &srv,
                 &realm,
                 &token,
-                "event_types=session_created&limit=1000",
+                "event_types=session_created&limit=100",
             )
             .await;
             assert!(

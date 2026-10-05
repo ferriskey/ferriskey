@@ -32,8 +32,8 @@ activity:
     all: 全部
   capped:
     title: 已限制为 {{limit, number}} 个事件
-    detail_above: '本域在{{window}}内记录的事件更多；以上数字仅涵盖最近的 {{limit, number}} 个。'
-    detail_below: '本域在{{window}}内记录的事件更多；以下数字仅涵盖最近的 {{limit, number}} 个。'
+    detail_above: '本域在{{window}}内记录的事件更多；不同数量、每日趋势和日志仅涵盖最近的 {{limit, number}} 个。'
+    detail_below: '本域在{{window}}内记录的事件更多；不同账户数、每日趋势和失败分布仅涵盖最近的 {{limit, number}} 个。'
   event:
     columns:
       event: 事件
@@ -62,7 +62,6 @@ activity:
       hint: 没有条目符合当前的搜索和筛选条件。
       action: 清除筛选
     count_other: '{{count, number}} 个条目'
-    partial: '{{total, number}} 个中的 {{shown, number}} 个'
   live:
     title: 实时
     description: '本域在{{window}}内记录的注册与登录，统计自 Compass 追踪的认证流程。'
@@ -97,17 +96,9 @@ activity:
       unidentified: 未识别到账户
   logs:
     title: 日志与事件
-    description: '本域在{{window}}内记录的所有认证、凭据和管理事件，最近的排在最前。'
-    filters:
-      failures: 失败
-      authentication: 认证
-      credentials: 凭据
-      administration: 管理
+    description: '本域记录的所有认证、凭据和管理事件，最近的排在最前。上方数字涵盖{{window}}。'
     metrics:
       events: 事件
-      # TRANSLATOR NOTE: telegraphic in English ("capped, {{window}}") — a hint under the event
-      # count meaning the count hit its ceiling within the window.
-      capped: '已达上限，{{window}}'
       latest: 最近一次 {{timestamp}}
       failures: 失败
       rate: 成功率
@@ -123,14 +114,12 @@ activity:
         top_error_code: 主要为 {{code}}
     feed:
       title: 事件流
-      description: 事件类别由服务器筛选；搜索框用于在已加载的结果中进一步缩小范围。
-      search_placeholder: 按事件、账户、IP 搜索…
+      description: 筛选和排序由服务器对所有已记录的事件执行。
       empty_label: 无事件
-      empty_hint: '当客户登录、重置凭据以及管理员修改本域时，此事件流会逐渐填满。{{window}}内没有任何记录。'
+      empty_hint: 当客户登录、重置凭据以及管理员修改本域时，此事件流会逐渐填满。目前尚未有任何记录。
     aggregates:
       events_other: '{{count, number}} 个事件'
       failed: '{{total, number}} 个失败'
-      accounts_other: '{{count, number}} 个账户'
   sessions:
     title: 会话
     description: '本域在{{window}}内打开和撤销的会话。'
@@ -156,13 +145,11 @@ activity:
     journal:
       title: 会话日志
       description: '每打开或撤销一个会话记录一行，并附上当时记录的设备和来源。'
-      search_placeholder: 按账户、IP、设备搜索…
       empty_label: 无会话事件
-      empty_hint: '当客户登录以及会话被撤销时，此日志会逐渐填满。{{window}}内没有任何记录。'
+      empty_hint: 当客户登录以及会话被撤销时，此日志会逐渐填满。目前尚未有任何记录。
     aggregates:
       opened: '{{total, number}} 个已打开'
       revoked: '{{total, number}} 个已撤销'
-      accounts_other: '{{count, number}} 个账户'
   messages:
     title: 消息投递
     description: '本域在{{window}}内尝试发送的事务性邮件，以及它所通知的 Webhook 端点。'
@@ -200,13 +187,11 @@ activity:
     journal:
       title: 邮件投递
       description: '本域交给邮件服务器的每一封邮件记录一行，无论是否投递成功。'
-      search_placeholder: 按消息、账户搜索…
       empty_label: 无邮件投递
-      empty_hint: '当本域发送魔法链接、验证邮件和密码重置邮件时，此日志会逐渐填满。{{window}}内没有任何尝试。'
+      empty_hint: 当本域发送魔法链接、验证邮件和密码重置邮件时，此日志会逐渐填满。目前尚未有任何尝试。
     aggregates:
       attempts_other: '{{count, number}} 次尝试'
       failed: '{{total, number}} 次失败'
-      recipients_other: '{{count, number}} 位收件人'
     webhooks:
       title: Webhook 端点
       description: '本域通知的端点，以及每个端点最后一次触发的时间。单次投递不会记入日志，因此没有逐次投递的状态可供显示。'

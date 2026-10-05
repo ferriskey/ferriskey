@@ -9,7 +9,7 @@ use ferriskey_domain::generate_uuid_v7;
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmOwned;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum SecurityEventType {
     #[serde(rename = "login_success")]
     LoginSuccess,
@@ -219,7 +219,7 @@ impl Display for ActorType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub enum EventStatus {
     #[serde(rename = "success")]
     Success,

@@ -179,7 +179,6 @@ console_nav:
 # Listings and tables, shared by every resource screen.
 data_view:
   search_placeholder: Search…
-  filter_all: All
   view_mode:
     list: List view
     cards: Card view
@@ -194,13 +193,9 @@ data_view:
   no_data: No data available.
   no_match: No match
   no_match_server_hint: No entry matches the current search and filter.
-  hidden_by_filter_one: '{{count}} entry exists but is hidden by the current filter.'
-  hidden_by_filter_other: '{{count}} entries exist but are hidden by the current filter.'
   clear_filter: Clear filter
   entry_count_one: '{{count}} entry'
   entry_count_other: '{{count}} entries'
-  # Neither number inflects the sentence — they are a slice and a total, not a count.
-  shown_of_total: '{{shown}} of {{total}}'
   pagination:
     # <num> wraps each figure in its own emphasis span. Keep the three tags, move them freely.
     range: Showing <num>{{from}}</num> to <num>{{to}}</num> of <num>{{total}}</num> results
