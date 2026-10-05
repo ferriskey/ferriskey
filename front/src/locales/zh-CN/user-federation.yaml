@@ -45,7 +45,6 @@ list:
   title: 用户联合
   description: 账户会被导入此域的外部目录。
   create: 添加提供商
-  search_placeholder: 按名称或端点筛选…
   count_other: '{{count}} 个提供商'
   no_endpoint: 无端点
   never_synced: 从未同步
@@ -57,6 +56,9 @@ list:
     schedule: 计划
     last_sync: 上次同步
     status: 状态
+    priority: 优先级
+    created: 创建时间
+    updated: 更新时间
   schedule:
     # Abbreviated "minutes" — rendered inside a narrow table cell, keep it short.
     interval_other: 每 {{count}} 分钟
@@ -85,11 +87,17 @@ list:
       title_other: '{{count}} 个提供商从未同步过'
       # "names" is the list of providers that never ran, already joined.
       detail: '{{names}} — 目前尚未导入任何账户。'
-  filters:
+      action: 查看
+  filter_fields:
+    name: 名称
+    provider_type: 类型
+    provider_family: 类别
+    provider_family_values:
+      ldap: LDAP（含 Active Directory）
+      kerberos: Kerberos
     enabled: 已启用
-    ldap: LDAP
-    scheduled: 计划同步
-    stale: 从未同步
+    sync_enabled: 计划同步
+    synced: 至少同步过一次
   aggregates:
     # Footer total, never inflected — it always reads as a raw count of enabled providers.
     status: '{{total}} 个已启用'

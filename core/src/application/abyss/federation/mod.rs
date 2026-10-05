@@ -2,14 +2,19 @@ use crate::{
     ApplicationService,
     domain::{
         abyss::federation::{
-            entities::{FederationProvider, SyncMode},
+            entities::{
+                FederationProvider, FederationProviderFilter, FederationProviderSortField, SyncMode,
+            },
             ports::FederationService,
             value_objects::{
                 CreateProviderRequest, SyncResult, TestConnectionResult, UpdateProviderRequest,
             },
         },
         authentication::value_objects::Identity,
-        common::entities::app_errors::CoreError,
+        common::{
+            entities::app_errors::CoreError,
+            pagination::{Page, PageRequest},
+        },
     },
 };
 use uuid::Uuid;
@@ -64,9 +69,10 @@ impl FederationService for ApplicationService {
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> Result<Vec<FederationProvider>, CoreError> {
+        request: PageRequest<FederationProviderFilter, FederationProviderSortField>,
+    ) -> Result<Page<FederationProvider>, CoreError> {
         self.federation_service
-            .list_federation_providers(identity, realm_name)
+            .list_federation_providers(identity, realm_name, request)
             .await
     }
 

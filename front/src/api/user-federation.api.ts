@@ -1,4 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Endpoints } from './api.client'
+
+export type FederationProvidersQuery = NonNullable<
+  Endpoints.get_List_providers['parameters']['query']
+>
+
+export type FederationProvidersFilter = Omit<
+  FederationProvidersQuery,
+  'page' | 'limit' | 'order' | 'order_by'
+>
+
+export const FEDERATION_PROVIDER_FILTER_KEYS = [
+  'name',
+  'provider_type',
+  'provider_family',
+  'enabled',
+  'sync_enabled',
+  'synced',
+] as const
+
+export const federationProvidersKey = (realm: string) =>
+  window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
+    path: { realm_name: realm },
+    query: {},
+  }).queryKey
 
 export const useCreateUserFederation = () => {
   const queryClient = useQueryClient()
@@ -7,11 +32,7 @@ export const useCreateUserFederation = () => {
     ...window.tanstackApi.mutation('post', '/realms/{realm_name}/federation/providers')
       .mutationOptions,
     onSuccess: async (_, params) => {
-      const queryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
-        path: {
-          realm_name: params.path.realm_name,
-        },
-      }).queryKey
+      const queryKeys = federationProvidersKey(params.path.realm_name)
 
       await queryClient.invalidateQueries({
         queryKey: queryKeys,
@@ -20,14 +41,36 @@ export const useCreateUserFederation = () => {
   })
 }
 
-export const useGetUserFederations = (realm_name: string) => {
+export const useGetUserFederations = ({
+  realm,
+  query,
+  enabled = true,
+}: {
+  realm: string
+  query?: FederationProvidersQuery
+  enabled?: boolean
+}) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
-      path: {
-        realm_name,
-      },
+      path: { realm_name: realm },
+      query: query ?? {},
     }).queryOptions,
+    enabled,
   })
+}
+
+export const useFederationProviderCount = ({
+  realm,
+  filter,
+}: {
+  realm: string
+  filter?: FederationProvidersFilter
+}) => {
+  const { data, isLoading } = useGetUserFederations({
+    realm,
+    query: { ...filter, limit: 1 },
+  })
+  return { count: data?.metadata.total ?? 0, isLoading }
 }
 
 export const useGetUserFederation = (realm_name: string, id: string) => {
@@ -49,11 +92,7 @@ export const useUpdateUserFederation = () => {
     ...window.tanstackApi.mutation('put', '/realms/{realm_name}/federation/providers/{id}')
       .mutationOptions,
     onSuccess: async (_, params) => {
-      const listQueryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
-        path: {
-          realm_name: params.path.realm_name,
-        },
-      }).queryKey
+      const listQueryKeys = federationProvidersKey(params.path.realm_name)
 
       const detailQueryKeys = window.tanstackApi.get(
         '/realms/{realm_name}/federation/providers/{id}',
@@ -83,11 +122,7 @@ export const useDeleteUserFederation = () => {
     ...window.tanstackApi.mutation('delete', '/realms/{realm_name}/federation/providers/{id}')
       .mutationOptions,
     onSuccess: async (_, params) => {
-      const queryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
-        path: {
-          realm_name: params.path.realm_name,
-        },
-      }).queryKey
+      const queryKeys = federationProvidersKey(params.path.realm_name)
 
       await queryClient.invalidateQueries({
         queryKey: queryKeys,
@@ -114,11 +149,7 @@ export const useSyncUsers = () => {
       '/realms/{realm_name}/federation/providers/{id}/sync-users'
     ).mutationOptions,
     onSuccess: async (_, params) => {
-      const listQueryKeys = window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
-        path: {
-          realm_name: params.path.realm_name,
-        },
-      }).queryKey
+      const listQueryKeys = federationProvidersKey(params.path.realm_name)
 
       const detailQueryKeys = window.tanstackApi.get(
         '/realms/{realm_name}/federation/providers/{id}',

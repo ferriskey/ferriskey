@@ -10,8 +10,12 @@ import {
   type CardSpec,
   type Choice,
   type Column,
+  type FilterField,
+  type PagedListing,
+  type PaginationMetadata,
 } from '@/components/kit'
 import { Schemas } from '@/api/api.client'
+import { formatRelative } from '@/utils/format-date'
 import {
   LDAP_PROVIDER_TYPE,
   PRIORITY_LABEL_KEY,
@@ -27,18 +31,47 @@ import ProviderResponse = Schemas.ProviderResponse
 
 export type FederationKind = 'Ldap' | 'Kerberos'
 
+export interface ProviderCounts {
+  total: number
+  enabled: number
+  disabled: number
+  scheduled: number
+}
+
+export interface ProviderPreview {
+  total: number
+  names: string[]
+}
+
 export interface PageProvidersOverviewProps {
   providers: ProviderResponse[]
+  pagination: PaginationMetadata | undefined
+  listing: PagedListing
   isLoading: boolean
+  counts: ProviderCounts
+  neverSynced: ProviderPreview
   pickerOpen: boolean
   onPickerOpenChange: (open: boolean) => void
   createUrl: (kind: FederationKind) => string
   providerHref: (provider: ProviderResponse) => string
 }
 
-const QUERY_SYNTAX = 'type:Ldap  enabled:true  synced:never'
-
 const KERBEROS_PROVIDER_TYPE = 'Kerberos'
+
+const ACTIVE_DIRECTORY_PROVIDER_TYPE = 'ActiveDirectory'
+
+const PROVIDER_TYPE_OPTIONS = [
+  LDAP_PROVIDER_TYPE,
+  ACTIVE_DIRECTORY_PROVIDER_TYPE,
+  KERBEROS_PROVIDER_TYPE,
+].map((value) => ({ value, label: value }))
+
+const NAME_SEPARATOR = ', '
+const TRUNCATION_MARK = '…'
+
+const previewNames = (preview: ProviderPreview) =>
+  preview.names.join(NAME_SEPARATOR) +
+  (preview.total > preview.names.length ? TRUNCATION_MARK : '')
 
 const KIND_CHOICES = [
   { value: LDAP_PROVIDER_TYPE, labelKey: 'kind.ldap', icon: Database, disabled: false },
@@ -62,7 +95,11 @@ const kindIcon = (provider: ProviderResponse) =>
 
 export default function PageProvidersOverview({
   providers,
+  pagination,
+  listing,
   isLoading,
+  counts,
+  neverSynced,
   pickerOpen,
   onPickerOpenChange,
   createUrl,
@@ -89,7 +126,7 @@ export default function PageProvidersOverview({
       key: 'name',
       header: t('list.columns.name'),
       render: (p) => p.name,
-      sortValue: (p) => p.name,
+      sortKey: 'name',
     },
     {
       key: 'endpoint',
@@ -113,13 +150,21 @@ export default function PageProvidersOverview({
           {p.provider_type}
         </Pill>
       ),
-      sortValue: (p) => p.provider_type,
+    },
+    {
+      key: 'priority',
+      header: t('list.columns.priority'),
+      render: (p) => (
+        <span className='text-neutral-600 dark:text-neutral-400'>
+          {t(PRIORITY_LABEL_KEY[priorityFromScore(p.priority)])}
+        </span>
+      ),
+      sortKey: 'priority',
     },
     {
       key: 'sync_mode',
       header: t('list.columns.sync_mode'),
       render: (p) => <Pill mono>{p.sync_mode}</Pill>,
-      sortValue: (p) => p.sync_mode,
     },
     {
       key: 'schedule',
@@ -134,7 +179,6 @@ export default function PageProvidersOverview({
             {t('list.schedule.on_demand')}
           </span>
         ),
-      sortValue: (p) => (p.sync_enabled ? (p.sync_interval_minutes ?? 0) : 0),
     },
     {
       key: 'last_sync',
@@ -145,7 +189,7 @@ export default function PageProvidersOverview({
             {t('list.never_synced')}
           </span>
         ),
-      sortValue: (p) => p.last_sync_at ?? '',
+      sortKey: 'last_sync_at',
     },
     {
       key: 'status',
@@ -156,7 +200,27 @@ export default function PageProvidersOverview({
           {statusLabel(p.enabled)}
         </span>
       ),
-      sortValue: (p) => statusLabel(p.enabled),
+      sortKey: 'enabled',
+    },
+    {
+      key: 'created',
+      header: t('list.columns.created'),
+      render: (p) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(p.created_at)}
+        </span>
+      ),
+      sortKey: 'created_at',
+    },
+    {
+      key: 'updated',
+      header: t('list.columns.updated'),
+      render: (p) => (
+        <span className='tnum text-neutral-600 dark:text-neutral-400'>
+          {formatRelative(p.updated_at)}
+        </span>
+      ),
+      sortKey: 'updated_at',
     },
   ]
 
@@ -189,9 +253,29 @@ export default function PageProvidersOverview({
     ),
   }
 
-  const enabled = providers.filter((p) => p.enabled)
-  const scheduled = providers.filter((p) => p.sync_enabled)
-  const neverSynced = providers.filter((p) => !p.last_sync_at)
+  const filterFields: FilterField[] = [
+    { kind: 'text', key: 'name', label: t('list.filter_fields.name') },
+    {
+      kind: 'enum',
+      key: 'provider_type',
+      label: t('list.filter_fields.provider_type'),
+      options: PROVIDER_TYPE_OPTIONS,
+    },
+    {
+      kind: 'enum',
+      key: 'provider_family',
+      label: t('list.filter_fields.provider_family'),
+      options: [
+        { value: 'ldap', label: t('list.filter_fields.provider_family_values.ldap') },
+        { value: 'kerberos', label: t('list.filter_fields.provider_family_values.kerberos') },
+      ],
+    },
+    { kind: 'boolean', key: 'enabled', label: t('list.filter_fields.enabled') },
+    { kind: 'boolean', key: 'sync_enabled', label: t('list.filter_fields.sync_enabled') },
+    { kind: 'boolean', key: 'synced', label: t('list.filter_fields.synced') },
+  ]
+
+  const reviewNeverSynced = () => listing.setFilters({ synced: 'false' })
 
   const createButton = (
     <Button onClick={() => onPickerOpenChange(true)}>
@@ -210,72 +294,62 @@ export default function PageProvidersOverview({
           {
             key: 'total',
             label: t('list.metrics.total.label'),
-            value: providers.length,
+            value: counts.total,
             hint: t('list.metrics.total.hint'),
+            series: [counts.total, counts.total],
           },
           {
             key: 'enabled',
             label: t('list.metrics.enabled.label'),
-            value: enabled.length,
+            value: counts.enabled,
             hint:
-              providers.length - enabled.length > 0
-                ? t('list.metrics.enabled.hint', { total: providers.length - enabled.length })
+              counts.disabled > 0
+                ? t('list.metrics.enabled.hint', { total: counts.disabled })
                 : t('list.metrics.enabled.empty_hint'),
+            series: [counts.enabled, counts.enabled],
           },
           {
             key: 'scheduled',
             label: t('list.metrics.scheduled.label'),
-            value: scheduled.length,
+            value: counts.scheduled,
             hint: t('list.metrics.scheduled.hint'),
+            series: [counts.scheduled, counts.scheduled],
           },
           {
             key: 'stale',
             label: t('list.metrics.stale.label'),
-            value: neverSynced.length,
+            value: neverSynced.total,
             hint:
-              neverSynced.length > 0
+              neverSynced.total > 0
                 ? t('list.metrics.stale.hint')
                 : t('list.metrics.stale.empty_hint'),
+            series: [neverSynced.total, neverSynced.total],
           },
         ]}
         alerts={
-          neverSynced.length
+          neverSynced.total
             ? [
                 {
                   tone: 'warn' as const,
-                  title: t('list.alerts.stale.title', { count: neverSynced.length }),
+                  title: t('list.alerts.stale.title', { count: neverSynced.total }),
                   detail: t('list.alerts.stale.detail', {
-                    names: neverSynced.map((p) => p.name).join(', '),
+                    names: previewNames(neverSynced),
                   }),
+                  action: t('list.alerts.stale.action'),
+                  onAction: reviewNeverSynced,
                 },
               ]
             : []
         }
-        filters={[
-          { key: 'enabled', label: t('list.filters.enabled'), predicate: (p) => p.enabled },
-          {
-            key: 'ldap',
-            label: t('list.filters.ldap'),
-            predicate: (p) => isLdapLike(p.provider_type),
-          },
-          {
-            key: 'scheduled',
-            label: t('list.filters.scheduled'),
-            predicate: (p) => p.sync_enabled,
-          },
-          { key: 'stale', label: t('list.filters.stale'), predicate: (p) => !p.last_sync_at },
-        ]}
-        searchPlaceholder={t('list.search_placeholder')}
-        querySyntax={QUERY_SYNTAX}
-        searchIn={(p) => `${p.name} ${p.provider_type} ${endpointOf(p)}`}
+        paged={{ listing, pagination, filterFields }}
         rows={providers}
         columns={columns}
         card={card}
         getKey={(p) => p.id}
         getHref={providerHref}
         aggregates={{
-          name: t('list.count', { count: providers.length }),
-          status: t('list.aggregates.status', { total: enabled.length }),
+          name: t('list.count', { count: counts.total }),
+          status: t('list.aggregates.status', { total: counts.enabled }),
         }}
         emptyLabel={t('list.empty.label')}
         emptyHint={t('list.empty.hint')}

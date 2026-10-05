@@ -7,7 +7,8 @@ use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 use crate::domain::abyss::federation::entities::{
-    FederationMapping, FederationProvider, FederationType, SyncMode,
+    FederationMapping, FederationProvider, FederationProviderFilter, FederationProviderSortField,
+    FederationType, SyncMode,
 };
 use crate::domain::abyss::federation::ports::{
     FederationPolicy, FederationRepository, FederationService,
@@ -17,6 +18,7 @@ use crate::domain::abyss::federation::value_objects::{
 };
 use crate::domain::authentication::value_objects::Identity;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::common::policies::ensure_policy;
 use crate::domain::credential::ports::CredentialRepository;
 use crate::domain::realm::entities::{RealmScope, Scoped};
@@ -179,12 +181,13 @@ where
         self.federation_repository.delete(&provider).await
     }
 
-    #[instrument(skip(self, identity))]
+    #[instrument(skip(self, identity, request))]
     async fn list_federation_providers(
         &self,
         identity: Identity,
         realm_name: String,
-    ) -> Result<Vec<FederationProvider>, CoreError> {
+        request: PageRequest<FederationProviderFilter, FederationProviderSortField>,
+    ) -> Result<Page<FederationProvider>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
         ensure_policy(
@@ -194,9 +197,7 @@ where
             "insufficient permissions to list providers",
         )?;
 
-        self.federation_repository
-            .list_by_realm(scope.id().into())
-            .await
+        self.federation_repository.list(&scope, &request).await
     }
 
     #[instrument(skip(self, identity))]
@@ -878,4 +879,141 @@ enum ReconcileAction {
     Updated,
     NoChange,
     Skipped,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::abyss::federation::ports::MockFederationRepository;
+    use crate::domain::client::ports::MockClientRepository;
+    use crate::domain::common::policies::FerriskeyPolicy;
+    use crate::domain::common::services::tests::{
+        create_test_realm_with_name, create_test_user_identity_with_realm,
+    };
+    use crate::domain::credential::ports::MockCredentialRepository;
+    use crate::domain::realm::entities::Realm;
+    use crate::domain::realm::ports::MockRealmRepository;
+    use crate::domain::role::entities::Role;
+    use crate::domain::role::entities::permission::Permissions;
+    use crate::domain::user::ports::{MockUserRepository, MockUserRoleRepository};
+
+    type TestService = FederationServiceImpl<
+        MockRealmRepository,
+        MockFederationRepository,
+        FerriskeyPolicy<MockUserRepository, MockClientRepository, MockUserRoleRepository>,
+        MockUserRepository,
+        MockCredentialRepository,
+    >;
+
+    fn role_with(realm: &Realm, permissions: Vec<String>) -> Role {
+        Role {
+            id: Uuid::new_v4(),
+            name: "caller".to_string(),
+            description: None,
+            permissions,
+            realm_id: realm.id,
+            client_id: None,
+            client: None,
+            require_mfa: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn service(
+        realm: Realm,
+        caller_id: Uuid,
+        roles: Vec<Role>,
+        repository: MockFederationRepository,
+    ) -> TestService {
+        let mut realm_repository = MockRealmRepository::new();
+        realm_repository
+            .expect_get_by_name()
+            .with(mockall::predicate::eq("test-realm".to_string()))
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(Some(realm)) }));
+        let mut user_role_repository = MockUserRoleRepository::new();
+        user_role_repository
+            .expect_get_user_roles()
+            .with(mockall::predicate::eq(caller_id))
+            .times(1)
+            .return_once(move |_| Box::pin(async move { Ok(roles) }));
+        let user_repository = Arc::new(MockUserRepository::new());
+        let policy = FerriskeyPolicy::new(
+            user_repository.clone(),
+            Arc::new(MockClientRepository::new()),
+            Arc::new(user_role_repository),
+        );
+
+        FederationServiceImpl::new(
+            Arc::new(realm_repository),
+            Arc::new(repository),
+            user_repository,
+            Arc::new(MockCredentialRepository::new()),
+            Arc::new(policy),
+        )
+    }
+
+    fn list_request() -> PageRequest<FederationProviderFilter, FederationProviderSortField> {
+        PageRequest {
+            filter: FederationProviderFilter {
+                name: Some("corp".to_string()),
+                synced: Some(false),
+                ..FederationProviderFilter::default()
+            },
+            ..PageRequest::default()
+        }
+    }
+
+    fn caller_of(identity: &Identity) -> Uuid {
+        match identity {
+            Identity::User(user) => user.id,
+            _ => panic!("Expected user identity"),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_federation_providers_refuses_a_caller_without_view_rights_before_listing() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let caller_id = caller_of(&identity);
+        let mut repository = MockFederationRepository::new();
+        repository.expect_list().never();
+        let service = service(realm, caller_id, vec![], repository);
+
+        let result = service
+            .list_federation_providers(identity, "test-realm".to_string(), list_request())
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn list_federation_providers_pages_the_resolved_realm_with_the_request() {
+        let realm = create_test_realm_with_name("test-realm");
+        let identity = create_test_user_identity_with_realm(&realm);
+        let caller_id = caller_of(&identity);
+        let viewer = role_with(&realm, vec![Permissions::ViewRealm.name()]);
+        let realm_id = realm.id;
+        let mut repository = MockFederationRepository::new();
+        repository
+            .expect_list()
+            .withf(move |scope, request| scope.id() == realm_id && *request == list_request())
+            .times(1)
+            .return_once(move |_, request| {
+                let page = Page::new(vec![], 7, request.page, request.limit);
+                Box::pin(async move { Ok(page) })
+            });
+        let service = service(realm, caller_id, vec![viewer], repository);
+
+        let page = service
+            .list_federation_providers(identity, "test-realm".to_string(), list_request())
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(page.metadata().total, 7);
+    }
 }

@@ -159,6 +159,9 @@ jobs:
       - name: run identity providers listing integration tests
         run: cargo test -p ferriskey-api --test identity_providers_listing_test -- --ignored
 
+      - name: run federation providers listing integration tests
+        run: cargo test -p ferriskey-api --test federation_providers_listing_test -- --ignored
+
       - name: run cross-realm client isolation integration tests
         run: cargo test -p ferriskey-api --test client_cross_realm_test -- --ignored
 

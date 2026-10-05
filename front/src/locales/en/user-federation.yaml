@@ -34,7 +34,6 @@ list:
   title: User Federation
   description: External directories whose accounts are imported into this realm.
   create: Add provider
-  search_placeholder: Filter by name or endpoint…
   count_one: '{{count}} provider'
   count_other: '{{count}} providers'
   no_endpoint: no endpoint
@@ -47,6 +46,9 @@ list:
     schedule: Schedule
     last_sync: Last sync
     status: Status
+    priority: Priority
+    created: Created
+    updated: Updated
   schedule:
     # Abbreviated "minutes" — rendered inside a narrow table cell, keep it short.
     interval_one: every {{count}} min
@@ -77,11 +79,17 @@ list:
       title_other: '{{count}} providers have never synchronised'
       # "names" is the list of providers that never ran, already joined.
       detail: '{{names}} — no account imported so far.'
-  filters:
+      action: Review
+  filter_fields:
+    name: Name
+    provider_type: Type
+    provider_family: Family
+    provider_family_values:
+      ldap: LDAP (incl. Active Directory)
+      kerberos: Kerberos
     enabled: Enabled
-    ldap: LDAP
-    scheduled: Scheduled
-    stale: Never synced
+    sync_enabled: Scheduled sync
+    synced: Synchronised at least once
   aggregates:
     # Footer total, never inflected — it always reads as a raw count of enabled providers.
     status: '{{total}} enabled'

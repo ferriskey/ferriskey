@@ -5,15 +5,72 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::abyss::federation::entities::{
-    FederationMapping, FederationProvider, FederationType, SyncMode,
+    FederationMapping, FederationProvider, FederationProviderFilter, FederationProviderSortField,
+    FederationType, SyncMode,
 };
 use crate::domain::abyss::federation::ports::FederationRepository;
 use crate::domain::abyss::federation::value_objects::{
     CreateProviderRequest, UpdateProviderRequest,
 };
 use crate::domain::common::entities::app_errors::CoreError;
-use crate::domain::realm::entities::{Scoped, Unscoped};
+use crate::domain::common::pagination::{Page, PageRequest};
+use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::entity::{user_federation_mappings, user_federation_providers};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<user_federation_providers::Entity> for FederationProviderSortField {
+    fn column(&self) -> user_federation_providers::Column {
+        match self {
+            FederationProviderSortField::Name => user_federation_providers::Column::Name,
+            FederationProviderSortField::Priority => user_federation_providers::Column::Priority,
+            FederationProviderSortField::Enabled => user_federation_providers::Column::Enabled,
+            FederationProviderSortField::LastSyncAt => {
+                user_federation_providers::Column::LastSyncAt
+            }
+            FederationProviderSortField::CreatedAt => user_federation_providers::Column::CreatedAt,
+            FederationProviderSortField::UpdatedAt => user_federation_providers::Column::UpdatedAt,
+        }
+    }
+}
+
+fn listing_select(
+    realm_id: Uuid,
+    filter: &FederationProviderFilter,
+) -> Select<user_federation_providers::Entity> {
+    use user_federation_providers::Column;
+
+    user_federation_providers::Entity::find()
+        .filter(Column::RealmId.eq(realm_id))
+        .apply_if(filter.name.as_deref(), |select, value| {
+            select.filter(contains(Column::Name, value))
+        })
+        .apply_if(filter.provider_type.as_deref(), |select, value| {
+            select.filter(Column::ProviderType.eq(value))
+        })
+        .apply_if(filter.provider_family, |select, family| {
+            select.filter(
+                Column::ProviderType.is_in(
+                    family
+                        .provider_types()
+                        .iter()
+                        .map(FederationType::to_string),
+                ),
+            )
+        })
+        .apply_if(filter.enabled, |select, value| {
+            select.filter(Column::Enabled.eq(value))
+        })
+        .apply_if(filter.sync_enabled, |select, value| {
+            select.filter(Column::SyncEnabled.eq(value))
+        })
+        .apply_if(filter.synced, |select, value| {
+            select.filter(if value {
+                Column::LastSyncAt.is_not_null()
+            } else {
+                Column::LastSyncAt.is_null()
+            })
+        })
+}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -218,16 +275,22 @@ impl FederationRepository for FederationRepositoryImpl {
         Ok(())
     }
 
-    async fn list_by_realm(&self, realm_id: Uuid) -> Result<Vec<FederationProvider>, CoreError> {
-        let models = user_federation_providers::Entity::find()
-            .filter(user_federation_providers::Column::RealmId.eq(realm_id))
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                CoreError::Database(format!("Failed to list federation providers: {}", e))
-            })?;
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<FederationProviderFilter, FederationProviderSortField>,
+    ) -> Result<Page<FederationProvider>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            CoreError::Database(format!("Failed to list federation providers: {}", e))
+        })?;
 
-        models.into_iter().map(|m| m.try_into()).collect()
+        let providers = models
+            .into_iter()
+            .map(FederationProvider::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Page::new(providers, total, request.page, request.limit))
     }
 
     async fn create_mapping(
@@ -346,5 +409,113 @@ impl FederationRepository for FederationRepositoryImpl {
                 CoreError::Database(format!("Failed to delete federation mapping: {}", e))
             })?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::abyss::federation::entities::{
+        FederationProviderFamily, FederationProviderFilter,
+    };
+
+    fn sql(filter: &FederationProviderFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&FederationProviderFilter::default());
+        assert!(
+            sql.contains(
+                r#""user_federation_providers"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
+            "{sql}"
+        );
+        assert!(!sql.contains("ILIKE"), "{sql}");
+        assert!(!sql.contains("last_sync_at\" IS"), "{sql}");
+    }
+
+    #[test]
+    fn name_is_an_escaped_contains_match() {
+        let sql = sql(&FederationProviderFilter {
+            name: Some("a%".to_string()),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            sql.contains(r#""user_federation_providers"."name" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn type_and_flags_are_exact_matches() {
+        let sql = sql(&FederationProviderFilter {
+            provider_type: Some("Ldap".to_string()),
+            enabled: Some(false),
+            sync_enabled: Some(true),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            sql.contains(r#""user_federation_providers"."provider_type" = 'Ldap'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""user_federation_providers"."enabled" = FALSE"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""user_federation_providers"."sync_enabled" = TRUE"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn provider_family_lists_its_stored_types() {
+        let ldap = sql(&FederationProviderFilter {
+            provider_family: Some(FederationProviderFamily::Ldap),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            ldap.contains(
+                r#""user_federation_providers"."provider_type" IN ('Ldap', 'ActiveDirectory')"#
+            ),
+            "{ldap}"
+        );
+
+        let kerberos = sql(&FederationProviderFilter {
+            provider_family: Some(FederationProviderFamily::Kerberos),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            kerberos.contains(r#""user_federation_providers"."provider_type" IN ('Kerberos')"#),
+            "{kerberos}"
+        );
+    }
+
+    #[test]
+    fn synced_tests_the_last_sync_timestamp() {
+        let synced = sql(&FederationProviderFilter {
+            synced: Some(true),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            synced.contains(r#""user_federation_providers"."last_sync_at" IS NOT NULL"#),
+            "{synced}"
+        );
+
+        let never = sql(&FederationProviderFilter {
+            synced: Some(false),
+            ..FederationProviderFilter::default()
+        });
+        assert!(
+            never.contains(r#""user_federation_providers"."last_sync_at" IS NULL"#),
+            "{never}"
+        );
     }
 }

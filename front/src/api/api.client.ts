@@ -853,23 +853,6 @@ export namespace Schemas {
   };
   export type ListOrganizationAttributesResponse = { data: Array<OrganizationAttribute> };
   export type ListPortalLayoutsResponse = { data: Array<PortalLayout> };
-  export type ProviderResponse = {
-    config: unknown;
-    created_at: string;
-    enabled: boolean;
-    id: string;
-    last_sync_at?: (string | null) | undefined;
-    last_sync_status?: (string | null) | undefined;
-    name: string;
-    priority: number;
-    provider_type: string;
-    realm_id: string;
-    sync_enabled: boolean;
-    sync_interval_minutes?: (number | null) | undefined;
-    sync_mode: string;
-    updated_at: string;
-  };
-  export type ListProvidersResponse = { data: Array<ProviderResponse> };
   export type ListThemesResponse = { data: Array<PortalTheme> };
   export type UserSessionDto = {
     created_at: string;
@@ -1051,6 +1034,25 @@ export namespace Schemas {
     }>;
     metadata: PageMetadata;
   };
+  export type Paginated_ProviderResponse = {
+    data: Array<{
+      config: unknown;
+      created_at: string;
+      enabled: boolean;
+      id: string;
+      last_sync_at?: (string | null) | undefined;
+      last_sync_status?: (string | null) | undefined;
+      name: string;
+      priority: number;
+      provider_type: string;
+      realm_id: string;
+      sync_enabled: boolean;
+      sync_interval_minutes?: (number | null) | undefined;
+      sync_mode: string;
+      updated_at: string;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_Realm = {
     data: Array<{
       created_at: string;
@@ -1173,6 +1175,22 @@ export namespace Schemas {
     id: string;
     mapper_type: string;
     name: string;
+  };
+  export type ProviderResponse = {
+    config: unknown;
+    created_at: string;
+    enabled: boolean;
+    id: string;
+    last_sync_at?: (string | null) | undefined;
+    last_sync_status?: (string | null) | undefined;
+    name: string;
+    priority: number;
+    provider_type: string;
+    realm_id: string;
+    sync_enabled: boolean;
+    sync_interval_minutes?: (number | null) | undefined;
+    sync_mode: string;
+    updated_at: string;
   };
   export type PublicKeyCredential = Record<string, unknown>;
   export type PublicKeyCredentialCreationOptionsJSON = Record<string, unknown>;
@@ -2620,10 +2638,23 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/federation/providers";
     requestFormat: "json";
     parameters: {
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        name: string;
+        provider_type: string;
+        provider_family: "ldap" | "kerberos";
+        enabled: boolean;
+        sync_enabled: boolean;
+        synced: boolean;
+        order_by: "name" | "priority" | "enabled" | "last_sync_at" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
     responses: {
-      200: Schemas.ListProvidersResponse;
+      200: Schemas.Paginated_ProviderResponse;
+      400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
