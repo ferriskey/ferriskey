@@ -77,8 +77,6 @@ const riskyActors = (events: SecurityEvent[]): RiskyActor[] => {
     .slice(0, 3)
 }
 
-const FAILURE_STATUS = 'failure'
-
 const latestTimestamp = (events: SecurityEvent[]) => {
   if (events.length === 0) return null
   const latest = events.reduce((acc, event) => {
@@ -348,7 +346,6 @@ export default function PageSecurityEvents({
         total
       ),
       tone: 'info',
-      filter: {},
     },
     {
       key: 'failures',
@@ -365,7 +362,6 @@ export default function PageSecurityEvents({
         failed
       ),
       tone: 'brand',
-      filter: { status: FAILURE_STATUS },
     },
     {
       key: 'rate',

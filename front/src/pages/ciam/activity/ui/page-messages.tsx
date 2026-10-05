@@ -240,7 +240,13 @@ export default function PageMessages({
   const journalColumns = [
     messageColumn,
     { ...shared.outcome, sortKey: 'status' },
-    { ...recipientColumn, filters: securityEventColumnFilters().actor },
+    {
+      ...recipientColumn,
+      filters: securityEventColumnFilters().actor.map((field) => ({
+        ...field,
+        label: t('activity.messages.columns.recipient'),
+      })),
+    },
     { ...shared.when, sortKey: 'timestamp' },
   ]
 

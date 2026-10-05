@@ -33,8 +33,6 @@ export interface PageLogsProps {
 
 const DETAIL_SEPARATOR = ' · '
 
-const FAILURE_STATUS = 'failure'
-
 const dominant = (values: (string | null | undefined)[]) => {
   const counts = new Map<string, number>()
   values.forEach((value) => {
@@ -111,7 +109,6 @@ export default function PageLogs({
         total
       ),
       tone: 'info',
-      filter: {},
     },
     {
       key: 'failures',
@@ -128,7 +125,6 @@ export default function PageLogs({
         failed
       ),
       tone: 'brand',
-      filter: { status: FAILURE_STATUS },
     },
     {
       key: 'rate',
