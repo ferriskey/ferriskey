@@ -10,7 +10,16 @@ import User = Schemas.User
 
 const IDENTITIES: UsersFilter = { service_account: false }
 
-const IDENTITY_FILTER_KEYS = ['username', 'email', 'enabled', 'email_verified'] as const
+const IDENTITY_FILTER_KEYS = [
+  'search',
+  'username',
+  'email',
+  'enabled',
+  'email_verified',
+  'role_id',
+  'created_from',
+  'created_to',
+] as const
 
 export default function PageIdentitiesFeature() {
   const { realm_name } = useParams<RouterParams>()

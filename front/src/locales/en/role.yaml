@@ -76,7 +76,9 @@ list:
   filters:
     realm: Realm
     client: Client
+  search_placeholder: Search by role name or client ID…
   filter_fields:
+    created: Created
     name: Name
     description: Description
     require_mfa: MFA required

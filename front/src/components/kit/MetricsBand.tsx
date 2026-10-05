@@ -1,3 +1,4 @@
+import type { KeyboardEvent, ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { Sparkline, type ChartTone } from './charts'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,40 @@ export interface Metric {
   delta?: number
   series?: (number | null)[]
   tone?: ChartTone
+  onSelect?: () => void
+}
+
+const SELECT_KEYS = ['Enter', ' ']
+
+function Tile({
+  metric,
+  className,
+  children,
+}: {
+  metric: Metric
+  className: string
+  children: ReactNode
+}) {
+  const { onSelect } = metric
+  if (!onSelect) return <div className={className}>{children}</div>
+  return (
+    <div
+      role='button'
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+        if (!SELECT_KEYS.includes(event.key)) return
+        event.preventDefault()
+        onSelect()
+      }}
+      className={cn(
+        className,
+        'cursor-pointer transition-colors hover:bg-fk-primary-soft/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fk-primary/30'
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function MetricsBand({ metrics }: { metrics: Metric[] }) {
@@ -27,7 +62,7 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
     >
       {metrics.map((m) =>
         hasSeries ? (
-          <div key={m.key} className='flex items-center gap-3 px-3 py-2'>
+          <Tile key={m.key} metric={m} className='flex items-center gap-3 px-3 py-2'>
             <div className='min-w-0 flex-1'>
               <p className='truncate text-[11px] text-neutral-500 dark:text-neutral-400'>{m.label}</p>
               <div className='flex items-baseline gap-1.5'>
@@ -52,9 +87,9 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
                 <Sparkline data={m.series} tone={m.tone ?? 'info'} height={28} />
               </div>
             )}
-          </div>
+          </Tile>
         ) : (
-          <div key={m.key} className='px-3 py-2'>
+          <Tile key={m.key} metric={m} className='px-3 py-2'>
             <p className='truncate text-[11px] text-neutral-500 dark:text-neutral-400'>{m.label}</p>
             <div className='mt-0.5 flex items-baseline gap-1.5'>
               <span className='tnum text-xl font-semibold leading-none'>
@@ -66,7 +101,7 @@ export function MetricsBand({ metrics }: { metrics: Metric[] }) {
                 </span>
               )}
             </div>
-          </div>
+          </Tile>
         )
       )}
     </div>

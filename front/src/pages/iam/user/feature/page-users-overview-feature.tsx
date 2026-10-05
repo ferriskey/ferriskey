@@ -11,6 +11,7 @@ import User = Schemas.User
 const UNVERIFIED_PREVIEW = 5
 
 const USER_FILTER_KEYS = [
+  'search',
   'username',
   'email',
   'firstname',
@@ -19,6 +20,8 @@ const USER_FILTER_KEYS = [
   'email_verified',
   'service_account',
   'role_id',
+  'created_from',
+  'created_to',
 ] as const
 
 export default function PageUsersOverviewFeature() {

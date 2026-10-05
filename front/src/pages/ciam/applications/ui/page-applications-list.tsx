@@ -7,7 +7,6 @@ import type {
   CardSpec,
   ChartTone,
   Column,
-  FilterField,
   ListingMetric,
   PagedListing,
   PaginationMetadata,
@@ -93,6 +92,7 @@ export default function PageApplicationsList({
       header: t('applications.list.columns.name'),
       render: (c) => displayName(c),
       sortKey: 'name',
+      filters: [{ kind: 'text', key: 'name', label: t('applications.list.filter_fields.name') }],
     },
     {
       key: 'client_id',
@@ -103,6 +103,9 @@ export default function PageApplicationsList({
         </span>
       ),
       sortKey: 'client_id',
+      filters: [
+        { kind: 'text', key: 'client_id', label: t('applications.list.filter_fields.client_id') },
+      ],
     },
     {
       key: 'type',
@@ -115,6 +118,14 @@ export default function PageApplicationsList({
           </Pill>
         )
       },
+      filters: [
+        {
+          kind: 'enum',
+          key: 'application_type',
+          label: t('applications.list.filter_fields.application_type'),
+          options: applicationTypeMetas(t).map((meta) => ({ value: meta.key, label: meta.short })),
+        },
+      ],
     },
     {
       key: 'status',
@@ -128,6 +139,9 @@ export default function PageApplicationsList({
         </span>
       ),
       sortKey: 'enabled',
+      filters: [
+        { kind: 'boolean', key: 'enabled', label: t('applications.list.filter_fields.enabled') },
+      ],
     },
     {
       key: 'created',
@@ -138,22 +152,14 @@ export default function PageApplicationsList({
         </span>
       ),
       sortKey: 'created_at',
-    },
-  ]
-
-  const filterFields: FilterField[] = [
-    {
-      kind: 'text',
-      key: 'search',
-      label: t('applications.list.filter_fields.search'),
-      placeholder: t('applications.list.search_placeholder'),
-    },
-    { kind: 'boolean', key: 'enabled', label: t('applications.list.filter_fields.enabled') },
-    {
-      kind: 'enum',
-      key: 'application_type',
-      label: t('applications.list.filter_fields.application_type'),
-      options: applicationTypeMetas(t).map((meta) => ({ value: meta.key, label: meta.short })),
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('applications.list.filter_fields.created'),
+        },
+      ],
     },
   ]
 
@@ -187,6 +193,7 @@ export default function PageApplicationsList({
       value: counts.total,
       series: [counts.total, counts.total],
       tone: 'primary',
+      onSelect: () => listing.setFilters({ application_type: '' }),
     },
     ...applicationTypeMetas(t).map((meta) => ({
       key: meta.key,
@@ -194,6 +201,7 @@ export default function PageApplicationsList({
       value: counts[meta.key],
       series: [counts[meta.key], counts[meta.key]],
       tone: metricTone(meta.tone),
+      onSelect: () => listing.setFilters({ application_type: meta.key }),
     })),
   ]
 
@@ -230,7 +238,11 @@ export default function PageApplicationsList({
               ]
             : []
         }
-        paged={{ listing, pagination, filterFields }}
+        paged={{
+          listing,
+          pagination,
+          search: { placeholder: t('applications.list.search_placeholder') },
+        }}
         rows={applications}
         columns={columns}
         card={card}

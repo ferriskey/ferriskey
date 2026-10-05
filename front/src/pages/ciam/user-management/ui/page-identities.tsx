@@ -5,11 +5,11 @@ import { ListingPage, Pill, Squircle, StatusDot } from '@/components/kit'
 import type {
   CardSpec,
   Column,
-  FilterField,
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
 import { formatRelative } from '@/utils/format-date'
+import { roleRelationSource } from '@/api/role.relation'
 import { Schemas } from '@/api/api.client'
 
 import User = Schemas.User
@@ -40,6 +40,8 @@ const displayName = (user: User) => {
 const pendingCount = (user: User) => user.required_actions.length
 
 const NAME_SEPARATOR = ', '
+const YES = 'true'
+const NO = 'false'
 
 export default function PageIdentities({
   identities,
@@ -66,6 +68,9 @@ export default function PageIdentities({
         </span>
       ),
       sortKey: 'username',
+      filters: [
+        { kind: 'text', key: 'username', label: t('identities.list.filter_fields.username') },
+      ],
     },
     {
       key: 'email',
@@ -86,6 +91,14 @@ export default function PageIdentities({
           </span>
         ),
       sortKey: 'email',
+      filters: [
+        { kind: 'text', key: 'email', label: t('identities.list.filter_fields.email') },
+        {
+          kind: 'boolean',
+          key: 'email_verified',
+          label: t('identities.list.filter_fields.email_verified'),
+        },
+      ],
     },
     {
       key: 'status',
@@ -116,6 +129,9 @@ export default function PageIdentities({
         )
       },
       sortKey: 'enabled',
+      filters: [
+        { kind: 'boolean', key: 'enabled', label: t('identities.list.filter_fields.enabled') },
+      ],
     },
     {
       key: 'created',
@@ -126,6 +142,14 @@ export default function PageIdentities({
         </span>
       ),
       sortKey: 'created_at',
+      filters: [
+        {
+          kind: 'date-range',
+          fromKey: 'created_from',
+          toKey: 'created_to',
+          label: t('identities.list.filter_fields.created'),
+        },
+      ],
     },
     {
       key: 'roles',
@@ -139,6 +163,14 @@ export default function PageIdentities({
           <span className='tnum text-neutral-300 dark:text-neutral-600'>0</span>
         )
       },
+      filters: [
+        {
+          kind: 'relation',
+          key: 'role_id',
+          label: t('identities.list.filter_fields.role'),
+          relation: roleRelationSource,
+        },
+      ],
     },
   ]
 
@@ -181,17 +213,6 @@ export default function PageIdentities({
 
   const pending = identities.filter((u) => pendingCount(u) > 0)
 
-  const filterFields: FilterField[] = [
-    { kind: 'text', key: 'username', label: t('identities.list.filter_fields.username') },
-    { kind: 'text', key: 'email', label: t('identities.list.filter_fields.email') },
-    { kind: 'boolean', key: 'enabled', label: t('identities.list.filter_fields.enabled') },
-    {
-      kind: 'boolean',
-      key: 'email_verified',
-      label: t('identities.list.filter_fields.email_verified'),
-    },
-  ]
-
   const createButton = (
     <Button onClick={onCreate}>
       <Plus /> {t('identities.list.create')}
@@ -211,6 +232,7 @@ export default function PageIdentities({
           value: counts.total,
           hint: t('identities.list.metrics.total.hint', { count: counts.total }),
           series: [counts.total, counts.total],
+          onSelect: () => listing.setFilters({ enabled: '', email_verified: '' }),
         },
         {
           key: 'verified',
@@ -223,6 +245,7 @@ export default function PageIdentities({
                 })
               : t('identities.list.metrics.verified.empty_hint'),
           series: [counts.verified, counts.verified],
+          onSelect: () => listing.setFilters({ email_verified: YES }),
         },
         {
           key: 'pending',
@@ -236,6 +259,7 @@ export default function PageIdentities({
           value: counts.disabled,
           hint: t('identities.list.metrics.disabled.hint'),
           series: [counts.disabled, counts.disabled],
+          onSelect: () => listing.setFilters({ enabled: NO }),
         },
       ]}
       alerts={
@@ -253,7 +277,11 @@ export default function PageIdentities({
             ]
           : []
       }
-      paged={{ listing, pagination, filterFields }}
+      paged={{
+        listing,
+        pagination,
+        search: { placeholder: t('identities.list.search_placeholder') },
+      }}
       rows={identities}
       columns={columns}
       card={card}

@@ -40,12 +40,15 @@ export type RolesFilter = Omit<RolesQuery, 'page' | 'limit' | 'order' | 'order_b
 export const ROLE_SEARCH_LIMIT = 20
 
 export const ROLE_FILTER_KEYS = [
+  'search',
   'name',
   'description',
   'require_mfa',
   'client_id',
   'scope',
   'has_permissions',
+  'created_from',
+  'created_to',
 ] as const
 
 const SEARCH_DEBOUNCE_MS = 300

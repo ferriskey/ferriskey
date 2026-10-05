@@ -266,6 +266,9 @@ applications:
       enabled: 已启用
       disabled: 已禁用
     filter_fields:
+      name: 名称
+      client_id: 客户端 ID
+      created: 创建时间
       search: 搜索
       enabled: 已启用
       application_type: 类型
@@ -643,7 +646,10 @@ identities:
         title_other: '{{count, number}} 个身份在下次登录时有待处理的操作'
         detail: '{{names}}——在完成之前，他们无法完成登录。'
         action: 查看
+    search_placeholder: 按用户名、邮箱、名或姓搜索…
     filter_fields:
+      created: 创建时间
+      role: 角色
       username: 用户名
       email: 邮箱
       enabled: 活跃

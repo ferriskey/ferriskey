@@ -99,7 +99,9 @@ list:
       title_other: '{{count}} clients are in maintenance'
       detail: '{{clients}} — only whitelisted accounts can sign in.'
       action: Inspect
+  search_placeholder: Search by name or client ID…
   filter_fields:
+    created: Created
     name: Name
     client_id: client_id
     enabled: Enabled

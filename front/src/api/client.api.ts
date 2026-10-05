@@ -15,9 +15,18 @@ export type ClientsFilter = Omit<ClientsQuery, 'page' | 'limit' | 'order' | 'ord
 
 export const CLIENT_SEARCH_LIMIT = 20
 
-export const APPLICATION_FILTER_KEYS = ['search', 'enabled', 'application_type'] as const
+export const APPLICATION_FILTER_KEYS = [
+  'search',
+  'name',
+  'client_id',
+  'enabled',
+  'application_type',
+  'created_from',
+  'created_to',
+] as const
 
 export const CLIENT_FILTER_KEYS = [
+  'search',
   'name',
   'client_id',
   'enabled',
@@ -27,6 +36,8 @@ export const CLIENT_FILTER_KEYS = [
   'client_type',
   'has_redirect_uris',
   'maintenance_enabled',
+  'created_from',
+  'created_to',
 ] as const
 
 const SEARCH_DEBOUNCE_MS = 300

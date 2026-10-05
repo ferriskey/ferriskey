@@ -59,7 +59,9 @@ list:
       title_other: '{{count}} 个账户的邮箱未验证'
       detail: '{{names}}：密码找回邮件将无法送达。'
       action: 查看
+  search_placeholder: 按用户名、邮箱、名或姓搜索…
   filter_fields:
+    created: 创建时间
     username: 用户名
     email: 邮箱
     firstname: 名

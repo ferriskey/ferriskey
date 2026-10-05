@@ -45,7 +45,9 @@ list:
     mappers: Mappers
     created: Created
     updated: Updated
+  search_placeholder: Search by name or description…
   filter_fields:
+    created: Created
     name: Name
     description: Description
     protocol: Protocol

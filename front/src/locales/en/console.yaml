@@ -256,6 +256,9 @@ applications:
       enabled: Enabled
       disabled: Disabled
     filter_fields:
+      name: Name
+      client_id: Client ID
+      created: Created
       search: Search
       enabled: Enabled
       application_type: Type
@@ -641,7 +644,10 @@ identities:
         title_other: '{{count, number}} identities have an action pending at next sign-in'
         detail: '{{names}} — they cannot complete a sign-in until it is done.'
         action: Review
+    search_placeholder: Search by username, email, first or last name…
     filter_fields:
+      created: Created
+      role: Role
       username: Username
       email: Email
       enabled: Active

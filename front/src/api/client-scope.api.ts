@@ -15,11 +15,14 @@ export type ClientScopesQuery = NonNullable<
 export type ClientScopesFilter = Omit<ClientScopesQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
 export const CLIENT_SCOPE_FILTER_KEYS = [
+  'search',
   'name',
   'description',
   'protocol',
   'default_scope_type',
   'has_protocol_mappers',
+  'created_from',
+  'created_to',
 ] as const
 
 export const CLIENT_SCOPE_SEARCH_LIMIT = 20

@@ -109,7 +109,9 @@ list:
       title_other: '{{count}} 个客户端处于维护中'
       detail: '{{clients}}：只有白名单中的账户可以登录。'
       action: 查看
+  search_placeholder: 按名称或客户端 ID 搜索…
   filter_fields:
+    created: 创建时间
     name: 名称
     client_id: client_id
     enabled: 已启用

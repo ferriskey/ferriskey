@@ -24,6 +24,7 @@ export interface ListingMetric {
   delta?: number
   series?: (number | null)[]
   tone?: ChartTone
+  onSelect?: () => void
 }
 
 export interface ListingAlert {

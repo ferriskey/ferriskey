@@ -84,7 +84,9 @@ list:
   filters:
     realm: 域
     client: 客户端
+  search_placeholder: 按角色名称或客户端 ID 搜索…
   filter_fields:
+    created: 创建时间
     name: 名称
     description: 描述
     require_mfa: 需要 MFA

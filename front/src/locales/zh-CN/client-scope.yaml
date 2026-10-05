@@ -56,7 +56,9 @@ list:
     mappers: 映射器
     created: 创建时间
     updated: 更新时间
+  search_placeholder: 按名称或描述搜索…
   filter_fields:
+    created: 创建时间
     name: 名称
     description: 描述
     protocol: 协议
