@@ -1,4 +1,7 @@
-use ferriskey_core::domain::abyss::identity_provider::IdentityProvider;
+use chrono::{DateTime, Utc};
+use ferriskey_core::domain::abyss::identity_provider::{
+    IdentityProvider, IdentityProviderFilter, IdentityProviderHealth,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -107,6 +110,8 @@ pub struct IdentityProviderResponse {
     pub trust_email: bool,
     pub link_only: bool,
     pub config: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl From<IdentityProvider> for IdentityProviderResponse {
@@ -124,13 +129,10 @@ impl From<IdentityProvider> for IdentityProviderResponse {
             trust_email: value.trust_email,
             link_only: value.link_only,
             config: serde_json::to_value(value.config).unwrap_or(serde_json::Value::Null),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct IdentityProvidersResponse {
-    pub data: Vec<IdentityProviderResponse>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
@@ -138,9 +140,27 @@ pub struct DeleteIdentityProviderResponse {
     pub count: u32,
 }
 
-#[derive(Debug, Deserialize, IntoParams)]
+#[derive(Debug, Default, Deserialize, IntoParams)]
+#[serde(deny_unknown_fields)]
 #[into_params(parameter_in = Query)]
-pub struct ListIdentityProvidersQuery {
-    #[serde(default)]
-    pub brief_representation: Option<bool>,
+pub struct IdentityProviderListParams {
+    pub alias: Option<String>,
+    pub display_name: Option<String>,
+    #[param(example = "oidc")]
+    pub provider_id: Option<String>,
+    pub enabled: Option<bool>,
+    #[param(inline)]
+    pub health: Option<IdentityProviderHealth>,
+}
+
+impl From<IdentityProviderListParams> for IdentityProviderFilter {
+    fn from(params: IdentityProviderListParams) -> Self {
+        Self {
+            alias: params.alias,
+            display_name: params.display_name,
+            provider_id: params.provider_id,
+            enabled: params.enabled,
+            health: params.health,
+        }
+    }
 }

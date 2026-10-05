@@ -74,7 +74,6 @@ list:
   title: Identity Providers
   description: External authentication sources federated into this realm.
   add: Add provider
-  search_placeholder: Filter by name or alias…
   row_delete: Delete {{name}}
   columns:
     provider: Provider
@@ -82,6 +81,8 @@ list:
     type: Type
     configuration: Configuration
     status: Status
+    created: Created
+    updated: Updated
   flags:
     enabled: Offered on the login page
     trust_email: Email address trusted as verified
@@ -97,20 +98,29 @@ list:
     disabled:
       label: Disabled providers
       hint: hidden from the login page
-    types:
-      label: Provider types
-      hint: distinct protocols
   alerts:
     broken:
-      title: '{{name}} cannot broker a login'
+      title_one: '{{count}} provider cannot broker a login'
+      title_other: '{{count}} providers cannot broker a login'
+      detail_one: '{{names}} — a required endpoint or credential is missing.'
+      detail_other: '{{names}} — a required endpoint or credential is missing.'
       action: Fix
     degraded:
-      title: '{{name}} requests no scope'
+      title_one: '{{count}} provider requests no scope'
+      title_other: '{{count}} providers request no scope'
+      detail_one: '{{names}} — most providers reject an authorization request without a scope.'
+      detail_other: '{{names}} — most providers reject an authorization request without a scope.'
       action: Review
-  filters:
+  filter_fields:
+    alias: Alias
+    display_name: Display name
+    provider_id: Type
     enabled: Enabled
-    disabled: Disabled
-    issues: Misconfigured
+    health: Configuration
+    health_values:
+      healthy: Complete
+      degraded: No scope
+      error: Incomplete
   aggregates:
     provider_count_one: '{{count}} provider'
     provider_count_other: '{{count}} providers'

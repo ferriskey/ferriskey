@@ -4,13 +4,15 @@ use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
 use ferriskey_domain::common::app_errors::CoreError;
-use ferriskey_domain::realm::scope::{Scoped, Unscoped};
+use ferriskey_domain::common::pagination::{Page, PageRequest};
+use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 use ferriskey_domain::realm::{Realm, RealmId};
 
 use super::entities::{
     CreateIdentityProviderInput, DeleteIdentityProviderInput, DeleteIdentityProviderLinkInput,
-    GetIdentityProviderInput, IdentityProvider, IdentityProviderLinkView,
-    ListIdentityProviderLinksInput, ListIdentityProvidersInput, UpdateIdentityProviderInput,
+    GetIdentityProviderInput, IdentityProvider, IdentityProviderFilter, IdentityProviderLinkView,
+    IdentityProviderSortField, ListIdentityProviderLinksInput, ListIdentityProvidersInput,
+    UpdateIdentityProviderInput,
 };
 use super::value_objects::{CreateIdentityProviderRequest, UpdateIdentityProviderRequest};
 
@@ -45,6 +47,12 @@ pub trait IdentityProviderRepository: Send + Sync {
         realm_id: RealmId,
         only_enabled: Option<bool>,
     ) -> impl Future<Output = Result<Vec<IdentityProvider>, CoreError>> + Send;
+
+    fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<IdentityProviderFilter, IdentityProviderSortField>,
+    ) -> impl Future<Output = Result<Page<IdentityProvider>, CoreError>> + Send;
 
     /// Updates an existing identity provider
     fn update_identity_provider(
@@ -86,12 +94,12 @@ pub trait IdentityProviderService: Send + Sync {
         input: GetIdentityProviderInput,
     ) -> impl Future<Output = Result<IdentityProvider, CoreError>> + Send;
 
-    /// Lists all identity providers for a realm
     fn list_identity_providers(
         &self,
         identity: Identity,
         input: ListIdentityProvidersInput,
-    ) -> impl Future<Output = Result<Vec<IdentityProvider>, CoreError>> + Send;
+        request: PageRequest<IdentityProviderFilter, IdentityProviderSortField>,
+    ) -> impl Future<Output = Result<Page<IdentityProvider>, CoreError>> + Send;
 
     /// Updates an existing identity provider
     fn update_identity_provider(

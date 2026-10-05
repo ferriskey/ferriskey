@@ -783,6 +783,7 @@ export namespace Schemas {
     add_read_token_role_on_create: boolean;
     alias: string;
     config: unknown;
+    created_at: string;
     display_name?: (string | null) | undefined;
     enabled: boolean;
     first_broker_login_flow_alias?: (string | null) | undefined;
@@ -792,8 +793,8 @@ export namespace Schemas {
     provider_id: string;
     store_token: boolean;
     trust_email: boolean;
+    updated_at: string;
   };
-  export type IdentityProvidersResponse = { data: Array<IdentityProviderResponse> };
   export type ImportEmailTemplateResponse = { data: EmailTemplate };
   export type ImportEmailTemplateValidator = {
     email_type?: (string | null) | undefined;
@@ -1013,6 +1014,25 @@ export namespace Schemas {
       lastname?: (string | null) | undefined;
       user_id: string;
       username: string;
+    }>;
+    metadata: PageMetadata;
+  };
+  export type Paginated_IdentityProviderResponse = {
+    data: Array<{
+      add_read_token_role_on_create: boolean;
+      alias: string;
+      config: unknown;
+      created_at: string;
+      display_name?: (string | null) | undefined;
+      enabled: boolean;
+      first_broker_login_flow_alias?: (string | null) | undefined;
+      internal_id: string;
+      link_only: boolean;
+      post_broker_login_flow_alias?: (string | null) | undefined;
+      provider_id: string;
+      store_token: boolean;
+      trust_email: boolean;
+      updated_at: string;
     }>;
     metadata: PageMetadata;
   };
@@ -2698,10 +2718,26 @@ export namespace Endpoints {
     path: "/realms/{realm_name}/identity-providers";
     requestFormat: "json";
     parameters: {
-      query: Partial<{ brief_representation: boolean }>;
+      query: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        alias: string;
+        display_name: string;
+        provider_id: string;
+        enabled: boolean;
+        health: "healthy" | "degraded" | "error";
+        order_by: "alias" | "display_name" | "provider_id" | "enabled" | "created_at" | "updated_at";
+      }>;
       path: { realm_name: string };
     };
-    responses: { 200: Schemas.IdentityProvidersResponse; 401: unknown; 403: unknown; 404: unknown };
+    responses: {
+      200: Schemas.Paginated_IdentityProviderResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Create_identity_provider = {
     method: "POST";

@@ -1,18 +1,88 @@
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    PaginatorTrait, QueryFilter, QueryOrder,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, QueryTrait, Select,
+    sea_query::{Expr, SimpleExpr},
 };
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::domain::abyss::identity_provider::{
-    CreateIdentityProviderRequest, IdentityProvider, IdentityProviderRepository,
+    CreateIdentityProviderRequest, IdentityProvider, IdentityProviderFilter,
+    IdentityProviderHealth, IdentityProviderRepository, IdentityProviderSortField,
     UpdateIdentityProviderRequest,
 };
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
-use crate::domain::realm::entities::{RealmId, Scoped, Unscoped};
+use crate::domain::common::pagination::{Page, PageRequest};
+use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::entity::identity_providers::{ActiveModel, Column, Entity as IdentityProviderEntity};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+
+impl SortColumn<IdentityProviderEntity> for IdentityProviderSortField {
+    fn column(&self) -> Column {
+        match self {
+            IdentityProviderSortField::Alias => Column::Alias,
+            IdentityProviderSortField::DisplayName => Column::DisplayName,
+            IdentityProviderSortField::ProviderId => Column::ProviderId,
+            IdentityProviderSortField::Enabled => Column::Enabled,
+            IdentityProviderSortField::CreatedAt => Column::CreatedAt,
+            IdentityProviderSortField::UpdatedAt => Column::UpdatedAt,
+        }
+    }
+}
+
+const FALSY: &str = "'null'::jsonb, 'false'::jsonb, '0'::jsonb, '\"\"'::jsonb";
+const FALSY_SECRET: &str = "'null'::jsonb, 'false'::jsonb, '0'::jsonb";
+
+fn config_value_in(key: &str, values: &str) -> SimpleExpr {
+    Expr::cust(format!(
+        "COALESCE(\"identity_providers\".\"config\" -> '{key}', 'null'::jsonb) IN ({values})"
+    ))
+}
+
+fn incomplete() -> Condition {
+    Condition::any()
+        .add(config_value_in("client_id", FALSY))
+        .add(config_value_in("client_secret", FALSY_SECRET))
+        .add(config_value_in("authorization_url", FALSY))
+        .add(config_value_in("token_url", FALSY))
+}
+
+fn health(value: IdentityProviderHealth) -> Condition {
+    let without_scopes = config_value_in("scopes", FALSY);
+    match value {
+        IdentityProviderHealth::Error => incomplete(),
+        IdentityProviderHealth::Degraded => {
+            Condition::all().add(incomplete().not()).add(without_scopes)
+        }
+        IdentityProviderHealth::Healthy => Condition::all()
+            .add(incomplete().not())
+            .add(without_scopes.not()),
+    }
+}
+
+fn listing_select(
+    realm_id: Uuid,
+    filter: &IdentityProviderFilter,
+) -> Select<IdentityProviderEntity> {
+    IdentityProviderEntity::find()
+        .filter(Column::RealmId.eq(realm_id))
+        .apply_if(filter.alias.as_deref(), |select, value| {
+            select.filter(contains(Column::Alias, value))
+        })
+        .apply_if(filter.display_name.as_deref(), |select, value| {
+            select.filter(contains(Column::DisplayName, value))
+        })
+        .apply_if(filter.provider_id.as_deref(), |select, value| {
+            select.filter(Column::ProviderId.eq(value))
+        })
+        .apply_if(filter.enabled, |select, value| {
+            select.filter(Column::Enabled.eq(value))
+        })
+        .apply_if(filter.health, |select, value| select.filter(health(value)))
+}
 
 /// PostgreSQL implementation of the IdentityProviderRepository trait
 ///
@@ -135,6 +205,26 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         Ok(identity_providers)
     }
 
+    #[instrument(skip(self, scope, request), fields(realm_id = ?scope.id()))]
+    async fn list(
+        &self,
+        scope: &RealmScope,
+        request: &PageRequest<IdentityProviderFilter, IdentityProviderSortField>,
+    ) -> Result<Page<IdentityProvider>, CoreError> {
+        let select = listing_select(scope.id().into(), &request.filter);
+        let (models, total) = paginate(&self.db, select, request).await.map_err(|e| {
+            tracing::error!("Failed to list identity providers: {}", e);
+            CoreError::InternalServerError
+        })?;
+
+        Ok(Page::new(
+            models.into_iter().map(IdentityProvider::from).collect(),
+            total,
+            request.page,
+            request.limit,
+        ))
+    }
+
     #[instrument(skip(self, request), fields(identity_provider_id = %provider.get().id))]
     async fn update_identity_provider(
         &self,
@@ -233,5 +323,109 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             })?;
 
         Ok(count > 0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::{DbBackend, QueryTrait};
+    use uuid::Uuid;
+
+    use super::listing_select;
+    use crate::domain::abyss::identity_provider::{IdentityProviderFilter, IdentityProviderHealth};
+
+    fn sql(filter: &IdentityProviderFilter) -> String {
+        listing_select(Uuid::nil(), filter)
+            .build(DbBackend::Postgres)
+            .to_string()
+    }
+
+    fn health(value: IdentityProviderHealth) -> String {
+        sql(&IdentityProviderFilter {
+            health: Some(value),
+            ..IdentityProviderFilter::default()
+        })
+    }
+
+    const MISSING_CLIENT_ID: &str = r#"COALESCE("identity_providers"."config" -> 'client_id', 'null'::jsonb) IN ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)"#;
+    const MISSING_SECRET: &str = r#"COALESCE("identity_providers"."config" -> 'client_secret', 'null'::jsonb) IN ('null'::jsonb, 'false'::jsonb, '0'::jsonb)"#;
+    const MISSING_SCOPES: &str = r#"COALESCE("identity_providers"."config" -> 'scopes', 'null'::jsonb) IN ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)"#;
+
+    #[test]
+    fn listing_is_always_bound_to_the_realm() {
+        let sql = sql(&IdentityProviderFilter::default());
+        assert!(
+            sql.contains(
+                r#""identity_providers"."realm_id" = '00000000-0000-0000-0000-000000000000'"#
+            ),
+            "{sql}"
+        );
+        assert!(!sql.contains("->"), "{sql}");
+    }
+
+    #[test]
+    fn text_filters_are_escaped_contains_matches() {
+        let sql = sql(&IdentityProviderFilter {
+            alias: Some("a%".to_string()),
+            display_name: Some("b".to_string()),
+            ..IdentityProviderFilter::default()
+        });
+        assert!(
+            sql.contains(r#""identity_providers"."alias" ILIKE E'%a\\%%'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""identity_providers"."display_name" ILIKE '%b%'"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn provider_type_and_enabled_are_exact_matches() {
+        let sql = sql(&IdentityProviderFilter {
+            provider_id: Some("oidc".to_string()),
+            enabled: Some(false),
+            ..IdentityProviderFilter::default()
+        });
+        assert!(
+            sql.contains(r#""identity_providers"."provider_id" = 'oidc'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""identity_providers"."enabled" = FALSE"#),
+            "{sql}"
+        );
+    }
+
+    #[test]
+    fn error_health_is_any_required_key_missing() {
+        let sql = health(IdentityProviderHealth::Error);
+        assert!(sql.contains(MISSING_CLIENT_ID), "{sql}");
+        assert!(sql.contains(MISSING_SECRET), "{sql}");
+        assert!(sql.contains(" OR "), "{sql}");
+        assert!(!sql.contains("'scopes'"), "{sql}");
+    }
+
+    #[test]
+    fn degraded_and_healthy_split_complete_configs_on_scopes() {
+        let degraded = health(IdentityProviderHealth::Degraded);
+        assert!(
+            degraded.contains(&format!("AND (NOT (({MISSING_CLIENT_ID}) OR")),
+            "{degraded}"
+        );
+        assert!(
+            degraded.contains(&format!(")))) AND ({MISSING_SCOPES})")),
+            "{degraded}"
+        );
+
+        let healthy = health(IdentityProviderHealth::Healthy);
+        assert!(
+            healthy.contains(&format!("AND (NOT (({MISSING_CLIENT_ID}) OR")),
+            "{healthy}"
+        );
+        assert!(
+            healthy.contains(&format!(")))) AND (NOT ({MISSING_SCOPES}))")),
+            "{healthy}"
+        );
     }
 }

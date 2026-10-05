@@ -103,7 +103,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         permissions: &[Permissions::ManageRealm, Permissions::ManageUsers],
         self_bypass: false,
         file: "core/src/domain/abyss/identity_provider_services.rs",
-        line: 96,
+        line: 98,
     },
     AuthzRow {
         service_fn: "create_identity_provider",
@@ -116,7 +116,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/abyss/identity_provider_services.rs",
-        line: 169,
+        line: 171,
     },
     AuthzRow {
         service_fn: "get_identity_provider",
@@ -130,7 +130,21 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/abyss/identity_provider_services.rs",
-        line: 232,
+        line: 234,
+    },
+    AuthzRow {
+        service_fn: "list_identity_providers",
+        policy_fn: "can_view_identity_provider",
+        action: actions::IDENTITY_PROVIDER_READ,
+        resource: EntityType::REALM,
+        permissions: &[
+            Permissions::ManageRealm,
+            Permissions::ManageIdentityProviders,
+            Permissions::ViewIdentityProviders,
+        ],
+        self_bypass: false,
+        file: "core/src/domain/abyss/identity_provider_services.rs",
+        line: 260,
     },
     AuthzRow {
         service_fn: "update_identity_provider",
@@ -143,7 +157,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/abyss/identity_provider_services.rs",
-        line: 307,
+        line: 299,
     },
     AuthzRow {
         service_fn: "delete_identity_provider",
@@ -156,7 +170,7 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         ],
         self_bypass: false,
         file: "core/src/domain/abyss/identity_provider_services.rs",
-        line: 359,
+        line: 352,
     },
     AuthzRow {
         service_fn: "create_client",
