@@ -229,6 +229,7 @@ pub struct ClientFilter {
     pub search: Option<String>,
     pub name: Option<String>,
     pub client_id: Option<String>,
+    pub client_id_exact: Option<String>,
     pub enabled: Option<bool>,
     pub public_client: Option<bool>,
     pub service_account_enabled: Option<bool>,

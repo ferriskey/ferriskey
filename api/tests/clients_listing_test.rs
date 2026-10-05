@@ -869,6 +869,35 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test clients_listing_test -- --ignored"]
+    fn client_id_exact_returns_only_the_client_with_that_exact_identifier() {
+        let server = make_server();
+        rt().block_on(async {
+            let expected = matching(|seed| seed.client_id == "app-02");
+            assert_eq!(expected.len(), 1);
+            let body = list_ok(&server, &ctx().realm, "client_id_exact=app-02").await;
+            assert_eq!(total(&body), 1, "{body}");
+            assert_eq!(ids(&body).into_iter().collect::<HashSet<_>>(), expected);
+
+            let containing = list_ok(&server, &ctx().realm, "client_id=app-0").await;
+            assert_eq!(total(&containing), 10, "app-00..app-09 contain app-0");
+            let exact = list_ok(&server, &ctx().realm, "client_id_exact=app-0").await;
+            assert_eq!(total(&exact), 0, "{exact}");
+            assert!(ids(&exact).is_empty(), "{exact}");
+
+            let upper = list_ok(&server, &ctx().realm, "client_id_exact=APP-02").await;
+            assert_eq!(total(&upper), 0, "{upper}");
+
+            let foreign = ctx().foreign_client_id;
+            let witness = list_ok(&server, &ctx().other_realm, "client_id_exact=foreign-50").await;
+            assert_eq!(ids(&witness), [foreign]);
+            let body = list_ok(&server, &ctx().realm, "client_id_exact=foreign-50").await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test clients_listing_test -- --ignored"]
     fn a_caller_without_rights_on_the_realm_lists_nothing() {
         let server = make_server();
         rt().block_on(async {

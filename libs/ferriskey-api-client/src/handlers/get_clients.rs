@@ -26,6 +26,8 @@ pub struct ClientListParams {
     pub search: Option<String>,
     pub name: Option<String>,
     pub client_id: Option<String>,
+    #[param(example = "app-web")]
+    pub client_id_exact: Option<String>,
     pub enabled: Option<bool>,
     pub public_client: Option<bool>,
     pub service_account_enabled: Option<bool>,
@@ -50,6 +52,7 @@ impl TryFrom<ClientListParams> for ClientFilter {
             search: params.search,
             name: params.name,
             client_id: params.client_id,
+            client_id_exact: params.client_id_exact,
             enabled: params.enabled,
             public_client: params.public_client,
             service_account_enabled: params.service_account_enabled,
@@ -72,7 +75,7 @@ impl TryFrom<ClientListParams> for ClientFilter {
     get,
     path = "",
     summary = "List the clients of a realm",
-    description = "Returns one page of the realm's clients. search matches case-insensitively anywhere in the name or the client_id; the text filters name and client_id match case-insensitively anywhere in that value; enabled, public_client, service_account_enabled, protocol and client_type match exactly; oauth_device_code_grant_enabled treats an unset value as false; application_type keeps m2m clients (service account), device clients (device grant and no redirect URI), spa and native clients (public client type, with or without public_client) and web clients (any other client type); has_redirect_uris keeps clients with at least one redirect URI (true) or none (false), disabled redirect URIs included; maintenance_enabled keeps clients in maintenance (true) or not (false); ids takes a comma-separated list of at most 100 client ids. Filters combine with AND.",
+    description = "Returns one page of the realm's clients. search matches case-insensitively anywhere in the name or the client_id; the text filters name and client_id match case-insensitively anywhere in that value; client_id_exact keeps the client whose client_id equals the value exactly, case-sensitive; enabled, public_client, service_account_enabled, protocol and client_type match exactly; oauth_device_code_grant_enabled treats an unset value as false; application_type keeps m2m clients (service account), device clients (device grant and no redirect URI), spa and native clients (public client type, with or without public_client) and web clients (any other client type); has_redirect_uris keeps clients with at least one redirect URI (true) or none (false), disabled redirect URIs included; maintenance_enabled keeps clients in maintenance (true) or not (false); ids takes a comma-separated list of at most 100 client ids. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         PaginationParams,
@@ -121,7 +124,7 @@ mod tests {
         let first = Uuid::new_v4();
         let second = Uuid::new_v4();
         let request = parse_list_query::<ClientListParams, ClientSortField>(&format!(
-            "order_by=client_id&order=asc&search=po&name=web&client_id=app&enabled=true&public_client=false&service_account_enabled=true&oauth_device_code_grant_enabled=false&protocol=openid-connect&client_type=public&application_type=native&has_redirect_uris=false&maintenance_enabled=true&ids={first},{second}"
+            "order_by=client_id&order=asc&search=po&name=web&client_id=app&client_id_exact=App-Web&enabled=true&public_client=false&service_account_enabled=true&oauth_device_code_grant_enabled=false&protocol=openid-connect&client_type=public&application_type=native&has_redirect_uris=false&maintenance_enabled=true&ids={first},{second}"
         ))
         .expect("valid query");
 
@@ -133,6 +136,7 @@ mod tests {
                 search: Some("po".to_string()),
                 name: Some("web".to_string()),
                 client_id: Some("app".to_string()),
+                client_id_exact: Some("App-Web".to_string()),
                 enabled: Some(true),
                 public_client: Some(false),
                 service_account_enabled: Some(true),

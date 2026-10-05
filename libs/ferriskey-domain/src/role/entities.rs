@@ -31,6 +31,7 @@ impl RealmOwned for Role {
 pub struct RoleFilter {
     pub search: Option<String>,
     pub name: Option<String>,
+    pub qualified_name: Option<String>,
     pub description: Option<String>,
     pub require_mfa: Option<bool>,
     pub client_id: Option<Uuid>,

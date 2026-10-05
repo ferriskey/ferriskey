@@ -91,6 +91,9 @@ mod tests {
         foreign_role_id: Uuid,
         dotted_realm: String,
         dotted_role_id: Uuid,
+        collide_realm: String,
+        collide_realm_role: Uuid,
+        collide_client_role: Uuid,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -194,6 +197,8 @@ mod tests {
         create_realm(&server, &admin_token, &realm).await;
         create_realm(&server, &admin_token, &other_realm).await;
         create_realm(&server, &admin_token, &dotted_realm).await;
+        let collide_realm = format!("collide-{}", &suffix[..8]);
+        create_realm(&server, &admin_token, &collide_realm).await;
 
         let realm_id = realm_id_of(&pool, &realm).await;
         let other_realm_id = realm_id_of(&pool, &other_realm).await;
@@ -242,6 +247,14 @@ mod tests {
         insert_plain_role(&pool, dotted_realm_id, "admin", Some(app_web)).await;
         insert_plain_role(&pool, dotted_realm_id, "web.ns", None).await;
 
+        let collide_realm_id = realm_id_of(&pool, &collide_realm).await;
+        let client_a = insert_client(&pool, collide_realm_id, "a").await;
+        let collide_realm_role = insert_plain_role(&pool, collide_realm_id, "a.b", None).await;
+        let collide_client_role =
+            insert_plain_role(&pool, collide_realm_id, "b", Some(client_a)).await;
+        insert_plain_role(&pool, collide_realm_id, "a.bc", None).await;
+        insert_plain_role(&pool, collide_realm_id, "bb", Some(client_a)).await;
+
         let viewer_username = format!("viewer-{}", &suffix[..8]);
         let viewer_id = create_user(&server, &admin_token, &other_realm, &viewer_username).await;
         set_password(
@@ -284,6 +297,9 @@ mod tests {
             foreign_role_id,
             dotted_realm,
             dotted_role_id,
+            collide_realm,
+            collide_realm_role,
+            collide_client_role,
         }
     }
 
@@ -763,6 +779,125 @@ mod tests {
             let elsewhere = list_ok(&server, &ctx().realm, "search=app-web.ns.admin").await;
             assert!(ids(&elsewhere).is_empty(), "{elsewhere}");
             assert_eq!(total(&elsewhere), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn qualified_name_finds_exactly_the_role_the_mapper_stored() {
+        let server = make_server();
+        let realm_role = matching(|s| s.name == "role-00" && s.link == Link::None);
+        let client_role = matching(|s| s.name == "role-01" && s.link == Link::First);
+        assert_eq!(realm_role.len(), 1);
+        assert_eq!(client_role.len(), 1);
+        rt().block_on(async {
+            for (query, expected) in [
+                ("qualified_name=role-00", &realm_role),
+                ("qualified_name=first-app.role-01", &client_role),
+            ] {
+                let body = list_ok(&server, &ctx().realm, query).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(&found, expected, "{query}: rows");
+                assert_eq!(total(&body), 1, "{query}: total");
+            }
+
+            for query in [
+                "qualified_name=role-01",
+                "qualified_name=role-0",
+                "qualified_name=first-app.role-0",
+                "qualified_name=FIRST-APP.role-01",
+                "qualified_name=ROLE-00",
+            ] {
+                let body = list_ok(&server, &ctx().realm, query).await;
+                assert!(ids(&body).is_empty(), "{query}: {body}");
+                assert_eq!(total(&body), 0, "{query}: total");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn qualified_name_matches_a_role_name_containing_a_dot() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().dotted_realm,
+                "qualified_name=app-web.ns.admin",
+            )
+            .await;
+            assert_eq!(ids(&body), [ctx().dotted_role_id]);
+            assert_eq!(total(&body), 1);
+
+            let admin = list_ok(&server, &ctx().dotted_realm, "qualified_name=app-web.admin").await;
+            assert_eq!(names(&admin), ["admin"]);
+            assert_eq!(total(&admin), 1);
+
+            let realm_role = list_ok(&server, &ctx().dotted_realm, "qualified_name=web.ns").await;
+            assert_eq!(names(&realm_role), ["web.ns"]);
+            assert_eq!(total(&realm_role), 1);
+
+            let partial = list_ok(
+                &server,
+                &ctx().dotted_realm,
+                "qualified_name=app-web.ns.adm",
+            )
+            .await;
+            assert!(ids(&partial).is_empty(), "{partial}");
+            assert_eq!(total(&partial), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn qualified_name_returns_both_a_realm_role_and_a_client_role_with_the_same_value() {
+        let server = make_server();
+        rt().block_on(async {
+            let witness = list_ok(&server, &ctx().collide_realm, "limit=100").await;
+            assert_eq!(total(&witness), 4);
+
+            let body = list_ok(
+                &server,
+                &ctx().collide_realm,
+                "qualified_name=a.b&limit=100",
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+            assert_eq!(
+                found,
+                HashSet::from([ctx().collide_realm_role, ctx().collide_client_role])
+            );
+            assert_eq!(total(&body), 2);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn qualified_name_never_reaches_another_realm() {
+        let server = make_server();
+        rt().block_on(async {
+            let witness = list_ok(
+                &server,
+                &ctx().other_realm,
+                "qualified_name=foreign-app.role-50",
+            )
+            .await;
+            assert_eq!(ids(&witness), [ctx().foreign_role_id]);
+            assert_eq!(total(&witness), 1);
+            let body = list_ok(&server, &ctx().realm, "qualified_name=foreign-app.role-50").await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+
+            let witness = list_ok(&server, &ctx().other_realm, "qualified_name=role-51").await;
+            assert_eq!(names(&witness), ["role-51"]);
+            let body = list_ok(&server, &ctx().realm, "qualified_name=role-51").await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+
+            let witness = list_ok(&server, &ctx().collide_realm, "qualified_name=a.b").await;
+            assert_eq!(total(&witness), 2);
+            let body = list_ok(&server, &ctx().dotted_realm, "qualified_name=a.b").await;
+            assert_eq!(total(&body), 0, "{body}");
         });
     }
 

@@ -110,6 +110,9 @@ fn listing_select(realm_id: Uuid, filter: &ClientFilter) -> Select<clients::Enti
         .apply_if(filter.client_id.as_deref(), |select, value| {
             select.filter(contains(clients::Column::ClientId, value))
         })
+        .apply_if(filter.client_id_exact.as_deref(), |select, value| {
+            select.filter(clients::Column::ClientId.eq(value))
+        })
         .apply_if(filter.enabled, |select, value| {
             select.filter(clients::Column::Enabled.eq(value))
         })
@@ -460,6 +463,16 @@ mod tests {
             sql.contains(r#""clients"."client_id" ILIKE '%b%'"#),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn exact_client_id_is_a_case_sensitive_equality() {
+        let sql = sql(&ClientFilter {
+            client_id_exact: Some("App_%".to_string()),
+            ..ClientFilter::default()
+        });
+        assert!(sql.contains(r#""clients"."client_id" = 'App_%'"#), "{sql}");
+        assert!(!sql.contains("ILIKE"), "{sql}");
     }
 
     #[test]
