@@ -233,7 +233,7 @@ export default function PageUsersOverview({
           hint: t('list.metrics.total.hint'),
           series: [counts.total, counts.total],
           tone: 'info',
-          onSelect: () => listing.setFilters({ enabled: '', email_verified: '' }),
+          filter: {},
         },
         {
           key: 'enabled',
@@ -247,7 +247,7 @@ export default function PageUsersOverview({
               : t('list.metrics.enabled.empty_hint'),
           series: [counts.enabled, counts.enabled],
           tone: 'success',
-          onSelect: () => listing.setFilters({ enabled: YES }),
+          filter: { enabled: YES },
         },
         {
           key: 'disabled',
@@ -256,7 +256,7 @@ export default function PageUsersOverview({
           hint: t('list.metrics.disabled.hint'),
           series: [counts.disabled, counts.disabled],
           tone: 'amber',
-          onSelect: () => listing.setFilters({ enabled: NO }),
+          filter: { enabled: NO },
         },
         {
           key: 'verified',
@@ -265,7 +265,7 @@ export default function PageUsersOverview({
           hint: t('list.metrics.verified.hint'),
           series: [counts.verified, counts.verified],
           tone: 'success',
-          onSelect: () => listing.setFilters({ email_verified: YES }),
+          filter: { email_verified: YES },
         },
       ]}
       alerts={

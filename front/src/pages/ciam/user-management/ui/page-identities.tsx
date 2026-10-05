@@ -232,7 +232,7 @@ export default function PageIdentities({
           value: counts.total,
           hint: t('identities.list.metrics.total.hint', { count: counts.total }),
           series: [counts.total, counts.total],
-          onSelect: () => listing.setFilters({ enabled: '', email_verified: '' }),
+          filter: {},
         },
         {
           key: 'verified',
@@ -245,7 +245,7 @@ export default function PageIdentities({
                 })
               : t('identities.list.metrics.verified.empty_hint'),
           series: [counts.verified, counts.verified],
-          onSelect: () => listing.setFilters({ email_verified: YES }),
+          filter: { email_verified: YES },
         },
         {
           key: 'pending',
@@ -259,7 +259,7 @@ export default function PageIdentities({
           value: counts.disabled,
           hint: t('identities.list.metrics.disabled.hint'),
           series: [counts.disabled, counts.disabled],
-          onSelect: () => listing.setFilters({ enabled: NO }),
+          filter: { enabled: NO },
         },
       ]}
       alerts={

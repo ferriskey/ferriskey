@@ -198,7 +198,7 @@ export default function PageOrganizationsOverview({
           value: counts.total,
           hint: t('list.metrics.total.hint', { count: counts.total }),
           series: [counts.total, counts.total],
-          onSelect: () => listing.setFilters({ enabled: '', has_domain: '' }),
+          filter: {},
         },
         {
           key: 'enabled',
@@ -211,7 +211,7 @@ export default function PageOrganizationsOverview({
                 })
               : t('list.metrics.enabled.empty_hint'),
           series: [counts.enabled, counts.enabled],
-          onSelect: () => listing.setFilters({ enabled: YES }),
+          filter: { enabled: YES },
         },
         {
           key: 'disabled',
@@ -219,7 +219,7 @@ export default function PageOrganizationsOverview({
           value: counts.disabled,
           hint: t('list.metrics.disabled.hint'),
           series: [counts.disabled, counts.disabled],
-          onSelect: () => listing.setFilters({ enabled: NO }),
+          filter: { enabled: NO },
         },
         {
           key: 'domain',
@@ -227,7 +227,7 @@ export default function PageOrganizationsOverview({
           value: counts.withDomain,
           hint: t('list.metrics.domain.hint'),
           series: [counts.withDomain, counts.withDomain],
-          onSelect: () => listing.setFilters({ has_domain: YES }),
+          filter: { has_domain: YES },
         },
       ]}
       alerts={

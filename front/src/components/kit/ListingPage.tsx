@@ -1,14 +1,14 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, CheckCircle2, LayoutGrid, List, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, LayoutGrid, List } from 'lucide-react'
 import { Button } from '@/components/kit/button'
 import type { ChartTone } from './charts'
 import { MetricsBand } from './MetricsBand'
 import { DataView, type CardSpec, type Column, type ViewMode } from './DataView'
 import { PageShell } from './page-shell'
 import { FilterBar, type FilterField } from './FilterBar'
-import { clearColumnFilters, countActiveFilters } from './column-filter-state'
-import { SearchInput } from './SearchInput'
+import { ListingToolbar } from './ListingToolbar'
+import type { TileFilter } from './metric-tile-filter'
 import { PaginationBar } from './PaginationBar'
 import type { PaginationMetadata } from './listing-query-state'
 import type { PagedListing } from './use-paged-listing'
@@ -24,7 +24,7 @@ export interface ListingMetric {
   delta?: number
   series?: (number | null)[]
   tone?: ChartTone
-  onSelect?: () => void
+  filter?: TileFilter
 }
 
 export interface ListingAlert {
@@ -61,8 +61,6 @@ export interface ListingPageProps<T> {
   defaultView?: ViewMode
   loading?: boolean
 }
-
-const SEARCH_KEY = 'search'
 
 const VIEW_MODES = [
   ['list', List],
@@ -103,10 +101,6 @@ export function ListingPage<T>({
 
   const narrowed = Object.values(paged.listing.state.filters).some(Boolean)
   const filteredOut = narrowed && rows.length === 0
-
-  const activeFilters = countActiveFilters(columns, paged.listing.state.filters)
-  const clearColumns = () =>
-    paged.listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
 
   const entryCount =
     paged.pagination && t('data_view.entry_count', { count: paged.pagination.total })
@@ -166,54 +160,47 @@ export function ListingPage<T>({
           </ul>
         )}
 
-        <MetricsBand metrics={metrics ?? []} />
+        <MetricsBand
+          metrics={metrics ?? []}
+          filtering={{ filters: paged.listing.state.filters, onChange: paged.listing.setFilters }}
+        />
 
         {insights}
 
-        <div className='flex flex-wrap items-center gap-2'>
-          {paged.filterFields && (
-            <FilterBar fields={paged.filterFields} listing={paged.listing} />
-          )}
-
-          {paged.search && (
-            <SearchInput
-              value={paged.listing.drafts[SEARCH_KEY] ?? ''}
-              onChange={(value) => paged.listing.setDraft(SEARCH_KEY, value)}
-              placeholder={paged.search.placeholder}
-            />
-          )}
-
-          {activeFilters > 0 && (
-            <Button variant='ghost' size='sm' onClick={clearColumns}>
-              <X />
-              {t('listing.clear_filters', { count: activeFilters })}
-            </Button>
-          )}
-
-          {!paged.filterFields && !paged.search && <div className='flex-1' />}
-
-          {tokens.toolbar.showViewToggle && tier !== 'phone' && (
-            <div className='flex rounded-md border border-fk-line p-0.5'>
-              {VIEW_MODES.map(([mode, Icon]) => (
-                <button
-                  key={mode}
-                  type='button'
-                  onClick={() => setView(mode)}
-                  aria-label={t(`data_view.view_mode.${mode}`)}
-                  aria-pressed={view === mode}
-                  className={cn(
-                    'grid size-6 cursor-pointer place-items-center rounded transition-colors',
-                    view === mode
-                      ? 'bg-fk-primary-soft text-fk-primary-text'
-                      : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
-                  )}
-                >
-                  <Icon className='size-3.5' />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <ListingToolbar
+          listing={paged.listing}
+          columns={columns}
+          search={paged.search}
+          leading={
+            paged.filterFields && <FilterBar fields={paged.filterFields} listing={paged.listing} />
+          }
+          trailing={
+            <>
+              {!paged.filterFields && !paged.search && <div className='flex-1' />}
+              {tokens.toolbar.showViewToggle && tier !== 'phone' && (
+                <div className='flex rounded-md border border-fk-line p-0.5'>
+                  {VIEW_MODES.map(([mode, Icon]) => (
+                    <button
+                      key={mode}
+                      type='button'
+                      onClick={() => setView(mode)}
+                      aria-label={t(`data_view.view_mode.${mode}`)}
+                      aria-pressed={view === mode}
+                      className={cn(
+                        'grid size-6 cursor-pointer place-items-center rounded transition-colors',
+                        view === mode
+                          ? 'bg-fk-primary-soft text-fk-primary-text'
+                          : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300'
+                      )}
+                    >
+                      <Icon className='size-3.5' />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          }
+        />
 
         {searchScopeHint && (
           <p className='-mt-1 text-xs text-neutral-400 dark:text-neutral-500'>{searchScopeHint}</p>

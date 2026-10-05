@@ -242,8 +242,7 @@ export default function PageClientScopesOverview({
             hint: t('list.metrics.total.hint'),
             series: [counts.total, counts.total],
             tone: 'info',
-            onSelect: () =>
-              listing.setFilters({ default_scope_type: '', has_protocol_mappers: '' }),
+            filter: {},
           },
           {
             key: 'default',
@@ -257,7 +256,7 @@ export default function PageClientScopesOverview({
                 : t('list.metrics.default.empty_hint'),
             series: [counts.default, counts.default],
             tone: 'success',
-            onSelect: () => listing.setFilters({ default_scope_type: 'DEFAULT' }),
+            filter: { default_scope_type: 'DEFAULT' },
           },
           {
             key: 'optional',
@@ -266,7 +265,7 @@ export default function PageClientScopesOverview({
             hint: t('list.metrics.optional.hint'),
             series: [counts.optional, counts.optional],
             tone: 'violet',
-            onSelect: () => listing.setFilters({ default_scope_type: 'OPTIONAL' }),
+            filter: { default_scope_type: 'OPTIONAL' },
           },
           {
             key: 'mappers',
@@ -275,7 +274,7 @@ export default function PageClientScopesOverview({
             hint: t('list.metrics.mappers.hint'),
             series: [counts.withMappers, counts.withMappers],
             tone: 'info',
-            onSelect: () => listing.setFilters({ has_protocol_mappers: YES }),
+            filter: { has_protocol_mappers: YES },
           },
         ]}
         alerts={

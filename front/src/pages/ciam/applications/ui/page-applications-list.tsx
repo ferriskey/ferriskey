@@ -193,7 +193,7 @@ export default function PageApplicationsList({
       value: counts.total,
       series: [counts.total, counts.total],
       tone: 'primary',
-      onSelect: () => listing.setFilters({ application_type: '' }),
+      filter: {},
     },
     ...applicationTypeMetas(t).map((meta) => ({
       key: meta.key,
@@ -201,7 +201,7 @@ export default function PageApplicationsList({
       value: counts[meta.key],
       series: [counts[meta.key], counts[meta.key]],
       tone: metricTone(meta.tone),
-      onSelect: () => listing.setFilters({ application_type: meta.key }),
+      filter: { application_type: meta.key },
     })),
   ]
 

@@ -256,7 +256,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.total.hint'),
             series: [counts.total, counts.total],
             tone: 'info',
-            onSelect: () => listing.setFilters({ enabled: '', public_client: '' }),
+            filter: {},
           },
           {
             key: 'active',
@@ -265,7 +265,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.active.hint'),
             series: [counts.active, counts.active],
             tone: 'success',
-            onSelect: () => listing.setFilters({ enabled: YES }),
+            filter: { enabled: YES },
           },
           {
             key: 'public',
@@ -274,7 +274,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.public.hint'),
             series: [counts.public, counts.public],
             tone: 'info',
-            onSelect: () => listing.setFilters({ public_client: YES }),
+            filter: { public_client: YES },
           },
           {
             key: 'confidential',
@@ -283,7 +283,7 @@ export default function PageClientsOverview({
             hint: t('list.metrics.confidential.hint'),
             series: [counts.confidential, counts.confidential],
             tone: 'violet',
-            onSelect: () => listing.setFilters({ public_client: NO }),
+            filter: { public_client: NO },
           },
         ]}
         alerts={[

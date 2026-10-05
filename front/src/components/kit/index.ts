@@ -23,7 +23,9 @@ export type { ListingPageProps, ListingMetric, ListingAlert } from './ListingPag
 export { DataView } from './DataView'
 export type { Column, CardSpec, ViewMode } from './DataView'
 export { MetricsBand } from './MetricsBand'
-export type { Metric } from './MetricsBand'
+export type { Metric, MetricsBandFilter } from './MetricsBand'
+export { isTileSelected, tileFilterKeys, tileFilterPatch } from './metric-tile-filter'
+export type { TileFilter } from './metric-tile-filter'
 export { Sparkline, ActivityChart } from './charts'
 export type { ChartTone, ActivityChartProps } from './charts'
 
@@ -55,6 +57,7 @@ export type { FilterField } from './FilterBar'
 export { ColumnFilter } from './ColumnFilter'
 export { DateRangeFilter } from './DateRangeFilter'
 export { SearchInput } from './SearchInput'
+export { ListingToolbar } from './ListingToolbar'
 export {
   activeFieldCount,
   clearColumnFilters,

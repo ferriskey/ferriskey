@@ -1,17 +1,15 @@
 import { useState } from 'react'
-import { Shield, Trash2, UserPlus, X } from 'lucide-react'
+import { Shield, Trash2, UserPlus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
-  clearColumnFilters,
-  countActiveFilters,
   DataView,
   EntityPicker,
   IconTile,
+  ListingToolbar,
   PaginationBar,
   Pill,
-  SearchInput,
   Section,
   StatusDot,
   type Column,
@@ -30,7 +28,6 @@ import User = Schemas.User
 const SERVICE_ACCOUNT_INITIAL = 'S'
 const FALLBACK_INITIAL = 'U'
 const EMPTY_VALUE = '—'
-const SEARCH_KEY = 'search'
 const MEMBERS_VIEW: ViewMode = 'list'
 
 export interface OrganizationMemberRow {
@@ -209,10 +206,6 @@ export default function OrganizationMembersTab({
     },
   ]
 
-  const activeFilters = countActiveFilters(columns, listing.state.filters)
-  const clearColumns = () =>
-    listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
-
   return (
     <>
       <Section
@@ -252,19 +245,11 @@ export default function OrganizationMembersTab({
         contained={false}
       >
         <div className='flex flex-col gap-3'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <SearchInput
-              value={listing.drafts[SEARCH_KEY] ?? ''}
-              onChange={(value) => listing.setDraft(SEARCH_KEY, value)}
-              placeholder={t('detail.members.search_placeholder')}
-            />
-            {activeFilters > 0 && (
-              <Button variant='ghost' size='sm' onClick={clearColumns}>
-                <X />
-                {t('common:listing.clear_filters', { count: activeFilters })}
-              </Button>
-            )}
-          </div>
+          <ListingToolbar
+            listing={listing}
+            columns={columns}
+            search={{ placeholder: t('detail.members.search_placeholder') }}
+          />
           <DataView
             rows={rows}
             columns={columns}

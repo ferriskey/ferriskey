@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { RotateCcw, X } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   Button,
   Column,
-  clearColumnFilters,
-  countActiveFilters,
   DataView,
+  ListingToolbar,
   PaginationBar,
   Pill,
   Section,
@@ -241,21 +240,10 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
     },
   ]
 
-  const activeFilters = countActiveFilters(columns, listing.state.filters)
-  const clearColumns = () =>
-    listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
-
   return (
     <>
       <Section title={t('delivery.title')} description={t('delivery.description')} contained={false}>
-        {activeFilters > 0 && (
-          <div className='mb-3 flex'>
-            <Button variant='ghost' size='sm' onClick={clearColumns}>
-              <X />
-              {t('common:listing.clear_filters', { count: activeFilters })}
-            </Button>
-          </div>
-        )}
+        <ListingToolbar listing={listing} columns={columns} className='mb-3' />
         {isError ? (
           <div className='rounded-md border border-fk-danger-border bg-fk-danger-soft/40 px-3 py-2.5 text-sm text-fk-danger'>
             {t('delivery.error')}

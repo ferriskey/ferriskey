@@ -93,8 +93,8 @@ export default function PageRolesOverview({
           key: 'scope',
           label: t('list.filter_fields.scope'),
           options: [
-            { value: 'realm', label: t('list.filters.realm') },
-            { value: 'client', label: t('list.filters.client') },
+            { value: REALM_SCOPE, label: t('list.filters.realm') },
+            { value: CLIENT_SCOPE, label: t('list.filters.client') },
           ],
         },
         {
@@ -209,7 +209,7 @@ export default function PageRolesOverview({
           hint: t('list.metrics.total.hint'),
           series: [counts.total, counts.total],
           tone: 'info',
-          onSelect: () => listing.setFilters({ scope: '', has_permissions: '' }),
+          filter: {},
         },
         {
           key: 'realm',
@@ -223,7 +223,7 @@ export default function PageRolesOverview({
               : t('list.metrics.realm.empty_hint'),
           series: [counts.realm, counts.realm],
           tone: 'info',
-          onSelect: () => listing.setFilters({ scope: REALM_SCOPE }),
+          filter: { scope: REALM_SCOPE },
         },
         {
           key: 'client',
@@ -232,7 +232,7 @@ export default function PageRolesOverview({
           hint: t('list.metrics.client.hint'),
           series: [counts.client, counts.client],
           tone: 'violet',
-          onSelect: () => listing.setFilters({ scope: CLIENT_SCOPE }),
+          filter: { scope: CLIENT_SCOPE },
         },
         {
           key: 'granting',
@@ -241,7 +241,7 @@ export default function PageRolesOverview({
           hint: t('list.metrics.granting.hint'),
           series: [counts.granting, counts.granting],
           tone: 'success',
-          onSelect: () => listing.setFilters({ has_permissions: YES }),
+          filter: { has_permissions: YES },
         },
       ]}
       alerts={

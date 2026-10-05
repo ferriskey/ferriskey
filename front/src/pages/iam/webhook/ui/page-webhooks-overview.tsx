@@ -199,7 +199,7 @@ export default function PageWebhooksOverview({
           value: counts.total,
           hint: t('list.metrics.total.hint'),
           series: [counts.total, counts.total],
-          onSelect: () => listing.setFilters({ triggered: '', has_subscribers: '' }),
+          filter: {},
         },
         {
           key: 'never',
@@ -207,7 +207,7 @@ export default function PageWebhooksOverview({
           value: counts.never,
           hint: t('list.metrics.never.hint'),
           series: [counts.never, counts.never],
-          onSelect: () => listing.setFilters({ triggered: NO }),
+          filter: { triggered: NO },
         },
         {
           key: 'silent',
@@ -215,7 +215,7 @@ export default function PageWebhooksOverview({
           value: counts.silent,
           hint: t('list.metrics.silent.hint'),
           series: [counts.silent, counts.silent],
-          onSelect: () => listing.setFilters({ has_subscribers: NO }),
+          filter: { has_subscribers: NO },
         },
       ]}
       alerts={[

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { FolderTree, Plus, Search, Trash2, X } from 'lucide-react'
+import { FolderTree, Plus, Search, Trash2 } from 'lucide-react'
 
 import { RouterParams } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
@@ -32,11 +32,9 @@ import {
 } from '@/components/ui/dialog'
 import MultipleSelector, { Option } from '@/components/ui/multiselect'
 import {
-  clearColumnFilters,
-  countActiveFilters,
   DataView,
+  ListingToolbar,
   PaginationBar,
-  SearchInput,
   usePagedListing,
   type Column,
   type ColumnFilterField,
@@ -76,7 +74,6 @@ import {
 import { useLocalPagedListing } from './use-local-paged-listing'
 
 const EMPTY_VALUE = '—'
-const SEARCH_KEY = 'search'
 
 const GROUPS_VIEW: ViewMode = 'list'
 
@@ -88,35 +85,6 @@ const GROUP_TAB = {
 } as const
 
 const fail = (e: unknown) => toast.error(apiErrorMessage(e, 'Request failed'))
-
-function ListingToolbar({
-  listing,
-  placeholder,
-  activeFilters,
-  onClear,
-}: {
-  listing: PagedListing
-  placeholder: string
-  activeFilters: number
-  onClear: () => void
-}) {
-  const { t } = useTranslation()
-  return (
-    <div className='flex flex-wrap items-center gap-2'>
-      <SearchInput
-        value={listing.drafts[SEARCH_KEY] ?? ''}
-        onChange={(value) => listing.setDraft(SEARCH_KEY, value)}
-        placeholder={placeholder}
-      />
-      {activeFilters > 0 && (
-        <Button variant='ghost' size='sm' onClick={onClear}>
-          <X />
-          {t('listing.clear_filters', { count: activeFilters })}
-        </Button>
-      )}
-    </div>
-  )
-}
 
 function AddMembersDialog({
   realm,
@@ -305,8 +273,6 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
     },
   ]
 
-  const activeFilters = countActiveFilters(columns, listing.state.filters)
-
   return (
     <div className='flex flex-col gap-3'>
       <div className='flex items-center justify-between'>
@@ -317,11 +283,8 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
       </div>
       <ListingToolbar
         listing={listing}
-        placeholder={t('groups.members.search_placeholder')}
-        activeFilters={activeFilters}
-        onClear={() =>
-          listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
-        }
+        columns={columns}
+        search={{ placeholder: t('groups.members.search_placeholder') }}
       />
       <DataView
         rows={members}
@@ -779,11 +742,8 @@ function GroupsTable({
     <div className='flex flex-col gap-3'>
       <ListingToolbar
         listing={listing}
-        placeholder={t('groups.list.search_placeholder')}
-        activeFilters={countActiveFilters(columns, listing.state.filters)}
-        onClear={() =>
-          listing.setFilters(clearColumnFilters(columns.flatMap((col) => col.filters ?? [])))
-        }
+        columns={columns}
+        search={{ placeholder: t('groups.list.search_placeholder') }}
       />
       <DataView
         rows={groups}
