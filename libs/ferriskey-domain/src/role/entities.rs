@@ -4,6 +4,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::client::entities::Client;
+use crate::common::pagination::DateRange;
 use crate::realm::RealmId;
 use crate::realm::scope::RealmOwned;
 
@@ -38,6 +39,7 @@ pub struct RoleFilter {
     pub scope: Option<RoleScope>,
     pub has_permissions: Option<bool>,
     pub ids: Option<Vec<Uuid>>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

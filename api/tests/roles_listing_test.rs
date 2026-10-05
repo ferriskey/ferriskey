@@ -1141,6 +1141,84 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn created_range_is_inclusive_from_and_exclusive_to() {
+        let server = make_server();
+        let cases: [(&str, HashSet<Uuid>); 6] = [
+            (
+                "created_from=2026-01-01T00:05:00Z",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_to=2026-01-01T00:02:00Z",
+                matching(|s| s.created_minute < 2),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z",
+                matching(|s| (2..5).contains(&s.created_minute)),
+            ),
+            (
+                "created_from=2026-01-01T00:03:00Z&created_to=2026-01-01T00:04:00Z",
+                matching(|s| s.created_minute == 3),
+            ),
+            (
+                "created_from=2026-01-01T02:05:00%2B02:00",
+                matching(|s| s.created_minute >= 5),
+            ),
+            (
+                "created_from=2026-01-01T00:02:00Z&created_to=2026-01-01T00:05:00Z&name=role-1",
+                matching(|s| (2..5).contains(&s.created_minute) && s.name.contains("role-1")),
+            ),
+        ];
+
+        rt().block_on(async {
+            for (query, expected) in cases {
+                assert!(
+                    !expected.is_empty() && expected.len() < SEED_COUNT,
+                    "{query}: the fixture must make this range discriminating"
+                );
+                let body = list_ok(&server, &ctx().realm, &format!("{query}&limit=100")).await;
+                let found: HashSet<Uuid> = ids(&body).into_iter().collect();
+                assert_eq!(found, expected, "{query}: rows");
+                assert_eq!(total(&body), expected.len() as u64, "{query}: total");
+            }
+
+            let edge = list_ok(
+                &server,
+                &ctx().realm,
+                "created_to=2026-01-01T00:03:00Z&limit=100",
+            )
+            .await;
+            let found: HashSet<Uuid> = ids(&edge).into_iter().collect();
+            assert!(
+                ctx()
+                    .seeds
+                    .iter()
+                    .filter(|s| s.created_minute == 3)
+                    .all(|s| !found.contains(&s.id)),
+                "a row created exactly at created_to is excluded"
+            );
+            assert_eq!(found, matching(|s| s.created_minute < 3));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
+    fn an_inverted_created_range_is_an_empty_page() {
+        let server = make_server();
+        rt().block_on(async {
+            let body = list_ok(
+                &server,
+                &ctx().realm,
+                "created_from=2026-01-01T00:05:00Z&created_to=2026-01-01T00:02:00Z",
+            )
+            .await;
+            assert!(ids(&body).is_empty(), "{body}");
+            assert_eq!(total(&body), 0);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test roles_listing_test -- --ignored"]
     fn invalid_query_parameters_are_rejected() {
         let server = make_server();
         rt().block_on(async {
@@ -1156,6 +1234,9 @@ mod tests {
                 ("ids=not-a-uuid", "ids"),
                 ("name=a&name=b", "name"),
                 ("search=a&search=b", "search"),
+                ("created_from=2026-10-05", "created_from"),
+                ("created_to=2026-10-05", "created_to"),
+                ("created_from=yesterday", "created_from"),
             ] {
                 let response = list(&server, &ctx().admin_token, &ctx().realm, query).await;
                 assert_eq!(response.status_code(), 400, "{query}: {}", response.text());

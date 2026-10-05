@@ -1678,6 +1678,7 @@ name = "ferriskey-api-aegis"
 version = "0.9.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
@@ -1726,6 +1727,7 @@ name = "ferriskey-api-client"
 version = "0.9.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-api-role",
  "ferriskey-core",
@@ -1897,6 +1899,7 @@ name = "ferriskey-api-role"
 version = "0.9.0"
 dependencies = [
  "axum",
+ "chrono",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",

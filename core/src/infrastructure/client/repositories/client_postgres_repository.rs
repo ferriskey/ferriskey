@@ -31,7 +31,7 @@ use crate::domain::{
     },
 };
 use crate::entity::{clients, redirect_uris};
-use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use crate::infrastructure::pagination::{SortColumn, contains, paginate, within_naive};
 
 impl SortColumn<clients::Entity> for ClientSortField {
     fn column(&self) -> clients::Column {
@@ -101,6 +101,7 @@ fn search(value: &str) -> Condition {
 fn listing_select(realm_id: Uuid, filter: &ClientFilter) -> Select<clients::Entity> {
     clients::Entity::find()
         .filter(clients::Column::RealmId.eq(realm_id))
+        .filter(within_naive(clients::Column::CreatedAt, &filter.created))
         .apply_if(filter.search.as_deref(), |select, value| {
             select.filter(search(value))
         })
@@ -429,17 +430,45 @@ impl ClientRepository for PostgresClientRepository {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
     use crate::domain::authentication::entities::AuthProtocol;
     use crate::domain::client::entities::{ApplicationType, ClientFilter, ClientType};
+    use crate::domain::common::pagination::DateRange;
 
     fn sql(filter: &ClientFilter) -> String {
         listing_select(Uuid::nil(), filter)
             .build(DbBackend::Postgres)
             .to_string()
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&ClientFilter::default());
+        assert!(!sql.contains(r#""clients"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""clients"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&ClientFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..ClientFilter::default()
+        });
+        assert!(
+            sql.contains(r#""clients"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""clients"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
     }
 
     #[test]

@@ -24,7 +24,9 @@ use crate::domain::{
     },
 };
 use crate::entity::{clients, roles};
-use crate::infrastructure::pagination::{SortColumn, contains, escape_like, paginate};
+use crate::infrastructure::pagination::{
+    SortColumn, contains, escape_like, paginate, within_naive,
+};
 
 impl SortColumn<roles::Entity> for RoleSortField {
     fn column(&self) -> roles::Column {
@@ -103,6 +105,7 @@ fn search_condition(realm_id: Uuid, value: &str) -> Condition {
 fn listing_select(realm_id: Uuid, filter: &RoleFilter) -> Select<roles::Entity> {
     roles::Entity::find()
         .filter(roles::Column::RealmId.eq(realm_id))
+        .filter(within_naive(roles::Column::CreatedAt, &filter.created))
         .apply_if(filter.search.as_deref(), |select, value| {
             select.filter(search_condition(realm_id, value))
         })
@@ -349,16 +352,44 @@ impl RoleRepository for PostgresRoleRepository {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{TimeZone, Utc};
     use sea_orm::{DbBackend, QueryTrait};
     use uuid::Uuid;
 
     use super::listing_select;
+    use crate::domain::common::pagination::DateRange;
     use crate::domain::role::entities::{RoleFilter, RoleScope};
 
     fn sql(filter: &RoleFilter) -> String {
         listing_select(Uuid::nil(), filter)
             .build(DbBackend::Postgres)
             .to_string()
+    }
+
+    #[test]
+    fn an_unbounded_created_range_adds_no_predicate() {
+        let sql = sql(&RoleFilter::default());
+        assert!(!sql.contains(r#""roles"."created_at" >"#), "{sql}");
+        assert!(!sql.contains(r#""roles"."created_at" <"#), "{sql}");
+    }
+
+    #[test]
+    fn created_range_bounds_the_creation_date() {
+        let sql = sql(&RoleFilter {
+            created: DateRange::new(
+                Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single(),
+            ),
+            ..RoleFilter::default()
+        });
+        assert!(
+            sql.contains(r#""roles"."created_at" >= '2026-01-01 00:00:00.000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""roles"."created_at" < '2026-02-01 00:00:00.000000'"#),
+            "{sql}"
+        );
     }
 
     #[test]

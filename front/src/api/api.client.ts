@@ -1880,6 +1880,8 @@ export namespace Endpoints {
         default_scope_type: "NONE" | "OPTIONAL" | "DEFAULT";
         has_protocol_mappers: boolean;
         not_assigned_to_client: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -1986,6 +1988,8 @@ export namespace Endpoints {
         has_redirect_uris: boolean;
         maintenance_enabled: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "client_id" | "enabled" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };
@@ -4300,6 +4304,8 @@ export namespace Endpoints {
         scope: "realm" | "client";
         has_permissions: boolean;
         ids: string;
+        created_from: string;
+        created_to: string;
         order_by: "name" | "created_at" | "updated_at";
       }>;
       path: { realm_name: string };

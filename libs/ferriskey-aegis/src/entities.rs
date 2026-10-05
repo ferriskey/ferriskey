@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
+use ferriskey_domain::common::pagination::DateRange;
 use ferriskey_domain::realm::scope::RealmOwned;
 use ferriskey_domain::{generate_timestamp, generate_uuid_v7, realm::RealmId};
 use serde::{Deserialize, Serialize};
@@ -109,6 +110,7 @@ pub struct ClientScopeFilter {
     pub default_scope_type: Option<ScopeType>,
     pub has_protocol_mappers: Option<bool>,
     pub not_assigned_to_client: Option<Uuid>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

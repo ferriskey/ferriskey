@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::authentication::entities::AuthProtocol;
 use crate::client::entities::saml::InvalidSamlConfig;
+use crate::common::pagination::DateRange;
 use crate::realm::scope::RealmOwned;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
@@ -240,6 +241,7 @@ pub struct ClientFilter {
     pub has_redirect_uris: Option<bool>,
     pub maintenance_enabled: Option<bool>,
     pub ids: Option<Vec<Uuid>>,
+    pub created: DateRange,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]

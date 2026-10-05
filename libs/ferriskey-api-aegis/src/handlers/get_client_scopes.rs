@@ -2,6 +2,7 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use ferriskey_api_core::api_entities::{
     api_error::{ApiError, ApiErrorResponse},
     list_query::{ListQuery, PaginationParams},
@@ -14,6 +15,7 @@ use ferriskey_core::domain::aegis::entities::{
 };
 use ferriskey_core::domain::aegis::ports::ClientScopeService;
 use ferriskey_core::domain::authentication::value_objects::Identity;
+use ferriskey_core::domain::common::pagination::DateRange;
 use serde::Deserialize;
 use utoipa::IntoParams;
 use uuid::Uuid;
@@ -32,6 +34,8 @@ pub struct ClientScopeListParams {
     pub has_protocol_mappers: Option<bool>,
     #[param(example = "0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f")]
     pub not_assigned_to_client: Option<Uuid>,
+    pub created_from: Option<DateTime<Utc>>,
+    pub created_to: Option<DateTime<Utc>>,
 }
 
 impl From<ClientScopeListParams> for ClientScopeFilter {
@@ -44,6 +48,7 @@ impl From<ClientScopeListParams> for ClientScopeFilter {
             default_scope_type: params.default_scope_type,
             has_protocol_mappers: params.has_protocol_mappers,
             not_assigned_to_client: params.not_assigned_to_client,
+            created: DateRange::new(params.created_from, params.created_to),
         }
     }
 }
@@ -52,7 +57,7 @@ impl From<ClientScopeListParams> for ClientScopeFilter {
     get,
     path = "/client-scopes",
     summary = "List the client scopes of a realm",
-    description = "Returns one page of the realm's client scopes, each with its protocol mappers. Text filters (name, description) match case-insensitively anywhere in the value; search matches the name or the description; protocol and default_scope_type match exactly; has_protocol_mappers keeps scopes with at least one protocol mapper (true) or none (false); not_assigned_to_client takes a client id and keeps the scopes not yet assigned to that client. Filters combine with AND.",
+    description = "Returns one page of the realm's client scopes, each with its protocol mappers. Text filters (name, description) match case-insensitively anywhere in the value; search matches the name or the description; protocol and default_scope_type match exactly; has_protocol_mappers keeps scopes with at least one protocol mapper (true) or none (false); not_assigned_to_client takes a client id and keeps the scopes not yet assigned to that client. created_from (inclusive) and created_to (exclusive) bound the creation date and take RFC 3339 date-times with a time and an offset; an inverted range returns an empty page. Filters combine with AND.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         PaginationParams,
@@ -88,6 +93,7 @@ pub async fn get_client_scopes(
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone;
     use ferriskey_api_core::api_entities::list_query::parse_list_query;
     use ferriskey_core::domain::common::pagination::SortOrder;
 
@@ -96,7 +102,7 @@ mod tests {
     #[test]
     fn every_filter_and_sort_field_is_read() {
         let request = parse_list_query::<ClientScopeListParams, ClientScopeSortField>(
-            "order_by=name&order=asc&name=pro&description=claims&search=mail&protocol=saml&default_scope_type=OPTIONAL&has_protocol_mappers=false&not_assigned_to_client=0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f",
+            "order_by=name&order=asc&created_from=2026-01-01T00:00:00Z&created_to=2026-02-01T00:00:00%2B02:00&name=pro&description=claims&search=mail&protocol=saml&default_scope_type=OPTIONAL&has_protocol_mappers=false&not_assigned_to_client=0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f",
         )
         .expect("valid query");
 
@@ -113,6 +119,10 @@ mod tests {
                 has_protocol_mappers: Some(false),
                 not_assigned_to_client: Some(
                     Uuid::parse_str("0199a4f2-3c1e-7b8a-9f00-1a2b3c4d5e6f").expect("uuid"),
+                ),
+                created: DateRange::new(
+                    Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single(),
+                    Utc.with_ymd_and_hms(2026, 1, 31, 22, 0, 0).single(),
                 ),
             }
         );
@@ -139,6 +149,9 @@ mod tests {
             "default_scope_type=optional",
             "has_protocol_mappers=maybe",
             "not_assigned_to_client=nope",
+            "search=a&search=b",
+            "created_from=2026-10-05",
+            "created_to=2026-10-05",
         ] {
             assert!(
                 parse_list_query::<ClientScopeListParams, ClientScopeSortField>(query).is_err(),
