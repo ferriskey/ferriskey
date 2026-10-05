@@ -52,7 +52,14 @@ export type PortalThemesQuery = NonNullable<
 
 export type PortalThemesFilter = Omit<PortalThemesQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
-export const PORTAL_THEME_FILTER_KEYS = ['name', 'layout_id', 'activatable'] as const
+export const PORTAL_THEME_FILTER_KEYS = [
+  'search',
+  'name',
+  'layout_id',
+  'activatable',
+  'created_from',
+  'created_to',
+] as const
 
 export const USED_BY_PREVIEW = 5
 

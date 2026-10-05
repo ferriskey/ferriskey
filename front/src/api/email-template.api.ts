@@ -14,7 +14,13 @@ export type EmailTemplatesFilter = Omit<
   'page' | 'limit' | 'order' | 'order_by'
 >
 
-export const EMAIL_TEMPLATE_FILTER_KEYS = ['name', 'email_type'] as const
+export const EMAIL_TEMPLATE_FILTER_KEYS = [
+  'search',
+  'name',
+  'email_type',
+  'created_from',
+  'created_to',
+] as const
 
 export const EMAIL_TEMPLATE_SEARCH_LIMIT = 20
 

@@ -65,6 +65,7 @@ list:
   filters:
     name: 名称
     email_type: 类型
+    created: 创建时间
   columns:
     name: 模板
     email_type: 类型
@@ -73,7 +74,7 @@ list:
   templates:
     title: 模板
     description: '模板的类型在创建时即已固定：它决定了该模板可用的变量。'
-    search_placeholder: 筛选模板…
+    search_placeholder: 按名称搜索…
     assigned: 已分配
     meta: '{{type}} · 更新于 {{when}}'
     edit: 编辑

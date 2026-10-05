@@ -82,6 +82,8 @@ themes:
     name: Name
     layout: Layout
     activatable: Activatable
+    created: Created
+  search_placeholder: Search by name…
   columns:
     name: Name
     layout: Layout
@@ -155,6 +157,8 @@ layouts:
     name: Name
     is_default: Default
     in_use: Attached to a theme
+    created: Created
+  search_placeholder: Search by name…
   columns:
     name: Name
     updated_at: Updated

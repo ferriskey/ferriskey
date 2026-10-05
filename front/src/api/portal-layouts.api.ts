@@ -19,7 +19,14 @@ export type PortalLayoutsQuery = NonNullable<
 
 export type PortalLayoutsFilter = Omit<PortalLayoutsQuery, 'page' | 'limit' | 'order' | 'order_by'>
 
-export const PORTAL_LAYOUT_FILTER_KEYS = ['name', 'is_default', 'in_use'] as const
+export const PORTAL_LAYOUT_FILTER_KEYS = [
+  'search',
+  'name',
+  'is_default',
+  'in_use',
+  'created_from',
+  'created_to',
+] as const
 
 export const PORTAL_LAYOUT_SEARCH_LIMIT = 20
 
