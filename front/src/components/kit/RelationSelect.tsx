@@ -40,12 +40,14 @@ export function RelationSelect({
   onChange,
   label,
   noneLabel,
+  compact = false,
 }: {
   source: RelationSource
   value: string | undefined
   onChange: (id: string | undefined) => void
   label: string
   noneLabel?: string
+  compact?: boolean
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -74,13 +76,19 @@ export function RelationSelect({
         <button
           type='button'
           aria-expanded={open}
+          aria-label={compact ? label : undefined}
           className={cn(
-            'inline-flex h-8 max-w-[16rem] cursor-pointer items-center gap-1.5 rounded-md border border-fk-line bg-white px-2.5 text-sm outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15 dark:bg-fk-surface',
+            'inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-fk-line bg-white outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15 dark:bg-fk-surface',
+            compact ? 'h-7 w-full px-2 text-[13px]' : 'h-8 max-w-[16rem] px-2.5 text-sm',
             value && 'border-fk-primary-border'
           )}
         >
-          <span className='shrink-0 text-neutral-500 dark:text-neutral-400'>{label}:</span>
-          <span className='min-w-0 truncate text-neutral-900 dark:text-neutral-100'>{shown}</span>
+          {!compact && (
+            <span className='shrink-0 text-neutral-500 dark:text-neutral-400'>{label}:</span>
+          )}
+          <span className='min-w-0 flex-1 truncate text-left text-neutral-900 dark:text-neutral-100'>
+            {shown}
+          </span>
           <ChevronsUpDown className='size-3.5 shrink-0 text-neutral-400 dark:text-neutral-500' />
         </button>
       </PopoverTrigger>

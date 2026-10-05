@@ -8,6 +8,7 @@ import { ID_BATCH, idBatches } from './id-batches'
 import { clientScopesKey } from './client-scope.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type ClientsQuery = NonNullable<Endpoints.get_Get_clients['parameters']['query']>
 
@@ -18,7 +19,6 @@ export const CLIENT_SEARCH_LIMIT = 20
 export const APPLICATION_FILTER_KEYS = [
   'search',
   'name',
-  'client_id',
   'enabled',
   'application_type',
   'created_from',
@@ -28,7 +28,6 @@ export const APPLICATION_FILTER_KEYS = [
 export const CLIENT_FILTER_KEYS = [
   'search',
   'name',
-  'client_id',
   'enabled',
   'public_client',
   'service_account_enabled',
@@ -51,8 +50,9 @@ const clientsKey = (realm: string) =>
 export const useGetClients = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: ClientsQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: ClientsQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/clients', {
       path: {
@@ -60,6 +60,7 @@ export const useGetClients = ({
       },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }

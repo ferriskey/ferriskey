@@ -257,7 +257,6 @@ applications:
       disabled: Disabled
     filter_fields:
       name: Name
-      client_id: Client ID
       created: Created
       enabled: Enabled
       application_type: Type

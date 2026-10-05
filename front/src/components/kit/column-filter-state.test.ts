@@ -7,6 +7,8 @@ import {
   columnFilterIndicator,
   countActiveFilters,
   fieldKeys,
+  toggleOptionCard,
+  usesOptionCards,
   type ColumnFilterField,
 } from './column-filter-state.ts'
 
@@ -85,4 +87,25 @@ test('clearing a column only resets that column keys', () => {
     created_from: '',
     created_to: '',
   })
+})
+
+test('picking an option card selects it and picking it again clears the filter', () => {
+  const selected = toggleOptionCard('', 'openid-connect')
+  assert.equal(selected, 'openid-connect')
+  assert.equal(toggleOptionCard(selected, 'openid-connect'), '')
+  assert.equal(toggleOptionCard(selected, 'saml'), 'saml')
+})
+
+test('booleans and enums of up to three options render as option cards', () => {
+  const option = (value: string) => ({ value, label: value })
+  assert.equal(usesOptionCards({ kind: 'boolean', key: 'enabled', label: 'Enabled' }), true)
+  assert.equal(
+    usesOptionCards({ kind: 'enum', key: 'p', label: 'P', options: ['a', 'b', 'c'].map(option) }),
+    true,
+  )
+  assert.equal(
+    usesOptionCards({ kind: 'enum', key: 'p', label: 'P', options: ['a', 'b', 'c', 'd'].map(option) }),
+    false,
+  )
+  assert.equal(usesOptionCards({ kind: 'text', key: 'name', label: 'Name' }), false)
 })

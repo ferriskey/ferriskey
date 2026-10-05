@@ -103,9 +103,6 @@ export default function PageApplicationsList({
         </span>
       ),
       sortKey: 'client_id',
-      filters: [
-        { kind: 'text', key: 'client_id', label: t('applications.list.filter_fields.client_id') },
-      ],
     },
     {
       key: 'type',

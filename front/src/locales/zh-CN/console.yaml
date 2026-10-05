@@ -267,7 +267,6 @@ applications:
       disabled: 已禁用
     filter_fields:
       name: 名称
-      client_id: 客户端 ID
       created: 创建时间
       enabled: 已启用
       application_type: 类型

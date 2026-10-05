@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Endpoints } from './api.client'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export interface CreateProviderInput {
   alias: string
@@ -65,13 +66,15 @@ export const identityProvidersKey = (realm: string) =>
 export const useGetIdentityProviders = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: IdentityProvidersQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: IdentityProvidersQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/identity-providers', {
       path: { realm_name: realm ?? 'master' },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }

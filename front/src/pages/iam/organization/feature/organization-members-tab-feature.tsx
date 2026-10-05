@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ORGANIZATION_MEMBER_FILTER_KEYS,
   useAddUserToOrganization,
@@ -30,6 +30,7 @@ export default function OrganizationMembersTabFeature({
     realm,
     organizationId,
     query: listing.apiQuery as OrganizationMembersQuery,
+    keepPrevious: true,
   })
 
   const memberships = useMemo(() => data?.data ?? [], [data])
@@ -42,6 +43,8 @@ export default function OrganizationMembersTabFeature({
       return user ? [{ id: member.id, joinedAt: member.created_at, user }] : []
     })
   }, [memberships, users])
+  const [settledRows, setSettledRows] = useState<OrganizationMemberRow[] | null>(null)
+  if (!isLoading && !isLoadingUsers && settledRows !== rows) setSettledRows(rows)
 
   const notInOrganization = useMemo(
     () => ({ not_in_organization: organizationId }),
@@ -52,10 +55,10 @@ export default function OrganizationMembersTabFeature({
 
   return (
     <OrganizationMembersTab
-      rows={rows}
+      rows={isLoadingUsers && settledRows ? settledRows : rows}
       listing={listing}
       pagination={data?.metadata}
-      isLoading={isLoading || isLoadingUsers}
+      isLoading={isLoading || (isLoadingUsers && settledRows === null)}
       availableUsers={userSearch.users}
       onSearchUsers={userSearch.setSearch}
       isSearchingUsers={userSearch.isLoading}

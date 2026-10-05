@@ -5,6 +5,7 @@ import { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
 import { translate } from '@/lib/i18n'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type OrganizationsQuery = NonNullable<
   Endpoints.get_List_organizations['parameters']['query']
@@ -50,13 +51,15 @@ export const organizationsKey = (realm: string) =>
 export const useGetOrganizations = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
-}: BaseQuery & { query?: OrganizationsQuery; enabled?: boolean }) => {
+}: BaseQuery & { query?: OrganizationsQuery; enabled?: boolean } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/organizations', {
       path: { realm_name: realm ?? 'master' },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }
@@ -264,12 +267,14 @@ export const useGetOrganizationMembers = ({
   realm,
   organizationId,
   query,
-}: BaseQuery & { organizationId?: string; query?: OrganizationMembersQuery }) => {
+  keepPrevious = false,
+}: BaseQuery & { organizationId?: string; query?: OrganizationMembersQuery } & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/members', {
       path: { realm_name: realm!, organization_id: organizationId! },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: !!realm && !!organizationId,
   })
 }

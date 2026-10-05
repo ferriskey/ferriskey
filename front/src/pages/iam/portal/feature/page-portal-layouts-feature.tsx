@@ -28,6 +28,7 @@ export default function PagePortalLayoutsFeature() {
   const { data: layoutsData, isLoading } = useGetPortalLayouts({
     realm,
     query: listing.apiQuery as PortalLayoutsQuery,
+    keepPrevious: true,
   })
   const total = usePortalLayoutCount({ realm })
   const defaults = usePortalLayoutCount({ realm, filter: { is_default: true } })

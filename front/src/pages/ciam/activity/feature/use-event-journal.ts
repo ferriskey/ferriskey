@@ -36,6 +36,7 @@ export function useEventJournal(
       ...listing.apiQuery,
       event_types: filter.event_types || `${first},${second}`,
     } as SecurityEventsQuery,
+    keepPrevious: true,
   })
 
   const firstCount = useSecurityEventCount({ realm, filter: { ...filter, event_types: first } })

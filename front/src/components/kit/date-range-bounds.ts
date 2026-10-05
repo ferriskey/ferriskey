@@ -58,3 +58,41 @@ export function withRangeDay(
     ? { from: toRangeBounds(day, '').from, to: current.to }
     : { from: current.from, to: toRangeBounds('', day).to }
 }
+
+export interface CalendarRange {
+  from: Date | undefined
+  to?: Date
+}
+
+function dayToDate(day: string): Date | undefined {
+  const match = DAY_PATTERN.exec(day)
+  if (!match || parseDay(day) === null) return undefined
+  const [, year, month, date] = match
+  return new Date(Number(year), Number(month) - 1, Number(date))
+}
+
+function dateToDay(date: Date | undefined): string {
+  if (!date) return ''
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+export function calendarRangeFromBounds(from: string, to: string): CalendarRange | undefined {
+  const { fromDay, toDay } = fromRangeBounds(from, to)
+  const start = dayToDate(fromDay)
+  const end = dayToDate(toDay)
+  if (!start && !end) return undefined
+  return { from: start, to: end }
+}
+
+export function boundsFromCalendarRange(
+  current: { from: string; to: string },
+  range: CalendarRange | undefined,
+): { from: string; to: string } {
+  const shown = fromRangeBounds(current.from, current.to)
+  const fromDay = dateToDay(range?.from)
+  const toDay = dateToDay(range?.to)
+  const withFrom = fromDay === shown.fromDay ? current : withRangeDay(current, 'from', fromDay)
+  return toDay === shown.toDay ? withFrom : withRangeDay(withFrom, 'to', toDay)
+}

@@ -21,6 +21,7 @@ export function useProvidersOverview(realm: string) {
   const { data: response, isLoading } = useGetIdentityProviders({
     realm,
     query: listing.apiQuery as IdentityProvidersQuery,
+    keepPrevious: true,
   })
   const total = useIdentityProviderCount({ realm })
   const enabled = useIdentityProviderCount({ realm, filter: { enabled: true } })

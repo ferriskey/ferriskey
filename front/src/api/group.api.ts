@@ -11,6 +11,7 @@ import { authStore } from '@/store/auth.store'
 import { errorMessageFromBody, type ApiRequestError } from '@/lib/api-error'
 import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type Group = Schemas.Group
 
@@ -144,18 +145,20 @@ export function useGroups({
   realm,
   orgId,
   query,
+  keepPrevious = false,
   enabled = true,
 }: {
   realm?: string
   orgId?: string
   query?: GroupsQuery
   enabled?: boolean
-}) {
+} & PagedQueryOptions) {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/organizations/{organization_id}/groups', {
       path: groupsPath(realm, orgId),
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: enabled && !!realm && !!orgId,
   })
 }
@@ -273,17 +276,19 @@ export function useGroupMembers({
   orgId,
   groupId,
   query,
+  keepPrevious = false,
 }: {
   realm?: string
   orgId?: string
   groupId?: string
   query?: GroupMembersQuery
-}) {
+} & PagedQueryOptions) {
   return useQuery({
     ...window.tanstackApi.get(
       '/realms/{realm_name}/organizations/{organization_id}/groups/{group_id}/members',
       { path: membersPath(realm, orgId, groupId), query: query ?? {} }
     ).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled: !!realm && !!orgId && !!groupId,
   })
 }

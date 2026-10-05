@@ -36,6 +36,7 @@ export default function PagePortalThemesFeature() {
   const { data: listData, isLoading } = useListPortalThemes({
     realm,
     query: listing.apiQuery as PortalThemesQuery,
+    keepPrevious: true,
   })
   const total = usePortalThemeCount({ realm })
   const activatable = usePortalThemeCount({ realm, filter: { activatable: true } })

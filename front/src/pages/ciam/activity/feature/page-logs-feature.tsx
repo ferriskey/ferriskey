@@ -29,7 +29,7 @@ export default function PageLogsFeature() {
     data: eventsResponse,
     isLoading,
     isError,
-  } = useGetSecurityEvents({ realm, query: listing.apiQuery as SecurityEventsQuery })
+  } = useGetSecurityEvents({ realm, query: listing.apiQuery as SecurityEventsQuery, keepPrevious: true })
 
   const recent = useWindowEvents(realm)
   const failures = useWindowEvents(realm, undefined, 'failure')

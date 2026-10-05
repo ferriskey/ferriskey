@@ -113,7 +113,6 @@ list:
   filter_fields:
     created: 创建时间
     name: 名称
-    client_id: client_id
     enabled: 已启用
     public_client: 公开
     service_account_enabled: 服务账户

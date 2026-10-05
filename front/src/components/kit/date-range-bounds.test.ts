@@ -1,7 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { fromRangeBounds, toRangeBounds, withRangeDay } from './date-range-bounds.ts'
+import {
+  boundsFromCalendarRange,
+  calendarRangeFromBounds,
+  fromRangeBounds,
+  toRangeBounds,
+  withRangeDay,
+} from './date-range-bounds.ts'
 
 test('from is the start of the picked day in UTC and to is the start of the next day', () => {
   assert.deepEqual(toRangeBounds('2026-10-05', '2026-10-07'), {
@@ -69,5 +75,58 @@ test('clearing one day empties only that bound', () => {
   assert.deepEqual(
     withRangeDay({ from: '2026-10-01T06:00:00Z', to: '2026-10-08T10:00:00Z' }, 'to', ''),
     { from: '2026-10-01T06:00:00Z', to: '' },
+  )
+})
+
+const localDay = (year: number, month: number, date: number) => new Date(year, month - 1, date)
+
+test('the calendar shows the stored bounds as the selected days', () => {
+  assert.deepEqual(calendarRangeFromBounds('2026-10-05T00:00:00Z', '2026-10-08T00:00:00Z'), {
+    from: localDay(2026, 10, 5),
+    to: localDay(2026, 10, 7),
+  })
+  assert.deepEqual(calendarRangeFromBounds('2026-10-05T00:00:00Z', ''), {
+    from: localDay(2026, 10, 5),
+    to: undefined,
+  })
+  assert.equal(calendarRangeFromBounds('', ''), undefined)
+  assert.equal(calendarRangeFromBounds('garbage', 'nope'), undefined)
+})
+
+test('a picked range sets an inclusive start and an exclusive end at UTC midnight', () => {
+  assert.deepEqual(
+    boundsFromCalendarRange({ from: '', to: '' }, { from: localDay(2026, 10, 5), to: localDay(2026, 10, 7) }),
+    { from: '2026-10-05T00:00:00Z', to: '2026-10-08T00:00:00Z' },
+  )
+})
+
+test('a range with only a start sets only the from bound', () => {
+  assert.deepEqual(
+    boundsFromCalendarRange({ from: '', to: '' }, { from: localDay(2026, 10, 5), to: undefined }),
+    { from: '2026-10-05T00:00:00Z', to: '' },
+  )
+})
+
+test('an unselected calendar clears both bounds', () => {
+  assert.deepEqual(
+    boundsFromCalendarRange({ from: '2026-10-05T00:00:00Z', to: '2026-10-08T00:00:00Z' }, undefined),
+    { from: '', to: '' },
+  )
+})
+
+test('a calendar edit keeps the raw stored bound of the untouched side', () => {
+  assert.deepEqual(
+    boundsFromCalendarRange(
+      { from: '2026-10-01T06:00:00Z', to: '2026-10-08T10:30:00+02:00' },
+      { from: localDay(2026, 10, 1), to: localDay(2026, 10, 12) },
+    ),
+    { from: '2026-10-01T06:00:00Z', to: '2026-10-13T00:00:00Z' },
+  )
+  assert.deepEqual(
+    boundsFromCalendarRange(
+      { from: '2026-10-01T06:00:00Z', to: '2026-10-08T10:30:00+02:00' },
+      { from: localDay(2026, 9, 28), to: localDay(2026, 10, 8) },
+    ),
+    { from: '2026-09-28T00:00:00Z', to: '2026-10-08T10:30:00+02:00' },
   )
 })

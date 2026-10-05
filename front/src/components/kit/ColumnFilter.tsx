@@ -14,6 +14,8 @@ import {
   clearColumnFilters,
   columnFilterIndicator,
   fieldKeys,
+  toggleOptionCard,
+  usesOptionCards,
   type ColumnFilterField,
   type ColumnFilterIndicator,
 } from './column-filter-state'
@@ -26,7 +28,47 @@ const TRUE_VALUE = 'true'
 const FALSE_VALUE = 'false'
 
 const CONTROL_CLASS =
-  'h-8 w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface text-sm outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+  'h-7 w-full rounded-md border border-fk-line bg-white dark:bg-fk-surface text-[13px] outline-none focus:border-fk-primary-border focus:ring-2 focus:ring-fk-primary/15'
+
+function OptionCards({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string | undefined
+  options: { value: string; label: string }[]
+  onChange: (value: string) => void
+}) {
+  return (
+    <div
+      role='group'
+      aria-label={label}
+      className='flex h-7 w-full divide-x divide-fk-line overflow-hidden rounded-md border border-fk-line bg-white dark:bg-fk-surface'
+    >
+      {options.map((option) => {
+        const selected = value === option.value
+        return (
+          <button
+            key={option.value}
+            type='button'
+            aria-pressed={selected}
+            onClick={() => onChange(toggleOptionCard(value, option.value))}
+            className={cn(
+              'min-w-0 flex-1 cursor-pointer truncate px-1.5 text-[12px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fk-primary/30',
+              selected
+                ? 'bg-fk-primary-soft font-medium text-fk-primary-text'
+                : 'text-neutral-600 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-white/5'
+            )}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function ChoiceControl({
   label,
@@ -48,7 +90,7 @@ function ChoiceControl({
       <SelectTrigger
         size='sm'
         aria-label={label}
-        className={cn(CONTROL_CLASS, 'px-2.5 shadow-none', value && 'border-fk-primary-border')}
+        className={cn(CONTROL_CLASS, 'px-2 shadow-none', value && 'border-fk-primary-border')}
       >
         <SelectValue />
       </SelectTrigger>
@@ -76,30 +118,28 @@ function FieldControl({ field, listing }: { field: ColumnFilterField; listing: P
           value={listing.drafts[field.key] ?? ''}
           onChange={(e) => listing.setDraft(field.key, e.target.value)}
           placeholder={field.placeholder ?? field.label}
-          className={cn(CONTROL_CLASS, 'px-2.5 placeholder:text-neutral-400')}
+          className={cn(CONTROL_CLASS, 'px-2 placeholder:text-neutral-400')}
         />
       )
     case 'boolean':
+    case 'enum': {
+      const options =
+        field.kind === 'boolean'
+          ? [
+              { value: TRUE_VALUE, label: t('column_filter.yes') },
+              { value: FALSE_VALUE, label: t('column_filter.no') },
+            ]
+          : field.options
+      const Control = usesOptionCards(field) ? OptionCards : ChoiceControl
       return (
-        <ChoiceControl
+        <Control
           label={field.label}
           value={listing.state.filters[field.key]}
           onChange={(value) => listing.setFilter(field.key, value)}
-          options={[
-            { value: TRUE_VALUE, label: t('column_filter.yes') },
-            { value: FALSE_VALUE, label: t('column_filter.no') },
-          ]}
+          options={options}
         />
       )
-    case 'enum':
-      return (
-        <ChoiceControl
-          label={field.label}
-          value={listing.state.filters[field.key]}
-          onChange={(value) => listing.setFilter(field.key, value)}
-          options={field.options}
-        />
-      )
+    }
     case 'relation':
       return (
         <RelationSelect
@@ -107,6 +147,7 @@ function FieldControl({ field, listing }: { field: ColumnFilterField; listing: P
           value={listing.state.filters[field.key] || undefined}
           onChange={(id) => listing.setFilter(field.key, id ?? '')}
           label={field.label}
+          compact
         />
       )
     case 'date-range':
@@ -188,19 +229,19 @@ export function ColumnFilter({
           <IndicatorMark indicator={indicator} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align='start' sideOffset={6} className='w-72 space-y-3 p-3'>
+      <PopoverContent align='start' sideOffset={6} className='w-56 space-y-2 p-2'>
         {fields.map((field) => (
-          <div key={fieldKeys(field).join(':')} className='flex flex-col gap-1.5'>
-            <span className='text-xs font-medium text-neutral-700 dark:text-neutral-300'>
+          <div key={fieldKeys(field).join(':')} className='flex flex-col gap-1'>
+            <span className='text-[11px] font-medium text-neutral-500 dark:text-neutral-400'>
               {field.label}
             </span>
             <FieldControl field={field} listing={listing} />
           </div>
         ))}
-        <div className='flex justify-end border-t border-fk-line-soft pt-2'>
+        <div className='-mx-2 flex justify-end border-t border-fk-line-soft px-1 pt-1'>
           <Button
             variant='ghost'
-            size='sm'
+            size='xs'
             disabled={!engaged}
             onClick={() => listing.setFilters(clearColumnFilters(fields))}
           >

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Endpoints } from './api.client'
+import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 
 export type FederationProvidersQuery = NonNullable<
   Endpoints.get_List_providers['parameters']['query']
@@ -48,17 +49,19 @@ export const useCreateUserFederation = () => {
 export const useGetUserFederations = ({
   realm,
   query,
+  keepPrevious = false,
   enabled = true,
 }: {
   realm: string
   query?: FederationProvidersQuery
   enabled?: boolean
-}) => {
+} & PagedQueryOptions) => {
   return useQuery({
     ...window.tanstackApi.get('/realms/{realm_name}/federation/providers', {
       path: { realm_name: realm },
       query: query ?? {},
     }).queryOptions,
+    placeholderData: previousPagePlaceholder(keepPrevious),
     enabled,
   })
 }

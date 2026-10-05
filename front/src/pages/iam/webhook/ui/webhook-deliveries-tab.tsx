@@ -82,7 +82,12 @@ export default function WebhookDeliveriesTab({ realm, webhookId }: WebhookDelive
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
 
   const query = useMemo(() => deliveriesQuery(listing.apiQuery), [listing.apiQuery])
-  const { data, isLoading, isError } = useGetWebhookDeliveries({ realm, webhookId, query })
+  const { data, isLoading, isError } = useGetWebhookDeliveries({
+    realm,
+    webhookId,
+    query,
+    keepPrevious: true,
+  })
   const { count: failedTotal } = useWebhookDeliveryCount({
     realm,
     webhookId,

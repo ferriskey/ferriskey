@@ -192,6 +192,7 @@ function MembersTab({ realm, orgId, group }: { realm?: string; orgId?: string; g
     orgId,
     groupId: group.id,
     query: listing.apiQuery as GroupMembersQuery,
+    keepPrevious: true,
   })
   const removeMember = useRemoveGroupMember(realm, orgId, group.id)
 
@@ -610,6 +611,7 @@ function GroupsTable({
     realm,
     orgId,
     query: listing.apiQuery as GroupsQuery,
+    keepPrevious: true,
   })
   const groups = useMemo(() => data?.data ?? [], [data])
   const parentIds = useMemo(

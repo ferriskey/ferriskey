@@ -103,7 +103,6 @@ list:
   filter_fields:
     created: Created
     name: Name
-    client_id: client_id
     enabled: Enabled
     public_client: Public
     service_account_enabled: Service account

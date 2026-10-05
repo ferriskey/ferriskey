@@ -50,3 +50,14 @@ export function countActiveFilters(
 export function clearColumnFilters(fields: ColumnFilterField[]): Record<string, string> {
   return Object.fromEntries(fields.flatMap(fieldKeys).map((key) => [key, '']))
 }
+
+export const OPTION_CARD_LIMIT = 3
+
+export function usesOptionCards(field: ColumnFilterField): boolean {
+  if (field.kind === 'boolean') return true
+  return field.kind === 'enum' && field.options.length <= OPTION_CARD_LIMIT
+}
+
+export function toggleOptionCard(current: string | undefined, picked: string): string {
+  return current === picked ? '' : picked
+}

@@ -33,6 +33,7 @@ export default function PageUsersOverviewFeature() {
   const { data: usersResponse, isLoading } = useGetUsers({
     realm,
     query: listing.apiQuery as UsersQuery,
+    keepPrevious: true,
   })
 
   const total = useUserCount({ realm })

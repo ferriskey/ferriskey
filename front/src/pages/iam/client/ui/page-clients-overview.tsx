@@ -85,7 +85,6 @@ export default function PageClientsOverview({
       header: t('list.columns.client_id'),
       render: (c) => <span className='font-mono-ui text-xs text-neutral-500 dark:text-neutral-400'>{c.client_id}</span>,
       sortKey: 'client_id',
-      filters: [{ kind: 'text', key: 'client_id', label: t('list.filter_fields.client_id') }],
     },
     {
       key: 'kind',

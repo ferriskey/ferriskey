@@ -30,6 +30,7 @@ export default function PageIdentitiesFeature() {
   const { data: usersResponse, isLoading } = useGetUsers({
     realm,
     query: { ...(listing.apiQuery as UsersQuery), ...IDENTITIES },
+    keepPrevious: true,
   })
 
   const total = useUserCount({ realm, filter: IDENTITIES })

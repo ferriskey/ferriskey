@@ -29,6 +29,7 @@ export default function PageApplicationsListFeature() {
   const { data: response, isLoading } = useGetClients({
     realm,
     query: listing.apiQuery as ClientsQuery,
+    keepPrevious: true,
   })
   const total = useClientCount({ realm })
   const native = useClientCount({ realm, filter: { application_type: 'native' } })

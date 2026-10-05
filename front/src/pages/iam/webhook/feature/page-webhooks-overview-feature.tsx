@@ -26,6 +26,7 @@ export default function PageWebhooksOverviewFeature() {
   const { data: response, isLoading } = useGetWebhooks({
     realm,
     query: listing.apiQuery as WebhooksQuery,
+    keepPrevious: true,
   })
   const total = useWebhookCount({ realm })
   const never = useWebhookCount({ realm, filter: { triggered: false } })
