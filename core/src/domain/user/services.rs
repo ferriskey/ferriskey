@@ -473,6 +473,22 @@ where
             .in_realm(&scope)?;
         let is_being_disabled = existing.get().enabled && !input.enabled;
 
+        if let Some(ref required_actions) = input.required_actions {
+            let wants_passkey = required_actions.iter().any(|a| a == "configure_passkey");
+            if wants_passkey {
+                let credentials = self
+                    .credential_repository
+                    .get_credentials_by_user_id(existing.get().id)
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)?;
+                if credentials.is_empty() {
+                    return Err(CoreError::InvalidRequiredAction(
+                        "Cannot assign configure_passkey to a user with no credentials".into(),
+                    ));
+                }
+            }
+        }
+
         let user = self
             .user_repository
             .update_user(
@@ -496,19 +512,6 @@ where
         }
 
         if let Some(required_actions) = input.required_actions {
-            let wants_passkey = required_actions.iter().any(|a| a == "configure_passkey");
-            if wants_passkey {
-                let credentials = self
-                    .credential_repository
-                    .get_credentials_by_user_id(user.id)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?;
-                if credentials.is_empty() {
-                    return Err(CoreError::InvalidRequiredAction(
-                        "Cannot assign configure_passkey to a user with no credentials".into(),
-                    ));
-                }
-            }
             self.user_required_action_repository
                 .clear_required_actions(user.id)
                 .await
