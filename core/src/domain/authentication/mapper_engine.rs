@@ -8,10 +8,10 @@ use uuid::Uuid;
 use crate::domain::{common::entities::app_errors::CoreError, realm::entities::RealmId};
 
 use super::mappers::{
-    audience_mapper::AudienceMapper, group_membership_mapper::GroupMembershipMapper,
-    hardcoded_claim_mapper::HardcodedClaimMapper, org_detail_mapper::OrgDetailMapper,
-    org_membership_mapper::OrgMembershipMapper, user_attribute_mapper::UserAttributeMapper,
-    user_client_role_mapper::UserClientRoleMapper,
+    audience_mapper::AudienceMapper, full_name_mapper::FullNameMapper,
+    group_membership_mapper::GroupMembershipMapper, hardcoded_claim_mapper::HardcodedClaimMapper,
+    org_detail_mapper::OrgDetailMapper, org_membership_mapper::OrgMembershipMapper,
+    user_attribute_mapper::UserAttributeMapper, user_client_role_mapper::UserClientRoleMapper,
     user_organization_role_mapper::UserOrganizationRoleMapper,
     user_property_mapper::UserPropertyMapper, user_realm_role_mapper::UserRealmRoleMapper,
 };
@@ -94,6 +94,7 @@ pub struct MapperOutput {
 #[derive(Debug)]
 enum MapperExecutor {
     UserProperty(UserPropertyMapper),
+    FullName(FullNameMapper),
     HardcodedClaim(HardcodedClaimMapper),
     Audience(AudienceMapper),
     UserAttribute(UserAttributeMapper),
@@ -114,6 +115,7 @@ impl MapperExecutor {
     ) -> Result<MapperOutput, CoreError> {
         match self {
             Self::UserProperty(m) => m.execute(config, context, token_type),
+            Self::FullName(m) => m.execute(config, context, token_type),
             Self::HardcodedClaim(m) => m.execute(config, context, token_type),
             Self::Audience(m) => m.execute(config, context, token_type),
             Self::UserAttribute(m) => m.execute(config, context, token_type),
@@ -139,6 +141,10 @@ impl MapperEngine {
         executors.insert(
             "oidc-usermodel-property-mapper".to_string(),
             MapperExecutor::UserProperty(UserPropertyMapper),
+        );
+        executors.insert(
+            "oidc-full-name-mapper".to_string(),
+            MapperExecutor::FullName(FullNameMapper),
         );
         executors.insert(
             "oidc-hardcoded-claim-mapper".to_string(),
@@ -494,6 +500,50 @@ mod tests {
             Some(&json!({"roles": ["admin", "user"]}))
         );
         assert!(result.additional_audiences.is_empty());
+    }
+
+    #[test]
+    fn test_full_name_mapper_integration() {
+        use ferriskey_aegis::entities::ProtocolMapper;
+
+        let engine = MapperEngine::new();
+        let context = MapperContext {
+            user_id: Uuid::new_v4(),
+            username: "test".to_string(),
+            email: "test@test.com".to_string(),
+            email_verified: true,
+            firstname: "Test".to_string(),
+            lastname: "User".to_string(),
+            realm_roles: vec![],
+            client_roles: HashMap::new(),
+            client_id: "my-client".to_string(),
+            client_uuid: Uuid::new_v4(),
+            realm_name: "test-realm".to_string(),
+            realm_id: RealmId::new(Uuid::new_v4()),
+            user_attributes: HashMap::new(),
+            organizations: vec![],
+            groups: vec![],
+        };
+
+        let mapper = ProtocolMapper {
+            id: Uuid::new_v4(),
+            client_scope_id: Uuid::new_v4(),
+            name: "full name".to_string(),
+            mapper_type: "oidc-full-name-mapper".to_string(),
+            config: json!({
+                "access.token.claim": "true",
+                "id.token.claim": "true",
+            }),
+            created_at: chrono::Utc::now(),
+        };
+
+        for token_type in [TokenType::AccessToken, TokenType::IdToken] {
+            let result = engine
+                .apply_mappers(std::slice::from_ref(&mapper), &context, token_type)
+                .unwrap();
+
+            assert_eq!(result.claims.get("name"), Some(&json!("Test User")));
+        }
     }
 
     #[test]
