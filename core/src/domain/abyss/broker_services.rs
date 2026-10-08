@@ -394,6 +394,7 @@ fn verify_id_token_against_jwks(
     let mut validation = jsonwebtoken::Validation::new(header.alg);
     validation.set_issuer(&[issuer]);
     validation.set_audience(&[audience]);
+    validation.set_required_spec_claims(&["exp", "iss", "aud", "sub"]);
     validation.validate_exp = true;
 
     let data =
@@ -403,6 +404,13 @@ fn verify_id_token_against_jwks(
         })?;
 
     let claims = data.claims;
+
+    if let Some(azp) = claims.get("azp")
+        && azp.as_str() != Some(audience)
+    {
+        warn!("id_token was issued to another authorized party");
+        return Err(CoreError::InvalidIdToken);
+    }
 
     if let Some(expected) = expected_nonce {
         let presented = claims["nonce"].as_str();
@@ -910,6 +918,75 @@ mod tests {
         }
 
         base
+    }
+
+    fn claims_without(name: &str) -> serde_json::Value {
+        let mut base = claims(serde_json::json!({}));
+        base.as_object_mut().expect("object").remove(name);
+        base
+    }
+
+    #[test]
+    fn a_token_without_an_issuer_is_refused() {
+        let key = idp_key("kid-1");
+        let token = sign(&key, "kid-1", claims_without("iss"));
+
+        let result =
+            verify_id_token_against_jwks(&token, &key.jwks, ISSUER, AUDIENCE, Some("the-nonce"));
+
+        assert!(matches!(result, Err(CoreError::InvalidIdToken)));
+    }
+
+    #[test]
+    fn a_token_without_an_audience_is_refused() {
+        let key = idp_key("kid-1");
+        let token = sign(&key, "kid-1", claims_without("aud"));
+
+        let result =
+            verify_id_token_against_jwks(&token, &key.jwks, ISSUER, AUDIENCE, Some("the-nonce"));
+
+        assert!(matches!(result, Err(CoreError::InvalidIdToken)));
+    }
+
+    #[test]
+    fn a_token_without_a_subject_is_refused() {
+        let key = idp_key("kid-1");
+        let token = sign(&key, "kid-1", claims_without("sub"));
+
+        let result =
+            verify_id_token_against_jwks(&token, &key.jwks, ISSUER, AUDIENCE, Some("the-nonce"));
+
+        assert!(matches!(result, Err(CoreError::InvalidIdToken)));
+    }
+
+    #[test]
+    fn a_token_authorized_for_another_party_is_refused() {
+        let key = idp_key("kid-1");
+        let token = sign(
+            &key,
+            "kid-1",
+            claims(serde_json::json!({ "aud": [AUDIENCE, "other-app"], "azp": "other-app" })),
+        );
+
+        let result =
+            verify_id_token_against_jwks(&token, &key.jwks, ISSUER, AUDIENCE, Some("the-nonce"));
+
+        assert!(matches!(result, Err(CoreError::InvalidIdToken)));
+    }
+
+    #[test]
+    fn a_token_authorized_for_this_client_is_accepted() {
+        let key = idp_key("kid-1");
+        let token = sign(
+            &key,
+            "kid-1",
+            claims(serde_json::json!({ "aud": [AUDIENCE, "other-app"], "azp": AUDIENCE })),
+        );
+
+        let result =
+            verify_id_token_against_jwks(&token, &key.jwks, ISSUER, AUDIENCE, Some("the-nonce"));
+
+        assert!(result.is_ok(), "{result:?}");
     }
 
     #[test]
