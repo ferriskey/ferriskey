@@ -130,20 +130,6 @@ fn narrow_scope_to_consented(
         .join(" ")
 }
 
-pub(crate) fn lockout_compute_locked_until(
-    new_attempts: i32,
-    threshold: i32,
-    duration_seconds: i32,
-    now: DateTime<Utc>,
-) -> Option<DateTime<Utc>> {
-    if new_attempts >= threshold {
-        let duration = chrono::Duration::seconds(duration_seconds as i64);
-        Some(now + duration)
-    } else {
-        None
-    }
-}
-
 /// Build the OAuth2 authorization-code redirect URL sent back to the client
 /// once authentication (login *or* registration) completes.
 ///
@@ -1245,17 +1231,6 @@ where
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
         if exp <= now { 0 } else { (exp - now) as u32 }
-    }
-
-    /// Returns `Some(locked_until)` when `new_attempts` has reached the threshold,
-    /// otherwise `None` (counter incremented but not yet locked).
-    fn compute_locked_until(
-        new_attempts: i32,
-        threshold: i32,
-        duration_seconds: i32,
-        now: DateTime<Utc>,
-    ) -> Option<DateTime<Utc>> {
-        lockout_compute_locked_until(new_attempts, threshold, duration_seconds, now)
     }
 
     async fn resolve_token_lifetimes(
@@ -2965,15 +2940,13 @@ where
         let is_valid = match credential {
             Ok(is_valid) => is_valid,
             Err(_) => {
-                let locked_until = Self::compute_locked_until(
-                    user.failed_login_attempts + 1,
-                    lockout_threshold,
-                    lockout_duration_seconds,
-                    now,
-                );
                 let _ = self
                     .user_repository
-                    .increment_failed_login_attempts(user.id, locked_until)
+                    .increment_failed_login_attempts(
+                        user.id,
+                        lockout_threshold,
+                        now + chrono::Duration::seconds(lockout_duration_seconds as i64),
+                    )
                     .await;
                 self.record_login_failure(params.realm.id(), Some(user.id), "invalid_credentials")
                     .await;
@@ -2982,15 +2955,13 @@ where
         };
 
         if !is_valid {
-            let locked_until = Self::compute_locked_until(
-                user.failed_login_attempts + 1,
-                lockout_threshold,
-                lockout_duration_seconds,
-                now,
-            );
             let _ = self
                 .user_repository
-                .increment_failed_login_attempts(user.id, locked_until)
+                .increment_failed_login_attempts(
+                    user.id,
+                    lockout_threshold,
+                    now + chrono::Duration::seconds(lockout_duration_seconds as i64),
+                )
                 .await;
             self.record_login_failure(params.realm.id(), Some(user.id), "invalid_credentials")
                 .await;
@@ -3924,15 +3895,13 @@ This is a server error that should be investigated. Do not forward back this mes
             };
 
         if !has_valid_password {
-            let locked_until = Self::compute_locked_until(
-                user.failed_login_attempts + 1,
-                lockout_threshold,
-                lockout_duration_seconds,
-                now,
-            );
             let _ = self
                 .user_repository
-                .increment_failed_login_attempts(user.id, locked_until)
+                .increment_failed_login_attempts(
+                    user.id,
+                    lockout_threshold,
+                    now + chrono::Duration::seconds(lockout_duration_seconds as i64),
+                )
                 .await;
             let reason = if is_federated {
                 "ldap_authentication_failed"
@@ -5706,8 +5675,7 @@ where
 mod tests {
     use super::{
         auth_session_can_resume, format_auth_completion, format_authorization_redirect_url,
-        lockout_compute_locked_until, narrow_scope_to_consented,
-        validate_authorization_code_request,
+        narrow_scope_to_consented, validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
     use std::collections::HashSet;
@@ -6101,33 +6069,6 @@ mod tests {
     fn validate_code_verifier_accepts_128_chars() {
         let max_len = "a".repeat(128);
         assert!(pkce_validate_verifier(&max_len));
-    }
-
-    // ---- compute_locked_until -------------------------------------------
-
-    #[test]
-    fn compute_locked_until_returns_none_below_threshold() {
-        let now = Utc::now();
-        // 3 attempts with threshold 5 → not yet locked
-        let result = lockout_compute_locked_until(3, 5, 900, now);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn compute_locked_until_returns_some_at_threshold() {
-        let now = Utc::now();
-        let result = lockout_compute_locked_until(5, 5, 900, now);
-        assert!(result.is_some());
-        let locked = result.unwrap();
-        let diff = (locked - now).num_seconds();
-        assert_eq!(diff, 900);
-    }
-
-    #[test]
-    fn compute_locked_until_returns_some_above_threshold() {
-        let now = Utc::now();
-        let result = lockout_compute_locked_until(10, 5, 300, now);
-        assert!(result.is_some());
     }
 
     // ---- validate_authorization_code_request -----------------------------

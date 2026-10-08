@@ -37,7 +37,6 @@ use crate::domain::account_security::entities::{
 use crate::domain::account_security::ports::{
     AccountSecurityService, OtherSessionsRevocationPort, PasskeyRegistrationRepository,
 };
-use crate::domain::authentication::services::lockout_compute_locked_until;
 use crate::domain::trident::ports::OtpEnrollmentRepository;
 use crate::domain::trident::services::{
     build_webauthn_client, generate_otpauth_uri, generate_secret, verify,
@@ -188,17 +187,13 @@ where
             return;
         };
 
-        let attempts = user.get().failed_login_attempts + 1;
-        let locked_until = lockout_compute_locked_until(
-            attempts,
-            settings.lockout_threshold,
-            settings.lockout_duration_seconds,
-            Utc::now(),
-        );
-
         if let Err(e) = self
             .user_repository
-            .increment_failed_login_attempts(user.get().id, locked_until)
+            .increment_failed_login_attempts(
+                user.get().id,
+                settings.lockout_threshold,
+                Utc::now() + chrono::Duration::seconds(settings.lockout_duration_seconds as i64),
+            )
             .await
         {
             warn!(user_id = %user.get().id, "Failed to record a failed elevation proof: {e:?}");
@@ -1407,7 +1402,7 @@ mod tests {
             .users
             .expect_increment_failed_login_attempts()
             .times(1)
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
         harness.elevations.expect_start().never();
 
         let refused = harness
@@ -1426,43 +1421,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_wrong_proof_at_the_threshold_locks_the_account() {
-        let realm = create_test_realm_with_name("acme");
-        let mut user =
-            create_test_user_with_params_and_realm(&realm, "alice", "alice@acme.test".into(), true);
-        user.failed_login_attempts = 9;
-        let identity = Identity::User(user.clone());
-
-        let mut harness = Harness::new();
-        harness.resolving(&realm, &user);
-        harness.with_password(user.id, false);
-        harness.counting_failures(realm.id, 10);
-        harness
-            .users
-            .expect_increment_failed_login_attempts()
-            .withf(|_, locked_until| locked_until.is_some())
-            .times(1)
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
-        harness.elevations.expect_start().never();
-
-        let refused = harness
-            .build()
-            .request_elevation(
-                identity,
-                RequestElevationInput {
-                    realm_name: "acme".into(),
-                    session_id: Uuid::now_v7(),
-                    proof: ElevationProof::Password("wrong".into()),
-                },
-            )
-            .await;
-
-        assert!(matches!(refused, Err(CoreError::InvalidPassword)));
-    }
-
-    #[tokio::test]
-    async fn a_wrong_proof_below_the_threshold_counts_without_locking() {
+    async fn a_wrong_proof_is_counted_against_the_realm_lockout_policy() {
         let (realm, user, identity) = actors();
+        let user_id = user.id;
 
         let mut harness = Harness::new();
         harness.resolving(&realm, &user);
@@ -1471,9 +1432,14 @@ mod tests {
         harness
             .users
             .expect_increment_failed_login_attempts()
-            .withf(|_, locked_until| locked_until.is_none())
+            .withf(move |id, threshold, locked_until| {
+                *id == user_id
+                    && *threshold == 10
+                    && (*locked_until - Utc::now()).num_seconds() > 890
+            })
             .times(1)
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
+        harness.elevations.expect_start().never();
 
         let refused = harness
             .build()
@@ -1553,7 +1519,7 @@ mod tests {
             .users
             .expect_increment_failed_login_attempts()
             .times(1)
-            .returning(|_, _| Box::pin(async move { Ok(()) }));
+            .returning(|_, _, _| Box::pin(async move { Ok(()) }));
         harness.elevations.expect_start().never();
 
         let refused = harness

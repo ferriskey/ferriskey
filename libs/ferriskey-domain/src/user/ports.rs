@@ -205,7 +205,8 @@ pub trait UserRepository: Send + Sync {
     fn increment_failed_login_attempts(
         &self,
         user_id: Uuid,
-        locked_until: Option<DateTime<Utc>>,
+        threshold: i32,
+        locked_until: DateTime<Utc>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn reset_failed_login_attempts(
