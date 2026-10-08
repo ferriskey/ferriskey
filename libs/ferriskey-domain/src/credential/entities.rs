@@ -214,6 +214,9 @@ pub enum CredentialError {
     #[error("Get password credential error")]
     GetPasswordCredentialError,
 
+    #[error("Credential not found")]
+    CredentialNotFound,
+
     #[error("Get user credentials error")]
     GetUserCredentialsError,
 

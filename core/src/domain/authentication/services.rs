@@ -3705,7 +3705,12 @@ where
         let Some(user) = user else {
             self.record_login_failure(scope.id(), None, "user_not_found")
                 .await;
-            return Err(CoreError::UserNotFound);
+
+            // To prevent timing attacks for user enumeration, compute a dummy hash
+            // taking approximately the same time as a normal password verification.
+            let _ = self.hasher_repository.hash_password(&password).await;
+
+            return Err(CoreError::InvalidPassword);
         };
 
         if !user.enabled {
@@ -3864,7 +3869,7 @@ This is a server error that should be investigated. Do not forward back this mes
 
                         valid
                     }
-                    Err(CredentialError::GetPasswordCredentialError) => {
+                    Err(CredentialError::CredentialNotFound) => {
                         // User has no password credential. They cannot log in with a password.
                         false
                     }

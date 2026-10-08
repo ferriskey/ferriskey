@@ -116,7 +116,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             .map_err(|_| CredentialError::GetPasswordCredentialError)?
             .map(Credential::from);
 
-        let credential = credential.ok_or(CredentialError::GetPasswordCredentialError)?;
+        let credential = credential.ok_or(CredentialError::CredentialNotFound)?;
 
         Ok(credential)
     }
