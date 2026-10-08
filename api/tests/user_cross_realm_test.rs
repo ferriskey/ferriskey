@@ -863,4 +863,54 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test user_cross_realm_test -- --ignored"]
+    fn bulk_delete_across_tenant_realms_leaves_the_victim_signed_in() {
+        rt().block_on(async {
+            let server = make_server();
+            let (victim_id, victim_username) = plant_victim(&server).await;
+            let issued: Value = server
+                .post(&format!(
+                    "/realms/{}/protocol/openid-connect/token",
+                    tenant_b()
+                ))
+                .form(&[
+                    ("grant_type", "password"),
+                    ("client_id", "admin-cli"),
+                    ("username", victim_username.as_str()),
+                    ("password", VICTIM_PASSWORD),
+                    ("scope", "openid"),
+                ])
+                .await
+                .json();
+            let victim_token = issued["access_token"]
+                .as_str()
+                .unwrap_or_else(|| panic!("victim access_token: {issued}"))
+                .to_string();
+
+            let attack = server
+                .delete(&format!("/realms/{}/users/bulk", tenant_a()))
+                .add_header("Authorization", auth_header(alice_token()))
+                .json(&serde_json::json!({ "ids": [victim_id] }))
+                .await;
+
+            let userinfo = server
+                .get(&format!(
+                    "/realms/{}/protocol/openid-connect/userinfo",
+                    tenant_b()
+                ))
+                .add_header("Authorization", auth_header(&victim_token))
+                .await;
+
+            assert_eq!(
+                userinfo.status_code(),
+                200,
+                "a tenant-a bulk delete revoked the tokens of tenant-b user {victim_id}; \
+                 bulk delete returned {}: {}",
+                attack.status_code(),
+                attack.text()
+            );
+        });
+    }
 }

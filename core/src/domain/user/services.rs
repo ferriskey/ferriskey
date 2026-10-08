@@ -640,7 +640,22 @@ where
             "insufficient permissions",
         )?;
 
+        let mut ids = Vec::with_capacity(input.ids.len());
         for user_id in &input.ids {
+            let user = match self.user_repository.get_by_id(*user_id).await {
+                Ok(user) => user,
+                Err(CoreError::NotFound) => continue,
+                Err(e) => return Err(e),
+            };
+            let Ok(user) = user.in_realm(&scope) else {
+                continue;
+            };
+            if user.get().client_id.is_none() {
+                ids.push(*user_id);
+            }
+        }
+
+        for user_id in &ids {
             self.token_revocation
                 .revoke_all_user_access(*user_id, realm_id.into())
                 .await?;
@@ -648,7 +663,7 @@ where
 
         let count = self
             .user_repository
-            .bulk_delete_user(realm_id, input.ids.clone())
+            .bulk_delete_user(realm_id, ids.clone())
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -660,18 +675,14 @@ where
                     EventStatus::Success,
                     identity.id(),
                 )
-                .with_details(json!({ "user_ids": input.ids })),
+                .with_details(json!({ "user_ids": ids })),
             )
             .await?;
 
         self.webhook_repository
             .notify(
                 realm_id,
-                WebhookPayload::new(
-                    WebhookTrigger::UserBulkDeleted,
-                    realm_id.into(),
-                    Some(input.ids),
-                ),
+                WebhookPayload::new(WebhookTrigger::UserBulkDeleted, realm_id.into(), Some(ids)),
             )
             .await?;
 
