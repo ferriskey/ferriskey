@@ -355,4 +355,36 @@ mod tests {
             assert_eq!(query_param(location, "state").as_deref(), Some("s1"));
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn logout_refuses_an_id_token_hint_with_a_forged_signature() {
+        rt().block_on(async {
+            let app = app();
+            let client = app.client(ClientSpec::confidential()).await;
+            app.add_post_logout_redirect_uri(&client, "https://app.example/out")
+                .await;
+            let body = tokens(app, &client, &[]).await;
+            let id_token = body["id_token"].as_str().expect("id_token");
+            let (unsigned, signature) = id_token.rsplit_once('.').expect("jwt");
+            let flipped = if signature.starts_with('A') { "B" } else { "A" };
+            let forged = format!("{unsigned}.{flipped}{}", &signature[1..]);
+
+            let response = app
+                .server()
+                .get(&app.oidc("logout"))
+                .add_query_param("id_token_hint", &forged)
+                .add_query_param("post_logout_redirect_uri", "https://app.example/out")
+                .await;
+            let location = response
+                .maybe_header("location")
+                .and_then(|value| value.to_str().ok().map(str::to_string))
+                .unwrap_or_default();
+            assert!(
+                !location.starts_with("https://app.example/out"),
+                "forged hint accepted: {} {location}",
+                response.status_code()
+            );
+        });
+    }
 }
