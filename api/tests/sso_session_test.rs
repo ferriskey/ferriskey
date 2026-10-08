@@ -226,7 +226,10 @@ mod tests {
 
     async fn seed_no_credential_user(pool: &PgPool) {
         let user_id = Uuid::new_v4();
-        let mut tx = pool.begin().await.expect("begin seeding the no_credential user");
+        let mut tx = pool
+            .begin()
+            .await
+            .expect("begin seeding the no_credential user");
 
         for statement in [
             "CREATE TEMP TABLE nocred_user ON COMMIT DROP AS \
