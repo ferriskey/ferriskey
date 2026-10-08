@@ -26,7 +26,7 @@ Feature: Authorization code flow
     When "web" redeems the same code again
     Then the access token first issued to "web" is no longer active
 
-  @wip @SSO-04
+  @SSO-04
   Scenario: A malformed prompt never redirects to an unregistered address
     When an authorization request for "web" carries prompt "none login" and redirect_uri "https://evil.example/cb"
     Then the browser is not sent to "evil.example"
