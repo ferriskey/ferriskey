@@ -587,7 +587,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sea_orm::Database as SeaOrmDatabase;
+    use sea_orm::{ConnectionTrait, Database as SeaOrmDatabase};
     use sqlx::Executor as _;
     use uuid::Uuid;
 
@@ -765,6 +765,13 @@ mod tests {
         assert!(created.authenticated, "pre-condition");
 
         let user_id = Uuid::new_v4();
+        repo.db
+            .execute_unprepared(&format!(
+                "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+                 VALUES ('{user_id}', '{realm_id}', 'user-{user_id}', TRUE, TRUE, NOW(), NOW())"
+            ))
+            .await
+            .expect("insert the user the code is issued to");
         let updated = repo
             .update_code_and_user_id(created.id, "fresh-code-with-user".into(), user_id)
             .await
