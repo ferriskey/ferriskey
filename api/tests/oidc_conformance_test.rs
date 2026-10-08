@@ -331,4 +331,28 @@ mod tests {
             assert_eq!(query_param(location, "state").as_deref(), Some("xyz 1"));
         });
     }
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_malformed_prompt_is_reported_to_the_registered_redirect_uri() {
+        rt().block_on(async {
+            let app = app();
+            let client = app.client(ClientSpec::public()).await;
+            let response = authorize(
+                &app.server(),
+                app,
+                &client.client_id,
+                &[("prompt", "none login"), ("state", "s1")],
+            )
+            .await;
+            assert_eq!(response.status_code(), 302, "{}", response.text());
+            let location = response.header("location");
+            let location = location.to_str().expect("location header");
+            assert!(location.starts_with(CALLBACK), "{location}");
+            assert_eq!(
+                query_param(location, "error").as_deref(),
+                Some("invalid_request")
+            );
+            assert_eq!(query_param(location, "state").as_deref(), Some("s1"));
+        });
+    }
 }

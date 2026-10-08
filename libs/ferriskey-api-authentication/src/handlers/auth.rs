@@ -200,13 +200,7 @@ pub async fn auth_handler(
     cookie: CookieManager,
     Query(params): Query<AuthRequest>,
 ) -> Result<axum::response::Response, ApiError> {
-    let Some(prompt) = Prompt::parse(params.prompt.as_deref()) else {
-        return Ok(authorization_error_response(
-            &params.redirect_uri,
-            "invalid_request",
-            params.state.as_deref(),
-        ));
-    };
+    let prompt = Prompt::parse(params.prompt.as_deref());
 
     let result = match state
         .service
@@ -222,7 +216,7 @@ pub async fn auth_handler(
             code_challenge_method: params.code_challenge_method.clone(),
             ip_address: context.ip_address,
             user_agent: context.user_agent,
-            prompt_consent: prompt.consent,
+            prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
         })
         .await
     {
@@ -250,6 +244,14 @@ pub async fn auth_handler(
             return Ok((StatusCode::FOUND, [(LOCATION, error_url)]).into_response());
         }
         Err(e) => return Err(ApiError::from(e)),
+    };
+
+    let Some(prompt) = prompt else {
+        return Ok(authorization_error_response(
+            &params.redirect_uri,
+            "invalid_request",
+            params.state.as_deref(),
+        ));
     };
 
     let is_secure = base_url.starts_with("https://");
