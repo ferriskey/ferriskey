@@ -61,7 +61,7 @@ use crate::domain::{
     },
     common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
     credential::{
-        entities::{CredentialData, CredentialType},
+        entities::{CredentialData, CredentialError, CredentialType},
         ports::CredentialRepository,
     },
     crypto::HasherRepository,
@@ -3819,47 +3819,57 @@ where
                     .map(|cred| cred.credential_type.clone().to_string())
                     .collect();
 
-                let credential = self
+                let credential_result = self
                     .credential_repository
                     .get_password_credential(user.id)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?;
-
-                let CredentialData::Hash {
-                    hash_iterations,
-                    algorithm,
-                } = &credential.credential_data
-                else {
-                    tracing::error!(
-                        "A password credential doesn't have Hash credential data.
-This is a server error that should be investigated. Do not forward back this message to the client"
-                    );
-                    return Err(CoreError::InternalServerError);
-                };
-
-                let is_valid = verify_password_hash(
-                    self.hasher_repository.as_ref(),
-                    &credential.secret_data,
-                    credential.salt.as_deref(),
-                    *hash_iterations,
-                    algorithm,
-                    &password,
-                )
-                .await
-                .map_err(|_| CoreError::InvalidPassword)?;
-
-                if is_valid {
-                    rehash_password_if_needed(
-                        self.hasher_repository.as_ref(),
-                        self.credential_repository.as_ref(),
-                        user.id,
-                        &credential.secret_data,
-                        &password,
-                        algorithm,
-                        credential.temporary,
-                    )
                     .await;
-                }
+
+                let is_valid = match credential_result {
+                    Ok(credential) => {
+                        let CredentialData::Hash {
+                            hash_iterations,
+                            algorithm,
+                        } = &credential.credential_data
+                        else {
+                            tracing::error!(
+                                "A password credential doesn't have Hash credential data.
+This is a server error that should be investigated. Do not forward back this message to the client"
+                            );
+                            return Err(CoreError::InternalServerError);
+                        };
+
+                        let valid = verify_password_hash(
+                            self.hasher_repository.as_ref(),
+                            &credential.secret_data,
+                            credential.salt.as_deref(),
+                            *hash_iterations,
+                            algorithm,
+                            &password,
+                        )
+                        .await
+                        .map_err(|_| CoreError::InvalidPassword)?;
+
+                        if valid {
+                            rehash_password_if_needed(
+                                self.hasher_repository.as_ref(),
+                                self.credential_repository.as_ref(),
+                                user.id,
+                                &credential.secret_data,
+                                &password,
+                                algorithm,
+                                credential.temporary,
+                            )
+                            .await;
+                        }
+                        
+                        valid
+                    }
+                    Err(CredentialError::GetPasswordCredentialError) => {
+                        // User has no password credential. They cannot log in with a password.
+                        false
+                    }
+                    Err(_) => return Err(CoreError::InternalServerError),
+                };
 
                 (is_valid, creds, has_temp_password)
             };
