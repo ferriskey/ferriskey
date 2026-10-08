@@ -89,7 +89,7 @@ export function useAuth() {
   const setAuthTokensWrapper = useCallback(
     (
       access_token: string,
-      refresh_token: string,
+      refresh_token: string | null,
       id_token: string | null = null,
       authenticated: boolean = true
     ) => {
@@ -210,7 +210,7 @@ export function useAuth() {
 
       setAuthTokensWrapper(
         response.access_token,
-        response.refresh_token,
+        response.refresh_token ?? null,
         response.id_token ?? idToken
       )
     }).catch((error: unknown) => {

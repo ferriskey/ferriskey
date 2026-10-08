@@ -198,7 +198,7 @@ export function usePortalPageSubmit(
     if (registrationData.status === 'authenticated') {
       setAuthTokens(
         registrationData.data.access_token,
-        registrationData.data.refresh_token,
+        registrationData.data.refresh_token ?? null,
         registrationData.data.id_token ?? null,
       )
       navigate(`/realms/${realm_name}/overview`, { replace: true })

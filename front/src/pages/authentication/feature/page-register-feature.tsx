@@ -161,7 +161,7 @@ export default function PageRegisterFeature() {
     if (data.status === 'authenticated') {
       setAuthTokens(
         data.data.access_token,
-        data.data.refresh_token,
+        data.data.refresh_token ?? null,
         data.data.id_token ?? null
       )
       navigate(`/realms/${realm_name}/overview`, { replace: true })
