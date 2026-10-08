@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, DbErr,
-    EntityTrait, ModelTrait, QueryFilter, QuerySelect, QueryTrait, Select, SqlErr,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, ConnectionTrait,
+    DatabaseConnection, DbBackend, DbErr, EntityTrait, ModelTrait, QueryFilter, QuerySelect,
+    QueryTrait, Select, SqlErr, Statement,
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -460,31 +461,32 @@ impl UserRepository for PostgresUserRepository {
     async fn increment_failed_login_attempts(
         &self,
         user_id: Uuid,
-        locked_until: Option<DateTime<Utc>>,
+        threshold: i32,
+        locked_until: DateTime<Utc>,
     ) -> Result<(), CoreError> {
-        let user = crate::entity::users::Entity::find()
-            .filter(crate::entity::users::Column::Id.eq(user_id))
-            .one(&self.db)
+        let result = self
+            .db
+            .execute(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "UPDATE users SET \
+                 locked_until = CASE WHEN failed_login_attempts + 1 >= $2 THEN $3 ELSE locked_until END, \
+                 failed_login_attempts = CASE WHEN failed_login_attempts + 1 >= $2 THEN 0 ELSE failed_login_attempts + 1 END \
+                 WHERE id = $1",
+                [
+                    user_id.into(),
+                    threshold.into(),
+                    locked_until.fixed_offset().into(),
+                ],
+            ))
             .await
             .map_err(|e| {
-                error!("error finding user for lockout increment: {:?}", e);
+                error!("error incrementing failed login attempts: {:?}", e);
                 CoreError::InternalServerError
-            })?
-            .ok_or(CoreError::NotFound)?;
+            })?;
 
-        let current_attempts = user.failed_login_attempts;
-        let mut active_model: crate::entity::users::ActiveModel = user.into();
-        active_model.failed_login_attempts = Set(current_attempts + 1);
-
-        if let Some(until) = locked_until {
-            active_model.locked_until = Set(Some(until.fixed_offset()));
-            active_model.failed_login_attempts = Set(0);
+        if result.rows_affected() == 0 {
+            return Err(CoreError::NotFound);
         }
-
-        active_model.update(&self.db).await.map_err(|e| {
-            error!("error incrementing failed login attempts: {:?}", e);
-            CoreError::InternalServerError
-        })?;
 
         Ok(())
     }

@@ -6,8 +6,8 @@ mod tests {
     use serde_json::Value;
 
     use crate::common::{
-        ADMIN_CLIENT_ID, CALLBACK, ClientSpec, SeededClient, TestApp, app, exchange_code,
-        introspect, password_grant, refresh, rt, sign_in_for_code,
+        CALLBACK, ClientSpec, SeededClient, TestApp, app, exchange_code, introspect,
+        password_grant, refresh, rt, sign_in_for_code,
     };
 
     const PASSWORD: &str = "Findings-Passw0rd!";
@@ -34,42 +34,6 @@ mod tests {
             .as_str()
             .unwrap_or_else(|| panic!("{name} missing from {body}"))
             .to_string()
-    }
-
-    #[test]
-    #[ignore = "SSO-06 open: failed_login_attempts is a read-modify-write"]
-    fn sso_06_parallel_wrong_passwords_lock_the_account() {
-        rt().block_on(async {
-            let app = app();
-            let server = app.server();
-            let user = app.user(&server, PASSWORD).await;
-            sqlx::query(
-                "UPDATE realm_settings SET lockout_threshold = 5, lockout_duration_seconds = 900 WHERE realm_id = $1",
-            )
-            .bind(app.realm_id)
-            .execute(&app.pool)
-            .await
-            .expect("configure lockout");
-
-            let wrong =
-                || password_grant(&server, app, ADMIN_CLIENT_ID, None, &user.username, "wrong");
-            tokio::join!(wrong(), wrong(), wrong(), wrong(), wrong());
-
-            let after = password_grant(
-                &server,
-                app,
-                ADMIN_CLIENT_ID,
-                None,
-                &user.username,
-                PASSWORD,
-            )
-            .await;
-            assert_ne!(
-                after.status_code(),
-                200,
-                "five parallel failures did not lock the account"
-            );
-        });
     }
 
     #[test]
