@@ -138,6 +138,7 @@ mod tests {
 
         seed_survey_client(&pool, &realm_name).await;
         seed_otp_user(&pool).await;
+        seed_no_credential_user(&pool).await;
 
         let args = Arc::new(Args::default());
         let state = AppState::new(args, service);
@@ -221,6 +222,34 @@ mod tests {
         .expect("enrol the otp user's authenticator");
 
         tx.commit().await.expect("commit the otp user");
+    }
+
+    async fn seed_no_credential_user(pool: &PgPool) {
+        let user_id = Uuid::new_v4();
+        let mut tx = pool
+            .begin()
+            .await
+            .expect("begin seeding the no_credential user");
+
+        for statement in [
+            "CREATE TEMP TABLE nocred_user ON COMMIT DROP AS \
+             SELECT * FROM users WHERE username = 'admin'",
+            "UPDATE nocred_user SET id = $1, username = 'nocred-user', email = 'nocred@test.local'",
+            "INSERT INTO users SELECT * FROM nocred_user",
+        ] {
+            let query = sqlx::query(statement);
+            let query = if statement.contains("$1") {
+                query.bind(user_id)
+            } else {
+                query
+            };
+            query
+                .execute(&mut *tx)
+                .await
+                .unwrap_or_else(|e| panic!("seed the no_credential user ({statement}): {e}"));
+        }
+
+        tx.commit().await.expect("commit the no_credential user");
     }
 
     fn totp_code_for(secret_base32: &str) -> String {
@@ -1255,6 +1284,30 @@ mod tests {
                 claims["auth_time"].as_i64(),
                 Some(authenticated_at),
                 "auth_time must be the session's last interactive authentication: {claims}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_user_with_no_credential_cannot_login() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+            let authorize = start_console_authorization(&server).await;
+
+            let login = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SEEDED_CLIENT_ID)
+                .json(&json!({ "username": "nocred-user", "password": "admin" }))
+                .await;
+
+            assert_eq!(
+                login.status_code(),
+                401,
+                "the login must fail with 401 Unauthorized for a user with no credentials instead of 500: {}",
+                login.text()
             );
         });
     }

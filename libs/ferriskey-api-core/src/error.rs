@@ -507,6 +507,10 @@ impl From<TokenExchangeError> for ApiError {
 impl From<CredentialError> for ApiError {
     fn from(value: CredentialError) -> Self {
         match value {
+            CredentialError::CredentialNotFound => ApiError::NotFound(ApiErrorBody::new(
+                "Credential not found",
+                "credential_not_found",
+            )),
             CredentialError::CreateCredentialError => ApiError::InternalServerError(
                 ApiErrorBody::new("Failed to create credential", "create_credential_error"),
             ),
