@@ -292,3 +292,8 @@ jobs:
 
       - name: run OIDC conformance integration tests
         run: cargo test -p ferriskey-api --test oidc_conformance_test -- --ignored
+
+      - name: run OIDC Gherkin scenarios
+        run: cargo test -p ferriskey-api --test oidc_bdd
+        env:
+          FERRISKEY_BDD: "1"

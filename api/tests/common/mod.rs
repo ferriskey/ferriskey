@@ -212,6 +212,39 @@ impl TestApp {
             .expect("toggle client");
     }
 
+    pub async fn add_post_logout_redirect_uri(&self, client: &SeededClient, uri: &str) {
+        let now = chrono::Utc::now().naive_utc();
+        sqlx::query(
+            "INSERT INTO post_logout_redirect_uris (id, client_id, value, enabled, created_at, updated_at) VALUES ($1,$2,$3,true,$4,$4)",
+        )
+        .bind(Uuid::new_v4())
+        .bind(client.id)
+        .bind(uri)
+        .bind(now)
+        .execute(&self.pool)
+        .await
+        .expect("insert post logout redirect uri");
+    }
+
+    pub async fn set_id_token_lifetime(&self, client: &SeededClient, seconds: i32) {
+        sqlx::query("UPDATE clients SET id_token_lifetime_secs = $1 WHERE id = $2")
+            .bind(seconds)
+            .bind(client.id)
+            .execute(&self.pool)
+            .await
+            .expect("set id token lifetime");
+    }
+
+    pub async fn bind_service_account(&self, server: &TestServer, client: &SeededClient) {
+        let user = self.user(server, "Service-Account-Passw0rd!").await;
+        sqlx::query("UPDATE users SET client_id = $1 WHERE id = $2::uuid")
+            .bind(client.id)
+            .bind(&user.id)
+            .execute(&self.pool)
+            .await
+            .expect("bind service account user");
+    }
+
     pub async fn admin_token(&self, server: &TestServer) -> String {
         password_grant(
             server,
@@ -495,4 +528,19 @@ pub fn decode_unverified(jwt: &str) -> Value {
         .decode(payload)
         .expect("base64url payload");
     serde_json::from_slice(&bytes).expect("json payload")
+}
+
+pub async fn client_credentials(
+    server: &TestServer,
+    app: &TestApp,
+    client: &SeededClient,
+) -> axum_test::TestResponse {
+    let mut form: Vec<(&str, &str)> = vec![
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+    ];
+    if let Some(secret) = client.secret.as_deref() {
+        form.push(("client_secret", secret));
+    }
+    server.post(&app.oidc("token")).form(&form).await
 }
