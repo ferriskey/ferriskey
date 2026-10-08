@@ -105,6 +105,11 @@ pub trait AuthSessionRepository: Send + Sync {
         authenticated: bool,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 
+    fn claim_code(
+        &self,
+        auth_session: &Scoped<AuthSession>,
+    ) -> impl Future<Output = Result<bool, AuthenticationError>> + Send;
+
     fn bind_user_session(
         &self,
         session_code: Uuid,

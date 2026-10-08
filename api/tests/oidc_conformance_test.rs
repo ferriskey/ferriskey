@@ -387,4 +387,34 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn concurrent_redemptions_of_one_code_yield_one_token_set() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let user = app.user(&server, PASSWORD).await;
+            let code = sign_in_for_code(
+                &server,
+                app,
+                &client.client_id,
+                &user.username,
+                PASSWORD,
+                &[],
+            )
+            .await;
+
+            let (first, second) = tokio::join!(
+                exchange_code(&server, app, &client, &code, &[]),
+                exchange_code(&server, app, &client, &code, &[]),
+            );
+            let successes = [first.status_code(), second.status_code()]
+                .iter()
+                .filter(|status| status.as_u16() == 200)
+                .count();
+            assert_eq!(successes, 1, "both redemptions of one code succeeded");
+        });
+    }
 }

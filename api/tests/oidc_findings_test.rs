@@ -37,36 +37,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SSO-01 open: the code is spent after the tokens are minted"]
-    fn sso_01_concurrent_redemptions_yield_one_token_set() {
-        rt().block_on(async {
-            let app = app();
-            let server = app.server();
-            let client = app.client(ClientSpec::confidential()).await;
-            let user = app.user(&server, PASSWORD).await;
-            let code = sign_in_for_code(
-                &server,
-                app,
-                &client.client_id,
-                &user.username,
-                PASSWORD,
-                &[],
-            )
-            .await;
-
-            let (first, second) = tokio::join!(
-                exchange_code(&server, app, &client, &code, &[]),
-                exchange_code(&server, app, &client, &code, &[]),
-            );
-            let successes = [first.status_code(), second.status_code()]
-                .iter()
-                .filter(|status| status.as_u16() == 200)
-                .count();
-            assert_eq!(successes, 1, "both redemptions of one code succeeded");
-        });
-    }
-
-    #[test]
     #[ignore = "SSO-06 open: failed_login_attempts is a read-modify-write"]
     fn sso_06_parallel_wrong_passwords_lock_the_account() {
         rt().block_on(async {
