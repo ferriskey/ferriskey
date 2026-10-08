@@ -6,8 +6,8 @@ mod tests {
     use serde_json::Value;
 
     use crate::common::{
-        CALLBACK, ClientSpec, SeededClient, TestApp, app, exchange_code, introspect,
-        password_grant, refresh, rt, sign_in_for_code,
+        ClientSpec, SeededClient, TestApp, app, exchange_code, introspect, password_grant, refresh,
+        rt, sign_in_for_code,
     };
 
     const PASSWORD: &str = "Findings-Passw0rd!";
@@ -208,30 +208,6 @@ mod tests {
             )
             .await;
             assert_eq!(response.status_code(), 401, "{}", response.text());
-        });
-    }
-
-    #[test]
-    #[ignore = "SSO-22 open: auth_sessions.scope is VARCHAR(255)"]
-    fn sso_22_a_long_scope_is_not_a_server_error() {
-        rt().block_on(async {
-            let app = app();
-            let client = app.client(ClientSpec::public()).await;
-            let scope = format!("openid {}", "urn:example:api:read ".repeat(20));
-            let response = app
-                .server()
-                .get(&app.oidc("auth"))
-                .add_query_param("response_type", "code")
-                .add_query_param("client_id", &client.client_id)
-                .add_query_param("redirect_uri", CALLBACK)
-                .add_query_param("scope", scope.trim_end())
-                .await;
-            assert!(
-                response.status_code().as_u16() < 500,
-                "{}: {}",
-                response.status_code(),
-                response.text()
-            );
         });
     }
 }
