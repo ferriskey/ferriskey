@@ -4378,6 +4378,7 @@ This is a server error that should be investigated. Do not forward back this mes
     ) -> Result<IdTokenClaims, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
         validation.validate_aud = false;
+        validation.validate_exp = false;
 
         let jwt_key_pair = self
             .keystore_repository
@@ -4391,10 +4392,6 @@ This is a server error that should be investigated. Do not forward back this mes
             &validation,
         )
         .map_err(|_| CoreError::InvalidToken)?;
-
-        if token_data.claims.exp < Utc::now().timestamp() {
-            return Err(CoreError::ExpiredToken);
-        }
 
         if token_data.claims.iss != expected_issuer {
             return Err(CoreError::InvalidToken);

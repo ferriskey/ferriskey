@@ -17,7 +17,7 @@ Feature: RP-initiated logout
     When "alice" logs out of "web" towards "https://evil.example/" with state "bye"
     Then the browser is not sent to "evil.example"
 
-  @wip @SSO-05
+  @SSO-05
   Scenario: Logout with an expired ID token still returns to the registered address
     Given "web" issues ID tokens that are already expired
     And "alice" has signed in to "web"
