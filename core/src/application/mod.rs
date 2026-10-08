@@ -809,22 +809,25 @@ mod tests {
         use ferriskey_domain::client::ports::ClientRepository;
         app.client_service
             .client_repository
-            .create_client(ferriskey_domain::client::value_objects::CreateClientRequest {
-                client_id: "ferriskey-account".to_string(),
-                client_type: ferriskey_domain::client::entities::ClientType::Public,
-                direct_access_grants_enabled: false,
-                oauth_device_code_grant_enabled: false,
-                token_exchange_enabled: false,
-                enabled: true,
-                name: "ferriskey-account".to_string(),
-                protocol: ferriskey_domain::authentication::entities::AuthProtocol::OpenIdConnect,
-                public_client: true,
-                realm_id: realm.id,
-                secret: None,
-                service_account_enabled: false,
-                require_pkce: false,
-                consent_required: false,
-            })
+            .create_client(
+                ferriskey_domain::client::value_objects::CreateClientRequest {
+                    client_id: "ferriskey-account".to_string(),
+                    client_type: ferriskey_domain::client::entities::ClientType::Public,
+                    direct_access_grants_enabled: false,
+                    oauth_device_code_grant_enabled: false,
+                    token_exchange_enabled: false,
+                    enabled: true,
+                    name: "ferriskey-account".to_string(),
+                    protocol:
+                        ferriskey_domain::authentication::entities::AuthProtocol::OpenIdConnect,
+                    public_client: true,
+                    realm_id: realm.id,
+                    secret: None,
+                    service_account_enabled: false,
+                    require_pkce: false,
+                    consent_required: false,
+                },
+            )
             .await
             .expect("create account client");
 
