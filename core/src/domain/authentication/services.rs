@@ -5278,16 +5278,14 @@ where
             ClientGrant::Revocation,
         )?;
 
-        let hinted_refresh = input.token_type_hint.as_deref() == Some("refresh_token");
-        let hinted_access = input.token_type_hint.as_deref() == Some("access_token");
-
         let claims = match self.verify_token(input.token.clone(), scope.id()).await {
             Ok(claims) => claims,
             // RFC 7009 behavior: revocation is idempotent and should not reveal token validity.
             Err(CoreError::InvalidToken)
             | Err(CoreError::ExpiredToken)
             | Err(CoreError::TokenValidationError(_))
-            | Err(CoreError::TokenParsingError(_)) => return Ok(()),
+            | Err(CoreError::TokenParsingError(_))
+            | Err(CoreError::SessionRevoked) => return Ok(()),
             Err(e) => return Err(e),
         };
 
@@ -5298,20 +5296,12 @@ where
 
         match claims.typ {
             ClaimsTyp::Refresh => {
-                if hinted_access {
-                    return Ok(());
-                }
-
                 self.refresh_token_repository
                     .revoke_by_jti(claims.jti)
                     .await
                     .map_err(|_| CoreError::InternalServerError)?;
             }
             ClaimsTyp::Bearer => {
-                if hinted_refresh {
-                    return Ok(());
-                }
-
                 let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
                 self.access_token_repository
                     .revoke_by_token_hash(token_hash)

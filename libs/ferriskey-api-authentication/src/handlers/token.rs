@@ -3,8 +3,8 @@ use crate::basic_auth::try_parse_basic_client_credentials;
 use crate::validators::TokenRequestValidator;
 use axum::{
     Form,
-    extract::{Path, State},
-    http::{HeaderMap, StatusCode, header},
+    extract::{Path, State, rejection::FormRejection},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use ferriskey_api_core::api_entities::api_error::ApiError;
@@ -18,6 +18,7 @@ use ferriskey_core::domain::authentication::token_exchange::{
     TokenExchangeError, TokenExchangeInput, TokenExchangeOutput,
 };
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use serde::Serialize;
 use tracing::{instrument, warn};
 use utoipa::ToSchema;
@@ -62,6 +63,94 @@ enum TokenUnauthorizedResponse {
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
 )]
+pub async fn exchange_token(
+    Path(realm_name): Path<String>,
+    State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
+    context: RequestContext,
+    headers: HeaderMap,
+    payload: Result<Form<TokenRequestValidator>, FormRejection>,
+) -> Response {
+    let mut response = match payload {
+        Ok(Form(payload)) => token_response(realm_name, state, base_url, context, headers, payload)
+            .await
+            .unwrap_or_else(IntoResponse::into_response),
+        Err(rejection) => malformed_token_request(&rejection.body_text()).into_response(),
+    };
+
+    let headers = response.headers_mut();
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    headers.insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
+    response
+}
+
+fn malformed_token_request(reason: &str) -> ApiError {
+    if reason.contains("grant_type") && reason.contains("unknown variant") {
+        return ApiError::OAuthError {
+            error: "unsupported_grant_type".into(),
+            error_description: "The grant type is not supported.".into(),
+        };
+    }
+
+    ApiError::OAuthError {
+        error: "invalid_request".into(),
+        error_description: "The token request is malformed.".into(),
+    }
+}
+
+fn missing_parameter(payload: &TokenRequestValidator) -> Option<&'static str> {
+    match payload.grant_type {
+        GrantType::Code if payload.code.is_none() => Some("code"),
+        GrantType::Password if payload.username.is_none() => Some("username"),
+        GrantType::Password if payload.password.is_none() => Some("password"),
+        GrantType::RefreshToken if payload.refresh_token.is_none() => Some("refresh_token"),
+        GrantType::DeviceCode if payload.device_code.is_none() => Some("device_code"),
+        _ => None,
+    }
+}
+
+fn token_endpoint_error(error: CoreError) -> ApiError {
+    let invalid_grant = |description: String| ApiError::OAuthError {
+        error: "invalid_grant".into(),
+        error_description: description.into(),
+    };
+
+    match error {
+        CoreError::ClientAuthenticationFailed
+        | CoreError::InvalidClient
+        | CoreError::InvalidClientSecret
+        | CoreError::ClientNotFound => ApiError::OAuthUnauthorized {
+            error: "invalid_client".into(),
+            error_description: "Client authentication failed.".into(),
+        },
+        CoreError::ServiceAccountNotFound => ApiError::OAuthError {
+            error: "unauthorized_client".into(),
+            error_description: "The client has no service account.".into(),
+        },
+        CoreError::Invalid
+        | CoreError::InvalidPassword
+        | CoreError::InvalidCredentials
+        | CoreError::InvalidUser
+        | CoreError::UserNotFound => invalid_grant("Invalid user credentials.".to_string()),
+        CoreError::Forbidden(description) => invalid_grant(description),
+        CoreError::UserDisabled
+        | CoreError::AccountLocked
+        | CoreError::InvalidRefreshToken
+        | CoreError::InvalidToken
+        | CoreError::ExpiredToken
+        | CoreError::SessionRevoked
+        | CoreError::SessionExpired
+        | CoreError::SessionNotFound
+        | CoreError::InvalidSession
+        | CoreError::MissingAuthorizationCode => invalid_grant(error.to_string()),
+        CoreError::InvalidRequest => ApiError::OAuthError {
+            error: "invalid_request".into(),
+            error_description: "The token request is invalid.".into(),
+        },
+        other => other.into(),
+    }
+}
+
 #[instrument(
     skip(state, payload, headers, context),
     fields(
@@ -73,13 +162,13 @@ enum TokenUnauthorizedResponse {
         has_refresh_token = payload.refresh_token.is_some()
     )
 )]
-pub async fn exchange_token(
-    Path(realm_name): Path<String>,
-    State(state): State<AppState>,
-    FullUrl(_, base_url): FullUrl,
+async fn token_response(
+    realm_name: String,
+    state: AppState,
+    base_url: String,
     context: RequestContext,
     headers: HeaderMap,
-    Form(payload): Form<TokenRequestValidator>,
+    payload: TokenRequestValidator,
 ) -> Result<Response, ApiError> {
     let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
         Some((id, sec)) => (id, Some(sec)),
@@ -103,6 +192,16 @@ pub async fn exchange_token(
         )
         .await
         .map(IntoResponse::into_response);
+    }
+
+    if let Some(parameter) = missing_parameter(&payload) {
+        return Err(ApiError::OAuthError {
+            error: "invalid_request".into(),
+            error_description: format!(
+                "The {parameter} parameter is required for this grant type."
+            )
+            .into(),
+        });
     }
 
     let grant_type = payload.grant_type.clone();
@@ -157,7 +256,7 @@ pub async fn exchange_token(
                     error = ?error,
                     "Token exchange failed"
                 );
-                return Err(error.into());
+                return Err(token_endpoint_error(error));
             }
         }
     };
@@ -213,4 +312,115 @@ async fn exchange_subject_token(
         ],
         axum::Json(output),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{malformed_token_request, missing_parameter, token_endpoint_error};
+    use crate::validators::TokenRequestValidator;
+    use ferriskey_api_core::api_entities::api_error::ApiError;
+    use ferriskey_core::domain::common::entities::app_errors::CoreError;
+
+    fn oauth_code(error: ApiError) -> (u16, String) {
+        match error {
+            ApiError::OAuthError { error, .. } => (400, error.into_owned()),
+            ApiError::OAuthUnauthorized { error, .. } => (401, error.into_owned()),
+            other => panic!("not an OAuth error: {other:?}"),
+        }
+    }
+
+    fn request(grant_type: &str) -> TokenRequestValidator {
+        serde_urlencoded::from_str(&format!("grant_type={grant_type}")).expect("form")
+    }
+
+    #[test]
+    fn client_failures_are_invalid_client() {
+        for error in [
+            CoreError::ClientAuthenticationFailed,
+            CoreError::InvalidClient,
+            CoreError::InvalidClientSecret,
+            CoreError::ClientNotFound,
+        ] {
+            assert_eq!(
+                oauth_code(token_endpoint_error(error)),
+                (401, "invalid_client".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn grant_failures_are_invalid_grant() {
+        for error in [
+            CoreError::Invalid,
+            CoreError::InvalidPassword,
+            CoreError::UserDisabled,
+            CoreError::AccountLocked,
+            CoreError::InvalidRefreshToken,
+            CoreError::InvalidToken,
+            CoreError::ExpiredToken,
+            CoreError::SessionRevoked,
+            CoreError::Forbidden("a required action is pending".to_string()),
+            CoreError::InvalidAuthorizationCode,
+        ] {
+            assert_eq!(
+                oauth_code(token_endpoint_error(error)),
+                (400, "invalid_grant".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn credential_failures_do_not_say_which_part_was_wrong() {
+        let ApiError::OAuthError {
+            error_description, ..
+        } = token_endpoint_error(CoreError::UserNotFound)
+        else {
+            panic!("expected an OAuth error");
+        };
+        assert_eq!(error_description, "Invalid user credentials.");
+    }
+
+    #[tokio::test]
+    async fn an_unknown_grant_type_is_unsupported() {
+        use axum::{Form, extract::FromRequest, http::Request};
+
+        let request = Request::post("/token")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(axum::body::Body::from("grant_type=made-up"))
+            .expect("request");
+        let rejection = Form::<TokenRequestValidator>::from_request(request, &())
+            .await
+            .expect_err("unknown grant type");
+
+        assert_eq!(
+            oauth_code(malformed_token_request(&rejection.body_text())),
+            (400, "unsupported_grant_type".to_string())
+        );
+    }
+
+    #[test]
+    fn any_other_malformed_body_is_an_invalid_request() {
+        assert_eq!(
+            oauth_code(malformed_token_request("missing field `foo`")),
+            (400, "invalid_request".to_string())
+        );
+    }
+
+    #[test]
+    fn each_grant_names_its_missing_parameter() {
+        assert_eq!(
+            missing_parameter(&request("authorization_code")),
+            Some("code")
+        );
+        assert_eq!(missing_parameter(&request("password")), Some("username"));
+        assert_eq!(
+            missing_parameter(&request("refresh_token")),
+            Some("refresh_token")
+        );
+        assert_eq!(
+            missing_parameter(&request("urn:ietf:params:oauth:grant-type:device_code")),
+            Some("device_code")
+        );
+        assert_eq!(missing_parameter(&request("client_credentials")), None);
+    }
 }

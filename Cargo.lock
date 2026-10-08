@@ -1805,6 +1805,8 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
+ "serde_urlencoded",
+ "tokio",
  "tracing",
  "urlencoding",
  "utoipa",
