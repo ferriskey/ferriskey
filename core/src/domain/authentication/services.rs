@@ -6886,6 +6886,33 @@ mod tests {
 }
 
 #[cfg(test)]
+mod client_secret_tests {
+    use super::client_secret_matches;
+
+    #[test]
+    fn the_registered_secret_authenticates_the_client() {
+        assert!(client_secret_matches(Some("s3cr3t"), Some("s3cr3t")));
+    }
+
+    #[test]
+    fn a_different_secret_is_refused() {
+        assert!(!client_secret_matches(Some("s3cr3t"), Some("s3cr3T")));
+        assert!(!client_secret_matches(Some("s3cr3t"), Some("s3cr3t ")));
+        assert!(!client_secret_matches(Some("s3cr3t"), Some("")));
+    }
+
+    #[test]
+    fn a_confidential_client_without_a_presented_secret_is_refused() {
+        assert!(!client_secret_matches(Some("s3cr3t"), None));
+    }
+
+    #[test]
+    fn a_presented_secret_is_refused_when_none_is_registered() {
+        assert!(!client_secret_matches(None, Some("anything")));
+    }
+}
+
+#[cfg(test)]
 mod password_hash_tests {
     use ferriskey_security::SecurityError;
     use ferriskey_security::crypto::password_check::{

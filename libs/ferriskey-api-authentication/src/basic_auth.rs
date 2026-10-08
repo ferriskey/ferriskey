@@ -44,6 +44,42 @@ mod tests {
         assert_eq!(try_parse_basic_client_credentials(&headers), None);
     }
 
+    fn encoded(credentials: &str) -> HeaderMap {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            basic(&format!("Basic {}", STANDARD.encode(credentials))),
+        );
+        headers
+    }
+
+    #[test]
+    fn a_secret_containing_a_colon_is_kept_whole() {
+        assert_eq!(
+            try_parse_basic_client_credentials(&encoded("client:se:cr:et")),
+            Some(("client".to_string(), "se:cr:et".to_string()))
+        );
+    }
+
+    #[test]
+    fn the_scheme_name_is_case_insensitive() {
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, basic("basic Y2xpZW50OnNlY3JldA=="));
+        assert_eq!(
+            try_parse_basic_client_credentials(&headers),
+            Some(("client".to_string(), "secret".to_string()))
+        );
+    }
+
+    #[test]
+    fn credentials_without_a_separator_are_refused() {
+        assert_eq!(
+            try_parse_basic_client_credentials(&encoded("client-only")),
+            None
+        );
+    }
+
     #[test]
     fn rejects_malformed_base64() {
         let mut headers = HeaderMap::new();
