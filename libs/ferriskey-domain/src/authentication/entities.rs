@@ -16,9 +16,11 @@ use crate::user::entities::RequiredAction;
 pub struct JwtToken {
     access_token: String,
     token_type: String,
-    refresh_token: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refresh_token: Option<String>,
     expires_in: u32,
-    refresh_expires_in: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refresh_expires_in: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     session_state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -38,11 +40,19 @@ impl JwtToken {
         Self {
             access_token,
             token_type,
-            refresh_token,
+            refresh_token: Some(refresh_token),
             expires_in,
-            refresh_expires_in,
+            refresh_expires_in: Some(refresh_expires_in),
             session_state,
             id_token,
+        }
+    }
+
+    pub fn without_refresh_token(self) -> Self {
+        Self {
+            refresh_token: None,
+            refresh_expires_in: None,
+            ..self
         }
     }
 

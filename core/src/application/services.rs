@@ -5,7 +5,7 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
-use crate::domain::authentication::services::client_secret_matches;
+use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
 use crate::domain::client::entities::Client;
 use crate::domain::jwt::entities::{Jwt, JwtClaim};
 use crate::domain::realm::entities::{RealmId, RealmScope};
@@ -785,11 +785,15 @@ impl ApplicationService {
             .map_err(|_| DeviceFlowError::InvalidClient)?
             .into_inner();
 
-        if !client.public_client
-            && !client_secret_matches(client.secret_str(), input.client_secret.as_deref())
-        {
-            return Err(DeviceFlowError::InvalidClient);
-        }
+        authenticate_client(
+            &client,
+            input.client_secret.as_deref(),
+            ClientGrant::DeviceCode,
+        )
+        .map_err(|error| match error {
+            CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
+            _ => DeviceFlowError::InvalidClient,
+        })?;
 
         let scope = self
             .auth_service
@@ -844,11 +848,15 @@ impl ApplicationService {
             .map_err(|_| DeviceFlowError::InvalidClient)?
             .into_inner();
 
-        if !client.public_client
-            && !client_secret_matches(client.secret_str(), input.client_secret.as_deref())
-        {
-            return Err(DeviceFlowError::InvalidClient);
-        }
+        authenticate_client(
+            &client,
+            input.client_secret.as_deref(),
+            ClientGrant::DeviceCode,
+        )
+        .map_err(|error| match error {
+            CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
+            _ => DeviceFlowError::InvalidClient,
+        })?;
 
         self.device_flow_service
             .poll(PollDeviceTokenParams {

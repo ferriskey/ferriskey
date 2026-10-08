@@ -94,6 +94,12 @@ pub enum CoreError {
     #[error("Invalid client secret")]
     InvalidClientSecret,
 
+    #[error("Client authentication failed")]
+    ClientAuthenticationFailed,
+
+    #[error("{0}")]
+    UnauthorizedClient(String),
+
     #[error("Invalid authorization request")]
     InvalidRequest,
 
@@ -445,6 +451,8 @@ impl CoreError {
             CoreError::SessionRevoked => "session_revoked",
             CoreError::InvalidGrant(_) => "invalid_grant",
             CoreError::InvalidClientSecret => "invalid_client_secret",
+            CoreError::ClientAuthenticationFailed => "invalid_client",
+            CoreError::UnauthorizedClient(_) => "unauthorized_client",
             CoreError::InvalidRequest => "invalid_request",
             CoreError::InvalidCredentials => "invalid_credentials",
             CoreError::ServiceAccountNotFound => "service_account_not_found",

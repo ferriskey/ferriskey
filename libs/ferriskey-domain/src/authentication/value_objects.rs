@@ -264,6 +264,7 @@ pub struct IntrospectTokenInput {
 pub struct RevokeTokenInput {
     pub realm_name: String,
     pub client_id: String,
+    pub client_secret: Option<String>,
     pub token: String,
     pub token_type_hint: Option<String>,
 }

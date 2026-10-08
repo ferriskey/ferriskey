@@ -116,6 +116,14 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidClientSecret => {
                         Self::Unauthorized("Invalid client secret".into())
                     }
+            CoreError::ClientAuthenticationFailed => Self::OAuthUnauthorized {
+                error: "invalid_client".into(),
+                error_description: "Client authentication failed.".into(),
+            },
+            CoreError::UnauthorizedClient(description) => Self::OAuthError {
+                error: "unauthorized_client".into(),
+                error_description: description.into(),
+            },
             CoreError::InvalidRequest => {
                         Self::BadRequest("Invalid authorization request".into())
                     }

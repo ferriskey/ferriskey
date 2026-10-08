@@ -1,4 +1,5 @@
 pub mod backchannel_logout;
+pub mod client_authentication;
 pub mod device_flow;
 pub mod entities;
 pub mod login_resolver;
