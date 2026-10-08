@@ -1914,6 +1914,40 @@ where
     /// secret, which revocation clears first. Falling back to a fresh session
     /// here would let a code issued before a revocation mint tokens the
     /// revocation never saw. Only an unbound code (`Ok(None)`) opens one.
+    async fn revoke_tokens_of_a_replayed_code(
+        &self,
+        auth_session: &AuthSession,
+    ) -> Result<(), CoreError> {
+        let Some(session_id) = auth_session.user_session_id else {
+            return Ok(());
+        };
+
+        let refresh = self
+            .refresh_token_repository
+            .revoke_by_session_id(session_id)
+            .await;
+        let access = self
+            .access_token_repository
+            .revoke_by_session_id(session_id)
+            .await;
+
+        if refresh.is_err() || access.is_err() {
+            error!(
+                session_id = %session_id,
+                refresh = ?refresh,
+                access = ?access,
+                "Failed to revoke the tokens issued from a replayed authorization code"
+            );
+            return Err(CoreError::InternalServerError);
+        }
+
+        warn!(
+            session_id = %session_id,
+            "Revoked the tokens issued from a replayed authorization code"
+        );
+        Ok(())
+    }
+
     async fn bound_session_for_exchange(
         &self,
         auth_session: &AuthSession,
@@ -2545,6 +2579,7 @@ where
                 client_id = %params.client_id,
                 "Authorization code has already been used"
             );
+            self.revoke_tokens_of_a_replayed_code(auth_session).await?;
             return Err(CoreError::InvalidAuthorizationCode);
         }
 
@@ -2582,6 +2617,23 @@ where
                 // No challenge stored — check if a verifier was sent unexpectedly
                 // (harmless per RFC 7636 §4.6, we simply ignore it).
             }
+        }
+
+        let claimed = self
+            .auth_session_repository
+            .claim_code(&scoped_session)
+            .await
+            .map_err(|e| {
+                warn!("Failed to claim an authorization code: {:?}", e);
+                CoreError::InternalServerError
+            })?;
+        if !claimed {
+            warn!(
+                client_id = %params.client_id,
+                "Authorization code was redeemed by a concurrent request"
+            );
+            self.revoke_tokens_of_a_replayed_code(auth_session).await?;
+            return Err(CoreError::InvalidAuthorizationCode);
         }
 
         let flow_id = auth_session.compass_flow_id.map(FlowId);
@@ -2719,14 +2771,6 @@ where
             duration,
             Some(user_id),
         );
-
-        self.auth_session_repository
-            .update_authenticated(&scoped_session, true)
-            .await
-            .map_err(|e| {
-                warn!("Failed to mark auth session as authenticated: {:?}", e);
-                CoreError::InternalServerError
-            })?;
 
         let id_token_value = id_token.map(|t| t.token);
 

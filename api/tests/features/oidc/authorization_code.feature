@@ -20,7 +20,7 @@ Feature: Authorization code flow
     When "alice" signs in to "spa" with a PKCE S256 challenge
     Then "spa" receives an ID token for "alice"
 
-  @wip @SSO-01
+  @SSO-01
   Scenario: Redeeming a code twice revokes the tokens it already produced
     Given "alice" has signed in to "web"
     When "web" redeems the same code again

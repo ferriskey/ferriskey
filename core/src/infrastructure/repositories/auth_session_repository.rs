@@ -398,6 +398,29 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(())
     }
 
+    async fn claim_code(
+        &self,
+        auth_session: &Scoped<AuthSession>,
+    ) -> Result<bool, AuthenticationError> {
+        let session = auth_session.get();
+        let result = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::Authenticated,
+                Expr::value(true),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session.id))
+            .filter(crate::entity::auth_sessions::Column::Code.eq(session.code.clone()))
+            .filter(crate::entity::auth_sessions::Column::Authenticated.eq(false))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error claiming an authorization code: {:?}", e);
+                AuthenticationError::Invalid
+            })?;
+
+        Ok(result.rows_affected == 1)
+    }
+
     async fn bind_user_session(
         &self,
         session_code: Uuid,
@@ -564,7 +587,7 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sea_orm::Database as SeaOrmDatabase;
+    use sea_orm::{ConnectionTrait, Database as SeaOrmDatabase};
     use sqlx::Executor as _;
     use uuid::Uuid;
 
@@ -742,6 +765,13 @@ mod tests {
         assert!(created.authenticated, "pre-condition");
 
         let user_id = Uuid::new_v4();
+        repo.db
+            .execute_unprepared(&format!(
+                "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+                 VALUES ('{user_id}', '{realm_id}', 'user-{user_id}', TRUE, TRUE, NOW(), NOW())"
+            ))
+            .await
+            .expect("insert the user the code is issued to");
         let updated = repo
             .update_code_and_user_id(created.id, "fresh-code-with-user".into(), user_id)
             .await
@@ -768,5 +798,52 @@ mod tests {
             matches!(result, Err(AuthenticationError::NotFound)),
             "binding an unknown auth session must fail, got {result:?}"
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_code_can_be_claimed_only_once() {
+        let (repo, realm_id, client_id) = setup().await;
+        let created = repo
+            .create(&make_session(realm_id, client_id, false))
+            .await
+            .expect("create session");
+        let issued = repo
+            .update_code(created.id, "claim-once".into())
+            .await
+            .expect("issue code");
+        let scoped = Unscoped::new(issued)
+            .in_realm(&make_scope(realm_id))
+            .expect("the session belongs to the realm it was created in");
+
+        let (first, second) = tokio::join!(repo.claim_code(&scoped), repo.claim_code(&scoped));
+        let wins = [first.expect("claim"), second.expect("claim")]
+            .iter()
+            .filter(|claimed| **claimed)
+            .count();
+
+        assert_eq!(wins, 1, "exactly one concurrent claim must win");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_replaced_code_cannot_be_claimed() {
+        let (repo, realm_id, client_id) = setup().await;
+        let created = repo
+            .create(&make_session(realm_id, client_id, false))
+            .await
+            .expect("create session");
+        let stale = repo
+            .update_code(created.id, "first-code".into())
+            .await
+            .expect("issue code");
+        repo.update_code(created.id, "second-code".into())
+            .await
+            .expect("reissue code");
+        let scoped = Unscoped::new(stale)
+            .in_realm(&make_scope(realm_id))
+            .expect("the session belongs to the realm it was created in");
+
+        assert!(!repo.claim_code(&scoped).await.expect("claim"));
     }
 }
