@@ -280,3 +280,15 @@ jobs:
       # session ends.
       - name: run back-channel logout integration tests
         run: cargo test -p ferriskey-api --test backchannel_logout_test -- --ignored
+
+      - name: run PKCE integration tests
+        run: cargo test -p ferriskey-api --test pkce_test -- --ignored
+
+      - name: run refresh token rotation integration tests
+        run: cargo test -p ferriskey-api --test refresh_token_rotation_test -- --ignored
+
+      - name: run token endpoint client authentication integration tests
+        run: cargo test -p ferriskey-api --test token_basic_auth_test -- --ignored
+
+      - name: run OIDC conformance integration tests
+        run: cargo test -p ferriskey-api --test oidc_conformance_test -- --ignored
