@@ -56,6 +56,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
         session_id: Option<Uuid>,
+        resource: Option<String>,
     ) -> Result<RefreshToken, JwtError> {
         let family_id = Uuid::new_v4();
         let model = crate::entity::refresh_tokens::ActiveModel {
@@ -70,7 +71,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             replaced_by: Set(None),
             rotated_at: Set(None),
             session_id: Set(session_id),
-            resource: Set(None),
+            resource: Set(resource),
         };
 
         let refresh_token = model
@@ -88,6 +89,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         family_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
         session_id: Option<Uuid>,
+        resource: Option<String>,
     ) -> Result<RefreshToken, JwtError> {
         let model = crate::entity::refresh_tokens::ActiveModel {
             id: Set(generate_uuid_v7()),
@@ -101,7 +103,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             replaced_by: Set(None),
             rotated_at: Set(None),
             session_id: Set(session_id),
-            resource: Set(None),
+            resource: Set(resource),
         };
 
         let refresh_token = model

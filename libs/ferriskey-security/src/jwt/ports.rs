@@ -46,6 +46,7 @@ pub trait RefreshTokenRepository: Send + Sync {
         user_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
         session_id: Option<Uuid>,
+        resource: Option<String>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
 
     /// Create a new refresh token that belongs to an existing token family.
@@ -56,6 +57,7 @@ pub trait RefreshTokenRepository: Send + Sync {
         family_id: Uuid,
         expires_at: Option<DateTime<Utc>>,
         session_id: Option<Uuid>,
+        resource: Option<String>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
 
     fn get_by_jti(
