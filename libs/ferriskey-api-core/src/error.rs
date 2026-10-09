@@ -304,6 +304,10 @@ impl From<CoreError> for ApiError {
                 error: "invalid_scope".into(),
                 error_description: description.into(),
             },
+            CoreError::InvalidTarget => Self::OAuthError {
+                error: "invalid_target".into(),
+                error_description: "The requested resource is not allowed for this realm.".into(),
+            },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
             CoreError::AccountLocked => Self::Unauthorized(
                 "Account is temporarily locked due to too many failed login attempts".into(),
