@@ -22,6 +22,9 @@ shared:
   status:
     enabled: 已启用
     disabled: 已禁用
+  registration_source:
+    dynamic: 动态
+    metadata_document: 元数据文档
   in_maintenance: 维护中
   no_description: 无描述
   discard: 放弃

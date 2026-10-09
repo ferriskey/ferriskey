@@ -10,6 +10,7 @@ import { AUTH_NAMESPACE, BRAND_NAME } from '../constants'
 
 export interface PageConsentProps {
   clientName: string
+  clientUriHost?: string | null
   defaultScopes: ConsentScopeView[]
   optionalScopes: ConsentScopeView[]
   approvedOptional: ReadonlySet<string>
@@ -24,6 +25,7 @@ export interface PageConsentProps {
 
 export default function PageConsent({
   clientName,
+  clientUriHost,
   defaultScopes,
   optionalScopes,
   approvedOptional,
@@ -67,6 +69,11 @@ export default function PageConsent({
                           values={{ name: clientName }}
                           components={{ app: <span className='font-medium text-foreground' /> }}
                         />
+                      </p>
+                    )}
+                    {clientName && clientUriHost && (
+                      <p className='font-mono-ui text-xs text-muted-foreground'>
+                        {t('consent.client_host', { host: clientUriHost })}
                       </p>
                     )}
                   </div>

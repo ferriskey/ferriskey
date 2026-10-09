@@ -233,6 +233,7 @@ device:
 consent:
   title: 授权访问
   request: <app>{{name}}</app> 请求访问您的账户。
+  client_host: 应用来源：{{host}}
   default_scopes_label: 始终授予
   optional_scopes_label: 选择要分享的内容
   allow: 允许
