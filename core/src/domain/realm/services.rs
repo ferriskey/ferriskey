@@ -451,6 +451,8 @@ where
                 service_account_enabled: false,
                 require_pkce: false,
                 consent_required: false,
+                registration_source:
+                    crate::domain::client::entities::ClientRegistrationSource::Admin,
             })
             .await?;
 
@@ -471,6 +473,8 @@ where
                 service_account_enabled: false,
                 require_pkce: false,
                 consent_required: false,
+                registration_source:
+                    crate::domain::client::entities::ClientRegistrationSource::Admin,
             })
             .await?;
 
@@ -500,6 +504,8 @@ where
                 service_account_enabled: false,
                 require_pkce: true,
                 consent_required: false,
+                registration_source:
+                    crate::domain::client::entities::ClientRegistrationSource::Admin,
             })
             .await?;
 
@@ -587,6 +593,8 @@ where
                 client_type: ClientType::Public,
                 require_pkce: false,
                 consent_required: false,
+                registration_source:
+                    crate::domain::client::entities::ClientRegistrationSource::Admin,
             })
             .await?;
 
