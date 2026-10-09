@@ -363,6 +363,9 @@ pub enum CoreError {
     #[error("Invalid scope: {0}")]
     InvalidScope(String),
 
+    #[error("Invalid target resource")]
+    InvalidTarget,
+
     #[error("User account is disabled")]
     UserDisabled,
 
@@ -537,6 +540,7 @@ impl CoreError {
             CoreError::ClientNotFound => "client_not_found",
             CoreError::HintsNotFound => "hints_not_found",
             CoreError::InvalidScope(_) => "invalid_scope",
+            CoreError::InvalidTarget => "invalid_target",
             CoreError::UserDisabled => "user_disabled",
             CoreError::AccountLocked => "account_locked",
             CoreError::ClientUnderMaintenance(_) => "client_under_maintenance",
@@ -837,6 +841,7 @@ mod tests {
             (CoreError::ClientNotFound, "client_not_found"),
             (CoreError::HintsNotFound, "hints_not_found"),
             (CoreError::InvalidScope(payload.clone()), "invalid_scope"),
+            (CoreError::InvalidTarget, "invalid_target"),
             (CoreError::UserDisabled, "user_disabled"),
             (CoreError::AccountLocked, "account_locked"),
             (
@@ -919,7 +924,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 126);
+        assert_eq!(every_variant_with_expected_reason().len(), 127);
     }
 
     #[test]
