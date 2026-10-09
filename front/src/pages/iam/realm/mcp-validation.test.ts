@@ -28,7 +28,7 @@ test('rejects fragments, relative and other schemes', () => {
 
 test('accepts bare hosts', () => {
   assert.equal(isValidCimdHost('example.com'), true)
-  assert.equal(isValidCimdHost('client.example.com:8443'), true)
+  assert.equal(isValidCimdHost('client.example.com'), true)
   assert.equal(isValidCimdHost('localhost'), true)
 })
 
@@ -36,6 +36,8 @@ test('rejects hosts with scheme, path or spaces', () => {
   assert.equal(isValidCimdHost('https://example.com'), false)
   assert.equal(isValidCimdHost('example.com/path'), false)
   assert.equal(isValidCimdHost('exa mple.com'), false)
+  assert.equal(isValidCimdHost('client.example.com:8443'), false)
+  assert.equal(isValidCimdHost('localhost:3000'), false)
   assert.equal(isValidCimdHost(''), false)
 })
 
