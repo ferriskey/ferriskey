@@ -244,6 +244,10 @@ pub struct RealmSetting {
     pub webhook_retry_base_delay_ms: Option<i32>,
     pub webhook_retry_max_delay_ms: Option<i32>,
     pub webhook_retry_max_total_delay_ms: Option<i32>,
+    pub cimd_enabled: bool,
+    pub dcr_enabled: bool,
+    pub cimd_allowed_hosts: Vec<String>,
+    pub allowed_resources: Vec<String>,
 }
 
 impl RealmSetting {
@@ -284,6 +288,10 @@ impl RealmSetting {
             webhook_retry_base_delay_ms: None,
             webhook_retry_max_delay_ms: None,
             webhook_retry_max_total_delay_ms: None,
+            cimd_enabled: false,
+            dcr_enabled: false,
+            cimd_allowed_hosts: Vec::new(),
+            allowed_resources: Vec::new(),
         }
     }
 }

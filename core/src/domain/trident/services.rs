@@ -3887,6 +3887,8 @@ mod tests {
             reauth_session_id: None,
             consent_token_hash: None,
             prompt_consent: false,
+            issuer: None,
+            resource: None,
         }
     }
 

@@ -1652,6 +1652,7 @@ where
             // Preview only — nothing is signed or persisted, so there is no session.
             session_id: None,
             auth_time: None,
+            resource: None,
         };
 
         let assembled = self.assemble_token_claims(&gen_input).await?;
@@ -2127,6 +2128,7 @@ where
             refresh_jti_override: None,
             session_id: None,
             auth_time: None,
+            resource: None,
         };
 
         let assembled = self.assemble_token_claims_for(&input, true).await?;
@@ -2650,6 +2652,7 @@ where
                 refresh_jti_override: None,
                 session_id: Some(user_session.id),
                 auth_time: Some(user_session.authenticated_at.timestamp()),
+                resource: None,
             })
             .await
             .map_err(|e| {
@@ -2801,6 +2804,7 @@ where
                 // Machine-to-machine: no user is present, so no SSO session exists.
                 session_id: None,
                 auth_time: None,
+                resource: None,
             })
             .await?;
 
@@ -2975,6 +2979,7 @@ where
                 refresh_jti_override: None,
                 session_id: Some(user_session.id),
                 auth_time: Some(user_session.authenticated_at.timestamp()),
+                resource: None,
             })
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
@@ -3123,6 +3128,7 @@ where
                         // its session and make it immune to revocation.
                         session_id: claims.sid,
                         auth_time: None,
+                        resource: None,
                     })
                     .await?;
 
@@ -4380,6 +4386,8 @@ where
             code_challenge: input.code_challenge,
             code_challenge_method: input.code_challenge_method,
             prompt_consent: input.prompt_consent,
+            issuer: None,
+            resource: None,
         };
         let session = self
             .auth_session_repository
@@ -5354,6 +5362,7 @@ where
                     refresh_jti_override: None,
                     session_id: Some(user_session.id),
                     auth_time: Some(user_session.authenticated_at.timestamp()),
+                    resource: None,
                 })
                 .await?;
 
@@ -5503,6 +5512,8 @@ mod tests {
             reauth_session_id: None,
             consent_token_hash: None,
             prompt_consent: false,
+            issuer: None,
+            resource: None,
         }
     }
 
@@ -5887,6 +5898,7 @@ mod tests {
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
             consent_required: false,
+            registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
         }
     }
 

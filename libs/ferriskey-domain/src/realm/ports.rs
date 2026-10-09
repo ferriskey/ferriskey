@@ -104,6 +104,10 @@ pub trait RealmRepository: Send + Sync {
         webhook_retry_base_delay_ms: Option<Option<i32>>,
         webhook_retry_max_delay_ms: Option<Option<i32>>,
         webhook_retry_max_total_delay_ms: Option<Option<i32>>,
+        cimd_enabled: Option<bool>,
+        dcr_enabled: Option<bool>,
+        cimd_allowed_hosts: Option<Vec<String>>,
+        allowed_resources: Option<Vec<String>>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(

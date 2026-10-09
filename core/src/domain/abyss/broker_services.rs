@@ -793,6 +793,8 @@ where
                 code_challenge: session.code_challenge.clone(),
                 code_challenge_method: challenge_method,
                 prompt_consent: false,
+                issuer: None,
+                resource: None,
             });
             self.auth_session_repository.create(&auth_session).await?;
         }

@@ -97,6 +97,12 @@ pub struct UpdateRealmSettingValidator {
     #[serde(default, deserialize_with = "deserialize_optional_field")]
     #[schema(value_type = Option<i32>)]
     pub webhook_retry_max_total_delay_ms: Option<Option<i32>>,
+    pub cimd_enabled: Option<bool>,
+    pub dcr_enabled: Option<bool>,
+    #[validate(custom(function = "validate_cimd_allowed_hosts"))]
+    pub cimd_allowed_hosts: Option<Vec<String>>,
+    #[validate(custom(function = "validate_allowed_resources"))]
+    pub allowed_resources: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -164,6 +170,59 @@ fn validate_realm_slug(value: &str) -> Result<(), validator::ValidationError> {
     }
 }
 
+pub fn is_valid_resource_indicator(value: &str) -> bool {
+    let Ok(url) = url::Url::parse(value) else {
+        return false;
+    };
+
+    if url.fragment().is_some() || value.contains('#') {
+        return false;
+    }
+
+    match (url.scheme(), url.host()) {
+        ("https", Some(_)) => true,
+        ("http", Some(url::Host::Domain(domain))) => domain.eq_ignore_ascii_case("localhost"),
+        ("http", Some(url::Host::Ipv4(ip))) => ip.is_loopback(),
+        ("http", Some(url::Host::Ipv6(ip))) => ip.is_loopback(),
+        _ => false,
+    }
+}
+
+pub fn is_bare_host(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 253
+        && value.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && !label.starts_with('-')
+                && !label.ends_with('-')
+                && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+        })
+}
+
+fn validate_allowed_resources(values: &[String]) -> Result<(), validator::ValidationError> {
+    if values
+        .iter()
+        .all(|value| is_valid_resource_indicator(value))
+    {
+        Ok(())
+    } else {
+        Err(validator::ValidationError::new(
+            "allowed_resources entries must be absolute https URLs, or http on a loopback host, without fragment",
+        ))
+    }
+}
+
+fn validate_cimd_allowed_hosts(values: &[String]) -> Result<(), validator::ValidationError> {
+    if values.iter().all(|value| is_bare_host(value)) {
+        Ok(())
+    } else {
+        Err(validator::ValidationError::new(
+            "cimd_allowed_hosts entries must be bare host names without scheme or path",
+        ))
+    }
+}
+
 fn validate_encryption(value: &str) -> Result<(), validator::ValidationError> {
     match value {
         "tls" | "starttls" | "none" => Ok(()),
@@ -221,5 +280,80 @@ mod update_realm_setting_validator_tests {
             "login_aliases should be None when omitted"
         );
         assert_eq!(v.user_registration_enabled, Some(true));
+    }
+}
+
+#[cfg(test)]
+mod mcp_settings_validator_tests {
+    use super::{UpdateRealmSettingValidator, is_bare_host, is_valid_resource_indicator};
+    use serde_json::json;
+    use validator::Validate;
+
+    #[test]
+    fn resource_accepts_https_and_loopback_http() {
+        assert!(is_valid_resource_indicator("https://mcp.example.com"));
+        assert!(is_valid_resource_indicator(
+            "https://mcp.example.com/v1?x=1"
+        ));
+        assert!(is_valid_resource_indicator("http://localhost:8080/mcp"));
+        assert!(is_valid_resource_indicator("http://127.0.0.1:3000"));
+        assert!(is_valid_resource_indicator("http://[::1]:3000/mcp"));
+    }
+
+    #[test]
+    fn resource_rejects_relative_fragment_and_plain_http() {
+        assert!(!is_valid_resource_indicator("mcp.example.com"));
+        assert!(!is_valid_resource_indicator("/mcp"));
+        assert!(!is_valid_resource_indicator(
+            "https://mcp.example.com/#frag"
+        ));
+        assert!(!is_valid_resource_indicator("https://mcp.example.com#"));
+        assert!(!is_valid_resource_indicator("http://mcp.example.com"));
+        assert!(!is_valid_resource_indicator("ftp://localhost"));
+        assert!(!is_valid_resource_indicator(""));
+    }
+
+    #[test]
+    fn host_accepts_bare_names_only() {
+        assert!(is_bare_host("example.com"));
+        assert!(is_bare_host("sub-domain.example.com"));
+        assert!(is_bare_host("localhost"));
+        assert!(!is_bare_host("https://example.com"));
+        assert!(!is_bare_host("example.com/path"));
+        assert!(!is_bare_host("example.com:443"));
+        assert!(!is_bare_host(""));
+        assert!(!is_bare_host("a..b"));
+        assert!(!is_bare_host("-a.com"));
+    }
+
+    #[test]
+    fn validator_rejects_invalid_entries() {
+        let bad_resource: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({ "allowed_resources": ["http://example.com"] }))
+                .expect("deserializes");
+        assert!(bad_resource.validate().is_err());
+
+        let bad_host: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({ "cimd_allowed_hosts": ["https://example.com"] }))
+                .expect("deserializes");
+        assert!(bad_host.validate().is_err());
+    }
+
+    #[test]
+    fn validator_accepts_valid_entries_and_absence() {
+        let ok: UpdateRealmSettingValidator = serde_json::from_value(json!({
+            "cimd_enabled": true,
+            "dcr_enabled": false,
+            "allowed_resources": ["https://mcp.example.com"],
+            "cimd_allowed_hosts": ["example.com"]
+        }))
+        .expect("deserializes");
+        assert!(ok.validate().is_ok());
+        assert_eq!(ok.cimd_enabled, Some(true));
+
+        let empty: UpdateRealmSettingValidator =
+            serde_json::from_value(json!({})).expect("deserializes");
+        assert!(empty.validate().is_ok());
+        assert!(empty.allowed_resources.is_none());
     }
 }

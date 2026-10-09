@@ -111,6 +111,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         backchannel_logout_uri: None,
         backchannel_logout_session_required: true,
         consent_required: false,
+        registration_source: ferriskey_domain::client::entities::ClientRegistrationSource::Admin,
     }
 }
 

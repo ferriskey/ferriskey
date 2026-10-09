@@ -48,6 +48,10 @@ pub struct Model {
     pub default_locale: String,
     pub supported_locales: Vec<String>,
     pub consent_ttl_days: Option<i32>,
+    pub cimd_enabled: bool,
+    pub dcr_enabled: bool,
+    pub cimd_allowed_hosts: Vec<String>,
+    pub allowed_resources: Vec<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -87,6 +91,10 @@ pub enum Column {
     DefaultLocale,
     SupportedLocales,
     ConsentTtlDays,
+    CimdEnabled,
+    DcrEnabled,
+    CimdAllowedHosts,
+    AllowedResources,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -149,6 +157,10 @@ impl ColumnTrait for Column {
             Self::DefaultLocale => ColumnType::Text.def(),
             Self::SupportedLocales => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
             Self::ConsentTtlDays => ColumnType::Integer.def().null(),
+            Self::CimdEnabled => ColumnType::Boolean.def(),
+            Self::DcrEnabled => ColumnType::Boolean.def(),
+            Self::CimdAllowedHosts => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
+            Self::AllowedResources => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
         }
     }
 }
