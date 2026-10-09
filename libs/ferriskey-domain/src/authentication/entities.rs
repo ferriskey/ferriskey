@@ -280,6 +280,8 @@ pub struct AuthInput {
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub prompt_consent: bool,
+    pub issuer: Option<String>,
+    pub resource: Option<String>,
 }
 
 pub struct ExchangeTokenInput {
@@ -301,6 +303,7 @@ pub struct ExchangeTokenInput {
     pub redirect_uri: Option<String>,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
+    pub resource: Option<String>,
 }
 
 pub struct AuthorizeRequestOutput {

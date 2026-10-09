@@ -107,7 +107,20 @@ pub(crate) fn sso_token_hash(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
 
-fn consent_error_redirect(redirect_uri: &str, error: &str, state: Option<&str>) -> String {
+fn with_issuer(mut url: String, issuer: Option<&str>) -> String {
+    if let Some(issuer) = issuer.filter(|issuer| !issuer.is_empty()) {
+        url.push_str(&format!("&iss={}", urlencoding::encode(issuer)));
+    }
+
+    url
+}
+
+fn consent_error_redirect(
+    redirect_uri: &str,
+    error: &str,
+    state: Option<&str>,
+    issuer: Option<&str>,
+) -> String {
     let separator = if redirect_uri.contains('?') { '&' } else { '?' };
     let mut location = format!("{redirect_uri}{separator}error={error}");
 
@@ -115,7 +128,38 @@ fn consent_error_redirect(redirect_uri: &str, error: &str, state: Option<&str>) 
         location.push_str(&format!("&state={}", urlencoding::encode(state)));
     }
 
-    location
+    with_issuer(location, issuer)
+}
+
+fn resource_is_allowed(allowed_resources: &[String], resource: &str) -> bool {
+    allowed_resources.iter().any(|allowed| allowed == resource)
+}
+
+fn effective_code_resource(
+    session_resource: Option<&str>,
+    requested: Option<&str>,
+    allowed_resources: &[String],
+) -> Result<Option<String>, CoreError> {
+    match (session_resource, requested) {
+        (Some(bound), Some(requested)) if bound != requested => Err(CoreError::InvalidTarget),
+        (Some(bound), _) => Ok(Some(bound.to_string())),
+        (None, Some(requested)) if resource_is_allowed(allowed_resources, requested) => {
+            Ok(Some(requested.to_string()))
+        }
+        (None, Some(_)) => Err(CoreError::InvalidTarget),
+        (None, None) => Ok(None),
+    }
+}
+
+fn effective_refresh_resource(
+    stored: Option<&str>,
+    requested: Option<&str>,
+) -> Result<Option<String>, CoreError> {
+    match (stored, requested) {
+        (_, None) => Ok(stored.map(str::to_string)),
+        (Some(stored), Some(requested)) if stored == requested => Ok(Some(stored.to_string())),
+        _ => Err(CoreError::InvalidTarget),
+    }
 }
 
 fn narrow_scope_to_consented(
@@ -156,12 +200,14 @@ fn format_authorization_redirect_url(
         urlencoding::encode(authorization_code)
     );
 
-    match auth_session.state.as_deref() {
+    let url = match auth_session.state.as_deref() {
         Some(state) if !state.is_empty() => {
             format!("{url}&state={}", urlencoding::encode(state))
         }
         _ => url,
-    }
+    };
+
+    with_issuer(url, auth_session.issuer.as_deref())
 }
 
 pub(crate) fn format_auth_completion(
@@ -1591,6 +1637,9 @@ where
                 access_claims.aud.push(aud.clone());
             }
         }
+        if let Some(resource) = &input.resource {
+            access_claims.aud = vec![resource.clone()];
+        }
         access_claims.additional_claims = access_mapper_output.claims;
 
         // `preferred_username` and `email` are now injected exclusively via protocol
@@ -2119,6 +2168,7 @@ where
                     input.user_id,
                     Some(refresh_token_expires_at),
                     input.session_id,
+                    input.resource.clone(),
                 )
             )
             .map_err(|_| CoreError::InternalServerError)?;
@@ -2569,6 +2619,18 @@ where
             Utc::now(),
         )?;
 
+        let allowed_resources = self
+            .realm_repository
+            .get_realm_settings(params.realm.id())
+            .await?
+            .map(|settings| settings.allowed_resources)
+            .unwrap_or_default();
+        let resource = effective_code_resource(
+            auth_session.resource.as_deref(),
+            params.resource.as_deref(),
+            &allowed_resources,
+        )?;
+
         // PKCE verification (RFC 7636 §4.6).
         match (
             &auth_session.code_challenge,
@@ -2692,7 +2754,7 @@ where
                 refresh_jti_override: None,
                 session_id: Some(user_session.id),
                 auth_time: Some(user_session.authenticated_at.timestamp()),
-                resource: None,
+                resource,
             })
             .await
             .map_err(|e| {
@@ -3078,6 +3140,9 @@ where
             ));
         }
 
+        let resource =
+            effective_refresh_resource(stored.resource.as_deref(), params.resource.as_deref())?;
+
         let user = self
             .user_repository
             .get_by_id(claims.sub)
@@ -3167,7 +3232,7 @@ where
                         // its session and make it immune to revocation.
                         session_id: claims.sid,
                         auth_time: None,
-                        resource: None,
+                        resource,
                     })
                     .await?;
 
@@ -3561,6 +3626,7 @@ where
                 &auth_session.redirect_uri,
                 "access_denied",
                 auth_session.state.as_deref(),
+                auth_session.issuer.as_deref(),
             )),
             ConsentDecisionOutcome::Approved { .. } => {
                 let output = self
@@ -4577,6 +4643,19 @@ where
             }
         }
 
+        if let Some(resource) = input.resource.as_deref() {
+            let allowed_resources = self
+                .realm_repository
+                .get_realm_settings(scope.id())
+                .await?
+                .map(|settings| settings.allowed_resources)
+                .unwrap_or_default();
+
+            if !resource_is_allowed(&allowed_resources, resource) {
+                return Err(CoreError::InvalidTarget);
+            }
+        }
+
         let flow_id = self
             .flow_recorder
             .start_flow(
@@ -4606,8 +4685,8 @@ where
             code_challenge: input.code_challenge,
             code_challenge_method: input.code_challenge_method,
             prompt_consent: input.prompt_consent,
-            issuer: None,
-            resource: None,
+            issuer: input.issuer,
+            resource: input.resource,
         };
         let session = self
             .auth_session_repository
@@ -4709,6 +4788,7 @@ where
             redirect_uri: input.redirect_uri,
             scope: input.scope,
             code_verifier: input.code_verifier,
+            resource: input.resource,
         };
 
         let result = self
@@ -5657,6 +5737,7 @@ where
                 user.id,
                 Some(refresh_token_expires_at),
                 Some(user_session.id),
+                None,
             )
         )
         .map_err(|e| {
@@ -5683,7 +5764,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        auth_session_can_resume, format_auth_completion, format_authorization_redirect_url,
+        auth_session_can_resume, consent_error_redirect, effective_code_resource,
+        effective_refresh_resource, format_auth_completion, format_authorization_redirect_url,
         narrow_scope_to_consented, validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
@@ -5735,6 +5817,93 @@ mod tests {
     }
 
     // ---- format_authorization_redirect_url -------------------------------
+
+    #[test]
+    fn redirect_url_carries_the_percent_encoded_issuer() {
+        let mut session = auth_session(
+            Some("xyz"),
+            "https://client.example/callback",
+            Utc::now(),
+            None,
+            false,
+        );
+        session.issuer = Some("https://auth.example/realms/demo".to_string());
+
+        assert_eq!(
+            format_authorization_redirect_url(&session, "C"),
+            "https://client.example/callback?code=C&state=xyz&iss=https%3A%2F%2Fauth.example%2Frealms%2Fdemo"
+        );
+    }
+
+    #[test]
+    fn a_consent_denial_carries_the_issuer() {
+        assert_eq!(
+            consent_error_redirect(
+                "https://client.example/cb",
+                "access_denied",
+                Some("s"),
+                Some("https://auth.example/realms/demo"),
+            ),
+            "https://client.example/cb?error=access_denied&state=s&iss=https%3A%2F%2Fauth.example%2Frealms%2Fdemo"
+        );
+    }
+
+    #[test]
+    fn a_code_bound_to_a_resource_refuses_another_one() {
+        let allowed = vec!["https://a".to_string(), "https://b".to_string()];
+
+        assert!(matches!(
+            effective_code_resource(Some("https://a"), Some("https://b"), &allowed),
+            Err(CoreError::InvalidTarget)
+        ));
+        assert_eq!(
+            effective_code_resource(Some("https://a"), Some("https://a"), &allowed).ok(),
+            Some(Some("https://a".to_string()))
+        );
+        assert_eq!(
+            effective_code_resource(Some("https://a"), None, &allowed).ok(),
+            Some(Some("https://a".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_code_without_a_resource_takes_an_allowed_requested_one_only() {
+        let allowed = vec!["https://a".to_string()];
+
+        assert_eq!(
+            effective_code_resource(None, Some("https://a"), &allowed).ok(),
+            Some(Some("https://a".to_string()))
+        );
+        assert!(matches!(
+            effective_code_resource(None, Some("https://z"), &allowed),
+            Err(CoreError::InvalidTarget)
+        ));
+        assert_eq!(
+            effective_code_resource(None, None, &allowed).ok(),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn a_refresh_keeps_its_resource_and_refuses_any_other() {
+        assert_eq!(
+            effective_refresh_resource(Some("https://a"), None).ok(),
+            Some(Some("https://a".to_string()))
+        );
+        assert_eq!(
+            effective_refresh_resource(Some("https://a"), Some("https://a")).ok(),
+            Some(Some("https://a".to_string()))
+        );
+        assert!(matches!(
+            effective_refresh_resource(Some("https://a"), Some("https://b")),
+            Err(CoreError::InvalidTarget)
+        ));
+        assert!(matches!(
+            effective_refresh_resource(None, Some("https://a")),
+            Err(CoreError::InvalidTarget)
+        ));
+        assert_eq!(effective_refresh_resource(None, None).ok(), Some(None));
+    }
 
     #[test]
     fn redirect_url_includes_state_when_present() {
