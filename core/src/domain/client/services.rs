@@ -193,6 +193,8 @@ where
                 client_type: input.client_type,
                 require_pkce: false,
                 consent_required: input.consent_required,
+                registration_source:
+                    crate::domain::client::entities::ClientRegistrationSource::Admin,
             })
             .await?;
 
