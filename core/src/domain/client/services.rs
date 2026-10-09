@@ -203,7 +203,7 @@ where
 
         for scope in realm_scopes
             .into_iter()
-            .filter(|s| matches!(s.name.as_str(), "openid" | "profile" | "email" | "roles"))
+            .filter(|s| s.default_scope_type == ferriskey_aegis::entities::ScopeType::Default)
         {
             self.scope_mapping_repository
                 .assign_scope_to_client(client.id, scope.id, true, false)

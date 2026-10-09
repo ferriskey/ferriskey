@@ -806,6 +806,31 @@ mod tests {
             .await
             .expect("create realm");
 
+        use ferriskey_domain::client::ports::ClientRepository;
+        app.client_service
+            .client_repository
+            .create_client(
+                ferriskey_domain::client::value_objects::CreateClientRequest {
+                    client_id: "ferriskey-account".to_string(),
+                    client_type: ferriskey_domain::client::entities::ClientType::Public,
+                    direct_access_grants_enabled: false,
+                    oauth_device_code_grant_enabled: false,
+                    token_exchange_enabled: false,
+                    enabled: true,
+                    name: "ferriskey-account".to_string(),
+                    protocol:
+                        ferriskey_domain::authentication::entities::AuthProtocol::OpenIdConnect,
+                    public_client: true,
+                    realm_id: realm.id,
+                    secret: None,
+                    service_account_enabled: false,
+                    require_pkce: false,
+                    consent_required: false,
+                },
+            )
+            .await
+            .expect("create account client");
+
         app.seed_default_scopes(realm.id)
             .await
             .expect("seed default scopes");
@@ -880,7 +905,7 @@ mod tests {
             .expect("create client");
 
         let default_scopes: Vec<(Uuid,)> = sqlx::query_as(
-            "SELECT id FROM client_scopes WHERE realm_id = $1 AND is_default = true",
+            "SELECT id FROM client_scopes WHERE realm_id = $1 AND default_scope_type = 'DEFAULT'",
         )
         .bind::<Uuid>(realm.id.into())
         .fetch_all(&pool)
@@ -891,7 +916,7 @@ mod tests {
 
         for (scope_id,) in default_scopes {
             let row: (i64,) = sqlx::query_as(
-                "SELECT COUNT(*) FROM client_scope_mappings WHERE client_id = $1 AND client_scope_id = $2 AND is_default = true AND is_optional = false",
+                "SELECT COUNT(*) FROM client_scope_mappings WHERE client_id = $1 AND client_scope_id = $2 AND default_scope_type = 'DEFAULT'",
             )
             .bind(client.id)
             .bind(scope_id)
@@ -903,7 +928,7 @@ mod tests {
         }
 
         let optional_count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM client_scope_mappings m JOIN client_scopes s ON s.id = m.client_scope_id WHERE m.client_id = $1 AND s.realm_id = $2 AND s.is_default = false",
+            "SELECT COUNT(*) FROM client_scope_mappings m JOIN client_scopes s ON s.id = m.client_scope_id WHERE m.client_id = $1 AND s.realm_id = $2 AND s.default_scope_type != 'DEFAULT'",
         )
         .bind(client.id)
         .bind::<Uuid>(realm.id.into())
