@@ -21,8 +21,8 @@ use crate::domain::{
     },
     realm::{
         entities::{
-            Realm, RealmFilter, RealmId, RealmLoginSetting, RealmScope, RealmSetting,
-            RealmSortField, SmtpConfig,
+            AuthorizationServerSettings, Realm, RealmFilter, RealmId, RealmLoginSetting,
+            RealmScope, RealmSetting, RealmSortField, SmtpConfig,
         },
         ports::{
             CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, DeleteSmtpConfigInput,
@@ -924,6 +924,34 @@ where
         settings.identity_providers = idp;
 
         Ok(settings)
+    }
+
+    async fn get_authorization_server_settings(
+        &self,
+        realm_name: String,
+    ) -> Result<AuthorizationServerSettings, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+
+        let settings = self
+            .realm_repository
+            .get_realm_settings(scope.id())
+            .await?
+            .ok_or(CoreError::NotFound)?;
+
+        let mut scopes_supported: Vec<String> = self
+            .client_scope_repository
+            .find_by_realm_id(scope.id())
+            .await?
+            .into_iter()
+            .map(|client_scope| client_scope.name)
+            .collect();
+        scopes_supported.sort();
+
+        Ok(AuthorizationServerSettings {
+            cimd_enabled: settings.cimd_enabled,
+            dcr_enabled: settings.dcr_enabled,
+            scopes_supported,
+        })
     }
 }
 

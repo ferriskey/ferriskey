@@ -11,6 +11,9 @@ use ferriskey_api_consent::handlers::post_consent::{__path_post_consent, post_co
 use super::handlers::{
     auth::{__path_auth_handler, auth_handler},
     authentificate::{__path_authenticate, authenticate},
+    authorization_server_metadata::{
+        __path_get_authorization_server_metadata, get_authorization_server_metadata,
+    },
     device_authorization::{__path_device_authorization, device_authorization},
     device_verify::{
         __path_device_preview, __path_device_verification_page, __path_device_verify,
@@ -52,6 +55,7 @@ use ferriskey_api_core::{app_state::AppState, auth::auth};
         logout_post,
         revoke_token,
         get_openid_configuration,
+        get_authorization_server_metadata,
         registration_handler,
         verify_email_handler,
         resend_verification_email_handler,
@@ -152,4 +156,20 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
             &format!("{root_path}/realms/{{realm_name}}/.well-known/openid-configuration"),
             get(get_openid_configuration),
         )
+        .route(
+            &format!("{root_path}/.well-known/oauth-authorization-server/realms/{{realm_name}}"),
+            get(get_authorization_server_metadata),
+        )
+        .merge(strict_metadata_route(root_path))
+}
+
+fn strict_metadata_route(root_path: &str) -> Router<AppState> {
+    if root_path.is_empty() || root_path == "/" {
+        return Router::new();
+    }
+
+    Router::new().route(
+        &format!("/.well-known/oauth-authorization-server{root_path}/realms/{{realm_name}}"),
+        get(get_authorization_server_metadata),
+    )
 }

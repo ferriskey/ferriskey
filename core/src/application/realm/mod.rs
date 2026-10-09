@@ -9,7 +9,8 @@ use crate::{
         portal_theme::ports::{GetThemeInput, PortalThemeService},
         realm::{
             entities::{
-                Realm, RealmFilter, RealmId, RealmLoginSetting, RealmSetting, RealmSortField,
+                AuthorizationServerSettings, Realm, RealmFilter, RealmId, RealmLoginSetting,
+                RealmSetting, RealmSortField,
             },
             ports::{
                 CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
@@ -56,6 +57,15 @@ impl RealmService for ApplicationService {
             .get_public_theme(GetThemeInput { realm_name })
             .await?;
         Ok(settings)
+    }
+
+    async fn get_authorization_server_settings(
+        &self,
+        realm_name: String,
+    ) -> Result<AuthorizationServerSettings, CoreError> {
+        self.realm_service
+            .get_authorization_server_settings(realm_name)
+            .await
     }
 
     async fn get_realm_by_name(

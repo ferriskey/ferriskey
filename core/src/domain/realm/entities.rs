@@ -10,6 +10,13 @@ use utoipa::ToSchema;
 
 use crate::domain::abyss::identity_provider::entities::IdentityProviderPresentation;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct AuthorizationServerSettings {
+    pub cimd_enabled: bool,
+    pub dcr_enabled: bool,
+    pub scopes_supported: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct RealmLoginSetting {
     pub name: String,
