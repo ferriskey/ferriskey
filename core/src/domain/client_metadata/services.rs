@@ -1,3 +1,4 @@
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use tracing::warn;
@@ -11,6 +12,7 @@ use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::client::value_objects::{CreateClientRequest, UpdateClientRequest};
 use crate::domain::client_metadata::entities::{
     ClientMetadataDocument, ClientMetadataError, MAX_CLIENT_NAME_CHARS,
+    MAX_METADATA_DOCUMENT_CLIENTS_PER_REALM,
 };
 use crate::domain::client_metadata::ports::{
     ClientMetadataDocumentFetcher, ClientMetadataResolver,
@@ -20,6 +22,7 @@ use crate::domain::client_metadata::validation::{
 };
 use crate::domain::client_registration::provision::assign_default_scopes;
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::domain::common::rate_limit::IpRateLimiter;
 use crate::domain::realm::entities::RealmScope;
 
 #[derive(Debug)]
@@ -36,6 +39,7 @@ where
     redirect_uri_repository: Arc<RU>,
     scope_repository: Arc<CS>,
     scope_mapping_repository: Arc<CSM>,
+    rate_limiter: Arc<IpRateLimiter>,
     allow_cleartext: bool,
 }
 
@@ -54,6 +58,7 @@ where
             redirect_uri_repository: Arc::clone(&self.redirect_uri_repository),
             scope_repository: Arc::clone(&self.scope_repository),
             scope_mapping_repository: Arc::clone(&self.scope_mapping_repository),
+            rate_limiter: Arc::clone(&self.rate_limiter),
             allow_cleartext: self.allow_cleartext,
         }
     }
@@ -73,6 +78,7 @@ where
         redirect_uri_repository: Arc<RU>,
         scope_repository: Arc<CS>,
         scope_mapping_repository: Arc<CSM>,
+        rate_limiter: Arc<IpRateLimiter>,
         allow_cleartext: bool,
     ) -> Self {
         Self {
@@ -81,6 +87,7 @@ where
             redirect_uri_repository,
             scope_repository,
             scope_mapping_repository,
+            rate_limiter,
             allow_cleartext,
         }
     }
@@ -106,10 +113,11 @@ where
         scope: &RealmScope,
         host: &str,
         document: &ClientMetadataDocument,
+        existing: Option<Client>,
     ) -> Result<(), CoreError> {
         let name = display_name(document, host);
 
-        let client = match self.find_existing(scope, &document.client_id).await? {
+        let client = match existing {
             Some(client) => client,
             None => match self.create(scope, &document.client_id, name.clone()).await {
                 Ok(client) => client,
@@ -220,16 +228,29 @@ where
         client_id: &str,
         redirect_uri: &str,
         allowed_hosts: &[String],
+        source_ip: Option<IpAddr>,
     ) -> Result<(), ClientMetadataError> {
         let url = parse_client_id_url(client_id, self.allow_cleartext)?;
         let host = url.host_str().ok_or(ClientMetadataError::InvalidUrl)?;
 
         ensure_host_allowed(host, allowed_hosts)?;
 
+        let existing = self
+            .find_existing(scope, client_id)
+            .await
+            .map_err(|error| {
+                warn!(error = ?error, "could not look up a metadata document client");
+                ClientMetadataError::FetchFailed("the client could not be looked up")
+            })?;
+
+        if existing.is_none() {
+            self.admit_new_client(scope, source_ip).await?;
+        }
+
         let fetched = self.fetcher.fetch(client_id).await?;
         validate_document(client_id, &fetched.document, redirect_uri)?;
 
-        self.upsert(scope, host, &fetched.document)
+        self.upsert(scope, host, &fetched.document, existing)
             .await
             .map_err(|error| match error {
                 CoreError::InvalidClient => ClientMetadataError::ClientIdTaken,
@@ -238,6 +259,41 @@ where
                     ClientMetadataError::FetchFailed("the client could not be stored")
                 }
             })
+    }
+}
+
+impl<F, C, RU, CS, CSM> ClientMetadataResolverImpl<F, C, RU, CS, CSM>
+where
+    F: ClientMetadataDocumentFetcher,
+    C: ClientRepository,
+    RU: RedirectUriRepository,
+    CS: ClientScopeRepository,
+    CSM: ClientScopeMappingRepository,
+{
+    async fn admit_new_client(
+        &self,
+        scope: &RealmScope,
+        source_ip: Option<IpAddr>,
+    ) -> Result<(), ClientMetadataError> {
+        let ip = source_ip.unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED));
+        if !self.rate_limiter.allow(ip) {
+            return Err(ClientMetadataError::RateLimited);
+        }
+
+        let existing = self
+            .client_repository
+            .count_by_source(scope.id(), ClientRegistrationSource::MetadataDocument)
+            .await
+            .map_err(|error| {
+                warn!(error = ?error, "could not count metadata document clients");
+                ClientMetadataError::FetchFailed("the client could not be looked up")
+            })?;
+
+        if existing >= MAX_METADATA_DOCUMENT_CLIENTS_PER_REALM {
+            return Err(ClientMetadataError::RealmLimitReached);
+        }
+
+        Ok(())
     }
 }
 
@@ -288,6 +344,7 @@ where
         realm: &RealmScope,
         client_id: &str,
         redirect_uri: &str,
+        source_ip: Option<IpAddr>,
     ) -> Result<(), CoreError> {
         let Some(settings) = realm.realm().settings.as_ref() else {
             return Ok(());
@@ -297,12 +354,18 @@ where
             return Ok(());
         }
 
-        self.resolve_document(realm, client_id, redirect_uri, &settings.cimd_allowed_hosts)
-            .await
-            .map_err(|error| {
-                warn!(%client_id, %error, "refused a metadata document client");
-                CoreError::from(error)
-            })
+        self.resolve_document(
+            realm,
+            client_id,
+            redirect_uri,
+            &settings.cimd_allowed_hosts,
+            source_ip,
+        )
+        .await
+        .map_err(|error| {
+            warn!(%client_id, %error, "refused a metadata document client");
+            CoreError::from(error)
+        })
     }
 }
 
@@ -331,6 +394,7 @@ mod tests {
 
     const URL: &str = "https://app.example/client.json";
     const CALLBACK: &str = "https://app.example/callback";
+    const IP: Option<IpAddr> = Some(IpAddr::V4(std::net::Ipv4Addr::new(198, 51, 100, 7)));
 
     type Resolver = ClientMetadataResolverImpl<
         MockClientMetadataDocumentFetcher,
@@ -378,6 +442,15 @@ mod tests {
         clients: MockClientRepository,
         redirects: MockRedirectUriRepository,
     ) -> Resolver {
+        resolver_limited(fetcher, clients, redirects, IpRateLimiter::per_minute(100))
+    }
+
+    fn resolver_limited(
+        fetcher: MockClientMetadataDocumentFetcher,
+        clients: MockClientRepository,
+        redirects: MockRedirectUriRepository,
+        limiter: IpRateLimiter,
+    ) -> Resolver {
         let mut scopes = MockClientScopeRepository::new();
         scopes
             .expect_find_by_realm_id()
@@ -389,6 +462,7 @@ mod tests {
             Arc::new(redirects),
             Arc::new(scopes),
             Arc::new(MockClientScopeMappingRepository::new()),
+            Arc::new(limiter),
             false,
         )
     }
@@ -398,6 +472,9 @@ mod tests {
         clients
             .expect_get_by_client_id()
             .returning(|_, _| Box::pin(async { Err(CoreError::NotFound) }));
+        clients
+            .expect_count_by_source()
+            .returning(|_, _| Box::pin(async { Ok(0) }));
         clients
     }
 
@@ -409,7 +486,7 @@ mod tests {
             MockRedirectUriRepository::new(),
         );
 
-        let result = resolver.resolve(&scope(|_| {}), URL, CALLBACK).await;
+        let result = resolver.resolve(&scope(|_| {}), URL, CALLBACK, IP).await;
 
         assert_eq!(code(result), "ok");
     }
@@ -423,7 +500,11 @@ mod tests {
         );
 
         assert_eq!(
-            code(resolver.resolve(&enabled(), "my-client", CALLBACK).await),
+            code(
+                resolver
+                    .resolve(&enabled(), "my-client", CALLBACK, IP)
+                    .await
+            ),
             "ok"
         );
     }
@@ -441,7 +522,7 @@ mod tests {
         });
 
         assert_eq!(
-            code(resolver.resolve(&realm, URL, CALLBACK).await),
+            code(resolver.resolve(&realm, URL, CALLBACK, IP).await),
             "invalid_client"
         );
     }
@@ -450,12 +531,12 @@ mod tests {
     async fn a_document_whose_client_id_differs_is_refused() {
         let resolver = resolver(
             fetcher_returning(document("https://other.example/c.json", &[CALLBACK])),
-            MockClientRepository::new(),
+            missing_client(),
             MockRedirectUriRepository::new(),
         );
 
         assert_eq!(
-            code(resolver.resolve(&enabled(), URL, CALLBACK).await),
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
             "invalid_client"
         );
     }
@@ -464,14 +545,14 @@ mod tests {
     async fn an_unlisted_redirect_uri_is_refused() {
         let resolver = resolver(
             fetcher_returning(document(URL, &[CALLBACK])),
-            MockClientRepository::new(),
+            missing_client(),
             MockRedirectUriRepository::new(),
         );
 
         assert_eq!(
             code(
                 resolver
-                    .resolve(&enabled(), URL, "https://app.example/other")
+                    .resolve(&enabled(), URL, "https://app.example/other", IP)
                     .await
             ),
             "invalid_redirect_uri"
@@ -534,7 +615,7 @@ mod tests {
         );
 
         assert_eq!(
-            code(resolver.resolve(&enabled(), URL, CALLBACK).await),
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
             "ok"
         );
     }
@@ -559,8 +640,93 @@ mod tests {
         );
 
         assert_eq!(
-            code(resolver.resolve(&enabled(), URL, CALLBACK).await),
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
             "invalid_client"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_realm_at_its_metadata_client_cap_refuses_new_urls_before_any_fetch() {
+        let mut clients = MockClientRepository::new();
+        clients
+            .expect_get_by_client_id()
+            .returning(|_, _| Box::pin(async { Err(CoreError::NotFound) }));
+        clients.expect_count_by_source().returning(|_, source| {
+            assert_eq!(source, ClientRegistrationSource::MetadataDocument);
+            Box::pin(async { Ok(MAX_METADATA_DOCUMENT_CLIENTS_PER_REALM) })
+        });
+
+        let resolver = resolver(
+            MockClientMetadataDocumentFetcher::new(),
+            clients,
+            MockRedirectUriRepository::new(),
+        );
+
+        assert_eq!(
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
+            "invalid_client"
+        );
+    }
+
+    #[tokio::test]
+    async fn new_urls_from_one_address_are_rate_limited_before_any_fetch() {
+        let resolver = resolver_limited(
+            MockClientMetadataDocumentFetcher::new(),
+            missing_client(),
+            MockRedirectUriRepository::new(),
+            IpRateLimiter::per_minute(1),
+        );
+        assert!(resolver.rate_limiter.allow(IP.expect("ip")));
+
+        assert_eq!(
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
+            "invalid_client"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_known_client_is_not_charged_to_the_new_client_limiter() {
+        let mut clients = MockClientRepository::new();
+        clients
+            .expect_get_by_client_id()
+            .returning(|client_id, realm_id| {
+                Box::pin(async move {
+                    let mut client = Client::from_realm_and_client_id(realm_id, client_id);
+                    client.registration_source = ClientRegistrationSource::MetadataDocument;
+                    client.name = "App".to_string();
+                    Ok(Unscoped::new(client))
+                })
+            });
+        let mut redirects = MockRedirectUriRepository::new();
+        redirects
+            .expect_get_by_client_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        redirects
+            .expect_create_redirect_uri()
+            .returning(|client_id, value, enabled| {
+                Box::pin(async move {
+                    Ok(RedirectUri {
+                        id: uuid::Uuid::new_v4(),
+                        client_id,
+                        value,
+                        enabled,
+                        created_at: chrono::Utc::now(),
+                        updated_at: chrono::Utc::now(),
+                    })
+                })
+            });
+
+        let resolver = resolver_limited(
+            fetcher_returning(document(URL, &[CALLBACK])),
+            clients,
+            redirects,
+            IpRateLimiter::per_minute(1),
+        );
+        assert!(resolver.rate_limiter.allow(IP.expect("ip")));
+
+        assert_eq!(
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
+            "ok"
         );
     }
 }

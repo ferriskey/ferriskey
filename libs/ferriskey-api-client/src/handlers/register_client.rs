@@ -110,7 +110,15 @@ pub async fn register_client(
         .register_client(&realm_name, source_ip, request)
         .await
     {
-        Ok(registered) => (StatusCode::CREATED, Json(registered)).into_response(),
+        Ok(registered) => (
+            StatusCode::CREATED,
+            [
+                (header::CACHE_CONTROL, HeaderValue::from_static("no-store")),
+                (header::PRAGMA, HeaderValue::from_static("no-cache")),
+            ],
+            Json(registered),
+        )
+            .into_response(),
         Err(error) => render(error),
     }
 }

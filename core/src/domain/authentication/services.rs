@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
@@ -155,11 +156,19 @@ fn effective_code_resource(
 fn effective_refresh_resource(
     stored: Option<&str>,
     requested: Option<&str>,
+    allowed_resources: &[String],
 ) -> Result<Option<String>, CoreError> {
-    match (stored, requested) {
-        (_, None) => Ok(stored.map(str::to_string)),
-        (Some(stored), Some(requested)) if stored == requested => Ok(Some(stored.to_string())),
-        _ => Err(CoreError::InvalidTarget),
+    let resource = match (stored, requested) {
+        (_, None) => stored,
+        (Some(stored), Some(requested)) if stored == requested => Some(stored),
+        _ => return Err(CoreError::InvalidTarget),
+    };
+
+    match resource {
+        Some(resource) if !resource_is_allowed(allowed_resources, resource) => {
+            Err(CoreError::InvalidTarget)
+        }
+        other => Ok(other.map(str::to_string)),
     }
 }
 
@@ -3152,8 +3161,17 @@ where
             ));
         }
 
-        let resource =
-            effective_refresh_resource(stored.resource.as_deref(), params.resource.as_deref())?;
+        let allowed_resources = self
+            .realm_repository
+            .get_realm_settings(params.realm.id())
+            .await?
+            .map(|settings| settings.allowed_resources)
+            .unwrap_or_default();
+        let resource = effective_refresh_resource(
+            stored.resource.as_deref(),
+            params.resource.as_deref(),
+            &allowed_resources,
+        )?;
 
         let user = self
             .user_repository
@@ -3493,11 +3511,21 @@ where
         auth_session: &AuthSession,
         scope: &RealmScope,
     ) -> Result<Option<AuthenticateOutput>, CoreError> {
-        let consent_required = self
-            .consent_service
-            .decision_repository
-            .get_client_consent_required(auth_session.client_id)
-            .await?;
+        let always_consents = self
+            .client_repository
+            .get_by_id(scope.id(), auth_session.client_id)
+            .await?
+            .in_realm(scope)?
+            .into_inner()
+            .registration_source
+            != ClientRegistrationSource::Admin;
+
+        let consent_required = always_consents
+            || self
+                .consent_service
+                .decision_repository
+                .get_client_consent_required(auth_session.client_id)
+                .await?;
 
         if !consent_required {
             return Ok(None);
@@ -3516,7 +3544,7 @@ where
                 consent_required: true,
                 default_scopes: default_scope_descriptors,
                 requested_optional_scopes,
-                force_screen: auth_session.prompt_consent,
+                force_screen: auth_session.prompt_consent || always_consents,
             })
             .await?;
 
@@ -4636,8 +4664,13 @@ where
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
+        let source_ip = input
+            .ip_address
+            .as_deref()
+            .and_then(|raw| raw.parse::<IpAddr>().ok());
+
         self.client_metadata_resolver
-            .resolve(&scope, &input.client_id, &input.redirect_uri)
+            .resolve(&scope, &input.client_id, &input.redirect_uri, source_ip)
             .await?;
 
         let client = self
@@ -4646,6 +4679,21 @@ where
             .await?
             .in_realm(&scope)?
             .into_inner();
+
+        let cimd_enabled = scope
+            .realm()
+            .settings
+            .as_ref()
+            .is_some_and(|settings| settings.cimd_enabled);
+        if client.registration_source == ClientRegistrationSource::MetadataDocument && !cimd_enabled
+        {
+            warn!(
+                client_id = %input.client_id,
+                "rejecting a metadata document client: the realm has turned the feature off"
+            );
+
+            return Err(CoreError::InvalidClient);
+        }
 
         let protocol = client.protocol;
 
@@ -5931,23 +5979,42 @@ mod tests {
 
     #[test]
     fn a_refresh_keeps_its_resource_and_refuses_any_other() {
+        let allowed = vec!["https://a".to_string(), "https://b".to_string()];
+
         assert_eq!(
-            effective_refresh_resource(Some("https://a"), None).ok(),
+            effective_refresh_resource(Some("https://a"), None, &allowed).ok(),
             Some(Some("https://a".to_string()))
         );
         assert_eq!(
-            effective_refresh_resource(Some("https://a"), Some("https://a")).ok(),
+            effective_refresh_resource(Some("https://a"), Some("https://a"), &allowed).ok(),
             Some(Some("https://a".to_string()))
         );
         assert!(matches!(
-            effective_refresh_resource(Some("https://a"), Some("https://b")),
+            effective_refresh_resource(Some("https://a"), Some("https://b"), &allowed),
             Err(CoreError::InvalidTarget)
         ));
         assert!(matches!(
-            effective_refresh_resource(None, Some("https://a")),
+            effective_refresh_resource(None, Some("https://a"), &allowed),
             Err(CoreError::InvalidTarget)
         ));
-        assert_eq!(effective_refresh_resource(None, None).ok(), Some(None));
+        assert_eq!(
+            effective_refresh_resource(None, None, &allowed).ok(),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn a_refresh_refuses_a_resource_the_realm_no_longer_allows() {
+        let allowed = vec!["https://b".to_string()];
+
+        assert!(matches!(
+            effective_refresh_resource(Some("https://a"), None, &allowed),
+            Err(CoreError::InvalidTarget)
+        ));
+        assert!(matches!(
+            effective_refresh_resource(Some("https://a"), Some("https://a"), &[]),
+            Err(CoreError::InvalidTarget)
+        ));
     }
 
     #[test]

@@ -9,8 +9,8 @@ use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
-    ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect,
-    QueryTrait, Select,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, QuerySelect, QueryTrait, Select,
     sea_query::{Expr, Func},
 };
 use tracing::{error, instrument};
@@ -20,7 +20,8 @@ use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::domain::{
     client::{
         entities::{
-            ApplicationType, Client, ClientFilter, ClientSortField, redirect_uri::RedirectUri,
+            ApplicationType, Client, ClientFilter, ClientRegistrationSource, ClientSortField,
+            redirect_uri::RedirectUri,
         },
         ports::ClientRepository,
         value_objects::{CreateClientRequest, UpdateClientRequest},
@@ -426,6 +427,22 @@ impl ClientRepository for PostgresClientRepository {
         }
 
         Ok(())
+    }
+
+    async fn count_by_source(
+        &self,
+        realm_id: RealmId,
+        source: ClientRegistrationSource,
+    ) -> Result<u64, CoreError> {
+        ClientEntity::find()
+            .filter(clients::Column::RealmId.eq(Uuid::from(realm_id)))
+            .filter(clients::Column::RegistrationSource.eq(source.to_string()))
+            .count(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error counting clients by registration source: {:?}", e);
+                CoreError::InternalServerError
+            })
     }
 }
 

@@ -4,8 +4,11 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
-use crate::domain::client_registration::rate_limit::{DEFAULT_REQUESTS_PER_MINUTE, IpRateLimiter};
 use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
+use crate::domain::common::rate_limit::{
+    CIMD_FETCHES_PER_MINUTE, DEFAULT_REQUESTS_PER_MINUTE, IpRateLimiter,
+    REALM_REGISTRATIONS_PER_HOUR, RealmBudget,
+};
 use crate::infrastructure::client_metadata::{
     CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
 };
@@ -395,6 +398,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         redirect_uri.clone(),
         client_scope.clone(),
         scope_mapping.clone(),
+        Arc::new(IpRateLimiter::per_minute(CIMD_FETCHES_PER_MINUTE)),
         client_metadata_cleartext,
     ));
 
@@ -543,6 +547,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client_scope.clone(),
             scope_mapping.clone(),
             IpRateLimiter::per_minute(DEFAULT_REQUESTS_PER_MINUTE),
+            RealmBudget::per_hour(REALM_REGISTRATIONS_PER_HOUR),
         )),
         trident_service: TridentServiceImpl::new(
             credential.clone(),

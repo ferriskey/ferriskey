@@ -4,8 +4,8 @@ use crate::domain::client::entities::ClientRegistrationSource;
 use crate::domain::client_metadata::entities::{
     ClientMetadataDocument, ClientMetadataError, MAX_CLIENT_ID_URL_LEN,
 };
-
-const FORBIDDEN_REDIRECT_SCHEMES: [&str; 3] = ["javascript", "data", "vbscript"];
+use crate::domain::client_registration::entities::MAX_REDIRECT_URIS;
+use crate::domain::client_registration::validation::validate_redirect_uri;
 
 pub fn is_metadata_client_id(client_id: &str, allow_cleartext: bool) -> bool {
     client_id.starts_with("https://") || (allow_cleartext && client_id.starts_with("http://"))
@@ -25,6 +25,7 @@ pub fn parse_client_id_url(raw: &str, allow_cleartext: bool) -> Result<Url, Clie
         || !url.username().is_empty()
         || url.password().is_some()
         || url.fragment().is_some()
+        || url.path() == "/"
         || url.as_str() != raw
     {
         return Err(ClientMetadataError::InvalidUrl);
@@ -68,10 +69,16 @@ pub fn validate_document(
         ));
     }
 
-    if !document
+    if document.redirect_uris.len() > MAX_REDIRECT_URIS {
+        return Err(ClientMetadataError::InvalidDocument(
+            "redirect_uris holds too many uris",
+        ));
+    }
+
+    if document
         .redirect_uris
         .iter()
-        .all(|uri| is_acceptable_redirect_uri(uri))
+        .any(|uri| validate_redirect_uri(uri).is_err())
     {
         return Err(ClientMetadataError::InvalidDocument(
             "redirect_uris holds an unusable uri",
@@ -83,13 +90,6 @@ pub fn validate_document(
     }
 
     Ok(())
-}
-
-fn is_acceptable_redirect_uri(raw: &str) -> bool {
-    match Url::parse(raw) {
-        Ok(url) => url.fragment().is_none() && !FORBIDDEN_REDIRECT_SCHEMES.contains(&url.scheme()),
-        Err(_) => false,
-    }
 }
 
 pub fn client_uri_host(
@@ -262,6 +262,63 @@ mod tests {
                 Err(ClientMetadataError::InvalidDocument(_))
             ));
         }
+    }
+
+    #[test]
+    fn redirect_uris_follow_the_dynamic_registration_rules() {
+        for uri in [
+            "http://app.example/cb",
+            "https://user:pw@app.example/cb",
+            "ftp://app.example/cb",
+            "myapp://callback",
+            &format!("https://app.example/{}", "a".repeat(2100)),
+        ] {
+            let mut doc = document();
+            doc.redirect_uris.push(uri.to_string());
+            assert!(
+                matches!(
+                    validate_document(URL, &doc, CALLBACK),
+                    Err(ClientMetadataError::InvalidDocument(_))
+                ),
+                "{uri}"
+            );
+        }
+    }
+
+    #[test]
+    fn loopback_http_redirect_uris_are_accepted() {
+        let mut doc = document();
+        doc.redirect_uris
+            .push("http://127.0.0.1:8080/cb".to_string());
+        doc.redirect_uris.push("http://localhost/cb".to_string());
+        assert!(validate_document(URL, &doc, "http://localhost/cb").is_ok());
+    }
+
+    #[test]
+    fn a_document_with_too_many_redirect_uris_is_refused() {
+        let mut doc = document();
+        doc.redirect_uris = (0..=MAX_REDIRECT_URIS)
+            .map(|index| format!("https://app.example/cb{index}"))
+            .collect();
+        assert!(matches!(
+            validate_document(URL, &doc, "https://app.example/cb0"),
+            Err(ClientMetadataError::InvalidDocument(_))
+        ));
+
+        doc.redirect_uris.truncate(MAX_REDIRECT_URIS);
+        assert!(validate_document(URL, &doc, "https://app.example/cb0").is_ok());
+    }
+
+    #[test]
+    fn a_client_id_url_needs_a_path() {
+        for raw in ["https://app.example/", "https://app.example"] {
+            assert_eq!(
+                parse_client_id_url(raw, false),
+                Err(ClientMetadataError::InvalidUrl),
+                "{raw}"
+            );
+        }
+        assert!(parse_client_id_url("https://app.example/client.json", false).is_ok());
     }
 
     #[test]
