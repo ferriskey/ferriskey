@@ -13,6 +13,7 @@ pub const DEFAULT_CACHE_AGE: Duration = Duration::from_secs(5 * 60);
 pub const FAILURE_CACHE_AGE: Duration = Duration::from_secs(60);
 pub const MAX_CACHE_ENTRIES: usize = 1024;
 pub const MAX_CLIENT_NAME_CHARS: usize = 128;
+pub const MAX_METADATA_DOCUMENT_CLIENTS_PER_REALM: u64 = 1000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ClientMetadataDocument {
@@ -53,6 +54,12 @@ pub enum ClientMetadataError {
 
     #[error("the metadata document asks for an unsupported client authentication method")]
     UnsupportedAuthMethod,
+
+    #[error("too many metadata document fetches from this address")]
+    RateLimited,
+
+    #[error("this realm has reached its limit of metadata document clients")]
+    RealmLimitReached,
 
     #[error("the client_id is already used by a client that is not a metadata document client")]
     ClientIdTaken,

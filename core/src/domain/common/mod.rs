@@ -8,6 +8,7 @@ pub mod locale;
 pub mod pagination;
 pub mod policies;
 pub mod ports;
+pub mod rate_limit;
 pub mod services;
 
 pub struct AppConfig {

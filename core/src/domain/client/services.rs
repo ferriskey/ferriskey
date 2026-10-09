@@ -156,6 +156,18 @@ fn ensure_update_allowed_for_source(
         ));
     }
 
+    if payload.direct_access_grants_enabled == Some(true) {
+        return Err(CoreError::Forbidden(
+            "direct access grants cannot be enabled on a self-registered client".to_string(),
+        ));
+    }
+
+    if payload.oauth_device_code_grant_enabled == Some(true) {
+        return Err(CoreError::Forbidden(
+            "the device code grant cannot be enabled on a self-registered client".to_string(),
+        ));
+    }
+
     if payload.client_id.is_some() {
         return Err(CoreError::Forbidden(
             "the client_id of a self-registered client cannot change".to_string(),
@@ -1164,6 +1176,44 @@ mod tests {
             assert!(
                 ensure_update_allowed_for_source(&client, &payload(Some(true), Some("x"))).is_ok()
             );
+        }
+
+        #[test]
+        fn a_self_registered_client_cannot_enable_direct_access_or_device_grants() {
+            for source in [
+                ClientRegistrationSource::Dynamic,
+                ClientRegistrationSource::MetadataDocument,
+            ] {
+                let client = client_from(source);
+
+                let mut direct = payload(None, None);
+                direct.direct_access_grants_enabled = Some(true);
+                assert!(matches!(
+                    ensure_update_allowed_for_source(&client, &direct),
+                    Err(CoreError::Forbidden(_))
+                ));
+
+                let mut device = payload(None, None);
+                device.oauth_device_code_grant_enabled = Some(true);
+                assert!(matches!(
+                    ensure_update_allowed_for_source(&client, &device),
+                    Err(CoreError::Forbidden(_))
+                ));
+
+                let mut disabling = payload(None, None);
+                disabling.direct_access_grants_enabled = Some(false);
+                disabling.oauth_device_code_grant_enabled = Some(false);
+                assert!(ensure_update_allowed_for_source(&client, &disabling).is_ok());
+            }
+        }
+
+        #[test]
+        fn an_admin_client_may_enable_direct_access_and_device_grants() {
+            let client = client_from(ClientRegistrationSource::Admin);
+            let mut update = payload(None, None);
+            update.direct_access_grants_enabled = Some(true);
+            update.oauth_device_code_grant_enabled = Some(true);
+            assert!(ensure_update_allowed_for_source(&client, &update).is_ok());
         }
 
         #[test]

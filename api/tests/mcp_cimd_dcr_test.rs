@@ -742,6 +742,71 @@ mod tests {
         });
     }
 
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn turning_cimd_off_disables_the_clients_it_already_stored() {
+        let _guard = serial();
+        let ctx = on();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(true, false, &[]).await;
+            let url = publish_json(|url| document_for(url, &[CALLBACK]));
+
+            let first = authorize(&server, ctx, &url, CALLBACK, "openid").await;
+            assert_eq!(first.status_code(), 302, "{}", first.text());
+            assert!(ctx.client_row(&url).await.is_some());
+
+            ctx.toggles(false, false, &[]).await;
+            let second = authorize(&server, ctx, &url, CALLBACK, "openid").await;
+
+            assert_refused(&second, CALLBACK);
+            ctx.toggles(true, false, &[]).await;
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_document_client_always_reaches_consent_even_without_optional_scopes() {
+        let _guard = serial();
+        let ctx = on();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(true, false, &[]).await;
+            let url = publish_json(|url| document_for(url, &[CALLBACK]));
+
+            for round in 0..2 {
+                let (redirect, session) = sign_in(&server, ctx, &url, CALLBACK, "openid").await;
+                let consent_token = query_param(&redirect, "consent_token")
+                    .unwrap_or_else(|| panic!("round {round} skipped consent: {redirect}"));
+
+                let decision = server
+                    .post(&ctx.path("/auth/consent"))
+                    .add_cookie(session)
+                    .json(&json!({ "consent_token": consent_token, "approved_scopes": [] }))
+                    .await;
+                assert_eq!(decision.status_code(), 200, "{}", decision.text());
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_document_with_an_unusable_redirect_uri_is_refused() {
+        let _guard = serial();
+        let ctx = on();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(true, false, &[]).await;
+            let url =
+                publish_json(|url| document_for(url, &[CALLBACK, "http://app.example/insecure"]));
+
+            let response = authorize(&server, ctx, &url, CALLBACK, "openid").await;
+
+            assert_refused(&response, CALLBACK);
+            assert!(ctx.client_row(&url).await.is_none());
+        });
+    }
+
     // ----------------------------------------------------------------- DCR
 
     #[test]
@@ -781,6 +846,36 @@ mod tests {
 
             let row = ctx.client_row(&client_id).await.expect("client row");
             assert_eq!(row, ("dynamic".to_string(), true, true, true, false));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_confidential_registration_is_not_cacheable_and_gets_a_long_secret() {
+        let _guard = serial();
+        let ctx = off();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(false, true, &[]).await;
+
+            let response = register(
+                &server,
+                ctx,
+                json!({
+                    "redirect_uris": [CALLBACK],
+                    "token_endpoint_auth_method": "client_secret_basic",
+                }),
+            )
+            .await;
+
+            assert_eq!(response.status_code(), 201, "{}", response.text());
+            assert_eq!(response.header("cache-control"), "no-store");
+            assert_eq!(response.header("pragma"), "no-cache");
+            let secret = response.json::<Value>()["client_secret"]
+                .as_str()
+                .expect("client_secret")
+                .to_string();
+            assert_eq!(secret.len(), 43);
         });
     }
 

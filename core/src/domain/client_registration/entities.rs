@@ -4,6 +4,7 @@ use utoipa::ToSchema;
 
 pub const MAX_REDIRECT_URIS: usize = 10;
 pub const MAX_REDIRECT_URI_BYTES: usize = 2048;
+pub const MAX_DYNAMIC_CLIENTS_PER_REALM: u64 = 1000;
 pub const MAX_CLIENT_NAME_CHARS: usize = 128;
 pub const DEFAULT_CLIENT_NAME: &str = "Dynamic client";
 pub const AUTH_METHOD_NONE: &str = "none";
