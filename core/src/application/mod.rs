@@ -3,6 +3,13 @@ use std::sync::Arc;
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
+use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
+use crate::domain::client_registration::rate_limit::{DEFAULT_REQUESTS_PER_MINUTE, IpRateLimiter};
+use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
+use crate::infrastructure::client_metadata::{
+    CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
+};
+
 use crate::domain::authentication::backchannel_logout::{
     BackchannelLogoutConfig, BackchannelLogoutServiceImpl,
 };
@@ -149,6 +156,7 @@ pub mod aegis;
 pub mod auth;
 pub mod broker;
 pub mod client;
+pub mod client_registration;
 pub mod compass;
 pub mod consent;
 pub mod credential;
@@ -371,6 +379,25 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         security_event.clone(),
     );
 
+    let client_metadata_cleartext = config.client_metadata_allow_private_endpoints;
+    if client_metadata_cleartext {
+        tracing::warn!(
+            "CLIENT_METADATA_ALLOW_PRIVATE_ENDPOINTS is on: client metadata documents may be fetched over http from loopback and private addresses. Never enable this in production."
+        );
+    }
+    let client_metadata_resolver = Arc::new(ClientMetadataResolverImpl::new(
+        Arc::new(CachedClientMetadataFetcher::new(
+            ReqwestClientMetadataFetcher::new(PrivateEndpoints::from_allowed(
+                client_metadata_cleartext,
+            )),
+        )),
+        client.clone(),
+        redirect_uri.clone(),
+        client_scope.clone(),
+        scope_mapping.clone(),
+        client_metadata_cleartext,
+    ));
+
     let auth_service = AuthServiceImpl::new(
         realm.clone(),
         client.clone(),
@@ -403,6 +430,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         Arc::new(MapperEngine::new()),
         flow_recorder.clone(),
         consent_service.clone(),
+        client_metadata_resolver,
         config.webapp_url.clone(),
     );
 
@@ -508,6 +536,14 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         consent_service: consent_service.clone(),
+        client_registration_service: Arc::new(ClientRegistrationServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            redirect_uri.clone(),
+            client_scope.clone(),
+            scope_mapping.clone(),
+            IpRateLimiter::per_minute(DEFAULT_REQUESTS_PER_MINUTE),
+        )),
         trident_service: TridentServiceImpl::new(
             credential.clone(),
             recovery_code.clone(),
@@ -785,6 +821,7 @@ mod tests {
 
         let app = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -961,6 +998,7 @@ mod tests {
 
         let app = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,

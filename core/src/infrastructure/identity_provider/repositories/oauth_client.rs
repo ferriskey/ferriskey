@@ -19,12 +19,12 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const USER_AGENT: &str = concat!("FerrisKey/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AddressRejection {
+pub(crate) enum AddressRejection {
     AllForbidden,
     CleartextNotAllowed,
 }
 
-fn permitted_addresses(
+pub(crate) fn permitted_addresses(
     resolved: impl Iterator<Item = SocketAddr>,
     requires_tls: bool,
     policy: PrivateEndpoints,

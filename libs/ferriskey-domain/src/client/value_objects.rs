@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::authentication::entities::AuthProtocol;
-use crate::client::entities::{ClientType, MaintenanceSessionStrategy};
+use crate::client::entities::{ClientRegistrationSource, ClientType, MaintenanceSessionStrategy};
 use crate::realm::RealmId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +22,7 @@ pub struct CreateClientRequest {
     /// thing binding an authorization code to the instance that requested it.
     pub require_pkce: bool,
     pub consent_required: bool,
+    pub registration_source: ClientRegistrationSource,
 }
 
 impl CreateClientRequest {
@@ -44,6 +45,7 @@ impl CreateClientRequest {
             service_account_enabled: false,
             require_pkce: false,
             consent_required: false,
+            registration_source: ClientRegistrationSource::Admin,
         }
     }
 }

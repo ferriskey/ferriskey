@@ -232,6 +232,8 @@ where
                         secret: None,
                         require_pkce: true,
                         consent_required: false,
+                        registration_source:
+                            crate::domain::client::entities::ClientRegistrationSource::Admin,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -275,6 +277,8 @@ where
                         secret: Some(generate_random_string()),
                         require_pkce: false,
                         consent_required: false,
+                        registration_source:
+                            crate::domain::client::entities::ClientRegistrationSource::Admin,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -311,6 +315,8 @@ where
                         secret: None,
                         require_pkce: false,
                         consent_required: false,
+                        registration_source:
+                            crate::domain::client::entities::ClientRegistrationSource::Admin,
                     })
                     .await
                     .map_err(|_| CoreError::CreateClientError)?;
@@ -494,6 +500,8 @@ where
                             secret: None,
                             require_pkce: true,
                             consent_required: false,
+                            registration_source:
+                                crate::domain::client::entities::ClientRegistrationSource::Admin,
                         })
                         .await
                     {

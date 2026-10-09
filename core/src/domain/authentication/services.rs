@@ -55,10 +55,11 @@ use crate::domain::{
         },
     },
     client::{
-        entities::Client,
+        entities::{Client, ClientRegistrationSource},
         ports::{ClientRepository, PostLogoutRedirectUriRepository, RedirectUriRepository},
         redirect_uri_matching::redirect_uri_matches_any,
     },
+    client_metadata::{ports::ClientMetadataResolver, validation::client_uri_host},
     common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
     credential::{
         entities::{CredentialData, CredentialError, CredentialType},
@@ -949,6 +950,7 @@ pub struct AuthServiceImpl<
     USR,
     LAT,
     CO,
+    CM,
 > where
     R: RealmRepository,
     C: ClientRepository,
@@ -979,6 +981,7 @@ pub struct AuthServiceImpl<
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
+    CM: ClientMetadataResolver,
 {
     pub(crate) realm_repository: Arc<R>,
     pub(crate) client_repository: Arc<C>,
@@ -1012,6 +1015,7 @@ pub struct AuthServiceImpl<
     pub(crate) ldap_client: LdapClientImpl,
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) consent_service: Arc<ConsentServiceImpl<CO>>,
+    pub(crate) client_metadata_resolver: Arc<CM>,
     pub(crate) webapp_url: String,
 }
 
@@ -1045,6 +1049,7 @@ impl<
     USR,
     LAT,
     CO,
+    CM,
 >
     AuthServiceImpl<
         R,
@@ -1076,6 +1081,7 @@ impl<
         USR,
         LAT,
         CO,
+        CM,
     >
 where
     R: RealmRepository,
@@ -1107,6 +1113,7 @@ where
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
+    CM: ClientMetadataResolver,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -1141,6 +1148,7 @@ where
         mapper_engine: Arc<MapperEngine>,
         flow_recorder: FlowRecorder,
         consent_service: Arc<ConsentServiceImpl<CO>>,
+        client_metadata_resolver: Arc<CM>,
         webapp_url: String,
     ) -> Self {
         Self {
@@ -1176,6 +1184,7 @@ where
             ldap_client: LdapClientImpl,
             flow_recorder,
             consent_service,
+            client_metadata_resolver,
             webapp_url,
         }
     }
@@ -1211,6 +1220,7 @@ impl<
     USR,
     LAT,
     CO,
+    CM,
 >
     AuthServiceImpl<
         R,
@@ -1242,6 +1252,7 @@ impl<
         USR,
         LAT,
         CO,
+        CM,
     >
 where
     R: RealmRepository,
@@ -1273,6 +1284,7 @@ where
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
+    CM: ClientMetadataResolver,
 {
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
@@ -3439,14 +3451,39 @@ where
         Ok((default_scope_descriptors, requested_optional_scopes))
     }
 
-    async fn client_display_name(&self, scope: &RealmScope, client_id: Uuid) -> String {
-        self.client_repository
+    async fn client_consent_identity(
+        &self,
+        scope: &RealmScope,
+        client_id: Uuid,
+    ) -> (String, Option<String>) {
+        let Some(client) = self
+            .client_repository
             .get_by_id(scope.id(), client_id)
             .await
             .ok()
             .and_then(|client| client.in_realm(scope).ok())
-            .map(|client| client.into_inner().name)
-            .unwrap_or_default()
+            .map(|client| client.into_inner())
+        else {
+            return (String::new(), None);
+        };
+
+        let first_redirect_uri = match client.registration_source {
+            ClientRegistrationSource::Dynamic => self
+                .redirect_uri_repository
+                .get_enabled_by_client_id(client.id)
+                .await
+                .ok()
+                .and_then(|uris| uris.into_iter().next().map(|uri| uri.value)),
+            _ => None,
+        };
+
+        let host = client_uri_host(
+            client.registration_source,
+            &client.client_id,
+            first_redirect_uri.as_deref(),
+        );
+
+        (client.name, host)
     }
 
     async fn consent_gate(
@@ -3564,12 +3601,13 @@ where
         let (default_scopes, optional_scopes) = self
             .consent_scope_view(auth_session.client_id, auth_session.scope.as_deref())
             .await?;
-        let client_name = self
-            .client_display_name(&scope, auth_session.client_id)
+        let (client_name, client_uri_host) = self
+            .client_consent_identity(&scope, auth_session.client_id)
             .await;
 
         Ok(ConsentRequestView {
             client_name,
+            client_uri_host,
             default_scopes,
             optional_scopes,
         })
@@ -4529,6 +4567,7 @@ impl<
     USR,
     LAT,
     CO,
+    CM,
 > AuthService
     for AuthServiceImpl<
         R,
@@ -4560,6 +4599,7 @@ impl<
         USR,
         LAT,
         CO,
+        CM,
     >
 where
     R: RealmRepository,
@@ -4591,9 +4631,14 @@ where
     USR: UserSessionRepository,
     LAT: LoginActionTokenRepository,
     CO: ConsentDecisionRepository,
+    CM: ClientMetadataResolver,
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        self.client_metadata_resolver
+            .resolve(&scope, &input.client_id, &input.redirect_uri)
+            .await?;
 
         let client = self
             .client_repository
