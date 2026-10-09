@@ -11,7 +11,8 @@ use crate::domain::{
         pagination::{Page, PageRequest},
     },
     realm::entities::{
-        Realm, RealmFilter, RealmLoginSetting, RealmSetting, RealmSortField, SmtpConfig,
+        AuthorizationServerSettings, Realm, RealmFilter, RealmLoginSetting, RealmSetting,
+        RealmSortField, SmtpConfig,
     },
     user::entities::User,
 };
@@ -74,6 +75,11 @@ pub trait RealmService: Send + Sync {
         &self,
         realm_name: String,
     ) -> impl Future<Output = Result<RealmLoginSetting, CoreError>> + Send;
+
+    fn get_authorization_server_settings(
+        &self,
+        realm_name: String,
+    ) -> impl Future<Output = Result<AuthorizationServerSettings, CoreError>> + Send;
 }
 
 pub trait MailService: Send + Sync {
