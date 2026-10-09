@@ -32,6 +32,7 @@ impl From<ScopeDescriptor> for ScopeView {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct GetConsentResponse {
     pub client_name: String,
+    pub client_uri_host: Option<String>,
     pub granted_by_default: Vec<ScopeView>,
     pub awaiting_decision: Vec<ScopeView>,
 }
@@ -71,6 +72,7 @@ pub async fn get_consent(
 
     Ok(Response::OK(GetConsentResponse {
         client_name: view.client_name,
+        client_uri_host: view.client_uri_host,
         granted_by_default: view.default_scopes.into_iter().map(Into::into).collect(),
         awaiting_decision: view.optional_scopes.into_iter().map(Into::into).collect(),
     }))

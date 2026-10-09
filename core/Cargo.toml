@@ -52,6 +52,7 @@ hex = "0.4.3"
 thiserror = "2.0.12"
 tracing = { version = "0.1.41", features = ["attributes"] } # Attribute is for the instrument macro
 urlencoding = "2.1.3"
+url = { workspace = true }
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 tokio = { version = "1.44.1", features = ["rt-multi-thread", "macros"] }

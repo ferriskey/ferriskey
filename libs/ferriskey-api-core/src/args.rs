@@ -78,6 +78,14 @@ pub struct Args {
         long_help = "Allow webhook endpoints to resolve to loopback or private addresses. For local development only — never enable this in production. Link-local addresses stay refused regardless."
     )]
     pub webhook_allow_private_endpoints: bool,
+
+    #[arg(
+        long,
+        env = "CLIENT_METADATA_ALLOW_PRIVATE_ENDPOINTS",
+        default_value_t = false,
+        long_help = "Allow client metadata documents to be fetched over http from loopback or private addresses. For tests only — never enable this in production. Link-local addresses stay refused regardless."
+    )]
+    pub client_metadata_allow_private_endpoints: bool,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
     #[command(subcommand)]
@@ -93,6 +101,7 @@ impl Default for Args {
             log: LogArgs::default(),
             server: ServerArgs::default(),
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             webapp_url: "http://localhost:5555".to_string(),
             observability: ObservabilityArgs::default(),
             command: None,
@@ -409,6 +418,7 @@ impl From<Args> for FerriskeyConfig {
             },
             webapp_url: value.webapp_url,
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
+            client_metadata_allow_private_endpoints: value.client_metadata_allow_private_endpoints,
         }
     }
 }
