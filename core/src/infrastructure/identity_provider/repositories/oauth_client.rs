@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn every_permitted_address_is_pinned_so_a_dead_one_can_fall_back() {
-        let resolved = [addr("[2001:db8::1]:443"), addr("203.0.113.5:443")];
+        let resolved = [addr("[2606:4700::1111]:443"), addr("93.184.216.34:443")];
 
         let addresses = permitted_addresses(
             resolved.into_iter(),
@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn a_forbidden_address_is_dropped_without_discarding_its_permitted_siblings() {
-        let resolved = [addr("169.254.169.254:443"), addr("203.0.113.5:443")];
+        let resolved = [addr("169.254.169.254:443"), addr("93.184.216.34:443")];
 
         let addresses = permitted_addresses(
             resolved.into_iter(),
@@ -318,7 +318,7 @@ mod tests {
         )
         .expect("the public sibling must survive");
 
-        assert_eq!(addresses, [addr("203.0.113.5:443")]);
+        assert_eq!(addresses, [addr("93.184.216.34:443")]);
     }
 
     #[test]
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn cleartext_is_refused_when_private_endpoints_are_not_opted_in() {
-        let resolved = [addr("203.0.113.5:80")];
+        let resolved = [addr("93.184.216.34:80")];
 
         let rejection = permitted_addresses(
             resolved.into_iter(),
@@ -351,7 +351,7 @@ mod tests {
 
     #[test]
     fn cleartext_pins_loopback_only_and_leaves_its_public_sibling_out() {
-        let resolved = [addr("203.0.113.5:80"), addr("127.0.0.1:80")];
+        let resolved = [addr("93.184.216.34:80"), addr("127.0.0.1:80")];
 
         let addresses = permitted_addresses(
             resolved.into_iter(),

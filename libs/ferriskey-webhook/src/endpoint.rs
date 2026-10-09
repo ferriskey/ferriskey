@@ -196,23 +196,84 @@ fn is_reserved_loopback_name(host: Host<&str>) -> bool {
 pub fn is_forbidden_address(ip: IpAddr, policy: PrivateEndpoints) -> bool {
     match ip {
         IpAddr::V4(v4) => is_forbidden_ipv4(v4, policy),
-        IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
-            Some(mapped) => is_forbidden_ipv4(mapped, policy),
+        IpAddr::V6(v6) => match embedded_ipv4(v6) {
+            Some(embedded) => is_forbidden_ipv4(embedded, policy),
             None => {
                 v6.is_unspecified()
                     || v6.is_multicast()
                     || is_ipv6_link_local(v6)
+                    || is_ipv6_documentation(v6)
+                    || is_ipv6_teredo(v6)
                     || (!policy.allows_private() && (v6.is_loopback() || is_ipv6_unique_local(v6)))
             }
         },
     }
 }
 
+fn embedded_ipv4(v6: Ipv6Addr) -> Option<Ipv4Addr> {
+    if let Some(mapped) = v6.to_ipv4_mapped() {
+        return Some(mapped);
+    }
+
+    let segments = v6.segments();
+    let tail = |high: u16, low: u16| {
+        let [a, b] = high.to_be_bytes();
+        let [c, d] = low.to_be_bytes();
+        Ipv4Addr::new(a, b, c, d)
+    };
+
+    let nat64 = segments[..6] == [0x64, 0xff9b, 0, 0, 0, 0];
+    if nat64 {
+        return Some(tail(segments[6], segments[7]));
+    }
+
+    if segments[0] == 0x2002 {
+        return Some(tail(segments[1], segments[2]));
+    }
+
+    let compatible = segments[..6] == [0; 6] && !v6.is_unspecified() && !v6.is_loopback();
+    compatible.then(|| tail(segments[6], segments[7]))
+}
+
 fn is_forbidden_ipv4(v4: Ipv4Addr, policy: PrivateEndpoints) -> bool {
     v4.is_unspecified()
         || v4.is_multicast()
         || v4.is_link_local()
-        || (!policy.allows_private() && (v4.is_loopback() || v4.is_private()))
+        || v4.is_broadcast()
+        || v4.is_documentation()
+        || v4.octets()[0] == 0
+        || v4.octets()[0] >= 240
+        || is_ipv4_protocol_assignment(v4)
+        || (!policy.allows_private()
+            && (v4.is_loopback()
+                || v4.is_private()
+                || is_ipv4_shared_address(v4)
+                || is_ipv4_benchmarking(v4)))
+}
+
+fn is_ipv4_shared_address(v4: Ipv4Addr) -> bool {
+    let [a, b, _, _] = v4.octets();
+    a == 100 && (b & 0xc0) == 64
+}
+
+fn is_ipv4_protocol_assignment(v4: Ipv4Addr) -> bool {
+    let [a, b, c, _] = v4.octets();
+    a == 192 && b == 0 && c == 0
+}
+
+fn is_ipv4_benchmarking(v4: Ipv4Addr) -> bool {
+    let [a, b, _, _] = v4.octets();
+    a == 198 && (b & 0xfe) == 18
+}
+
+fn is_ipv6_documentation(v6: Ipv6Addr) -> bool {
+    let segments = v6.segments();
+    segments[0] == 0x2001 && segments[1] == 0x0db8
+}
+
+fn is_ipv6_teredo(v6: Ipv6Addr) -> bool {
+    let segments = v6.segments();
+    segments[0] == 0x2001 && segments[1] == 0
 }
 
 /// `fc00::/7`, checked on the raw segment rather than via a standard-library helper so this
@@ -449,6 +510,104 @@ mod tests {
         headers.insert("X-Custom-Trace".to_string(), "abc123".to_string());
 
         assert!(reject_reserved_headers(&headers).is_ok());
+    }
+
+    fn v4_forbidden(raw: &str) -> bool {
+        forbidden(raw.parse().expect("the test address must parse"))
+    }
+
+    #[test]
+    fn rejects_the_reserved_ipv4_ranges() {
+        for raw in [
+            "0.0.0.0",
+            "0.1.2.3",
+            "100.64.0.1",
+            "100.127.255.254",
+            "192.0.0.1",
+            "192.0.2.1",
+            "198.18.0.1",
+            "198.19.255.254",
+            "198.51.100.1",
+            "203.0.113.1",
+            "240.0.0.1",
+            "255.255.255.254",
+            "255.255.255.255",
+        ] {
+            assert!(v4_forbidden(raw), "{raw}");
+        }
+    }
+
+    #[test]
+    fn accepts_the_neighbours_of_the_reserved_ipv4_ranges() {
+        for raw in [
+            "100.63.255.255",
+            "100.128.0.1",
+            "192.0.1.1",
+            "192.0.3.1",
+            "198.17.255.255",
+            "198.20.0.1",
+            "93.184.216.34",
+            "8.8.8.8",
+        ] {
+            assert!(!v4_forbidden(raw), "{raw}");
+        }
+    }
+
+    #[test]
+    fn rejects_ipv6_embedding_a_forbidden_ipv4() {
+        for raw in [
+            "64:ff9b::7f00:1",
+            "64:ff9b::a9fe:a9fe",
+            "64:ff9b::c000:201",
+            "2002:7f00:1::",
+            "2002:a00:1::1",
+            "::7f00:1",
+            "::a00:1",
+            "::ffff:10.0.0.1",
+        ] {
+            assert!(v4_forbidden(raw), "{raw}");
+        }
+    }
+
+    #[test]
+    fn accepts_ipv6_embedding_a_public_ipv4() {
+        for raw in ["64:ff9b::5db8:d822", "2002:5db8:d822::1", "::5db8:d822"] {
+            assert!(!v4_forbidden(raw), "{raw}");
+        }
+    }
+
+    #[test]
+    fn rejects_unique_local_documentation_and_teredo_ipv6() {
+        for raw in [
+            "fc00::1",
+            "fd12:3456::1",
+            "2001:db8::1",
+            "2001:db8:ffff::1",
+            "2001::1",
+            "2001:0:4136:e378:8000:63bf:3fff:fdd2",
+        ] {
+            assert!(v4_forbidden(raw), "{raw}");
+        }
+    }
+
+    #[test]
+    fn accepts_a_public_ipv6() {
+        assert!(!v4_forbidden("2606:4700::1111"));
+        assert!(!v4_forbidden("2001:4860:4860::8888"));
+    }
+
+    #[test]
+    fn opting_into_private_endpoints_keeps_the_unroutable_ranges_refused() {
+        let allowed = |raw: &str| {
+            is_forbidden_address(raw.parse().expect("must parse"), PrivateEndpoints::Allowed)
+        };
+
+        assert!(allowed("0.0.0.0"));
+        assert!(allowed("192.0.2.1"));
+        assert!(allowed("240.0.0.1"));
+        assert!(allowed("2001:db8::1"));
+        assert!(!allowed("127.0.0.1"));
+        assert!(!allowed("100.64.0.1"));
     }
 }
 
