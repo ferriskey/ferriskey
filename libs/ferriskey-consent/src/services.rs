@@ -71,7 +71,7 @@ where
             });
         }
 
-        if input.requested_optional_scopes.is_empty() {
+        if input.requested_optional_scopes.is_empty() && !input.force_screen {
             return Ok(ConsentEvaluation::Skip {
                 granted_scopes: default_names,
             });
@@ -285,6 +285,35 @@ mod tests {
             .expect("evaluate succeeds");
 
         assert!(matches!(evaluation, ConsentEvaluation::Show(_)));
+    }
+
+    #[tokio::test]
+    async fn a_forced_screen_is_shown_even_when_no_optional_scope_is_requested() {
+        let repository = MockConsentDecisionRepository::new();
+        let service = ConsentServiceImpl::new(Arc::new(repository));
+        let mut input = base_input(true, true);
+        input.requested_optional_scopes.clear();
+
+        let evaluation = service.evaluate(input).await.expect("evaluate succeeds");
+
+        assert!(matches!(evaluation, ConsentEvaluation::Show(_)));
+    }
+
+    #[tokio::test]
+    async fn without_optional_scopes_an_unforced_screen_is_skipped() {
+        let repository = MockConsentDecisionRepository::new();
+        let service = ConsentServiceImpl::new(Arc::new(repository));
+        let mut input = base_input(true, false);
+        input.requested_optional_scopes.clear();
+
+        let evaluation = service.evaluate(input).await.expect("evaluate succeeds");
+
+        assert_eq!(
+            evaluation,
+            ConsentEvaluation::Skip {
+                granted_scopes: vec!["profile".to_string()],
+            }
+        );
     }
 
     #[tokio::test]

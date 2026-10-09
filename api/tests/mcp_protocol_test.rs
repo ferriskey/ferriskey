@@ -464,4 +464,46 @@ mod tests {
             assert_eq!(claims["aud"], json!([MCP_RESOURCE]));
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_refresh_is_refused_once_its_resource_is_no_longer_allowed() {
+        rt().block_on(async {
+            let app = app();
+            let client = prepare(app).await;
+            let server = app.server();
+
+            let url = redirect_for(app, &client, &[("resource", MCP_RESOURCE)]).await;
+            let code = query_param(&url, "code").expect("code");
+            let tokens: Value = exchange_code(&server, app, &client, &code, &[])
+                .await
+                .json();
+            let refresh_token = tokens["refresh_token"].as_str().expect("refresh");
+
+            let jti = decode_unverified(refresh_token)["jti"]
+                .as_str()
+                .expect("jti")
+                .to_string();
+            let removed = "https://removed.example.com/mcp";
+            let updated =
+                sqlx::query("UPDATE refresh_tokens SET resource = $1 WHERE jti = $2::uuid")
+                    .bind(removed)
+                    .bind(&jti)
+                    .execute(&app.pool)
+                    .await
+                    .expect("rebind the stored resource");
+            assert_eq!(updated.rows_affected(), 1);
+
+            let refused = refresh(
+                &server,
+                app,
+                &client.client_id,
+                client.secret.as_deref(),
+                refresh_token,
+            )
+            .await;
+            assert_eq!(refused.status_code(), 400, "{}", refused.text());
+            assert_eq!(refused.json::<Value>()["error"], json!("invalid_target"));
+        });
+    }
 }
