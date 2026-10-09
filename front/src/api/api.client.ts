@@ -111,6 +111,22 @@ export namespace Schemas {
     url?: (string | null) | undefined;
   };
   export type AuthenticationAttemptResponse = { login_url: string };
+  export type AuthorizationServerMetadata = {
+    authorization_endpoint: string;
+    authorization_response_iss_parameter_supported: boolean;
+    client_id_metadata_document_supported?: (boolean | null) | undefined;
+    code_challenge_methods_supported: Array<string>;
+    grant_types_supported: Array<string>;
+    introspection_endpoint: string;
+    issuer: string;
+    jwks_uri: string;
+    registration_endpoint?: (string | null) | undefined;
+    response_types_supported: Array<string>;
+    revocation_endpoint: string;
+    scopes_supported: Array<string>;
+    token_endpoint: string;
+    token_endpoint_auth_methods_supported: Array<string>;
+  };
   export type BulkDeleteUserResponse = { count: number; realm_name: string };
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>;
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string };
@@ -157,6 +173,26 @@ export namespace Schemas {
     temporary_token_lifetime?: (number | null) | undefined;
     token_exchange_enabled: boolean;
     updated_at: string;
+  };
+  export type ClientRegistrationRequest = Partial<{
+    client_name: string | null;
+    grant_types: Array<string> | null;
+    redirect_uris: Array<string>;
+    response_types: Array<string> | null;
+    scope: string | null;
+    token_endpoint_auth_method: string | null;
+  }>;
+  export type ClientRegistrationResponse = {
+    client_id: string;
+    client_id_issued_at: number;
+    client_name: string;
+    client_secret?: (string | null) | undefined;
+    client_secret_expires_at?: (number | null) | undefined;
+    grant_types: Array<string>;
+    redirect_uris: Array<string>;
+    response_types: Array<string>;
+    scope: string;
+    token_endpoint_auth_method: string;
   };
   export type NameIdFormat =
     | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
@@ -647,6 +683,7 @@ export namespace Schemas {
   export type GetConsentResponse = {
     awaiting_decision: Array<ScopeView>;
     client_name: string;
+    client_uri_host?: (string | null) | undefined;
     granted_by_default: Array<ScopeView>;
   };
   export type GetDailyActivityStatsResponse = { data: Array<DailyActivityStats> };
@@ -655,8 +692,10 @@ export namespace Schemas {
   export type GetFlowResponse = { data: CompassFlow };
   export type GetOpenIdConfigurationResponse = {
     authorization_endpoint: string;
+    authorization_response_iss_parameter_supported: boolean;
     backchannel_logout_session_supported: boolean;
     backchannel_logout_supported: boolean;
+    client_id_metadata_document_supported?: (boolean | null) | undefined;
     code_challenge_methods_supported: Array<string>;
     device_authorization_endpoint: string;
     end_session_endpoint: string;
@@ -665,8 +704,10 @@ export namespace Schemas {
     introspection_endpoint: string;
     issuer: string;
     jwks_uri: string;
+    registration_endpoint?: (string | null) | undefined;
     response_types_supported: Array<string>;
     revocation_endpoint: string;
+    scopes_supported: Array<string>;
     subject_types_supported: Array<string>;
     token_endpoint: string;
     token_endpoint_auth_methods_supported: Array<string>;
@@ -1287,6 +1328,7 @@ export namespace Schemas {
     updated_at: string;
     value: string;
   };
+  export type RegistrationErrorResponse = { error: string; error_description: string };
   export type RegistrationRequest = {
     email: string;
     first_name?: (string | null) | undefined;
@@ -1800,6 +1842,15 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_Get_authorization_server_metadata = {
+    method: "GET";
+    path: "/realms/{realm_name}/.well-known/oauth-authorization-server/realms/{realm_name}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: { 200: Schemas.AuthorizationServerMetadata; 401: Schemas.ApiErrorResponse };
+  };
   export type get_Get_openid_configuration = {
     method: "GET";
     path: "/realms/{realm_name}/.well-known/openid-configuration";
@@ -2027,6 +2078,22 @@ export namespace Endpoints {
       400: Schemas.ApiErrorResponse;
       401: Schemas.ApiErrorResponse;
       403: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Register_client = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/register";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ClientRegistrationRequest;
+    };
+    responses: {
+      201: Schemas.ClientRegistrationResponse;
+      400: Schemas.RegistrationErrorResponse;
+      404: Schemas.RegistrationErrorResponse;
+      429: Schemas.RegistrationErrorResponse;
     };
   };
   export type get_Get_client = {
@@ -4146,6 +4213,7 @@ export namespace Endpoints {
         code_challenge_method: "S256" | "PLAIN";
         prompt: string;
         max_age: number;
+        resource: string;
       }>;
       path: { realm_name: string };
     };
@@ -5379,6 +5447,7 @@ export type EndpointByMethod = {
     "/email-templates/variables/{email_type}": Endpoints.get_Get_variables;
     "/realms/{name}": Endpoints.get_Get_realm;
     "/realms/{name}/login-settings": Endpoints.get_Get_login_realm_settings_handler;
+    "/realms/{realm_name}/.well-known/oauth-authorization-server/realms/{realm_name}": Endpoints.get_Get_authorization_server_metadata;
     "/realms/{realm_name}/.well-known/openid-configuration": Endpoints.get_Get_openid_configuration;
     "/realms/{realm_name}/auth/consent": Endpoints.get_Get_consent;
     "/realms/{realm_name}/broker/{alias}/login": Endpoints.get_Broker_login;
@@ -5471,6 +5540,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes": Endpoints.post_Create_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
     "/realms/{realm_name}/clients": Endpoints.post_Create_client;
+    "/realms/{realm_name}/clients/register": Endpoints.post_Register_client;
     "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;

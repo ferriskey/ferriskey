@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { type ConsentRequestView, toConsentScopeList, useGetConsentRequest, useSubmitConsent } from '@/api/consent.api'
+import { toConsentScopeList, useGetConsentRequest, useSubmitConsent } from '@/api/consent.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import {
   approvedScopesForAllow,
@@ -80,7 +80,7 @@ export default function PageConsentFeature() {
   return (
     <PageConsent
       clientName={data?.client_name ?? ''}
-      clientUriHost={(data as ConsentRequestView | undefined)?.client_uri_host ?? null}
+      clientUriHost={data?.client_uri_host ?? null}
       defaultScopes={defaultScopes}
       optionalScopes={optionalScopes}
       approvedOptional={approvedOptional}
