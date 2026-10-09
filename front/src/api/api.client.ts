@@ -126,6 +126,7 @@ export namespace Schemas {
   };
   export type ClientType = "confidential" | "public" | "system";
   export type MaintenanceSessionStrategy = "terminate" | "expire";
+  export type ClientRegistrationSource = "admin" | "dynamic" | "metadata_document";
   export type Masked_String = string;
   export type Client = {
     access_token_lifetime?: (number | null) | undefined;
@@ -149,6 +150,7 @@ export namespace Schemas {
     realm_id: RealmId;
     redirect_uris?: (Array<RedirectUri> | null) | undefined;
     refresh_token_lifetime?: (number | null) | undefined;
+    registration_source: ClientRegistrationSource;
     require_pkce: boolean;
     secret?: (null | Masked_String) | undefined;
     service_account_enabled: boolean;
@@ -396,7 +398,11 @@ export namespace Schemas {
   export type LoginAliases = Array<LoginAlias>;
   export type RealmSetting = {
     access_token_lifetime: number;
+    allowed_resources: Array<string>;
+    cimd_allowed_hosts: Array<string>;
+    cimd_enabled: boolean;
     compass_enabled: boolean;
+    dcr_enabled: boolean;
     default_locale: string;
     default_signing_algorithm?: (string | null) | undefined;
     edit_username_enabled: boolean;
@@ -877,6 +883,7 @@ export namespace Schemas {
       realm_id: RealmId;
       redirect_uris?: (Array<RedirectUri> | null) | undefined;
       refresh_token_lifetime?: (number | null) | undefined;
+      registration_source: ClientRegistrationSource;
       require_pkce: boolean;
       secret?: (null | Masked_String) | undefined;
       service_account_enabled: boolean;
@@ -1564,7 +1571,11 @@ export namespace Schemas {
   export type UpdateRealmSettingResponse = { data: Realm };
   export type UpdateRealmSettingValidator = Partial<{
     access_token_lifetime: number | null;
+    allowed_resources: Array<string> | null;
+    cimd_allowed_hosts: Array<string> | null;
+    cimd_enabled: boolean | null;
     compass_enabled: boolean | null;
+    dcr_enabled: boolean | null;
     default_locale: string | null;
     default_signing_algorithm: string | null;
     edit_username_enabled: boolean | null;

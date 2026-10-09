@@ -30,8 +30,10 @@ import { REALM_SETTINGS_URL } from '@/routes/router'
 import PageRealmSettings from '../ui/page-realm-settings'
 import type { LoginDraft } from '../ui/realm-login-tab'
 import type { TokensDraft } from '../ui/realm-tokens-tab'
+import type { McpDraft } from '../ui/realm-mcp-tab'
 import type { PolicyDraft } from '../ui/realm-password-policy-tab'
 import { REALM_NAMESPACE } from '../realm-namespace'
+import { invalidEntries, isValidCimdHost, isValidResource } from '../mcp-validation'
 import { useDraft } from './use-draft'
 
 import LoginAlias = Schemas.LoginAlias
@@ -41,6 +43,7 @@ const REALM_TABS = [
   { key: 'general', labelKey: 'settings.tabs.general' },
   { key: 'login', labelKey: 'settings.tabs.login' },
   { key: 'tokens', labelKey: 'settings.tabs.tokens' },
+  { key: 'mcp', labelKey: 'settings.tabs.mcp' },
   { key: 'password-policy', labelKey: 'settings.tabs.password_policy' },
   { key: 'maintenance', labelKey: 'settings.tabs.maintenance' },
 ] as const
@@ -68,6 +71,13 @@ const DEFAULT_TOKENS: TokensDraft = {
   refreshTokenLifetime: 86400,
   idTokenLifetime: 300,
   temporaryTokenLifetime: 300,
+}
+
+const DEFAULT_MCP: McpDraft = {
+  cimdEnabled: false,
+  dcrEnabled: false,
+  cimdAllowedHosts: [],
+  allowedResources: [],
 }
 
 const DEFAULT_POLICY: PolicyDraft = {
@@ -153,6 +163,19 @@ export default function PageRealmSettingsFeature() {
     pristineTokens
   )
 
+  const pristineMcp: McpDraft = settings
+    ? {
+        cimdEnabled: settings.cimd_enabled,
+        dcrEnabled: settings.dcr_enabled,
+        cimdAllowedHosts: settings.cimd_allowed_hosts,
+        allowedResources: settings.allowed_resources,
+      }
+    : DEFAULT_MCP
+  const mcp = useDraft(
+    settings ? `${settings.id}:${settings.updated_at}` : '',
+    pristineMcp
+  )
+
   const pristinePolicy: PolicyDraft = policyData
     ? {
         min_length: policyData.min_length,
@@ -209,6 +232,10 @@ export default function PageRealmSettingsFeature() {
     }
   }
 
+  const mcpValid =
+    invalidEntries(mcp.value.cimdAllowedHosts, isValidCimdHost).length === 0 &&
+    invalidEntries(mcp.value.allowedResources, isValidResource).length === 0
+
   const generalDirty = general.value.displayName !== pristineGeneral.displayName
   const loginDirty =
     login.value.userRegistration !== pristineLogin.userRegistration ||
@@ -224,6 +251,11 @@ export default function PageRealmSettingsFeature() {
     tokensDraft.value.refreshTokenLifetime !== pristineTokens.refreshTokenLifetime ||
     tokensDraft.value.idTokenLifetime !== pristineTokens.idTokenLifetime ||
     tokensDraft.value.temporaryTokenLifetime !== pristineTokens.temporaryTokenLifetime
+  const mcpDirty =
+    mcp.value.cimdEnabled !== pristineMcp.cimdEnabled ||
+    mcp.value.dcrEnabled !== pristineMcp.dcrEnabled ||
+    mcp.value.cimdAllowedHosts.join() !== pristineMcp.cimdAllowedHosts.join() ||
+    mcp.value.allowedResources.join() !== pristineMcp.allowedResources.join()
   const policyDirty = (
     Object.keys(pristinePolicy) as (keyof PolicyDraft)[]
   ).some((key) => policy.value[key] !== pristinePolicy[key])
@@ -232,14 +264,16 @@ export default function PageRealmSettingsFeature() {
     (generalDirty ? 1 : 0) +
     (loginDirty ? 1 : 0) +
     (tokensDirty ? 1 : 0) +
+    (mcpDirty ? 1 : 0) +
     (policyDirty ? 1 : 0)
 
-  const canSave = !displayNameError && !loginAliasesError && policyParsed.success
+  const canSave = !displayNameError && !loginAliasesError && mcpValid && policyParsed.success
 
   const discard = () => {
     general.reset()
     login.reset()
     tokensDraft.reset()
+    mcp.reset()
     policy.reset()
   }
 
@@ -257,7 +291,7 @@ export default function PageRealmSettingsFeature() {
       )
     }
 
-    if (loginDirty || tokensDirty) {
+    if (loginDirty || tokensDirty || mcpDirty) {
       updateSettings({
         path: { name: realm_name },
         body: {
@@ -279,6 +313,14 @@ export default function PageRealmSettingsFeature() {
                 refresh_token_lifetime: tokensDraft.value.refreshTokenLifetime,
                 id_token_lifetime: tokensDraft.value.idTokenLifetime,
                 temporary_token_lifetime: tokensDraft.value.temporaryTokenLifetime,
+              }
+            : {}),
+          ...(mcpDirty
+            ? {
+                cimd_enabled: mcp.value.cimdEnabled,
+                dcr_enabled: mcp.value.dcrEnabled,
+                cimd_allowed_hosts: mcp.value.cimdAllowedHosts,
+                allowed_resources: mcp.value.allowedResources,
               }
             : {}),
         },
@@ -340,6 +382,7 @@ export default function PageRealmSettingsFeature() {
       login={login.value}
       loginAliasesError={loginAliasesError}
       tokensValue={tokensDraft.value}
+      mcp={mcp.value}
       policy={policy.value}
       policyErrors={policyErrors}
       policyLoading={policyLoading}
@@ -357,6 +400,7 @@ export default function PageRealmSettingsFeature() {
       onDisplayNameChange={(v) => general.patch({ displayName: v })}
       onLoginChange={login.patch}
       onTokensChange={tokensDraft.patch}
+      onMcpChange={mcp.patch}
       onPolicyChange={policy.patch}
       onWhitelistedUsersChange={(next) =>
         syncWhitelist(USER_WHITELIST, whitelistedUserIds, next)

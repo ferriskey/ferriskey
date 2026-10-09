@@ -6,6 +6,9 @@ export function toConsentScopeList(scopes: Schemas.ScopeView[]): ConsentScopeVie
   return scopes.map((scope) => ({ name: scope.name, description: scope.description ?? null }))
 }
 
+// TODO: drop once the regenerated client carries client_uri_host on GetConsentResponse
+export type ConsentRequestView = Schemas.GetConsentResponse & { client_uri_host?: string | null }
+
 export function useGetConsentRequest({
   realm,
   consentToken,
