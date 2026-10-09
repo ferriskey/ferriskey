@@ -6,6 +6,7 @@ use sea_orm::{
 use uuid::Uuid;
 
 use ferriskey_consent::{ConsentDecision, ConsentDecisionId, ConsentDecisionRepository};
+use ferriskey_domain::client::entities::ClientRegistrationSource;
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::realm::RealmId;
 
@@ -157,7 +158,10 @@ impl ConsentDecisionRepository for PostgresConsentDecisionRepository {
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::ClientNotFound)?;
 
-        Ok(model.consent_required)
+        Ok(consent_is_required(
+            model.consent_required,
+            &model.registration_source,
+        ))
     }
 
     async fn get_consent_ttl_days(&self, realm_id: RealmId) -> Result<Option<i32>, CoreError> {
@@ -170,5 +174,28 @@ impl ConsentDecisionRepository for PostgresConsentDecisionRepository {
             .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(model.and_then(|model| model.consent_ttl_days))
+    }
+}
+
+fn consent_is_required(column: bool, registration_source: &str) -> bool {
+    column || registration_source != ClientRegistrationSource::Admin.as_str()
+}
+
+#[cfg(test)]
+mod consent_rule_tests {
+    use super::consent_is_required;
+
+    #[test]
+    fn an_admin_client_follows_its_column() {
+        assert!(!consent_is_required(false, "admin"));
+        assert!(consent_is_required(true, "admin"));
+    }
+
+    #[test]
+    fn a_self_registered_client_always_needs_consent() {
+        for source in ["dynamic", "metadata_document"] {
+            assert!(consent_is_required(false, source));
+            assert!(consent_is_required(true, source));
+        }
     }
 }

@@ -49,6 +49,7 @@ pub enum ConsentDecisionOutcome {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConsentRequestView {
     pub client_name: String,
+    pub client_uri_host: Option<String>,
     pub default_scopes: Vec<ScopeDescriptor>,
     pub optional_scopes: Vec<ScopeDescriptor>,
 }

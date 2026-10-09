@@ -25,8 +25,8 @@ use crate::domain::authentication::token_exchange::ports::{
 use crate::domain::authentication::token_exchange::value_objects::{
     TokenExchangeOutput, TokenExchangeParams,
 };
-use crate::domain::client::entities::Client;
 use crate::domain::client::entities::token_exchange_policy::TokenExchangePolicy;
+use crate::domain::client::entities::{Client, ClientRegistrationSource};
 use crate::domain::client::ports::{ClientRepository, TokenExchangePolicyRepository};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::jwt::entities::{ClaimsTyp, JwtClaim};
@@ -110,7 +110,10 @@ where
             return Err(TokenExchangeError::InvalidClient);
         }
 
-        if !client.enabled || !client.token_exchange_enabled {
+        if !client.enabled
+            || !client.token_exchange_enabled
+            || client.registration_source != ClientRegistrationSource::Admin
+        {
             return Err(TokenExchangeError::UnauthorizedClient);
         }
 
@@ -1193,6 +1196,27 @@ mod tests {
             .expect_err("the grant must be enabled on the client");
 
         assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+    }
+
+    #[tokio::test]
+    async fn a_client_that_is_not_admin_registered_is_refused() {
+        for source in [
+            ClientRegistrationSource::Dynamic,
+            ClientRegistrationSource::MetadataDocument,
+        ] {
+            let (realm, mut requester, user) = standard();
+            requester.registration_source = source;
+            let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+            let harness = Harness::new(&realm, requester, subject);
+
+            let err = harness
+                .build()
+                .exchange(params(&realm, input(None, None)))
+                .await
+                .expect_err("a self-registered client must not exchange tokens");
+
+            assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+        }
     }
 
     #[tokio::test]
