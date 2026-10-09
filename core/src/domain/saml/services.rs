@@ -447,6 +447,8 @@ where
                 code_challenge: None,
                 code_challenge_method: None,
                 prompt_consent: false,
+                issuer: None,
+                resource: None,
             }))
             .await;
 
@@ -696,6 +698,7 @@ pub(crate) mod tests {
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
             consent_required: false,
+            registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
         }
     }
 
@@ -754,6 +757,8 @@ pub(crate) mod tests {
             reauth_session_id: None,
             consent_token_hash: None,
             prompt_consent: false,
+            issuer: None,
+            resource: None,
         }
     }
 

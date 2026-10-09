@@ -162,6 +162,10 @@ pub struct UpdateRealmSettingInput {
     pub webhook_retry_base_delay_ms: Option<Option<i32>>,
     pub webhook_retry_max_delay_ms: Option<Option<i32>>,
     pub webhook_retry_max_total_delay_ms: Option<Option<i32>>,
+    pub cimd_enabled: Option<bool>,
+    pub dcr_enabled: Option<bool>,
+    pub cimd_allowed_hosts: Option<Vec<String>>,
+    pub allowed_resources: Option<Vec<String>>,
 }
 
 pub struct DeleteRealmInput {

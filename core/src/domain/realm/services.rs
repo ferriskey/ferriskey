@@ -871,6 +871,10 @@ where
                 input.webhook_retry_base_delay_ms,
                 input.webhook_retry_max_delay_ms,
                 input.webhook_retry_max_total_delay_ms,
+                input.cimd_enabled,
+                input.dcr_enabled,
+                input.cimd_allowed_hosts,
+                input.allowed_resources,
             )
             .await?;
 

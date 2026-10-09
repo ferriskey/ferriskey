@@ -33,6 +33,7 @@ impl From<crate::entity::refresh_tokens::Model> for RefreshToken {
             status,
             replaced_by: model.replaced_by,
             rotated_at,
+            resource: model.resource,
         }
     }
 }
@@ -69,6 +70,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             replaced_by: Set(None),
             rotated_at: Set(None),
             session_id: Set(session_id),
+            resource: Set(None),
         };
 
         let refresh_token = model
@@ -99,6 +101,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             replaced_by: Set(None),
             rotated_at: Set(None),
             session_id: Set(session_id),
+            resource: Set(None),
         };
 
         let refresh_token = model
@@ -192,11 +195,11 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             return Ok(RotateOutcome::Conflict);
         }
 
-        let session_id = crate::entity::refresh_tokens::Entity::find_by_id(old_id)
+        let (session_id, old_resource) = crate::entity::refresh_tokens::Entity::find_by_id(old_id)
             .one(&txn)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?
-            .and_then(|m| m.session_id);
+            .map_or((None, None), |m| (m.session_id, m.resource));
 
         // Mint the successor inside the same transaction.
         let new_model = crate::entity::refresh_tokens::ActiveModel {
@@ -211,6 +214,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             replaced_by: Set(None),
             rotated_at: Set(None),
             session_id: Set(session_id),
+            resource: Set(old_resource),
         };
 
         let new_token = new_model

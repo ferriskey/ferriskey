@@ -283,6 +283,10 @@ impl RealmRepository for PostgresRealmRepository {
         webhook_retry_base_delay_ms: Option<Option<i32>>,
         webhook_retry_max_delay_ms: Option<Option<i32>>,
         webhook_retry_max_total_delay_ms: Option<Option<i32>>,
+        cimd_enabled: Option<bool>,
+        dcr_enabled: Option<bool>,
+        cimd_allowed_hosts: Option<Vec<String>>,
+        allowed_resources: Option<Vec<String>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -416,6 +420,22 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(webhook_retry_max_total_delay_ms) = webhook_retry_max_total_delay_ms {
             realm_setting.webhook_retry_max_total_delay_ms = Set(webhook_retry_max_total_delay_ms);
+        }
+
+        if let Some(cimd_enabled) = cimd_enabled {
+            realm_setting.cimd_enabled = Set(cimd_enabled);
+        }
+
+        if let Some(dcr_enabled) = dcr_enabled {
+            realm_setting.dcr_enabled = Set(dcr_enabled);
+        }
+
+        if let Some(cimd_allowed_hosts) = cimd_allowed_hosts {
+            realm_setting.cimd_allowed_hosts = Set(cimd_allowed_hosts);
+        }
+
+        if let Some(allowed_resources) = allowed_resources {
+            realm_setting.allowed_resources = Set(allowed_resources);
         }
 
         let realm_setting = realm_setting

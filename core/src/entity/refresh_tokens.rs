@@ -30,6 +30,7 @@ pub struct Model {
     /// When this token was rotated (UTC, diagnostics only).
     pub rotated_at: Option<DateTimeWithTimeZone>,
     pub session_id: Option<Uuid>,
+    pub resource: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -45,6 +46,7 @@ pub enum Column {
     ReplacedBy,
     RotatedAt,
     SessionId,
+    Resource,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -79,6 +81,7 @@ impl ColumnTrait for Column {
             Self::ReplacedBy => ColumnType::Uuid.def().null(),
             Self::RotatedAt => ColumnType::TimestampWithTimeZone.def().null(),
             Self::SessionId => ColumnType::Uuid.def().null(),
+            Self::Resource => ColumnType::Text.def().null(),
         }
     }
 }

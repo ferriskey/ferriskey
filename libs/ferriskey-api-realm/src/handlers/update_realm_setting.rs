@@ -192,6 +192,10 @@ pub async fn update_realm_setting(
                 webhook_retry_base_delay_ms: payload.webhook_retry_base_delay_ms,
                 webhook_retry_max_delay_ms: payload.webhook_retry_max_delay_ms,
                 webhook_retry_max_total_delay_ms: payload.webhook_retry_max_total_delay_ms,
+                cimd_enabled: payload.cimd_enabled,
+                dcr_enabled: payload.dcr_enabled,
+                cimd_allowed_hosts: payload.cimd_allowed_hosts,
+                allowed_resources: payload.allowed_resources,
             },
         )
         .await

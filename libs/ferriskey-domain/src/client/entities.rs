@@ -80,6 +80,60 @@ impl FromStr for ClientType {
     }
 }
 
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ClientRegistrationSource {
+    #[default]
+    Admin,
+    Dynamic,
+    MetadataDocument,
+}
+
+impl ClientRegistrationSource {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ClientRegistrationSource::Admin => "admin",
+            ClientRegistrationSource::Dynamic => "dynamic",
+            ClientRegistrationSource::MetadataDocument => "metadata_document",
+        }
+    }
+}
+
+impl fmt::Display for ClientRegistrationSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for ClientRegistrationSource {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "admin" => Ok(ClientRegistrationSource::Admin),
+            "dynamic" => Ok(ClientRegistrationSource::Dynamic),
+            "metadata_document" => Ok(ClientRegistrationSource::MetadataDocument),
+            _ => Err(format!("unknown client registration source: {s}")),
+        }
+    }
+}
+
+impl TryFrom<&str> for ClientRegistrationSource {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+impl From<ClientRegistrationSource> for String {
+    fn from(value: ClientRegistrationSource) -> Self {
+        value.as_str().to_string()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ToSchema)]
 pub struct Client {
     pub id: Uuid,
@@ -116,6 +170,7 @@ pub struct Client {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub consent_required: bool,
+    pub registration_source: ClientRegistrationSource,
 }
 
 pub struct ClientConfig {
@@ -181,6 +236,7 @@ impl Client {
             created_at: now,
             updated_at: now,
             consent_required: false,
+            registration_source: ClientRegistrationSource::Admin,
         }
     }
 
@@ -215,6 +271,7 @@ impl Client {
             created_at: now,
             updated_at: now,
             consent_required: false,
+            registration_source: ClientRegistrationSource::Admin,
         }
     }
 }
@@ -311,6 +368,34 @@ mod tests {
             Err(InvalidSamlConfig::ClientIsNotSaml(
                 "openid-connect".to_string()
             ))
+        );
+    }
+
+    #[test]
+    fn registration_source_round_trips_through_its_db_string() {
+        for source in [
+            ClientRegistrationSource::Admin,
+            ClientRegistrationSource::Dynamic,
+            ClientRegistrationSource::MetadataDocument,
+        ] {
+            assert_eq!(
+                ClientRegistrationSource::try_from(source.as_str()),
+                Ok(source)
+            );
+            assert_eq!(String::from(source), source.to_string());
+        }
+        assert!(ClientRegistrationSource::try_from("other").is_err());
+        assert_eq!(
+            ClientRegistrationSource::default(),
+            ClientRegistrationSource::Admin
+        );
+    }
+
+    #[test]
+    fn registration_source_serializes_as_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ClientRegistrationSource::MetadataDocument).ok(),
+            Some("\"metadata_document\"".to_string())
         );
     }
 }

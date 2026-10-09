@@ -1996,6 +1996,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
+ "url",
  "utoipa",
  "uuid",
  "validator",

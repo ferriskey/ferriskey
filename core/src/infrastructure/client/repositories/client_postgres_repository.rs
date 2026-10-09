@@ -20,7 +20,8 @@ use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::domain::{
     client::{
         entities::{
-            ApplicationType, Client, ClientFilter, ClientSortField, redirect_uri::RedirectUri,
+            ApplicationType, Client, ClientFilter, ClientRegistrationSource, ClientSortField,
+            redirect_uri::RedirectUri,
         },
         ports::ClientRepository,
         value_objects::{CreateClientRequest, UpdateClientRequest},
@@ -197,6 +198,7 @@ impl ClientRepository for PostgresClientRepository {
             backchannel_logout_uri: Set(None),
             backchannel_logout_session_required: Set(true),
             consent_required: Set(data.consent_required),
+            registration_source: Set(ClientRegistrationSource::Admin.to_string()),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };

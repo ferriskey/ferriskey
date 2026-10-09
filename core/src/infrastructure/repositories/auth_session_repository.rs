@@ -68,6 +68,8 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             reauth_session_id: model.reauth_session_id,
             consent_token_hash: model.consent_token_hash,
             prompt_consent: model.prompt_consent,
+            issuer: model.issuer,
+            resource: model.resource,
         })
     }
 }
@@ -115,6 +117,8 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             prompt_consent: Set(session.prompt_consent),
             remember_me: Set(session.remember_me),
             reauth_session_id: Set(session.reauth_session_id),
+            issuer: Set(session.issuer.clone()),
+            resource: Set(session.resource.clone()),
         };
 
         let t = model
@@ -674,6 +678,8 @@ mod tests {
             code_challenge_method: None,
             compass_flow_id: None,
             prompt_consent: false,
+            issuer: None,
+            resource: None,
         })
     }
 
