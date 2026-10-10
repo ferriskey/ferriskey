@@ -2548,10 +2548,11 @@ where
                     return Err(CoreError::InvalidCodeVerifier);
                 }
             }
-            (None, _) => {
-                // No challenge stored — check if a verifier was sent unexpectedly
-                // (harmless per RFC 7636 §4.6, we simply ignore it).
+            (None, _) if params.code_verifier.is_some() => {
+                warn!(client_id = %params.client_id, "Refused a code_verifier for a code issued without PKCE");
+                return Err(CoreError::InvalidCodeVerifier);
             }
+            (None, _) => {}
         }
 
         let claimed = self
