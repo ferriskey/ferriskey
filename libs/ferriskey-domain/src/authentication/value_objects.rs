@@ -276,6 +276,7 @@ pub struct EndSessionInput {
     pub post_logout_redirect_uri: Option<String>,
     pub state: Option<String>,
     pub client_id: Option<String>,
+    pub sso_cookie: Option<String>,
 }
 
 pub struct EndSessionOutput {
