@@ -5049,13 +5049,17 @@ where
             Err(_) => return Ok(inactive),
         };
 
+        if matches!(claims.typ, ClaimsTyp::Temporary | ClaimsTyp::Id) {
+            return Ok(inactive);
+        }
+
         // If the token is a refresh token (or hinted as such), enforce refresh token repository checks.
         if input.token_type_hint.as_deref() == Some("refresh_token")
             || claims.typ == ClaimsTyp::Refresh
         {
             claims = match self.verify_refresh_token(token, scope.id()).await {
-                Ok((c, _stored)) => c,
-                Err(_) => return Ok(inactive),
+                Ok((c, stored)) if stored.status.is_active() => c,
+                _ => return Ok(inactive),
             };
         }
 
