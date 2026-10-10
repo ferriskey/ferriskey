@@ -7,13 +7,17 @@ use axum::{
 };
 use axum_extra::{
     TypedHeader,
+    extract::CookieJar,
     headers::{Authorization, authorization::Bearer},
 };
 use base64::{Engine, engine::general_purpose};
-use ferriskey_core::domain::authentication::{entities::AuthorizeRequestInput, ports::AuthService};
+use ferriskey_core::domain::authentication::{
+    entities::AuthorizeRequestInput, ports::AuthService, services::LOGIN_ACTION_SESSION_CLAIM,
+};
 use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 
 use axum::extract::Path;
 
@@ -166,6 +170,8 @@ pub async fn auth(
     Ok(next.run(req).await)
 }
 
+const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
+
 const STEP_COMPLETING_ACTIONS: [&str; 5] = [
     "/login-actions/verify-otp",
     "/login-actions/challenge-otp",
@@ -183,6 +189,19 @@ pub async fn auth_login_actions(
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
     let jti = claims.jti;
+    let token_session = claims
+        .additional_claims
+        .get(LOGIN_ACTION_SESSION_CLAIM)
+        .and_then(|value| value.as_str())
+        .and_then(|raw| Uuid::parse_str(raw).ok());
+
+    let cookie_session = CookieJar::from_headers(req.headers())
+        .get(AUTH_SESSION_COOKIE)
+        .map(|cookie| Uuid::parse_str(cookie.value()).ok());
+
+    if cookie_session.is_some_and(|session| session != token_session) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     let output = state
         .service

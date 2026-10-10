@@ -668,6 +668,14 @@ mod tests {
     }
 
     async fn step_token_for(server: &TestServer, username: &str, password: &str) -> String {
+        step_token_and_session(server, username, password).await.0
+    }
+
+    async fn step_token_and_session(
+        server: &TestServer,
+        username: &str,
+        password: &str,
+    ) -> (String, String) {
         let authorize = start_authorization(server).await;
         let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
         let login = authenticate(server, &session_code, username, password).await;
@@ -679,7 +687,7 @@ mod tests {
             login.text()
         );
 
-        login
+        let step_token = login
             .maybe_cookie("FERRISKEY_LOGIN_ACTION")
             .map(|cookie| cookie.value().to_string())
             .unwrap_or_else(|| {
@@ -687,7 +695,9 @@ mod tests {
                     "a user owing a password update must receive a step token: {}",
                     login.text()
                 )
-            })
+            });
+
+        (step_token, session_code)
     }
 
     async fn password_is_accepted(server: &TestServer, username: &str, password: &str) -> bool {
@@ -1053,9 +1063,8 @@ mod tests {
             .execute(&ctx().pool)
             .await
             .expect("insert the update_password required action");
-            let step_token = step_token_for(&server, &username, FIRST_PASSWORD).await;
-            let authorize = start_authorization(&server).await;
-            let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+            let (step_token, session_code) =
+                step_token_and_session(&server, &username, FIRST_PASSWORD).await;
 
             let response =
                 burn_recovery_code(&server, realm(), &step_token, &session_code, &codes[0]).await;
@@ -1063,6 +1072,42 @@ mod tests {
             assert_ne!(response.status_code(), 200, "{}", response.text());
             assert!(!response.text().contains("login_url"), "{}", response.text());
             assert_eq!(count_recovery_codes(user_id).await, 2);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn a_step_token_cannot_burn_a_recovery_code_into_another_login_session() {
+        rt().block_on(async {
+            let server = make_server();
+            let (username, user_id) = seed_user_with_password(&server, "recovery-session").await;
+            let codes = recovery_codes_for(&server, &username).await;
+            grant_otp(user_id).await;
+            let (step_token, own_session) = otp_step(&server, &username).await;
+            let foreign_session = start_authorization(&server)
+                .await
+                .cookie("FERRISKEY_SESSION")
+                .value()
+                .to_string();
+
+            let refused =
+                burn_recovery_code(&server, realm(), &step_token, &foreign_session, &codes[0])
+                    .await;
+
+            assert_eq!(refused.status_code(), 401, "{}", refused.text());
+            assert!(!refused.text().contains("login_url"), "{}", refused.text());
+            assert_eq!(count_recovery_codes(user_id).await, 2);
+
+            let accepted =
+                burn_recovery_code(&server, realm(), &step_token, &own_session, &codes[0]).await;
+
+            assert_eq!(
+                accepted.status_code(),
+                200,
+                "the same token must still burn against its own session: {}",
+                accepted.text()
+            );
+            assert_eq!(count_recovery_codes(user_id).await, 1);
         });
     }
 
@@ -1328,10 +1373,8 @@ mod tests {
 
             let enroller = seed_user_owing_a_password_update(&server, "enrolment").await;
 
-            let authorize = start_authorization(&server).await;
-            let witness_session = authorize.cookie("FERRISKEY_SESSION").value().to_string();
-
-            let witness_token = step_token_for(&server, &enroller, FIRST_PASSWORD).await;
+            let (witness_token, witness_session) =
+                step_token_and_session(&server, &enroller, FIRST_PASSWORD).await;
             let accepted =
                 webauthn_create_options(&server, realm(), &witness_token, &witness_session).await;
             let accepted_body = accepted.text();
@@ -1358,11 +1401,11 @@ mod tests {
             let refused =
                 webauthn_create_options(&server, realm(), &refused_token, &foreign_session).await;
 
-            assert_refusal(
-                &refused,
-                404,
-                "session_not_found",
-                "issuing an enrolment challenge onto an authentication session of another realm",
+            assert_eq!(
+                refused.status_code(),
+                401,
+                "issuing an enrolment challenge onto an authentication session of another realm: {}",
+                refused.text()
             );
             assert_eq!(
                 stored_challenge(&foreign_session).await.as_deref(),

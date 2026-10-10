@@ -647,7 +647,7 @@ fn refuse_token_issuance_when_actions_pending(
 /// realm may have widened to hours. Realms expose a dedicated
 /// `temporary_token_lifetime`; when a realm has no settings row we fall back to
 /// `DEFAULT_TEMPORARY_TOKEN_LIFETIME` rather than to the access-token default.
-pub(crate) const LOGIN_ACTION_SESSION_CLAIM: &str = "afs";
+pub const LOGIN_ACTION_SESSION_CLAIM: &str = "afs";
 
 fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
     realm_settings
