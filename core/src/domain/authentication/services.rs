@@ -2581,6 +2581,11 @@ where
             .map_err(|_| CoreError::InvalidAuthorizationCode)?
             .into_inner();
 
+        if !user.enabled {
+            warn!(user_id = %user.id, "Refused a code exchange: the account is disabled");
+            return Err(CoreError::UserDisabled);
+        }
+
         let pending_step = self
             .resolve_pending_auth_step(user_id, params.realm.id())
             .await?;
