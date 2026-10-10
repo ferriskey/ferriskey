@@ -21,6 +21,7 @@ mod tests {
         response::{IntoResponse, Response},
     };
     use axum_test::{TestResponse, TestServer};
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -450,6 +451,60 @@ mod tests {
             .post(&ctx.path("/clients/register"))
             .json(&body)
             .await
+    }
+
+    async fn ensure_standard_scopes(server: &TestServer, ctx: &Ctx) {
+        let admin = ctx.admin_token(server).await;
+        for name in ["openid", "profile", "email"] {
+            let exists: Option<(Uuid,)> =
+                sqlx::query_as("SELECT id FROM client_scopes WHERE realm_id = $1 AND name = $2")
+                    .bind(ctx.realm_id)
+                    .bind(name)
+                    .fetch_optional(&ctx.pool)
+                    .await
+                    .expect("scope lookup");
+            if exists.is_some() {
+                continue;
+            }
+            let response = server
+                .post(&ctx.path("/client-scopes"))
+                .authorization_bearer(&admin)
+                .json(&json!({
+                    "name": name,
+                    "description": name,
+                    "protocol": "openid-connect",
+                    "is_default": true,
+                }))
+                .await;
+            assert_eq!(response.status_code(), 201, "{}", response.text());
+        }
+    }
+
+    async fn create_scope(
+        server: &TestServer,
+        ctx: &Ctx,
+        is_default: bool,
+        dynamic_registration_allowed: bool,
+    ) -> String {
+        let admin = ctx.admin_token(server).await;
+        let name = format!("tools-{}", Uuid::new_v4().simple());
+        let response = server
+            .post(&ctx.path("/client-scopes"))
+            .authorization_bearer(&admin)
+            .json(&json!({
+                "name": name,
+                "description": "scope for dynamic clients",
+                "protocol": "openid-connect",
+                "is_default": is_default,
+                "dynamic_registration_allowed": dynamic_registration_allowed,
+            }))
+            .await;
+        assert_eq!(response.status_code(), 201, "{}", response.text());
+        assert_eq!(
+            response.json::<Value>()["dynamic_registration_allowed"],
+            dynamic_registration_allowed
+        );
+        name
     }
 
     // ---------------------------------------------------------------- CIMD
@@ -1003,7 +1058,7 @@ mod tests {
     #[ignore = "requires PostgreSQL"]
     fn with_dcr_off_the_registration_endpoint_is_not_found() {
         let _guard = serial();
-        let ctx = off();
+        let ctx = on();
         let server = ctx.server();
         rt().block_on(async {
             ctx.toggles(false, false, &[]).await;
@@ -1050,6 +1105,143 @@ mod tests {
             assert_eq!(hosts, vec!["app.example".to_string()]);
 
             ctx.toggles(false, false, &[]).await;
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_flagged_scope_is_registrable_a_plain_default_one_is_not() {
+        let _guard = serial();
+        let ctx = off();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(false, true, &[]).await;
+            ensure_standard_scopes(&server, ctx).await;
+            let flagged = create_scope(&server, ctx, false, true).await;
+            let plain_default = create_scope(&server, ctx, true, false).await;
+
+            let accepted = register(
+                &server,
+                ctx,
+                json!({
+                    "redirect_uris": [CALLBACK],
+                    "token_endpoint_auth_method": "none",
+                    "scope": format!("openid {flagged}"),
+                }),
+            )
+            .await;
+            assert_eq!(accepted.status_code(), 201, "{}", accepted.text());
+            assert!(
+                accepted.json::<Value>()["scope"]
+                    .as_str()
+                    .expect("scope")
+                    .contains(&flagged)
+            );
+
+            let refused = register(
+                &server,
+                ctx,
+                json!({
+                    "redirect_uris": [CALLBACK],
+                    "token_endpoint_auth_method": "none",
+                    "scope": format!("openid {plain_default}"),
+                }),
+            )
+            .await;
+            assert_eq!(refused.status_code(), 400, "{}", refused.text());
+            assert_eq!(refused.json::<Value>()["error"], "invalid_client_metadata");
+
+            let standard = register(
+                &server,
+                ctx,
+                json!({
+                    "redirect_uris": [CALLBACK],
+                    "token_endpoint_auth_method": "none",
+                    "scope": "openid profile email",
+                }),
+            )
+            .await;
+            assert_eq!(standard.status_code(), 201, "{}", standard.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_dynamic_client_registered_without_scope_can_request_a_flagged_scope() {
+        let _guard = serial();
+        let ctx = off();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(false, true, &[]).await;
+            let flagged = create_scope(&server, ctx, false, true).await;
+            let hidden = create_scope(&server, ctx, false, false).await;
+
+            let response = register(
+                &server,
+                ctx,
+                json!({ "redirect_uris": [CALLBACK], "token_endpoint_auth_method": "none" }),
+            )
+            .await;
+            assert_eq!(response.status_code(), 201, "{}", response.text());
+            let client_id = response.json::<Value>()["client_id"]
+                .as_str()
+                .expect("client_id")
+                .to_string();
+
+            let kinds: Vec<(String, String)> = sqlx::query_as(
+                "SELECT s.name, m.default_scope_type FROM client_scope_mappings m JOIN client_scopes s ON s.id = m.client_scope_id JOIN clients c ON c.id = m.client_id WHERE c.client_id = $1",
+            )
+            .bind(&client_id)
+            .fetch_all(&ctx.pool)
+            .await
+            .expect("mappings");
+            assert!(kinds.contains(&(flagged, "OPTIONAL".to_string())), "{kinds:?}");
+            assert!(kinds.iter().all(|(name, _)| *name != hidden), "{kinds:?}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_metadata_document_client_obtains_a_flagged_scope_requested_at_auth() {
+        let _guard = serial();
+        let ctx = on();
+        let server = ctx.server();
+        rt().block_on(async {
+            ctx.toggles(true, false, &[]).await;
+            let flagged = create_scope(&server, ctx, false, true).await;
+            let url = publish_json(|url| document_for(url, &[CALLBACK]));
+
+            let (consent_url, session) =
+                sign_in(&server, ctx, &url, CALLBACK, &format!("openid {flagged}")).await;
+            let consent_token = query_param(&consent_url, "consent_token")
+                .expect("a document client reaches consent");
+            let decision = server
+                .post(&ctx.path("/auth/consent"))
+                .add_cookie(session)
+                .json(&json!({ "consent_token": consent_token, "approved_scopes": [flagged] }))
+                .await;
+            assert_eq!(decision.status_code(), 200, "{}", decision.text());
+            let redirect = decision.json::<Value>()["redirect_url"]
+                .as_str()
+                .expect("redirect_url")
+                .to_string();
+            let code = query_param(&redirect, "code").expect("code");
+
+            let token = exchange(&server, ctx, &url, None, CALLBACK, &code).await;
+            assert_eq!(token.status_code(), 200, "{}", token.text());
+            let access = token.json::<Value>()["access_token"]
+                .as_str()
+                .expect("access token")
+                .to_string();
+            let payload = access.split('.').nth(1).expect("a JWT has a payload");
+            let claims: Value = serde_json::from_slice(
+                &URL_SAFE_NO_PAD
+                    .decode(payload)
+                    .expect("the payload is base64url"),
+            )
+            .expect("the payload is JSON");
+            let granted = claims["scope"].as_str().expect("scope claim").to_string();
+            assert!(granted.split(' ').any(|s| s == flagged), "{granted}");
         });
     }
 }
