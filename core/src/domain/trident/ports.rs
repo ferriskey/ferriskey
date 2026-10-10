@@ -131,6 +131,8 @@ pub struct VerifyOtpOutput {
 
 pub struct GenerateRecoveryCodeInput {
     pub realm_name: String,
+    pub session_id: Uuid,
+    pub elevation_id: Uuid,
     pub amount: u8,
     pub format: String,
 }

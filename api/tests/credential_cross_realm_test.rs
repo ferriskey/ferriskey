@@ -344,15 +344,35 @@ mod tests {
             .await
     }
 
-    async fn generate_recovery_codes(server: &TestServer, realm: &str) -> TestResponse {
+    async fn generate_recovery_codes(server: &TestServer, url_realm: &str) -> TestResponse {
         let token = get_admin_token(server).await;
+        let elevation = server
+            .post(&format!("/realms/{}/users/me/reauthenticate", realm()))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({ "password": "admin" }))
+            .await;
+        assert_eq!(
+            elevation.status_code(),
+            200,
+            "re-authentication failed: {}",
+            elevation.text()
+        );
+        let elevation_id = elevation.json::<Value>()["elevation_id"]
+            .as_str()
+            .expect("elevation_id")
+            .to_string();
+
         server
             .post(&format!(
                 "/realms/{}/login-actions/generate-recovery-codes",
-                realm
+                url_realm
             ))
             .add_header("Authorization", auth_header(&token))
-            .json(&json!({ "amount": 2, "code_format": RECOVERY_CODE_FORMAT }))
+            .json(&json!({
+                "elevation_id": elevation_id,
+                "amount": 2,
+                "code_format": RECOVERY_CODE_FORMAT,
+            }))
             .await
     }
 

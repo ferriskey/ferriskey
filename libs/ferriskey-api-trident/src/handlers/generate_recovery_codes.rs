@@ -8,6 +8,7 @@ use ferriskey_core::domain::{
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 use validator::Validate;
 
 use ferriskey_api_core::{
@@ -16,10 +17,12 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    caller_session::CallerSession,
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
 pub struct GenerateRecoveryCodesRequest {
+    elevation_id: Uuid,
     amount: u8,
     code_format: String,
 }
@@ -42,6 +45,8 @@ pub struct GenerateRecoveryCodesResponse {
     responses(
         (status = 200, description = "Successfully generated recovery codes", body = GenerateRecoveryCodesResponse),
         (status = 400, description = "Invalid request payload", body = ApiErrorResponse),
+        (status = 401, description = "The access token is not bound to a session", body = ApiErrorResponse),
+        (status = 403, description = "No live elevation for this caller and session, or the elevation was not proved with a password", body = ApiErrorResponse),
         (status = 404, description = "Session not found", body = ApiErrorResponse),
         (status = 500, description = "Internal server error", body = ApiErrorResponse),
     )
@@ -50,6 +55,7 @@ pub async fn generate_recovery_codes(
     State(state): State<AppState>,
     Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
+    CallerSession(session_id): CallerSession,
     ValidateJson(payload): ValidateJson<GenerateRecoveryCodesRequest>,
 ) -> Result<Response<GenerateRecoveryCodesResponse>, ApiError> {
     let result = state
@@ -58,6 +64,8 @@ pub async fn generate_recovery_codes(
             identity,
             GenerateRecoveryCodeInput {
                 realm_name,
+                session_id,
+                elevation_id: payload.elevation_id,
                 amount: payload.amount,
                 format: payload.code_format,
             },

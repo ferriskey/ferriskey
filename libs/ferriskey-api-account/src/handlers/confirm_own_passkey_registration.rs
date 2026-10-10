@@ -15,8 +15,8 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::session::CallerSession;
 use crate::validators::{ConfirmOwnPasskeyRegistrationValidator, webauthn_rp_info_from_webapp_url};
+use ferriskey_api_core::caller_session::CallerSession;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct ConfirmPasskeyResponse {

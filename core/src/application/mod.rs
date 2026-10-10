@@ -529,6 +529,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user_role.clone(),
             token_revocation.clone(),
             sso_session.clone(),
+            elevation.clone(),
             flow_recorder.clone(),
         ),
         account_security_service:

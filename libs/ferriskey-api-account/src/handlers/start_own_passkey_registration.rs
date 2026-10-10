@@ -19,8 +19,8 @@ use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema},
 };
 
-use crate::session::CallerSession;
 use crate::validators::{ElevationOnlyValidator, webauthn_rp_info_from_webapp_url};
+use ferriskey_api_core::caller_session::CallerSession;
 
 #[derive(Debug, Serialize)]
 #[serde(transparent, rename_all = "camelCase")]
