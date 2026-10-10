@@ -12,7 +12,7 @@ mod tests {
 
     use crate::common::{
         ADMIN_CLIENT_ID, CALLBACK, ClientSpec, SeededClient, TestApp, app, authorize,
-        client_credentials, exchange_code, introspect, password_grant, query_param, rt,
+        client_credentials, exchange_code, introspect, password_grant, query_param, refresh, rt,
         sign_in_for_code,
     };
 
@@ -399,6 +399,64 @@ mod tests {
                 ])
                 .await;
             assert_eq!(response.status_code(), 200, "{}", response.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_login_step_token_is_not_an_active_token() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let user = app.user(&server, PASSWORD).await;
+            sqlx::query(
+                "INSERT INTO credentials (id, credential_type, user_id, secret_data, credential_data, user_label)
+                 VALUES ($1, 'otp', $2::uuid, 'JBSWY3DPEHPK3PXP', '{}'::jsonb, 'test-authenticator')",
+            )
+            .bind(uuid::Uuid::new_v4())
+            .bind(&user.id)
+            .execute(&app.pool)
+            .await
+            .expect("insert otp credential");
+
+            let authorized = authorize(&server, app, &client.client_id, &[]).await;
+            let login = server
+                .post(&app.path("/login-actions/authenticate"))
+                .add_cookie(authorized.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", &client.client_id)
+                .json(&json!({ "username": user.username, "password": PASSWORD }))
+                .await;
+            assert_eq!(login.json::<Value>()["status"], "RequiresOtpChallenge");
+            let step = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
+
+            let body = introspect(&server, app, &client, &step).await;
+            assert_eq!(body["active"], false, "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_rotated_refresh_token_is_not_active() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let issued = tokens(app, &client, &[]).await;
+            let first = issued["refresh_token"].as_str().expect("refresh_token");
+
+            let rotated = refresh(
+                &server,
+                app,
+                &client.client_id,
+                client.secret.as_deref(),
+                first,
+            )
+            .await;
+            assert_eq!(rotated.status_code(), 200, "{}", rotated.text());
+
+            let body = introspect(&server, app, &client, first).await;
+            assert_eq!(body["active"], false, "{body}");
         });
     }
 
