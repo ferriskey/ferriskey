@@ -2949,6 +2949,9 @@ where
             .reset_failed_login_attempts(user.id)
             .await;
 
+        self.enforce_maintenance_mode(params.realm.id(), &client, user.id, &user.username)
+            .await?;
+
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
             .await?;
@@ -5348,17 +5351,28 @@ where
             return Err(error);
         }
 
+        let client = match input.client_id {
+            Some(client_uuid) => Some(
+                self.client_repository
+                    .get_by_id(realm_scope.id(), client_uuid)
+                    .await?
+                    .in_realm(&realm_scope)?
+                    .into_inner(),
+            ),
+            None => None,
+        };
+
+        if let Some(client) = &client {
+            self.enforce_maintenance_mode(realm_scope.id(), client, user.id, &user.username)
+                .await?;
+        }
+
         let (user_session, _) = self
             .create_user_session(user.id, realm_scope.id(), lifetimes.refresh_token, false)
             .await?;
 
-        if let Some(client_uuid) = input.client_id {
-            let client = self
-                .client_repository
-                .get_by_id(realm_scope.id(), client_uuid)
-                .await?
-                .in_realm(&realm_scope)?
-                .into_inner();
+        if let Some(client) = client {
+            let client_uuid = client.id;
             let scope = self
                 .resolve_scopes_for_client(client_uuid, input.scope.clone())
                 .await?;
