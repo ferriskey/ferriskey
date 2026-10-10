@@ -12,7 +12,7 @@ use crate::domain::{
     },
     realm::entities::{
         AuthorizationServerSettings, Realm, RealmFilter, RealmLoginSetting, RealmSetting,
-        RealmSortField, SmtpConfig,
+        RealmSortField, ResourceOwner, SmtpConfig,
     },
     user::entities::User,
 };
@@ -82,6 +82,20 @@ pub trait RealmService: Send + Sync {
     ) -> impl Future<Output = Result<AuthorizationServerSettings, CoreError>> + Send;
 }
 
+pub trait ResourceOwnerService: Send + Sync {
+    fn list_resource_owners(
+        &self,
+        identity: Identity,
+        input: ListResourceOwnersInput,
+    ) -> impl Future<Output = Result<Vec<ResourceOwner>, CoreError>> + Send;
+
+    fn replace_resource_owners(
+        &self,
+        identity: Identity,
+        input: ReplaceResourceOwnersInput,
+    ) -> impl Future<Output = Result<Vec<ResourceOwner>, CoreError>> + Send;
+}
+
 pub trait MailService: Send + Sync {
     fn get_smtp_config(
         &self,
@@ -112,6 +126,15 @@ pub use ferriskey_domain::realm::ports::*;
 #[derive(Debug)] // TODO derive debug for instrumetnation
 pub struct GetRealmInput {
     pub realm_name: String,
+}
+
+pub struct ListResourceOwnersInput {
+    pub realm_name: String,
+}
+
+pub struct ReplaceResourceOwnersInput {
+    pub realm_name: String,
+    pub owners: Vec<ResourceOwner>,
 }
 
 pub struct GetRealmSettingInput {

@@ -8,6 +8,7 @@ pub mod get_realm;
 pub mod get_smtp_config;
 pub mod get_user_realm_settings;
 pub mod get_user_realms;
+pub mod resource_owners;
 pub mod update_password_policy;
 pub mod update_realm;
 pub mod update_realm_setting;

@@ -12,6 +12,10 @@ use super::handlers::get_realm::{__path_get_realm, get_realm};
 use super::handlers::get_smtp_config::{__path_get_smtp_config, get_smtp_config};
 use super::handlers::get_user_realm_settings::get_user_realm_settings;
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
+use super::handlers::resource_owners::{
+    __path_get_resource_owners, __path_replace_resource_owners, get_resource_owners,
+    replace_resource_owners,
+};
 use super::handlers::update_password_policy::{
     __path_update_password_policy, update_password_policy,
 };
@@ -31,6 +35,8 @@ use utoipa::OpenApi;
     update_realm,
     delete_realm,
     update_realm_setting,
+    get_resource_owners,
+    replace_resource_owners,
     get_user_realms,
     get_login_realm_settings_handler,
     get_smtp_config,
@@ -80,6 +86,13 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             put(update_realm_setting),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/resource-owners",
+                state.args.server.root_path
+            ),
+            get(get_resource_owners).put(replace_resource_owners),
         )
         .route(
             &format!(

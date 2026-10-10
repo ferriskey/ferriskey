@@ -1,4 +1,4 @@
-use ferriskey_core::domain::realm::entities::LoginAliases;
+use ferriskey_core::domain::realm::entities::{LoginAliases, ResourceOwner};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -103,6 +103,11 @@ pub struct UpdateRealmSettingValidator {
     pub cimd_allowed_hosts: Option<Vec<String>>,
     #[validate(custom(function = "validate_allowed_resources"))]
     pub allowed_resources: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
+pub struct ReplaceResourceOwnersValidator {
+    pub owners: Vec<ResourceOwner>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

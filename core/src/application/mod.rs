@@ -57,7 +57,10 @@ use crate::{
         password_policy::service::PasswordPolicyService,
         portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        realm::{
+            resource_owner_services::ResourceOwnerServiceImpl,
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -114,6 +117,7 @@ use crate::{
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
+            resource_owner_postgres_repository::PostgresResourceOwnerRepository,
             smtp_config_postgres_repository::PostgresSmtpConfigRepository,
         },
         repositories::{
@@ -308,6 +312,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
     let smtp_config = Arc::new(PostgresSmtpConfigRepository::new(postgres.get_db()));
+    let resource_owner = Arc::new(PostgresResourceOwnerRepository::new(postgres.get_db()));
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
@@ -452,6 +457,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         token_exchange_policy.clone(),
         security_event.clone(),
         Arc::new(auth_service.clone()),
+        realm.clone(),
+        resource_owner.clone(),
         flow_recorder.clone(),
     );
 
@@ -525,6 +532,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             redirect_uri.clone(),
             policy.clone(),
             config.webapp_url.clone(),
+        ),
+        resource_owner_service: ResourceOwnerServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            resource_owner.clone(),
+            policy.clone(),
         ),
         mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),
         role_service: RoleServiceImpl::new(

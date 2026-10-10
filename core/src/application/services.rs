@@ -67,7 +67,10 @@ use crate::{
         },
         portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        realm::{
+            resource_owner_services::ResourceOwnerServiceImpl,
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
         seawatch::{
@@ -128,6 +131,7 @@ use crate::{
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
+            resource_owner_postgres_repository::PostgresResourceOwnerRepository,
             smtp_config_postgres_repository::PostgresSmtpConfigRepository,
         },
         repositories::{
@@ -176,6 +180,7 @@ type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type WebOriginRepo = PostgresWebOriginRepository;
 type TokenExchangePolicyRepo = PostgresTokenExchangePolicyRepository;
 type ClientSamlRepo = PostgresClientSamlRepository;
+type ResourceOwnerRepo = PostgresResourceOwnerRepository;
 
 type ApplicationSamlService = SamlServiceImpl<
     RealmRepo,
@@ -483,6 +488,8 @@ type ApplicationTokenExchangeService = TokenExchangeServiceImpl<
     TokenExchangePolicyRepo,
     SecurityEventRepo,
     ApplicationAuthService,
+    RealmRepo,
+    ResourceOwnerRepo,
 >;
 
 #[derive(Clone, Debug)]
@@ -509,6 +516,8 @@ pub struct ApplicationService {
         ScopeMappingRepo,
         RedirectUriRepo,
     >,
+    pub(crate) resource_owner_service:
+        ResourceOwnerServiceImpl<RealmRepo, ClientRepo, ResourceOwnerRepo, UserRepo, UserRoleRepo>,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<
