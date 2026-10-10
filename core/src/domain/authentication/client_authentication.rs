@@ -68,7 +68,9 @@ mod tests {
 
     use super::{ClientGrant, authenticate_client};
     use crate::domain::authentication::entities::AuthProtocol;
-    use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
+    use crate::domain::client::entities::{
+        Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+    };
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
 
@@ -117,6 +119,7 @@ mod tests {
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
             consent_required: false,
+            registration_source: ClientRegistrationSource::Admin,
         }
     }
 
