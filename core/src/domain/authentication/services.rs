@@ -29,6 +29,7 @@ use ferriskey_organization::{
     OrganizationMemberRepository, OrganizationRepository,
 };
 
+use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
 use crate::domain::authentication::mapper_engine::{ContextGroup, ContextOrganization};
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
@@ -734,19 +735,11 @@ fn validate_authorization_code_request(
         return Err(CoreError::InvalidAuthorizationCode);
     }
 
-    if !client.enabled {
-        return Err(CoreError::InvalidClient);
-    }
-
-    // Confidential clients must authenticate. Skipping this let anyone redeem a
-    // code without ever proving they are the client it belongs to.
-    if !client.public_client && !client_secret_matches(client.secret_str(), request_client_secret) {
-        warn!(
-            client_id = %client.client_id,
-            "authorization_code: client secret mismatch for confidential client"
-        );
-        return Err(CoreError::InvalidClientSecret);
-    }
+    authenticate_client(
+        client,
+        request_client_secret,
+        ClientGrant::AuthorizationCode,
+    )?;
 
     // The code belongs to one client. Without this, any client_id in the realm
     // could redeem another client's code and receive tokens minted under its own
@@ -2528,9 +2521,9 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm.id())
             .await
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .in_realm(&params.realm)
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
 
         // The code itself is a secret: never log it, since log exposure is one of
@@ -2770,14 +2763,16 @@ where
             .client_repository
             .get_by_client_id(params.client_id.clone(), params.realm.id())
             .await
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .in_realm(&params.realm)
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
 
-        if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
-            return Err(CoreError::InvalidClientSecret);
-        }
+        authenticate_client(
+            &client,
+            params.client_secret.as_deref(),
+            ClientGrant::ClientCredentials,
+        )?;
 
         if let Some(ref scope_str) = params.scope {
             for scope in scope_str.split_whitespace() {
@@ -2846,7 +2841,8 @@ where
             Self::expires_in_from(refresh_token.expires_at),
             None,
             id_token_value,
-        ))
+        )
+        .without_refresh_token())
     }
 
     async fn password(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
@@ -2858,30 +2854,16 @@ where
             .get_by_client_id(params.client_id.clone(), params.realm.id())
             .instrument(info_span!("auth.password.client_lookup"))
             .await
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .in_realm(&params.realm)
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
 
-        if !client.direct_access_grants_enabled {
-            // Public clients must have direct access grants enabled for password flow.
-            if client.public_client {
-                return Err(CoreError::InvalidClient);
-            }
-
-            // Confidential clients are still allowed when authenticating with a valid secret.
-            if !Self::verify_client_secret(client.secret_str(), params.client_secret.as_deref()) {
-                return Err(CoreError::InvalidClientSecret);
-            }
-        } else if !client.public_client {
-            // When direct access grants are enabled, confidential clients may call
-            // password flow without a secret; if one is provided, it must be valid.
-            if let Some(provided_secret) = &params.client_secret
-                && !Self::verify_client_secret(client.secret_str(), Some(provided_secret))
-            {
-                return Err(CoreError::InvalidClientSecret);
-            }
-        }
+        authenticate_client(
+            &client,
+            params.client_secret.as_deref(),
+            ClientGrant::Password,
+        )?;
 
         let login_aliases = self
             .realm_repository
@@ -3057,6 +3039,21 @@ where
             return Err(CoreError::InvalidToken);
         }
 
+        let client = self
+            .client_repository
+            .get_by_client_id(params.client_id.clone(), params.realm.id())
+            .await
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .in_realm(&params.realm)
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .into_inner();
+
+        authenticate_client(
+            &client,
+            params.client_secret.as_deref(),
+            ClientGrant::RefreshToken,
+        )?;
+
         // Reuse detection: rotated or revoked tokens trigger family revocation.
         if !stored.status.is_active() {
             warn!(
@@ -3085,15 +3082,6 @@ where
         if !user.enabled {
             return Err(CoreError::UserDisabled);
         }
-
-        let client = self
-            .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm.id())
-            .await
-            .map_err(|_| CoreError::InvalidClient)?
-            .in_realm(&params.realm)
-            .map_err(|_| CoreError::InvalidClient)?
-            .into_inner();
 
         let lifetimes = self
             .resolve_token_lifetimes(&params.realm, client.id)
@@ -4379,10 +4367,6 @@ This is a server error that should be investigated. Do not forward back this mes
         }
     }
 
-    fn verify_client_secret(stored: Option<&str>, provided: Option<&str>) -> bool {
-        client_secret_matches(stored, provided)
-    }
-
     async fn verify_id_token_hint(
         &self,
         id_token_hint: &str,
@@ -5202,17 +5186,15 @@ where
             .client_repository
             .get_by_client_id(input.client_id.clone(), scope.id())
             .await
-            .map_err(|_| CoreError::InvalidClient)?
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .in_realm(&scope)?
             .into_inner();
 
-        if !client.enabled || client.public_client {
-            return Err(CoreError::InvalidClient);
-        }
-
-        if !Self::verify_client_secret(client.secret_str(), Some(&input.client_secret)) {
-            return Err(CoreError::InvalidClientSecret);
-        }
+        authenticate_client(
+            &client,
+            Some(input.client_secret.as_str()),
+            ClientGrant::Introspection,
+        )?;
 
         let token = input.token;
         let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
@@ -5280,6 +5262,21 @@ where
 
     async fn revoke_token(&self, input: RevokeTokenInput) -> Result<(), CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+
+        let client = self
+            .client_repository
+            .get_by_client_id(input.client_id.clone(), scope.id())
+            .await
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .into_inner();
+
+        authenticate_client(
+            &client,
+            input.client_secret.as_deref(),
+            ClientGrant::Revocation,
+        )?;
 
         let hinted_refresh = input.token_type_hint.as_deref() == Some("refresh_token");
         let hinted_access = input.token_type_hint.as_deref() == Some("access_token");
@@ -6158,7 +6155,7 @@ mod tests {
                 None,
                 Utc::now(),
             ),
-            Err(CoreError::InvalidClientSecret)
+            Err(CoreError::ClientAuthenticationFailed)
         ));
     }
 
@@ -6175,7 +6172,7 @@ mod tests {
                 Some("wrong"),
                 Utc::now(),
             ),
-            Err(CoreError::InvalidClientSecret)
+            Err(CoreError::ClientAuthenticationFailed)
         ));
     }
 
@@ -6324,7 +6321,7 @@ mod tests {
                 Some("s3cr3t"),
                 Utc::now(),
             ),
-            Err(CoreError::InvalidClient)
+            Err(CoreError::ClientAuthenticationFailed)
         ));
     }
 

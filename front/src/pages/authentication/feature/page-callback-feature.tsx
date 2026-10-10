@@ -101,7 +101,7 @@ export default function PageCallbackFeature() {
       },
     })
       .then((data) => {
-        setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
+        setAuthTokens(data.access_token, data.refresh_token ?? null, data.id_token ?? null)
         const realm = realm_name ?? 'master'
         const returnTo = safePostLoginReturn(realm)
         navigate(returnTo ?? `/realms/${realm}/overview`, { replace: true })

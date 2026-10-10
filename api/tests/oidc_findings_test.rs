@@ -2,12 +2,11 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use base64::{Engine, engine::general_purpose::STANDARD};
     use serde_json::Value;
 
     use crate::common::{
-        ClientSpec, SeededClient, TestApp, app, exchange_code, introspect, password_grant, refresh,
-        rt, sign_in_for_code,
+        ClientSpec, SeededClient, TestApp, app, exchange_code, introspect, refresh, rt,
+        sign_in_for_code,
     };
 
     const PASSWORD: &str = "Findings-Passw0rd!";
@@ -118,34 +117,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SSO-13 open: /revoke ignores HTTP Basic client authentication"]
-    fn sso_13_revoke_accepts_basic_client_authentication() {
-        rt().block_on(async {
-            let app = app();
-            let server = app.server();
-            let client = app.client(ClientSpec::confidential()).await;
-            let tokens = signed_in(app, &client).await;
-            let access_token = field(&tokens, "access_token");
-            let credentials = STANDARD.encode(format!(
-                "{}:{}",
-                client.client_id,
-                client.secret.as_deref().unwrap_or_default()
-            ));
-
-            let revoked = server
-                .post(&app.oidc("revoke"))
-                .add_header("authorization", format!("Basic {credentials}"))
-                .form(&[("token", access_token.as_str())])
-                .await;
-            assert_eq!(revoked.status_code(), 200, "{}", revoked.text());
-            assert_eq!(
-                introspect(&server, app, &client, &access_token).await["active"],
-                false
-            );
-        });
-    }
-
-    #[test]
     #[ignore = "SSO-13 open: a wrong token_type_hint skips the revocation"]
     fn sso_13_a_wrong_hint_still_revokes_the_token() {
         rt().block_on(async {
@@ -184,30 +155,6 @@ mod tests {
                 .json();
             let issuer = doc["issuer"].as_str().expect("issuer");
             assert!(!issuer.contains("evil.example"), "issuer = {issuer}");
-        });
-    }
-
-    #[test]
-    #[ignore = "SSO-21 open: a confidential client may skip its secret on the password grant"]
-    fn sso_21_confidential_password_grant_requires_the_secret() {
-        rt().block_on(async {
-            let app = app();
-            let server = app.server();
-            let client = app
-                .client(ClientSpec::confidential().with_direct_access())
-                .await;
-            let user = app.user(&server, PASSWORD).await;
-
-            let response = password_grant(
-                &server,
-                app,
-                &client.client_id,
-                None,
-                &user.username,
-                PASSWORD,
-            )
-            .await;
-            assert_eq!(response.status_code(), 401, "{}", response.text());
         });
     }
 }

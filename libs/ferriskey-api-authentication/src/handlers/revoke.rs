@@ -1,10 +1,12 @@
 use axum::{
     Form,
     extract::{Path, State},
+    http::HeaderMap,
 };
 use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::RevokeTokenInput};
 use validator::Validate;
 
+use crate::basic_auth::try_parse_basic_client_credentials;
 use crate::validators::RevokeTokenRequestValidator;
 use ferriskey_api_core::{
     api_entities::{api_error::ApiError, response::Response},
@@ -28,15 +30,22 @@ use ferriskey_api_core::{
 pub async fn revoke_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Form(payload): Form<RevokeTokenRequestValidator>,
 ) -> Result<Response<()>, ApiError> {
     payload.validate()?;
+
+    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
+        Some((id, secret)) => (id, Some(secret)),
+        None => (payload.client_id.unwrap_or_default(), payload.client_secret),
+    };
 
     state
         .service
         .revoke_token(RevokeTokenInput {
             realm_name,
-            client_id: payload.client_id,
+            client_id,
+            client_secret,
             token: payload.token,
             token_type_hint: payload.token_type_hint,
         })

@@ -2,14 +2,18 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+    use base64::{
+        Engine,
+        engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+    };
     use jsonwebtoken::{Algorithm, DecodingKey, Validation};
     use serde_json::{Value, json};
     use sha2::{Digest, Sha256};
 
     use crate::common::{
         ADMIN_CLIENT_ID, CALLBACK, ClientSpec, SeededClient, TestApp, app, authorize,
-        exchange_code, introspect, password_grant, query_param, rt, sign_in_for_code,
+        client_credentials, exchange_code, introspect, password_grant, query_param, rt,
+        sign_in_for_code,
     };
 
     const PASSWORD: &str = "Conformance-Passw0rd!";
@@ -266,6 +270,10 @@ mod tests {
                 .post(&app.oidc("revoke"))
                 .form(&[
                     ("client_id", client.client_id.as_str()),
+                    (
+                        "client_secret",
+                        client.secret.as_deref().unwrap_or_default(),
+                    ),
                     ("token", access_token),
                 ])
                 .await;
@@ -289,6 +297,10 @@ mod tests {
                 .post(&app.oidc("revoke"))
                 .form(&[
                     ("client_id", client.client_id.as_str()),
+                    (
+                        "client_secret",
+                        client.secret.as_deref().unwrap_or_default(),
+                    ),
                     ("token", "not-a-token"),
                 ])
                 .await;
@@ -475,6 +487,122 @@ mod tests {
                 response.status_code(),
                 response.text()
             );
+        });
+    }
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_confidential_password_grant_requires_the_secret() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app
+                .client(ClientSpec::confidential().with_direct_access())
+                .await;
+            let user = app.user(&server, PASSWORD).await;
+
+            let response = password_grant(
+                &server,
+                app,
+                &client.client_id,
+                None,
+                &user.username,
+                PASSWORD,
+            )
+            .await;
+            assert_eq!(response.status_code(), 401, "{}", response.text());
+        });
+    }
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn revoke_accepts_basic_client_authentication() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let body = tokens(app, &client, &[]).await;
+            let access_token = body["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+            let credentials = STANDARD.encode(format!(
+                "{}:{}",
+                client.client_id,
+                client.secret.as_deref().unwrap_or_default()
+            ));
+
+            let revoked = server
+                .post(&app.oidc("revoke"))
+                .add_header("authorization", format!("Basic {credentials}"))
+                .form(&[("token", access_token.as_str())])
+                .await;
+            assert_eq!(revoked.status_code(), 200, "{}", revoked.text());
+            assert_eq!(
+                introspect(&server, app, &client, &access_token).await["active"],
+                false
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_confidential_client_cannot_revoke_without_its_secret() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let body = tokens(app, &client, &[]).await;
+            let access_token = body["access_token"].as_str().expect("access_token");
+
+            let refused = server
+                .post(&app.oidc("revoke"))
+                .form(&[
+                    ("client_id", client.client_id.as_str()),
+                    ("token", access_token),
+                ])
+                .await;
+            assert_eq!(refused.status_code(), 401, "{}", refused.text());
+            assert_eq!(refused.json::<Value>()["error"], "invalid_client");
+            assert_eq!(
+                introspect(&server, app, &client, access_token).await["active"],
+                true
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn client_credentials_issue_no_refresh_token() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app
+                .client(ClientSpec::confidential().with_service_account())
+                .await;
+            app.bind_service_account(&server, &client).await;
+
+            let response = client_credentials(&server, app, &client).await;
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            let body: Value = response.json();
+            assert!(body["access_token"].is_string(), "{body}");
+            assert!(body.get("refresh_token").is_none(), "{body}");
+            assert!(body.get("refresh_expires_in").is_none(), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_public_client_cannot_use_client_credentials() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app
+                .client(ClientSpec::public().with_service_account())
+                .await;
+            app.bind_service_account(&server, &client).await;
+
+            let response = client_credentials(&server, app, &client).await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "unauthorized_client");
         });
     }
 }

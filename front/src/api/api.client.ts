@@ -240,8 +240,8 @@ export namespace Schemas {
     access_token: string;
     expires_in: number;
     id_token?: (string | null) | undefined;
-    refresh_expires_in: number;
-    refresh_token: string;
+    refresh_expires_in?: (number | null) | undefined;
+    refresh_token?: (string | null) | undefined;
     session_state?: (string | null) | undefined;
     token_type: string;
   };
@@ -1300,7 +1300,8 @@ export namespace Schemas {
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
   export type RetryDeliveryResponse = { delivery_id: string; requeued: boolean };
   export type RevokeTokenRequestValidator = Partial<{
-    client_id: string;
+    client_id: string | null;
+    client_secret: string | null;
     token: string;
     token_type_hint: string | null;
   }>;

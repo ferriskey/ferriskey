@@ -91,7 +91,7 @@ export default function PageResetPasswordFeature() {
       },
       {
         onSuccess: (data) => {
-          setAuthTokens(data.access_token, data.refresh_token, data.id_token ?? null)
+          setAuthTokens(data.access_token, data.refresh_token ?? null, data.id_token ?? null)
 
           if (data.login_url) {
             window.location.href = data.login_url

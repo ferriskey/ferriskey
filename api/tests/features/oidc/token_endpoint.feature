@@ -17,20 +17,20 @@ Feature: Token endpoint client authentication and refresh
     When "svc" requests a token with its own credentials
     Then the token endpoint issues an access token
 
-  @wip @SSO-02
+  @SSO-02
   Scenario: A confidential application must authenticate to refresh
     Given "alice" has signed in to "web"
     When "web" refreshes its tokens without its client secret
     Then the token endpoint refuses with "invalid_client"
 
-  @wip @SSO-02
+  @SSO-02
   Scenario: A disabled application cannot refresh
     Given "alice" has signed in to "web"
     And "web" is disabled
     When "web" refreshes its tokens
     Then the token endpoint refuses with "invalid_client"
 
-  @wip @SSO-03
+  @SSO-03
   Scenario: A disabled application cannot use its service account
     Given a confidential application "svc" with a service account
     And "svc" is disabled
