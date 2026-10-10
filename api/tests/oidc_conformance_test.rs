@@ -719,6 +719,51 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn an_unknown_client_is_an_invalid_client() {
+        rt().block_on(async {
+            let app = app();
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[
+                    ("grant_type", "client_credentials"),
+                    ("client_id", "no-such-client"),
+                    ("client_secret", "whatever"),
+                ])
+                .await;
+            assert_eq!(response.status_code(), 401, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_client");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_forged_refresh_token_is_an_invalid_grant() {
+        rt().block_on(async {
+            let app = app();
+            let client = app.client(ClientSpec::public()).await;
+            let forged = format!(
+                "{}.{}.{}",
+                URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256","typ":"JWT"}"#),
+                URL_SAFE_NO_PAD.encode(r#"{"sub":"x","exp":1}"#),
+                URL_SAFE_NO_PAD.encode("signature")
+            );
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[
+                    ("grant_type", "refresh_token"),
+                    ("client_id", client.client_id.as_str()),
+                    ("refresh_token", forged.as_str()),
+                ])
+                .await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_grant");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn token_errors_are_not_cacheable() {
         rt().block_on(async {
             let app = app();

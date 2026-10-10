@@ -143,6 +143,9 @@ fn token_endpoint_error(error: CoreError) -> ApiError {
         | CoreError::SessionNotFound
         | CoreError::InvalidSession
         | CoreError::MissingAuthorizationCode => invalid_grant(error.to_string()),
+        CoreError::TokenValidationError(_) => {
+            invalid_grant("The token is invalid or expired.".to_string())
+        }
         CoreError::InvalidRequest => ApiError::OAuthError {
             error: "invalid_request".into(),
             error_description: "The token request is invalid.".into(),
@@ -367,6 +370,22 @@ mod tests {
                 (400, "invalid_grant".to_string())
             );
         }
+    }
+
+    #[test]
+    fn a_token_validation_failure_is_an_invalid_grant_without_its_detail() {
+        let error = token_endpoint_error(CoreError::TokenValidationError(
+            "ExpiredSignature: token expired".to_string(),
+        ));
+        let ApiError::OAuthError {
+            ref error_description,
+            ..
+        } = error
+        else {
+            panic!("expected an OAuth error");
+        };
+        assert!(!error_description.contains("ExpiredSignature"));
+        assert_eq!(oauth_code(error), (400, "invalid_grant".to_string()));
     }
 
     #[test]

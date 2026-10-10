@@ -4651,9 +4651,13 @@ where
                     "Client not found for client_id {}: {:?}",
                     input.client_id, e
                 );
-                e
+                match e {
+                    CoreError::NotFound => CoreError::ClientAuthenticationFailed,
+                    other => other,
+                }
             })?
-            .in_realm(&scope)?;
+            .in_realm(&scope)
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?;
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
