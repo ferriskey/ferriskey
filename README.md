@@ -78,6 +78,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Observability](#-observability)
 - [Roadmap](#-roadmap)
 - [Contributing](#-contributing)
+- [Code of Conduct](#-code-of-conduct)
 - [Security](#-security)
 - [License](#-license)
 - [Links](#-links)
@@ -229,6 +230,10 @@ We welcome contributions of all kinds bugfixes, features, docs, testing.
 3. Open a PR with tests and a concise description
 
 > Join discussions to help shape modules, APIs, and UX.
+
+## 🫱 Code of Conduct
+
+FerrisKey follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md). See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for scope and how to report an incident.
 
 ## 🔐 Security
 
