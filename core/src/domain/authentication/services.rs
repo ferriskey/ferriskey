@@ -5190,6 +5190,22 @@ where
                 self.revoke_session_cascade(&session, scope.id(), claims.sub)
                     .await?;
             }
+        } else if let Some(cookie) = input.sso_cookie.as_deref() {
+            let session = self
+                .user_session_repository
+                .find_by_sso_token_hash(&sso_token_hash(cookie))
+                .await
+                .map_err(|e| {
+                    warn!(error = ?e, "Failed to load the session an SSO cookie names");
+                    CoreError::InternalServerError
+                })?
+                .in_realm(&scope)?;
+
+            if let Some(session) = session {
+                let user_id = session.get().user_id;
+                self.revoke_session_cascade(&session, scope.id(), user_id)
+                    .await?;
+            }
         }
 
         if let Some(post_logout_redirect_uri) = input.post_logout_redirect_uri {

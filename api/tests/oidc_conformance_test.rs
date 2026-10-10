@@ -522,6 +522,49 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn logout_without_a_hint_ends_the_session_of_the_sso_cookie() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let user = app.user(&server, PASSWORD).await;
+
+            let authorized = authorize(&server, app, &client.client_id, &[]).await;
+            let login = server
+                .post(&app.path("/login-actions/authenticate"))
+                .add_cookie(authorized.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", &client.client_id)
+                .json(&json!({ "username": user.username, "password": PASSWORD }))
+                .await;
+            assert_eq!(login.status_code(), 200, "{}", login.text());
+            let sso = login.cookie("FERRISKEY_SSO");
+            let url = login.json::<Value>()["url"]
+                .as_str()
+                .expect("url")
+                .to_string();
+            let code = query_param(&url, "code").expect("code");
+            let issued: Value = exchange_code(&server, app, &client, &code, &[])
+                .await
+                .json();
+            let refresh_token = issued["refresh_token"].as_str().expect("refresh_token");
+
+            let logout = server.get(&app.oidc("logout")).add_cookie(sso).await;
+            assert_eq!(logout.status_code(), 204, "{}", logout.text());
+
+            let refreshed = refresh(
+                &server,
+                app,
+                &client.client_id,
+                client.secret.as_deref(),
+                refresh_token,
+            )
+            .await;
+            assert_eq!(refreshed.status_code(), 400, "{}", refreshed.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn logout_refuses_an_id_token_hint_with_a_forged_signature() {
         rt().block_on(async {
             let app = app();

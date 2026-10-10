@@ -4,6 +4,7 @@ use axum::{
     http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE},
     response::{IntoResponse, Redirect},
 };
+use axum_cookie::CookieManager;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_core::domain::authentication::{ports::AuthService, value_objects::EndSessionInput};
 use validator::Validate;
@@ -11,6 +12,7 @@ use validator::Validate;
 use crate::handlers::auth::root_scoped_base_url;
 use crate::validators::LogoutRequestValidator;
 use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
+use ferriskey_api_core::sso_cookie::SSO_SESSION_COOKIE;
 use ferriskey_api_core::url::FullUrl;
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
 
@@ -64,9 +66,15 @@ async fn handle_logout_request(
     state: AppState,
     realm_name: String,
     base_url: String,
+    cookie: CookieManager,
     payload: LogoutRequestValidator,
 ) -> Result<impl IntoResponse, ApiError> {
     payload.validate()?;
+
+    let sso_cookie = cookie
+        .get(SSO_SESSION_COOKIE)
+        .map(|c| c.value().trim().to_string())
+        .filter(|value| !value.is_empty());
 
     let expected_issuer = format!(
         "{}/realms/{}",
@@ -83,6 +91,7 @@ async fn handle_logout_request(
             post_logout_redirect_uri: payload.post_logout_redirect_uri,
             state: payload.state,
             client_id: payload.client_id,
+            sso_cookie,
         })
         .await?;
 
@@ -120,9 +129,10 @@ pub async fn logout_get(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    cookie: CookieManager,
     Query(payload): Query<LogoutRequestValidator>,
 ) -> Result<impl IntoResponse, ApiError> {
-    handle_logout_request(state, realm_name, base_url, payload).await
+    handle_logout_request(state, realm_name, base_url, cookie, payload).await
 }
 
 #[utoipa::path(
@@ -144,7 +154,8 @@ pub async fn logout_post(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    cookie: CookieManager,
     Form(payload): Form<LogoutRequestValidator>,
 ) -> Result<impl IntoResponse, ApiError> {
-    handle_logout_request(state, realm_name, base_url, payload).await
+    handle_logout_request(state, realm_name, base_url, cookie, payload).await
 }
