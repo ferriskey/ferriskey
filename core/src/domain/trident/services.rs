@@ -429,6 +429,18 @@ where
         ))
     }
 
+    async fn step_requires(
+        &self,
+        user_id: Uuid,
+        scope: &RealmScope,
+        action: RequiredAction,
+    ) -> Result<bool, CoreError> {
+        Ok(matches!(
+            self.pending_auth_step_for(user_id, scope, &[]).await?,
+            Some(PendingAuthStep::RequiredActions(actions)) if actions.contains(&action)
+        ))
+    }
+
     async fn store_auth_code_and_generate_login_url(
         &self,
         auth_session: &AuthSession,
@@ -1531,6 +1543,16 @@ where
             .in_realm(&scope)?;
         let user = scoped_user.get();
 
+        if !self
+            .step_requires(user.id, &scope, RequiredAction::UpdatePassword)
+            .await?
+        {
+            warn!(user_id = %user.id, "Refused a password update: no password update is due");
+            return Err(CoreError::Forbidden(
+                "no password update is due for this login".to_string(),
+            ));
+        }
+
         let policy = self
             .password_policy_repository
             .find_by_realm_id(scope.id().into())
@@ -1614,25 +1636,26 @@ where
             .filter(|c| c.credential_type == CredentialType::Otp)
             .collect::<Vec<&Credential>>();
 
-        // A caller holding only a password-derived temporary token must not be able to
-        // replace the second factor of whoever owns this account. Overwriting is allowed
-        // only when the server itself asked for a (re)configuration.
-        if !existing_otp_credentials.is_empty() {
-            let required_actions = self
-                .user_required_action_repository
-                .get_required_actions(user.get().id)
-                .await
-                .map_err(|_| CoreError::InternalServerError)?;
+        let persisted_actions = self
+            .user_required_action_repository
+            .get_required_actions(user.get().id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
-            if !required_actions.contains(&RequiredAction::ConfigureOtp) {
-                warn!(
-                    user_id = %user.get().id,
-                    "Refused OTP enrolment: user already has an OTP credential and carries no ConfigureOtp required action"
-                );
-                return Err(CoreError::Forbidden(
-                    "OTP is already configured for this user".to_string(),
-                ));
-            }
+        let configuration_asked = persisted_actions.contains(&RequiredAction::ConfigureOtp)
+            || (existing_otp_credentials.is_empty()
+                && self
+                    .step_requires(user.get().id, &scope, RequiredAction::ConfigureOtp)
+                    .await?);
+
+        if !configuration_asked {
+            warn!(
+                user_id = %user.get().id,
+                "Refused OTP enrolment: the server did not ask this login to configure OTP"
+            );
+            return Err(CoreError::Forbidden(
+                "OTP configuration is not due for this login".to_string(),
+            ));
         }
 
         // Single-use is enforced by the adapter's compare-and-swap, so a lost race or a
@@ -3030,12 +3053,112 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_password_revokes_all_user_tokens() {
+    async fn update_password_refuses_a_login_that_owes_no_password_update() {
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Ok(None) }));
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never();
+
+        let result = builder
+            .build()
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "a step token that owes no password update must not change the password: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_otp_refuses_an_enrolment_nobody_asked_for() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_get_required_actions()
+            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::VerifyEmail]) }));
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Ok(None) }));
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_consume_enrollment()
+            .never();
+
+        let result = builder
+            .build()
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    realm_name: realm.name.clone(),
+                    code: current_code_for(SERVER_SECRET),
+                    label: None,
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an OTP enrolment nobody asked for must be refused: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn update_password_revokes_all_user_tokens() {
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::UpdatePassword];
         let user_id = user.id;
 
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Ok(None) }));
 
         Arc::get_mut(&mut builder.password_policy_repo)
             .unwrap()
@@ -3527,6 +3650,11 @@ mod tests {
         let user = create_test_user_with_email(&realm, "user@example.com");
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_get_required_actions()
+            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigureOtp]) }));
+
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_get_credentials_by_user_id()
@@ -3578,6 +3706,11 @@ mod tests {
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_get_required_actions()
+            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigureOtp]) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
@@ -3682,6 +3815,11 @@ mod tests {
         let user = create_test_user_with_email(&realm, "user@example.com");
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
 
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_get_required_actions()
+            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigureOtp]) }));
+
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
             .expect_get_credentials_by_user_id()
@@ -3737,6 +3875,11 @@ mod tests {
         let realm = create_test_realm_with_name("test-realm");
         let user = create_test_user_with_email(&realm, "user@example.com");
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_get_required_actions()
+            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigureOtp]) }));
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
