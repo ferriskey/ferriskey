@@ -468,6 +468,68 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn wrong_otp_codes_lock_the_account_across_logins() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::public()).await;
+            let user = app.user(&server, PASSWORD).await;
+            sqlx::query(
+                "UPDATE realm_settings SET lockout_threshold = 5, lockout_duration_seconds = 900 WHERE realm_id = $1",
+            )
+            .bind(app.realm_id)
+            .execute(&app.pool)
+            .await
+            .expect("configure lockout");
+            sqlx::query(
+                "INSERT INTO credentials (id, credential_type, user_id, secret_data, credential_data, user_label)
+                 VALUES ($1, 'otp', $2::uuid, 'JBSWY3DPEHPK3PXP', '{}'::jsonb, 'test-authenticator')",
+            )
+            .bind(uuid::Uuid::new_v4())
+            .bind(&user.id)
+            .execute(&app.pool)
+            .await
+            .expect("insert otp credential");
+
+            for _ in 0..2 {
+                let authorized = authorize(&server, app, &client.client_id, &[]).await;
+                let session = authorized.cookie("FERRISKEY_SESSION").value().to_string();
+                let login = server
+                    .post(&app.path("/login-actions/authenticate"))
+                    .add_cookie(authorized.cookie("FERRISKEY_SESSION"))
+                    .add_query_param("client_id", &client.client_id)
+                    .json(&json!({ "username": user.username, "password": PASSWORD }))
+                    .await;
+                assert_eq!(login.status_code(), 200, "{}", login.text());
+                assert_eq!(login.json::<Value>()["status"], "RequiresOtpChallenge");
+                let step = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
+
+                for _ in 0..3 {
+                    let challenge = server
+                        .post(&app.path("/login-actions/challenge-otp"))
+                        .add_header(
+                            "Cookie",
+                            format!("FERRISKEY_LOGIN_ACTION={step}; FERRISKEY_SESSION={session}"),
+                        )
+                        .json(&json!({ "code": "000000" }))
+                        .await;
+                    assert_ne!(challenge.status_code(), 200, "{}", challenge.text());
+                }
+            }
+
+            let locked: bool = sqlx::query_scalar(
+                "SELECT locked_until IS NOT NULL AND locked_until > NOW() FROM users WHERE id = $1::uuid",
+            )
+            .bind(&user.id)
+            .fetch_one(&app.pool)
+            .await
+            .expect("read lock");
+            assert!(locked, "six wrong OTP codes did not lock the account");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn a_long_scope_is_not_a_server_error() {
         rt().block_on(async {
             let app = app();
