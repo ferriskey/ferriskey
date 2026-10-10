@@ -1,3 +1,4 @@
+import type { Schemas } from '@/api/api.client'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,13 +13,12 @@ import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import type { ClientScopeWithDynamic } from '@/api/client-scope-dynamic'
 import ScopeTypeHint from './scope-type-hint'
 import type { ScopeTypeChoice } from './page-create-client-scope'
 import { SCOPE_TYPE_CHOICES } from '../scope-type'
 
 export interface ClientScopeSettingsTabProps {
-  scope: ClientScopeWithDynamic
+  scope: Schemas.ClientScope
   name: string
   description: string
   scopeType: ScopeTypeChoice

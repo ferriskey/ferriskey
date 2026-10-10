@@ -218,6 +218,7 @@ export namespace Schemas {
     created_at: string;
     default_scope_type: ScopeType;
     description?: (string | null) | undefined;
+    dynamic_registration_allowed: boolean;
     id: string;
     name: string;
     protocol: string;
@@ -294,6 +295,7 @@ export namespace Schemas {
   export type ConfirmPasskeyResponse = { message: string };
   export type CreateClientScopeValidator = Partial<{
     description: string | null;
+    dynamic_registration_allowed: boolean;
     is_default: boolean;
     name: string;
     protocol: string;
@@ -940,6 +942,7 @@ export namespace Schemas {
       created_at: string;
       default_scope_type: ScopeType;
       description?: (string | null) | undefined;
+      dynamic_registration_allowed: boolean;
       id: string;
       name: string;
       protocol: string;
@@ -1342,11 +1345,14 @@ export namespace Schemas {
     | { data: PendingActionResponse; status: "pending_action" };
   export type RemoveClientWhitelistEntryResponse = { message: string };
   export type RemoveRealmWhitelistEntryResponse = { message: string };
+  export type ResourceOwner = { client_id: string; uri: string };
+  export type ReplaceResourceOwnersValidator = { owners: Array<ResourceOwner> };
   export type RequestElevationValidator = Partial<{ otp_code: string | null; password: string | null }>;
   export type ResendVerificationEmailResponse = { message: string };
   export type ResetPasswordRequest = { new_password: string; token: string; token_id: string };
   export type ResetPasswordResponse = { message: string; realm_name: string; user_id: string };
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
+  export type ResourceOwnersResponse = { data: Array<ResourceOwner> };
   export type RetryDeliveryResponse = { delivery_id: string; requeued: boolean };
   export type RevokeTokenRequestValidator = Partial<{
     client_id: string;
@@ -1514,6 +1520,7 @@ export namespace Schemas {
   export type UpdateClientResponse = { data: Client };
   export type UpdateClientScopeValidator = Partial<{
     description: string | null;
+    dynamic_registration_allowed: boolean | null;
     is_default: boolean | null;
     name: string | null;
     protocol: string | null;
@@ -4394,6 +4401,37 @@ export namespace Endpoints {
     };
     responses: { 200: unknown; 404: unknown; 500: unknown };
   };
+  export type get_Get_resource_owners = {
+    method: "GET";
+    path: "/realms/{realm_name}/resource-owners";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.ResourceOwnersResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type put_Replace_resource_owners = {
+    method: "PUT";
+    path: "/realms/{realm_name}/resource-owners";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+
+      body: Schemas.ReplaceResourceOwnersValidator;
+    };
+    responses: {
+      200: Schemas.ResourceOwnersResponse;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type get_Get_roles = {
     method: "GET";
     path: "/realms/{realm_name}/roles";
@@ -5511,6 +5549,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/protocol/saml": Endpoints.get_Saml_sso_redirect;
     "/realms/{realm_name}/protocol/saml/continue": Endpoints.get_Saml_continue;
     "/realms/{realm_name}/protocol/saml/descriptor": Endpoints.get_Saml_descriptor;
+    "/realms/{realm_name}/resource-owners": Endpoints.get_Get_resource_owners;
     "/realms/{realm_name}/roles": Endpoints.get_Get_roles;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.get_Get_role;
     "/realms/{realm_name}/seawatch/v1/security-events": Endpoints.get_Get_security_events;
@@ -5628,6 +5667,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/portal/theme": Endpoints.put_Update_theme;
     "/realms/{realm_name}/portal/themes/{theme_id}": Endpoints.put_Update_theme_metadata;
     "/realms/{realm_name}/portal/themes/{theme_id}/pages/{page_type}": Endpoints.put_Update_theme_page;
+    "/realms/{realm_name}/resource-owners": Endpoints.put_Replace_resource_owners;
     "/realms/{realm_name}/roles/{role_id}": Endpoints.put_Update_role;
     "/realms/{realm_name}/smtp-config": Endpoints.put_Upsert_smtp_config;
     "/realms/{realm_name}/users/@me/locale": Endpoints.put_Update_me_locale;

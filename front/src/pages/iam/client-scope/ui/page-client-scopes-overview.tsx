@@ -13,9 +13,8 @@ import type {
 import { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 
-import type { ClientScopeWithDynamic } from '@/api/client-scope-dynamic'
 
-type ClientScope = ClientScopeWithDynamic
+type ClientScope = Schemas.ClientScope
 import ScopeType = Schemas.ScopeType
 import { SCOPE_TYPE_TONE, scopeTypeLabelKey } from '../scope-type'
 
