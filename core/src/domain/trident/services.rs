@@ -488,6 +488,23 @@ where
         user_id: Uuid,
         scope: &RealmScope,
     ) -> Result<(AuthCompletion, OpenedSsoSession), CoreError> {
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
+            .in_realm(scope)?
+            .into_inner();
+
+        if !user.enabled {
+            warn!(user_id = %user_id, "Refused to complete a login: the account is disabled");
+            return Err(CoreError::UserDisabled);
+        }
+
+        if user.is_locked(Utc::now()) {
+            warn!(user_id = %user_id, "Refused to complete a login: the account is locked");
+            return Err(CoreError::AccountLocked);
+        }
+
         let sso_session = self
             .sso_session
             .open_for_login(
@@ -4701,6 +4718,72 @@ mod tests {
         assert!(
             matches!(result, Err(CoreError::SessionCreateError)),
             "a login that cannot open its session must not hand out a code: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn no_code_is_minted_for_a_disabled_user() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.enabled = false;
+        let session = auth_session_without_state(&realm, Uuid::new_v4());
+
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let result = builder
+            .build()
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::UserDisabled)),
+            "a disabled user must not get a code: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn no_code_is_minted_for_a_locked_user() {
+        let mut builder = TridentTestBuilder::new();
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.locked_until = Some(Utc::now() + Duration::hours(1));
+        let session = auth_session_without_state(&realm, Uuid::new_v4());
+
+        let user_id = user.id;
+        expect_pending_step_lookups(
+            &mut builder,
+            user,
+            Vec::new(),
+            create_test_realm_setting(realm.id, false),
+        );
+        expect_no_authorization_code(&mut builder);
+
+        let result = builder
+            .build()
+            .store_auth_code_and_generate_login_url(
+                &session,
+                user_id,
+                &RealmScope::from_realm(realm.clone()),
+                &[],
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::AccountLocked)),
+            "a locked user must not get a code: {result:?}"
         );
     }
 
