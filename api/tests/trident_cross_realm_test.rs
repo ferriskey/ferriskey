@@ -341,14 +341,14 @@ mod tests {
         .expect("insert admin passkey");
     }
 
-    async fn count_admin_recovery_codes() -> i64 {
+    async fn count_recovery_codes(user_id: Uuid) -> i64 {
         sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(*) FROM credentials WHERE user_id = $1 AND credential_type = 'recovery-code'",
         )
-        .bind(ctx().admin_user_id)
+        .bind(user_id)
         .fetch_one(&ctx().pool)
         .await
-        .expect("count admin recovery codes")
+        .expect("count recovery codes")
     }
 
     async fn webauthn_request_options(
@@ -410,21 +410,49 @@ mod tests {
             .await
     }
 
-    async fn generate_recovery_codes(server: &TestServer, token: &str) -> TestResponse {
+    async fn elevate(server: &TestServer, token: &str, password: &str) -> String {
+        let response = server
+            .post(&format!("/realms/{}/users/me/reauthenticate", realm()))
+            .add_header("Authorization", auth_header(token))
+            .json(&json!({ "password": password }))
+            .await;
+
+        assert_eq!(
+            response.status_code(),
+            200,
+            "re-authentication failed: {}",
+            response.text()
+        );
+
+        response.json::<Value>()["elevation_id"]
+            .as_str()
+            .expect("elevation_id")
+            .to_string()
+    }
+
+    async fn generate_recovery_codes(
+        server: &TestServer,
+        token: &str,
+        elevation_id: &str,
+    ) -> TestResponse {
         server
             .post(&format!(
                 "/realms/{}/login-actions/generate-recovery-codes",
                 realm()
             ))
             .add_header("Authorization", auth_header(token))
-            .json(&json!({ "amount": 2, "code_format": RECOVERY_CODE_FORMAT }))
+            .json(&json!({
+                "elevation_id": elevation_id,
+                "amount": 2,
+                "code_format": RECOVERY_CODE_FORMAT,
+            }))
             .await
     }
 
     async fn burn_recovery_code(
         server: &TestServer,
         url_realm: &str,
-        token: &str,
+        step_token: &str,
         session_code: &str,
         code: &str,
     ) -> TestResponse {
@@ -433,16 +461,125 @@ mod tests {
                 "/realms/{}/login-actions/burn-recovery-code",
                 url_realm
             ))
-            .add_header("Authorization", auth_header(token))
             .add_header(
                 "Cookie",
-                HeaderValue::from_str(&format!("FERRISKEY_SESSION={session_code}")).unwrap(),
+                HeaderValue::from_str(&format!(
+                    "FERRISKEY_LOGIN_ACTION={step_token}; FERRISKEY_SESSION={session_code}"
+                ))
+                .unwrap(),
             )
             .json(&json!({
                 "recovery_code": code,
                 "recovery_code_format": RECOVERY_CODE_FORMAT,
             }))
             .await
+    }
+
+    async fn seed_user_with_password(server: &TestServer, label: &str) -> (String, Uuid) {
+        let token = get_admin_token(server).await;
+        let username = format!("{label}-{}", Uuid::new_v4().simple());
+
+        let created = server
+            .post(&format!("/realms/{}/users", realm()))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({
+                "username": username,
+                "firstname": "Recovery",
+                "lastname": "Holder",
+                "email": format!("{username}@test.local"),
+                "email_verified": true,
+            }))
+            .await;
+        assert_eq!(
+            created.status_code(),
+            200,
+            "creating the user failed: {}",
+            created.text()
+        );
+
+        let user_id: Uuid =
+            sqlx::query("SELECT id FROM users WHERE realm_id = $1 AND username = $2")
+                .bind(ctx().realm_id)
+                .bind(&username)
+                .fetch_one(&ctx().pool)
+                .await
+                .expect("fetch the created user")
+                .get("id");
+
+        let reset = server
+            .put(&format!(
+                "/realms/{}/users/{}/reset-password",
+                realm(),
+                user_id
+            ))
+            .add_header("Authorization", auth_header(&token))
+            .json(&json!({
+                "value": FIRST_PASSWORD,
+                "temporary": false,
+                "credential_type": "password",
+            }))
+            .await;
+        assert_eq!(
+            reset.status_code(),
+            200,
+            "seeding the password failed: {}",
+            reset.text()
+        );
+
+        (username, user_id)
+    }
+
+    async fn grant_otp(user_id: Uuid) {
+        sqlx::query(
+            "INSERT INTO credentials (id, credential_type, user_id, secret_data, credential_data, user_label)
+             VALUES ($1, 'otp', $2, 'JBSWY3DPEHPK3PXP', '{}'::jsonb, 'test-authenticator')",
+        )
+        .bind(Uuid::new_v4())
+        .bind(user_id)
+        .execute(&ctx().pool)
+        .await
+        .expect("insert OTP credential");
+    }
+
+    async fn otp_step(server: &TestServer, username: &str) -> (String, String) {
+        let authorize = start_authorization(server).await;
+        let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+        let login = authenticate(server, &session_code, username, FIRST_PASSWORD).await;
+
+        assert_eq!(login.status_code(), 200, "password step: {}", login.text());
+        assert_eq!(
+            login.json::<Value>()["status"],
+            "RequiresOtpChallenge",
+            "the login must stop at the OTP challenge: {}",
+            login.text()
+        );
+
+        let step_token = login.cookie("FERRISKEY_LOGIN_ACTION").value().to_string();
+        (step_token, session_code)
+    }
+
+    async fn recovery_codes_for(server: &TestServer, username: &str) -> Vec<String> {
+        let token = get_token(server, username, FIRST_PASSWORD)
+            .await
+            .json::<Value>()["access_token"]
+            .as_str()
+            .expect("access_token")
+            .to_string();
+        let elevation_id = elevate(server, &token, FIRST_PASSWORD).await;
+        let generated = generate_recovery_codes(server, &token, &elevation_id).await;
+        assert_eq!(
+            generated.status_code(),
+            200,
+            "the recovery codes must be generated first: {}",
+            generated.text()
+        );
+
+        generated.json::<Value>()["codes"]
+            .as_array()
+            .expect("codes in response")
+            .iter()
+            .map(|code| code.as_str().expect("code").to_string())
+            .collect()
     }
 
     async fn update_password(
@@ -787,78 +924,52 @@ mod tests {
     fn burning_a_recovery_code_through_another_realms_url_is_refused() {
         rt().block_on(async {
             let server = make_server();
-            let token = get_admin_token(&server).await;
-
-            let generated = generate_recovery_codes(&server, &token).await;
-            let generated_body = generated.text();
+            let (username, user_id) = seed_user_with_password(&server, "recovery").await;
+            let codes = recovery_codes_for(&server, &username).await;
+            assert_eq!(codes.len(), 2, "expected two codes: {codes:?}");
             assert_eq!(
-                generated.status_code(),
-                200,
-                "the recovery codes must be generated first: {} {generated_body}",
-                generated.status_code()
-            );
-
-            let generated_json: Value =
-                serde_json::from_str(&generated_body).expect("the generated codes must be json");
-            let codes: Vec<String> = generated_json["codes"]
-                .as_array()
-                .expect("codes in response")
-                .iter()
-                .map(|code| {
-                    code.as_str()
-                        .expect("every code must be a string")
-                        .to_string()
-                })
-                .collect();
-            assert_eq!(codes.len(), 2, "expected two codes: {generated_body}");
-            assert_eq!(
-                count_admin_recovery_codes().await,
+                count_recovery_codes(user_id).await,
                 2,
                 "the generated codes must be stored before anything is burnt"
             );
+            grant_otp(user_id).await;
 
-            let authorize = start_authorization(&server).await;
-            let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
-
+            let (step_token, session_code) = otp_step(&server, &username).await;
             let accepted =
-                burn_recovery_code(&server, realm(), &token, &session_code, &codes[0]).await;
+                burn_recovery_code(&server, realm(), &step_token, &session_code, &codes[0]).await;
             let accepted_body = accepted.text();
             assert_eq!(
                 accepted.status_code(),
                 200,
                 "a code must be burnable through its own realm's url, otherwise the refusal \
-                 below proves nothing: {} {accepted_body}",
-                accepted.status_code()
+                 below proves nothing: {accepted_body}"
             );
             assert!(
                 accepted_body.contains("login_url"),
                 "the accepted burn returned no login url: {accepted_body}"
             );
             assert_eq!(
-                count_admin_recovery_codes().await,
+                count_recovery_codes(user_id).await,
                 1,
                 "the accepted burn did not reach the database, so the refusal below is not \
                  evidence of scoping"
             );
 
-            let second_authorize = start_authorization(&server).await;
-            let second_session = second_authorize
-                .cookie("FERRISKEY_SESSION")
-                .value()
-                .to_string();
-
+            let (second_token, second_session) = otp_step(&server, &username).await;
             let refused = burn_recovery_code(
                 &server,
                 neighbour_realm(),
-                &token,
+                &second_token,
                 &second_session,
                 &codes[1],
             )
             .await;
 
-            assert_not_found(
-                &refused,
-                "burning a recovery code through a url realm the caller does not belong to",
+            assert_ne!(
+                refused.status_code(),
+                200,
+                "burning a recovery code through a url realm the caller does not belong to: {}",
+                refused.text()
             );
             assert!(
                 !refused.text().contains("login_url"),
@@ -866,32 +977,113 @@ mod tests {
                 refused.text()
             );
             assert_eq!(
-                count_admin_recovery_codes().await,
+                count_recovery_codes(user_id).await,
                 1,
                 "the refused burn destroyed the remaining recovery code anyway"
             );
 
-            let third_authorize = start_authorization(&server).await;
-            let third_session = third_authorize
-                .cookie("FERRISKEY_SESSION")
-                .value()
-                .to_string();
-
+            let (third_token, third_session) = otp_step(&server, &username).await;
             let still_valid =
-                burn_recovery_code(&server, realm(), &token, &third_session, &codes[1]).await;
+                burn_recovery_code(&server, realm(), &third_token, &third_session, &codes[1]).await;
             assert_eq!(
                 still_valid.status_code(),
                 200,
                 "the code the refused call named must still be spendable through the right \
-                 realm, otherwise the refusal consumed it: {} {}",
-                still_valid.status_code(),
+                 realm, otherwise the refusal consumed it: {}",
                 still_valid.text()
             );
             assert_eq!(
-                count_admin_recovery_codes().await,
+                count_recovery_codes(user_id).await,
                 0,
                 "the second burn did not reach the database"
             );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn an_access_token_cannot_burn_a_recovery_code() {
+        rt().block_on(async {
+            let server = make_server();
+            let (username, user_id) = seed_user_with_password(&server, "recovery-bearer").await;
+            let codes = recovery_codes_for(&server, &username).await;
+            let token = get_token(&server, &username, FIRST_PASSWORD)
+                .await
+                .json::<Value>()["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+            let authorize = start_authorization(&server).await;
+            let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+            let response = server
+                .post(&format!(
+                    "/realms/{}/login-actions/burn-recovery-code",
+                    realm()
+                ))
+                .add_header("Authorization", auth_header(&token))
+                .add_header(
+                    "Cookie",
+                    HeaderValue::from_str(&format!("FERRISKEY_SESSION={session_code}")).unwrap(),
+                )
+                .json(&json!({
+                    "recovery_code": codes[0],
+                    "recovery_code_format": RECOVERY_CODE_FORMAT,
+                }))
+                .await;
+
+            assert_eq!(response.status_code(), 401, "{}", response.text());
+            assert_eq!(count_recovery_codes(user_id).await, 2);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn a_recovery_code_does_not_answer_a_login_without_an_otp_challenge() {
+        rt().block_on(async {
+            let server = make_server();
+            let (username, user_id) = seed_user_with_password(&server, "recovery-no-otp").await;
+            let codes = recovery_codes_for(&server, &username).await;
+            sqlx::query(
+                "INSERT INTO user_required_actions (id, user_id, action, created_at) VALUES ($1, $2, $3, NOW())",
+            )
+            .bind(Uuid::new_v4())
+            .bind(user_id)
+            .bind("update_password")
+            .execute(&ctx().pool)
+            .await
+            .expect("insert the update_password required action");
+            let step_token = step_token_for(&server, &username, FIRST_PASSWORD).await;
+            let authorize = start_authorization(&server).await;
+            let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+            let response =
+                burn_recovery_code(&server, realm(), &step_token, &session_code, &codes[0]).await;
+
+            assert_ne!(response.status_code(), 200, "{}", response.text());
+            assert!(!response.text().contains("login_url"), "{}", response.text());
+            assert_eq!(count_recovery_codes(user_id).await, 2);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored"]
+    fn generating_recovery_codes_requires_an_elevation() {
+        rt().block_on(async {
+            let server = make_server();
+            let (username, user_id) = seed_user_with_password(&server, "recovery-elevation").await;
+            let token = get_token(&server, &username, FIRST_PASSWORD)
+                .await
+                .json::<Value>()["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+
+            let response =
+                generate_recovery_codes(&server, &token, &Uuid::new_v4().to_string()).await;
+
+            assert_eq!(response.status_code(), 403, "{}", response.text());
+            assert_eq!(count_recovery_codes(user_id).await, 0);
         });
     }
 

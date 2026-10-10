@@ -322,6 +322,7 @@ type ApplicationTridentService = TridentServiceImpl<
     UserRoleRepo,
     ApplicationTokenRevocation,
     ApplicationSsoSession,
+    ElevationRepo,
 >;
 
 type ApplicationSsoSession = crate::application::sso_session::SsoSessionAdapter<

@@ -1,7 +1,7 @@
+use crate::api_entities::api_error::{ApiError, ApiErrorBody};
+use crate::decoded_token::OptionalToken;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorBody};
-use ferriskey_api_core::decoded_token::OptionalToken;
 use uuid::Uuid;
 
 pub struct CallerSession(pub Uuid);

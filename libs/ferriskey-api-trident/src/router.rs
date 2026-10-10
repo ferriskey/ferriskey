@@ -154,6 +154,13 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
             ),
             post(webauthn_public_key_create),
         )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/login-actions/burn-recovery-code",
+                state.args.server.root_path
+            ),
+            post(burn_recovery_code),
+        )
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth_login_actions,
@@ -181,13 +188,6 @@ pub fn trident_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(generate_recovery_codes),
-        )
-        .route(
-            &format!(
-                "{}/realms/{{realm_name}}/login-actions/burn-recovery-code",
-                state.args.server.root_path
-            ),
-            post(burn_recovery_code),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth));
 

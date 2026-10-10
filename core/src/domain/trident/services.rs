@@ -9,6 +9,9 @@ use ferriskey_compass::{
     recorder::FlowRecorder,
     value_objects::StepOutcome,
 };
+use ferriskey_domain::elevation::entities::ElevationId;
+use ferriskey_domain::elevation::ports::ElevationRepository;
+use ferriskey_domain::elevation::{self, Claim};
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
@@ -234,6 +237,7 @@ pub struct TridentServiceImpl<
     URR,
     TRV,
     SSO,
+    EL,
 > where
     CR: CredentialRepository,
     RC: RecoveryCodeRepository,
@@ -255,6 +259,7 @@ pub struct TridentServiceImpl<
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
     SSO: SsoSessionPort,
+    EL: ElevationRepository,
 {
     pub(crate) credential_repository: Arc<CR>,
     pub(crate) recovery_code_repository: Arc<RC>,
@@ -276,10 +281,11 @@ pub struct TridentServiceImpl<
     pub(crate) user_role_repository: Arc<URR>,
     pub(crate) token_revocation: Arc<TRV>,
     pub(crate) sso_session: Arc<SSO>,
+    pub(crate) elevation_repository: Arc<EL>,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, SSO>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, SSO, EL>
     TridentServiceImpl<
         CR,
         RC,
@@ -301,6 +307,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR
         URR,
         TRV,
         SSO,
+        EL,
     >
 where
     CR: CredentialRepository,
@@ -323,6 +330,7 @@ where
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
     SSO: SsoSessionPort,
+    EL: ElevationRepository,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -346,6 +354,7 @@ where
         user_role_repository: Arc<URR>,
         token_revocation: Arc<TRV>,
         sso_session: Arc<SSO>,
+        elevation_repository: Arc<EL>,
         flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
@@ -369,6 +378,7 @@ where
             user_role_repository,
             token_revocation,
             sso_session,
+            elevation_repository,
             flow_recorder,
         }
     }
@@ -581,7 +591,7 @@ where
     }
 }
 
-impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, SSO>
+impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR, TRV, SSO, EL>
     TridentService
     for TridentServiceImpl<
         CR,
@@ -604,6 +614,7 @@ impl<CR, RC, AS, H, URA, ML, UR, RR, ES, SC, PRT, SE, WH, ETR, TR, PPR, OER, URR
         URR,
         TRV,
         SSO,
+        EL,
     >
 where
     CR: CredentialRepository,
@@ -626,6 +637,7 @@ where
     URR: UserRoleRepository,
     TRV: TokenRevocationPort,
     SSO: SsoSessionPort,
+    EL: ElevationRepository,
 {
     async fn generate_recovery_code(
         &self,
@@ -643,6 +655,19 @@ where
             .get_by_id(identity.id())
             .await?
             .in_realm(&scope)?;
+
+        elevation::claim(
+            self.elevation_repository.as_ref(),
+            &scope,
+            Claim {
+                caller: user.get().id,
+                session_id: input.session_id,
+                elevation_id: ElevationId::new(input.elevation_id),
+                now: Utc::now(),
+            },
+        )
+        .await?
+        .primary()?;
 
         let format =
             RecoveryCodeFormat::try_from(input.format).map_err(CoreError::RecoveryCodeGenError)?;
@@ -730,6 +755,20 @@ where
             .get_by_id(identity.id())
             .await?
             .in_realm(&scope)?;
+
+        if self
+            .pending_auth_step_for(user.get().id, &scope, &[])
+            .await?
+            != Some(PendingAuthStep::OtpChallenge)
+        {
+            warn!(
+                user_id = %user.get().id,
+                "Refused a recovery code: no OTP challenge is due for this login"
+            );
+            return Err(CoreError::Forbidden(
+                "a recovery code only answers a pending OTP challenge".to_string(),
+            ));
+        }
 
         let user_credentials = self
             .credential_repository
@@ -2417,6 +2456,7 @@ mod tests {
     };
     use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
     use chrono::DateTime;
+    use ferriskey_domain::elevation::ports::MockElevationRepository;
     use ferriskey_domain::realm::{Realm, RealmSetting};
     use ferriskey_security::crypto::{entities::HashResult, ports::MockHasherRepository};
     use p256::ecdsa::{Signature, SigningKey};
@@ -2466,6 +2506,7 @@ mod tests {
         MockUserRoleRepository,
         MockTokenRevocationPort,
         MockSsoSessionPort,
+        MockElevationRepository,
     >;
 
     /// `(user_id, secret, expires_at)` as handed to `start_enrollment`.
@@ -2492,6 +2533,7 @@ mod tests {
         user_role_repo: Arc<MockUserRoleRepository>,
         token_revocation: Arc<MockTokenRevocationPort>,
         sso_session: Arc<MockSsoSessionPort>,
+        elevation_repo: Arc<MockElevationRepository>,
     }
 
     impl TridentTestBuilder {
@@ -2517,6 +2559,7 @@ mod tests {
                 user_role_repo: Arc::new(MockUserRoleRepository::new()),
                 token_revocation: Arc::new(MockTokenRevocationPort::new()),
                 sso_session: Arc::new(MockSsoSessionPort::new()),
+                elevation_repo: Arc::new(MockElevationRepository::new()),
             }
         }
 
@@ -2573,6 +2616,7 @@ mod tests {
                 self.user_role_repo,
                 self.token_revocation,
                 self.sso_session,
+                self.elevation_repo,
                 FlowRecorder::disabled(),
             )
         }

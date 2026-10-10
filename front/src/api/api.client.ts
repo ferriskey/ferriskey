@@ -630,7 +630,7 @@ export namespace Schemas {
   };
   export type ForgotPasswordRequest = { email: string };
   export type ForgotPasswordResponse = unknown;
-  export type GenerateRecoveryCodesRequest = { amount: number; code_format: string };
+  export type GenerateRecoveryCodesRequest = { amount: number; code_format: string; elevation_id: string };
   export type GenerateRecoveryCodesResponse = { codes: Array<string> };
   export type JwkKey = { alg: string; e: string; kid: string; kty: string; n: string; use: string };
   export type GetCertsResponse = { keys: Array<JwkKey> };
@@ -3007,6 +3007,8 @@ export namespace Endpoints {
     responses: {
       200: Schemas.GenerateRecoveryCodesResponse;
       400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
       404: Schemas.ApiErrorResponse;
       500: Schemas.ApiErrorResponse;
     };

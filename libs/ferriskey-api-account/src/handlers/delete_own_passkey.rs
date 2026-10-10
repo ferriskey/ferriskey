@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::session::CallerSession;
 use crate::validators::ElevationOnlyValidator;
+use ferriskey_api_core::caller_session::CallerSession;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct DeletePasskeyResponse {

@@ -16,8 +16,8 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::session::CallerSession;
 use crate::validators::StartOwnOtpEnrollmentValidator;
+use ferriskey_api_core::caller_session::CallerSession;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct StartOtpEnrollmentResponse {

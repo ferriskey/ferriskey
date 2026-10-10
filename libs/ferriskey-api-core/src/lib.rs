@@ -3,6 +3,7 @@ pub mod app_state;
 pub mod args;
 pub mod auth;
 pub mod authentication;
+pub mod caller_session;
 pub mod config;
 pub mod cors;
 pub mod decoded_token;

@@ -166,11 +166,12 @@ pub async fn auth(
     Ok(next.run(req).await)
 }
 
-const STEP_COMPLETING_ACTIONS: [&str; 4] = [
+const STEP_COMPLETING_ACTIONS: [&str; 5] = [
     "/login-actions/verify-otp",
     "/login-actions/challenge-otp",
     "/login-actions/update-password",
     "/login-actions/webauthn-public-key-create",
+    "/login-actions/burn-recovery-code",
 ];
 
 pub async fn auth_login_actions(
