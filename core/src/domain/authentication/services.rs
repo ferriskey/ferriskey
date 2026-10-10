@@ -195,39 +195,6 @@ fn auth_session_can_resume(
         && !(auth_session.user_id.is_some() && auth_session.authenticated)
 }
 
-/// Gate the `ExistingToken` branch of `POST /login-actions/authenticate`
-/// (FK-003).
-///
-/// That branch skips the whole interactive login and finalizes the flow on the
-/// strength of the presented token alone, so the token must be one that already
-/// *stands for* a completed authentication — i.e. a `Bearer` access token.
-///
-/// Every other `typ` is a mid-flow artifact and replaying it here would let the
-/// holder jump the step it was minted for. The `Temporary` token is the sharp
-/// case: `using_session_code` hands it out right after the password check and
-/// right *before* the OTP challenge, so accepting it here completes login with
-/// the password alone. `Refresh` and `Id` tokens are rejected for the same
-/// reason — they are not proof of a finished login at this endpoint.
-///
-/// The `AuthSession` freshness check is repeated here (it also lives in
-/// `authenticate`) so this path can never outlive its authorization request,
-/// whatever future caller reaches it. `now` is injected so expiry is testable.
-fn validate_token_refresh_request(
-    claims_typ: &ClaimsTyp,
-    auth_session: &AuthSession,
-    now: DateTime<Utc>,
-) -> Result<(), CoreError> {
-    if auth_session.expires_at < now {
-        return Err(CoreError::SessionExpired);
-    }
-
-    if *claims_typ != ClaimsTyp::Bearer {
-        return Err(CoreError::InvalidToken);
-    }
-
-    Ok(())
-}
-
 fn validate_session_binding(
     claimed_sid: Option<Uuid>,
     session: Option<&UserSession>,
@@ -3596,19 +3563,7 @@ where
         let authorization_code = generate_random_string();
 
         let (sso_session, sso_cookie) = match sso_session {
-            SsoSessionBinding::Resume { session, cookie } => (session.into_inner(), cookie),
-            SsoSessionBinding::Adopt { session } => {
-                let cookie = generate_random_token();
-                self.user_session_repository
-                    .set_sso_token_hash(&session, &sso_token_hash(&cookie))
-                    .await
-                    .map_err(|e| {
-                        warn!(session_id = %session.get().id, error = ?e, "Failed to issue an SSO secret");
-                        CoreError::InternalServerError
-                    })?;
-
-                (session.into_inner(), cookie)
-            }
+            SsoSessionBinding::Resume { session, cookie } => ((*session).into_inner(), cookie),
             SsoSessionBinding::Open => {
                 let lifetimes = self
                     .resolve_token_lifetimes(scope, auth_session.client_id)
@@ -4165,178 +4120,13 @@ This is a server error that should be investigated. Do not forward back this mes
             user.id,
             session_code,
             auth_session,
-            SsoSessionBinding::Resume { session, cookie },
+            SsoSessionBinding::Resume {
+                session: Box::new(session),
+                cookie,
+            },
             &scope,
         )
         .await
-    }
-
-    async fn handle_token_refresh(
-        &self,
-        token: String,
-        scope: RealmScope,
-        auth_session: AuthSession,
-        session_code: Uuid,
-    ) -> Result<AuthenticateOutput, CoreError> {
-        let realm_id = scope.id();
-
-        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
-        let token_fingerprint = token_hash.chars().take(12).collect::<String>();
-        let token_segments = token.split('.').count();
-
-        let claims = self
-            .verify_token(token.clone(), realm_id)
-            .await
-            .map_err(|e| {
-                match &e {
-                    CoreError::InvalidToken
-                    | CoreError::ExpiredToken
-                    | CoreError::TokenValidationError(_) => {
-                        warn!(
-                            token_fingerprint = %token_fingerprint,
-                            token_segments = token_segments,
-                            realm_id = %Uuid::from(realm_id),
-                            session_code = %session_code,
-                            error = ?e,
-                            "Identity token cookie rejected, falling back to interactive login"
-                        );
-                    }
-                    _ => {
-                        error!("Failed to verify token: {:?}", e);
-                    }
-                }
-                e
-            })?;
-
-        // FK-003: only a `Bearer` access token stands for a completed login.
-        // Checked here — the earliest point at which `typ` is known, and before
-        // any repository lookup — so a replayed `Temporary` step token cannot
-        // skip the OTP challenge it was minted in front of.
-        validate_token_refresh_request(&claims.typ, &auth_session, Utc::now()).inspect_err(
-            |e| {
-                warn!(
-                    token_fingerprint = %token_fingerprint,
-                    claims_typ = ?claims.typ,
-                    realm_id = %Uuid::from(realm_id),
-                    session_code = %session_code,
-                    error = ?e,
-                    "Rejected token-refresh authentication attempt"
-                );
-            },
-        )?;
-
-        let user = self
-            .user_repository
-            .get_by_id(claims.sub)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .in_realm(&scope)
-            .map_err(|_| CoreError::InvalidToken)?
-            .into_inner();
-
-        if !user.enabled {
-            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
-                .await;
-            return Err(CoreError::UserDisabled);
-        }
-
-        let client = self
-            .client_repository
-            .get_by_id(realm_id, auth_session.client_id)
-            .await
-            .map_err(|_| CoreError::InvalidClient)?
-            .in_realm(&scope)
-            .map_err(|_| CoreError::InvalidClient)?
-            .into_inner();
-
-        self.enforce_maintenance_mode(realm_id, &client, user.id, &user.username)
-            .await?;
-
-        // `ConfigureOtp` is never persisted (see `resolve_refresh_required_actions`),
-        // so the MFA policy has to be re-evaluated here instead of trusting the
-        // stored `user.required_actions` alone.
-        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
-
-        let user_roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let has_otp_credential = self
-            .credential_repository
-            .get_credentials_by_user_id(user.id)
-            .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?
-            .iter()
-            .any(|cred| cred.credential_type == CredentialType::Otp);
-
-        let required_actions = resolve_refresh_required_actions(
-            &user.required_actions,
-            realm_settings.as_ref(),
-            &user_roles,
-            has_otp_credential,
-        );
-
-        if !required_actions.is_empty() {
-            // Re-sign as an explicitly `Temporary` step token: re-signing the
-            // incoming claims verbatim would carry the caller's `typ` through,
-            // so the field named `temporary_token` could hand back a full
-            // `Bearer` token.
-            let temporary_claims = JwtClaim::new_temporary_token(
-                claims,
-                temporary_token_lifetime(realm_settings.as_ref()),
-            );
-            let jwt_token = self.generate_token(temporary_claims, realm_id).await?;
-
-            return Ok(AuthenticateOutput::requires_actions(
-                user.id,
-                required_actions,
-                jwt_token.token,
-            ));
-        }
-
-        let named_session = match claims.sid {
-            Some(sid) => {
-                let session = self
-                    .user_session_repository
-                    .find_by_id(sid)
-                    .await
-                    .map_err(|e| {
-                        warn!(session_id = %sid, error = ?e, "Failed to load the session a token names");
-                        CoreError::InternalServerError
-                    })?
-                    .in_realm(&scope)?
-                    .ok_or(CoreError::SessionNotFound)?;
-
-                Some(session)
-            }
-            None => None,
-        };
-
-        if let Some(output) = self
-            .consent_gate(claims.sub, session_code, &auth_session, &scope)
-            .await?
-        {
-            if let Some(session) = &named_session
-                && let Err(e) = self
-                    .auth_session_repository
-                    .set_reauth_session(session_code, session.get().id)
-                    .await
-            {
-                warn!(error = ?e, "Failed to record the session to resume after consent");
-            }
-
-            return Ok(output);
-        }
-
-        let binding = match named_session {
-            Some(session) => SsoSessionBinding::Adopt { session },
-            None => SsoSessionBinding::Open,
-        };
-
-        self.finalize_authentication(claims.sub, session_code, auth_session, binding, &scope)
-            .await
     }
 
     fn build_auth_completion(
@@ -4896,10 +4686,6 @@ where
         }
 
         match input.auth_method {
-            AuthenticationMethod::ExistingToken { token } => {
-                self.handle_token_refresh(token, scope, auth_session, input.session_code)
-                    .await
-            }
             AuthenticationMethod::SsoSession { cookie, max_age } => {
                 self.handle_sso_session(cookie, max_age, scope, auth_session, input.session_code)
                     .await
@@ -6325,34 +6111,12 @@ mod tests {
         ));
     }
 
-    // ---- FK-003: token-refresh guards ------------------------------------
-    //
-    // `POST /login-actions/authenticate` accepts an `Authorization: Bearer`
-    // token and short-circuits the interactive login. The mid-flow `Temporary`
-    // token minted by `using_session_code` (right before the OTP challenge)
-    // must never be usable there: replaying it would complete authentication
-    // with the password alone, skipping the second factor entirely.
-
-    use super::{
-        resolve_refresh_required_actions, temporary_token_lifetime, validate_token_refresh_request,
-    };
+    use super::{resolve_refresh_required_actions, temporary_token_lifetime};
     use crate::domain::authentication::entities::{AuthenticateOutput, AuthenticationStepStatus};
-    use crate::domain::jwt::entities::ClaimsTyp;
     use crate::domain::realm::entities::RealmSetting;
     use crate::domain::role::entities::Role;
     use crate::domain::user::entities::RequiredAction;
     use ferriskey_security::jwt::entities::DEFAULT_TEMPORARY_TOKEN_LIFETIME;
-
-    /// A session that is still live, so only the token `typ` can fail a test.
-    fn live_session() -> AuthSession {
-        auth_session(
-            Some("s"),
-            REDIRECT_URI,
-            Utc::now() + Duration::minutes(5),
-            None,
-            false,
-        )
-    }
 
     fn realm_setting(require_mfa: bool) -> RealmSetting {
         let mut s = RealmSetting::new(RealmId::from(Uuid::new_v4()), None);
@@ -6373,70 +6137,6 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
-    }
-
-    #[test]
-    fn token_refresh_rejects_a_replayed_temporary_token() {
-        // FK-003 path A: the step token handed to the client just before the
-        // OTP challenge, replayed on /login-actions/authenticate.
-        assert!(matches!(
-            validate_token_refresh_request(&ClaimsTyp::Temporary, &live_session(), Utc::now()),
-            Err(CoreError::InvalidToken)
-        ));
-    }
-
-    #[test]
-    fn token_refresh_rejects_refresh_and_id_tokens() {
-        // Only a fully-minted access token stands for a completed login.
-        for typ in [ClaimsTyp::Refresh, ClaimsTyp::Id] {
-            assert!(
-                matches!(
-                    validate_token_refresh_request(&typ, &live_session(), Utc::now()),
-                    Err(CoreError::InvalidToken)
-                ),
-                "{typ:?} must not short-circuit an interactive login"
-            );
-        }
-    }
-
-    #[test]
-    fn token_refresh_accepts_a_bearer_token() {
-        assert!(
-            validate_token_refresh_request(&ClaimsTyp::Bearer, &live_session(), Utc::now()).is_ok()
-        );
-    }
-
-    #[test]
-    fn token_refresh_rejects_an_expired_auth_session() {
-        // `authenticate` guards this, `handle_token_refresh` did not.
-        let now = Utc::now();
-        let session = auth_session(
-            Some("s"),
-            REDIRECT_URI,
-            now - Duration::seconds(1),
-            None,
-            false,
-        );
-
-        assert!(matches!(
-            validate_token_refresh_request(&ClaimsTyp::Bearer, &session, now),
-            Err(CoreError::SessionExpired)
-        ));
-    }
-
-    #[test]
-    fn token_refresh_expired_session_beats_a_valid_bearer_token() {
-        // An expired session is fatal regardless of how good the token is.
-        let now = Utc::now();
-        let session = auth_session(
-            Some("s"),
-            REDIRECT_URI,
-            now - Duration::hours(1),
-            None,
-            false,
-        );
-
-        assert!(validate_token_refresh_request(&ClaimsTyp::Bearer, &session, now).is_err());
     }
 
     // ---- FK-003: MFA policy re-evaluated on the refresh path --------------

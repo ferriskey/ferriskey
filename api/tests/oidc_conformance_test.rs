@@ -607,6 +607,40 @@ mod tests {
     }
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn an_access_token_is_not_a_login_for_another_client() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let issuing = app.client(ClientSpec::confidential()).await;
+            let target = app.client(ClientSpec::public()).await;
+            let access_token = tokens(app, &issuing, &[]).await["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+
+            let authorized = authorize(&server, app, &target.client_id, &[]).await;
+            assert_eq!(authorized.status_code(), 302, "{}", authorized.text());
+
+            let response = server
+                .post(&app.path("/login-actions/authenticate"))
+                .add_cookie(authorized.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", &target.client_id)
+                .authorization_bearer(&access_token)
+                .json(&json!({}))
+                .await;
+
+            let body = response.text();
+            assert_eq!(response.status_code(), 400, "{body}");
+            assert!(!body.contains("code="), "{body}");
+            assert!(
+                response.maybe_cookie("FERRISKEY_SSO").is_none(),
+                "an SSO cookie was issued: {body}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn a_disabled_service_account_cannot_use_client_credentials() {
         rt().block_on(async {
             let app = app();
