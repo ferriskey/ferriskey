@@ -305,6 +305,7 @@ where
                     description: None,
                     protocol: "openid-connect".to_string(),
                     is_default,
+                    dynamic_registration_allowed: false,
                 })
                 .await?;
 

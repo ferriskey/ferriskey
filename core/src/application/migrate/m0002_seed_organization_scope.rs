@@ -91,6 +91,7 @@ where
                                 description: None,
                                 protocol: "openid-connect".to_string(),
                                 is_default: true,
+                                dynamic_registration_allowed: false,
                             })
                             .await?;
                         tracing::info!(scope = "organization", "created scope");

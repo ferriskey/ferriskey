@@ -123,6 +123,7 @@ pub(crate) fn make_scope(realm_id: RealmId) -> ClientScope {
         description: None,
         protocol: "openid-connect".to_string(),
         default_scope_type: ScopeType::Default,
+        dynamic_registration_allowed: false,
         attributes: None,
         protocol_mappers: None,
         created_at: Utc::now(),

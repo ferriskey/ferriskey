@@ -14,6 +14,8 @@ pub struct CreateClientScopeValidator {
     pub protocol: String,
     #[serde(default)]
     pub is_default: bool,
+    #[serde(default)]
+    pub dynamic_registration_allowed: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -26,6 +28,8 @@ pub struct UpdateClientScopeValidator {
     pub protocol: Option<String>,
     #[serde(default)]
     pub is_default: Option<bool>,
+    #[serde(default)]
+    pub dynamic_registration_allowed: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
