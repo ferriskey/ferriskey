@@ -250,6 +250,12 @@ pub struct RealmSetting {
     pub allowed_resources: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ResourceOwner {
+    pub uri: String,
+    pub client_id: Uuid,
+}
+
 impl RealmSetting {
     pub fn new(realm_id: RealmId, default_signing_algorithm: Option<String>) -> Self {
         let (now, timestamp) = generate_timestamp();

@@ -1,6 +1,6 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryTrait, Select,
+    QueryFilter, QueryTrait, Select, TransactionTrait,
 };
 
 use crate::{
@@ -434,15 +434,38 @@ impl RealmRepository for PostgresRealmRepository {
             realm_setting.cimd_allowed_hosts = Set(cimd_allowed_hosts);
         }
 
+        let retained_resources = allowed_resources.clone();
         if let Some(allowed_resources) = allowed_resources {
             realm_setting.allowed_resources = Set(allowed_resources);
         }
 
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
         let realm_setting = realm_setting
-            .update(&self.db)
+            .update(&txn)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .into();
+
+        if let Some(retained) = retained_resources {
+            crate::entity::realm_resource_owners::Entity::delete_many()
+                .filter(
+                    crate::entity::realm_resource_owners::Column::RealmId
+                        .eq::<Uuid>(realm_id.into()),
+                )
+                .filter(crate::entity::realm_resource_owners::Column::Uri.is_not_in(retained))
+                .exec(&txn)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+        }
+
+        txn.commit()
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(realm_setting)
     }

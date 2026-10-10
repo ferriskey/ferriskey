@@ -72,6 +72,9 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidPagination(detail) => {
                 Self::BadRequest(CoreError::InvalidPagination(detail).to_string().into())
             }
+            CoreError::InvalidResourceOwner(detail) => {
+                Self::BadRequest(CoreError::InvalidResourceOwner(detail).to_string().into())
+            }
             CoreError::InvalidTokenExchangePolicy(detail) => Self::BadRequest(
                 CoreError::InvalidTokenExchangePolicy(detail).to_string().into(),
             ),

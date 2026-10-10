@@ -5,7 +5,8 @@ use crate::common::app_errors::CoreError;
 use crate::common::locale::SupportedLocales;
 use crate::common::pagination::{Page, PageRequest};
 use crate::realm::{
-    LoginAliases, Realm, RealmFilter, RealmId, RealmSetting, RealmSortField, SmtpConfig,
+    LoginAliases, Realm, RealmFilter, RealmId, RealmSetting, RealmSortField, ResourceOwner,
+    SmtpConfig,
 };
 
 pub trait RealmPolicy: Send + Sync {
@@ -132,4 +133,25 @@ pub trait SmtpConfigRepository: Send + Sync {
         &self,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait ResourceOwnerRepository: Send + Sync {
+    fn list_by_realm(
+        &self,
+        realm_id: RealmId,
+    ) -> impl Future<Output = Result<Vec<ResourceOwner>, CoreError>> + Send;
+
+    fn replace_for_realm(
+        &self,
+        realm_id: RealmId,
+        owners: &[ResourceOwner],
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn owns_any(
+        &self,
+        realm_id: RealmId,
+        client_id: Uuid,
+        uris: &[String],
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }

@@ -49,6 +49,9 @@ pub enum CoreError {
     #[error("Invalid token exchange policy: {0}")]
     InvalidTokenExchangePolicy(String),
 
+    #[error("Invalid resource owner: {0}")]
+    InvalidResourceOwner(String),
+
     #[error("A token exchange policy already targets this audience for this client")]
     TokenExchangePolicyAlreadyExists,
 
@@ -439,6 +442,7 @@ impl CoreError {
             CoreError::InvalidWebOrigin(_) => "invalid_web_origin",
             CoreError::InvalidPagination(_) => "invalid_pagination",
             CoreError::InvalidTokenExchangePolicy(_) => "invalid_token_exchange_policy",
+            CoreError::InvalidResourceOwner(_) => "invalid_resource_owner",
             CoreError::TokenExchangePolicyAlreadyExists => "token_exchange_policy_already_exists",
             CoreError::SamlConfigNotFound => "saml_config_not_found",
             CoreError::InvalidSamlConfig(_) => "invalid_saml_config",
@@ -617,6 +621,10 @@ mod tests {
             (
                 CoreError::InvalidTokenExchangePolicy(payload.clone()),
                 "invalid_token_exchange_policy",
+            ),
+            (
+                CoreError::InvalidResourceOwner(payload.clone()),
+                "invalid_resource_owner",
             ),
             (
                 CoreError::TokenExchangePolicyAlreadyExists,
@@ -924,7 +932,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 127);
+        assert_eq!(every_variant_with_expected_reason().len(), 128);
     }
 
     #[test]

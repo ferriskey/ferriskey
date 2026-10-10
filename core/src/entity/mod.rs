@@ -46,6 +46,7 @@ pub mod portal_layouts;
 pub mod portal_themes;
 pub mod post_logout_redirect_uris;
 pub mod realm_maintenance_whitelist;
+pub mod realm_resource_owners;
 pub mod realm_settings;
 pub mod realms;
 pub mod redirect_uris;
