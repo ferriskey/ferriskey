@@ -27,6 +27,8 @@
   </a>
 </p>
 
+<a id="sponsors"></a>
+<p align="center"><sub>Sponsors</sub></p>
 <p align="center">
   <a href="https://cloud-iam.com">
     <picture>
@@ -77,6 +79,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Architecture](#architecture)
 - [Observability](#observability)
 - [Roadmap](#roadmap)
+- [Adopters](#-adopters)
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
 - [Security](#security)
@@ -242,6 +245,10 @@ FerrisKey follows a Hexagonal Architecture (Ports & Adapters) to keep business l
 The public roadmap is at <https://ferriskey.rs/roadmap>. [ROADMAP.md](./ROADMAP.md) lists the epics in progress and how the roadmap is maintained.
 
 <a id="contributing"></a>
+
+## 🏢 Adopters
+
+Organizations using FerrisKey are listed in [ADOPTERS.md](./ADOPTERS.md). If you run FerrisKey, add yourself with a pull request.
 
 ## 🤝 Contributing
 
