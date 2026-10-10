@@ -15,7 +15,7 @@ use crate::client::{
         UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
     },
     entities::{
-        Client, ClientFilter, ClientSortField,
+        Client, ClientFilter, ClientRegistrationSource, ClientSortField,
         redirect_uri::RedirectUri,
         saml::{
             ClientSamlConfig, SamlAttributeMapper, SamlAttributeMapperDefinition,
@@ -222,6 +222,12 @@ pub trait ClientRepository: Send + Sync {
         &self,
         client: &Scoped<Client>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn count_by_source(
+        &self,
+        realm_id: RealmId,
+        source: ClientRegistrationSource,
+    ) -> impl Future<Output = Result<u64, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]

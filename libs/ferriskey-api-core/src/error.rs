@@ -72,6 +72,9 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidPagination(detail) => {
                 Self::BadRequest(CoreError::InvalidPagination(detail).to_string().into())
             }
+            CoreError::InvalidResourceOwner(detail) => {
+                Self::BadRequest(CoreError::InvalidResourceOwner(detail).to_string().into())
+            }
             CoreError::InvalidTokenExchangePolicy(detail) => Self::BadRequest(
                 CoreError::InvalidTokenExchangePolicy(detail).to_string().into(),
             ),
@@ -311,6 +314,10 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidScope(description) => Self::OAuthError {
                 error: "invalid_scope".into(),
                 error_description: description.into(),
+            },
+            CoreError::InvalidTarget => Self::OAuthError {
+                error: "invalid_target".into(),
+                error_description: "The requested resource is not allowed for this realm.".into(),
             },
             CoreError::UserDisabled => Self::Forbidden("User account is disabled".into()),
             CoreError::AccountLocked => Self::Unauthorized(

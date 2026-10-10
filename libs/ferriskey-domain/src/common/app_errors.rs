@@ -49,6 +49,9 @@ pub enum CoreError {
     #[error("Invalid token exchange policy: {0}")]
     InvalidTokenExchangePolicy(String),
 
+    #[error("Invalid resource owner: {0}")]
+    InvalidResourceOwner(String),
+
     #[error("A token exchange policy already targets this audience for this client")]
     TokenExchangePolicyAlreadyExists,
 
@@ -363,6 +366,9 @@ pub enum CoreError {
     #[error("Invalid scope: {0}")]
     InvalidScope(String),
 
+    #[error("Invalid target resource")]
+    InvalidTarget,
+
     #[error("User account is disabled")]
     UserDisabled,
 
@@ -436,6 +442,7 @@ impl CoreError {
             CoreError::InvalidWebOrigin(_) => "invalid_web_origin",
             CoreError::InvalidPagination(_) => "invalid_pagination",
             CoreError::InvalidTokenExchangePolicy(_) => "invalid_token_exchange_policy",
+            CoreError::InvalidResourceOwner(_) => "invalid_resource_owner",
             CoreError::TokenExchangePolicyAlreadyExists => "token_exchange_policy_already_exists",
             CoreError::SamlConfigNotFound => "saml_config_not_found",
             CoreError::InvalidSamlConfig(_) => "invalid_saml_config",
@@ -537,6 +544,7 @@ impl CoreError {
             CoreError::ClientNotFound => "client_not_found",
             CoreError::HintsNotFound => "hints_not_found",
             CoreError::InvalidScope(_) => "invalid_scope",
+            CoreError::InvalidTarget => "invalid_target",
             CoreError::UserDisabled => "user_disabled",
             CoreError::AccountLocked => "account_locked",
             CoreError::ClientUnderMaintenance(_) => "client_under_maintenance",
@@ -613,6 +621,10 @@ mod tests {
             (
                 CoreError::InvalidTokenExchangePolicy(payload.clone()),
                 "invalid_token_exchange_policy",
+            ),
+            (
+                CoreError::InvalidResourceOwner(payload.clone()),
+                "invalid_resource_owner",
             ),
             (
                 CoreError::TokenExchangePolicyAlreadyExists,
@@ -837,6 +849,7 @@ mod tests {
             (CoreError::ClientNotFound, "client_not_found"),
             (CoreError::HintsNotFound, "hints_not_found"),
             (CoreError::InvalidScope(payload.clone()), "invalid_scope"),
+            (CoreError::InvalidTarget, "invalid_target"),
             (CoreError::UserDisabled, "user_disabled"),
             (CoreError::AccountLocked, "account_locked"),
             (
@@ -919,7 +932,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 126);
+        assert_eq!(every_variant_with_expected_reason().len(), 128);
     }
 
     #[test]

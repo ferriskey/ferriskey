@@ -73,6 +73,10 @@ impl From<Model> for RealmSetting {
             webhook_retry_base_delay_ms: value.webhook_retry_base_delay_ms,
             webhook_retry_max_delay_ms: value.webhook_retry_max_delay_ms,
             webhook_retry_max_total_delay_ms: value.webhook_retry_max_total_delay_ms,
+            cimd_enabled: value.cimd_enabled,
+            dcr_enabled: value.dcr_enabled,
+            cimd_allowed_hosts: value.cimd_allowed_hosts,
+            allowed_resources: value.allowed_resources,
         }
     }
 }
@@ -119,6 +123,10 @@ mod tests {
             default_locale: "en".to_string(),
             supported_locales: vec!["en".to_string()],
             consent_ttl_days: None,
+            cimd_enabled: false,
+            dcr_enabled: false,
+            cimd_allowed_hosts: vec![],
+            allowed_resources: vec![],
         }
     }
 

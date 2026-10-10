@@ -22,6 +22,7 @@ pub mod get_redirect_uris;
 pub mod get_saml_attribute_mappers;
 pub mod get_token_exchange_policies;
 pub mod get_web_origins;
+pub mod register_client;
 pub mod set_client_saml_config;
 pub mod update_client;
 pub mod update_post_logout_redirect_uri;

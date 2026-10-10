@@ -103,6 +103,7 @@ where
                 description: input.description,
                 protocol: input.protocol,
                 is_default: input.is_default,
+                dynamic_registration_allowed: input.dynamic_registration_allowed,
             })
             .await?;
 
@@ -415,6 +416,7 @@ mod tests {
                         description: None,
                         protocol: None,
                         is_default: None,
+                        dynamic_registration_allowed: None,
                     },
                 },
             )
@@ -461,6 +463,7 @@ mod tests {
                         description: None,
                         protocol: None,
                         is_default: None,
+                        dynamic_registration_allowed: None,
                     },
                 },
             )

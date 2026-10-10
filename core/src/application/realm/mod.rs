@@ -9,11 +9,14 @@ use crate::{
         portal_theme::ports::{GetThemeInput, PortalThemeService},
         realm::{
             entities::{
-                Realm, RealmFilter, RealmId, RealmLoginSetting, RealmSetting, RealmSortField,
+                AuthorizationServerSettings, Realm, RealmFilter, RealmId, RealmLoginSetting,
+                RealmSetting, RealmSortField, ResourceOwner,
             },
             ports::{
                 CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
-                GetRealmSettingInput, RealmService, UpdateRealmInput, UpdateRealmSettingInput,
+                GetRealmSettingInput, ListResourceOwnersInput, RealmService,
+                ReplaceResourceOwnersInput, ResourceOwnerService, UpdateRealmInput,
+                UpdateRealmSettingInput,
             },
         },
     },
@@ -56,6 +59,15 @@ impl RealmService for ApplicationService {
             .get_public_theme(GetThemeInput { realm_name })
             .await?;
         Ok(settings)
+    }
+
+    async fn get_authorization_server_settings(
+        &self,
+        realm_name: String,
+    ) -> Result<AuthorizationServerSettings, CoreError> {
+        self.realm_service
+            .get_authorization_server_settings(realm_name)
+            .await
     }
 
     async fn get_realm_by_name(
@@ -104,5 +116,27 @@ impl RealmService for ApplicationService {
 
     async fn seed_default_scopes(&self, realm_id: RealmId) -> Result<(), CoreError> {
         self.realm_service.seed_default_scopes(realm_id).await
+    }
+}
+
+impl ResourceOwnerService for ApplicationService {
+    async fn list_resource_owners(
+        &self,
+        identity: Identity,
+        input: ListResourceOwnersInput,
+    ) -> Result<Vec<ResourceOwner>, CoreError> {
+        self.resource_owner_service
+            .list_resource_owners(identity, input)
+            .await
+    }
+
+    async fn replace_resource_owners(
+        &self,
+        identity: Identity,
+        input: ReplaceResourceOwnersInput,
+    ) -> Result<Vec<ResourceOwner>, CoreError> {
+        self.resource_owner_service
+            .replace_resource_owners(identity, input)
+            .await
     }
 }

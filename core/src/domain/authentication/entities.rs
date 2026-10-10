@@ -60,6 +60,8 @@ pub struct AuthSession {
     pub reauth_session_id: Option<Uuid>,
     pub consent_token_hash: Option<String>,
     pub prompt_consent: bool,
+    pub issuer: Option<String>,
+    pub resource: Option<String>,
 }
 
 impl RealmOwned for AuthSession {
@@ -87,6 +89,8 @@ pub struct AuthSessionParams {
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<CodeChallengeMethod>,
     pub prompt_consent: bool,
+    pub issuer: Option<String>,
+    pub resource: Option<String>,
 }
 
 impl AuthSession {
@@ -119,6 +123,8 @@ impl AuthSession {
             reauth_session_id: None,
             consent_token_hash: None,
             prompt_consent: params.prompt_consent,
+            issuer: params.issuer,
+            resource: params.resource,
         }
     }
 }

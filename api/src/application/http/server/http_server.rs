@@ -10,7 +10,7 @@ use ferriskey_api_account::router::account_routes;
 use ferriskey_api_aegis::router::aegis_routes;
 use ferriskey_api_authentication::router::authentication_routes;
 use ferriskey_api_broker::router::broker_routes;
-use ferriskey_api_client::router::client_routes;
+use ferriskey_api_client::router::{client_registration_routes, client_routes};
 use ferriskey_api_compass::router::compass_routes;
 use ferriskey_api_email_template::router::email_template_routes;
 use ferriskey_api_maintenance::router::maintenance_routes;
@@ -157,6 +157,7 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .route(&format!("{}/config", root_path), get(get_config))
         .merge(realm_routes(state.clone()))
         .merge(client_routes(state.clone()))
+        .merge(client_registration_routes(state.clone()))
         .merge(account_routes(state.clone()))
         .merge(user_routes(state.clone()))
         .merge(authentication_routes(state.clone(), &root_path))

@@ -3,6 +3,16 @@ use std::sync::Arc;
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
+use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
+use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
+use crate::domain::common::rate_limit::{
+    CIMD_FETCHES_PER_MINUTE, DEFAULT_REQUESTS_PER_MINUTE, IpRateLimiter,
+    REALM_REGISTRATIONS_PER_HOUR, RealmBudget,
+};
+use crate::infrastructure::client_metadata::{
+    CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
+};
+
 use crate::domain::authentication::backchannel_logout::{
     BackchannelLogoutConfig, BackchannelLogoutServiceImpl,
 };
@@ -47,7 +57,10 @@ use crate::{
         password_policy::service::PasswordPolicyService,
         portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        realm::{
+            resource_owner_services::ResourceOwnerServiceImpl,
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
         seawatch::services::SecurityEventServiceImpl,
@@ -104,6 +117,7 @@ use crate::{
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
+            resource_owner_postgres_repository::PostgresResourceOwnerRepository,
             smtp_config_postgres_repository::PostgresSmtpConfigRepository,
         },
         repositories::{
@@ -149,6 +163,7 @@ pub mod aegis;
 pub mod auth;
 pub mod broker;
 pub mod client;
+pub mod client_registration;
 pub mod compass;
 pub mod consent;
 pub mod credential;
@@ -297,6 +312,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
     let smtp_config = Arc::new(PostgresSmtpConfigRepository::new(postgres.get_db()));
+    let resource_owner = Arc::new(PostgresResourceOwnerRepository::new(postgres.get_db()));
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
         Arc::new(PostgresPasswordResetTokenRepository::new(postgres.get_db()));
@@ -371,6 +387,26 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         security_event.clone(),
     );
 
+    let client_metadata_cleartext = config.client_metadata_allow_private_endpoints;
+    if client_metadata_cleartext {
+        tracing::warn!(
+            "CLIENT_METADATA_ALLOW_PRIVATE_ENDPOINTS is on: client metadata documents may be fetched over http from loopback and private addresses. Never enable this in production."
+        );
+    }
+    let client_metadata_resolver = Arc::new(ClientMetadataResolverImpl::new(
+        Arc::new(CachedClientMetadataFetcher::new(
+            ReqwestClientMetadataFetcher::new(PrivateEndpoints::from_allowed(
+                client_metadata_cleartext,
+            )),
+        )),
+        client.clone(),
+        redirect_uri.clone(),
+        client_scope.clone(),
+        scope_mapping.clone(),
+        Arc::new(IpRateLimiter::per_minute(CIMD_FETCHES_PER_MINUTE)),
+        client_metadata_cleartext,
+    ));
+
     let auth_service = AuthServiceImpl::new(
         realm.clone(),
         client.clone(),
@@ -403,6 +439,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         Arc::new(MapperEngine::new()),
         flow_recorder.clone(),
         consent_service.clone(),
+        client_metadata_resolver,
         config.webapp_url.clone(),
     );
 
@@ -420,6 +457,8 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         token_exchange_policy.clone(),
         security_event.clone(),
         Arc::new(auth_service.clone()),
+        realm.clone(),
+        resource_owner.clone(),
         flow_recorder.clone(),
     );
 
@@ -494,6 +533,12 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
             config.webapp_url.clone(),
         ),
+        resource_owner_service: ResourceOwnerServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            resource_owner.clone(),
+            policy.clone(),
+        ),
         mail_service: MailServiceImpl::new(realm.clone(), smtp_config.clone(), policy.clone()),
         role_service: RoleServiceImpl::new(
             realm.clone(),
@@ -508,6 +553,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             policy.clone(),
         ),
         consent_service: consent_service.clone(),
+        client_registration_service: Arc::new(ClientRegistrationServiceImpl::new(
+            realm.clone(),
+            client.clone(),
+            redirect_uri.clone(),
+            client_scope.clone(),
+            scope_mapping.clone(),
+            IpRateLimiter::per_minute(DEFAULT_REQUESTS_PER_MINUTE),
+            RealmBudget::per_hour(REALM_REGISTRATIONS_PER_HOUR),
+        )),
         trident_service: TridentServiceImpl::new(
             credential.clone(),
             recovery_code.clone(),
@@ -785,6 +839,7 @@ mod tests {
 
         let app = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -961,6 +1016,7 @@ mod tests {
 
         let app = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,

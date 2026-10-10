@@ -80,6 +80,7 @@ export default function PageConsentFeature() {
   return (
     <PageConsent
       clientName={data?.client_name ?? ''}
+      clientUriHost={data?.client_uri_host ?? null}
       defaultScopes={defaultScopes}
       optionalScopes={optionalScopes}
       approvedOptional={approvedOptional}

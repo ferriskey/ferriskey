@@ -232,6 +232,7 @@ async fn token_response(
         redirect_uri: payload.redirect_uri,
         ip_address: context.ip_address,
         user_agent: context.user_agent,
+        resource: payload.resource,
     };
 
     // The device_code grant is served by the device flow polling path so its

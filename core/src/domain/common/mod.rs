@@ -8,6 +8,7 @@ pub mod locale;
 pub mod pagination;
 pub mod policies;
 pub mod ports;
+pub mod rate_limit;
 pub mod services;
 
 pub struct AppConfig {
@@ -24,6 +25,9 @@ pub struct FerriskeyConfig {
     /// or private address. Off unless explicitly enabled. Link-local addresses stay refused even
     /// when this is on — see `PrivateEndpoints`.
     pub webhook_allow_private_endpoints: bool,
+    /// Test-only escape hatch: lets a client metadata document be fetched over http from a
+    /// loopback or private address. Off unless explicitly enabled.
+    pub client_metadata_allow_private_endpoints: bool,
 }
 
 #[derive(Clone, Debug)]

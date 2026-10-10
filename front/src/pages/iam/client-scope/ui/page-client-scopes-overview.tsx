@@ -13,7 +13,8 @@ import type {
 import { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 
-import ClientScope = Schemas.ClientScope
+
+type ClientScope = Schemas.ClientScope
 import ScopeType = Schemas.ScopeType
 import { SCOPE_TYPE_TONE, scopeTypeLabelKey } from '../scope-type'
 
@@ -73,7 +74,12 @@ export default function PageClientScopesOverview({
     {
       key: 'name',
       header: t('list.columns.name'),
-      render: (s) => s.name,
+      render: (s) => (
+        <span className='inline-flex items-center gap-2'>
+          {s.name}
+          {s.dynamic_registration_allowed && <Pill tone='info'>{t('list.dynamic_badge')}</Pill>}
+        </span>
+      ),
       sortKey: 'name',
     },
     {

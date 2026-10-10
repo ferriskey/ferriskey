@@ -109,6 +109,7 @@ mod tests {
 
         let service = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             webapp_url: WEBAPP_URL.to_string(),
             database: DatabaseConfig {
                 host: db_host,
@@ -288,6 +289,10 @@ mod tests {
 
     fn realm() -> &'static str {
         shared_ctx().realm_name.as_str()
+    }
+
+    fn issuer_param() -> String {
+        urlencoding::encode(&format!("http://localhost/realms/{}", realm())).into_owned()
     }
 
     static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -1138,7 +1143,10 @@ mod tests {
 
             assert_eq!(
                 location_of(&survey),
-                format!("{SURVEY_REDIRECT_URI}?error=login_required&state=survey-state"),
+                format!(
+                    "{SURVEY_REDIRECT_URI}?error=login_required&state=survey-state&iss={}",
+                    issuer_param()
+                ),
                 "prompt=none must never show a login page"
             );
         });
@@ -1155,7 +1163,10 @@ mod tests {
 
             assert_eq!(
                 location_of(&survey),
-                format!("{SURVEY_REDIRECT_URI}?error=invalid_request&state=survey-state")
+                format!(
+                    "{SURVEY_REDIRECT_URI}?error=invalid_request&state=survey-state&iss={}",
+                    issuer_param()
+                )
             );
         });
     }

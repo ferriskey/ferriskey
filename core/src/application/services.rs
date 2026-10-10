@@ -67,7 +67,10 @@ use crate::{
         },
         portal_layouts::services::PortalLayoutsServiceImpl,
         portal_theme::services::PortalThemeServiceImpl,
-        realm::services::{MailServiceImpl, RealmServiceImpl},
+        realm::{
+            resource_owner_services::ResourceOwnerServiceImpl,
+            services::{MailServiceImpl, RealmServiceImpl},
+        },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
         seawatch::{
@@ -128,6 +131,7 @@ use crate::{
         },
         realm::repositories::{
             realm_postgres_repository::PostgresRealmRepository,
+            resource_owner_postgres_repository::PostgresResourceOwnerRepository,
             smtp_config_postgres_repository::PostgresSmtpConfigRepository,
         },
         repositories::{
@@ -176,6 +180,7 @@ type PostLogoutRedirectUriRepo = PostgresPostLogoutRedirectUriRepository;
 type WebOriginRepo = PostgresWebOriginRepository;
 type TokenExchangePolicyRepo = PostgresTokenExchangePolicyRepository;
 type ClientSamlRepo = PostgresClientSamlRepository;
+type ResourceOwnerRepo = PostgresResourceOwnerRepository;
 
 type ApplicationSamlService = SamlServiceImpl<
     RealmRepo,
@@ -372,6 +377,29 @@ type ApplicationMaintenanceService = MaintenanceServiceImpl<
     RealmMaintenanceWhitelistRepo,
 >;
 
+type ApplicationClientMetadataFetcher =
+    crate::infrastructure::client_metadata::CachedClientMetadataFetcher<
+        crate::infrastructure::client_metadata::ReqwestClientMetadataFetcher,
+    >;
+
+pub(crate) type ApplicationClientMetadataResolver =
+    crate::domain::client_metadata::services::ClientMetadataResolverImpl<
+        ApplicationClientMetadataFetcher,
+        ClientRepo,
+        RedirectUriRepo,
+        ClientScopeRepo,
+        ScopeMappingRepo,
+    >;
+
+type ApplicationClientRegistrationService =
+    crate::domain::client_registration::services::ClientRegistrationServiceImpl<
+        RealmRepo,
+        ClientRepo,
+        RedirectUriRepo,
+        ClientScopeRepo,
+        ScopeMappingRepo,
+    >;
+
 type ApplicationAuthService = AuthServiceImpl<
     RealmRepo,
     ClientRepo,
@@ -402,6 +430,7 @@ type ApplicationAuthService = AuthServiceImpl<
     UserSessionRepo,
     LoginActionTokenRepo,
     ConsentDecisionRepo,
+    ApplicationClientMetadataResolver,
 >;
 
 type LoginActionTokenRepo = PostgresLoginActionTokenRepository;
@@ -459,6 +488,8 @@ type ApplicationTokenExchangeService = TokenExchangeServiceImpl<
     TokenExchangePolicyRepo,
     SecurityEventRepo,
     ApplicationAuthService,
+    RealmRepo,
+    ResourceOwnerRepo,
 >;
 
 #[derive(Clone, Debug)]
@@ -466,6 +497,7 @@ pub struct ApplicationService {
     pub(crate) security_event_service:
         SecurityEventServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SecurityEventRepo>,
     pub(crate) consent_service: std::sync::Arc<ApplicationConsentService>,
+    pub(crate) client_registration_service: std::sync::Arc<ApplicationClientRegistrationService>,
     pub(crate) credential_service:
         CredentialServiceImpl<RealmRepo, UserRepo, CredentialRepo, PolicyImpl>,
     pub(crate) client_service: ApplicationClientService,
@@ -484,6 +516,8 @@ pub struct ApplicationService {
         ScopeMappingRepo,
         RedirectUriRepo,
     >,
+    pub(crate) resource_owner_service:
+        ResourceOwnerServiceImpl<RealmRepo, ClientRepo, ResourceOwnerRepo, UserRepo, UserRoleRepo>,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<

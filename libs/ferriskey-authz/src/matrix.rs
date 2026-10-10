@@ -679,6 +679,16 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 829,
     },
     AuthzRow {
+        service_fn: "authorized_scope",
+        policy_fn: "can_update_realm",
+        action: actions::REALM_UPDATE,
+        resource: EntityType::REALM,
+        permissions: &[Permissions::ManageRealm],
+        self_bypass: false,
+        file: "core/src/domain/realm/resource_owner_services.rs",
+        line: 106,
+    },
+    AuthzRow {
         service_fn: "get_smtp_config",
         policy_fn: "can_view_realm",
         action: actions::REALM_READ,

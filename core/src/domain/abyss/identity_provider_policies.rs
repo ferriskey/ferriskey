@@ -104,6 +104,7 @@ mod tests {
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
             consent_required: false,
+            registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
         }
     }
 

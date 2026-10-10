@@ -39,6 +39,7 @@ pub struct Model {
     pub backchannel_logout_uri: Option<String>,
     pub backchannel_logout_session_required: bool,
     pub consent_required: bool,
+    pub registration_source: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -69,6 +70,7 @@ pub enum Column {
     BackchannelLogoutUri,
     BackchannelLogoutSessionRequired,
     ConsentRequired,
+    RegistrationSource,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -132,6 +134,7 @@ impl ColumnTrait for Column {
             Self::BackchannelLogoutUri => ColumnType::Text.def().null(),
             Self::BackchannelLogoutSessionRequired => ColumnType::Boolean.def(),
             Self::ConsentRequired => ColumnType::Boolean.def(),
+            Self::RegistrationSource => ColumnType::String(StringLen::N(32u32)).def(),
         }
     }
 }

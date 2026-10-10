@@ -2,7 +2,9 @@ use chrono::{TimeZone, Utc};
 
 use crate::{
     domain::authentication::entities::AuthProtocol,
-    domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy},
+    domain::client::entities::{
+        Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+    },
     entity::clients::Model,
 };
 
@@ -58,6 +60,10 @@ impl From<Model> for Client {
             backchannel_logout_uri: model.backchannel_logout_uri,
             backchannel_logout_session_required: model.backchannel_logout_session_required,
             consent_required: model.consent_required,
+            registration_source: model
+                .registration_source
+                .parse::<ClientRegistrationSource>()
+                .unwrap_or_default(),
         }
     }
 }

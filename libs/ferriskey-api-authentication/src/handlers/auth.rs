@@ -24,6 +24,7 @@ use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
 
+use crate::handlers::authorization_server_metadata::realm_issuer;
 use crate::sso_cookie::SSO_SESSION_COOKIE;
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
@@ -105,6 +106,10 @@ pub struct AuthRequest {
     /// than this asks the user to authenticate again.
     #[serde(default)]
     pub max_age: Option<i64>,
+    /// RFC 8707 resource indicator: becomes the audience of the access token.
+    /// Must be one of the realm's allowed resources.
+    #[serde(default)]
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -155,10 +160,12 @@ fn sso_fast_path_outcome(result: &AuthenticateOutput, prompt_none: bool) -> SsoF
 
 /// An authorization error handed back to the client on its (already
 /// validated) redirect URI, as RFC 6749 §4.1.2.1 describes.
+/// It carries the issuer as `iss` (RFC 9207).
 fn authorization_error_response(
     redirect_uri: &str,
     error: &str,
     state: Option<&str>,
+    issuer: &str,
 ) -> axum::response::Response {
     let separator = if redirect_uri.contains('?') { '&' } else { '?' };
     let mut location = format!("{redirect_uri}{separator}error={error}");
@@ -166,6 +173,8 @@ fn authorization_error_response(
     if let Some(state) = state {
         location.push_str(&format!("&state={}", urlencoding::encode(state)));
     }
+
+    location.push_str(&format!("&iss={}", urlencoding::encode(issuer)));
 
     (StatusCode::FOUND, [(LOCATION, location)]).into_response()
 }
@@ -201,6 +210,7 @@ pub async fn auth_handler(
     Query(params): Query<AuthRequest>,
 ) -> Result<axum::response::Response, ApiError> {
     let prompt = Prompt::parse(params.prompt.as_deref());
+    let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
 
     let result = match state
         .service
@@ -217,6 +227,8 @@ pub async fn auth_handler(
             ip_address: context.ip_address,
             user_agent: context.user_agent,
             prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
+            issuer: Some(issuer.clone()),
+            resource: params.resource.clone(),
         })
         .await
     {
@@ -243,6 +255,14 @@ pub async fn auth_handler(
             );
             return Ok((StatusCode::FOUND, [(LOCATION, error_url)]).into_response());
         }
+        Err(CoreError::InvalidTarget) => {
+            return Ok(authorization_error_response(
+                &params.redirect_uri,
+                "invalid_target",
+                params.state.as_deref(),
+                &issuer,
+            ));
+        }
         Err(e) => return Err(ApiError::from(e)),
     };
 
@@ -251,6 +271,7 @@ pub async fn auth_handler(
             &params.redirect_uri,
             "invalid_request",
             params.state.as_deref(),
+            &issuer,
         ));
     };
 
@@ -290,6 +311,7 @@ pub async fn auth_handler(
                         &params.redirect_uri,
                         "consent_required",
                         params.state.as_deref(),
+                        &issuer,
                     ));
                 }
                 SsoFastPathOutcome::NotApplicable => {}
@@ -318,6 +340,7 @@ pub async fn auth_handler(
             &params.redirect_uri,
             error,
             params.state.as_deref(),
+            &issuer,
         ));
     }
 
@@ -513,6 +536,7 @@ mod tests {
             "https://app.example/cb?tenant=acme",
             "login_required",
             Some("a b"),
+            "https://auth.example/realms/demo",
         );
 
         assert_eq!(response.status(), StatusCode::FOUND);
@@ -521,7 +545,9 @@ mod tests {
                 .headers()
                 .get(LOCATION)
                 .and_then(|v| v.to_str().ok()),
-            Some("https://app.example/cb?tenant=acme&error=login_required&state=a%20b")
+            Some(
+                "https://app.example/cb?tenant=acme&error=login_required&state=a%20b&iss=https%3A%2F%2Fauth.example%2Frealms%2Fdemo"
+            )
         );
     }
 

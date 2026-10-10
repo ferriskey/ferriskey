@@ -290,6 +290,7 @@ pub struct RefreshToken {
     pub replaced_by: Option<Uuid>,
     /// When this token was rotated (diagnostics).
     pub rotated_at: Option<DateTime<Utc>>,
+    pub resource: Option<String>,
 }
 
 impl RefreshToken {
@@ -317,6 +318,7 @@ impl RefreshToken {
             },
             replaced_by: None,
             rotated_at: None,
+            resource: None,
         }
     }
 }

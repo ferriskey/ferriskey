@@ -29,11 +29,15 @@ scope_form:
     hint:
       default: Attached to every new client and issued without the client asking for it.
       optional: Offered to clients, but issued only when they request it by name.
+  dynamic:
+    label: Available to dynamic clients (CIMD, DCR)
+    description: Let clients that register themselves, through a metadata document or dynamic registration, request this scope.
 
 list:
   title: Client Scopes
   description: Reusable sets of claims that clients of this realm request by name.
   create: New client scope
+  dynamic_badge: Dynamic clients
   row_delete: Delete {{name}}
   count_one: '{{count}} scope'
   count_other: '{{count}} scopes'

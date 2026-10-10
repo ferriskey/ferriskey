@@ -1,6 +1,6 @@
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryTrait, Select,
+    QueryFilter, QueryTrait, Select, TransactionTrait,
 };
 
 use crate::{
@@ -283,6 +283,10 @@ impl RealmRepository for PostgresRealmRepository {
         webhook_retry_base_delay_ms: Option<Option<i32>>,
         webhook_retry_max_delay_ms: Option<Option<i32>>,
         webhook_retry_max_total_delay_ms: Option<Option<i32>>,
+        cimd_enabled: Option<bool>,
+        dcr_enabled: Option<bool>,
+        cimd_allowed_hosts: Option<Vec<String>>,
+        allowed_resources: Option<Vec<String>>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -418,11 +422,50 @@ impl RealmRepository for PostgresRealmRepository {
             realm_setting.webhook_retry_max_total_delay_ms = Set(webhook_retry_max_total_delay_ms);
         }
 
+        if let Some(cimd_enabled) = cimd_enabled {
+            realm_setting.cimd_enabled = Set(cimd_enabled);
+        }
+
+        if let Some(dcr_enabled) = dcr_enabled {
+            realm_setting.dcr_enabled = Set(dcr_enabled);
+        }
+
+        if let Some(cimd_allowed_hosts) = cimd_allowed_hosts {
+            realm_setting.cimd_allowed_hosts = Set(cimd_allowed_hosts);
+        }
+
+        let retained_resources = allowed_resources.clone();
+        if let Some(allowed_resources) = allowed_resources {
+            realm_setting.allowed_resources = Set(allowed_resources);
+        }
+
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
         let realm_setting = realm_setting
-            .update(&self.db)
+            .update(&txn)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .into();
+
+        if let Some(retained) = retained_resources {
+            crate::entity::realm_resource_owners::Entity::delete_many()
+                .filter(
+                    crate::entity::realm_resource_owners::Column::RealmId
+                        .eq::<Uuid>(realm_id.into()),
+                )
+                .filter(crate::entity::realm_resource_owners::Column::Uri.is_not_in(retained))
+                .exec(&txn)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?;
+        }
+
+        txn.commit()
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
 
         Ok(realm_setting)
     }

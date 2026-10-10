@@ -96,6 +96,7 @@ impl TestApp {
 
         let service = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
+            client_metadata_allow_private_endpoints: false,
             webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host,
@@ -201,6 +202,44 @@ impl TestApp {
             client_id,
             secret: spec.secret,
         }
+    }
+
+    pub async fn set_allowed_resources(&self, resources: &[&str]) {
+        let resources: Vec<String> = resources.iter().map(ToString::to_string).collect();
+        sqlx::query("UPDATE realm_settings SET allowed_resources = $1 WHERE realm_id = $2")
+            .bind(resources)
+            .bind(self.realm_id)
+            .execute(&self.pool)
+            .await
+            .expect("set allowed resources");
+    }
+
+    pub async fn ensure_client_scope(&self, name: &str) {
+        let now = chrono::Utc::now().naive_utc();
+        sqlx::query(
+            "INSERT INTO client_scopes (id, realm_id, name, protocol, default_scope_type, created_at, updated_at)
+             SELECT $1, $2, $3, 'openid-connect', 'none', $4, $4
+             WHERE NOT EXISTS (SELECT 1 FROM client_scopes WHERE realm_id = $2 AND name = $3)",
+        )
+        .bind(Uuid::new_v4())
+        .bind(self.realm_id)
+        .bind(name)
+        .bind(now)
+        .execute(&self.pool)
+        .await
+        .expect("ensure client scope");
+    }
+
+    pub async fn set_registration_toggles(&self, dcr_enabled: bool, cimd_enabled: bool) {
+        sqlx::query(
+            "UPDATE realm_settings SET dcr_enabled = $1, cimd_enabled = $2 WHERE realm_id = $3",
+        )
+        .bind(dcr_enabled)
+        .bind(cimd_enabled)
+        .bind(self.realm_id)
+        .execute(&self.pool)
+        .await
+        .expect("set registration toggles");
     }
 
     pub async fn set_client_enabled(&self, client: &SeededClient, enabled: bool) {
@@ -394,6 +433,18 @@ pub async fn sign_in_for_code(
     password: &str,
     extra: &[(&str, &str)],
 ) -> String {
+    let url = sign_in_for_redirect(server, app, client_id, username, password, extra).await;
+    query_param(&url, "code").expect("authorization code in redirect")
+}
+
+pub async fn sign_in_for_redirect(
+    server: &TestServer,
+    app: &TestApp,
+    client_id: &str,
+    username: &str,
+    password: &str,
+    extra: &[(&str, &str)],
+) -> String {
     let authorized = authorize(server, app, client_id, extra).await;
     assert_eq!(
         authorized.status_code(),
@@ -416,11 +467,10 @@ pub async fn sign_in_for_code(
         authenticated.text()
     );
 
-    let url = authenticated.json::<Value>()["url"]
+    authenticated.json::<Value>()["url"]
         .as_str()
         .expect("redirect url")
-        .to_string();
-    query_param(&url, "code").expect("authorization code in redirect")
+        .to_string()
 }
 
 pub fn query_param(url: &str, key: &str) -> Option<String> {

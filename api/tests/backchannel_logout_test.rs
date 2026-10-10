@@ -117,6 +117,7 @@ mod tests {
         // that allows private endpoints may reach.
         let service = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: true,
+            client_metadata_allow_private_endpoints: false,
             webapp_url: WEBAPP_URL.to_string(),
             database: DatabaseConfig {
                 host: db_host,
