@@ -69,19 +69,21 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 
 ## 🧭 Table of Contents
 
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Configuration](#-configuration)
-- [Database Migrations](#️-database-migrations)
-- [Modules](#-modules)
-- [Architecture](#-architecture)
-- [Observability](#-observability)
-- [Roadmap](#-roadmap)
-- [Contributing](#-contributing)
-- [Code of Conduct](#-code-of-conduct)
-- [Security](#-security)
-- [License](#-license)
-- [Links](#-links)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Database Migrations](#database-migrations)
+- [Modules](#modules)
+- [Architecture](#architecture)
+- [Observability](#observability)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Code of Conduct](#code-of-conduct)
+- [Security](#security)
+- [License](#license)
+- [Links](#links)
+
+<a id="features"></a>
 
 ## 🌟 Features
 
@@ -95,6 +97,8 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 | **Kubernetes‑ready**            | Helm chart with sane defaults; OCI distribution. |
 
 > **License:** Apache‑2.0. No paywalls. Community‑first.
+
+<a id="quick-start"></a>
 
 ## 🚀 Quick Start
 
@@ -163,6 +167,8 @@ pnpm run dev
 
 Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
 
+<a id="configuration"></a>
+
 ## ⚙️ Configuration
 
 Common environment variables (example):
@@ -184,6 +190,8 @@ ALLOWED_ORIGINS=http://localhost:5555
 
 By default, the API will listen on port 3333 and the frontend on port 5555.
 
+<a id="database-migrations"></a>
+
 ## 🗄️ Database Migrations
 
 FerrisKey uses SQLx for database migrations. To apply pending migrations:
@@ -201,6 +209,8 @@ DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrat
 
 > **Note:** If you have `DATABASE_URL` set in your environment or `.env` file, you can omit it from the command.
 
+<a id="modules"></a>
+
 ## 🧩 Modules
 
 - Trident — MFA & security scopes
@@ -212,18 +222,26 @@ Security event trails; queryable from the console; exportable.
 - Webhooks — Event‑driven extensibility
 Subscribe to user/client/realm lifecycle events without forking core.
 
+<a id="architecture"></a>
+
 ## 🏗️ Architecture
 
 FerrisKey follows a Hexagonal Architecture (Ports & Adapters) to keep business logic pure and infrastructure replaceable.
+
+<a id="observability"></a>
 
 ## 📈 Observability
 
 - Metrics: /metrics (Prometheus format)
 - Dashboards: Starter Grafana dashboards included in Helm values (optional)
 
+<a id="roadmap"></a>
+
 ## 🗺️ Roadmap
 
 The public roadmap is at <https://ferriskey.rs/roadmap>. [ROADMAP.md](./ROADMAP.md) lists the epics in progress and how the roadmap is maintained.
+
+<a id="contributing"></a>
 
 ## 🤝 Contributing
 
@@ -235,17 +253,25 @@ We welcome contributions of all kinds bugfixes, features, docs, testing.
 
 > Join discussions to help shape modules, APIs, and UX.
 
+<a id="code-of-conduct"></a>
+
 ## 🫱 Code of Conduct
 
 FerrisKey follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md). See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for scope and how to report an incident.
+
+<a id="security"></a>
 
 ## 🔐 Security
 
 Report vulnerabilities privately through the [Security tab](https://github.com/ferriskey/ferriskey/security/advisories/new), never in a public issue. Supported versions, response targets and the disclosure process are in [SECURITY.md](./SECURITY.md).
 
+<a id="license"></a>
+
 ## 📜 License
 
 Apache‑2.0 — free to use, modify, and distribute.
+
+<a id="links"></a>
 
 ## 🔗 Links
 
