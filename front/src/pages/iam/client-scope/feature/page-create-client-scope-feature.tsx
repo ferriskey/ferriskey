@@ -1,7 +1,7 @@
+import type { Schemas } from '@/api/api.client'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useCreateClientScope } from '@/api/client-scope.api'
-import type { CreateClientScopeBody } from '@/api/client-scope-dynamic'
 import { RouterParams } from '@/routes/router'
 import { createClientScopeSchema } from '@/pages/iam/client-scope/schemas/create-client-scope.schema'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
@@ -37,7 +37,7 @@ export default function PageCreateClientScopeFeature() {
   const handleSubmit = () => {
     if (!parsed.success || isPending) return
 
-    const body: CreateClientScopeBody = {
+    const body: Schemas.CreateClientScopeValidator = {
       name,
       description: description.trim() || null,
       protocol: PROTOCOL,

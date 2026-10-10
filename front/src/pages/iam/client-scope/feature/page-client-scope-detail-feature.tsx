@@ -12,7 +12,6 @@ import { useRouteTabs } from '@/components/kit'
 import { updateClientScopeSchema } from '@/pages/iam/client-scope/schemas/update-client-scope.schema'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
 import { Schemas } from '@/api/api.client'
-import type { ClientScopeWithDynamic, UpdateClientScopeBody } from '@/api/client-scope-dynamic'
 import { clientScopeMappersUrl, clientScopeUrl, protocolMapperUrl } from '../urls'
 import PageClientScopeDetail from '../ui/page-client-scope-detail'
 import type { ScopeTypeChoice } from '../ui/page-create-client-scope'
@@ -42,7 +41,7 @@ export default function PageClientScopeDetailFeature() {
   const realm = realm_name ?? 'master'
 
   const { data, isLoading } = useGetClientScope({ realm, scopeId: scope_id })
-  const scope: ClientScopeWithDynamic | undefined = data
+  const scope: Schemas.ClientScope | undefined = data
   const { mutate: updateClientScope, isPending } = useUpdateClientScope()
   const { mutate: deleteClientScope } = useDeleteClientScope()
   const { mutate: deleteProtocolMapper } = useDeleteProtocolMapper()
@@ -92,7 +91,7 @@ export default function PageClientScopeDetailFeature() {
   const save = () => {
     if (!scope || !scope_id || !parsed.success || isPending) return
 
-    const body: UpdateClientScopeBody = {
+    const body: Schemas.UpdateClientScopeValidator = {
       name,
       description: description.trim() || null,
       protocol: scope.protocol,
