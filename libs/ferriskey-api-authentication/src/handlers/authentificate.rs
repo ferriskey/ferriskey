@@ -6,7 +6,6 @@ use axum_cookie::CookieManager;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
 use ferriskey_api_core::app_state::AppState;
-use ferriskey_api_core::decoded_token::OptionalToken;
 use ferriskey_api_core::url::FullUrl;
 
 use ferriskey_core::domain::authentication::entities::AuthenticateInput;
@@ -66,7 +65,6 @@ pub async fn authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
-    OptionalToken(optional_token): OptionalToken,
     Query(query): Query<AuthenticateQueryParams>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
@@ -82,34 +80,24 @@ pub async fn authenticate(
 
     let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
-    let authenticate_params = if let Some(token) = optional_token {
-        AuthenticateInput::with_existing_token(
-            realm_name.clone(),
-            query.client_id.clone(),
-            session_code,
-            base_url.clone(),
-            token.token,
-        )
-    } else {
-        let username = payload
-            .username
-            .clone()
-            .ok_or_else(|| ApiError::BadRequest("username is required".into()))?;
-        let password = payload
-            .password
-            .clone()
-            .ok_or_else(|| ApiError::BadRequest("password is required".into()))?;
+    let username = payload
+        .username
+        .clone()
+        .ok_or_else(|| ApiError::BadRequest("username is required".into()))?;
+    let password = payload
+        .password
+        .clone()
+        .ok_or_else(|| ApiError::BadRequest("password is required".into()))?;
 
-        AuthenticateInput::with_user_credentials(
-            realm_name.clone(),
-            query.client_id.clone(),
-            session_code,
-            base_url.clone(),
-            username,
-            password,
-            payload.remember_me,
-        )
-    };
+    let authenticate_params = AuthenticateInput::with_user_credentials(
+        realm_name.clone(),
+        query.client_id.clone(),
+        session_code,
+        base_url.clone(),
+        username,
+        password,
+        payload.remember_me,
+    );
     let result = state.service.authenticate(authenticate_params).await?;
 
     // If user has VerifyEmail required action, automatically send verification email

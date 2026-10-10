@@ -348,22 +348,6 @@ impl AuthenticateInput {
         }
     }
 
-    pub fn with_existing_token(
-        realm_name: String,
-        client_id: String,
-        session_code: Uuid,
-        base_url: String,
-        token: String,
-    ) -> Self {
-        Self {
-            realm_name,
-            client_id,
-            session_code,
-            base_url,
-            auth_method: AuthenticationMethod::ExistingToken { token },
-        }
-    }
-
     pub fn with_sso_session(
         realm_name: String,
         client_id: String,
@@ -379,10 +363,6 @@ impl AuthenticateInput {
             base_url,
             auth_method: AuthenticationMethod::SsoSession { cookie, max_age },
         }
-    }
-
-    pub fn is_token_refresh(&self) -> bool {
-        matches!(self.auth_method, AuthenticationMethod::ExistingToken { .. })
     }
 
     pub fn is_credential_auth(&self) -> bool {
@@ -495,11 +475,8 @@ pub enum AuthenticationStepStatus {
 pub enum SsoSessionBinding {
     Open,
     Resume {
-        session: Scoped<UserSession>,
+        session: Box<Scoped<UserSession>>,
         cookie: String,
-    },
-    Adopt {
-        session: Scoped<UserSession>,
     },
 }
 
@@ -509,9 +486,6 @@ pub enum AuthenticationMethod {
         username: String,
         password: String,
         remember_me: bool,
-    },
-    ExistingToken {
-        token: String,
     },
     /// `max_age` is the OIDC parameter: refuse a session whose last
     /// interactive authentication is older than that many seconds.

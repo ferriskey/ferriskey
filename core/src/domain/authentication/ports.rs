@@ -244,13 +244,6 @@ pub trait GrantTypeStrategy: Send + Sync {
 }
 
 pub trait AuthenticatePort: Send + Sync {
-    fn handle_token_refresh(
-        &self,
-        token: String,
-        scope: RealmScope,
-        auth_session: AuthSession,
-        session_code: Uuid,
-    ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
     fn handle_user_credentials_authentication(
         &self,
         params: CredentialsAuthParams,
