@@ -26,9 +26,9 @@ The maintainers listed in [MAINTAINERS.md](./MAINTAINERS.md) handle the report. 
 
 ## Embargo and disclosure
 
-Reports stay private until a fix is released. Disclosure is coordinated with the reporter and happens when the fix is available, or 90 days after the report, whichever comes first. If a vulnerability is already public or actively exploited, the fix and the advisory are published as soon as possible.
+Reports stay private until the fix is released or the 90-day deadline is reached, whichever comes first. Disclosure is coordinated with the reporter and may happen at the deadline even if no fix is available yet. If a vulnerability is already public or actively exploited, the fix and the advisory are published as soon as possible.
 
-Advisories are published on the repository [Security Advisories](https://github.com/ferriskey/ferriskey/security/advisories) page and get a CVE through GitHub. Reporters are credited in the advisory unless they ask not to be.
+Advisories are published on the repository [Security Advisories](https://github.com/ferriskey/ferriskey/security/advisories) page. The maintainers request a CVE through GitHub when the advisory is eligible. Reporters are credited in the advisory unless they ask not to be.
 
 ## Supported versions
 
