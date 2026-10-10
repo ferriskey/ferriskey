@@ -221,6 +221,10 @@ FerrisKey follows a Hexagonal Architecture (Ports & Adapters) to keep business l
 - Metrics: /metrics (Prometheus format)
 - Dashboards: Starter Grafana dashboards included in Helm values (optional)
 
+## 🗺️ Roadmap
+
+The public roadmap is at <https://ferriskey.rs/roadmap>. [ROADMAP.md](./ROADMAP.md) lists the epics in progress and how the roadmap is maintained.
+
 ## 🤝 Contributing
 
 We welcome contributions of all kinds bugfixes, features, docs, testing.
