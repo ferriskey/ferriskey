@@ -3280,7 +3280,7 @@ where
         let auth_result = self
             .using_session_code(
                 &params.realm,
-                params.client_id,
+                auth_session.client_id,
                 params.session_code,
                 params.username,
                 params.password,
@@ -3777,7 +3777,7 @@ where
     async fn using_session_code(
         &self,
         scope: &RealmScope,
-        client_id: String,
+        client_uuid: Uuid,
         session_code: Uuid,
         username: String,
         password: String,
@@ -3785,11 +3785,10 @@ where
     ) -> Result<AuthenticationResult, CoreError> {
         let client = self
             .client_repository
-            .get_by_client_id(client_id.clone(), scope.id())
+            .get_by_id(scope.id(), client_uuid)
             .await
             .map_err(|e| {
-                warn!("Client not found for client_id {}: {:?}", client_id, e);
-
+                warn!(client_id = %client_uuid, error = ?e, "Client of the auth session not found");
                 CoreError::InvalidClient
             })?
             .in_realm(scope)?
@@ -4027,7 +4026,7 @@ This is a server error that should be investigated. Do not forward back this mes
             iss,
             vec![format!("{}-realm", scope.name()), "account".to_string()],
             ClaimsTyp::Temporary,
-            client_id.clone(),
+            client.client_id.clone(),
             user.email.clone(),
             auth_session.scope,
             temporary_lifetime,
@@ -4888,7 +4887,6 @@ where
             } => {
                 let params = CredentialsAuthParams {
                     realm: scope,
-                    client_id: input.client_id,
                     session_code: input.session_code,
                     base_url: input.base_url,
                     username,
