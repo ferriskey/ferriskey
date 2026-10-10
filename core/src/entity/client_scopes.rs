@@ -21,6 +21,7 @@ pub struct Model {
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub default_scope_type: String,
+    pub dynamic_registration_allowed: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -33,6 +34,7 @@ pub enum Column {
     CreatedAt,
     UpdatedAt,
     DefaultScopeType,
+    DynamicRegistrationAllowed,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -67,6 +69,7 @@ impl ColumnTrait for Column {
             Self::CreatedAt => ColumnType::DateTime.def(),
             Self::UpdatedAt => ColumnType::DateTime.def(),
             Self::DefaultScopeType => ColumnType::String(StringLen::N(255u32)).def(),
+            Self::DynamicRegistrationAllowed => ColumnType::Boolean.def(),
         }
     }
 }

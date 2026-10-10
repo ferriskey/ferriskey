@@ -18,6 +18,7 @@ impl From<client_scopes::Model> for ClientScope {
             attributes: None,
             protocol_mappers: None,
             default_scope_type: model.default_scope_type.into(),
+            dynamic_registration_allowed: model.dynamic_registration_allowed,
             created_at: Utc.from_utc_datetime(&model.created_at),
             updated_at: Utc.from_utc_datetime(&model.updated_at),
         }

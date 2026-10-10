@@ -107,6 +107,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
             } else {
                 ScopeType::Optional.to_string()
             }),
+            dynamic_registration_allowed: Set(payload.dynamic_registration_allowed),
             created_at: Set(now),
             updated_at: Set(now),
         };
@@ -258,6 +259,10 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
                 ScopeType::Optional.to_string()
             }),
             None => active.default_scope_type,
+        };
+        active.dynamic_registration_allowed = match payload.dynamic_registration_allowed {
+            Some(v) => Set(v),
+            None => active.dynamic_registration_allowed,
         };
         active.updated_at = Set(Utc::now().naive_utc());
 

@@ -49,6 +49,7 @@ pub async fn update_client_scope(
                     description: payload.description,
                     protocol: payload.protocol,
                     is_default: payload.is_default,
+                    dynamic_registration_allowed: payload.dynamic_registration_allowed,
                 },
             },
         )
