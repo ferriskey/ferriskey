@@ -246,31 +246,21 @@ where
             return Ok((user, false));
         }
 
-        // 2. If link_only mode, try to find user by email
-        if idp.get().link_only {
-            if let Some(email) = &user_info.email
-                && user_info.email_verified.unwrap_or(false)
-                && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
-            {
-                // Link existing user
-                self.create_idp_link(&user, idp, user_info, access_token)
-                    .await?;
-                return Ok((user, false));
-            }
-            // link_only mode and no matching user found
-            return Err(CoreError::LinkOnlyUserNotFound);
-        }
-
-        // 3. Try to find by email if trust_email is enabled
-        if idp.get().trust_email
-            && let Some(email) = &user_info.email
-            && user_info.email_verified.unwrap_or(false)
+        if let Some(email) = &user_info.email
             && let Some(user) = self.user_repository.get_by_email(email, realm_id).await?
+            && may_link_by_email(
+                idp.get().trust_email,
+                user_info.email_verified,
+                user.email_verified,
+            )
         {
-            // Link existing user
             self.create_idp_link(&user, idp, user_info, access_token)
                 .await?;
             return Ok((user, false));
+        }
+
+        if idp.get().link_only {
+            return Err(CoreError::LinkOnlyUserNotFound);
         }
 
         // 4. Create new user
@@ -852,6 +842,14 @@ where
     }
 }
 
+fn may_link_by_email(
+    trust_email: bool,
+    upstream_email_verified: Option<bool>,
+    local_email_verified: bool,
+) -> bool {
+    trust_email && upstream_email_verified.unwrap_or(false) && local_email_verified
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -924,6 +922,25 @@ mod tests {
         let mut base = claims(serde_json::json!({}));
         base.as_object_mut().expect("object").remove(name);
         base
+    }
+
+    #[test]
+    fn an_account_is_linked_by_email_only_when_every_side_vouches_for_it() {
+        let cases = [
+            (true, Some(true), true, true),
+            (true, Some(true), false, false),
+            (true, Some(false), true, false),
+            (true, None, true, false),
+            (false, Some(true), true, false),
+        ];
+
+        for (trust_email, upstream_verified, local_verified, expected) in cases {
+            assert_eq!(
+                may_link_by_email(trust_email, upstream_verified, local_verified),
+                expected,
+                "trust_email={trust_email} upstream={upstream_verified:?} local={local_verified}"
+            );
+        }
     }
 
     #[test]
