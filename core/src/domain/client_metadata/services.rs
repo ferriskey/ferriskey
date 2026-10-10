@@ -20,7 +20,7 @@ use crate::domain::client_metadata::ports::{
 use crate::domain::client_metadata::validation::{
     ensure_host_allowed, is_metadata_client_id, parse_client_id_url, validate_document,
 };
-use crate::domain::client_registration::provision::assign_default_scopes;
+use crate::domain::client_registration::provision::assign_scopes;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::rate_limit::IpRateLimiter;
 use crate::domain::realm::entities::RealmScope;
@@ -175,12 +175,12 @@ where
             })
             .await?;
 
-        assign_default_scopes(
+        assign_scopes(
             self.scope_repository.as_ref(),
             self.scope_mapping_repository.as_ref(),
             scope.id(),
             client.id,
-            &[],
+            None,
         )
         .await?;
 

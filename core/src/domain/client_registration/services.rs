@@ -14,7 +14,7 @@ use crate::domain::client_registration::entities::{
     RegistrationError,
 };
 use crate::domain::client_registration::ports::ClientRegistrationService;
-use crate::domain::client_registration::provision::{assign_default_scopes, registrable_scopes};
+use crate::domain::client_registration::provision::{assign_scopes, registrable_scopes};
 use crate::domain::client_registration::validation::{effective_scope, validate_registration};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_random_token;
@@ -126,12 +126,12 @@ where
                 .map_err(internal)?;
         }
 
-        assign_default_scopes(
+        assign_scopes(
             self.scope_repository.as_ref(),
             self.scope_mapping_repository.as_ref(),
             scope.id(),
             client.id,
-            &validated.scopes,
+            validated.scopes.as_deref(),
         )
         .await
         .map_err(internal)?;
@@ -146,7 +146,7 @@ where
             token_endpoint_auth_method: validated.token_endpoint_auth_method,
             grant_types: validated.grant_types,
             response_types: validated.response_types,
-            scope: effective_scope(&validated.scopes),
+            scope: effective_scope(validated.scopes.as_deref().unwrap_or_default()),
         })
     }
 }

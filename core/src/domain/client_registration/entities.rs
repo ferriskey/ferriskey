@@ -54,7 +54,7 @@ pub struct ValidatedRegistration {
     pub public_client: bool,
     pub grant_types: Vec<String>,
     pub response_types: Vec<String>,
-    pub scopes: Vec<String>,
+    pub scopes: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
