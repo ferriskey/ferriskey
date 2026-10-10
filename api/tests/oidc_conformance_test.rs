@@ -607,6 +607,28 @@ mod tests {
     }
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn a_disabled_service_account_cannot_use_client_credentials() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app
+                .client(ClientSpec::confidential().with_service_account())
+                .await;
+            app.bind_service_account(&server, &client).await;
+            sqlx::query("UPDATE users SET enabled = false WHERE client_id = $1")
+                .bind(client.id)
+                .execute(&app.pool)
+                .await
+                .expect("disable service account");
+
+            let response = client_credentials(&server, app, &client).await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "unauthorized_client");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn token_response_is_not_cacheable() {
         rt().block_on(async {
             let app = app();
