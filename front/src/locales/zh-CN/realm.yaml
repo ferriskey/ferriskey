@@ -36,6 +36,7 @@ settings:
     deleted: '域“{{name}}”已被删除。'
     policy_updated: 密码策略更新成功
     policy_failed: 更新密码策略失败
+    owners_failed: 更新资源所有者失败
 
 general:
   identity:
@@ -135,8 +136,11 @@ mcp:
     placeholder: client.example.com
   resources:
     label: 允许的资源
-    description: 客户端可以请求受众的资源标识符。必须是绝对 https URL，或环回主机上的 http URL，且不含片段。
+    description: 客户端可以请求受众的资源标识符。必须是绝对 https URL，或环回主机上的 http URL，且不含片段。所有者（由管理员注册的机密客户端）随后可以为该资源交换令牌。
     placeholder: https://mcp.example.com
+    owner:
+      none: 无所有者
+      aria: '{{entry}} 的所有者'
   add: 添加
   remove: 移除 {{entry}}
 

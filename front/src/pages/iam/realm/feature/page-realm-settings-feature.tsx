@@ -11,6 +11,8 @@ import {
   useUpdateRealmPasswordPolicy,
   useUpdateRealmSettings,
 } from '@/api/realm.api'
+import { useGetClients } from '@/api/client.api'
+import { useGetResourceOwners, useUpdateResourceOwners } from '@/api/resource-owners.api'
 import { useUserPicker } from '@/hooks/use-user-picker'
 import { useRolePicker } from '@/hooks/use-role-picker'
 import {
@@ -35,6 +37,12 @@ import type { PolicyDraft } from '../ui/realm-password-policy-tab'
 import { REALM_NAMESPACE } from '../realm-namespace'
 import { invalidEntries, isValidCimdHost, isValidResource } from '../mcp-validation'
 import { useDraft } from './use-draft'
+import {
+  ownerClientOptions,
+  ownersChanged,
+  ownersFromList,
+  ownersToList,
+} from '../resource-owners'
 
 import LoginAlias = Schemas.LoginAlias
 import { apiErrorMessage } from '@/lib/api-error'
@@ -73,11 +81,14 @@ const DEFAULT_TOKENS: TokensDraft = {
   temporaryTokenLifetime: 300,
 }
 
+const OWNER_CLIENTS_LIMIT = 100
+
 const DEFAULT_MCP: McpDraft = {
   cimdEnabled: false,
   dcrEnabled: false,
   cimdAllowedHosts: [],
   allowedResources: [],
+  owners: {},
 }
 
 const DEFAULT_POLICY: PolicyDraft = {
@@ -108,6 +119,12 @@ export default function PageRealmSettingsFeature() {
 
   const { data: whitelistResponse } = useGetRealmWhitelist({ realm })
 
+  const { data: ownersData, dataUpdatedAt: ownersUpdatedAt } = useGetResourceOwners({ realm })
+  const { data: ownerClientsData } = useGetClients({
+    realm,
+    query: { client_type: 'confidential', limit: OWNER_CLIENTS_LIMIT },
+  })
+  const { mutate: updateOwners } = useUpdateResourceOwners()
   const { mutate: updateRealm } = useUpdateRealm()
   const { mutate: updateSettings } = useUpdateRealmSettings()
   const { mutate: updatePolicy } = useUpdateRealmPasswordPolicy()
@@ -169,10 +186,11 @@ export default function PageRealmSettingsFeature() {
         dcrEnabled: settings.dcr_enabled,
         cimdAllowedHosts: settings.cimd_allowed_hosts,
         allowedResources: settings.allowed_resources,
+        owners: ownersFromList(ownersData?.data ?? []),
       }
     : DEFAULT_MCP
   const mcp = useDraft(
-    settings ? `${settings.id}:${settings.updated_at}` : '',
+    settings ? `${settings.id}:${settings.updated_at}:${ownersUpdatedAt}` : '',
     pristineMcp
   )
 
@@ -251,11 +269,17 @@ export default function PageRealmSettingsFeature() {
     tokensDraft.value.refreshTokenLifetime !== pristineTokens.refreshTokenLifetime ||
     tokensDraft.value.idTokenLifetime !== pristineTokens.idTokenLifetime ||
     tokensDraft.value.temporaryTokenLifetime !== pristineTokens.temporaryTokenLifetime
-  const mcpDirty =
+  const mcpSettingsDirty =
     mcp.value.cimdEnabled !== pristineMcp.cimdEnabled ||
     mcp.value.dcrEnabled !== pristineMcp.dcrEnabled ||
     mcp.value.cimdAllowedHosts.join() !== pristineMcp.cimdAllowedHosts.join() ||
     mcp.value.allowedResources.join() !== pristineMcp.allowedResources.join()
+  const mcpOwnersDirty = ownersChanged(
+    pristineMcp.owners,
+    mcp.value.owners,
+    mcp.value.allowedResources
+  )
+  const mcpDirty = mcpSettingsDirty || mcpOwnersDirty
   const policyDirty = (
     Object.keys(pristinePolicy) as (keyof PolicyDraft)[]
   ).some((key) => policy.value[key] !== pristinePolicy[key])
@@ -291,7 +315,21 @@ export default function PageRealmSettingsFeature() {
       )
     }
 
-    if (loginDirty || tokensDirty || mcpDirty) {
+    const saveOwners = () =>
+      updateOwners(
+        {
+          realm: realm_name,
+          owners: ownersToList(mcp.value.owners, mcp.value.allowedResources),
+        },
+        {
+          onError: (error: Error) =>
+            toast.error(apiErrorMessage(error, t('settings.toast.owners_failed'))),
+        }
+      )
+
+    if (!loginDirty && !tokensDirty && !mcpSettingsDirty && mcpOwnersDirty) saveOwners()
+
+    if (loginDirty || tokensDirty || mcpSettingsDirty) {
       updateSettings({
         path: { name: realm_name },
         body: {
@@ -315,7 +353,7 @@ export default function PageRealmSettingsFeature() {
                 temporary_token_lifetime: tokensDraft.value.temporaryTokenLifetime,
               }
             : {}),
-          ...(mcpDirty
+          ...(mcpSettingsDirty
             ? {
                 cimd_enabled: mcp.value.cimdEnabled,
                 dcr_enabled: mcp.value.dcrEnabled,
@@ -323,6 +361,10 @@ export default function PageRealmSettingsFeature() {
                 allowed_resources: mcp.value.allowedResources,
               }
             : {}),
+        },
+      }, {
+        onSuccess: () => {
+          if (mcpOwnersDirty) saveOwners()
         },
       })
     }
@@ -383,6 +425,7 @@ export default function PageRealmSettingsFeature() {
       loginAliasesError={loginAliasesError}
       tokensValue={tokensDraft.value}
       mcp={mcp.value}
+      mcpOwnerClients={ownerClientOptions(ownerClientsData?.data ?? [])}
       policy={policy.value}
       policyErrors={policyErrors}
       policyLoading={policyLoading}

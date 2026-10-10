@@ -23,6 +23,7 @@ export interface PageClientScopeDetailProps {
   name: string
   description: string
   scopeType: ScopeTypeChoice
+  dynamicAllowed: boolean
   nameError?: string
   dirtyCount: number
   isPending: boolean
@@ -34,6 +35,7 @@ export interface PageClientScopeDetailProps {
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
   onScopeTypeChange: (v: ScopeTypeChoice) => void
+  onDynamicAllowedChange: (v: boolean) => void
   onBack: () => void
   onDiscard: () => void
   onSave: () => void
@@ -48,6 +50,7 @@ export default function PageClientScopeDetail({
   name,
   description,
   scopeType,
+  dynamicAllowed,
   nameError,
   dirtyCount,
   isPending,
@@ -59,6 +62,7 @@ export default function PageClientScopeDetail({
   onNameChange,
   onDescriptionChange,
   onScopeTypeChange,
+  onDynamicAllowedChange,
   onBack,
   onDiscard,
   onSave,
@@ -155,10 +159,12 @@ export default function PageClientScopeDetail({
               name={name}
               description={description}
               scopeType={scopeType}
+              dynamicAllowed={dynamicAllowed}
               nameError={nameError}
               onNameChange={onNameChange}
               onDescriptionChange={onDescriptionChange}
               onScopeTypeChange={onScopeTypeChange}
+              onDynamicAllowedChange={onDynamicAllowedChange}
               onDelete={onDelete}
             />
           )}

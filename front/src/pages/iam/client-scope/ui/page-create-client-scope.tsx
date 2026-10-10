@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FieldRow, PageShell, Section } from '@/components/kit'
+import { FieldRow, PageShell, Section, SwitchField } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
 import ScopeTypeHint from './scope-type-hint'
 import { SCOPE_TYPE_CHOICES } from '../scope-type'
@@ -23,12 +23,14 @@ export interface PageCreateClientScopeProps {
   description: string
   protocol: string
   scopeType: ScopeTypeChoice
+  dynamicAllowed: boolean
   nameError?: string
   canSubmit: boolean
   isPending: boolean
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
   onScopeTypeChange: (v: ScopeTypeChoice) => void
+  onDynamicAllowedChange: (v: boolean) => void
   onBack: () => void
   onSubmit: () => void
 }
@@ -38,12 +40,14 @@ export default function PageCreateClientScope({
   description,
   protocol,
   scopeType,
+  dynamicAllowed,
   nameError,
   canSubmit,
   isPending,
   onNameChange,
   onDescriptionChange,
   onScopeTypeChange,
+  onDynamicAllowedChange,
   onBack,
   onSubmit,
 }: PageCreateClientScopeProps) {
@@ -130,6 +134,14 @@ export default function PageCreateClientScope({
               </Select>
               <ScopeTypeHint scopeType={scopeType} />
             </div>
+          </FieldRow>
+
+          <FieldRow
+            label={t('scope_form.dynamic.label')}
+            description={t('scope_form.dynamic.description')}
+            htmlFor='new-scope-dynamic'
+          >
+            <SwitchField id='new-scope-dynamic' checked={dynamicAllowed} onCheckedChange={onDynamicAllowedChange} />
           </FieldRow>
         </Section>
       </div>
