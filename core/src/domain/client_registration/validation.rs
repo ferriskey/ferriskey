@@ -96,7 +96,7 @@ pub fn validate_registration(
     }
 
     let scopes = match request.scope.as_deref() {
-        None => Vec::new(),
+        None => None,
         Some(raw) => {
             let requested: Vec<String> = raw.split_whitespace().map(str::to_string).collect();
             if !requested
@@ -107,7 +107,7 @@ pub fn validate_registration(
                     "scope is not available for dynamic clients in this realm",
                 ));
             }
-            requested
+            Some(requested)
         }
     };
 
