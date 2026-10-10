@@ -275,7 +275,10 @@ fn resolve_attribute_values(
         SamlAttributeSource::Username => non_empty(Some(user.username.as_str()))
             .into_iter()
             .collect(),
-        SamlAttributeSource::Email => non_empty(user.email.as_deref()).into_iter().collect(),
+        SamlAttributeSource::Email => non_empty(user.email.as_deref())
+            .filter(|_| user.email_verified)
+            .into_iter()
+            .collect(),
         SamlAttributeSource::FirstName => {
             non_empty(user.firstname.as_deref()).into_iter().collect()
         }
@@ -621,6 +624,17 @@ mod tests {
                 ("last_name", ["Liddell".to_string()].as_slice()),
             ]
         );
+    }
+
+    #[test]
+    fn an_unverified_address_is_not_asserted_as_the_email_attribute() {
+        let mut user = user(RealmId::default());
+        user.email_verified = false;
+
+        let attributes =
+            build_assertion_attributes(&[mapper("email", SamlAttributeSource::Email)], &user, &[]);
+
+        assert!(attributes.is_empty(), "{attributes:?}");
     }
 
     #[test]
