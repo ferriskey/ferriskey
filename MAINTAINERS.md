@@ -4,7 +4,7 @@ The following individuals are responsible for the direction and maintenance of t
 
 | Name                | GitHub ID                                              | Company/Organization | Area                           |
 | ------------------- | ------------------------------------------------------ | -------------------- | ------------------------------ |
-| Nathaël Bonnal      | [@NathaelB](https://github.com/NathaelB)               | Cloud IAM            | Founder & Software Engineer    |
+| Nathaël Bonnal      | [@NathaelB](https://github.com/NathaelB)               | Independent          | Founder & Software Engineer    |
 | Baptiste Parmantier | [@LeadcodeDev](https://github.com/LeadcodeDev)         | Independent          | Co-founder & Software Engineer |
 | Guillaume Leroy     | [@leroyguillaume](https://github.com/leroyguillaume)   | Independent          | CI/CD & Deployment             |
 | Luis Rubiera        | [@luisRubiera](https://github.com/luisRubiera)         | Cloud IAM            | Governance & Community         |
