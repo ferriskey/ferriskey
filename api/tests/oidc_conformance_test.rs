@@ -605,4 +605,178 @@ mod tests {
             assert_eq!(response.json::<Value>()["error"], "unauthorized_client");
         });
     }
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn token_response_is_not_cacheable() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let user = app.user(&server, PASSWORD).await;
+            let code = sign_in_for_code(
+                &server,
+                app,
+                &client.client_id,
+                &user.username,
+                PASSWORD,
+                &[],
+            )
+            .await;
+
+            let response = exchange_code(&server, app, &client, &code, &[]).await;
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            let cache_control = response
+                .maybe_header("cache-control")
+                .and_then(|value| value.to_str().ok().map(str::to_string));
+            assert_eq!(cache_control.as_deref(), Some("no-store"));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_missing_code_is_an_invalid_request() {
+        rt().block_on(async {
+            let app = app();
+            let client = app.client(ClientSpec::confidential()).await;
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[
+                    ("grant_type", "authorization_code"),
+                    ("client_id", client.client_id.as_str()),
+                    (
+                        "client_secret",
+                        client.secret.as_deref().unwrap_or_default(),
+                    ),
+                ])
+                .await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_request");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_wrong_hint_still_revokes_the_token() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let body = tokens(app, &client, &[]).await;
+            let access_token = body["access_token"]
+                .as_str()
+                .expect("access_token")
+                .to_string();
+
+            let revoked = server
+                .post(&app.oidc("revoke"))
+                .form(&[
+                    ("client_id", client.client_id.as_str()),
+                    (
+                        "client_secret",
+                        client.secret.as_deref().unwrap_or_default(),
+                    ),
+                    ("token", access_token.as_str()),
+                    ("token_type_hint", "refresh_token"),
+                ])
+                .await;
+            assert_eq!(revoked.status_code(), 200, "{}", revoked.text());
+            assert_eq!(
+                introspect(&server, app, &client, &access_token).await["active"],
+                false
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn an_unknown_grant_type_is_unsupported() {
+        rt().block_on(async {
+            let app = app();
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[("grant_type", "urn:example:made-up"), ("client_id", "x")])
+                .await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "unsupported_grant_type");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_wrong_password_is_an_invalid_grant() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let user = app.user(&server, PASSWORD).await;
+            let response =
+                password_grant(&server, app, ADMIN_CLIENT_ID, None, &user.username, "wrong").await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_grant");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn an_unknown_client_is_an_invalid_client() {
+        rt().block_on(async {
+            let app = app();
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[
+                    ("grant_type", "client_credentials"),
+                    ("client_id", "no-such-client"),
+                    ("client_secret", "whatever"),
+                ])
+                .await;
+            assert_eq!(response.status_code(), 401, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_client");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_forged_refresh_token_is_an_invalid_grant() {
+        rt().block_on(async {
+            let app = app();
+            let client = app.client(ClientSpec::public()).await;
+            let forged = format!(
+                "{}.{}.{}",
+                URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256","typ":"JWT"}"#),
+                URL_SAFE_NO_PAD.encode(r#"{"sub":"x","exp":1}"#),
+                URL_SAFE_NO_PAD.encode("signature")
+            );
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[
+                    ("grant_type", "refresh_token"),
+                    ("client_id", client.client_id.as_str()),
+                    ("refresh_token", forged.as_str()),
+                ])
+                .await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_grant");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn token_errors_are_not_cacheable() {
+        rt().block_on(async {
+            let app = app();
+            let response = app
+                .server()
+                .post(&app.oidc("token"))
+                .form(&[("grant_type", "authorization_code"), ("client_id", "x")])
+                .await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            let cache_control = response
+                .maybe_header("cache-control")
+                .and_then(|value| value.to_str().ok().map(str::to_string));
+            assert_eq!(cache_control.as_deref(), Some("no-store"));
+        });
+    }
 }

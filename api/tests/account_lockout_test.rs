@@ -14,8 +14,8 @@
 ///
 /// These tests verify:
 ///   1. N-1 failed attempts do NOT lock the account.
-///   2. Nth failed attempt locks the account (subsequent login returns 401 with
-///      the "locked" message even with correct credentials).
+///   2. Nth failed attempt locks the account (subsequent login returns 400
+///      `invalid_grant` with the "locked" description even with correct credentials).
 ///   3. Admin unlock endpoint clears the lockout → login succeeds.
 ///   4. Auto-recovery: locked_until in the past allows login again.
 ///
@@ -295,11 +295,14 @@ mod tests {
     }
 
     fn is_locked_response(resp: &TestResponse) -> bool {
-        if resp.status_code() != 401 {
+        if resp.status_code() != 400 {
             return false;
         }
         let body: Value = resp.json();
-        body["message"]
+        if body["error"] != "invalid_grant" {
+            return false;
+        }
+        body["error_description"]
             .as_str()
             .map(|m| m.to_lowercase().contains("locked"))
             .unwrap_or(false)
@@ -346,7 +349,7 @@ mod tests {
     }
 
     /// The Nth wrong-password attempt locks the account: the correct password
-    /// then returns 401 with the lockout message.
+    /// then returns 400 `invalid_grant` with the lockout description.
     #[test]
     #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test account_lockout_test -- --ignored"]
     fn at_threshold_locks_account() {
