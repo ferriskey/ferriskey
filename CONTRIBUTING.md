@@ -37,7 +37,8 @@ pnpm install
 3. Create a branch (`feat/...`, `fix/...`, `docs/...`)
 4. Implement your changes
 5. Run tests with `cargo test`
-6. Open a PR and fill in the description
+6. Commit with `git commit -s` (see [Developer Certificate of Origin](#dco))
+7. Open a PR and fill in the description
 
 Make sure to follow Rust best practices, and try to include unit tests when relevant.
 
@@ -160,6 +161,33 @@ For large changes, open an issue first and discuss the proposal with the maintai
 - Use meaningful commit messages (see [Conventional Commits](https://www.conventionalcommits.org/))
 
 ---
+
+<a id="dco"></a>
+
+## ✍️ Developer Certificate of Origin
+
+FerrisKey uses the [Developer Certificate of Origin](./DCO) (DCO) instead of a contributor license agreement. By signing off a commit, you certify that you wrote the change or have the right to submit it under the Apache 2.0 License.
+
+Every commit in a pull request must carry a `Signed-off-by` line with your real name and email address:
+
+```
+Signed-off-by: Jane Doe <jane.doe@example.com>
+```
+
+Git adds it for you:
+
+```bash
+git commit -s -m "feat(auth): implement oidc discovery"
+```
+
+If a pull request fails the DCO check, add the sign-off to the commits that miss it and force-push the branch. The sign-off uses your `user.name` and `user.email` from the Git configuration, so they must match the commit author:
+
+```bash
+git rebase --signoff origin/main
+git push --force-with-lease
+```
+
+The name and email must match the commit author. Pseudonyms and noreply addresses are not accepted; see the [CNCF DCO guidelines](https://github.com/cncf/foundation/blob/main/policies-guidance/dco-guidelines.md).
 
 ## 🧾 License
 
