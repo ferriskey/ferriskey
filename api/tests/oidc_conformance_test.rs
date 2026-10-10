@@ -182,6 +182,35 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn a_code_is_not_redeemed_for_a_user_disabled_meanwhile() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let user = app.user(&server, PASSWORD).await;
+            let code = sign_in_for_code(
+                &server,
+                app,
+                &client.client_id,
+                &user.username,
+                PASSWORD,
+                &[],
+            )
+            .await;
+            sqlx::query("UPDATE users SET enabled = false WHERE id = $1::uuid")
+                .bind(&user.id)
+                .execute(&app.pool)
+                .await
+                .expect("disable user");
+
+            let response = exchange_code(&server, app, &client, &code, &[]).await;
+            assert_eq!(response.status_code(), 400, "{}", response.text());
+            assert_eq!(response.json::<Value>()["error"], "invalid_grant");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn a_code_cannot_be_redeemed_by_another_client() {
         rt().block_on(async {
             let app = app();
