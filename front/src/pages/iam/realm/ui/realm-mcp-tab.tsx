@@ -1,21 +1,33 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { REALM_NAMESPACE } from '../realm-namespace'
 import { isValidCimdHost, isValidResource, validateEntry } from '../mcp-validation'
+import type { OwnerClientOption, OwnersByResource } from '../resource-owners'
+
+const NO_OWNER = '__none__'
 
 export interface McpDraft {
   cimdEnabled: boolean
   dcrEnabled: boolean
   cimdAllowedHosts: string[]
   allowedResources: string[]
+  owners: OwnersByResource
 }
 
 export interface RealmMcpTabProps {
   value: McpDraft
+  ownerClients: OwnerClientOption[]
   onChange: (patch: Partial<McpDraft>) => void
 }
 
@@ -28,6 +40,7 @@ interface EntryListProps {
   invalidMessage: string
   duplicateMessage: string
   isValid: (value: string) => boolean
+  renderExtra?: (entry: string) => ReactNode
   onChange: (next: string[]) => void
 }
 
@@ -40,6 +53,7 @@ function EntryList({
   invalidMessage,
   duplicateMessage,
   isValid,
+  renderExtra,
   onChange,
 }: EntryListProps) {
   const [draft, setDraft] = useState('')
@@ -89,9 +103,10 @@ function EntryList({
               key={entry}
               className='flex items-center justify-between gap-2 rounded-md border border-neutral-200 px-2.5 py-1.5 dark:border-neutral-800'
             >
-              <span className='min-w-0 truncate font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
+              <span className='min-w-0 flex-1 truncate font-mono-ui text-xs text-neutral-700 dark:text-neutral-300'>
                 {entry}
               </span>
+              {renderExtra?.(entry)}
               <button
                 type='button'
                 aria-label={removeLabel(entry)}
@@ -108,7 +123,7 @@ function EntryList({
   )
 }
 
-export default function RealmMcpTab({ value, onChange }: RealmMcpTabProps) {
+export default function RealmMcpTab({ value, ownerClients, onChange }: RealmMcpTabProps) {
   const { t } = useTranslation(REALM_NAMESPACE)
 
   return (
@@ -159,6 +174,32 @@ export default function RealmMcpTab({ value, onChange }: RealmMcpTabProps) {
           invalidMessage={t('validation.resource_invalid')}
           duplicateMessage={t('validation.entry_duplicate')}
           isValid={isValidResource}
+          renderExtra={(entry) => (
+            <Select
+              value={value.owners[entry] || NO_OWNER}
+              onValueChange={(next) =>
+                onChange({
+                  owners: { ...value.owners, [entry]: next === NO_OWNER ? '' : next },
+                })
+              }
+            >
+              <SelectTrigger
+                size='sm'
+                className='w-48 shrink-0'
+                aria-label={t('mcp.resources.owner.aria', { entry })}
+              >
+                <SelectValue placeholder={t('mcp.resources.owner.none')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_OWNER}>{t('mcp.resources.owner.none')}</SelectItem>
+                {ownerClients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           onChange={(next) => onChange({ allowedResources: next })}
         />
       </FieldRow>

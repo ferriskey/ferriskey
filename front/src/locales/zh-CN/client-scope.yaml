@@ -40,11 +40,15 @@ scope_form:
     hint:
       default: 附加到每个新建的客户端，无需客户端请求即会签发。
       optional: 向客户端开放，但仅在客户端按名称请求时才签发。
+  dynamic:
+    label: 对动态客户端开放（CIMD、DCR）
+    description: 允许通过元数据文档或动态注册自行注册的客户端请求此作用域。
 
 list:
   title: 客户端作用域
   description: 此域的客户端按名称请求的可复用声明集合。
   create: 新建客户端作用域
+  dynamic_badge: 动态客户端
   row_delete: 删除 {{name}}
   count_other: '{{count}} 个作用域'
   columns:

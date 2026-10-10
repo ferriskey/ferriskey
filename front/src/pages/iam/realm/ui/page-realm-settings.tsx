@@ -9,6 +9,7 @@ import RealmGeneralTab from './realm-general-tab'
 import RealmLoginTab, { type LoginDraft } from './realm-login-tab'
 import RealmTokensTab, { type TokensDraft } from './realm-tokens-tab'
 import RealmMcpTab, { type McpDraft } from './realm-mcp-tab'
+import type { OwnerClientOption } from '../resource-owners'
 import RealmPasswordPolicyTab, { type PolicyDraft } from './realm-password-policy-tab'
 import RealmMaintenanceTab from './realm-maintenance-tab'
 import { REALM_NAMESPACE } from '../realm-namespace'
@@ -28,6 +29,7 @@ export interface PageRealmSettingsProps {
   loginAliasesError?: string
   tokensValue: TokensDraft
   mcp: McpDraft
+  mcpOwnerClients: OwnerClientOption[]
   policy: PolicyDraft
   policyErrors: Partial<Record<keyof PolicyDraft, string>>
   policyLoading: boolean
@@ -67,6 +69,7 @@ export default function PageRealmSettings({
   loginAliasesError,
   tokensValue,
   mcp,
+  mcpOwnerClients,
   policy,
   policyErrors,
   policyLoading,
@@ -164,7 +167,7 @@ export default function PageRealmSettings({
             <RealmTokensTab value={tokensValue} onChange={onTokensChange} />
           )}
 
-          {tab === 'mcp' && <RealmMcpTab value={mcp} onChange={onMcpChange} />}
+          {tab === 'mcp' && <RealmMcpTab value={mcp} ownerClients={mcpOwnerClients} onChange={onMcpChange} />}
 
           {tab === 'password-policy' &&
             (policyLoading ? (

@@ -22,6 +22,7 @@ settings:
     deleted: 'Realm "{{name}}" has been deleted.'
     policy_updated: Password policy updated successfully
     policy_failed: Failed to update password policy
+    owners_failed: Failed to update resource owners
 
 general:
   identity:
@@ -122,8 +123,11 @@ mcp:
     placeholder: client.example.com
   resources:
     label: Allowed resources
-    description: Resource indicators clients may request an audience for. Absolute https URLs, or http on a loopback host, without fragment.
+    description: Resource indicators clients may request an audience for. Absolute https URLs, or http on a loopback host, without fragment. An owner, a confidential client registered by an administrator, may then exchange tokens for that resource.
     placeholder: https://mcp.example.com
+    owner:
+      none: No owner
+      aria: Owner of {{entry}}
   add: Add
   remove: Remove {{entry}}
 
