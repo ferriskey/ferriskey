@@ -237,8 +237,7 @@ FerrisKey follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/
 
 ## 🔐 Security
 
-Please report vulnerabilities responsibly via Security Advisories.
-Avoid filing publicly until coordinated disclosure is agreed.
+Report vulnerabilities privately through the [Security tab](https://github.com/ferriskey/ferriskey/security/advisories/new), never in a public issue. Supported versions, response targets and the disclosure process are in [SECURITY.md](./SECURITY.md).
 
 ## 📜 License
 
