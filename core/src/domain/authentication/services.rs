@@ -2799,6 +2799,12 @@ where
             .map_err(|_| CoreError::ServiceAccountNotFound)?
             .into_inner();
 
+        if !user.enabled {
+            return Err(CoreError::UnauthorizedClient(
+                "The service account is disabled.".to_string(),
+            ));
+        }
+
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
             .await?;
