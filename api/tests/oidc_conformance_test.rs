@@ -211,6 +211,37 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn maintenance_is_checked_on_the_client_of_the_authorization_request() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let closed = app.client(ClientSpec::public()).await;
+            let open = app.client(ClientSpec::public()).await;
+            let user = app.user(&server, PASSWORD).await;
+            sqlx::query("UPDATE clients SET maintenance_enabled = true WHERE id = $1")
+                .bind(closed.id)
+                .execute(&app.pool)
+                .await
+                .expect("enable maintenance");
+
+            let authorized = authorize(&server, app, &closed.client_id, &[]).await;
+            assert_eq!(authorized.status_code(), 302, "{}", authorized.text());
+
+            let response = server
+                .post(&app.path("/login-actions/authenticate"))
+                .add_cookie(authorized.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", &open.client_id)
+                .json(&json!({ "username": user.username, "password": PASSWORD }))
+                .await;
+
+            let body = response.text();
+            assert_ne!(response.status_code(), 200, "{body}");
+            assert!(!body.contains("code="), "{body}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn a_code_cannot_be_redeemed_by_another_client() {
         rt().block_on(async {
             let app = app();
