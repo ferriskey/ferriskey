@@ -17,6 +17,7 @@ use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use utoipa::{IntoParams, ToSchema};
+use uuid::Uuid;
 use validator::Validate;
 
 use ferriskey_api_core::request_context::RequestContext;
@@ -51,8 +52,23 @@ fn webapp_login_url(webapp_url: &str, realm_name: &str, login_url: &str) -> Stri
     )
 }
 
+fn auth_session_cookie(session_code: Uuid, is_secure: bool) -> Result<HeaderValue, ApiError> {
+    let mut cookie = Cookie::build((AUTH_SESSION_COOKIE, session_code.to_string()))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax);
+
+    if is_secure {
+        cookie = cookie.secure(true);
+    }
+
+    HeaderValue::from_str(&cookie.to_string())
+        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))
+}
+
 fn sso_success_response(
     auth_result: ferriskey_core::domain::authentication::entities::AuthenticateOutput,
+    session_code: Uuid,
     is_secure: bool,
 ) -> Result<axum::response::Response, ApiError> {
     let redirect_url = auth_result
@@ -62,6 +78,10 @@ fn sso_success_response(
     let mut response = axum::response::Response::builder()
         .status(StatusCode::FOUND)
         .header(LOCATION, &redirect_url);
+
+    if auth_result.completion.is_none() {
+        response = response.header(SET_COOKIE, auth_session_cookie(session_code, is_secure)?);
+    }
 
     if let Some(secret) = auth_result.sso_cookie {
         response = response.header(
@@ -304,7 +324,7 @@ pub async fn auth_handler(
         match auth_result {
             Ok(auth_result) => match sso_fast_path_outcome(&auth_result, prompt.none) {
                 SsoFastPathOutcome::Redirect => {
-                    return sso_success_response(auth_result, is_secure);
+                    return sso_success_response(auth_result, result.session.id, is_secure);
                 }
                 SsoFastPathOutcome::ConsentRequired => {
                     return Ok(authorization_error_response(
@@ -370,17 +390,8 @@ pub async fn auth_handler(
         full_url = mark_session_expired(&full_url);
     }
 
-    let mut session_cookie = Cookie::build((AUTH_SESSION_COOKIE, result.session.id.to_string()))
-        .path("/")
-        .http_only(true)
-        .same_site(SameSite::Lax);
-
-    if full_url.starts_with("https") {
-        session_cookie = session_cookie.secure(true)
-    }
-
-    let session_cookie_value = HeaderValue::from_str(&session_cookie.to_string())
-        .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?;
+    let session_cookie_value =
+        auth_session_cookie(result.session.id, full_url.starts_with("https"))?;
 
     let mut headers = HeaderMap::new();
     headers.insert(SET_COOKIE, session_cookie_value);
