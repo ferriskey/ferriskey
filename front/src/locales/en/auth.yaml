@@ -205,6 +205,7 @@ device:
 consent:
   title: Authorize access
   request: <app>{{name}}</app> is requesting access to your account.
+  client_host: Application served from {{host}}
   default_scopes_label: Always granted
   optional_scopes_label: Choose what to share
   allow: Allow

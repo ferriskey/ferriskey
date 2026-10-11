@@ -24,9 +24,10 @@ interface Draft {
   name: string
   description: string
   scopeType: ScopeTypeChoice
+  dynamicAllowed: boolean
 }
 
-const EMPTY_DRAFT: Draft = { key: '', name: '', description: '', scopeType: 'optional' }
+const EMPTY_DRAFT: Draft = { key: '', name: '', description: '', scopeType: 'optional', dynamicAllowed: false }
 
 const SCOPE_TABS = [
   { key: 'details', labelKey: 'detail.tabs.details' },
@@ -39,7 +40,8 @@ export default function PageClientScopeDetailFeature() {
   const { t } = useTranslation('client-scope')
   const realm = realm_name ?? 'master'
 
-  const { data: scope, isLoading } = useGetClientScope({ realm, scopeId: scope_id })
+  const { data, isLoading } = useGetClientScope({ realm, scopeId: scope_id })
+  const scope: Schemas.ClientScope | undefined = data
   const { mutate: updateClientScope, isPending } = useUpdateClientScope()
   const { mutate: deleteClientScope } = useDeleteClientScope()
   const { mutate: deleteProtocolMapper } = useDeleteProtocolMapper()
@@ -67,12 +69,13 @@ export default function PageClientScopeDetailFeature() {
         name: scope.name,
         description: scope.description ?? '',
         scopeType: scope.default_scope_type === 'DEFAULT' ? 'default' : 'optional',
+        dynamicAllowed: scope.dynamic_registration_allowed ?? false,
       }
     : EMPTY_DRAFT
 
   if (scope && draft.key !== scopeKey) setDraft(pristine)
 
-  const { name, description, scopeType } = draft.key === scopeKey ? draft : pristine
+  const { name, description, scopeType, dynamicAllowed } = draft.key === scopeKey ? draft : pristine
 
   const parsed = updateClientScopeSchema.safeParse({ name, description, scopeType })
   const nameError = parsed.success
@@ -82,20 +85,21 @@ export default function PageClientScopeDetailFeature() {
   const dirtyCount =
     (name !== pristine.name ? 1 : 0) +
     (description !== pristine.description ? 1 : 0) +
-    (scopeType !== pristine.scopeType ? 1 : 0)
+    (scopeType !== pristine.scopeType ? 1 : 0) +
+    (dynamicAllowed !== pristine.dynamicAllowed ? 1 : 0)
 
   const save = () => {
     if (!scope || !scope_id || !parsed.success || isPending) return
 
-    updateClientScope({
-      path: { realm_name: realm, scope_id },
-      body: {
-        name,
-        description: description.trim() || null,
-        protocol: scope.protocol,
-        is_default: scopeType === 'default',
-      },
-    })
+    const body: Schemas.UpdateClientScopeValidator = {
+      name,
+      description: description.trim() || null,
+      protocol: scope.protocol,
+      is_default: scopeType === 'default',
+      dynamic_registration_allowed: dynamicAllowed,
+    }
+
+    updateClientScope({ path: { realm_name: realm, scope_id }, body })
   }
 
   const handleDelete = () => {
@@ -118,6 +122,7 @@ export default function PageClientScopeDetailFeature() {
       name={name}
       description={description}
       scopeType={scopeType}
+      dynamicAllowed={dynamicAllowed}
       nameError={dirtyCount > 0 ? nameError : undefined}
       dirtyCount={dirtyCount}
       isPending={isPending}
@@ -139,6 +144,7 @@ export default function PageClientScopeDetailFeature() {
       onNameChange={(v) => setDraft((d) => ({ ...d, name: v }))}
       onDescriptionChange={(v) => setDraft((d) => ({ ...d, description: v }))}
       onScopeTypeChange={(v) => setDraft((d) => ({ ...d, scopeType: v }))}
+      onDynamicAllowedChange={(v) => setDraft((d) => ({ ...d, dynamicAllowed: v }))}
       onBack={() => navigate(CLIENT_SCOPES_URL(realm))}
       onDiscard={() => setDraft(pristine)}
       onSave={save}

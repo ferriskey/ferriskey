@@ -1,3 +1,4 @@
+import type { Schemas } from '@/api/api.client'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -8,26 +9,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { FieldRow, Section } from '@/components/kit'
+import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
 import ScopeTypeHint from './scope-type-hint'
 import type { ScopeTypeChoice } from './page-create-client-scope'
 import { SCOPE_TYPE_CHOICES } from '../scope-type'
 
-import ClientScope = Schemas.ClientScope
-
 export interface ClientScopeSettingsTabProps {
-  scope: ClientScope
+  scope: Schemas.ClientScope
   name: string
   description: string
   scopeType: ScopeTypeChoice
+  dynamicAllowed: boolean
   nameError?: string
   onNameChange: (v: string) => void
   onDescriptionChange: (v: string) => void
   onScopeTypeChange: (v: ScopeTypeChoice) => void
+  onDynamicAllowedChange: (v: boolean) => void
   onDelete: () => void
 }
 
@@ -36,10 +36,12 @@ export default function ClientScopeSettingsTab({
   name,
   description,
   scopeType,
+  dynamicAllowed,
   nameError,
   onNameChange,
   onDescriptionChange,
   onScopeTypeChange,
+  onDynamicAllowedChange,
   onDelete,
 }: ClientScopeSettingsTabProps) {
   const { t } = useTranslation('client-scope')
@@ -116,6 +118,14 @@ export default function ClientScopeSettingsTab({
               <p className='mt-1.5 text-xs text-fk-amber'>{t('detail.settings.none_warning')}</p>
             )}
           </div>
+        </FieldRow>
+
+        <FieldRow
+          label={t('scope_form.dynamic.label')}
+          description={t('scope_form.dynamic.description')}
+          htmlFor='scope-dynamic'
+        >
+          <SwitchField id='scope-dynamic' checked={dynamicAllowed} onCheckedChange={onDynamicAllowedChange} />
         </FieldRow>
       </Section>
 

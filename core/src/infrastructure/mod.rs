@@ -3,6 +3,7 @@ pub mod account_security;
 pub mod aegis;
 pub mod backchannel_logout;
 pub mod client;
+pub mod client_metadata;
 pub mod common;
 pub mod compass;
 pub mod consent;

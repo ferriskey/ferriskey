@@ -25,12 +25,13 @@ use crate::domain::authentication::token_exchange::ports::{
 use crate::domain::authentication::token_exchange::value_objects::{
     TokenExchangeOutput, TokenExchangeParams,
 };
-use crate::domain::client::entities::Client;
 use crate::domain::client::entities::token_exchange_policy::TokenExchangePolicy;
+use crate::domain::client::entities::{Client, ClientRegistrationSource};
 use crate::domain::client::ports::{ClientRepository, TokenExchangePolicyRepository};
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::jwt::entities::{ClaimsTyp, JwtClaim};
 use crate::domain::realm::entities::{RealmScope, UnscopedOption};
+use crate::domain::realm::ports::{RealmRepository, ResourceOwnerRepository};
 use crate::domain::seawatch::{
     EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType,
 };
@@ -38,19 +39,23 @@ use crate::domain::user::entities::User;
 use crate::domain::user::ports::UserRepository;
 
 #[derive(Clone, Debug)]
-pub struct TokenExchangeServiceImpl<C, U, P, SER, I>
+pub struct TokenExchangeServiceImpl<C, U, P, SER, I, R, O>
 where
     C: ClientRepository,
     U: UserRepository,
     P: TokenExchangePolicyRepository,
     SER: SecurityEventRepository,
     I: SubjectTokenIssuer,
+    R: RealmRepository,
+    O: ResourceOwnerRepository,
 {
     pub(crate) client_repository: Arc<C>,
     pub(crate) user_repository: Arc<U>,
     pub(crate) policy_repository: Arc<P>,
     pub(crate) security_event_repository: Arc<SER>,
     pub(crate) token_issuer: Arc<I>,
+    pub(crate) realm_repository: Arc<R>,
+    pub(crate) resource_owner_repository: Arc<O>,
     pub(crate) flow_recorder: FlowRecorder,
 }
 
@@ -63,20 +68,25 @@ struct ExchangeTrace {
     policy: Option<Uuid>,
 }
 
-impl<C, U, P, SER, I> TokenExchangeServiceImpl<C, U, P, SER, I>
+impl<C, U, P, SER, I, R, O> TokenExchangeServiceImpl<C, U, P, SER, I, R, O>
 where
     C: ClientRepository,
     U: UserRepository,
     P: TokenExchangePolicyRepository,
     SER: SecurityEventRepository,
     I: SubjectTokenIssuer,
+    R: RealmRepository,
+    O: ResourceOwnerRepository,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         client_repository: Arc<C>,
         user_repository: Arc<U>,
         policy_repository: Arc<P>,
         security_event_repository: Arc<SER>,
         token_issuer: Arc<I>,
+        realm_repository: Arc<R>,
+        resource_owner_repository: Arc<O>,
         flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
@@ -85,6 +95,8 @@ where
             policy_repository,
             security_event_repository,
             token_issuer,
+            realm_repository,
+            resource_owner_repository,
             flow_recorder,
         }
     }
@@ -110,11 +122,46 @@ where
             return Err(TokenExchangeError::InvalidClient);
         }
 
-        if !client.enabled || !client.token_exchange_enabled {
+        if !client.enabled
+            || !client.token_exchange_enabled
+            || client.registration_source != ClientRegistrationSource::Admin
+        {
             return Err(TokenExchangeError::UnauthorizedClient);
         }
 
         Ok(client)
+    }
+
+    async fn owns_audience(
+        &self,
+        realm: &RealmScope,
+        client: &Client,
+        audience: &[String],
+    ) -> Result<bool, TokenExchangeError> {
+        let server_error =
+            |_| TokenExchangeError::ServerError("could not check resource ownership".into());
+
+        let allowed = self
+            .realm_repository
+            .get_realm_settings(realm.id())
+            .await
+            .map_err(server_error)?
+            .map(|settings| settings.allowed_resources)
+            .unwrap_or_default();
+
+        let candidates: Vec<String> = audience
+            .iter()
+            .filter(|entry| allowed.contains(entry))
+            .cloned()
+            .collect();
+        if candidates.is_empty() {
+            return Ok(false);
+        }
+
+        self.resource_owner_repository
+            .owns_any(realm.id(), client.id, &candidates)
+            .await
+            .map_err(server_error)
     }
 
     /// The subject token's claims and user, once the token is proven to be
@@ -142,7 +189,9 @@ where
 
         // Without this, any client with the grant enabled could exchange a
         // token it intercepted.
-        let is_party = claims.azp == client.client_id || claims.aud.contains(&client.client_id);
+        let is_party = claims.azp == client.client_id
+            || claims.aud.contains(&client.client_id)
+            || self.owns_audience(realm, client, &claims.aud).await?;
         if !is_party {
             return Err(TokenExchangeError::UnauthorizedClient);
         }
@@ -395,13 +444,15 @@ where
     }
 }
 
-impl<C, U, P, SER, I> TokenExchangeService for TokenExchangeServiceImpl<C, U, P, SER, I>
+impl<C, U, P, SER, I, R, O> TokenExchangeService for TokenExchangeServiceImpl<C, U, P, SER, I, R, O>
 where
     C: ClientRepository,
     U: UserRepository,
     P: TokenExchangePolicyRepository,
     SER: SecurityEventRepository,
     I: SubjectTokenIssuer,
+    R: RealmRepository,
+    O: ResourceOwnerRepository,
 {
     async fn exchange(
         &self,
@@ -583,6 +634,7 @@ mod tests {
     };
     use crate::domain::jwt::entities::Jwt;
     use crate::domain::realm::entities::{Realm, RealmSetting, Unscoped};
+    use crate::domain::realm::ports::{MockRealmRepository, MockResourceOwnerRepository};
     use crate::domain::seawatch::ports::MockSecurityEventRepository;
     use crate::domain::user::entities::User;
     use crate::domain::user::ports::MockUserRepository;
@@ -599,6 +651,8 @@ mod tests {
         MockTokenExchangePolicyRepository,
         MockSecurityEventRepository,
         MockSubjectTokenIssuer,
+        MockRealmRepository,
+        MockResourceOwnerRepository,
     >;
 
     fn realm() -> Realm {
@@ -686,6 +740,8 @@ mod tests {
         subject: Result<JwtClaim, CoreError>,
         actor: Option<JwtClaim>,
         policy: Option<TokenExchangePolicy>,
+        allowed_resources: Vec<String>,
+        owned: Vec<(String, Uuid)>,
         issued: Arc<Mutex<Option<JwtClaim>>>,
         events: Arc<Mutex<Vec<SecurityEvent>>>,
     }
@@ -700,6 +756,8 @@ mod tests {
                 subject: Ok(subject),
                 actor: None,
                 policy: None,
+                allowed_resources: Vec::new(),
+                owned: Vec::new(),
                 issued: Arc::default(),
                 events: Arc::default(),
             }
@@ -712,6 +770,16 @@ mod tests {
 
         fn with_client(mut self, client: Client) -> Self {
             self.clients.push(client);
+            self
+        }
+
+        fn with_allowed_resource(mut self, uri: &str) -> Self {
+            self.allowed_resources.push(uri.to_string());
+            self
+        }
+
+        fn with_owner(mut self, uri: &str, client: &Client) -> Self {
+            self.owned.push((uri.to_string(), client.id));
             self
         }
 
@@ -747,6 +815,27 @@ mod tests {
                         .filter(|p| p.client_id == client_id && p.target_audience == audience)
                         .map(Unscoped::new);
                     Box::pin(async move { Ok(found) })
+                });
+
+            let mut realms = MockRealmRepository::new();
+            let allowed_resources = self.allowed_resources.clone();
+            realms
+                .expect_get_realm_settings()
+                .returning(move |realm_id| {
+                    let mut settings = RealmSetting::new(realm_id, None);
+                    settings.allowed_resources = allowed_resources.clone();
+                    Box::pin(async move { Ok(Some(settings)) })
+                });
+
+            let mut owners = MockResourceOwnerRepository::new();
+            let owned = self.owned.clone();
+            owners
+                .expect_owns_any()
+                .returning(move |_, client_id, uris| {
+                    let owns = owned
+                        .iter()
+                        .any(|(uri, owner)| *owner == client_id && uris.contains(uri));
+                    Box::pin(async move { Ok(owns) })
                 });
 
             let mut events = MockSecurityEventRepository::new();
@@ -801,6 +890,8 @@ mod tests {
                 Arc::new(policies),
                 Arc::new(events),
                 Arc::new(issuer),
+                Arc::new(realms),
+                Arc::new(owners),
                 FlowRecorder::disabled(),
             )
         }
@@ -1196,6 +1287,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_client_that_is_not_admin_registered_is_refused() {
+        for source in [
+            ClientRegistrationSource::Dynamic,
+            ClientRegistrationSource::MetadataDocument,
+        ] {
+            let (realm, mut requester, user) = standard();
+            requester.registration_source = source;
+            let subject = subject_claims(&user, REQUESTER, "openid", 3600);
+            let harness = Harness::new(&realm, requester, subject);
+
+            let err = harness
+                .build()
+                .exchange(params(&realm, input(None, None)))
+                .await
+                .expect_err("a self-registered client must not exchange tokens");
+
+            assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+        }
+    }
+
+    #[tokio::test]
     async fn an_invalid_subject_token_is_refused() {
         for failure in [
             CoreError::ExpiredToken,
@@ -1263,6 +1375,80 @@ mod tests {
             .exchange(params(&realm, input(None, None)))
             .await
             .expect("a client in aud is a party of the token");
+    }
+
+    const RESOURCE: &str = "https://mcp.example.com";
+
+    fn resource_subject(user: &User) -> JwtClaim {
+        let mut subject = subject_claims(user, "frontend", "openid", 3600);
+        subject.aud = vec![RESOURCE.to_string()];
+        subject
+    }
+
+    #[tokio::test]
+    async fn the_owner_of_a_resource_in_the_subject_audience_may_exchange() {
+        let (realm, requester, user) = standard();
+        let harness = Harness::new(&realm, requester.clone(), resource_subject(&user))
+            .with_allowed_resource(RESOURCE)
+            .with_owner(RESOURCE, &requester);
+
+        harness
+            .build()
+            .exchange(params(&realm, input(None, None)))
+            .await
+            .expect("the owner of an audience resource is a party of the token");
+    }
+
+    #[tokio::test]
+    async fn the_owner_of_a_resource_may_delegate_with_an_actor() {
+        let (realm, requester, user) = standard();
+        let actor = actor_claims(&realm, REQUESTER);
+        let harness = Harness::new(&realm, requester.clone(), resource_subject(&user))
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor)
+            .with_allowed_resource(RESOURCE)
+            .with_owner(RESOURCE, &requester);
+
+        harness
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect("the owner delegates to the target audience");
+
+        assert!(harness.issued().additional_claims.contains_key("act"));
+    }
+
+    #[tokio::test]
+    async fn a_client_that_does_not_own_the_resource_is_refused() {
+        let (realm, requester, user) = standard();
+        let other = client(&realm, "other");
+        let harness = Harness::new(&realm, requester, resource_subject(&user))
+            .with_allowed_resource(RESOURCE)
+            .with_owner(RESOURCE, &other);
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, input(None, None)))
+            .await
+            .expect_err("only the owner is a party");
+
+        assert_eq!(err, TokenExchangeError::UnauthorizedClient);
+    }
+
+    #[tokio::test]
+    async fn an_owned_resource_that_is_no_longer_allowed_does_not_count() {
+        let (realm, requester, user) = standard();
+        let harness = Harness::new(&realm, requester.clone(), resource_subject(&user))
+            .with_owner(RESOURCE, &requester);
+
+        let err = harness
+            .build()
+            .exchange(params(&realm, input(None, None)))
+            .await
+            .expect_err("a resource outside allowed_resources confers nothing");
+
+        assert_eq!(err, TokenExchangeError::UnauthorizedClient);
     }
 
     #[tokio::test]

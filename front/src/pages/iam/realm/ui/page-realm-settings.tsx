@@ -8,6 +8,8 @@ import { Schemas } from '@/api/api.client'
 import RealmGeneralTab from './realm-general-tab'
 import RealmLoginTab, { type LoginDraft } from './realm-login-tab'
 import RealmTokensTab, { type TokensDraft } from './realm-tokens-tab'
+import RealmMcpTab, { type McpDraft } from './realm-mcp-tab'
+import type { OwnerClientOption } from '../resource-owners'
 import RealmPasswordPolicyTab, { type PolicyDraft } from './realm-password-policy-tab'
 import RealmMaintenanceTab from './realm-maintenance-tab'
 import { REALM_NAMESPACE } from '../realm-namespace'
@@ -26,6 +28,8 @@ export interface PageRealmSettingsProps {
   login: LoginDraft
   loginAliasesError?: string
   tokensValue: TokensDraft
+  mcp: McpDraft
+  mcpOwnerClients: OwnerClientOption[]
   policy: PolicyDraft
   policyErrors: Partial<Record<keyof PolicyDraft, string>>
   policyLoading: boolean
@@ -43,6 +47,7 @@ export interface PageRealmSettingsProps {
   onDisplayNameChange: (v: string) => void
   onLoginChange: (patch: Partial<LoginDraft>) => void
   onTokensChange: (patch: Partial<TokensDraft>) => void
+  onMcpChange: (patch: Partial<McpDraft>) => void
   onPolicyChange: (patch: Partial<PolicyDraft>) => void
   onWhitelistedUsersChange: (next: string[]) => void
   onWhitelistedRolesChange: (next: string[]) => void
@@ -63,6 +68,8 @@ export default function PageRealmSettings({
   login,
   loginAliasesError,
   tokensValue,
+  mcp,
+  mcpOwnerClients,
   policy,
   policyErrors,
   policyLoading,
@@ -80,6 +87,7 @@ export default function PageRealmSettings({
   onDisplayNameChange,
   onLoginChange,
   onTokensChange,
+  onMcpChange,
   onPolicyChange,
   onWhitelistedUsersChange,
   onWhitelistedRolesChange,
@@ -158,6 +166,8 @@ export default function PageRealmSettings({
           {tab === 'tokens' && (
             <RealmTokensTab value={tokensValue} onChange={onTokensChange} />
           )}
+
+          {tab === 'mcp' && <RealmMcpTab value={mcp} ownerClients={mcpOwnerClients} onChange={onMcpChange} />}
 
           {tab === 'password-policy' &&
             (policyLoading ? (

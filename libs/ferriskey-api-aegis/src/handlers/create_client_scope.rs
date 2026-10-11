@@ -46,6 +46,7 @@ pub async fn create_client_scope(
                 description: payload.description,
                 protocol: payload.protocol,
                 is_default: payload.is_default,
+                dynamic_registration_allowed: payload.dynamic_registration_allowed,
             },
         )
         .await?;

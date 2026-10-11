@@ -9,6 +9,9 @@ shared:
     enabled: Enabled
     disabled: Disabled
   in_maintenance: in maintenance
+  registration_source:
+    dynamic: Dynamic
+    metadata_document: Metadata document
   no_description: No description
   discard: Discard
   save: Save changes

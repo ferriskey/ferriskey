@@ -8,6 +8,7 @@ settings:
     general: General
     login: Login
     tokens: Tokens
+    mcp: MCP
     password_policy: Password Policy
     maintenance: Maintenance
   save:
@@ -21,6 +22,7 @@ settings:
     deleted: 'Realm "{{name}}" has been deleted.'
     policy_updated: Password policy updated successfully
     policy_failed: Failed to update password policy
+    owners_failed: Failed to update resource owners
 
 general:
   identity:
@@ -106,6 +108,29 @@ tokens:
     label: Temporary Token Lifetime
     description: How long temporary tokens remain valid — password reset, for example.
 
+mcp:
+  title: MCP / Client registration
+  description: How MCP clients and other third-party applications can register against this realm, and which resources they may request tokens for.
+  cimd:
+    label: Client ID Metadata Documents
+    description: Accept an https URL as a client_id and fetch the client metadata from it. Such clients always require consent.
+  dcr:
+    label: Dynamic Client Registration
+    description: Let applications register themselves anonymously through the registration endpoint. Such clients always require consent.
+  hosts:
+    label: Allowed metadata document hosts
+    description: Hosts a client_id URL may point to. Leave empty to refuse every metadata document.
+    placeholder: client.example.com
+  resources:
+    label: Allowed resources
+    description: Resource indicators clients may request an audience for. Absolute https URLs, or http on a loopback host, without fragment. An owner, a confidential client registered by an administrator, may then exchange tokens for that resource.
+    placeholder: https://mcp.example.com
+    owner:
+      none: No owner
+      aria: Owner of {{entry}}
+  add: Add
+  remove: Remove {{entry}}
+
 policy:
   title: Password Policy
   description: Rules applied to the passwords of the accounts of this realm.
@@ -168,6 +193,9 @@ maintenance:
     exhausted_hint: Every role of this realm is already allowed.
 
 validation:
+  cimd_host_invalid: Enter a bare host name, without scheme or path
+  resource_invalid: Enter an absolute https URL, or an http URL on a loopback host, without fragment
+  entry_duplicate: This entry is already in the list
   # "max" is the length limit the console enforces before sending the realm; it is a constant, so
   # this sentence is always plural.
   display_name_max: Display name must be at most {{max}} characters

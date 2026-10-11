@@ -71,6 +71,7 @@ pub struct GrantTypeParams {
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
     pub code_verifier: Option<String>,
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -194,6 +195,7 @@ pub struct GenerateTokenInput {
     /// When the user last authenticated interactively, as a Unix timestamp:
     /// the ID token's `auth_time`, which OIDC `max_age` relies on.
     pub auth_time: Option<i64>,
+    pub resource: Option<String>,
 }
 
 /// Request received by the application layer for a client-scope evaluation. The application

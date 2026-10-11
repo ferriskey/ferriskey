@@ -1,5 +1,7 @@
 use axum::{
-    Router, middleware,
+    Router,
+    extract::DefaultBodyLimit,
+    middleware,
     routing::{delete, get, patch, post, put},
 };
 use utoipa::OpenApi;
@@ -45,6 +47,7 @@ use super::handlers::{
         __path_get_token_exchange_policies, get_token_exchange_policies,
     },
     get_web_origins::{__path_get_web_origins, get_web_origins},
+    register_client::{__path_register_client, register_client},
     set_client_saml_config::{__path_set_client_saml_config, set_client_saml_config},
     update_client::{__path_update_client, update_client},
     update_post_logout_redirect_uri::{
@@ -85,7 +88,8 @@ use ferriskey_api_core::auth::auth;
         set_client_saml_config,
         create_saml_attribute_mapper,
         get_saml_attribute_mappers,
-        delete_saml_attribute_mapper
+        delete_saml_attribute_mapper,
+        register_client
     ),
 
     tags(
@@ -286,4 +290,18 @@ pub fn client_routes(state: AppState) -> Router<AppState> {
             delete(delete_saml_attribute_mapper),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
+}
+
+const REGISTRATION_BODY_LIMIT: usize = 16 * 1024;
+
+pub fn client_registration_routes(state: AppState) -> Router<AppState> {
+    Router::new()
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/clients/register",
+                state.args.server.root_path
+            ),
+            post(register_client),
+        )
+        .layer(DefaultBodyLimit::max(REGISTRATION_BODY_LIMIT))
 }

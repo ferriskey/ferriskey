@@ -6,7 +6,7 @@ use crate::domain::{
     authentication::value_objects::Identity,
     client::{
         entities::{
-            Client, ClientFilter, ClientSortField, CreateClientInput,
+            Client, ClientFilter, ClientRegistrationSource, ClientSortField, CreateClientInput,
             CreatePostLogoutRedirectUriInput, CreateRedirectUriInput, CreateRoleInput,
             CreateSamlAttributeMapperInput, CreateWebOriginInput, DeleteClientInput,
             DeletePostLogoutRedirectUriInput, DeleteRedirectUriInput,
@@ -28,7 +28,7 @@ use crate::domain::{
             PostLogoutRedirectUriRepository, RedirectUriRepository, WebOriginRepository,
             WebOriginResolver,
         },
-        value_objects::CreateClientRequest,
+        value_objects::{CreateClientRequest, UpdateClientRequest},
         web_origin_resolution::resolve_allowed_origins,
     },
     common::{
@@ -142,6 +142,41 @@ where
     }
 }
 
+fn ensure_update_allowed_for_source(
+    client: &Client,
+    payload: &UpdateClientRequest,
+) -> Result<(), CoreError> {
+    if client.registration_source == ClientRegistrationSource::Admin {
+        return Ok(());
+    }
+
+    if payload.token_exchange_enabled == Some(true) {
+        return Err(CoreError::Forbidden(
+            "token exchange cannot be enabled on a self-registered client".to_string(),
+        ));
+    }
+
+    if payload.direct_access_grants_enabled == Some(true) {
+        return Err(CoreError::Forbidden(
+            "direct access grants cannot be enabled on a self-registered client".to_string(),
+        ));
+    }
+
+    if payload.oauth_device_code_grant_enabled == Some(true) {
+        return Err(CoreError::Forbidden(
+            "the device code grant cannot be enabled on a self-registered client".to_string(),
+        ));
+    }
+
+    if payload.client_id.is_some() {
+        return Err(CoreError::Forbidden(
+            "the client_id of a self-registered client cannot change".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 impl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM> ClientService
     for ClientServiceImpl<R, U, C, UR, W, RU, PLRU, WO, SA, RO, SE, CS, CSM>
 where
@@ -193,6 +228,8 @@ where
                 client_type: input.client_type,
                 require_pkce: false,
                 consent_required: input.consent_required,
+                registration_source:
+                    crate::domain::client::entities::ClientRegistrationSource::Admin,
             })
             .await?;
 
@@ -967,6 +1004,8 @@ where
             .map_err(|_| CoreError::NotFound)?
             .in_realm(&scope)?;
 
+        ensure_update_allowed_for_source(target.get(), &input.payload)?;
+
         let client = self
             .client_repository
             .update_client(&target, input.payload)
@@ -1098,6 +1137,106 @@ where
 
 #[cfg(test)]
 mod tests {
+
+    mod source_restrictions {
+        use super::*;
+
+        fn payload(token_exchange: Option<bool>, client_id: Option<&str>) -> UpdateClientRequest {
+            UpdateClientRequest {
+                name: None,
+                client_id: client_id.map(str::to_string),
+                enabled: None,
+                direct_access_grants_enabled: None,
+                oauth_device_code_grant_enabled: None,
+                token_exchange_enabled: token_exchange,
+                require_pkce: None,
+                access_token_lifetime: None,
+                refresh_token_lifetime: None,
+                id_token_lifetime: None,
+                temporary_token_lifetime: None,
+                maintenance_enabled: None,
+                maintenance_reason: None,
+                maintenance_session_strategy: None,
+                backchannel_logout_uri: None,
+                backchannel_logout_session_required: None,
+                consent_required: None,
+            }
+        }
+
+        fn client_from(source: ClientRegistrationSource) -> Client {
+            let realm = create_test_realm_with_name("acme");
+            let mut client = Client::from_realm_and_client_id(realm.id, "app".to_string());
+            client.registration_source = source;
+            client
+        }
+
+        #[test]
+        fn an_admin_client_may_enable_token_exchange() {
+            let client = client_from(ClientRegistrationSource::Admin);
+            assert!(
+                ensure_update_allowed_for_source(&client, &payload(Some(true), Some("x"))).is_ok()
+            );
+        }
+
+        #[test]
+        fn a_self_registered_client_cannot_enable_direct_access_or_device_grants() {
+            for source in [
+                ClientRegistrationSource::Dynamic,
+                ClientRegistrationSource::MetadataDocument,
+            ] {
+                let client = client_from(source);
+
+                let mut direct = payload(None, None);
+                direct.direct_access_grants_enabled = Some(true);
+                assert!(matches!(
+                    ensure_update_allowed_for_source(&client, &direct),
+                    Err(CoreError::Forbidden(_))
+                ));
+
+                let mut device = payload(None, None);
+                device.oauth_device_code_grant_enabled = Some(true);
+                assert!(matches!(
+                    ensure_update_allowed_for_source(&client, &device),
+                    Err(CoreError::Forbidden(_))
+                ));
+
+                let mut disabling = payload(None, None);
+                disabling.direct_access_grants_enabled = Some(false);
+                disabling.oauth_device_code_grant_enabled = Some(false);
+                assert!(ensure_update_allowed_for_source(&client, &disabling).is_ok());
+            }
+        }
+
+        #[test]
+        fn an_admin_client_may_enable_direct_access_and_device_grants() {
+            let client = client_from(ClientRegistrationSource::Admin);
+            let mut update = payload(None, None);
+            update.direct_access_grants_enabled = Some(true);
+            update.oauth_device_code_grant_enabled = Some(true);
+            assert!(ensure_update_allowed_for_source(&client, &update).is_ok());
+        }
+
+        #[test]
+        fn a_self_registered_client_cannot_enable_token_exchange_or_change_its_id() {
+            for source in [
+                ClientRegistrationSource::Dynamic,
+                ClientRegistrationSource::MetadataDocument,
+            ] {
+                let client = client_from(source);
+                assert!(matches!(
+                    ensure_update_allowed_for_source(&client, &payload(Some(true), None)),
+                    Err(CoreError::Forbidden(_))
+                ));
+                assert!(matches!(
+                    ensure_update_allowed_for_source(&client, &payload(None, Some("x"))),
+                    Err(CoreError::Forbidden(_))
+                ));
+                assert!(
+                    ensure_update_allowed_for_source(&client, &payload(Some(false), None)).is_ok()
+                );
+            }
+        }
+    }
     use super::*;
     use crate::domain::aegis::mocks::{
         MockClientScopeMappingRepository, MockClientScopeRepository,

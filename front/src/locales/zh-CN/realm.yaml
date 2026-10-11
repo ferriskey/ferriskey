@@ -23,6 +23,7 @@ settings:
     general: 常规
     login: 登录
     tokens: 令牌
+    mcp: MCP
     password_policy: 密码策略
     maintenance: 维护
   save:
@@ -35,6 +36,7 @@ settings:
     deleted: '域“{{name}}”已被删除。'
     policy_updated: 密码策略更新成功
     policy_failed: 更新密码策略失败
+    owners_failed: 更新资源所有者失败
 
 general:
   identity:
@@ -119,6 +121,29 @@ tokens:
     label: 临时令牌有效期
     description: 临时令牌保持有效的时长，例如用于密码重置的令牌。
 
+mcp:
+  title: MCP / 客户端注册
+  description: MCP 客户端和其他第三方应用如何在此域中注册，以及它们可以为哪些资源请求令牌。
+  cimd:
+    label: 客户端 ID 元数据文档
+    description: 接受 https URL 作为 client_id，并从中获取客户端元数据。此类客户端始终需要同意。
+  dcr:
+    label: 动态客户端注册
+    description: 允许应用通过注册端点自行匿名注册。此类客户端始终需要同意。
+  hosts:
+    label: 允许的元数据文档主机
+    description: client_id URL 可以指向的主机。留空则拒绝所有元数据文档。
+    placeholder: client.example.com
+  resources:
+    label: 允许的资源
+    description: 客户端可以请求受众的资源标识符。必须是绝对 https URL，或环回主机上的 http URL，且不含片段。所有者（由管理员注册的机密客户端）随后可以为该资源交换令牌。
+    placeholder: https://mcp.example.com
+    owner:
+      none: 无所有者
+      aria: '{{entry}} 的所有者'
+  add: 添加
+  remove: 移除 {{entry}}
+
 policy:
   title: 密码策略
   description: 适用于此域中各账户密码的规则。
@@ -179,5 +204,8 @@ maintenance:
     exhausted_hint: 此域中的每个角色都已被允许。
 
 validation:
+  cimd_host_invalid: '请输入纯主机名，不含协议和路径'
+  resource_invalid: '请输入绝对 https URL，或环回主机上的 http URL，且不含片段'
+  entry_duplicate: '此条目已在列表中'
   # "max" is the length limit the console enforces before sending the realm; it is a constant.
   display_name_max: '显示名称最多 {{max}} 个字符'

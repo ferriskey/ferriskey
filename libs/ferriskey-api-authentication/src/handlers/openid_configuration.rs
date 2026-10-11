@@ -1,10 +1,13 @@
-use super::auth::root_scoped_base_url;
-use axum::http::Request;
-use axum::{
-    body::Body,
-    extract::{Path, State},
+use super::authorization_server_metadata::{
+    realm_issuer, supported_grant_types, supported_token_endpoint_auth_methods,
 };
-use ferriskey_api_core::{api_entities::response::Response, app_state::AppState};
+use axum::extract::{Path, State};
+use ferriskey_api_core::{
+    api_entities::{api_error::ApiError, response::Response},
+    app_state::AppState,
+    url::FullUrl,
+};
+use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -30,6 +33,12 @@ pub struct GetOpenIdConfigurationResponse {
     pub backchannel_logout_supported: bool,
     /// Logout tokens carry the `sid` of the session that ended.
     pub backchannel_logout_session_supported: bool,
+    pub scopes_supported: Vec<String>,
+    pub authorization_response_iss_parameter_supported: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub registration_endpoint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_id_metadata_document_supported: Option<bool>,
 }
 
 #[utoipa::path(
@@ -48,31 +57,16 @@ pub struct GetOpenIdConfigurationResponse {
 pub async fn get_openid_configuration(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-    req: Request<Body>,
-) -> Result<Response<GetOpenIdConfigurationResponse>, String> {
-    // Here you would typically fetch the issuer from a database or configuration
-    let host = req
-        .headers()
-        .get("host")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("localhost");
-    let scheme = req.uri().scheme_str().unwrap_or_else(|| {
-        req.headers()
-            .get("x-forwarded-proto")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("http")
-    });
+    FullUrl(_, base_url): FullUrl,
+) -> Result<Response<GetOpenIdConfigurationResponse>, ApiError> {
+    let settings = state
+        .service
+        .get_authorization_server_settings(realm_name.clone())
+        .await?;
 
-    let base_url = format!("{scheme}://{host}");
-
-    let issuer = format!(
-        "{}/realms/{}",
-        root_scoped_base_url(&base_url, &state.args.server.root_path),
-        realm_name
-    );
+    let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
 
     Ok(Response::OK(GetOpenIdConfigurationResponse {
-        issuer: issuer.clone(),
         authorization_endpoint: format!("{issuer}/protocol/openid-connect/auth"),
         token_endpoint: format!("{issuer}/protocol/openid-connect/token"),
         revocation_endpoint: format!("{issuer}/protocol/openid-connect/revoke"),
@@ -81,14 +75,7 @@ pub async fn get_openid_configuration(
         device_authorization_endpoint: format!("{issuer}/protocol/openid-connect/auth/device"),
         userinfo_endpoint: format!("{issuer}/protocol/openid-connect/userinfo"),
         jwks_uri: format!("{issuer}/protocol/openid-connect/jwks.json"),
-        grant_types_supported: vec![
-            "authorization_code".to_string(),
-            "refresh_token".to_string(),
-            "client_credentials".to_string(),
-            "password".to_string(),
-            "urn:ietf:params:oauth:grant-type:device_code".to_string(),
-            "urn:ietf:params:oauth:grant-type:token-exchange".to_string(),
-        ],
+        grant_types_supported: supported_grant_types(),
         response_types_supported: vec![
             "code".to_string(),
             "none".to_string(),
@@ -101,12 +88,16 @@ pub async fn get_openid_configuration(
         ],
         subject_types_supported: vec!["public".to_string()],
         id_token_signing_alg_values_supported: vec!["RS256".to_string()],
-        token_endpoint_auth_methods_supported: vec![
-            "client_secret_basic".to_string(),
-            "client_secret_post".to_string(),
-        ],
+        token_endpoint_auth_methods_supported: supported_token_endpoint_auth_methods(),
         code_challenge_methods_supported: vec!["S256".to_string()],
         backchannel_logout_supported: true,
         backchannel_logout_session_supported: true,
+        scopes_supported: settings.scopes_supported,
+        authorization_response_iss_parameter_supported: true,
+        registration_endpoint: settings
+            .dcr_enabled
+            .then(|| format!("{issuer}/clients/register")),
+        client_id_metadata_document_supported: settings.cimd_enabled.then_some(true),
+        issuer,
     }))
 }

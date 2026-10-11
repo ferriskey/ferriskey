@@ -12,6 +12,7 @@ pub struct CreateClientScopeRequest {
     pub description: Option<String>,
     pub protocol: String,
     pub is_default: bool,
+    pub dynamic_registration_allowed: bool,
 }
 
 /// DTO for updating an existing client scope in the repository layer.
@@ -21,6 +22,7 @@ pub struct UpdateClientScopeRequest {
     pub description: Option<String>,
     pub protocol: Option<String>,
     pub is_default: Option<bool>,
+    pub dynamic_registration_allowed: Option<bool>,
 }
 
 /// DTO for creating a new protocol mapper in the repository layer.
@@ -49,6 +51,7 @@ pub struct CreateClientScopeInput {
     pub description: Option<String>,
     pub protocol: String,
     pub is_default: bool,
+    pub dynamic_registration_allowed: bool,
 }
 
 /// Input struct for retrieving a specific client scope, containing the realm name and scope ID.

@@ -11,7 +11,8 @@ use crate::domain::{
         pagination::{Page, PageRequest},
     },
     realm::entities::{
-        Realm, RealmFilter, RealmLoginSetting, RealmSetting, RealmSortField, SmtpConfig,
+        AuthorizationServerSettings, Realm, RealmFilter, RealmLoginSetting, RealmSetting,
+        RealmSortField, ResourceOwner, SmtpConfig,
     },
     user::entities::User,
 };
@@ -74,6 +75,25 @@ pub trait RealmService: Send + Sync {
         &self,
         realm_name: String,
     ) -> impl Future<Output = Result<RealmLoginSetting, CoreError>> + Send;
+
+    fn get_authorization_server_settings(
+        &self,
+        realm_name: String,
+    ) -> impl Future<Output = Result<AuthorizationServerSettings, CoreError>> + Send;
+}
+
+pub trait ResourceOwnerService: Send + Sync {
+    fn list_resource_owners(
+        &self,
+        identity: Identity,
+        input: ListResourceOwnersInput,
+    ) -> impl Future<Output = Result<Vec<ResourceOwner>, CoreError>> + Send;
+
+    fn replace_resource_owners(
+        &self,
+        identity: Identity,
+        input: ReplaceResourceOwnersInput,
+    ) -> impl Future<Output = Result<Vec<ResourceOwner>, CoreError>> + Send;
 }
 
 pub trait MailService: Send + Sync {
@@ -106,6 +126,15 @@ pub use ferriskey_domain::realm::ports::*;
 #[derive(Debug)] // TODO derive debug for instrumetnation
 pub struct GetRealmInput {
     pub realm_name: String,
+}
+
+pub struct ListResourceOwnersInput {
+    pub realm_name: String,
+}
+
+pub struct ReplaceResourceOwnersInput {
+    pub realm_name: String,
+    pub owners: Vec<ResourceOwner>,
 }
 
 pub struct GetRealmSettingInput {
@@ -162,6 +191,10 @@ pub struct UpdateRealmSettingInput {
     pub webhook_retry_base_delay_ms: Option<Option<i32>>,
     pub webhook_retry_max_delay_ms: Option<Option<i32>>,
     pub webhook_retry_max_total_delay_ms: Option<Option<i32>>,
+    pub cimd_enabled: Option<bool>,
+    pub dcr_enabled: Option<bool>,
+    pub cimd_allowed_hosts: Option<Vec<String>>,
+    pub allowed_resources: Option<Vec<String>>,
 }
 
 pub struct DeleteRealmInput {

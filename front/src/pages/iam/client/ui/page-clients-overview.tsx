@@ -55,6 +55,9 @@ const previewNames = (preview: ClientPreview) =>
   preview.names.join(NAME_SEPARATOR) +
   (preview.total > preview.names.length ? TRUNCATION_MARK : '')
 
+const registrationSourceBadge = (client: Client) =>
+  client.registration_source === 'admin' ? null : client.registration_source
+
 const redirectCount = (client: Client) => client.redirect_uris?.length ?? 0
 
 export default function PageClientsOverview({
@@ -76,7 +79,15 @@ export default function PageClientsOverview({
     {
       key: 'name',
       header: t('list.columns.name'),
-      render: (c) => c.name,
+      render: (c) => {
+        const source = registrationSourceBadge(c)
+        return (
+          <span className='inline-flex items-center gap-2'>
+            {c.name}
+            {source && <Pill tone='amber'>{t(`shared.registration_source.${source}`)}</Pill>}
+          </span>
+        )
+      },
       sortKey: 'name',
     },
     {
@@ -205,6 +216,11 @@ export default function PageClientsOverview({
     subtitle: (c) => c.client_id,
     badges: (c) => (
       <>
+        {registrationSourceBadge(c) && (
+          <Pill tone='amber'>
+            {t(`shared.registration_source.${registrationSourceBadge(c)}`)}
+          </Pill>
+        )}
         <Pill tone={c.public_client ? 'info' : 'violet'} mono>
           {t(`shared.authentication.${clientAuthenticationOf(c.public_client)}`)}
         </Pill>
