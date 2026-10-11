@@ -5,7 +5,7 @@ mod tests {
     use axum::Router;
     use axum::http::HeaderValue;
     use axum_extra::extract::cookie::Cookie;
-    use axum_test::TestServer;
+    use axum_test::{TestResponse, TestServer};
     use ferriskey_api::{
         application::http::server::{app_state::AppState, http_server::router},
         args::Args,
@@ -621,6 +621,153 @@ mod tests {
                 "a spent consent token must be refused on replay: {}",
                 replay.text()
             );
+        });
+    }
+
+    struct PendingResumeConsent {
+        session_id: Uuid,
+        consent_token: String,
+        auth_session: Cookie<'static>,
+        sso: Cookie<'static>,
+        scope: String,
+    }
+
+    async fn sso_resume_up_to_consent(
+        srv: &TestServer,
+        realm: &str,
+        label: &str,
+    ) -> PendingResumeConsent {
+        let token = login(srv, realm).await;
+        let first = create_client(srv, realm, &token, &format!("{label}-first")).await;
+        let client = create_client(srv, realm, &token, &format!("{label}-consent")).await;
+        let scope = format!("{label}-notes");
+        create_optional_scope(srv, realm, &token, &client, &scope).await;
+        set_consent_required(srv, realm, &token, &client).await;
+        let redirect_uri = format!("http://localhost:5555/realms/{realm}/authentication/callback");
+
+        let authorize = srv
+            .get(&format!("/realms/{realm}/protocol/openid-connect/auth"))
+            .add_query_param("response_type", "code")
+            .add_query_param("client_id", &first.client_id)
+            .add_query_param("redirect_uri", &redirect_uri)
+            .add_query_param("scope", "openid")
+            .add_query_param("state", "st")
+            .await;
+        let login = srv
+            .post(&format!("/realms/{realm}/login-actions/authenticate"))
+            .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+            .add_query_param("client_id", &first.client_id)
+            .json(&json!({ "username": "admin", "password": "admin_pass_1234!" }))
+            .await;
+        assert_eq!(login.status_code(), 200, "{}", login.text());
+        let sso = login.cookie("FERRISKEY_SSO");
+
+        let session_id: Uuid =
+            sqlx::query_scalar("SELECT user_session_id FROM auth_sessions WHERE id = $1")
+                .bind(Uuid::parse_str(authorize.cookie("FERRISKEY_SESSION").value()).unwrap())
+                .fetch_one(&ctx().pool)
+                .await
+                .expect("the first login is bound to an sso session");
+
+        let resumed = srv
+            .get(&format!("/realms/{realm}/protocol/openid-connect/auth"))
+            .add_cookie(sso.clone())
+            .add_query_param("response_type", "code")
+            .add_query_param("client_id", &client.client_id)
+            .add_query_param("redirect_uri", &redirect_uri)
+            .add_query_param("scope", format!("openid {scope}"))
+            .add_query_param("state", "st")
+            .await;
+        let location = resumed
+            .headers()
+            .get("location")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default()
+            .to_string();
+        let consent_token = query_param(&location, "consent_token")
+            .unwrap_or_else(|| panic!("the sso resume did not stop at consent: {location}"));
+
+        PendingResumeConsent {
+            session_id,
+            consent_token,
+            auth_session: resumed.cookie("FERRISKEY_SESSION"),
+            sso,
+            scope,
+        }
+    }
+
+    async fn approve(
+        srv: &TestServer,
+        realm: &str,
+        pending: &PendingResumeConsent,
+    ) -> TestResponse {
+        srv.post(&format!("/realms/{realm}/auth/consent"))
+            .add_cookie(pending.auth_session.clone())
+            .add_cookie(pending.sso.clone())
+            .json(&json!({
+                "consent_token": pending.consent_token,
+                "approved_scopes": [pending.scope],
+            }))
+            .await
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test consent_test -- --ignored"]
+    fn consenting_after_an_sso_resume_does_not_reauthenticate_the_session() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let pending = sso_resume_up_to_consent(&srv, &realm, "resume").await;
+            sqlx::query(
+                "UPDATE user_sessions SET authenticated_at = NOW() - INTERVAL '1 hour' WHERE id = $1",
+            )
+            .bind(pending.session_id)
+            .execute(&ctx().pool)
+            .await
+            .expect("age the sso session");
+            let (hash_before, expires_before): (Option<String>, chrono::NaiveDateTime) =
+                sqlx::query_as("SELECT sso_token_hash, expires_at FROM user_sessions WHERE id = $1")
+                    .bind(pending.session_id)
+                    .fetch_one(&ctx().pool)
+                    .await
+                    .expect("read the sso session");
+
+            let decision = approve(&srv, &realm, &pending).await;
+            assert_eq!(decision.status_code(), 200, "{}", decision.text());
+
+            let (hash_after, expires_after, aged): (Option<String>, chrono::NaiveDateTime, bool) =
+                sqlx::query_as(
+                    "SELECT sso_token_hash, expires_at, authenticated_at < NOW() - INTERVAL '30 minutes' \
+                     FROM user_sessions WHERE id = $1",
+                )
+                .bind(pending.session_id)
+                .fetch_one(&ctx().pool)
+                .await
+                .expect("read the sso session again");
+
+            assert!(aged, "approving consent refreshed authenticated_at without a credential");
+            assert_eq!(expires_after, expires_before, "the absolute lifetime was restarted");
+            assert_eq!(hash_after, hash_before, "the sso secret was rotated");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test consent_test -- --ignored"]
+    fn consenting_after_the_resumed_sso_session_was_revoked_issues_no_code() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let pending = sso_resume_up_to_consent(&srv, &realm, "revoked").await;
+            sqlx::query("UPDATE user_sessions SET sso_token_hash = NULL WHERE id = $1")
+                .bind(pending.session_id)
+                .execute(&ctx().pool)
+                .await
+                .expect("revoke the sso session");
+
+            let decision = approve(&srv, &realm, &pending).await;
+
+            assert_ne!(decision.status_code(), 200, "{}", decision.text());
+            assert!(!decision.text().contains("code="), "{}", decision.text());
         });
     }
 }

@@ -396,7 +396,7 @@ impl AuthenticateOutput {
         user_id: Uuid,
         authorization_code: String,
         completion: AuthCompletion,
-        sso_cookie: String,
+        sso_cookie: Option<String>,
         sso_session_max_age_secs: Option<i64>,
     ) -> Self {
         Self {
@@ -409,7 +409,7 @@ impl AuthenticateOutput {
             completion: Some(completion),
             session_state: None,
             email: None,
-            sso_cookie: Some(sso_cookie),
+            sso_cookie,
             sso_session_max_age_secs,
         }
     }
@@ -479,6 +479,9 @@ pub enum SsoSessionBinding {
     Resume {
         session: Box<Scoped<UserSession>>,
         cookie: String,
+    },
+    Keep {
+        session: Box<UserSession>,
     },
 }
 

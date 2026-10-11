@@ -3689,14 +3689,28 @@ where
             .map_err(|_| CoreError::SessionNotFound)?
             .into_inner();
 
-        self.finalize_authentication(
-            user_id,
-            session_code,
-            auth_session,
-            SsoSessionBinding::Open,
-            scope,
-        )
-        .await
+        let binding = match auth_session.user_session_id {
+            Some(resumed) => {
+                let session =
+                    find_live_bound_session(self.user_session_repository.as_ref(), resumed, scope)
+                        .await
+                        .filter(|session| session.user_id == user_id)
+                        .ok_or_else(|| {
+                            warn!(
+                                session_id = %resumed,
+                                "Refusing a consent: the SSO session it resumed is gone"
+                            );
+                            CoreError::ReauthenticationRequired
+                        })?;
+                SsoSessionBinding::Keep {
+                    session: Box::new(session),
+                }
+            }
+            None => SsoSessionBinding::Open,
+        };
+
+        self.finalize_authentication(user_id, session_code, auth_session, binding, scope)
+            .await
     }
 
     async fn finalize_authentication(
@@ -3710,7 +3724,10 @@ where
         let authorization_code = generate_random_string();
 
         let (sso_session, sso_cookie) = match sso_session {
-            SsoSessionBinding::Resume { session, cookie } => ((*session).into_inner(), cookie),
+            SsoSessionBinding::Resume { session, cookie } => {
+                ((*session).into_inner(), Some(cookie))
+            }
+            SsoSessionBinding::Keep { session } => (*session, None),
             SsoSessionBinding::Open => {
                 let lifetimes = self
                     .resolve_token_lifetimes(scope, auth_session.client_id)
@@ -3718,7 +3735,7 @@ where
                 let persistent =
                     auth_session.remember_me && self.remember_me_allowed(scope).await?;
 
-                open_or_reauthenticate_session(
+                let (session, cookie) = open_or_reauthenticate_session(
                     self.user_session_repository.as_ref(),
                     self.security_event_repository.as_ref(),
                     auth_session.reauth_session_id,
@@ -3727,7 +3744,8 @@ where
                     lifetimes.refresh_token,
                     persistent,
                 )
-                .await?
+                .await?;
+                (session, Some(cookie))
             }
         };
 
@@ -4256,13 +4274,13 @@ This is a server error that should be investigated. Do not forward back this mes
             .consent_gate(user.id, session_code, &auth_session, &scope)
             .await?
         {
-            if let Err(e) = self
-                .auth_session_repository
-                .set_reauth_session(session_code, session.get().id)
+            self.auth_session_repository
+                .bind_user_session(session_code, session.get().id)
                 .await
-            {
-                warn!(error = ?e, "Failed to record the session to resume after consent");
-            }
+                .map_err(|e| {
+                    warn!(error = ?e, "Failed to record the session to resume after consent");
+                    CoreError::SessionNotFound
+                })?;
 
             return Ok(output);
         }
