@@ -624,6 +624,61 @@ mod tests {
         });
     }
 
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test consent_test -- --ignored"]
+    fn approving_consent_after_a_fresh_login_hands_the_browser_its_sso_session() {
+        let srv = server();
+        let realm = ctx().realm_name.clone();
+        rt().block_on(async {
+            let token = login(&srv, &realm).await;
+            let client = create_client(&srv, &realm, &token, "fresh-consent").await;
+            let other = create_client(&srv, &realm, &token, "fresh-other").await;
+            create_optional_scope(&srv, &realm, &token, &client, "fresh-notes").await;
+            set_consent_required(&srv, &realm, &token, &client).await;
+
+            let (result, session) =
+                authorize_and_authenticate(&srv, &realm, &client, "openid fresh-notes").await;
+            let url = result["url"].as_str().expect("redirect url");
+            let consent_token = query_param(url, "consent_token").expect("consent_token in url");
+
+            let decision = srv
+                .post(&format!("/realms/{realm}/auth/consent"))
+                .add_cookie(session.clone())
+                .json(&json!({
+                    "consent_token": consent_token,
+                    "approved_scopes": ["fresh-notes"],
+                }))
+                .await;
+            assert_eq!(decision.status_code(), 200, "{}", decision.text());
+            let sso = decision
+                .maybe_cookie("FERRISKEY_SSO")
+                .expect("approving consent opened an sso session without handing over its cookie");
+
+            let resumed = srv
+                .get(&format!("/realms/{realm}/protocol/openid-connect/auth"))
+                .add_cookie(sso)
+                .add_query_param("response_type", "code")
+                .add_query_param("client_id", &other.client_id)
+                .add_query_param(
+                    "redirect_uri",
+                    format!("http://localhost:5555/realms/{realm}/authentication/callback"),
+                )
+                .add_query_param("scope", "openid")
+                .add_query_param("state", "st")
+                .await;
+            let location = resumed
+                .headers()
+                .get("location")
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or_default()
+                .to_string();
+            assert!(
+                location.contains("code="),
+                "the sso cookie from the consent did not resume the session: {location}"
+            );
+        });
+    }
+
     struct PendingResumeConsent {
         session_id: Uuid,
         consent_token: String,
@@ -734,6 +789,10 @@ mod tests {
 
             let decision = approve(&srv, &realm, &pending).await;
             assert_eq!(decision.status_code(), 200, "{}", decision.text());
+            assert!(
+                decision.maybe_cookie("FERRISKEY_SSO").is_none(),
+                "approving consent replaced the sso cookie of a resumed session"
+            );
 
             let (hash_after, expires_after, aged): (Option<String>, chrono::NaiveDateTime, bool) =
                 sqlx::query_as(

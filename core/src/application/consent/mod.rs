@@ -1,4 +1,5 @@
 use crate::application::services::ApplicationService;
+use crate::domain::authentication::ports::ConsentRedirect;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::consent::{
     ConsentDecisionOutcome, ConsentEvaluation, ConsentRequestView, ConsentService,
@@ -23,7 +24,7 @@ impl ApplicationService {
         consent_token: &str,
         approved_scopes: Vec<String>,
         browser_session: Option<uuid::Uuid>,
-    ) -> Result<String, CoreError> {
+    ) -> Result<ConsentRedirect, CoreError> {
         self.auth_service
             .decide_consent(realm_name, consent_token, browser_session, approved_scopes)
             .await
