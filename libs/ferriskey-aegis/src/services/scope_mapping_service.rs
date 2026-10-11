@@ -213,6 +213,15 @@ where
 
         scopes.retain(|scope| scope.realm_id == realm_scope.id());
 
+        let scope_ids: Vec<Uuid> = scopes.iter().map(|scope| scope.id).collect();
+        let mut mappers = self
+            .client_scope_repository
+            .protocol_mappers_of(&scope_ids)
+            .await?;
+        for scope in &mut scopes {
+            scope.protocol_mappers = Some(mappers.remove(&scope.id).unwrap_or_default());
+        }
+
         Ok(scopes)
     }
 }
@@ -569,5 +578,72 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn get_client_scopes_carries_the_mappers_of_each_scope() {
+        let realm = make_realm("tenant-a");
+        let user = make_user(&realm);
+        let role = make_admin_role(realm.id);
+        let client = make_client(Uuid::new_v4(), realm.id);
+        let client_id = client.id;
+        let with_mapper = make_scope(realm.id);
+        let without_mapper = make_scope(realm.id);
+        let mapped_id = with_mapper.id;
+        let bare_id = without_mapper.id;
+        let mapper = crate::entities::ProtocolMapper::new(
+            mapped_id,
+            "audience".to_string(),
+            "oidc-audience-mapper".to_string(),
+            serde_json::json!({}),
+        );
+
+        let mut mapping_repository = MockClientScopeMappingRepository::new();
+        mapping_repository
+            .expect_get_default_scopes()
+            .returning(move |_| {
+                let scopes = vec![with_mapper.clone(), without_mapper.clone()];
+                Box::pin(async move { Ok(scopes) })
+            });
+        mapping_repository
+            .expect_get_optional_scopes()
+            .returning(|_| Box::pin(async { Ok(vec![]) }));
+
+        let mut scope_repository = MockClientScopeRepository::new();
+        scope_repository
+            .expect_protocol_mappers_of()
+            .returning(move |_| {
+                let found = std::collections::HashMap::from([(mapped_id, vec![mapper.clone()])]);
+                Box::pin(async move { Ok(found) })
+            });
+
+        let service = build_service(
+            vec![realm],
+            vec![role],
+            vec![client],
+            scope_repository,
+            mapping_repository,
+        );
+
+        let scopes = service
+            .get_client_scopes(
+                Identity::User(user),
+                GetClientClientScopesInput {
+                    realm_name: "tenant-a".to_string(),
+                    client_id,
+                },
+            )
+            .await
+            .expect("the client belongs to the realm");
+
+        let mappers_of = |id: Uuid| {
+            scopes
+                .iter()
+                .find(|scope| scope.id == id)
+                .and_then(|scope| scope.protocol_mappers.as_ref())
+                .map(Vec::len)
+        };
+        assert_eq!(mappers_of(mapped_id), Some(1));
+        assert_eq!(mappers_of(bare_id), Some(0));
     }
 }

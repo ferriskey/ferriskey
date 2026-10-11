@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::Future;
 
 use ferriskey_domain::{
@@ -57,6 +58,11 @@ pub trait ClientScopeRepository: Send + Sync {
         name: String,
         realm_id: RealmId,
     ) -> impl Future<Output = Result<Option<Unscoped<ClientScope>>, CoreError>> + Send;
+
+    fn protocol_mappers_of(
+        &self,
+        scope_ids: &[Uuid],
+    ) -> impl Future<Output = Result<HashMap<Uuid, Vec<ProtocolMapper>>, CoreError>> + Send;
 
     fn update_by_id(
         &self,
