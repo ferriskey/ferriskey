@@ -3010,11 +3010,6 @@ where
             return Err(CoreError::Invalid);
         }
 
-        let _ = self
-            .user_repository
-            .reset_failed_login_attempts(user.id)
-            .await;
-
         let pending_step = self
             .resolve_pending_auth_step(user.id, params.realm.id())
             .instrument(info_span!("auth.password.pending_step"))
@@ -3029,6 +3024,11 @@ where
             );
             return Err(error);
         }
+
+        let _ = self
+            .user_repository
+            .reset_failed_login_attempts(user.id)
+            .await;
 
         let final_scope = self
             .resolve_scopes_for_client(client.id, params.scope)
@@ -4000,11 +4000,6 @@ This is a server error that should be investigated. Do not forward back this mes
             return Err(CoreError::InvalidPassword);
         }
 
-        let _ = self
-            .user_repository
-            .reset_failed_login_attempts(user.id)
-            .await;
-
         let auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
@@ -4069,6 +4064,16 @@ This is a server error that should be investigated. Do not forward back this mes
 
         if let Some(action) = mfa_required_action {
             effective_required_actions.push(action);
+        }
+
+        let otp_challenge_follows =
+            effective_required_actions.is_empty() && !has_temporary_password && has_otp_credentials;
+
+        if !otp_challenge_follows {
+            let _ = self
+                .user_repository
+                .reset_failed_login_attempts(user.id)
+                .await;
         }
 
         if !effective_required_actions.is_empty() || has_temporary_password {

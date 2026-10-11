@@ -1377,21 +1377,49 @@ where
                 CoreError::TotpVerificationFailed("user has not OTP configured".to_string())
             })?;
 
+        let now = Utc::now();
+        if user.is_locked(now) {
+            warn!(user_id = %user.id, "Refused an OTP challenge: the account is locked");
+            return Err(CoreError::AccountLocked);
+        }
+
         let secret = TotpSecret::from_base32(&otp_credential.secret_data);
 
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let is_valid = verify(&secret, &input.code)?;
 
         if !is_valid {
-            error!(
-                "invalid OTP code for user: {}",
-                user.email.as_deref().unwrap_or("")
-            );
+            warn!(user_id = %user.id, "Refused an OTP challenge: invalid code");
             self.flow_recorder.record_step(
                 flow_id,
                 FlowStepName::MfaChallenge,
                 StepOutcome::failure("invalid_otp_code".to_string()),
             );
+
+            let settings = self
+                .realm_repository
+                .get_realm_settings(scope.id())
+                .await
+                .ok()
+                .flatten();
+            let threshold = settings.as_ref().map(|s| s.lockout_threshold).unwrap_or(10);
+            let duration = settings
+                .as_ref()
+                .map(|s| s.lockout_duration_seconds)
+                .unwrap_or(900);
+
+            if let Err(e) = self
+                .user_repository
+                .increment_failed_login_attempts(
+                    user.id,
+                    threshold,
+                    now + Duration::seconds(duration as i64),
+                )
+                .await
+            {
+                error!(user_id = %user.id, error = %e, "Failed to count a wrong OTP code toward the lockout");
+            }
+
             return Err(CoreError::TotpVerificationFailed(
                 "failed to verify OTP".to_string(),
             ));
@@ -1402,6 +1430,10 @@ where
             FlowStepName::MfaChallenge,
             StepOutcome::success(),
         );
+
+        self.user_repository
+            .reset_failed_login_attempts(user.id)
+            .await?;
 
         let required_actions = self
             .user_required_action_repository
@@ -3564,6 +3596,66 @@ mod tests {
         assert!(
             result.is_err(),
             "verify_otp must refuse when setup_otp never ran"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_wrong_otp_code_is_refused_even_when_the_lockout_counter_cannot_be_written() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let session_code = Uuid::new_v4();
+        let mut builder = TridentTestBuilder::new();
+
+        let resolved = realm.clone();
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_by_id()
+            .returning(move |_| {
+                let realm = resolved.clone();
+                Box::pin(async move { Ok(Some(realm)) })
+            });
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+        let session = auth_session_without_state(&realm, session_code);
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let session = session.clone();
+                Box::pin(async move { Ok(Unscoped::new(session)) })
+            });
+
+        let credential = otp_credential(user.id);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let credential = credential.clone();
+                Box::pin(async move { Ok(vec![credential]) })
+            });
+
+        Arc::get_mut(&mut builder.user_repo)
+            .unwrap()
+            .expect_increment_failed_login_attempts()
+            .returning(|_, _, _| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+        let service = builder.build();
+        let result = service
+            .challenge_otp(
+                Identity::User(user),
+                ChallengeOtpInput {
+                    session_code: session_code.to_string(),
+                    code: "000000".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result.err(), Some(CoreError::TotpVerificationFailed(_))),
+            "a wrong code must be reported as such, not as a storage failure"
         );
     }
 
