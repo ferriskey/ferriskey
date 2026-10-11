@@ -315,6 +315,12 @@ pub struct OpenedSsoSession {
     pub max_age_secs: Option<i64>,
 }
 
+pub struct ConsentRedirect {
+    pub redirect_url: String,
+    pub sso_cookie: Option<String>,
+    pub sso_session_max_age_secs: Option<i64>,
+}
+
 /// The cookie is a bearer secret: keep it out of logs.
 impl std::fmt::Debug for OpenedSsoSession {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum::http::{HeaderMap, header::SET_COOKIE};
 use axum_cookie::CookieManager;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -6,6 +7,8 @@ use utoipa::ToSchema;
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse, ValidateJson};
 use ferriskey_api_core::api_entities::response::Response;
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::sso_cookie;
+use ferriskey_api_core::url::FullUrl;
 use validator::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
@@ -45,10 +48,11 @@ fn browser_session(cookie: &CookieManager) -> Option<uuid::Uuid> {
 pub async fn post_consent(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<PostConsentRequest>,
-) -> Result<Response<PostConsentResponse>, ApiError> {
-    let redirect_url = state
+) -> Result<(HeaderMap, Response<PostConsentResponse>), ApiError> {
+    let decision = state
         .service
         .submit_consent_decision(
             &realm_name,
@@ -59,5 +63,22 @@ pub async fn post_consent(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(PostConsentResponse { redirect_url }))
+    let mut headers = HeaderMap::new();
+    if let Some(secret) = decision.sso_cookie {
+        headers.append(
+            SET_COOKIE,
+            sso_cookie::set(
+                secret,
+                decision.sso_session_max_age_secs,
+                base_url.starts_with("https"),
+            )?,
+        );
+    }
+
+    Ok((
+        headers,
+        Response::OK(PostConsentResponse {
+            redirect_url: decision.redirect_url,
+        }),
+    ))
 }

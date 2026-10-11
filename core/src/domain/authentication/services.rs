@@ -47,7 +47,10 @@ use crate::domain::{
             ExchangeTokenInput, GrantType, JwtToken, SsoSessionBinding, TokenIntrospectionResponse,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
-        ports::{AuthService, AuthSessionRepository, LoginActionToken, LoginActionTokenRepository},
+        ports::{
+            AuthService, AuthSessionRepository, ConsentRedirect, LoginActionToken,
+            LoginActionTokenRepository,
+        },
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
             EvaluateClientScopesInput, EvaluateClientScopesResult, EvaluatedMapper, EvaluatedRoles,
@@ -3617,7 +3620,7 @@ where
         consent_token: &str,
         browser_session: Option<Uuid>,
         approved_scopes: Vec<String>,
-    ) -> Result<String, CoreError> {
+    ) -> Result<ConsentRedirect, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await?;
         let auth_session = self
             .auth_session_by_consent_token(&scope, consent_token, browser_session)
@@ -3658,18 +3661,26 @@ where
             .await?;
 
         match outcome {
-            ConsentDecisionOutcome::Denied => Ok(consent_error_redirect(
-                &auth_session.redirect_uri,
-                "access_denied",
-                auth_session.state.as_deref(),
-                auth_session.issuer.as_deref(),
-            )),
+            ConsentDecisionOutcome::Denied => Ok(ConsentRedirect {
+                redirect_url: consent_error_redirect(
+                    &auth_session.redirect_uri,
+                    "access_denied",
+                    auth_session.state.as_deref(),
+                    auth_session.issuer.as_deref(),
+                ),
+                sso_cookie: None,
+                sso_session_max_age_secs: None,
+            }),
             ConsentDecisionOutcome::Approved { .. } => {
                 let output = self
                     .finalize_after_consent(auth_session.id, user_id, &scope)
                     .await?;
 
-                output.redirect_url.ok_or(CoreError::InternalServerError)
+                Ok(ConsentRedirect {
+                    redirect_url: output.redirect_url.ok_or(CoreError::InternalServerError)?,
+                    sso_cookie: output.sso_cookie,
+                    sso_session_max_age_secs: output.sso_session_max_age_secs,
+                })
             }
         }
     }
