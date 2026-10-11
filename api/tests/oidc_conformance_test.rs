@@ -211,6 +211,40 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn the_password_grant_respects_maintenance() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app
+                .client(ClientSpec::confidential().with_direct_access())
+                .await;
+            let user = app.user(&server, PASSWORD).await;
+            sqlx::query("UPDATE clients SET maintenance_enabled = true WHERE id = $1")
+                .bind(client.id)
+                .execute(&app.pool)
+                .await
+                .expect("enable maintenance");
+
+            let response = password_grant(
+                &server,
+                app,
+                &client.client_id,
+                client.secret.as_deref(),
+                &user.username,
+                PASSWORD,
+            )
+            .await;
+            assert_ne!(response.status_code(), 200, "{}", response.text());
+            assert!(
+                response.json::<Value>().get("access_token").is_none(),
+                "{}",
+                response.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn maintenance_is_checked_on_the_client_of_the_authorization_request() {
         rt().block_on(async {
             let app = app();
