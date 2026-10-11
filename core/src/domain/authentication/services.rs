@@ -5354,13 +5354,14 @@ where
             return Err(CoreError::InvalidRequest);
         }
 
-        if let Some(claims) = id_token_claims.as_ref()
-            && let Some(session_id) = claims
+        let hinted_session = match id_token_claims.as_ref().and_then(|claims| {
+            claims
                 .sid
                 .as_deref()
                 .and_then(|sid| Uuid::parse_str(sid).ok())
-        {
-            let session = self
+                .map(|session_id| (session_id, claims.sub))
+        }) {
+            Some((session_id, user_id)) => self
                 .user_session_repository
                 .find_by_id(session_id)
                 .await
@@ -5368,12 +5369,14 @@ where
                     warn!(session_id = %session_id, error = ?e, "Failed to load the session a logout names");
                     CoreError::InternalServerError
                 })?
-                .in_realm(&scope)?;
+                .in_realm(&scope)?
+                .map(|session| (session, user_id)),
+            None => None,
+        };
 
-            if let Some(session) = session {
-                self.revoke_session_cascade(&session, scope.id(), claims.sub)
-                    .await?;
-            }
+        if let Some((session, user_id)) = hinted_session {
+            self.revoke_session_cascade(&session, scope.id(), user_id)
+                .await?;
         } else if let Some(cookie) = input.sso_cookie.as_deref() {
             let session = self
                 .user_session_repository

@@ -599,6 +599,71 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn logout_with_a_hint_naming_a_gone_session_ends_the_session_of_the_sso_cookie() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let client = app.client(ClientSpec::confidential()).await;
+            let user = app.user(&server, PASSWORD).await;
+
+            let mut logins = Vec::new();
+            for _ in 0..2 {
+                let authorized = authorize(&server, app, &client.client_id, &[]).await;
+                let auth_session = authorized.cookie("FERRISKEY_SESSION");
+                let login = server
+                    .post(&app.path("/login-actions/authenticate"))
+                    .add_cookie(auth_session.clone())
+                    .add_query_param("client_id", &client.client_id)
+                    .json(&json!({ "username": user.username, "password": PASSWORD }))
+                    .await;
+                assert_eq!(login.status_code(), 200, "{}", login.text());
+                let url = login.json::<Value>()["url"]
+                    .as_str()
+                    .expect("url")
+                    .to_string();
+                let code = query_param(&url, "code").expect("code");
+                let issued: Value = exchange_code(&server, app, &client, &code, &[])
+                    .await
+                    .json();
+                logins.push((auth_session, login.cookie("FERRISKEY_SSO"), issued));
+            }
+            let (gone_auth_session, _, gone_tokens) = &logins[0];
+            let (_, sso, live_tokens) = &logins[1];
+            let id_token_hint = gone_tokens["id_token"].as_str().expect("id_token");
+            let refresh_token = live_tokens["refresh_token"]
+                .as_str()
+                .expect("refresh_token");
+
+            sqlx::query(
+                "DELETE FROM user_sessions WHERE id = \
+                 (SELECT user_session_id FROM auth_sessions WHERE id = $1::uuid)",
+            )
+            .bind(gone_auth_session.value())
+            .execute(&app.pool)
+            .await
+            .expect("delete the hinted session");
+
+            let logout = server
+                .get(&app.oidc("logout"))
+                .add_cookie(sso.clone())
+                .add_query_param("id_token_hint", id_token_hint)
+                .await;
+            assert_eq!(logout.status_code(), 204, "{}", logout.text());
+
+            let refreshed = refresh(
+                &server,
+                app,
+                &client.client_id,
+                client.secret.as_deref(),
+                refresh_token,
+            )
+            .await;
+            assert_eq!(refreshed.status_code(), 400, "{}", refreshed.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn logout_refuses_an_id_token_hint_with_a_forged_signature() {
         rt().block_on(async {
             let app = app();
