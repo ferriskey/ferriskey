@@ -438,10 +438,7 @@ where
                 client_id: "admin-cli".to_string(),
                 client_type: ClientType::Public,
                 direct_access_grants_enabled: true,
-                // admin-cli is the canonical CLI client for the realm, so the
-                // device code grant is enabled by default — that's its whole
-                // purpose. Other seeded clients keep it off.
-                oauth_device_code_grant_enabled: true,
+                oauth_device_code_grant_enabled: false,
                 token_exchange_enabled: false,
                 enabled: true,
                 name: "admin-cli".to_string(),

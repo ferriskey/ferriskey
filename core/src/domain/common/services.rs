@@ -309,7 +309,7 @@ where
                         public_client: true,
                         service_account_enabled: false,
                         direct_access_grants_enabled: true,
-                        oauth_device_code_grant_enabled: true,
+                        oauth_device_code_grant_enabled: false,
                         token_exchange_enabled: false,
                         client_type: ClientType::System,
                         secret: None,

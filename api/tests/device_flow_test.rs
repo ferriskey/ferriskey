@@ -1038,4 +1038,18 @@ mod tests {
             );
         });
     }
+
+    #[test]
+    #[ignore]
+    fn the_seeded_admin_cli_cannot_start_a_device_flow() {
+        let server = make_server();
+        rt().block_on(async {
+            let resp = initiate_raw(&server, &[("client_id", "admin-cli")]).await;
+            let body: Value = resp.json();
+
+            assert_eq!(resp.status_code(), 400, "body: {body:?}");
+            assert_eq!(body["error"], "unauthorized_client", "body: {body:?}");
+            assert!(body.get("device_code").is_none(), "body: {body:?}");
+        });
+    }
 }
