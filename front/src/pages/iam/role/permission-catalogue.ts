@@ -52,6 +52,7 @@ export const permissionCatalogue: readonly PermissionGroup[] = [
       Permissions.ViewRoles,
       Permissions.ManageAuthorization,
       Permissions.ViewAuthorization,
+      Permissions.EvaluateAuthorization,
     ],
   },
   {

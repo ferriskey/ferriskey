@@ -201,6 +201,9 @@ permissions:
     view_authorization:
       label: 查看授权
       description: 读取此域的授权策略。
+    evaluate_authorization:
+      label: 评估授权
+      description: 像执行授权的应用一样，向此域请求访问决策。
     manage_realm:
       label: 管理域
       description: 编辑域设置、令牌和登录策略。
