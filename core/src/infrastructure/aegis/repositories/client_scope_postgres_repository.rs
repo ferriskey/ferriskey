@@ -153,6 +153,36 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         Ok(models.into_iter().map(ClientScope::from).collect())
     }
 
+    #[instrument(skip(self, scope_ids))]
+    async fn protocol_mappers_of(
+        &self,
+        scope_ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, Vec<ProtocolMapper>>, CoreError> {
+        let mut mappers: HashMap<Uuid, Vec<ProtocolMapper>> = HashMap::new();
+        if scope_ids.is_empty() {
+            return Ok(mappers);
+        }
+
+        let rows = client_scope_protocol_mappers::Entity::find()
+            .filter(client_scope_protocol_mappers::Column::ClientScopeId.is_in(scope_ids.to_vec()))
+            .order_by_asc(client_scope_protocol_mappers::Column::CreatedAt)
+            .order_by_asc(client_scope_protocol_mappers::Column::Id)
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error loading protocol mappers of client scopes: {:?}", e);
+                CoreError::InternalServerError
+            })?;
+        for row in rows {
+            mappers
+                .entry(row.client_scope_id)
+                .or_default()
+                .push(ProtocolMapper::from(row));
+        }
+
+        Ok(mappers)
+    }
+
     #[instrument(skip(self, request), fields(realm.id = ?scope.id()))]
     async fn list(
         &self,
@@ -166,28 +196,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         })?;
 
         let scope_ids: Vec<Uuid> = models.iter().map(|model| model.id).collect();
-        let mut mappers: HashMap<Uuid, Vec<ProtocolMapper>> = HashMap::new();
-        if !scope_ids.is_empty() {
-            let rows = client_scope_protocol_mappers::Entity::find()
-                .filter(client_scope_protocol_mappers::Column::ClientScopeId.is_in(scope_ids))
-                .order_by_asc(client_scope_protocol_mappers::Column::CreatedAt)
-                .order_by_asc(client_scope_protocol_mappers::Column::Id)
-                .all(&self.db)
-                .await
-                .map_err(|e| {
-                    error!(
-                        "error loading protocol mappers of listed client scopes: {:?}",
-                        e
-                    );
-                    CoreError::InternalServerError
-                })?;
-            for row in rows {
-                mappers
-                    .entry(row.client_scope_id)
-                    .or_default()
-                    .push(ProtocolMapper::from(row));
-            }
-        }
+        let mut mappers = self.protocol_mappers_of(&scope_ids).await?;
 
         let client_scopes = models
             .into_iter()
