@@ -930,6 +930,7 @@ mod tests {
                     oauth_device_code_grant_enabled: false,
                     token_exchange_enabled: false,
                     consent_required: false,
+                    require_pkce: false,
                 },
             )
             .await

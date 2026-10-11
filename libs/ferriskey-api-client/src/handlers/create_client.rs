@@ -62,6 +62,7 @@ pub async fn create_client(
                 oauth_device_code_grant_enabled: payload.oauth_device_code_grant_enabled,
                 token_exchange_enabled: payload.token_exchange_enabled,
                 consent_required: payload.consent_required,
+                require_pkce: payload.require_pkce,
             },
         )
         .await?;

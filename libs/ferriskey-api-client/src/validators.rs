@@ -41,6 +41,12 @@ pub struct CreateClientValidator {
     pub token_exchange_enabled: bool,
     #[serde(default)]
     pub consent_required: bool,
+    #[serde(default = "require_pkce_by_default")]
+    pub require_pkce: bool,
+}
+
+fn require_pkce_by_default() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

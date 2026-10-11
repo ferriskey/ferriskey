@@ -188,7 +188,8 @@ mod tests {
                 "service_account_enabled": false,
                 "direct_access_grants_enabled": false,
                 "enabled": true,
-                "oauth_device_code_grant_enabled": false
+                "oauth_device_code_grant_enabled": false,
+                "require_pkce": false
             }))
             .await;
 

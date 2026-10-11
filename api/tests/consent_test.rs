@@ -207,6 +207,7 @@ mod tests {
                 "enabled": true,
                 "oauth_device_code_grant_enabled": false,
                 "token_exchange_enabled": false,
+                "require_pkce": false,
             }))
             .await;
         assert_eq!(response.status_code(), 201, "{}", response.text());
