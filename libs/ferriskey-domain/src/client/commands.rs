@@ -20,6 +20,7 @@ pub struct CreateClientInput {
     pub oauth_device_code_grant_enabled: bool,
     pub token_exchange_enabled: bool,
     pub consent_required: bool,
+    pub require_pkce: bool,
 }
 
 pub struct CreateRedirectUriInput {

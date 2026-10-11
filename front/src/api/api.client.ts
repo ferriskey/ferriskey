@@ -310,6 +310,7 @@ export namespace Schemas {
     oauth_device_code_grant_enabled?: boolean | undefined;
     protocol?: AuthProtocol | undefined;
     public_client?: boolean | undefined;
+    require_pkce?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
     token_exchange_enabled?: boolean | undefined;
   };

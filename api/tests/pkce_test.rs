@@ -27,7 +27,7 @@ mod tests {
             DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
         },
     };
-    use serde_json::Value;
+    use serde_json::{Value, json};
     use sqlx::Executor;
     use uuid::Uuid;
 
@@ -268,6 +268,48 @@ mod tests {
         format!("/realms/{}/protocol/openid-connect/auth", realm)
     }
 
+    async fn admin_token(server: &TestServer) -> String {
+        let response = server
+            .post(&token_url(realm()))
+            .form(&[
+                ("grant_type", "password"),
+                ("client_id", "admin-cli"),
+                ("username", "admin"),
+                ("password", "admin"),
+            ])
+            .await;
+
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        response.json::<Value>()["access_token"]
+            .as_str()
+            .expect("access_token")
+            .to_string()
+    }
+
+    async fn create_client(server: &TestServer, extra: Value) -> Value {
+        let token = admin_token(server).await;
+        let mut body = json!({
+            "client_id": format!("pkce-created-{}", Uuid::new_v4().simple()),
+            "name": "Created client",
+            "client_type": "public",
+            "protocol": "openid-connect",
+            "public_client": true,
+            "enabled": true,
+        });
+        if let (Some(body), Some(extra)) = (body.as_object_mut(), extra.as_object()) {
+            body.extend(extra.clone());
+        }
+
+        let response = server
+            .post(&format!("/realms/{}/clients", realm()))
+            .add_header("Authorization", format!("Bearer {token}"))
+            .json(&body)
+            .await;
+
+        assert_eq!(response.status_code(), 201, "{}", response.text());
+        response.json()
+    }
+
     // ---------------------------------------------------------------------------
     // Tests
     // ---------------------------------------------------------------------------
@@ -481,6 +523,30 @@ mod tests {
                 status == 302 || status == 400,
                 "should reject omitted method: got {status}"
             );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test pkce_test -- --ignored"]
+    fn a_new_client_requires_pkce_by_default() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let client = create_client(&server, json!({})).await;
+
+            assert_eq!(client["require_pkce"], json!(true), "{client}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test pkce_test -- --ignored"]
+    fn a_new_client_can_opt_out_of_pkce() {
+        rt().block_on(async {
+            let server = make_server();
+
+            let client = create_client(&server, json!({ "require_pkce": false })).await;
+
+            assert_eq!(client["require_pkce"], json!(false), "{client}");
         });
     }
 }

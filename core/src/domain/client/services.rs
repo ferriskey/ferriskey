@@ -226,7 +226,7 @@ where
                 oauth_device_code_grant_enabled: input.oauth_device_code_grant_enabled,
                 token_exchange_enabled: input.token_exchange_enabled,
                 client_type: input.client_type,
-                require_pkce: false,
+                require_pkce: input.require_pkce,
                 consent_required: input.consent_required,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
@@ -1429,6 +1429,7 @@ mod tests {
                     oauth_device_code_grant_enabled: false,
                     token_exchange_enabled: false,
                     consent_required: false,
+                    require_pkce: true,
                 },
             )
             .await
