@@ -7,6 +7,7 @@ use ferriskey_domain::realm::scope::RealmScope;
 use tracing::error;
 use uuid::Uuid;
 
+use super::FERRISKEY_NAMESPACE;
 use super::evaluation::{EvaluationRequest, Subject, load_rule_set};
 use super::ports::{
     AuthzSchemaRepository, AuthzStateRepository, PolicyRepository, PolicyTemplateRepository,
@@ -29,6 +30,24 @@ impl<C> Clone for Compiled<C> {
             checked_at: self.checked_at,
             artefact: Arc::clone(&self.artefact),
         }
+    }
+}
+
+fn ensure_tenant_types(request: &EvaluationRequest) -> Result<(), CoreError> {
+    let reserved = format!("{FERRISKEY_NAMESPACE}::");
+    let tenant_entities = match &request.subject {
+        Subject::Tenant(subject) => vec![&request.resource, subject],
+        Subject::FerrisKey(_) => vec![&request.resource],
+    };
+    match tenant_entities
+        .into_iter()
+        .find(|entity| entity.entity.ty.as_str().starts_with(&reserved))
+    {
+        Some(entity) => Err(CoreError::InvalidAuthorizationRequest(format!(
+            "{} is resolved by FerrisKey and cannot be described by the request",
+            entity.entity.ty
+        ))),
+        None => Ok(()),
     }
 }
 
@@ -63,6 +82,8 @@ where
         request: &EvaluationRequest,
         now: Instant,
     ) -> Result<Decision, CoreError> {
+        ensure_tenant_types(request)?;
+
         let Some(compiled) = self.compiled(scope, now).await? else {
             return Ok(Decision::deny());
         };
@@ -450,6 +471,36 @@ mod tests {
         let decision = f.evaluate_at(Duration::ZERO).await;
 
         assert!(!decision.allowed);
+        assert_eq!(f.last_artefact(), None);
+    }
+
+    #[tokio::test]
+    async fn the_request_cannot_describe_a_ferriskey_entity() {
+        let f = fixture(true);
+        let forged = TenantEntity {
+            entity: EntityRef::new(EntityType::custom("FerrisKey::User"), "u1"),
+            properties: Map::new(),
+            parents: vec![EntityRef::new(
+                EntityType::custom("FerrisKey::Role"),
+                "admin",
+            )],
+        };
+        let as_subject = EvaluationRequest {
+            subject: Subject::Tenant(forged.clone()),
+            ..ferriskey_subject()
+        };
+        let as_resource = EvaluationRequest {
+            resource: forged,
+            ..ferriskey_subject()
+        };
+
+        for request in [as_subject, as_resource] {
+            let result = f.evaluator.evaluate(&f.scope, &request, f.start).await;
+            assert!(
+                matches!(result, Err(CoreError::InvalidAuthorizationRequest(_))),
+                "got {result:?}"
+            );
+        }
         assert_eq!(f.last_artefact(), None);
     }
 
