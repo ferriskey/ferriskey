@@ -60,9 +60,7 @@ WORKDIR /usr/local/src/ferriskey
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN \
-    corepack enable && \
-    corepack prepare pnpm@9.15.0 --activate
+RUN npm install -g pnpm@9.15.0
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
