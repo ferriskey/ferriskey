@@ -24,16 +24,16 @@ impl CedarPolicyCompiler {
     }
 }
 
-struct Origin<'a> {
+pub(crate) struct Origin<'a> {
     name: &'a str,
     source: &'a str,
 }
 
-fn cedar_id(id: Uuid) -> PolicyId {
+pub(crate) fn cedar_id(id: Uuid) -> PolicyId {
     PolicyId::new(id.to_string())
 }
 
-fn compile_schema(schema: &AuthzSchema) -> Result<Schema, Vec<PolicyIssue>> {
+pub(crate) fn compile_schema(schema: &AuthzSchema) -> Result<Schema, Vec<PolicyIssue>> {
     let (fragment, _warnings) = SchemaFragment::from_cedarschema_str(&schema.source)
         .map_err(|e| issues_from(None, &e, &schema.source))?;
 
@@ -83,12 +83,12 @@ fn link_values(
         .collect()
 }
 
-fn build_policy_set<'a>(
-    policies: &'a [Policy],
+pub(crate) fn build_policy_set<'a>(
+    policies: impl IntoIterator<Item = &'a Policy>,
     templates: &'a [PolicyTemplate],
 ) -> Result<(PolicySet, HashMap<PolicyId, Origin<'a>>), Vec<PolicyIssue>> {
     let mut set = PolicySet::new();
-    let mut origins = HashMap::with_capacity(policies.len() + templates.len());
+    let mut origins = HashMap::with_capacity(templates.len());
     let mut issues = Vec::new();
 
     for template in templates {

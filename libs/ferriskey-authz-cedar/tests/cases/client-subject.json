@@ -1,0 +1,52 @@
+{
+  "schema": "namespace App {\n  entity Document = {\n    owner: FerrisKey::User,\n  };\n\n  entity Device = {\n    trusted: Bool,\n  };\n\n  action \"document:read\" appliesTo {\n    principal: [FerrisKey::User, FerrisKey::Client, Device],\n    resource: [Document],\n  };\n}\n",
+  "policies": [
+    {
+      "name": "svc",
+      "source": "permit (principal in FerrisKey::Role::\"00000000-0000-4000-8000-000000000009\", action == App::Action::\"document:read\", resource);"
+    }
+  ],
+  "slice": {
+    "client": {
+      "id": "00000000-0000-4000-8000-000000000008",
+      "client_id": "svc-account",
+      "roles": [
+        "00000000-0000-4000-8000-000000000009"
+      ]
+    },
+    "roles": [
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "name": "svc"
+      }
+    ],
+    "groups": [],
+    "organizations": []
+  },
+  "request": {
+    "subject": "ferriskey",
+    "action": "document:read",
+    "resource": {
+      "entity": {
+        "type": "App::Document",
+        "id": "doc-1"
+      },
+      "properties": {
+        "owner": {
+          "__entity": {
+            "type": "FerrisKey::User",
+            "id": "00000000-0000-4000-8000-000000000001"
+          }
+        }
+      },
+      "parents": []
+    },
+    "context": {}
+  },
+  "expect": {
+    "outcome": "allow",
+    "policies": [
+      "svc"
+    ]
+  }
+}
