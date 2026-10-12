@@ -29,10 +29,7 @@ export const CNCF_POLICY: LicensePolicy = {
     'Zlib',
     'Unicode-3.0',
   ],
-  exceptions: [
-    { name: /^lightningcss(-.+)?$/, allow: ['MPL-2.0'] },
-    { name: /^@fontsource-variable\/geist$/, allow: ['OFL-1.1'] },
-  ],
+  exceptions: [{ name: /^@fontsource-variable\/geist$/, allow: ['OFL-1.1'] }],
 }
 
 export function isExpressionAllowed(expression: string, allow: string[]): boolean {
