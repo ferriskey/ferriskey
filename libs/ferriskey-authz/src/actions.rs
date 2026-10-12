@@ -9,6 +9,7 @@
 
 use crate::entities::ActionId;
 
+pub const AUTHORIZATION_EVALUATE: ActionId = ActionId::new("authorization:evaluate");
 pub const AUTHORIZATION_POLICY_CREATE: ActionId = ActionId::new("authorization_policy:create");
 pub const AUTHORIZATION_POLICY_DELETE: ActionId = ActionId::new("authorization_policy:delete");
 pub const AUTHORIZATION_POLICY_READ: ActionId = ActionId::new("authorization_policy:read");
@@ -121,6 +122,7 @@ pub const WEBHOOK_UPDATE: ActionId = ActionId::new("webhook:update");
 
 /// Every action the matrix references, for catalogue lookups by name.
 pub const ALL: &[ActionId] = &[
+    AUTHORIZATION_EVALUATE,
     AUTHORIZATION_POLICY_CREATE,
     AUTHORIZATION_POLICY_DELETE,
     AUTHORIZATION_POLICY_READ,

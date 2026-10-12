@@ -98,6 +98,16 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 233,
     },
     AuthzRow {
+        service_fn: "evaluate",
+        policy_fn: "can_evaluate_authorization",
+        action: actions::AUTHORIZATION_EVALUATE,
+        resource: EntityType::REALM,
+        permissions: &[Permissions::ManageRealm, Permissions::EvaluateAuthorization],
+        self_bypass: false,
+        file: "libs/ferriskey-authz/src/tenant/evaluation_service.rs",
+        line: 87,
+    },
+    AuthzRow {
         service_fn: "get_policy",
         policy_fn: "can_view_authorization",
         action: actions::AUTHORIZATION_POLICY_READ,

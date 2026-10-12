@@ -492,3 +492,57 @@ async fn only_one_row_carries_a_self_bypass() {
         "the set of self-bypassing policies changed",
     );
 }
+
+#[tokio::test]
+async fn only_a_service_account_evaluates_and_with_the_rows_permissions() {
+    let target = realm(TARGET);
+    let row = row_for("evaluate", "can_evaluate_authorization");
+    let client = realm_admin_client(target.id, "pep");
+
+    for permission in Permissions::ALL {
+        let roles = vec![role_with(target.id, None, &[permission])];
+        let mut user_role_repo = MockUserRoleRepository::new();
+        user_role_repo.expect_get_user_roles().returning(move |_| {
+            let roles = roles.clone();
+            Box::pin(async move { Ok(roles) })
+        });
+        let account = user_in(&target);
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_client_id().returning(move |_| {
+            let account = account.clone();
+            Box::pin(async move { Ok(Unscoped::new(account)) })
+        });
+        let e: Engine = FerriskeyPolicy::new(
+            Arc::new(user_repo),
+            Arc::new(MockClientRepository::new()),
+            Arc::new(user_role_repo),
+        );
+
+        let as_client = e
+            .can_evaluate_authorization(&Identity::Client(client.clone()), &target)
+            .await
+            .expect("policy must not error");
+        let as_user = e
+            .can_evaluate_authorization(&Identity::User(user_in(&target)), &target)
+            .await
+            .expect("policy must not error");
+        let mut service_account_user = user_in(&target);
+        service_account_user.client_id = Some(client.id);
+        let as_service_account_user = e
+            .can_evaluate_authorization(&Identity::User(service_account_user), &target)
+            .await
+            .expect("policy must not error");
+
+        assert_eq!(
+            as_client,
+            row.permissions.contains(&permission),
+            "can_evaluate_authorization disagrees with its matrix row for {permission:?}"
+        );
+        assert_eq!(
+            as_service_account_user,
+            row.permissions.contains(&permission),
+            "a service account token disagrees with the matrix row for {permission:?}"
+        );
+        assert!(!as_user, "a user evaluated with {permission:?}");
+    }
+}

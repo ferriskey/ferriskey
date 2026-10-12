@@ -1,5 +1,8 @@
 use ferriskey_authz::tenant::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
-use ferriskey_authz::tenant::ports::AuthzManagementService;
+use ferriskey_authz::tenant::evaluation::EvaluationRequest;
+use ferriskey_authz::tenant::ports::{
+    AuthzManagementService, EvaluationOutcome, EvaluationService,
+};
 use ferriskey_authz::tenant::value_objects::{
     CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
     UpdateTemplateInput,
@@ -142,6 +145,19 @@ impl AuthzManagementService for ApplicationService {
     ) -> Result<(), CoreError> {
         self.authz_management_service
             .delete_template(identity, realm_name, id)
+            .await
+    }
+}
+
+impl EvaluationService for ApplicationService {
+    async fn evaluate(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        request: EvaluationRequest,
+    ) -> Result<EvaluationOutcome, CoreError> {
+        self.authz_evaluation_service
+            .evaluate(identity, realm_name, request)
             .await
     }
 }

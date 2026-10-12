@@ -198,149 +198,15 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-    use std::sync::atomic::{AtomicBool, AtomicI64, AtomicUsize, Ordering};
+    use std::sync::atomic::Ordering;
 
-    use ferriskey_domain::common::app_errors::PolicyIssue;
     use ferriskey_domain::realm::Realm;
     use serde_json::Map;
 
     use super::*;
     use crate::entities::{EntityRef, EntityType};
-    use crate::tenant::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
-    use crate::tenant::evaluation::{
-        ClientFacts, PrincipalFacts, PrincipalSlice, RuleSet, TenantEntity,
-    };
-
-    #[derive(Default)]
-    struct FakeRules {
-        version: AtomicI64,
-        state_reads: AtomicUsize,
-        disabled: AtomicBool,
-    }
-
-    impl AuthzStateRepository for FakeRules {
-        async fn get(&self, _: &RealmScope) -> Result<AuthzState, CoreError> {
-            self.state_reads.fetch_add(1, Ordering::SeqCst);
-            Ok(AuthzState {
-                enabled: !self.disabled.load(Ordering::SeqCst),
-                version: self.version.load(Ordering::SeqCst),
-            })
-        }
-
-        async fn set_enabled(&self, _: &RealmScope, _: bool) -> Result<AuthzState, CoreError> {
-            unreachable!()
-        }
-    }
-
-    impl AuthzSchemaRepository for FakeRules {
-        async fn get(&self, _: &RealmScope) -> Result<Option<AuthzSchema>, CoreError> {
-            Ok(None)
-        }
-
-        async fn replace(
-            &self,
-            _: &RealmScope,
-            _: AuthzSchema,
-            _: i64,
-        ) -> Result<AuthzSchema, CoreError> {
-            unreachable!()
-        }
-    }
-
-    impl PolicyRepository for FakeRules {
-        async fn list(&self, _: &RealmScope) -> Result<Vec<Policy>, CoreError> {
-            Ok(Vec::new())
-        }
-
-        async fn save(&self, _: &RealmScope, _: Policy, _: i64) -> Result<Policy, CoreError> {
-            unreachable!()
-        }
-
-        async fn delete(&self, _: &RealmScope, _: Uuid, _: i64) -> Result<(), CoreError> {
-            unreachable!()
-        }
-    }
-
-    impl PolicyTemplateRepository for FakeRules {
-        async fn list(&self, _: &RealmScope) -> Result<Vec<PolicyTemplate>, CoreError> {
-            Ok(Vec::new())
-        }
-
-        async fn save(
-            &self,
-            _: &RealmScope,
-            _: PolicyTemplate,
-            _: i64,
-        ) -> Result<PolicyTemplate, CoreError> {
-            unreachable!()
-        }
-
-        async fn delete(&self, _: &RealmScope, _: Uuid, _: i64) -> Result<(), CoreError> {
-            unreachable!()
-        }
-    }
-
-    #[derive(Default)]
-    struct FakeSlices {
-        known: bool,
-    }
-
-    impl PrincipalSliceRepository for FakeSlices {
-        async fn load(
-            &self,
-            _: &RealmScope,
-            principal: &EntityRef,
-        ) -> Result<Option<PrincipalSlice>, CoreError> {
-            Ok(self.known.then(|| PrincipalSlice {
-                principal: PrincipalFacts::Client(ClientFacts {
-                    id: Uuid::nil(),
-                    client_id: principal.id.clone(),
-                    role_ids: Vec::new(),
-                }),
-                roles: Vec::new(),
-                groups: Vec::new(),
-                organizations: Vec::new(),
-            }))
-        }
-    }
-
-    #[derive(Default)]
-    struct FakeEngine {
-        compilations: AtomicUsize,
-        failing: AtomicBool,
-        decided_with: Mutex<Vec<(i64, bool)>>,
-    }
-
-    impl TenantDecisionEngine for FakeEngine {
-        type Compiled = i64;
-
-        fn compile(&self, rules: &RuleSet) -> Result<i64, Vec<PolicyIssue>> {
-            self.compilations.fetch_add(1, Ordering::SeqCst);
-            if self.failing.load(Ordering::SeqCst) {
-                return Err(vec![PolicyIssue {
-                    policy: None,
-                    message: "broken".to_string(),
-                    line: None,
-                    column: None,
-                }]);
-            }
-            Ok(rules.version)
-        }
-
-        fn decide(
-            &self,
-            compiled: &i64,
-            slice: Option<&PrincipalSlice>,
-            _: &EvaluationRequest,
-        ) -> Result<Decision, CoreError> {
-            self.decided_with
-                .lock()
-                .expect("lock")
-                .push((*compiled, slice.is_some()));
-            Ok(Decision::allow())
-        }
-    }
+    use crate::tenant::evaluation::TenantEntity;
+    use crate::tenant::fakes::{FakeEngine, FakeRules, FakeSlices};
 
     struct Fixture {
         rules: Arc<FakeRules>,
