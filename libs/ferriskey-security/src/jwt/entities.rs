@@ -522,6 +522,52 @@ mod tests {
         assert!(certificate.validity().is_valid());
     }
 
+    const STORED_PRIVATE_KEY: &str = include_str!("../../tests/fixtures/realm-key.pem");
+    const STORED_PUBLIC_KEY: &str = include_str!("../../tests/fixtures/realm-key.pub.pem");
+    const STORED_CERTIFICATE: &str = include_str!("../../tests/fixtures/realm-cert.pem");
+
+    fn stored_key_pair() -> JwtKeyPair {
+        JwtKeyPair::from_pem(
+            STORED_PRIVATE_KEY,
+            STORED_PUBLIC_KEY,
+            STORED_CERTIFICATE,
+            Uuid::nil(),
+            Uuid::nil(),
+        )
+        .expect("a stored realm key still loads")
+    }
+
+    #[test]
+    fn a_stored_realm_key_signs_the_token_it_signed_before() {
+        let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+        let claims = serde_json::json!({
+            "iss": "https://auth.example.com/realms/master",
+            "sub": "alice",
+            "exp": 4102444800u64,
+        });
+
+        let token = jsonwebtoken::encode(&header, &claims, &stored_key_pair().encoding_key)
+            .expect("sign with the stored key");
+
+        assert_eq!(
+            token,
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJleHAiOjQxMDI0NDQ4MDAsImlzcyI6Imh0dHBzOi8vYXV0aC5leGFtcGxlLmNvbS9yZWFsbXMvbWFzdGVyIiwic3ViIjoiYWxpY2UifQ.MTgaSkhCQu0LKzaR79uwNgROk4kMMYpyP4CxKQ0o3pr4qJTVjgu619TEvUJOuVKFyIZ47s787Zw7zgmYj_JVsemvlYg8hC82b5fLuBq45ZbZAhlIaLNQbBx7a1qBRVv2e1vV9q3qpGGcekVUO0Ut8YEwag2BnFZ7XbhjAAJBr8p4M9RyFxh6GOf9kjkFdp7GunVik4sELqB712eHisT1flditLsHe7GHORLZEGV2HN9xlAgA-NJMBLn0yAOX7A69AoMOjybrm0IDUNS69pZ64Tof-ndr7iKG6lSjIwDNlJEfcyOKeiWPUUHedRQHrWoK640Sy94wNxxoprPk6HDhVA"
+        );
+    }
+
+    #[test]
+    fn a_stored_realm_key_publishes_the_jwk_it_published_before() {
+        let jwk = stored_key_pair()
+            .to_jwk_key()
+            .expect("publish the stored key");
+
+        assert_eq!(
+            jwk.n,
+            "0B174WwrsNtE6SZImKNruqeXnazXAtKj_3g88cdOJ0EYNAVwCgpxjkZyTf8iEM8nJbPiwhjSr1RreDOGAPtsF39rzX7WBsfZEWomZfOroipgHWF4-3-3PGORYuaraVeoFDEZyWlA8pM7GGmEOyH2iygQ9CG6XzDBDrpw7wvsmjQLDnYeSKU8QlrfXD92rOpRkEbgh5qKUxVgBakMdm6qU4d3hP_OKHZ7xnyTehJCwpwfVUCvjvpolEPMEVjiynIX3_2-Ki0aXCb4eCn7MOCwNZN0EfpPJu-hYTe-0Gzvc4ZohPoCqp7W47kfd6FhtaVI7wyONnBq_rzM6ZJYMlm84Q"
+        );
+        assert_eq!(jwk.e, "AQAB");
+    }
+
     #[test]
     fn certificate_survives_a_realm_name_that_is_not_a_dns_name() {
         let (private_pem, _) = JwtKeyPair::generate().expect("generate realm key");
