@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "node --experimental-strip-types --test \"src/**/*.test.ts\"",
     "test:i18n": "node --experimental-strip-types --test \"src/lib/i18n/*.test.ts\"",
-    "i18n:parity": "node --experimental-strip-types src/lib/i18n/parity-cli.ts"
+    "i18n:parity": "node --experimental-strip-types src/lib/i18n/parity-cli.ts",
+    "test:licenses": "node --experimental-strip-types --test \"scripts/*.test.ts\"",
+    "licenses:check": "node --experimental-strip-types scripts/licenses-cli.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
