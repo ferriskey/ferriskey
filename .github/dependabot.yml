@@ -8,7 +8,8 @@ updates:
       day: monday
     open-pull-requests-limit: 10
     commit-message:
-      prefix: chore
+      prefix: build
+      prefix-development: chore
     groups:
       cargo-minor:
         update-types:
@@ -22,7 +23,8 @@ updates:
       day: monday
     open-pull-requests-limit: 10
     commit-message:
-      prefix: chore
+      prefix: build
+      prefix-development: chore
     groups:
       front-minor:
         update-types:
@@ -47,4 +49,4 @@ updates:
       interval: weekly
       day: monday
     commit-message:
-      prefix: chore
+      prefix: build
