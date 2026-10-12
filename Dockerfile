@@ -53,7 +53,7 @@ EXPOSE 80
 ENTRYPOINT ["ferriskey-operator"]
 
 # ── Frontend build ────────────────────────────────────────────────────────────
-FROM node:24.21.0-alpine3.24 AS webapp-build
+FROM node:26.11.1-alpine3.24 AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
