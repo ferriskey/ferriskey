@@ -224,16 +224,6 @@ mod tests {
             reset.text()
         );
 
-        sqlx::query(
-            "INSERT INTO user_required_actions (id, user_id, action, created_at) VALUES ($1, $2, $3, NOW())",
-        )
-        .bind(Uuid::new_v4())
-        .bind(user_id)
-        .bind("update_password")
-        .execute(&ctx().pool)
-        .await
-        .expect("insert the update_password required action");
-
         username
     }
 
