@@ -1,4 +1,4 @@
-FROM rust:1.95.0-bookworm AS chef
+FROM rust:1.95.0-trixie AS chef
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -27,7 +27,7 @@ RUN cargo build --release --bin ferriskey-api --bin ferriskey-operator
 # It has no shell and no package manager: every entrypoint used against these
 # images (`ferriskey-api`, `ferriskey-operator`, `sqlx migrate run`) is an exec
 # of a binary on PATH, so nothing depends on /bin/sh.
-FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
 
 # distroless defaults WORKDIR to /home/nonroot; keep / as before.
 WORKDIR /
@@ -90,14 +90,14 @@ COPY front/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
-FROM debian:bookworm-slim AS standalone
+FROM debian:trixie-slim AS standalone
 
 # hadolint ignore=DL3008
 RUN \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-    ca-certificates=20230311+deb12u1 \
-    libssl3=3.0.17-1~deb12u2 \
+    ca-certificates=20250419 \
+    libssl3t64=3.5.7-1~deb13u2 \
     nginx \
     supervisor && \
     rm -rf /var/lib/apt/lists/* && \
