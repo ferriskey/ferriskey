@@ -91,6 +91,10 @@ default
 {{- end -}}
 {{- end -}}
 
+{{- define "ferriskey.webapp.configJsonName" -}}
+{{ .Values.webapp.configJsonName | default (printf "%s-config" (include "ferriskey.webapp.name" .)) }}
+{{- end -}}
+
 {{- define "ferriskey.api.adminSecretName" -}}
 {{ .Values.api.admin.passwordSecret.name | default (printf "%s-admin" (include "ferriskey.api.name" .)) }}
 {{- end -}}
