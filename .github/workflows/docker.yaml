@@ -19,6 +19,8 @@ on:
       - operator/**
       - .dockerignore
       - Cargo.*
+      - Dockerfile
+      - docker/**
       - '!api/tests/**'
       - '!front/.editorconfig'
       - '!front/.gitignore'
