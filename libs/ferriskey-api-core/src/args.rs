@@ -110,6 +110,13 @@ pub struct Args {
         long_help = "How long an instance keeps a realm, its settings and a client in memory before reading them again (seconds). Writes made through the API invalidate the entry immediately on the instance that handled them; other instances see them after this delay. 0 disables the cache."
     )]
     pub config_cache_ttl_seconds: u64,
+    #[arg(
+        long,
+        env = "AUTHZ_ENABLED",
+        default_value_t = false,
+        long_help = "Expose the AuthZEN evaluation endpoint and its metadata document. A realm still has to enable tenant authorization for itself."
+    )]
+    pub authz_enabled: bool,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
     #[command(subcommand)]
@@ -127,6 +134,7 @@ impl Default for Args {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 5,
+            authz_enabled: false,
             webapp_url: "http://localhost:5555".to_string(),
             webapp_url_from_request: false,
             webapp_allowed_hosts: vec![],

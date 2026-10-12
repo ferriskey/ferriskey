@@ -1,0 +1,17 @@
+[package]
+name = "ferriskey-api-authz"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ferriskey-api-core = { path = "../ferriskey-api-core" }
+ferriskey-authz = { path = "../ferriskey-authz" }
+ferriskey-core = { path = "../../core" }
+ferriskey-domain = { path = "../ferriskey-domain" }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+utoipa = { workspace = true }
+validator = { workspace = true }
