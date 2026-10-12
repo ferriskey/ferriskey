@@ -359,9 +359,9 @@ dependencies = [
 
 [[package]]
 name = "axum-cookie"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c687fa82965c81556c57eb0f7fa71f11058b4bc7cc18adee10b7f7c19f4c59b9"
+checksum = "82bf12d4c4ce1827190292b53208db6d5ecf6747956bdb2f6baa90145208a987"
 dependencies = [
  "axum-core",
  "cookie-rs",
@@ -937,9 +937,12 @@ dependencies = [
 
 [[package]]
 name = "cookie-rs"
-version = "0.4.1"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69deedbff42d34777a2c86794e57629898a686d84efcc28dfa8fbb515c8884ce"
+checksum = "80dfac6f8f9d4241cdc5ab4e6c44f47451d7efd685193716572bd0b28043d4d1"
+dependencies = [
+ "percent-encoding",
+]
 
 [[package]]
 name = "core-foundation"
@@ -7394,7 +7397,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
