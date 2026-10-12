@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { ReactNode } from 'react'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 import { preloadNamespaces, translate } from '@/lib/i18n'
 import type { Endpoints, Schemas } from './api.client'
 import { portalLayoutsKey } from './portal-layouts.api'

@@ -1,10 +1,10 @@
 import { Clock, FileKey, Globe, KeyRound, Power, PowerOff, ShieldCheck, Wrench } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { Choice } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { ClientProtocol } from '@/lib/client-protocol'
 
-import MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
+type MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
 
 export type { ClientProtocol } from '@/lib/client-protocol'
 export type ClientAuthentication = 'confidential' | 'public'

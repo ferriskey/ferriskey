@@ -8,14 +8,14 @@ import {
   type FlowsFilter,
   type FlowsQuery,
 } from '@/api/compass.api'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { usePagedListing } from '@/components/kit'
 import { useRealmDirectory } from '@/hooks/use-realm-directory'
 import { COMPASS_URL } from '@/routes/router'
 import PageFlows from '../ui/page-flows'
 
-import CompassFlow = Schemas.CompassFlow
+type CompassFlow = Schemas.CompassFlow
 
 const FAILURE_SAMPLE = 20
 

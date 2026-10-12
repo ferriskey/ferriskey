@@ -5,10 +5,10 @@ import { Button } from '@/components/kit/button'
 import { DetailHeader, PageShell, PageTabs, Pill, Squircle, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { clientAuthenticationOf, clientStateOf } from '../client-choices'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 import { formatDate } from '@/utils/format-date'
 
 export interface PageClientDetailProps {

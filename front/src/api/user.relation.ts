@@ -1,6 +1,6 @@
 import { useParams } from 'react-router'
 import type { RelationOption, RelationSource } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import type { Schemas } from './api.client'
 import { USER_SEARCH_LIMIT, useGetUser, useGetUsers } from './user.api'
 

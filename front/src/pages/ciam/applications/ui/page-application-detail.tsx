@@ -6,10 +6,10 @@ import { DetailHeader, PageShell, PageTabs, Pill, Squircle, type TabItem } from 
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { formatDate } from '@/utils/format-date'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { applicationTypeMeta, inferApplicationType } from '../application-types'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export interface PageApplicationDetailProps {
   application?: Client

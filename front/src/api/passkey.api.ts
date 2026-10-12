@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 import type { Schemas } from './api.client'
 
 export const usePasskeyRequestOptionsMutation = () => {

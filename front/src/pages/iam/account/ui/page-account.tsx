@@ -6,9 +6,9 @@ import { DetailHeader, FieldRow, IconTile, PageShell, PageTabs, Pill, Section } 
 import { UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import User = Schemas.User
+type User = Schemas.User
 import { formatDate } from '@/utils/format-date'
 
 export interface PageAccountProps {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useCreateProtocolMapper } from '@/api/client-scope.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { mapperTemplateFormSchema } from '@/pages/iam/client-scope/schemas/mapper-template-form.schema'
 import { clientScopeMappersUrl } from '../urls'
 import { configFromStrings, defaultConfigValues, parseJsonConfig } from '../config-values'

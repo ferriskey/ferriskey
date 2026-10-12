@@ -1,6 +1,6 @@
 import { useResendVerificationEmailMutation } from '@/api/auth.api'
 import { Button } from '@/components/ui/button'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { Mail, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'

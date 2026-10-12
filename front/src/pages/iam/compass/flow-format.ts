@@ -6,13 +6,13 @@ export {
 } from '@/utils/format-date'
 
 import { translate } from '@/lib/i18n'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import CompassFlow = Schemas.CompassFlow
-import CompassFlowStep = Schemas.CompassFlowStep
-import FlowStepName = Schemas.FlowStepName
-import FlowStatus = Schemas.FlowStatus
-import StepStatus = Schemas.StepStatus
+type CompassFlow = Schemas.CompassFlow
+type CompassFlowStep = Schemas.CompassFlowStep
+type FlowStepName = Schemas.FlowStepName
+type FlowStatus = Schemas.FlowStatus
+type StepStatus = Schemas.StepStatus
 import type { PillTone } from '@/components/kit'
 
 export const catalogedStepNames: Record<FlowStepName, true> = {

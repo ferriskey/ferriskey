@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   useGetSecurityEvents,
   useSecurityEventCount,
   type SecurityEventsFilter,
 } from '@/api/sea-watch.api'
 
-import EventStatus = Schemas.EventStatus
-import SecurityEventType = Schemas.SecurityEventType
+type EventStatus = Schemas.EventStatus
+type SecurityEventType = Schemas.SecurityEventType
 
 export const WINDOW_DAYS = 7
 export const WINDOW_LIMIT = 100

@@ -5,11 +5,11 @@ import { Trans, useTranslation } from 'react-i18next'
 import { MetricsBand, PageShell, Section, type Metric } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import OverviewActivityChart from './overview-activity-chart'
 import OverviewEventLog, { type OverviewEvent } from './overview-event-log'
 
-import DailyActivityStats = Schemas.DailyActivityStats
+type DailyActivityStats = Schemas.DailyActivityStats
 
 export interface OverviewAlert {
   key: string

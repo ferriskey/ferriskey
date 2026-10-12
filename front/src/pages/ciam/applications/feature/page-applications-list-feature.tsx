@@ -5,9 +5,9 @@ import {
   useGetClients,
   type ClientsQuery,
 } from '@/api/client.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useCreatePicker, usePagedListing } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   CONSOLE_APPLICATION_CREATE_URL,
   CONSOLE_APPLICATION_URL,
@@ -15,7 +15,7 @@ import {
 import { type ApplicationType } from '../application-types'
 import PageApplicationsList from '../ui/page-applications-list'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 const ALERT_PREVIEW = 5
 

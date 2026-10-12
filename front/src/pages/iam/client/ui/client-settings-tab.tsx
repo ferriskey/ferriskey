@@ -4,7 +4,7 @@ import { DurationInput } from '@/components/ui/duration-input'
 import SaveBar from '@/components/kit/save-bar'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { ChipInput, ChoiceCards, FieldRow, Section, SwitchField } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   clientAuthenticationOf,
   clientStateOf,
@@ -14,7 +14,7 @@ import {
   type ClientState,
 } from '../client-choices'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export interface ClientSettingsDraft {
   name: string

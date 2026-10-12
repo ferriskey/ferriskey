@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ProviderIcon, {
   isProviderIconKey,
 } from '@/components/provider-icon'
 import { AUTH_NAMESPACE } from '../constants'
 import { buildProviderLoginUrl } from './login-providers-helpers'
 
-import IdentityProviderPresentation = Schemas.IdentityProviderPresentation
+type IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 
 export type LoginProvidersProps = {
   providers: IdentityProviderPresentation[]

@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import type {
+  Column} from '@/components/kit'
 import {
   Button,
-  Column,
   DataView,
   ListingToolbar,
   PaginationBar,
@@ -28,13 +29,13 @@ import {
   useWebhookDeliveryCount,
   type WebhookDeliveriesQuery,
 } from '@/api/webhook.api'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { catalogedTriggers } from '@/constants/webhook-utils'
 import { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { apiErrorMessage } from '@/lib/api-error'
 import { DELIVERY_STATUSES, describeDeliveryStatus, isReplayable } from '../webhook-delivery-status'
 
-import DeliverySummary = Schemas.DeliverySummary
+type DeliverySummary = Schemas.DeliverySummary
 
 const DELIVERY_VIEW: ViewMode = 'list'
 const EVENT_OPTIONS = (Object.keys(catalogedTriggers) as Schemas.WebhookTrigger[])

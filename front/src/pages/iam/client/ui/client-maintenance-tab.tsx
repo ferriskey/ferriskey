@@ -13,7 +13,7 @@ import {
   type PickableEntity,
 } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   isMaintenanceState,
   maintenanceStateChoices,
@@ -21,7 +21,7 @@ import {
   sessionStrategyChoices,
 } from '../client-choices'
 
-import MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
+type MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
 
 export interface InheritedEntry {
   id: string

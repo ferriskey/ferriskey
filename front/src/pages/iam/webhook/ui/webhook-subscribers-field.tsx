@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   WEBHOOK_CATEGORIES,
   WEBHOOK_TRIGGER_COUNT,
 } from '../webhook-trigger-catalogue'
 
-import WebhookTrigger = Schemas.WebhookTrigger
+type WebhookTrigger = Schemas.WebhookTrigger
 
 export interface WebhookSubscribersFieldProps {
   value: WebhookTrigger[]

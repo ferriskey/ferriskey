@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FolderTree, Plus, Search, Trash2 } from 'lucide-react'
 
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { DataTable, ColumnDef } from '@/components/ui/data-table'
+import type { ColumnDef } from '@/components/ui/data-table'
+import { DataTable } from '@/components/ui/data-table'
 import {
   Dialog,
   DialogBody,
@@ -30,7 +31,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import MultipleSelector, { Option } from '@/components/ui/multiselect'
+import type { Option } from '@/components/ui/multiselect'
+import MultipleSelector from '@/components/ui/multiselect'
 import {
   DataView,
   ListingToolbar,

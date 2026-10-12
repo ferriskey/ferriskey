@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { FieldRow, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export interface ClientCredentialsTabProps {
   client: Client

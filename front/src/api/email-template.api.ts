@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'

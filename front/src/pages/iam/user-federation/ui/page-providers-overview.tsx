@@ -13,7 +13,7 @@ import {
   type PagedListing,
   type PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 import {
   LDAP_PROVIDER_TYPE,
@@ -28,7 +28,7 @@ import {
   type SyncMode,
 } from '../provider-config'
 
-import ProviderResponse = Schemas.ProviderResponse
+type ProviderResponse = Schemas.ProviderResponse
 
 export type FederationKind = 'Ldap' | 'Kerberos'
 

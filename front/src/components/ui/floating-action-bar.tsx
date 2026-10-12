@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import type { ReactNode} from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/utils'
 import { Button } from './button'

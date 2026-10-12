@@ -8,10 +8,10 @@ import type {
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 
-import Organization = Schemas.Organization
+type Organization = Schemas.Organization
 
 const NAME_SEPARATOR = ', '
 const TRUNCATION_MARK = '…'

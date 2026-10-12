@@ -11,7 +11,7 @@ import {
 import { useGetPortalLayout } from '@/api/portal-layouts.api'
 import { mergeWithDefaults, themeToCssVars } from '@/lib/portal-theme/theme'
 import type { BuilderNode } from '@/lib/builder-core'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { PORTAL_PAGES, type PortalPageType } from '../portal-pages'
 import { usePortalUrls } from '../use-portal-urls'
 import { parseTree, readPageTree } from '../theme-validation'

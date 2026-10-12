@@ -6,9 +6,9 @@ import { DangerZone } from '@/components/kit/danger-zone'
 import WebhookHeadersField, { type WebhookHeader } from './webhook-headers-field'
 import WebhookSigningSecret from './webhook-signing-secret'
 import type { RetryPolicyDraft } from '../feature/page-webhook-detail-feature'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import RetryPolicyOverride = Schemas.RetryPolicyOverride
+type RetryPolicyOverride = Schemas.RetryPolicyOverride
 
 const RETRY_FIELDS: (keyof RetryPolicyDraft)[] = [
   'max_attempts',

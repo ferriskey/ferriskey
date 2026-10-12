@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useGetClientSecret } from '@/api/client.api'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ClientCredentialsTab from '../ui/client-credentials-tab'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export interface ClientCredentialsTabFeatureProps {
   client: Client

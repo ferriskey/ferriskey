@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MetricsBand } from '@/components/kit'
 import type { Metric } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay } from '../feature/use-window-events'
@@ -12,7 +12,7 @@ import type { EventJournal } from '../feature/use-event-journal'
 import { eventCard, eventColumns } from './event-journal'
 import { JournalSection } from './journal-section'
 
-import SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.SecurityEvent
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 

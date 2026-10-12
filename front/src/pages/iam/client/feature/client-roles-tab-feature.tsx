@@ -1,10 +1,10 @@
 import { useGetClientRoles } from '@/api/client.api'
 import { useDeleteRole } from '@/api/role.api'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ClientRolesTab from '../ui/client-roles-tab'
 
-import Client = Schemas.Client
-import Role = Schemas.Role
+type Client = Schemas.Client
+type Role = Schemas.Role
 
 export interface ClientRolesTabFeatureProps {
   client: Client

@@ -22,11 +22,11 @@ import {
 import { EmptyState, IconTile, Pill, Section, Segmented } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ASSIGNABLE_SCOPE_TYPES } from '../client-choices'
 
-import ClientScope = Schemas.ClientScope
-import ScopeType = Schemas.ScopeType
+type ClientScope = Schemas.ClientScope
+type ScopeType = Schemas.ScopeType
 
 export type AssignableScopeType = (typeof ASSIGNABLE_SCOPE_TYPES)[number]
 

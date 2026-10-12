@@ -6,12 +6,12 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import OrganizationSettingsTab, { type OrganizationDraft } from './organization-settings-tab'
 import OrganizationAttributesTab from './organization-attributes-tab'
 
-import Organization = Schemas.Organization
-import OrganizationAttribute = Schemas.OrganizationAttribute
+type Organization = Schemas.Organization
+type OrganizationAttribute = Schemas.OrganizationAttribute
 import { formatDate } from '@/utils/format-date'
 
 export interface PageOrganizationDetailProps {

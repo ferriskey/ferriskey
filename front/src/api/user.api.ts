@@ -7,7 +7,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 import type { Endpoints, Schemas } from './api.client'
 import { ID_BATCH, idBatches } from './id-batches'
 import { translate } from '@/lib/i18n'

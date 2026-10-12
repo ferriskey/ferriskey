@@ -1,11 +1,11 @@
 import { GrantType } from '@/api/core.interface'
 import { useLogoutMutation, useRevokeTokenMutation, useTokenMutation } from '@/api/auth.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { authStore } from '@/store/auth.store'
 import userStore from '@/store/user.store'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { IUser, OrganizationClaim } from '@/contracts/states.interface'
+import type { IUser, OrganizationClaim } from '@/contracts/states.interface'
 import { translate } from '@/lib/i18n'
 import { authRefreshController } from './auth-refresh-controller'
 

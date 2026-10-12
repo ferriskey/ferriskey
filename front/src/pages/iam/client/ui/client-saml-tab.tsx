@@ -23,9 +23,9 @@ import {
 } from '@/lib/saml'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import SamlAttributeMapper = Schemas.SamlAttributeMapper
+type SamlAttributeMapper = Schemas.SamlAttributeMapper
 
 export interface SamlDraft {
   spEntityId: string

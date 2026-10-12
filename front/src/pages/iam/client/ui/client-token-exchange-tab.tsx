@@ -33,14 +33,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { ClientPicking } from '@/hooks/use-client-picker'
 import { tokens } from '@/styles/style-tokens'
 import { cn } from '@/lib/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   tokenExchangePolicySchema,
   type TokenExchangePolicySchema,
 } from '../schemas/token-exchange-policy.schema'
 
-import Client = Schemas.Client
-import TokenExchangePolicy = Schemas.TokenExchangePolicy
+type Client = Schemas.Client
+type TokenExchangePolicy = Schemas.TokenExchangePolicy
 
 export interface ClientTokenExchangeTabProps {
   client: Client

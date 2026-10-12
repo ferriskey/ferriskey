@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router'
 import { useDeleteSmtpConfig, useGetSmtpConfig, useUpsertSmtpConfig } from '@/api/smtp.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import {
   EMPTY_SMTP_DRAFT,
   smtpErrors,

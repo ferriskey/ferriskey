@@ -8,7 +8,7 @@ import { DangerZone } from '@/components/kit/danger-zone'
 import { DetailHeader, FieldRow, IconTile, PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   EMAIL_TEMPLATE_NAMESPACE,
   EXPORT_JSON,
@@ -19,8 +19,8 @@ import {
   type EmailTypeSpec,
 } from '../email-types'
 
-import EmailTemplate = Schemas.EmailTemplate
-import TemplateVariable = Schemas.TemplateVariable
+type EmailTemplate = Schemas.EmailTemplate
+type TemplateVariable = Schemas.TemplateVariable
 import { formatDate } from '@/utils/format-date'
 
 const LIST_SEPARATOR = ', '

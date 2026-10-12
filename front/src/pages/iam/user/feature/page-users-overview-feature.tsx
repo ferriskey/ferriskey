@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from 'react-router'
 import { useGetUsers, useUserCount, type UsersQuery } from '@/api/user.api'
 import { usePagedListing } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { USERS_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import PageUsersOverview from '../ui/page-users-overview'
 
-import User = Schemas.User
+type User = Schemas.User
 
 const UNVERIFIED_PREVIEW = 5
 

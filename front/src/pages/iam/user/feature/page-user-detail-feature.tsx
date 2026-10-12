@@ -3,18 +3,18 @@ import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useBulkDeleteUser, useGetUser, useUpdateUser } from '@/api/user.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs, type TabItem } from '@/components/kit'
 import { updateUserValidator } from '@/pages/iam/user/validators'
 import { USERS_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import PageUserDetail from '../ui/page-user-detail'
 import UserCredentialsFeature from './user-credentials-feature'
 import UserRoleMappingFeature from './user-role-mapping-feature'
 import UserOrganizationsFeature from './user-organizations-feature'
 import UserAttributesFeature from './user-attributes-feature'
 
-import RequiredAction = Schemas.RequiredAction
+type RequiredAction = Schemas.RequiredAction
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 import { apiErrorMessage } from '@/lib/api-error'
 

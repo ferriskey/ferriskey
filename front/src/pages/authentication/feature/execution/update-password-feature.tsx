@@ -1,12 +1,13 @@
 import { useNavigate, useParams } from 'react-router'
-import { RouterParams } from '@/routes/router.ts'
+import type { RouterParams } from '@/routes/router.ts'
 import UpdatePassword from '@/pages/authentication/ui/execution/update-password.tsx'
 import { useUpdatePassword } from '@/api/trident.api'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import type {
+  UpdatePasswordSchema} from '../../schemas/update-password.schema'
 import {
-  buildUpdatePasswordSchema,
-  UpdatePasswordSchema,
+  buildUpdatePasswordSchema
 } from '../../schemas/update-password.schema'
 import { Form } from '@/components/ui/form'
 import { useEffect, useMemo } from 'react'

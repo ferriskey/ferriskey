@@ -53,7 +53,7 @@ EXPOSE 80
 ENTRYPOINT ["ferriskey-operator"]
 
 # ── Frontend build ────────────────────────────────────────────────────────────
-FROM node:20.14.0-alpine AS webapp-build
+FROM node:24.21.0-alpine3.24 AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -62,8 +62,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 RUN \
     corepack enable && \
-    corepack prepare pnpm@9.15.0 --activate && \
-    apk --no-cache add dumb-init=1.2.5-r3
+    corepack prepare pnpm@9.15.0 --activate
 
 COPY front/package.json front/pnpm-lock.yaml ./
 

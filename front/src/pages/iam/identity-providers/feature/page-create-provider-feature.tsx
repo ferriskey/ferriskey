@@ -10,7 +10,7 @@ import {
   getTemplateById,
   type ProviderTemplate,
 } from '@/constants/identity-provider-templates'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import type { ProviderProtocol } from '../provider-status'
 import PageCreateProvider, {
   type CreateProviderErrors,

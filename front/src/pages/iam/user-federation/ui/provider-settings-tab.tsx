@@ -4,7 +4,7 @@ import { FieldRow, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   USER_FEDERATION_NAMESPACE,
   flattenConfig,
@@ -20,7 +20,7 @@ import {
   type ProviderErrors,
 } from './provider-form-fields'
 
-import ProviderResponse = Schemas.ProviderResponse
+type ProviderResponse = Schemas.ProviderResponse
 
 export interface ProviderSettingsTabProps {
   provider: ProviderResponse

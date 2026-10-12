@@ -5,7 +5,7 @@ import { MetricsBand, Pill, Section } from '@/components/kit'
 import type { Column, Metric } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay } from '../feature/use-window-events'
@@ -20,8 +20,8 @@ import { securityEventColumnFilters } from '@/pages/iam/seawatch/event-filter-fi
 import type { EventJournal } from '../feature/use-event-journal'
 import { JournalSection } from './journal-section'
 
-import SecurityEvent = Schemas.SecurityEvent
-import Webhook = Schemas.Webhook
+type SecurityEvent = Schemas.SecurityEvent
+type Webhook = Schemas.Webhook
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 

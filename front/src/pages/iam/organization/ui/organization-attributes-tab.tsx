@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import OrganizationAttribute = Schemas.OrganizationAttribute
+type OrganizationAttribute = Schemas.OrganizationAttribute
 
 export interface OrganizationAttributesTabProps {
   attributes: OrganizationAttribute[]

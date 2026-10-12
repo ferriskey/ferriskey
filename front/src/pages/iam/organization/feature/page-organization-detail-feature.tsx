@@ -11,21 +11,21 @@ import {
   useUpsertOrganizationAttribute,
 } from '@/api/organization.api'
 import OrganizationMembersTabFeature from '@/pages/iam/organization/feature/organization-members-tab-feature'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs, type TabItem } from '@/components/kit'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { updateOrganizationSchema } from '@/pages/iam/organization/schemas/update-organization.schema'
 import PageOrganizationGroupsFeature from '@/pages/iam/organization/feature/page-organization-groups-feature'
 import ManageMemberRolesModalFeature from '@/pages/iam/organization/feature/modals/manage-member-roles-modal-feature'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { ORGANIZATIONS_URL } from '@/routes/router'
 import { ORGANIZATION_URL } from '../urls'
 import PageOrganizationDetail from '../ui/page-organization-detail'
 import { type OrganizationDraft } from '../ui/organization-settings-tab'
 import { memberDisplayName } from '../member-name'
 
-import User = Schemas.User
+type User = Schemas.User
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 
 interface Draft extends OrganizationDraft {

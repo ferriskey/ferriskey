@@ -8,7 +8,7 @@ import type {
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { clientIdRelationSource } from '@/api/client.relation'
 import { userRelationSource } from '@/api/user.relation'
 import {
@@ -21,9 +21,9 @@ import {
   stepLabel,
 } from '../flow-format'
 
-import CompassFlow = Schemas.CompassFlow
-import FlowStats = Schemas.FlowStats
-import FlowStatus = Schemas.FlowStatus
+type CompassFlow = Schemas.CompassFlow
+type FlowStats = Schemas.FlowStats
+type FlowStatus = Schemas.FlowStatus
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 
 export interface FlowCounts {

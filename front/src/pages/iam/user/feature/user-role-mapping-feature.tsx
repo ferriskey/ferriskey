@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useGetUserRoles } from '@/api/user.api'
 import { useAssignUserRole, useUnassignUserRole } from '@/api/user_role.api'
 import { useRolePicker } from '@/hooks/use-role-picker'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { assignRoleSchema } from '@/pages/iam/user/schemas/assign-role.schema'
 import UserRoleMappingTab from '../ui/user-role-mapping-tab'
 

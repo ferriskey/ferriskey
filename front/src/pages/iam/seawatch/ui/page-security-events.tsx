@@ -12,7 +12,7 @@ import type {
 } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { WindowEvents } from '@/pages/ciam/activity/feature/use-window-events'
 import {
   actorLabel,
@@ -24,8 +24,8 @@ import {
 } from '../event-catalogue'
 import { securityEventColumnFilters } from '../event-filter-fields'
 
-import SecurityEvent = Schemas.SecurityEvent
-import DailyActivityStats = Schemas.DailyActivityStats
+type SecurityEvent = Schemas.SecurityEvent
+type DailyActivityStats = Schemas.DailyActivityStats
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 
 export interface PageSecurityEventsProps {

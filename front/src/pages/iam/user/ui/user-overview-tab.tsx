@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input'
 import { FieldRow, Section, SwitchField } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
 import { cn } from '@/lib/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import User = Schemas.User
-import RequiredAction = Schemas.RequiredAction
+type User = Schemas.User
+type RequiredAction = Schemas.RequiredAction
 
 const REQUIRED_ACTIONS: RequiredAction[] = [
   'verify_email',

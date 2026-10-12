@@ -67,7 +67,7 @@ jobs:
       - name: set up node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: 22
+          node-version: 24
 
       - name: install pnpm
         run: npm install -g pnpm@latest-10

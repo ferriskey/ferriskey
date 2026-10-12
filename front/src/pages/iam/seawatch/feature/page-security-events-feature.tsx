@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { usePagedListing } from '@/components/kit'
 import {
   SECURITY_EVENT_FILTER_KEYS,

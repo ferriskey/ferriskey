@@ -12,12 +12,13 @@ import PasswordRequirements from '@/pages/authentication/components/password-req
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { formatDate } from '@/utils/format-date'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { PublicPasswordPolicy } from '@/api/password-policy.api'
 import { useAccountTabs } from './use-account-tabs'
-import ReauthenticateDialog, { ReauthenticateDialogProps } from './reauthenticate-dialog'
+import type { ReauthenticateDialogProps } from './reauthenticate-dialog'
+import ReauthenticateDialog from './reauthenticate-dialog'
 
-import User = Schemas.User
+type User = Schemas.User
 
 export interface PasskeySummary {
   id: string

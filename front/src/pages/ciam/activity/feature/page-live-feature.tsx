@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useGetDailyActivityStats, useGetFlows } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
 import { useRealmDirectory } from '@/hooks/use-realm-directory'

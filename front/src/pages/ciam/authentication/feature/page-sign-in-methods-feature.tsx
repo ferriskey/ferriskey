@@ -3,15 +3,15 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useGetRealm, useUpdateRealmSettings } from '@/api/realm.api'
 import { useGetSmtpConfig } from '@/api/smtp.api'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { useDraft } from '@/pages/iam/realm/feature/use-draft'
 import PageSignInMethods, {
   type SignInDraft,
   type SignInErrors,
 } from '../ui/page-sign-in-methods'
 
-import LoginAlias = Schemas.LoginAlias
+type LoginAlias = Schemas.LoginAlias
 import { apiErrorMessage } from '@/lib/api-error'
 
 const DEFAULT_DRAFT: SignInDraft = {

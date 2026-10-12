@@ -1,6 +1,7 @@
 import { useLocation, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ACCOUNT_URL, RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
+import { ACCOUNT_URL } from '@/routes/router'
 
 export function useAccountTabs() {
   const { t } = useTranslation('account')

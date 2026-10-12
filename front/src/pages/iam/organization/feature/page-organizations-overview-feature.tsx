@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { ORGANIZATIONS_URL } from '@/routes/router'
 import { ORGANIZATION_URL } from '../urls'
 import PageOrganizationsOverview from '../ui/page-organizations-overview'
 import { useOrganizationsOverview } from './use-organizations-overview'
 
-import Organization = Schemas.Organization
+type Organization = Schemas.Organization
 
 export default function PageOrganizationsOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()

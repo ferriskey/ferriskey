@@ -11,19 +11,19 @@ import {
   useUpsertOrganizationAttribute,
 } from '@/api/organization.api'
 import OrganizationMembersTabFeature from '@/pages/iam/organization/feature/organization-members-tab-feature'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs } from '@/components/kit'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { updateOrganizationSchema } from '@/pages/iam/organization/schemas/update-organization.schema'
 import ManageMemberRolesModalFeature from '@/pages/iam/organization/feature/modals/manage-member-roles-modal-feature'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import PageOrganizationDetail from '@/pages/iam/organization/ui/page-organization-detail'
 import { type OrganizationDraft } from '@/pages/iam/organization/ui/organization-settings-tab'
 import { memberDisplayName } from '@/pages/iam/organization/member-name'
 import { CONSOLE_ORGANIZATION_URL, CONSOLE_ORGANIZATIONS_URL } from '../urls'
 
-import User = Schemas.User
+type User = Schemas.User
 
 const CONSOLE_NAMESPACES = ['console', 'organization'] as const
 

@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { inferApplicationType, type ConsoleTranslate } from '../application-types'
 import ApplicationQuickstartTab, {
   type QuickstartEndpoint,
 } from '../ui/application-quickstart-tab'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export interface ApplicationQuickstartTabFeatureProps {
   application: Client

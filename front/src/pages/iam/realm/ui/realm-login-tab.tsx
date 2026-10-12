@@ -3,10 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { FieldRow, OrderedChoiceCards, Section, SwitchField } from '@/components/kit'
 import type { Choice } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { REALM_NAMESPACE } from '../realm-namespace'
 
-import LoginAlias = Schemas.LoginAlias
+type LoginAlias = Schemas.LoginAlias
 
 export interface LoginDraft {
   userRegistration: boolean

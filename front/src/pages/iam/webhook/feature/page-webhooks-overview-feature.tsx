@@ -5,13 +5,13 @@ import {
   useWebhookCount,
   type WebhooksQuery,
 } from '@/api/webhook.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { usePagedListing } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { WEBHOOKS_URL } from '@/routes/router'
 import PageWebhooksOverview from '../ui/page-webhooks-overview'
 
-import Webhook = Schemas.Webhook
+type Webhook = Schemas.Webhook
 
 const ALERT_PREVIEW = 5
 

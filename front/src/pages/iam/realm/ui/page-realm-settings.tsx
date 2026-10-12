@@ -4,7 +4,7 @@ import { PageShell, PageTabs, type TabItem } from '@/components/kit'
 import type { PickableEntity } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import RealmGeneralTab from './realm-general-tab'
 import RealmLoginTab, { type LoginDraft } from './realm-login-tab'
 import RealmTokensTab, { type TokensDraft } from './realm-tokens-tab'
@@ -14,7 +14,7 @@ import RealmPasswordPolicyTab, { type PolicyDraft } from './realm-password-polic
 import RealmMaintenanceTab from './realm-maintenance-tab'
 import { REALM_NAMESPACE } from '../realm-namespace'
 
-import Realm = Schemas.Realm
+type Realm = Schemas.Realm
 
 export interface PageRealmSettingsProps {
   realm?: Realm

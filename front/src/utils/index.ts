@@ -1,6 +1,6 @@
-import { Schemas } from '@/api/api.client.ts'
-import { RequiredAction } from '@/api/core.interface.ts'
-import User = Schemas.User
+import type { Schemas } from '@/api/api.client.ts'
+import type { RequiredAction } from '@/api/core.interface.ts'
+type User = Schemas.User
 
 export function formatSnakeCaseToTitleCase(snakeCase: string): string {
   return snakeCase

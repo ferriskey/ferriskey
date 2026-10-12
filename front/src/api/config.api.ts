@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { GetConfigResponse } from './api.interface'
+import type { GetConfigResponse } from './api.interface'
 
 export const useGetConfig = () => {
   return useQuery({

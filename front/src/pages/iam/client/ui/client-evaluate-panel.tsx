@@ -5,10 +5,10 @@ import { Pill, RelationSelect, Section } from '@/components/kit'
 import { userRelationSource } from '@/api/user.relation'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import ClientScope = Schemas.ClientScope
-import EvaluateClientScopesResult = Schemas.EvaluateClientScopesResult
+type ClientScope = Schemas.ClientScope
+type EvaluateClientScopesResult = Schemas.EvaluateClientScopesResult
 
 export interface ClientEvaluatePanelProps {
   optionalScopes: ClientScope[]

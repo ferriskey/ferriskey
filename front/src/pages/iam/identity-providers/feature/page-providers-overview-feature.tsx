@@ -4,14 +4,14 @@ import { toast } from 'sonner'
 import { useDeleteIdentityProvider } from '@/api/identity-providers.api'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { useCreatePicker } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { getTemplateById } from '@/constants/identity-provider-templates'
 import { providerName, type ProviderProtocol } from '../provider-status'
 import PageProvidersOverview from '../ui/page-providers-overview'
 import { useProvidersOverview } from './use-providers-overview'
 
-import IdentityProvider = Schemas.IdentityProviderResponse
+type IdentityProvider = Schemas.IdentityProviderResponse
 import { useIdentityProvidersBase } from '@/hooks/use-section-base'
 
 export default function PageProvidersOverviewFeature() {

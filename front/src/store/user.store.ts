@@ -1,4 +1,4 @@
-import { IUser, UserState } from '@/contracts/states.interface'
+import type { IUser, UserState } from '@/contracts/states.interface'
 import { create } from 'zustand'
 
 const userStore = create<UserState>((set) => ({

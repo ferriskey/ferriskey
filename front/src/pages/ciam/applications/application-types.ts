@@ -1,9 +1,9 @@
 import { Cpu, Globe, MonitorSmartphone, Server, Smartphone } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { Choice, PillTone } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import CreateClientValidator = Schemas.CreateClientValidator
+type CreateClientValidator = Schemas.CreateClientValidator
 import { DEFAULT_CLIENT_PROTOCOL } from '@/lib/client-protocol'
 import { inferApplicationType, type ApplicationType } from './infer-application-type'
 

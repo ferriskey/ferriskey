@@ -9,10 +9,10 @@ import type {
   PaginationMetadata,
 } from '@/components/kit'
 import { clientRelationSource } from '@/api/client.relation'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 
-import Role = Schemas.Role
+type Role = Schemas.Role
 import { roleScopeLabelKey } from '../role-scope'
 
 export interface RoleCounts {

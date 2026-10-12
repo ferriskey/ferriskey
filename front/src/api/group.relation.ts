@@ -1,6 +1,6 @@
 import { useParams } from 'react-router'
 import type { RelationOption, RelationSource } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { GROUP_SEARCH_LIMIT, useGroup, useGroups, type Group } from './group.api'
 
 const toOption = (group: Group): RelationOption => ({

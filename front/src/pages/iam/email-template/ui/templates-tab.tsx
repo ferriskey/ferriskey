@@ -19,7 +19,7 @@ import {
   type ViewMode,
 } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { emailTemplateRelationSources } from '@/api/email-template.relation'
 import { formatDate } from '@/utils/format-date'
 import {
@@ -32,8 +32,8 @@ import {
   type EmailTypeSpec,
 } from '../email-types'
 
-import EmailTemplate = Schemas.EmailTemplate
-import EmailType = Schemas.EmailType
+type EmailTemplate = Schemas.EmailTemplate
+type EmailType = Schemas.EmailType
 
 type Assignments = Record<EmailTypeSpec['assignmentField'], string | null>
 

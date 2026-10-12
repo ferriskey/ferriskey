@@ -114,6 +114,10 @@ export default tseslint.config(
       quotes: ['error', 'single'],
       'jsx-quotes': ['error', 'prefer-single'],
       '@typescript-eslint/no-namespace': 'off',
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { fixStyle: 'separate-type-imports' },
+      ],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },

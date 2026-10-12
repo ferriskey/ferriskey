@@ -12,7 +12,7 @@ import {
 } from '@/api/portal-layouts.api'
 import { usePagedListing } from '@/components/kit'
 import { downloadPortalLayoutExport, readExportFile } from '@/api/builder-export'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { NEW_LAYOUT_ID, usePortalUrls } from '../use-portal-urls'
 import { countNodes } from '../theme-validation'
 import PagePortalLayouts, { type PortalLayoutRow } from '../ui/page-portal-layouts'

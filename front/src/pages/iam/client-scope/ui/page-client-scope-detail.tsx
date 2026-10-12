@@ -5,13 +5,13 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ClientScopeSettingsTab from './client-scope-settings-tab'
 import ClientScopeMappersTab from './client-scope-mappers-tab'
 import type { ScopeTypeChoice } from './page-create-client-scope'
 
-import ClientScope = Schemas.ClientScope
-import ProtocolMapper = Schemas.ProtocolMapper
+type ClientScope = Schemas.ClientScope
+type ProtocolMapper = Schemas.ProtocolMapper
 import { formatDateTime } from '@/utils/format-date'
 import { SCOPE_TYPE_TONE, scopeTypeLabelKey } from '../scope-type'
 
