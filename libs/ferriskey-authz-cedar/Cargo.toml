@@ -1,0 +1,16 @@
+[package]
+name = "ferriskey-authz-cedar"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ferriskey-authz = { path = "../ferriskey-authz" }
+ferriskey-domain = { path = "../ferriskey-domain" }
+cedar-policy = "=4.13.0"
+miette = "7"
+uuid = { workspace = true }
+
+[dev-dependencies]
+chrono = { workspace = true }
