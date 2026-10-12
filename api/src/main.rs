@@ -152,7 +152,7 @@ fn init_tracing_and_logging(
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let args = Arc::new(Args::parse());
     init_tracing_and_logging(&args.log, "ferriskey_server", &args.observability)?;

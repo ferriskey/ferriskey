@@ -39,7 +39,7 @@ axum-server = { version = "0.8.0", features = ["tls-rustls"] }
 base64 = "0.22.1"
 chrono = { version = "0.4.40", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive", "env"] }
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 regex = "1.11.1"
 rustls = { version = "0.23.35" }
 serde = "1.0.228"
