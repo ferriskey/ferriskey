@@ -4,6 +4,7 @@ description = "FerrisKey Kubernetes Operator"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [[bin]]
 path = "src/main.rs"

@@ -3,6 +3,7 @@ name = "ferriskey-api-realm"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 ferriskey-api-core = { path = "../ferriskey-api-core" }

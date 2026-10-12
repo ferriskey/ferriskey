@@ -1,0 +1,51 @@
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+ignore = [
+    { id = "RUSTSEC-2023-0071", reason = "rsa has no release that fixes the Marvin timing attack (RustCrypto/RSA#626); signing moves off rsa in ferriskey/ferriskey#1652" },
+    { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is unmaintained, pulled at build time only by validator_derive and sea-bae; no maintained release of either drops it yet" },
+]
+
+[licenses]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+allow = [
+    "Apache-2.0",
+    "0BSD",
+    "BSD-2-Clause",
+    "BSD-2-Clause-FreeBSD",
+    "BSD-3-Clause",
+    "MIT",
+    "MIT-0",
+    "ISC",
+    "OpenSSL",
+    "OpenSSL-standalone",
+    "PSF-2.0",
+    "Python-2.0",
+    "Python-2.0.1",
+    "PostgreSQL",
+    "SSLeay-standalone",
+    "UPL-1.0",
+    "X11",
+    "Zlib",
+    "Unicode-3.0",
+]
+exceptions = [
+    { crate = "webauthn-rs", allow = ["MPL-2.0"] },
+    { crate = "webauthn-rs-core", allow = ["MPL-2.0"] },
+    { crate = "webauthn-rs-proto", allow = ["MPL-2.0"] },
+    { crate = "webauthn-attestation-ca", allow = ["MPL-2.0"] },
+    { crate = "base64urlsafedata", allow = ["MPL-2.0"] },
+    { crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
+    { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
+]
+
+[bans]
+multiple-versions = "allow"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

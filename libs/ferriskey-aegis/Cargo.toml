@@ -3,6 +3,7 @@ name = "ferriskey-aegis"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 chrono = { version = "0.4.44", features = ["serde"] }
