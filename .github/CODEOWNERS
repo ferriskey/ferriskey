@@ -1,7 +1,10 @@
+** @NathaelB
 .github/** @leroyguillaume @NathaelB
+.github/workflows/** @leroyguillaume @NathaelB @LeadcodeDev
 charts/** @leroyguillaume @NathaelB
 front/** @LeadcodeDev @NathaelB
 .pre-commit-config.yaml @leroyguillaume @NathaelB
 docker-compose.yaml @leroyguillaume @NathaelB
-Dockerfile @leroyguillaume @NathaelB
-** @NathaelB
+Dockerfile @leroyguillaume @NathaelB @LeadcodeDev
+Cargo.toml @NathaelB @LeadcodeDev
+Cargo.lock @NathaelB @LeadcodeDev
