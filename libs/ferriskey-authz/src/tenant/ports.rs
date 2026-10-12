@@ -7,11 +7,12 @@ use ferriskey_domain::realm::scope::RealmScope;
 use uuid::Uuid;
 
 use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate, RelationTuple};
+use super::evaluation::{EvaluationRequest, PrincipalSlice, RuleSet};
 use super::value_objects::{
     CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
     UpdateTemplateInput,
 };
-use crate::entities::EntityRef;
+use crate::entities::{Decision, EntityRef};
 
 /// Every write method takes the `expected_version` the caller read, bumps the
 /// realm's version in the same transaction, and fails with
@@ -133,6 +134,28 @@ pub trait PolicyCompiler: Send + Sync + Debug {
         policies: &[Policy],
         templates: &[PolicyTemplate],
     ) -> Result<(), Vec<PolicyIssue>>;
+}
+
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+pub trait PrincipalSliceRepository: Send + Sync {
+    fn load(
+        &self,
+        realm: &RealmScope,
+        principal: &EntityRef,
+    ) -> impl Future<Output = Result<Option<PrincipalSlice>, CoreError>> + Send;
+}
+
+pub trait TenantDecisionEngine: Send + Sync {
+    type Compiled: Send + Sync;
+
+    fn compile(&self, rules: &RuleSet) -> Result<Self::Compiled, Vec<PolicyIssue>>;
+
+    fn decide(
+        &self,
+        compiled: &Self::Compiled,
+        slice: Option<&PrincipalSlice>,
+        request: &EvaluationRequest,
+    ) -> Result<Decision, CoreError>;
 }
 
 /// Who may read and change a realm's authorization rules.

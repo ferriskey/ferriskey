@@ -431,6 +431,9 @@ pub enum CoreError {
 
     #[error("Authorization policy template is linked by one or more policies")]
     AuthorizationTemplateInUse,
+
+    #[error("Invalid authorization request: {0}")]
+    InvalidAuthorizationRequest(String),
 }
 
 /// One problem a policy engine found in a realm's authorization rules.
@@ -589,6 +592,7 @@ impl CoreError {
             CoreError::InvalidAuthorizationPolicy(_) => "invalid_authorization_policy",
             CoreError::AuthorizationConflict => "authorization_conflict",
             CoreError::AuthorizationTemplateInUse => "authorization_template_in_use",
+            CoreError::InvalidAuthorizationRequest(_) => "invalid_authorization_request",
         }
     }
 }
@@ -934,6 +938,10 @@ mod tests {
                 CoreError::AuthorizationTemplateInUse,
                 "authorization_template_in_use",
             ),
+            (
+                CoreError::InvalidAuthorizationRequest(String::new()),
+                "invalid_authorization_request",
+            ),
         ]
     }
 
@@ -965,7 +973,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 131);
+        assert_eq!(every_variant_with_expected_reason().len(), 132);
     }
 
     #[test]
