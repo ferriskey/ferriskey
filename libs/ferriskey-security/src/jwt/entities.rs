@@ -547,9 +547,9 @@ mod tests {
     fn a_stored_realm_key_signs_the_token_it_signed_before() {
         let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
         let claims = serde_json::json!({
+            "exp": 4102444800u64,
             "iss": "https://auth.example.com/realms/master",
             "sub": "alice",
-            "exp": 4102444800u64,
         });
 
         let token = jsonwebtoken::encode(&header, &claims, &stored_key_pair().encoding_key)
