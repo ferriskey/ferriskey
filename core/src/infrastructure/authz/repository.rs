@@ -10,7 +10,7 @@ use ferriskey_authz::tenant::ports::{
     AuthzSchemaRepository, AuthzStateRepository, PolicyRepository, PolicyTemplateRepository,
     RelationTupleRepository,
 };
-use ferriskey_domain::common::app_errors::CoreError;
+use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
 use ferriskey_domain::realm::scope::RealmScope;
 use sea_orm::sea_query::{Expr, OnConflict};
 use sea_orm::{
@@ -63,6 +63,20 @@ fn on_write(e: DbErr) -> CoreError {
             error!("authz write failed: {e}");
             CoreError::InternalServerError
         }
+    }
+}
+
+fn on_policy_write(policy_name: &PolicyName) -> impl Fn(DbErr) -> CoreError + '_ {
+    move |e| match e.sql_err() {
+        Some(SqlErr::ForeignKeyConstraintViolation(_)) => {
+            CoreError::InvalidAuthorizationPolicy(vec![PolicyIssue {
+                policy: Some(policy_name.to_string()),
+                message: "links a template that does not exist".to_string(),
+                line: None,
+                column: None,
+            }])
+        }
+        _ => on_write(e),
     }
 }
 
@@ -355,7 +369,7 @@ impl PolicyRepository for PostgresAuthzRepository {
             .filter(authz_policies::Column::RealmId.eq(realm_id))
             .exec(&txn)
             .await
-            .map_err(on_write)?;
+            .map_err(on_policy_write(&policy.name))?;
 
         if updated.rows_affected == 0 {
             authz_policies::Entity::insert(authz_policies::ActiveModel {
@@ -373,7 +387,7 @@ impl PolicyRepository for PostgresAuthzRepository {
             })
             .exec_without_returning(&txn)
             .await
-            .map_err(on_write)?;
+            .map_err(on_policy_write(&policy.name))?;
         }
 
         txn.commit().await.map_err(internal("commit"))?;
@@ -823,6 +837,32 @@ mod tests {
             .await
             .expect("list templates");
         assert_eq!(templates, vec![tpl]);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL"]
+    async fn a_policy_linking_another_realms_template_is_refused_and_changes_nothing() {
+        let f = setup().await;
+        let tpl = template("owner-reads");
+        PolicyTemplateRepository::save(&f.repository, &f.realm_b, tpl.clone(), 0)
+            .await
+            .expect("save template");
+
+        let result =
+            PolicyRepository::save(&f.repository, &f.realm_a, linked_to(&tpl, "alice-reads"), 0)
+                .await;
+
+        assert!(
+            matches!(result, Err(CoreError::InvalidAuthorizationPolicy(_))),
+            "got {result:?}"
+        );
+        assert_eq!(version(&f, &f.realm_a).await, 0);
+        assert!(
+            PolicyRepository::list(&f.repository, &f.realm_a)
+                .await
+                .expect("list")
+                .is_empty()
+        );
     }
 
     #[tokio::test]
