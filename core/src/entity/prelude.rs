@@ -3,6 +3,11 @@
 pub use super::access_tokens::Entity as AccessTokens;
 pub use super::account_elevations::Entity as AccountElevations;
 pub use super::auth_sessions::Entity as AuthSessions;
+pub use super::authz_policies::Entity as AuthzPolicies;
+pub use super::authz_policy_templates::Entity as AuthzPolicyTemplates;
+pub use super::authz_realm_states::Entity as AuthzRealmStates;
+pub use super::authz_relation_tuples::Entity as AuthzRelationTuples;
+pub use super::authz_schemas::Entity as AuthzSchemas;
 pub use super::broker_auth_sessions::Entity as BrokerAuthSessions;
 pub use super::client_maintenance_whitelist::Entity as ClientMaintenanceWhitelist;
 pub use super::client_saml_attribute_mappers::Entity as ClientSamlAttributeMappers;
