@@ -2321,6 +2321,7 @@ dependencies = [
  "ferriskey-abyss",
  "ferriskey-aegis",
  "ferriskey-authz",
+ "ferriskey-authz-cedar",
  "ferriskey-compass",
  "ferriskey-consent",
  "ferriskey-domain",

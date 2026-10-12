@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use chrono::{TimeZone, Utc};
-use ferriskey_authz::entities::{EntityRef, EntityType, PolicyOrigin};
+#[cfg(test)]
+use ferriskey_authz::entities::EntityType;
+use ferriskey_authz::entities::{EntityRef, PolicyOrigin};
 use ferriskey_authz::tenant::entities::{
     AuthzSchema, AuthzState, Policy, PolicyBody, PolicyTemplate, RelationTuple,
 };
@@ -184,6 +186,7 @@ fn policy_from_db(model: authz_policies::Model) -> Result<Policy, CoreError> {
     })
 }
 
+#[cfg(test)]
 fn tuple_from_db(model: authz_relation_tuples::Model) -> Result<RelationTuple, CoreError> {
     let subject_relation = match model.subject_relation.as_str() {
         "" => None,
@@ -589,6 +592,7 @@ impl RelationTupleRepository for PostgresAuthzRepository {
     }
 }
 
+#[cfg(test)]
 impl PostgresAuthzRepository {
     /// Every tuple of the realm. Only tests read tuples back until relation
     /// expansion lands; the port exposes no read yet.

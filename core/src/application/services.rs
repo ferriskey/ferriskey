@@ -208,6 +208,18 @@ type ApplicationClientService = ClientServiceImpl<
     ScopeMappingRepo,
 >;
 
+type AuthzRepo = crate::infrastructure::authz::repository::PostgresAuthzRepository;
+
+pub(crate) type ApplicationAuthzManagementService =
+    ferriskey_authz::tenant::services::AuthzManagementServiceImpl<
+        RealmRepo,
+        PolicyImpl,
+        AuthzRepo,
+        AuthzRepo,
+        AuthzRepo,
+        AuthzRepo,
+    >;
+
 type ApplicationTokenExchangePolicyService = TokenExchangePolicyServiceImpl<
     RealmRepo,
     UserRepo,
@@ -503,6 +515,7 @@ pub struct ApplicationService {
         CredentialServiceImpl<RealmRepo, UserRepo, CredentialRepo, PolicyImpl>,
     pub(crate) client_service: ApplicationClientService,
     pub(crate) token_exchange_policy_service: ApplicationTokenExchangePolicyService,
+    pub(crate) authz_management_service: ApplicationAuthzManagementService,
     pub(crate) saml_service: ApplicationSamlService,
     pub(crate) realm_service: RealmServiceImpl<
         RealmRepo,
