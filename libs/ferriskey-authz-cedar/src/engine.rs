@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::str::FromStr;
 
 use cedar_policy::{
-    AuthorizationError, Authorizer, Context, Decision as CedarDecision, Entities, EntityId,
-    EntityTypeName, EntityUid, PolicyId, PolicySet, Request, Schema,
+    AuthorizationError, Authorizer, Context, Decision as CedarDecision, Entities, Entity, EntityId,
+    EntityTypeName, EntityUid, PolicyId, PolicySet, Request, RestrictedExpression, Schema,
 };
-use ferriskey_authz::entities::{Decision, EntityRef, EntityType};
+use ferriskey_authz::entities::{Decision, EntityRef};
 use ferriskey_authz::tenant::evaluation::{
     ClientFacts, EvaluationRequest, GroupFacts, OrganizationFacts, PrincipalFacts, PrincipalSlice,
     RoleFacts, RuleSet, Subject, TenantEntity, UserFacts,
@@ -13,10 +13,16 @@ use ferriskey_authz::tenant::evaluation::{
 use ferriskey_authz::tenant::names::Namespace;
 use ferriskey_authz::tenant::ports::TenantDecisionEngine;
 use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::compiler::{CedarPolicyCompiler, build_policy_set, compile_schema};
+
+const USER: &str = "FerrisKey::User";
+const CLIENT: &str = "FerrisKey::Client";
+const ROLE: &str = "FerrisKey::Role";
+const GROUP: &str = "FerrisKey::Group";
+const ORGANIZATION: &str = "FerrisKey::Organization";
 
 #[derive(Debug)]
 pub struct CompiledRules {
@@ -48,156 +54,136 @@ fn reference(entity: &EntityRef) -> Value {
     json!({ "type": entity.ty.as_str(), "id": entity.id })
 }
 
-fn entity_json(
-    entity: &EntityRef,
-    attrs: Map<String, Value>,
-    parents: &[EntityRef],
-    tags: Option<Map<String, Value>>,
-) -> Value {
-    let mut value = json!({
-        "uid": reference(entity),
-        "attrs": attrs,
-        "parents": parents.iter().map(reference).collect::<Vec<_>>(),
-    });
-    if let (Some(tags), Some(object)) = (tags, value.as_object_mut()) {
-        object.insert("tags".to_string(), Value::Object(tags));
-    }
-    value
+fn fk(ty: &'static str, id: Uuid) -> Result<EntityUid, CoreError> {
+    EntityTypeName::from_str(ty)
+        .map(|ty| EntityUid::from_type_name_and_id(ty, EntityId::new(id.to_string())))
+        .map_err(|_| CoreError::InternalServerError)
 }
 
-fn attrs<const N: usize>(pairs: [(&str, Value); N]) -> Map<String, Value> {
-    pairs
-        .into_iter()
-        .map(|(key, value)| (key.to_string(), value))
-        .collect()
+fn fk_all(ty: &'static str, ids: &[Uuid]) -> Result<Vec<EntityUid>, CoreError> {
+    ids.iter().map(|id| fk(ty, *id)).collect()
 }
 
-fn fk(ty: &'static str, id: Uuid) -> EntityRef {
-    EntityRef::new(EntityType::new(ty), id.to_string())
+fn text(value: &str) -> RestrictedExpression {
+    RestrictedExpression::new_string(value.to_string())
 }
 
-fn fk_user(id: Uuid) -> EntityRef {
-    fk("FerrisKey::User", id)
+fn entity(
+    uid: EntityUid,
+    attrs: impl IntoIterator<Item = (&'static str, RestrictedExpression)>,
+    parents: Vec<EntityUid>,
+    tags: impl IntoIterator<Item = (String, RestrictedExpression)>,
+) -> Result<Entity, CoreError> {
+    Entity::new_with_tags(
+        uid,
+        attrs
+            .into_iter()
+            .map(|(key, value)| (key.to_string(), value)),
+        parents,
+        tags,
+    )
+    .map_err(|_| CoreError::InternalServerError)
 }
 
-fn fk_client(id: Uuid) -> EntityRef {
-    fk("FerrisKey::Client", id)
-}
-
-fn fk_role(id: Uuid) -> EntityRef {
-    fk("FerrisKey::Role", id)
-}
-
-fn fk_group(id: Uuid) -> EntityRef {
-    fk("FerrisKey::Group", id)
-}
-
-fn fk_organization(id: Uuid) -> EntityRef {
-    fk("FerrisKey::Organization", id)
-}
-
-fn refs(ids: &[Uuid], make: fn(Uuid) -> EntityRef) -> Vec<EntityRef> {
-    ids.iter().copied().map(make).collect()
-}
-
-fn user_json(user: &UserFacts) -> Value {
-    let mut map = attrs([
-        ("username", json!(user.username)),
-        ("email_verified", json!(user.email_verified)),
-        ("enabled", json!(user.enabled)),
-    ]);
+fn user_entity(user: &UserFacts) -> Result<Entity, CoreError> {
+    let mut attrs = vec![
+        ("username", text(&user.username)),
+        (
+            "email_verified",
+            RestrictedExpression::new_bool(user.email_verified),
+        ),
+        ("enabled", RestrictedExpression::new_bool(user.enabled)),
+    ];
     if let Some(email) = &user.email {
-        map.insert("email".to_string(), json!(email));
+        attrs.push(("email", text(email)));
     }
-    let parents: Vec<EntityRef> = refs(&user.role_ids, fk_role)
-        .into_iter()
-        .chain(refs(&user.group_ids, fk_group))
-        .chain(refs(&user.organization_ids, fk_organization))
-        .collect();
-    let tags: Map<String, Value> = user
+    let mut parents = fk_all(ROLE, &user.role_ids)?;
+    parents.extend(fk_all(GROUP, &user.group_ids)?);
+    parents.extend(fk_all(ORGANIZATION, &user.organization_ids)?);
+    let tags = user
         .tags
         .iter()
-        .map(|(key, value)| (key.clone(), json!(value)))
-        .collect();
-    entity_json(&fk_user(user.id), map, &parents, Some(tags))
+        .map(|(key, value)| (key.clone(), text(value)));
+    entity(fk(USER, user.id)?, attrs, parents, tags)
 }
 
-fn client_json(client: &ClientFacts) -> Value {
-    entity_json(
-        &fk_client(client.id),
-        attrs([("client_id", json!(client.client_id))]),
-        &refs(&client.role_ids, fk_role),
-        None,
+fn client_entity(client: &ClientFacts) -> Result<Entity, CoreError> {
+    entity(
+        fk(CLIENT, client.id)?,
+        [("client_id", text(&client.client_id))],
+        fk_all(ROLE, &client.role_ids)?,
+        [],
     )
 }
 
-fn role_json(role: &RoleFacts) -> Value {
-    entity_json(
-        &fk_role(role.id),
-        attrs([("name", json!(role.name))]),
-        &[],
-        None,
+fn role_entity(role: &RoleFacts) -> Result<Entity, CoreError> {
+    entity(
+        fk(ROLE, role.id)?,
+        [("name", text(&role.name))],
+        Vec::new(),
+        [],
     )
 }
 
-fn group_json(group: &GroupFacts) -> Value {
-    let parents: Vec<EntityRef> = group
-        .parent_id
-        .map(fk_group)
-        .into_iter()
-        .chain([fk_organization(group.organization_id)])
-        .collect();
-    entity_json(
-        &fk_group(group.id),
-        attrs([("name", json!(group.name))]),
-        &parents,
-        None,
+fn group_entity(group: &GroupFacts) -> Result<Entity, CoreError> {
+    let mut parents = vec![fk(ORGANIZATION, group.organization_id)?];
+    if let Some(parent) = group.parent_id {
+        parents.push(fk(GROUP, parent)?);
+    }
+    entity(
+        fk(GROUP, group.id)?,
+        [("name", text(&group.name))],
+        parents,
+        [],
     )
 }
 
-fn organization_json(organization: &OrganizationFacts) -> Value {
-    entity_json(
-        &fk_organization(organization.id),
-        attrs([
-            ("alias", json!(organization.alias)),
-            ("name", json!(organization.name)),
-        ]),
-        &[],
-        None,
+fn organization_entity(organization: &OrganizationFacts) -> Result<Entity, CoreError> {
+    entity(
+        fk(ORGANIZATION, organization.id)?,
+        [
+            ("alias", text(&organization.alias)),
+            ("name", text(&organization.name)),
+        ],
+        Vec::new(),
+        [],
     )
 }
 
-fn tenant_json(entity: &TenantEntity) -> Value {
-    entity_json(
-        &entity.entity,
-        entity.properties.clone(),
-        &entity.parents,
-        None,
-    )
+fn tenant_entity(entity: &TenantEntity, schema: Option<&Schema>) -> Result<Entity, CoreError> {
+    let value = json!({
+        "uid": reference(&entity.entity),
+        "attrs": entity.properties,
+        "parents": entity.parents.iter().map(reference).collect::<Vec<_>>(),
+    });
+    Entity::from_json_value(value, schema).map_err(invalid)
 }
 
-fn slice_json(slice: &PrincipalSlice) -> (EntityRef, Vec<Value>) {
+fn slice_entities(slice: &PrincipalSlice) -> Result<(EntityUid, Vec<Entity>), CoreError> {
     let (principal, subject) = match &slice.principal {
-        PrincipalFacts::User(user) => (fk_user(user.id), user_json(user)),
-        PrincipalFacts::Client(client) => (fk_client(client.id), client_json(client)),
+        PrincipalFacts::User(user) => (fk(USER, user.id)?, user_entity(user)?),
+        PrincipalFacts::Client(client) => (fk(CLIENT, client.id)?, client_entity(client)?),
     };
-    let entities = std::iter::once(subject)
-        .chain(slice.roles.iter().map(role_json))
-        .chain(slice.groups.iter().map(group_json))
-        .chain(slice.organizations.iter().map(organization_json))
-        .collect();
-    (principal, entities)
+    let mut entities =
+        Vec::with_capacity(1 + slice.roles.len() + slice.groups.len() + slice.organizations.len());
+    entities.push(subject);
+    for role in &slice.roles {
+        entities.push(role_entity(role)?);
+    }
+    for group in &slice.groups {
+        entities.push(group_entity(group)?);
+    }
+    for organization in &slice.organizations {
+        entities.push(organization_entity(organization)?);
+    }
+    Ok((principal, entities))
 }
 
-fn entity_key(value: &Value) -> String {
-    value.get("uid").map(Value::to_string).unwrap_or_default()
-}
-
-fn dedupe(entities: Vec<Value>) -> Vec<Value> {
+fn dedupe(entities: Vec<Entity>) -> Vec<Entity> {
     let mut seen = HashSet::with_capacity(entities.len());
     entities
         .into_iter()
-        .filter(|entity| seen.insert(entity_key(entity)))
+        .filter(|entity| seen.insert(entity.uid()))
         .collect()
 }
 
@@ -235,16 +221,14 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
         let schema = compiled.schema.as_ref();
 
         let (principal, mut entities) = match &request.subject {
-            Subject::FerrisKey(_) => {
-                let slice = slice.ok_or(CoreError::InternalServerError)?;
-                slice_json(slice)
+            Subject::FerrisKey(_) => slice_entities(slice.ok_or(CoreError::InternalServerError)?)?,
+            Subject::Tenant(subject) => {
+                (uid(&subject.entity)?, vec![tenant_entity(subject, schema)?])
             }
-            Subject::Tenant(subject) => (subject.entity.clone(), vec![tenant_json(subject)]),
         };
-        entities.push(tenant_json(&request.resource));
+        entities.push(tenant_entity(&request.resource, schema)?);
 
-        let entities =
-            Entities::from_json_value(Value::Array(dedupe(entities)), schema).map_err(invalid)?;
+        let entities = Entities::from_entities(dedupe(entities), schema).map_err(invalid)?;
 
         let action = EntityUid::from_type_name_and_id(
             EntityTypeName::from_str(&format!("{}::Action", compiled.namespace))
@@ -257,7 +241,7 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
         )
         .map_err(invalid)?;
         let cedar_request = Request::new(
-            uid(&principal)?,
+            principal,
             action,
             uid(&request.resource.entity)?,
             context,
