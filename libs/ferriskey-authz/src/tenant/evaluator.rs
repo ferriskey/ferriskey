@@ -13,14 +13,14 @@ use super::ports::{
     AuthzSchemaRepository, AuthzStateRepository, PolicyRepository, PolicyTemplateRepository,
     PrincipalSliceRepository, TenantDecisionEngine,
 };
-use crate::entities::Decision;
+use crate::entities::{Decision, EntityRef};
 
 pub const VERSION_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 
 struct Compiled<C> {
     version: i64,
     checked_at: Instant,
-    artefact: Arc<C>,
+    artefact: Option<Arc<C>>,
 }
 
 impl<C> Clone for Compiled<C> {
@@ -28,27 +28,35 @@ impl<C> Clone for Compiled<C> {
         Self {
             version: self.version,
             checked_at: self.checked_at,
-            artefact: Arc::clone(&self.artefact),
+            artefact: self.artefact.clone(),
         }
     }
 }
 
 fn ensure_tenant_types(request: &EvaluationRequest) -> Result<(), CoreError> {
     let reserved = format!("{FERRISKEY_NAMESPACE}::");
+    let is_reserved = |entity: &EntityRef| entity.ty.as_str().starts_with(&reserved);
+    let refuse = |what: String| Err(CoreError::InvalidAuthorizationRequest(what));
+
     let tenant_entities = match &request.subject {
         Subject::Tenant(subject) => vec![&request.resource, subject],
         Subject::FerrisKey(_) => vec![&request.resource],
     };
-    match tenant_entities
-        .into_iter()
-        .find(|entity| entity.entity.ty.as_str().starts_with(&reserved))
-    {
-        Some(entity) => Err(CoreError::InvalidAuthorizationRequest(format!(
+    if let Some(entity) = tenant_entities.iter().find(|e| is_reserved(&e.entity)) {
+        return refuse(format!(
             "{} is resolved by FerrisKey and cannot be described by the request",
             entity.entity.ty
-        ))),
-        None => Ok(()),
+        ));
     }
+    if let Subject::Tenant(subject) = &request.subject
+        && let Some(parent) = subject.parents.iter().find(|p| is_reserved(p))
+    {
+        return refuse(format!(
+            "membership in {} is resolved by FerrisKey and cannot be claimed by the request",
+            parent.ty
+        ));
+    }
+    Ok(())
 }
 
 pub struct TenantEvaluator<R, PS, E>
@@ -107,6 +115,13 @@ where
             .cloned()
     }
 
+    fn forget(&self, realm_id: Uuid) {
+        self.cache
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&realm_id);
+    }
+
     fn store(&self, realm_id: Uuid, compiled: Compiled<E::Compiled>) {
         self.cache
             .write()
@@ -125,24 +140,26 @@ where
         if let Some(entry) = &cached
             && now.saturating_duration_since(entry.checked_at) < VERSION_CHECK_INTERVAL
         {
-            return Ok(Some(Arc::clone(&entry.artefact)));
+            return Ok(entry.artefact.clone());
         }
 
-        let version = AuthzStateRepository::get(self.rules.as_ref(), scope)
-            .await?
-            .version;
+        let state = AuthzStateRepository::get(self.rules.as_ref(), scope).await?;
+        if !state.enabled {
+            self.forget(realm_id);
+            return Err(CoreError::AuthorizationNotEnabled);
+        }
+        let version = state.version;
 
         if let Some(entry) = cached.as_ref().filter(|entry| entry.version == version) {
-            let artefact = Arc::clone(&entry.artefact);
             self.store(
                 realm_id,
                 Compiled {
                     version,
                     checked_at: now,
-                    artefact: Arc::clone(&artefact),
+                    artefact: entry.artefact.clone(),
                 },
             );
-            return Ok(Some(artefact));
+            return Ok(entry.artefact.clone());
         }
 
         let rules = load_rule_set(
@@ -155,7 +172,7 @@ where
         .await?;
 
         let artefact = match self.engine.compile(&rules) {
-            Ok(compiled) => Arc::new(compiled),
+            Ok(compiled) => Some(Arc::new(compiled)),
             Err(issues) => {
                 error!(
                     realm_id = %realm_id,
@@ -163,10 +180,7 @@ where
                     issues = issues.len(),
                     "authorization rules failed to compile, keeping the previous ones"
                 );
-                match cached {
-                    Some(previous) => previous.artefact,
-                    None => return Ok(None),
-                }
+                cached.and_then(|previous| previous.artefact)
             }
         };
 
@@ -175,10 +189,10 @@ where
             Compiled {
                 version,
                 checked_at: now,
-                artefact: Arc::clone(&artefact),
+                artefact: artefact.clone(),
             },
         );
-        Ok(Some(artefact))
+        Ok(artefact)
     }
 }
 
@@ -202,13 +216,14 @@ mod tests {
     struct FakeRules {
         version: AtomicI64,
         state_reads: AtomicUsize,
+        disabled: AtomicBool,
     }
 
     impl AuthzStateRepository for FakeRules {
         async fn get(&self, _: &RealmScope) -> Result<AuthzState, CoreError> {
             self.state_reads.fetch_add(1, Ordering::SeqCst);
             Ok(AuthzState {
-                enabled: true,
+                enabled: !self.disabled.load(Ordering::SeqCst),
                 version: self.version.load(Ordering::SeqCst),
             })
         }
@@ -461,6 +476,70 @@ mod tests {
         let decision = f.evaluate_at(Duration::ZERO).await;
 
         assert!(!decision.allowed);
+        assert_eq!(f.last_artefact(), None);
+    }
+
+    #[tokio::test]
+    async fn rules_that_never_compiled_are_retried_only_when_the_version_moves() {
+        let f = fixture(true);
+        f.engine.failing.store(true, Ordering::SeqCst);
+
+        assert!(!f.evaluate_at(Duration::ZERO).await.allowed);
+        assert!(!f.evaluate_at(VERSION_CHECK_INTERVAL / 2).await.allowed);
+        assert!(!f.evaluate_at(VERSION_CHECK_INTERVAL * 2).await.allowed);
+        assert_eq!(f.compilations(), 1);
+
+        f.engine.failing.store(false, Ordering::SeqCst);
+        f.rules.version.store(1, Ordering::SeqCst);
+        assert!(f.evaluate_at(VERSION_CHECK_INTERVAL * 4).await.allowed);
+        assert_eq!(f.compilations(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_disabled_realm_answers_not_enabled_once_the_interval_elapsed() {
+        let f = fixture(true);
+        f.evaluate_at(Duration::ZERO).await;
+        f.rules.disabled.store(true, Ordering::SeqCst);
+
+        let result = f
+            .evaluator
+            .evaluate(
+                &f.scope,
+                &ferriskey_subject(),
+                f.start + VERSION_CHECK_INTERVAL * 2,
+            )
+            .await;
+        assert!(
+            matches!(result, Err(CoreError::AuthorizationNotEnabled)),
+            "got {result:?}"
+        );
+
+        f.rules.disabled.store(false, Ordering::SeqCst);
+        f.evaluate_at(VERSION_CHECK_INTERVAL * 2).await;
+        assert_eq!(f.compilations(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_tenant_subject_cannot_claim_a_ferriskey_membership() {
+        let f = fixture(true);
+        let request = EvaluationRequest {
+            subject: Subject::Tenant(TenantEntity {
+                entity: EntityRef::new(EntityType::custom("App::Device"), "d1"),
+                properties: Map::new(),
+                parents: vec![EntityRef::new(
+                    EntityType::custom("FerrisKey::Role"),
+                    "admin",
+                )],
+            }),
+            ..ferriskey_subject()
+        };
+
+        let result = f.evaluator.evaluate(&f.scope, &request, f.start).await;
+
+        assert!(
+            matches!(result, Err(CoreError::InvalidAuthorizationRequest(_))),
+            "got {result:?}"
+        );
         assert_eq!(f.last_artefact(), None);
     }
 
