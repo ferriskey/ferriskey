@@ -4,6 +4,7 @@ description = "Core business logic library for FerrisKey"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 ferriskey-abyss = { path = "../libs/ferriskey-abyss", features = ["mock"] }
