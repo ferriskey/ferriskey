@@ -16,6 +16,9 @@
   <a href="https://github.com/ferriskey/ferriskey/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/ferriskey/ferriskey?display_name=tag&logo=semantic-release" />
   </a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ferriskey/ferriskey">
+    <img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/ferriskey/ferriskey/badge" />
+  </a>
   <a href="https://opensource.org/licenses/Apache-2.0">
     <img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
   </a>
