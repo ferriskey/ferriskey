@@ -32,9 +32,8 @@ base64 = "0.22.1"
 chrono = { version = "0.4.41", features = ["serde"] }
 enum-display = "0.2.1"
 hmac = "0.12.1"
-jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 rand = "0.8.0"
-rsa = { version = "0.9.9", features = ["pem"] }
 sea-orm = { version = "1.1.19", features = [
     "sqlx-postgres",
     "macros",

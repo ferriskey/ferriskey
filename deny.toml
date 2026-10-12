@@ -4,7 +4,6 @@ all-features = true
 [advisories]
 yanked = "deny"
 ignore = [
-    { id = "RUSTSEC-2023-0071", reason = "rsa has no release that fixes the Marvin timing attack (RustCrypto/RSA#626); signing moves off rsa in ferriskey/ferriskey#1652" },
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is unmaintained, pulled at build time only by validator_derive and sea-bae; no maintained release of either drops it yet" },
 ]
 
