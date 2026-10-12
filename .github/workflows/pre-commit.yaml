@@ -5,8 +5,9 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,15 +16,18 @@ concurrency:
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
+    env:
+      # Clippy runs in the rust workflow, which only starts when Rust changes.
+      SKIP: rust-clippy
     steps:
       - name: checkout
         uses: actions/checkout@v5
 
       - name: set up rust toolchain
-        id: rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          components: clippy,rustfmt
+          components: rustfmt
+          cache: false
 
       - name: set up python
         uses: actions/setup-python@v5
@@ -36,28 +40,15 @@ jobs:
       - name: install pnpm
         run: npm install -g pnpm@latest-10
 
-      - name: cache rust build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: clippy-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.*', '**/*.rs') }}
-          restore-keys: |
-            clippy-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
-
-      - name: cache rust build
+      - name: cache node modules
         uses: actions/cache@v4
         with:
           path: front/node_modules
           key: node-${{ runner.arch }}-${{ hashFiles('front/pnpm-lock.yaml') }}
-          restore-keys: |
-            clippy-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
 
       - name: install node modules
         working-directory: front
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: run pre-commit
         uses: pre-commit/action@v3.0.1
-
-      - name: run workspace unit tests
-        run: cargo test --workspace --exclude ferriskey-client
