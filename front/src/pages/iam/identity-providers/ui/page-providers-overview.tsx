@@ -17,7 +17,7 @@ import {
   PROVIDER_TEMPLATES,
   templateDisplayName,
 } from '@/constants/identity-provider-templates'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 import {
   PROVIDER_TYPES,
@@ -29,7 +29,7 @@ import {
 import ProviderTile from './provider-tile'
 import ProviderStatusPill from './provider-status-pill'
 
-import IdentityProvider = Schemas.IdentityProviderResponse
+type IdentityProvider = Schemas.IdentityProviderResponse
 
 interface ConfirmState {
   title: string

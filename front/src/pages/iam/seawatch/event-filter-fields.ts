@@ -1,10 +1,10 @@
 import type { ColumnFilterField } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { userRelationSource } from '@/api/user.relation'
 import { translate } from '@/lib/i18n'
 import { catalogedEventTypes, eventFamilies } from './event-catalogue'
 
-import SecurityEventType = Schemas.SecurityEventType
+type SecurityEventType = Schemas.SecurityEventType
 
 const EVENT_FAMILIES = ['authentication', 'credentials', 'administration'] as const
 

@@ -7,16 +7,16 @@ import {
   useGetClientScope,
   useUpdateClientScope,
 } from '@/api/client-scope.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs } from '@/components/kit'
 import { updateClientScopeSchema } from '@/pages/iam/client-scope/schemas/update-client-scope.schema'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { clientScopeMappersUrl, clientScopeUrl, protocolMapperUrl } from '../urls'
 import PageClientScopeDetail from '../ui/page-client-scope-detail'
 import type { ScopeTypeChoice } from '../ui/page-create-client-scope'
 
-import ProtocolMapper = Schemas.ProtocolMapper
+type ProtocolMapper = Schemas.ProtocolMapper
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 
 interface Draft {

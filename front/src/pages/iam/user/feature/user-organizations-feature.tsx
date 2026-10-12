@@ -9,8 +9,8 @@ import {
   useOrganizationsByIds,
   useRemoveUserFromOrganization,
 } from '@/api/organization.api'
-import { Schemas } from '@/api/api.client'
-import { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
 import { assignOrganizationSchema } from '@/pages/iam/user/schemas/assign-organization.schema'
 import UserOrganizationsTab, { type UserMembership } from '../ui/user-organizations-tab'
 

@@ -18,7 +18,7 @@ import {
   usePortalThemeContext,
 } from '@/pages/iam/portal/theme-builder/context/portal-theme-context'
 import type { Schemas } from '@/api/api.client'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { usePortalUrls } from '../use-portal-urls'
 import { requirementsByPage, statusesForTheme } from '../theme-validation'
 import PagePortalThemeDetail from '../ui/page-portal-theme-detail'

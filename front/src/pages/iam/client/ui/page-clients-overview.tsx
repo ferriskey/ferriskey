@@ -8,7 +8,7 @@ import type {
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 import {
   DEFAULT_PROTOCOL,
@@ -18,7 +18,7 @@ import {
   type ClientProtocol,
 } from '../client-choices'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export interface ClientCounts {
   total: number

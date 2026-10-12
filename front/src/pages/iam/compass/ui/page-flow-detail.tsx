@@ -5,7 +5,7 @@ import { Button } from '@/components/kit/button'
 import { PageShell, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   failingStep,
   flowStatusTone,
@@ -16,7 +16,7 @@ import {
 } from '../flow-format'
 import FlowSteps from './flow-steps'
 
-import CompassFlow = Schemas.CompassFlow
+type CompassFlow = Schemas.CompassFlow
 
 export interface PageFlowDetailProps {
   flow?: CompassFlow

@@ -11,7 +11,7 @@ import {
 } from '@/api/user.api.ts'
 import { usePagedListing } from '@/components/kit'
 import { authStore } from '@/store/auth.store'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import PageAccountSessions from '../ui/page-account-sessions'
 import { apiErrorMessage } from '@/lib/api-error'
 

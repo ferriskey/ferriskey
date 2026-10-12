@@ -11,14 +11,14 @@ import {
 import type { Metric, SegmentedItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { formatRelative, formatTimestamp } from '@/utils/format-date'
 import { ActivityPage, NoticeList, type Notice } from './activity-notices'
 
-import DailyActivityStats = Schemas.DailyActivityStats
-import CompassFlow = Schemas.CompassFlow
-import FlowStatus = Schemas.FlowStatus
+type DailyActivityStats = Schemas.DailyActivityStats
+type CompassFlow = Schemas.CompassFlow
+type FlowStatus = Schemas.FlowStatus
 
 export interface PageLiveProps {
   activity: DailyActivityStats[]

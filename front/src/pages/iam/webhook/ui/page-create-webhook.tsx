@@ -6,12 +6,12 @@ import { Textarea } from '@/components/ui/textarea'
 import SaveBar from '@/components/kit/save-bar'
 import { FieldRow, PageShell, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import WebhookHeadersField, { type WebhookHeader } from './webhook-headers-field'
 import WebhookSubscribersField from './webhook-subscribers-field'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
 
-import WebhookTrigger = Schemas.WebhookTrigger
+type WebhookTrigger = Schemas.WebhookTrigger
 
 export interface PageCreateWebhookProps {
   name: string

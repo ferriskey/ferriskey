@@ -7,9 +7,9 @@ import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
 import { IconTile, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import Role = Schemas.Role
+type Role = Schemas.Role
 
 export interface ClientRolesTabProps {
   roles: Role[]

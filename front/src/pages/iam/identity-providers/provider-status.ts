@@ -4,9 +4,9 @@ import {
   type ProviderTemplate,
 } from '@/constants/identity-provider-templates'
 import { translate } from '@/lib/i18n'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import IdentityProvider = Schemas.IdentityProviderResponse
+type IdentityProvider = Schemas.IdentityProviderResponse
 
 export type ProviderProtocol = 'oidc' | 'oauth2' | 'saml' | 'ldap'
 

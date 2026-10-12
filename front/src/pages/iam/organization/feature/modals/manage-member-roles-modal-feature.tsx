@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   Dialog,
   DialogBody,
@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import MultipleSelector, { Option } from '@/components/ui/multiselect'
+import type { Option } from '@/components/ui/multiselect'
+import MultipleSelector from '@/components/ui/multiselect'
 import { useRoleSearch } from '@/api/role.api'
 import {
   useAssignOrganizationMemberRole,
@@ -19,7 +20,7 @@ import {
   useRevokeOrganizationMemberRole,
 } from '@/api/organization-member.api'
 
-import User = Schemas.User
+type User = Schemas.User
 import { apiErrorMessage } from '@/lib/api-error'
 
 interface ManageMemberRolesModalFeatureProps {

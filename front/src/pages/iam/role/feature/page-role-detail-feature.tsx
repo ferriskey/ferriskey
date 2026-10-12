@@ -7,7 +7,7 @@ import {
   useUpdateRole,
   useUpdateRolePermissions,
 } from '@/api/role.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs } from '@/components/kit'
 import { updateRoleSchema } from '@/pages/iam/role/schemas/update-role.schema'
 import { ROLE_URL, ROLES_URL } from '@/routes/router'

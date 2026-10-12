@@ -1,10 +1,10 @@
 export { formatRelative, formatTimestamp } from '@/utils/format-date'
 
 import { translate } from '@/lib/i18n'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import SecurityEvent = Schemas.SecurityEvent
-import SecurityEventType = Schemas.SecurityEventType
+type SecurityEvent = Schemas.SecurityEvent
+type SecurityEventType = Schemas.SecurityEventType
 
 export const catalogedEventTypes: Record<SecurityEventType, true> = {
   login_success: true,

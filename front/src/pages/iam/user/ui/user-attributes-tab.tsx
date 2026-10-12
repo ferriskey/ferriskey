@@ -5,9 +5,9 @@ import { Button } from '@/components/kit/button'
 import { Input } from '@/components/ui/input'
 import { Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import UserAttribute = Schemas.UserAttribute
+type UserAttribute = Schemas.UserAttribute
 
 export interface UserAttributesTabProps {
   attributes: UserAttribute[]

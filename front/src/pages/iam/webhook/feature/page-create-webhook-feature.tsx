@@ -3,15 +3,15 @@ import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { useCreateWebhook } from '@/api/webhook.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { createWebhookValidator } from '@/pages/iam/realm/validators'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { WEBHOOKS_URL } from '@/routes/router'
 import PageCreateWebhook from '../ui/page-create-webhook'
 import type { WebhookHeader } from '../ui/webhook-headers-field'
 import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 
-import WebhookTrigger = Schemas.WebhookTrigger
+type WebhookTrigger = Schemas.WebhookTrigger
 
 type WebhookField = 'name' | 'endpoint' | 'description'
 

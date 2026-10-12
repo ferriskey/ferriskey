@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
 import { previousPagePlaceholder, type PagedQueryOptions } from './paged-query'
 

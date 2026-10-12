@@ -10,11 +10,11 @@ import { useUsersByIds } from '@/api/user.api'
 import { useUserPicker } from '@/hooks/use-user-picker'
 import { useRolesByIds } from '@/api/role.api'
 import { useRolePicker } from '@/hooks/use-role-picker'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ClientMaintenanceTab from '../ui/client-maintenance-tab'
 
-import Client = Schemas.Client
-import MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
+type Client = Schemas.Client
+type MaintenanceSessionStrategy = Schemas.MaintenanceSessionStrategy
 
 export interface ClientMaintenanceTabFeatureProps {
   client: Client

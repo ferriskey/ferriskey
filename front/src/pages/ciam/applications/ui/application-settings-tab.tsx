@@ -6,7 +6,7 @@ import { DangerZone } from '@/components/kit/danger-zone'
 import { ChipInput, ChoiceCards, FieldRow, Pill, Section, SwitchField } from '@/components/kit'
 import type { Choice } from '@/components/kit'
 import { Power, PowerOff } from 'lucide-react'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   applicationFields,
   applicationTypeMeta,
@@ -14,7 +14,7 @@ import {
   type ConsoleTranslate,
 } from '../application-types'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 type ApplicationState = 'enabled' | 'disabled'
 

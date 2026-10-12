@@ -6,14 +6,14 @@ import {
   useGetClientScopes,
   type ClientScopesQuery,
 } from '@/api/client-scope.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { usePagedListing } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
 import { clientScopeUrl } from '../urls'
 import PageClientScopesOverview from '../ui/page-client-scopes-overview'
 
-import ClientScope = Schemas.ClientScope
+type ClientScope = Schemas.ClientScope
 
 const ALERT_PREVIEW = 5
 

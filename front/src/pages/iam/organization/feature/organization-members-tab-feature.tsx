@@ -7,10 +7,10 @@ import {
 } from '@/api/organization.api'
 import { useUserSearch, useUsersByIds } from '@/api/user.api'
 import { usePagedListing } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import OrganizationMembersTab, { type OrganizationMemberRow } from '../ui/organization-members-tab'
 
-import User = Schemas.User
+type User = Schemas.User
 
 export interface OrganizationMembersTabFeatureProps {
   realm: string

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PasswordRequirement } from '@/lib/password-policy'
-import { UpdatePasswordSchema } from '../../schemas/update-password.schema'
+import type { UpdatePasswordSchema } from '../../schemas/update-password.schema'
 import '../page-login.css'
 import { AUTH_NAMESPACE, BRAND_NAME } from '../../constants'
 

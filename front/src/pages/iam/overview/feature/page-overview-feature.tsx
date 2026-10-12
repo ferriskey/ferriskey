@@ -8,7 +8,7 @@ import { useUserCount, useUsersByIds } from '@/api/user.api'
 import { useRoleCount } from '@/api/role.api'
 import { useGetDailyActivityStats, useGetFlows, useGetStats } from '@/api/compass.api'
 import { useGetRealm } from '@/api/realm.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import userStore from '@/store/user.store'
 import type { Metric } from '@/components/kit'
 import {

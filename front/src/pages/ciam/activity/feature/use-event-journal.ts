@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { PagedListing, PaginationMetadata } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   useGetSecurityEvents,
   useSecurityEventCount,
@@ -10,7 +10,7 @@ import {
 import { useLocalPagedListing } from '@/pages/iam/organization/feature/use-local-paged-listing'
 import { JOURNAL_FILTER_KEYS } from './journal-filter-keys'
 
-import SecurityEventType = Schemas.SecurityEventType
+type SecurityEventType = Schemas.SecurityEventType
 
 export interface EventJournal {
   listing: PagedListing

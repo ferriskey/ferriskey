@@ -20,10 +20,10 @@ import {
 } from '@/components/kit'
 import { isServiceAccount } from '@/utils'
 import { formatRelative } from '@/utils/format-date'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { memberDisplayName } from '../member-name'
 
-import User = Schemas.User
+type User = Schemas.User
 
 const SERVICE_ACCOUNT_INITIAL = 'S'
 const FALLBACK_INITIAL = 'U'

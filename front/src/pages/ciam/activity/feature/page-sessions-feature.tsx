@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'
 import { eventRoleIds } from '@/hooks/event-role-ids'
 import { eventClientIds } from '@/hooks/event-client-ids'

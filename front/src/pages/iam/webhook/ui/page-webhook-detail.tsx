@@ -6,15 +6,15 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, Section, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import WebhookSettingsTab from './webhook-settings-tab'
 import WebhookSubscribersField from './webhook-subscribers-field'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
 import WebhookDeliveriesTab from './webhook-deliveries-tab'
 import type { WebhookHeader } from './webhook-headers-field'
 
-import Webhook = Schemas.Webhook
-import WebhookTrigger = Schemas.WebhookTrigger
+type Webhook = Schemas.Webhook
+type WebhookTrigger = Schemas.WebhookTrigger
 import { formatDateTime } from '@/utils/format-date'
 
 export interface PageWebhookDetailProps {

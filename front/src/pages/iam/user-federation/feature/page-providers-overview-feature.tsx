@@ -1,12 +1,12 @@
 import { useParams } from 'react-router'
 import { useCreatePicker } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { USER_FEDERATION_URL } from '@/routes/router'
 import PageProvidersOverview, { type FederationKind } from '../ui/page-providers-overview'
 import { useProvidersOverview } from './use-providers-overview'
 
-import ProviderResponse = Schemas.ProviderResponse
+type ProviderResponse = Schemas.ProviderResponse
 
 export default function PageProvidersOverviewFeature() {
   const { realm_name } = useParams<RouterParams>()

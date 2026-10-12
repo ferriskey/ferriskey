@@ -22,10 +22,10 @@ import {
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
 import { formatDate, formatDateTime } from '@/utils/format-date'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import User = Schemas.User
-import UserSessionDto = Schemas.UserSessionDto
+type User = Schemas.User
+type UserSessionDto = Schemas.UserSessionDto
 
 const SESSION_VIEW: ViewMode = 'list'
 

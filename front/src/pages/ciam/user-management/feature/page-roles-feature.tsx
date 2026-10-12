@@ -6,12 +6,12 @@ import {
   type RolesQuery,
 } from '@/api/role.api'
 import { usePagedListing } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import PageRolesOverview from '@/pages/iam/role/ui/page-roles-overview'
 import { CONSOLE_ROLE_URL, CONSOLE_ROLES_URL } from '../urls'
 
-import Role = Schemas.Role
+type Role = Schemas.Role
 
 const EMPTY_PREVIEW = 5
 

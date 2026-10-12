@@ -6,12 +6,12 @@ import {
   useDeleteTokenExchangePolicy,
   useGetTokenExchangePolicies,
 } from '@/api/token-exchange-policy.api'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { TokenExchangePolicySchema } from '../schemas/token-exchange-policy.schema'
 import ClientTokenExchangeTab from '../ui/client-token-exchange-tab'
 
-import Client = Schemas.Client
-import TokenExchangePolicy = Schemas.TokenExchangePolicy
+type Client = Schemas.Client
+type TokenExchangePolicy = Schemas.TokenExchangePolicy
 
 export interface ClientTokenExchangeTabFeatureProps {
   client: Client

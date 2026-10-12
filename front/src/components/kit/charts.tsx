@@ -8,10 +8,10 @@ import {
   YAxis,
 } from 'recharts'
 import { useTranslation } from 'react-i18next'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatDayMonth } from '@/utils/format-date'
 
-import DailyActivityStats = Schemas.DailyActivityStats
+type DailyActivityStats = Schemas.DailyActivityStats
 
 const toneHex = {
   info: '#2379ff',

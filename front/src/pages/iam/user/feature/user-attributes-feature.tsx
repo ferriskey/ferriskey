@@ -4,7 +4,7 @@ import {
   useGetUserAttributes,
   useSetUserAttributes,
 } from '@/api/user.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import UserAttributesTab from '../ui/user-attributes-tab'
 
 export default function UserAttributesFeature() {

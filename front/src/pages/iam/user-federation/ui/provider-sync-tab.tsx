@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   USER_FEDERATION_NAMESPACE,
   formatSyncedAt,
@@ -10,8 +10,8 @@ import {
 } from '../provider-config'
 import { SynchronisationFields, type ProviderErrors } from './provider-form-fields'
 
-import ProviderResponse = Schemas.ProviderResponse
-import SyncUsersResponse = Schemas.SyncUsersResponse
+type ProviderResponse = Schemas.ProviderResponse
+type SyncUsersResponse = Schemas.SyncUsersResponse
 
 export interface ProviderSyncTabProps {
   provider: ProviderResponse

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/use-auth'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { ACCOUNT_URL } from '@/routes/router'
 import { usePanel, useSwitchPanel } from './ciam/use-console-switch'
 import { getInitials } from './initials'

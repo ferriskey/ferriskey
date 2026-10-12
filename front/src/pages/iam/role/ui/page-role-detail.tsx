@@ -5,12 +5,12 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import RoleSettingsTab from './role-settings-tab'
 import RolePermissionsTab from './role-permissions-tab'
 import RoleUsersTab from './role-users-tab'
 
-import Role = Schemas.Role
+type Role = Schemas.Role
 import { formatDate } from '@/utils/format-date'
 import { roleScopeLabelKey } from '../role-scope'
 

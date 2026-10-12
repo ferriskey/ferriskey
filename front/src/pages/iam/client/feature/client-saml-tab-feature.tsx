@@ -12,10 +12,10 @@ import {
   DEFAULT_NAME_ID_FORMAT,
   toCustomAttributeSource,
 } from '@/lib/saml'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ClientSamlTab, { type SamlDraft, type SamlMapperDraft } from '../ui/client-saml-tab'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 interface Draft extends SamlDraft {
   key: string

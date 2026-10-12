@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useBulkDeleteUser, useGetUser, useUpdateUser } from '@/api/user.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs } from '@/components/kit'
 import { updateUserValidator } from '@/pages/iam/user/validators'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import PageUserDetail from '@/pages/iam/user/ui/page-user-detail'
 import UserCredentialsFeature from '@/pages/iam/user/feature/user-credentials-feature'
 import UserRoleMappingFeature from '@/pages/iam/user/feature/user-role-mapping-feature'
@@ -14,7 +14,7 @@ import UserOrganizationsFeature from '@/pages/iam/user/feature/user-organization
 import UserAttributesFeature from '@/pages/iam/user/feature/user-attributes-feature'
 import { CONSOLE_IDENTITIES_URL, CONSOLE_IDENTITY_URL } from '../urls'
 
-import RequiredAction = Schemas.RequiredAction
+type RequiredAction = Schemas.RequiredAction
 import { apiErrorMessage } from '@/lib/api-error'
 
 const CONSOLE_NAMESPACES = ['console', 'user'] as const

@@ -7,12 +7,12 @@ import {
 } from '@/api/client.api'
 import { useClientScopeCount, useClientScopeSearch } from '@/api/client-scope.api'
 import { CLIENT_SCOPES_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import ClientScopesTab, { type AssignableScopeType } from '../ui/client-scopes-tab'
 import ClientEvaluatePanel from '../ui/client-evaluate-panel'
 
-import Client = Schemas.Client
-import ClientScope = Schemas.ClientScope
+type Client = Schemas.Client
+type ClientScope = Schemas.ClientScope
 
 export interface ClientScopesTabFeatureProps {
   client: Client

@@ -7,13 +7,13 @@ import { useCreateRedirectUri, useDeleteRedirectUri } from '@/api/redirect_uris.
 import { useCreateWebOrigin, useDeleteWebOrigin, useGetWebOrigins } from '@/api/web_origins.api'
 import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import { updateClientSchema } from '@/pages/iam/client/schemas/update-client.schema'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { CONSOLE_APPLICATIONS_URL } from '../application-routes'
 import ApplicationSettingsTab, {
   type ApplicationSettingsDraft,
 } from '../ui/application-settings-tab'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 import { apiErrorMessage } from '@/lib/api-error'
 
 const CONSOLE_NAMESPACES = ['console', 'client'] as const

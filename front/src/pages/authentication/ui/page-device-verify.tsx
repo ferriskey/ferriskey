@@ -11,8 +11,9 @@ import { BasicSpinner } from '@/components/ui/spinner'
 import { AlertCircle, CheckCircle2, MonitorSmartphone, XCircle } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import { Trans, useTranslation } from 'react-i18next'
+import type {
+  DeviceVerifySchema} from '../schemas/device-verify.schema'
 import {
-  DeviceVerifySchema,
   USER_CODE_CHARSET,
 } from '../schemas/device-verify.schema'
 import './page-login.css'

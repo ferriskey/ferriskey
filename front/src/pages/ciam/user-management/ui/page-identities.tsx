@@ -10,9 +10,9 @@ import type {
 } from '@/components/kit'
 import { formatRelative } from '@/utils/format-date'
 import { roleRelationSource } from '@/api/role.relation'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import User = Schemas.User
+type User = Schemas.User
 
 export interface IdentityCounts {
   total: number

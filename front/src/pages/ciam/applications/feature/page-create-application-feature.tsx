@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useCreateClient } from '@/api/client.api'
 import { useCreateRedirectUri } from '@/api/redirect_uris.api'
 import { useCreateWebOrigin } from '@/api/web_origins.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { createClientSchema } from '@/pages/iam/client/schemas/create-client.schema'
 import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import {

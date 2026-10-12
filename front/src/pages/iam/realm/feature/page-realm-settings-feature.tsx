@@ -20,14 +20,14 @@ import {
   useGetRealmWhitelist,
   useRemoveRealmWhitelistEntry,
 } from '@/api/maintenance.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useRouteTabs } from '@/components/kit'
 import { SigningAlgorithm } from '@/api/core.interface'
 import {
   updatePasswordPolicyValidator,
   updateRealmValidator,
 } from '@/pages/iam/realm/validators'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { REALM_SETTINGS_URL } from '@/routes/router'
 import PageRealmSettings from '../ui/page-realm-settings'
 import type { LoginDraft } from '../ui/realm-login-tab'
@@ -44,7 +44,7 @@ import {
   ownersToList,
 } from '../resource-owners'
 
-import LoginAlias = Schemas.LoginAlias
+type LoginAlias = Schemas.LoginAlias
 import { apiErrorMessage } from '@/lib/api-error'
 
 const REALM_TABS = [

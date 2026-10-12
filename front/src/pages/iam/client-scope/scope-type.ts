@@ -1,5 +1,5 @@
 import type { PillTone } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
 type ScopeType = Schemas.ScopeType
 

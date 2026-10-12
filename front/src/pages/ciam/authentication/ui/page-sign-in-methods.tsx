@@ -7,9 +7,9 @@ import { FieldRow, OrderedChoiceCards, PageShell, Section, SwitchField } from '@
 import type { Choice } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import LoginAlias = Schemas.LoginAlias
+type LoginAlias = Schemas.LoginAlias
 
 export interface SignInDraft {
   loginAliases: LoginAlias[]

@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, MoreVertical, Search, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ReactNode, useMemo, useState } from 'react'
+import type { ReactNode} from 'react'
+import { useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Button } from './button'
 import { Checkbox } from './checkbox'
@@ -16,7 +17,8 @@ import {
 import { Input } from './input'
 import { Skeleton } from './skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table'
-import { Filters, Filter, FilterFieldsConfig } from './filters'
+import type { Filter, FilterFieldsConfig } from './filters'
+import { Filters } from './filters'
 
 export type ColumnDef<T> = {
   id: string

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router'
-import { RouterParams, WEBHOOKS_URL } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
+import { WEBHOOKS_URL } from '@/routes/router'
 import { useGetSmtpConfig } from '@/api/smtp.api'
 import { useGetWebhooks } from '@/api/webhook.api'
 import { eventUserIds, useRealmDirectory } from '@/hooks/use-realm-directory'

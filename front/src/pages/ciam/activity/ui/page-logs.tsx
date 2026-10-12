@@ -7,7 +7,7 @@ import type {
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import { eventLabel, eventReason } from '@/pages/iam/seawatch/event-catalogue'
 import { securityEventColumnFilters } from '@/pages/iam/seawatch/event-filter-fields'
@@ -15,7 +15,7 @@ import { formatTimestamp } from '@/utils/format-date'
 import { bucketPerDay, type WindowEvents } from '../feature/use-window-events'
 import { eventCard, eventColumns } from './event-journal'
 
-import SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.SecurityEvent
 
 const CONSOLE_NAMESPACES = ['console', 'seawatch'] as const
 

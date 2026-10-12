@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/kit/button'
 import { EntityPicker, MetricsBand, Pill, Section } from '@/components/kit'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import Role = Schemas.Role
+type Role = Schemas.Role
 
 export interface UserRoleMappingTabProps {
   roles: Role[]

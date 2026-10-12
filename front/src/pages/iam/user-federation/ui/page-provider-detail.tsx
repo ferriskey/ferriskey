@@ -5,7 +5,7 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   LDAP_PROVIDER_TYPE,
   PRIORITY_LABEL_KEY,
@@ -21,8 +21,8 @@ import ProviderSettingsTab from './provider-settings-tab'
 import ProviderSyncTab from './provider-sync-tab'
 import type { ProviderErrors } from './provider-form-fields'
 
-import ProviderResponse = Schemas.ProviderResponse
-import SyncUsersResponse = Schemas.SyncUsersResponse
+type ProviderResponse = Schemas.ProviderResponse
+type SyncUsersResponse = Schemas.SyncUsersResponse
 
 export interface ConnectionTestResult {
   success: boolean

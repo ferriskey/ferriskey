@@ -9,9 +9,9 @@ import type { PillTone } from '@/components/kit'
 import UserPasswordForm, { type UserPasswordFormProps } from './user-password-form'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import CredentialOverview = Schemas.CredentialOverview
+type CredentialOverview = Schemas.CredentialOverview
 import { formatDateTime } from '@/utils/format-date'
 
 const credentialMeta: Record<

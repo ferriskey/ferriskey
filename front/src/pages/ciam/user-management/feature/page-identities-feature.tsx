@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from 'react-router'
 import { useGetUsers, useUserCount, type UsersFilter, type UsersQuery } from '@/api/user.api'
 import { usePagedListing } from '@/components/kit'
-import { RouterParams } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { RouterParams } from '@/routes/router'
+import type { Schemas } from '@/api/api.client'
 import { CONSOLE_IDENTITIES_URL, CONSOLE_IDENTITY_URL } from '../urls'
 import PageIdentities from '../ui/page-identities'
 
-import User = Schemas.User
+type User = Schemas.User
 
 const IDENTITIES: UsersFilter = { service_account: false }
 

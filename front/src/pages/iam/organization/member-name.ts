@@ -1,8 +1,8 @@
 import { isServiceAccount } from '@/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { preloadNamespaces, translate } from '@/lib/i18n'
 
-import User = Schemas.User
+type User = Schemas.User
 
 export const ORGANIZATION_NAMESPACE = 'organization'
 

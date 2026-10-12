@@ -8,7 +8,8 @@ import {
 } from '@/api/saml.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
-import { AttributeMapperDraft, DEFAULT_ATTRIBUTE_NAME_FORMAT } from '@/lib/saml'
+import type { AttributeMapperDraft} from '@/lib/saml'
+import { DEFAULT_ATTRIBUTE_NAME_FORMAT } from '@/lib/saml'
 import { toast } from 'sonner'
 
 export interface SamlAttributeMapperInput extends AttributeMapperDraft {

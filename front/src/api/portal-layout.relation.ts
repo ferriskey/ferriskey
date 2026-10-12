@@ -1,7 +1,7 @@
 import { useParams } from 'react-router'
 import type { RelationOption, RelationSource } from '@/components/kit'
 import { translate } from '@/lib/i18n'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import type { Schemas } from './api.client'
 import {
   PORTAL_LAYOUT_SEARCH_LIMIT,

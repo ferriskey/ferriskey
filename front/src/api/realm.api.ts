@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 import type { Endpoints } from './api.client'
 
 export type UserRealmsQuery = NonNullable<Endpoints.get_Get_user_realms['parameters']['query']>

@@ -11,9 +11,9 @@ import type {
 import { isServiceAccount } from '@/utils'
 import { formatRelative } from '@/utils/format-date'
 import { roleRelationSource } from '@/api/role.relation'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 
-import User = Schemas.User
+type User = Schemas.User
 
 export interface UserCounts {
   total: number

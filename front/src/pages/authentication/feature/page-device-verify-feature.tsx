@@ -8,12 +8,14 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import type {
+  DeviceVerifySchema} from '../schemas/device-verify.schema'
 import {
-  DeviceVerifySchema,
   deviceVerifySchema,
   USER_CODE_CHARSET,
 } from '../schemas/device-verify.schema'
-import PageDeviceVerify, { DeviceVerifyStatus } from '../ui/page-device-verify'
+import type { DeviceVerifyStatus } from '../ui/page-device-verify'
+import PageDeviceVerify from '../ui/page-device-verify'
 import { AUTH_NAMESPACE, type DeviceAction } from '../constants'
 
 // sessionStorage key used to bring the user back to this page after the

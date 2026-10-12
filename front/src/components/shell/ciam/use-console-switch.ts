@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { REALM_URL } from '@/routes/router'
 import { CONSOLE_URL } from '@/routes/router'
 

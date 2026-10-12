@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BaseQuery } from '.'
+import type { BaseQuery } from '.'
 
 const credentialsPath = '/realms/{realm_name}/users/me/credentials'
 

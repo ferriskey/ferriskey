@@ -14,7 +14,7 @@ import type {
   ViewMode,
 } from '@/components/kit'
 import { formatDate } from '@/utils/format-date'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   applicationTypeChoices,
   applicationTypeIcon,
@@ -24,7 +24,7 @@ import {
   type ApplicationType,
 } from '../application-types'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 export type ApplicationCounts = Record<ApplicationType | 'total', number>
 

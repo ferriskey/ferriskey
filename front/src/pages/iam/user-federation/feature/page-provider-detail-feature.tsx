@@ -11,10 +11,10 @@ import {
 } from '@/api/user-federation.api'
 import { useRouteTabs } from '@/components/kit'
 import { useConfettiFireworks } from '@/hooks/use-confetti-fireworks'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { createLdapProviderSchema } from '@/pages/iam/user-federation/schemas/ldap-provider.schema'
 import { USER_FEDERATION_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import PageProviderDetail, { type ConnectionTestResult } from '../ui/page-provider-detail'
 import type { ProviderErrors } from '../ui/provider-form-fields'
 import {
@@ -35,7 +35,7 @@ import {
   type SyncMode,
 } from '../provider-config'
 
-import SyncUsersResponse = Schemas.SyncUsersResponse
+type SyncUsersResponse = Schemas.SyncUsersResponse
 import { useCrumbLabel } from '@/components/shell/crumb-store'
 
 interface Draft {

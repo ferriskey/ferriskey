@@ -2,7 +2,7 @@ import { Check, Loader, Minus, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Pill } from '@/components/kit'
 import { cn } from '@/lib/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   formatDuration,
   formatTime,
@@ -11,8 +11,8 @@ import {
   stepStatusTone,
 } from '../flow-format'
 
-import CompassFlowStep = Schemas.CompassFlowStep
-import StepStatus = Schemas.StepStatus
+type CompassFlowStep = Schemas.CompassFlowStep
+type StepStatus = Schemas.StepStatus
 
 function StepIcon({ status }: { status: StepStatus }) {
   if (status === 'success') return <Check className='size-3' strokeWidth={3} />

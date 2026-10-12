@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useLayoutTier } from '@/hooks/use-media-query'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { cn } from '@/lib/utils'
 import { TopBar } from '../top-bar'
 import {

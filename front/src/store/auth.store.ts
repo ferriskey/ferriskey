@@ -1,4 +1,4 @@
-import { AuthState } from '@/contracts/states.interface'
+import type { AuthState } from '@/contracts/states.interface'
 import { create } from 'zustand'
 import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 

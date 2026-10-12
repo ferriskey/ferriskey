@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useGetClientScope, useUpdateProtocolMapper } from '@/api/client-scope.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { mapperSettingsSchema } from '@/pages/iam/client-scope/schemas/mapper-settings.schema'
 import { clientScopeMappersUrl } from '../urls'
 import { configFromStrings, configToStrings, parseJsonConfig } from '../config-values'

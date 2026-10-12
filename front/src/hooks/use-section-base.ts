@@ -1,5 +1,6 @@
 import { useLocation, useParams } from 'react-router-dom'
-import { CONSOLE_URL, REALM_URL, RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
+import { CONSOLE_URL, REALM_URL } from '@/routes/router'
 
 export const inConsole = (pathname: string) => pathname.includes('/console/')
 

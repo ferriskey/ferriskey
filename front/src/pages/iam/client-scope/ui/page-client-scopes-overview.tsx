@@ -10,12 +10,12 @@ import type {
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { formatRelative } from '@/utils/format-date'
 
 
 type ClientScope = Schemas.ClientScope
-import ScopeType = Schemas.ScopeType
+type ScopeType = Schemas.ScopeType
 import { SCOPE_TYPE_TONE, scopeTypeLabelKey } from '../scope-type'
 
 const SCOPE_TYPES: ScopeType[] = ['DEFAULT', 'OPTIONAL', 'NONE']

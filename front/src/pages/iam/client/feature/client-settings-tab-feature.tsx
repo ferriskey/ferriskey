@@ -13,11 +13,11 @@ import {
 import { DERIVED_ORIGIN_SENTINEL, isWebOriginValue } from '@/lib/web-origin'
 import { updateClientSchema } from '@/pages/iam/client/schemas/update-client.schema'
 import { CLIENTS_URL } from '@/routes/router'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { apiErrorMessage, validationErrorsFrom } from '@/lib/api-error'
 import ClientSettingsTab, { type ClientSettingsDraft } from '../ui/client-settings-tab'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 interface Draft extends ClientSettingsDraft {
   key: string

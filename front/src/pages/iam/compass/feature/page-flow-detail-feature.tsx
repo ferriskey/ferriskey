@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router'
 import { useGetFlow } from '@/api/compass.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { COMPASS_URL } from '@/routes/router'
 import PageFlowDetail from '../ui/page-flow-detail'
 

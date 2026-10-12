@@ -8,10 +8,10 @@ import type {
   PagedListing,
   PaginationMetadata,
 } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { WEBHOOK_TRIGGER_COUNT } from '../webhook-trigger-catalogue'
 
-import Webhook = Schemas.Webhook
+type Webhook = Schemas.Webhook
 import { formatDateTime, formatRelative } from '@/utils/format-date'
 
 const NAME_SEPARATOR = ', '

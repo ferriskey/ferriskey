@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { REALM_URL } from '@/routes/router'
 import { NavTree } from '../nav-tree'
 

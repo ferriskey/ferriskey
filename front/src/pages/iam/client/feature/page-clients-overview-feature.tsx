@@ -5,14 +5,14 @@ import {
   useGetClients,
   type ClientsQuery,
 } from '@/api/client.api'
-import { RouterParams } from '@/routes/router'
+import type { RouterParams } from '@/routes/router'
 import { useCreatePicker, usePagedListing } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { CLIENT_CREATE_URL, CLIENT_URL } from '../client-routes'
 import { type ClientProtocol } from '../client-choices'
 import PageClientsOverview from '../ui/page-clients-overview'
 
-import Client = Schemas.Client
+type Client = Schemas.Client
 
 const ALERT_PREVIEW = 5
 

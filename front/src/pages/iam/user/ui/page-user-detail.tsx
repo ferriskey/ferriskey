@@ -6,12 +6,12 @@ import SaveBar from '@/components/kit/save-bar'
 import { DetailHeader, IconTile, PageShell, PageTabs, Pill, Squircle, StatusDot, type TabItem } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { isServiceAccount } from '@/utils'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { tokens } from '@/styles/style-tokens'
 import UserOverviewTab from './user-overview-tab'
 
-import User = Schemas.User
-import RequiredAction = Schemas.RequiredAction
+type User = Schemas.User
+type RequiredAction = Schemas.RequiredAction
 import { formatDate } from '@/utils/format-date'
 
 export interface PageUserDetailProps {

@@ -3,10 +3,10 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldRow, Pill, Section } from '@/components/kit'
 import { DangerZone } from '@/components/kit/danger-zone'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { roleScopeHintKey, roleScopeLabelKey } from '../role-scope'
 
-import Role = Schemas.Role
+type Role = Schemas.Role
 
 export interface RoleSettingsTabProps {
   role: Role

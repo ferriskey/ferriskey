@@ -1,4 +1,4 @@
-import { GetConfigResponse } from '@/api/api.interface'
+import type { GetConfigResponse } from '@/api/api.interface'
 import { create } from 'zustand'
 
 interface State {

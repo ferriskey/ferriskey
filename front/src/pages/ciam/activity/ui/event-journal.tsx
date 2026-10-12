@@ -2,7 +2,7 @@ import { Lock, Unlock } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { CardSpec, Column } from '@/components/kit'
 import { IconTile, Pill } from '@/components/kit'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import type { RealmDirectory } from '@/hooks/use-realm-directory'
 import {
   actorLabel,
@@ -13,7 +13,7 @@ import {
   formatTimestamp,
 } from '@/pages/iam/seawatch/event-catalogue'
 
-import SecurityEvent = Schemas.SecurityEvent
+type SecurityEvent = Schemas.SecurityEvent
 
 export type ConsoleTranslate = TFunction<'console'>
 

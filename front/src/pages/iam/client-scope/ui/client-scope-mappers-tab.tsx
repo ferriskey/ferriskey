@@ -7,14 +7,14 @@ import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
 import { MetricsBand, Pill, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { configToStrings } from '../config-values'
 import { templateForType } from '../mapper-templates'
 import { FALLBACK_MAPPER_ICON } from '../constants/protocol-mapper-templates'
 import { isIdentityMapper, isRoleMapper, mapperCategory } from '../mapper-categories'
 import MapperTemplatePickerDialog from './mapper-template-picker-dialog'
 
-import ProtocolMapper = Schemas.ProtocolMapper
+type ProtocolMapper = Schemas.ProtocolMapper
 
 const DESTINATIONS = [
   ['id', 'id.token.claim'],

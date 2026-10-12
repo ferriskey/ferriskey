@@ -25,7 +25,7 @@ import {
 import type { Choice } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import {
   humanizeConfigKey,
   isSecretKey,
@@ -42,7 +42,7 @@ import ProviderTile from './provider-tile'
 import ProviderStatusPill from './provider-status-pill'
 import CopyValue from './copy-value'
 
-import IdentityProvider = Schemas.IdentityProviderResponse
+type IdentityProvider = Schemas.IdentityProviderResponse
 
 export interface PageProviderDetailProps {
   provider?: IdentityProvider

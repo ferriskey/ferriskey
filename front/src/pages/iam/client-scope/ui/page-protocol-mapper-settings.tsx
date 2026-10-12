@@ -11,11 +11,11 @@ import {
   FALLBACK_MAPPER_ICON,
   type MapperTemplate,
 } from '@/pages/iam/client-scope/constants/protocol-mapper-templates'
-import { Schemas } from '@/api/api.client'
+import type { Schemas } from '@/api/api.client'
 import { mapperCategory } from '../mapper-categories'
 import MapperConfigFields, { type MapperEntityOptions } from './mapper-config-fields'
 
-import ProtocolMapper = Schemas.ProtocolMapper
+type ProtocolMapper = Schemas.ProtocolMapper
 import { formatDate } from '@/utils/format-date'
 
 
