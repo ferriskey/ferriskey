@@ -856,12 +856,9 @@ fn may_link_by_email(
 mod tests {
     use super::*;
 
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
     use chrono::Duration;
-    use rsa::pkcs1::EncodeRsaPrivateKey;
-    use rsa::pkcs8::EncodePublicKey;
-    use rsa::traits::PublicKeyParts;
-    use rsa::{RsaPrivateKey, RsaPublicKey};
+    use ferriskey_security::jwt::entities::JwtKeyPair;
+    use uuid::Uuid;
 
     const ISSUER: &str = "https://idp.example.com";
     const AUDIENCE: &str = "ferriskey-client";
@@ -872,25 +869,20 @@ mod tests {
     }
 
     fn idp_key(kid: &str) -> IdpKey {
-        let mut rng = rand::thread_rng();
-        let private = RsaPrivateKey::new(&mut rng, 2048).expect("generate rsa key");
-        let public = RsaPublicKey::from(&private);
-
-        let pem = private
-            .to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)
-            .expect("pem");
-        let encoding =
-            jsonwebtoken::EncodingKey::from_rsa_pem(pem.as_bytes()).expect("encoding key");
-
-        let _ = public.to_public_key_pem(rsa::pkcs8::LineEnding::LF);
+        let (private_pem, public_pem) = JwtKeyPair::generate().expect("generate rsa key");
+        let key_pair =
+            JwtKeyPair::from_pem(&private_pem, &public_pem, "", Uuid::nil(), Uuid::nil())
+                .expect("idp key pair");
+        let public = key_pair.to_jwk_key().expect("idp jwk");
+        let encoding = key_pair.encoding_key;
         let jwks = serde_json::json!({
             "keys": [{
                 "kty": "RSA",
                 "use": "sig",
                 "kid": kid,
                 "alg": "RS256",
-                "n": B64.encode(public.n().to_bytes_be()),
-                "e": B64.encode(public.e().to_bytes_be()),
+                "n": public.n,
+                "e": public.e,
             }]
         });
 

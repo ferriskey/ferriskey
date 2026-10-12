@@ -1,5 +1,10 @@
 use std::collections::HashMap;
 
+use aws_lc_rs::{
+    encoding::{AsDer, Pkcs8V1Der, PublicKeyX509Der},
+    rsa::{KeyPair, KeySize, PublicKey},
+    signature::KeyPair as _,
+};
 use base64::{
     Engine,
     prelude::{BASE64_STANDARD, BASE64_URL_SAFE_NO_PAD},
@@ -7,14 +12,10 @@ use base64::{
 use chrono::{DateTime, Datelike, Utc};
 use ferriskey_domain::realm::{RealmId, scope::RealmOwned};
 use jsonwebtoken::{DecodingKey, EncodingKey};
+use pem::{EncodeConfig, LineEnding, Pem};
 use rcgen::{
     CertificateParams, DistinguishedName, DnType, KeyPair as CertificateKeyPair, KeyUsagePurpose,
     date_time_ymd,
-};
-use rsa::{
-    RsaPrivateKey, RsaPublicKey,
-    pkcs8::{DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding},
-    traits::PublicKeyParts,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -436,31 +437,40 @@ impl JwtKeyPair {
     }
 
     pub fn generate() -> Result<(String, String), SecurityError> {
-        let mut rng = rand::thread_rng();
-        let bits = 2048;
+        let key_pair = KeyPair::generate(KeySize::Rsa2048)
+            .map_err(|e| SecurityError::GenerationError(e.to_string()))?;
 
-        let private_key = RsaPrivateKey::new(&mut rng, bits)
+        let private_der: Pkcs8V1Der = key_pair
+            .as_der()
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
+        let public_der: PublicKeyX509Der = key_pair
+            .public_key()
+            .as_der()
             .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
-        let private_pem = private_key
-            .to_pkcs8_pem(LineEnding::LF)
-            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?
-            .to_string();
+        Ok((
+            Self::armor("PRIVATE KEY", private_der.as_ref()),
+            Self::armor("PUBLIC KEY", public_der.as_ref()),
+        ))
+    }
 
-        let public_pem = private_key
-            .to_public_key()
-            .to_public_key_pem(LineEnding::LF)
-            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
-
-        Ok((private_pem, public_pem))
+    fn armor(tag: &str, der: &[u8]) -> String {
+        pem::encode_config(
+            &Pem::new(tag, der),
+            EncodeConfig::new().set_line_ending(LineEnding::LF),
+        )
     }
 
     pub fn to_jwk_key(&self) -> Result<JwkKey, SecurityError> {
-        let public_key = RsaPublicKey::from_public_key_pem(&self.public_key)
+        let armored =
+            pem::parse(&self.public_key).map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
+        let public_key = PublicKey::from_der(armored.contents())
             .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
-        let n = BASE64_URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
-        let e = BASE64_URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
+        let n =
+            BASE64_URL_SAFE_NO_PAD.encode(public_key.modulus().big_endian_without_leading_zero());
+        let e =
+            BASE64_URL_SAFE_NO_PAD.encode(public_key.exponent().big_endian_without_leading_zero());
 
         Ok(JwkKey {
             kid: self.id.to_string(),
@@ -480,7 +490,6 @@ impl JwtKeyPair {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rsa::pkcs8::EncodePublicKey;
     use uuid::Uuid;
     use x509_parser::pem::parse_x509_pem;
 
@@ -496,12 +505,9 @@ mod tests {
 
         let certificate = pem.parse_x509().expect("certificate is valid X.509");
 
-        let expected_spki = RsaPublicKey::from_public_key_pem(&public_pem)
-            .expect("realm public key")
-            .to_public_key_der()
-            .expect("realm public key DER");
+        let expected_spki = pem::parse(&public_pem).expect("realm public key");
 
-        assert_eq!(certificate.public_key().raw, expected_spki.as_bytes());
+        assert_eq!(certificate.public_key().raw, expected_spki.contents());
     }
 
     #[test]

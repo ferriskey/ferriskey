@@ -1,9 +1,7 @@
+use aws_lc_rs::rand::SystemRandom;
+use aws_lc_rs::signature::{RSA_PKCS1_SHA256, RsaKeyPair};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use rsa::RsaPrivateKey;
-use rsa::pkcs1v15::SigningKey;
-use rsa::pkcs8::DecodePrivateKey;
-use rsa::signature::{SignatureEncoding, Signer};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -62,13 +60,20 @@ pub fn signed_info(reference_id: &str, digest: &str) -> String {
 }
 
 pub fn rsa_sha256_signature(private_key_pem: &str, data: &[u8]) -> Result<String, SignatureError> {
-    let key = RsaPrivateKey::from_pkcs8_pem(private_key_pem)
+    let armored =
+        pem::parse(private_key_pem).map_err(|e| SignatureError::UnusableKey(e.to_string()))?;
+    let key = RsaKeyPair::from_pkcs8(armored.contents())
         .map_err(|e| SignatureError::UnusableKey(e.to_string()))?;
-    let signature = SigningKey::<Sha256>::new(key)
-        .try_sign(data)
-        .map_err(|e| SignatureError::SigningFailed(e.to_string()))?;
+    let mut signature = vec![0; key.public_modulus_len()];
+    key.sign(
+        &RSA_PKCS1_SHA256,
+        &SystemRandom::new(),
+        data,
+        &mut signature,
+    )
+    .map_err(|e| SignatureError::SigningFailed(e.to_string()))?;
 
-    Ok(BASE64.encode(signature.to_bytes()))
+    Ok(BASE64.encode(signature))
 }
 
 pub fn sign_enveloped(
