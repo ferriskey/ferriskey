@@ -219,6 +219,9 @@ jobs:
       - name: run cross-realm trident isolation integration tests
         run: cargo test -p ferriskey-api --test trident_cross_realm_test -- --ignored
 
+      - name: run login action cookie integration tests behind a root path
+        run: cargo test -p ferriskey-api --test login_action_root_path_test -- --ignored
+
       - name: run cross-realm realm administration isolation integration tests
         run: cargo test -p ferriskey-api --test realm_cross_realm_test -- --ignored
 
