@@ -1,6 +1,7 @@
 use crate::validators::webauthn_rp_info_from_webapp_url;
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -67,6 +68,7 @@ pub struct ValidatePublicKeyResponse {}
 )]
 pub async fn webauthn_public_key_create(
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
@@ -77,7 +79,7 @@ pub async fn webauthn_public_key_create(
         .value()
         .to_string();
 
-    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
+    let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let input = WebAuthnValidatePublicKeyInput {
         rp_info,

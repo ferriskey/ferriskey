@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
 
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -41,10 +42,10 @@ pub struct ForgotPasswordRequest {
 pub async fn forgot_password(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(base_url): WebappUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ForgotPasswordRequest>,
 ) -> Result<Response<ForgotPasswordResponse>, ApiError> {
-    let base_url = state.args.webapp_url.trim_end_matches('/').to_string();
     let session_code = cookie
         .get("FERRISKEY_SESSION")
         .map(|c| c.value().to_string());

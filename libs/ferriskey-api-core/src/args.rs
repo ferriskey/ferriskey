@@ -73,6 +73,23 @@ pub struct Args {
 
     #[arg(
         long,
+        env = "WEBAPP_URL_FROM_REQUEST",
+        default_value_t = false,
+        long_help = "Build the webapp links (login and consent pages, emailed links, WebAuthn origin) from the scheme and Host of each request, like the issuer, instead of WEBAPP_URL. For one deployment that serves several hostnames, each with the webapp at / and the API under SERVER_ROOT_PATH. The scheme is https when X-Forwarded-Proto is https. Only enable it behind a proxy or gateway that routes exact hostnames: a request carrying a forged Host header would otherwise get emailed links pointing at that host. WEBAPP_URL is still used to seed the admin console at start-up."
+    )]
+    pub webapp_url_from_request: bool,
+
+    #[arg(
+        long,
+        env = "WEBAPP_ALLOWED_HOSTS",
+        num_args = 0..,
+        value_delimiter = ',',
+        long_help = "Hosts a request may carry when WEBAPP_URL_FROM_REQUEST is on, comma-separated, as they appear in the Host header (host or host:port). A request from any other host is refused before a link is built. Leave empty to accept every host the proxy forwards."
+    )]
+    pub webapp_allowed_hosts: Vec<String>,
+
+    #[arg(
+        long,
         env = "WEBHOOK_ALLOW_PRIVATE_ENDPOINTS",
         default_value_t = false,
         long_help = "Allow webhook endpoints to resolve to loopback or private addresses. For local development only — never enable this in production. Link-local addresses stay refused regardless."
@@ -103,6 +120,8 @@ impl Default for Args {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             webapp_url: "http://localhost:5555".to_string(),
+            webapp_url_from_request: false,
+            webapp_allowed_hosts: vec![],
             observability: ObservabilityArgs::default(),
             command: None,
         }

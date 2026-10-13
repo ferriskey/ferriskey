@@ -21,8 +21,8 @@ use uuid::Uuid;
 use validator::Validate;
 
 use ferriskey_api_core::request_context::RequestContext;
-use ferriskey_api_core::url::FullUrl;
 pub use ferriskey_api_core::url::root_scoped_base_url;
+use ferriskey_api_core::url::{FullUrl, WebappUrl};
 use ferriskey_api_core::{api_entities::api_error::ApiError, app_state::AppState};
 
 use crate::handlers::authorization_server_metadata::realm_issuer;
@@ -225,6 +225,7 @@ pub async fn auth_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     context: RequestContext,
     cookie: CookieManager,
     Query(params): Query<AuthRequest>,
@@ -269,7 +270,7 @@ pub async fn auth_handler(
             );
             let error_url = format!(
                 "{}/realms/{}/authentication/login?login_error={}",
-                state.args.webapp_url.trim_end_matches('/'),
+                webapp_url,
                 realm_name,
                 urlencoding::encode(&e.to_string()),
             );
@@ -316,7 +317,7 @@ pub async fn auth_handler(
                 params.client_id.clone(),
                 result.session.id,
                 flow_base_url,
-                state.args.webapp_url.trim_end_matches('/').to_string(),
+                webapp_url.clone(),
                 sso_cookie,
                 params.max_age,
             ))
@@ -380,7 +381,7 @@ pub async fn auth_handler(
         None => false,
     };
 
-    let mut full_url = webapp_login_url(&state.args.webapp_url, &realm_name, &result.login_url);
+    let mut full_url = webapp_login_url(&webapp_url, &realm_name, &result.login_url);
 
     let stale_sso_cookie = cookie.get(SSO_SESSION_COOKIE).is_some() && !keeps_live_session;
     // No longer honoured since the SSO session replaced it; cleared from the
