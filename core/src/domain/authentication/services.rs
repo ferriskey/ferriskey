@@ -988,7 +988,6 @@ pub struct AuthServiceImpl<
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) consent_service: Arc<ConsentServiceImpl<CO>>,
     pub(crate) client_metadata_resolver: Arc<CM>,
-    pub(crate) webapp_url: String,
 }
 
 impl<
@@ -1121,7 +1120,6 @@ where
         flow_recorder: FlowRecorder,
         consent_service: Arc<ConsentServiceImpl<CO>>,
         client_metadata_resolver: Arc<CM>,
-        webapp_url: String,
     ) -> Self {
         Self {
             realm_repository,
@@ -1157,7 +1155,6 @@ where
             flow_recorder,
             consent_service,
             client_metadata_resolver,
-            webapp_url,
         }
     }
 }
@@ -3331,6 +3328,7 @@ where
             params.session_code,
             auth_session,
             &params.realm,
+            &params.webapp_base_url,
         )
         .await
     }
@@ -3341,6 +3339,7 @@ where
         session_code: Uuid,
         auth_session: AuthSession,
         scope: &RealmScope,
+        webapp_base_url: &str,
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
@@ -3382,7 +3381,13 @@ where
         );
 
         if let Some(output) = self
-            .consent_gate(auth_result.user_id, session_code, &auth_session, scope)
+            .consent_gate(
+                auth_result.user_id,
+                session_code,
+                &auth_session,
+                scope,
+                webapp_base_url,
+            )
             .await?
         {
             return Ok(output);
@@ -3483,6 +3488,7 @@ where
         session_code: Uuid,
         auth_session: &AuthSession,
         scope: &RealmScope,
+        webapp_base_url: &str,
     ) -> Result<Option<AuthenticateOutput>, CoreError> {
         let always_consents = self
             .client_repository
@@ -3539,7 +3545,7 @@ where
 
         let redirect_url = format!(
             "{}/realms/{}/authentication/consent?consent_token={}",
-            self.webapp_url.trim_end_matches('/'),
+            webapp_base_url.trim_end_matches('/'),
             scope.name(),
             consent_token
         );
@@ -4199,6 +4205,7 @@ This is a server error that should be investigated. Do not forward back this mes
         scope: RealmScope,
         auth_session: AuthSession,
         session_code: Uuid,
+        webapp_base_url: &str,
     ) -> Result<AuthenticateOutput, CoreError> {
         let realm_id = scope.id();
 
@@ -4282,7 +4289,13 @@ This is a server error that should be investigated. Do not forward back this mes
             .ok();
 
         if let Some(output) = self
-            .consent_gate(user.id, session_code, &auth_session, &scope)
+            .consent_gate(
+                user.id,
+                session_code,
+                &auth_session,
+                &scope,
+                webapp_base_url,
+            )
             .await?
         {
             self.auth_session_repository
@@ -4910,8 +4923,15 @@ where
 
         match input.auth_method {
             AuthenticationMethod::SsoSession { cookie, max_age } => {
-                self.handle_sso_session(cookie, max_age, scope, auth_session, input.session_code)
-                    .await
+                self.handle_sso_session(
+                    cookie,
+                    max_age,
+                    scope,
+                    auth_session,
+                    input.session_code,
+                    &input.webapp_base_url,
+                )
+                .await
             }
             AuthenticationMethod::UserCredentials {
                 username,
@@ -4922,6 +4942,7 @@ where
                     realm: scope,
                     session_code: input.session_code,
                     base_url: input.base_url,
+                    webapp_base_url: input.webapp_base_url,
                     username,
                     password,
                     remember_me,
@@ -5099,7 +5120,13 @@ where
             let auth_session = scoped_session.into_inner();
 
             let output = match self
-                .consent_gate(user.id, session_code, &auth_session, &scope)
+                .consent_gate(
+                    user.id,
+                    session_code,
+                    &auth_session,
+                    &scope,
+                    &verification_base_url,
+                )
                 .await?
             {
                 Some(pending) => pending,

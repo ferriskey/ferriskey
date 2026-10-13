@@ -94,6 +94,7 @@ pub async fn authenticate(
         query.client_id.clone(),
         session_code,
         base_url.clone(),
+        state.args.webapp_url.trim_end_matches('/').to_string(),
         username,
         password,
         payload.remember_me,

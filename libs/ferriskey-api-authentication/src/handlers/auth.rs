@@ -316,6 +316,7 @@ pub async fn auth_handler(
                 params.client_id.clone(),
                 result.session.id,
                 flow_base_url,
+                state.args.webapp_url.trim_end_matches('/').to_string(),
                 sso_cookie,
                 params.max_age,
             ))

@@ -325,15 +325,20 @@ pub struct AuthenticateInput {
     pub client_id: String,
     pub session_code: Uuid,
     pub base_url: String,
+    /// Origin of the webapp the browser is sent to when a step needs a page,
+    /// such as the consent screen.
+    pub webapp_base_url: String,
     pub auth_method: AuthenticationMethod,
 }
 
 impl AuthenticateInput {
+    #[allow(clippy::too_many_arguments)]
     pub fn with_user_credentials(
         realm_name: String,
         client_id: String,
         session_code: Uuid,
         base_url: String,
+        webapp_base_url: String,
         username: String,
         password: String,
         remember_me: bool,
@@ -343,6 +348,7 @@ impl AuthenticateInput {
             client_id,
             session_code,
             base_url,
+            webapp_base_url,
             auth_method: AuthenticationMethod::UserCredentials {
                 username,
                 password,
@@ -356,6 +362,7 @@ impl AuthenticateInput {
         client_id: String,
         session_code: Uuid,
         base_url: String,
+        webapp_base_url: String,
         cookie: String,
         max_age: Option<i64>,
     ) -> Self {
@@ -364,6 +371,7 @@ impl AuthenticateInput {
             client_id,
             session_code,
             base_url,
+            webapp_base_url,
             auth_method: AuthenticationMethod::SsoSession { cookie, max_age },
         }
     }
@@ -460,6 +468,7 @@ pub struct CredentialsAuthParams {
     pub realm: RealmScope,
     pub session_code: Uuid,
     pub base_url: String,
+    pub webapp_base_url: String,
     pub username: String,
     pub password: String,
     pub remember_me: bool,
