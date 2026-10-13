@@ -122,10 +122,7 @@ mod tests {
 
         let mut from_request_args = configured_args.clone();
         from_request_args.webapp_url_from_request = true;
-        from_request_args.webapp_allowed_hosts = vec![
-            "acme.example.com".to_string(),
-            "beta.example.com".to_string(),
-        ];
+        from_request_args.webapp_allowed_hosts = vec!["*.example.com".to_string()];
 
         Context {
             from_request: std::sync::Mutex::new(

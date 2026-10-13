@@ -166,6 +166,8 @@ async fn main() -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
+    ferriskey_api_core::url::check_webapp_url_settings(&args).map_err(anyhow::Error::msg)?;
+
     let app_state = state(args.clone()).await?;
 
     app_state

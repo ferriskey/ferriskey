@@ -75,7 +75,7 @@ pub struct Args {
         long,
         env = "WEBAPP_URL_FROM_REQUEST",
         default_value_t = false,
-        long_help = "Build the webapp links (login and consent pages, emailed links, WebAuthn origin) from the scheme and Host of each request, like the issuer, instead of WEBAPP_URL. For one deployment that serves several hostnames, each with the webapp at / and the API under SERVER_ROOT_PATH. The scheme is https when X-Forwarded-Proto is https. Only enable it behind a proxy or gateway that routes exact hostnames: a request carrying a forged Host header would otherwise get emailed links pointing at that host. WEBAPP_URL is still used to seed the admin console at start-up."
+        long_help = "Build the webapp links (login and consent pages, emailed links, WebAuthn origin) from the scheme and Host of each request, like the issuer, instead of WEBAPP_URL. For one deployment that serves several hostnames, each with the webapp at / and the API under SERVER_ROOT_PATH. The scheme is https when X-Forwarded-Proto is https, so the proxy must set or overwrite that header. Requires WEBAPP_ALLOWED_HOSTS: the server refuses to start without it, and a request whose Host is missing, repeated, not ASCII or not allowed is refused with 400. A passkey stays bound to the host it was registered on. WEBAPP_URL is still used to seed the admin console at start-up."
     )]
     pub webapp_url_from_request: bool,
 
@@ -84,7 +84,7 @@ pub struct Args {
         env = "WEBAPP_ALLOWED_HOSTS",
         num_args = 0..,
         value_delimiter = ',',
-        long_help = "Hosts a request may carry when WEBAPP_URL_FROM_REQUEST is on, comma-separated, as they appear in the Host header (host or host:port). A request from any other host is refused before a link is built. Leave empty to accept every host the proxy forwards."
+        long_help = "Hosts the webapp is served on when WEBAPP_URL_FROM_REQUEST is on, comma-separated. Each entry is host, host:port, or *.domain where * stands for exactly one label (*.example.com matches acme.example.com, not example.com nor a.b.example.com). Case and one trailing dot are ignored; an entry without a port only matches the scheme's default port. Required when WEBAPP_URL_FROM_REQUEST is on: links are built from the Host header, so an unlisted host could otherwise put an attacker's address in password reset and magic link emails."
     )]
     pub webapp_allowed_hosts: Vec<String>,
 
