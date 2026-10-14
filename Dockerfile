@@ -71,7 +71,7 @@ COPY front/ .
 RUN VITE_API_URL="" pnpm run build
 
 # ── Frontend runtime ──────────────────────────────────────────────────────────
-FROM nginxinc/nginx-unprivileged:1.31.1-alpine3.23-slim AS webapp
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim AS webapp
 
 # The unprivileged image ships root-owned index.html/50x.html in the web root and
 # runs as the non-root "nginx" user. The runtime entrypoint wipes and repopulates
