@@ -30,7 +30,7 @@ where
             }
         };
 
-        let base_url = request_base_url(&parts.headers);
+        let base_url = request_base_url(&parts.headers, &uri);
 
         let full_url = uri.to_string();
 
@@ -47,16 +47,24 @@ fn request_scheme(headers: &HeaderMap) -> &'static str {
     if forwarded_https { "https" } else { "http" }
 }
 
-fn request_host(headers: &HeaderMap) -> &str {
-    headers
-        .get("host")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("localhost")
+/// The Host header, or the URI authority when there is none (HTTP/2).
+fn request_host(headers: &HeaderMap, uri: &Uri) -> String {
+    match headers.get("host") {
+        Some(host) => host.to_str().unwrap_or("localhost").to_string(),
+        None => uri.authority().map_or_else(
+            || "localhost".to_string(),
+            |authority| authority.to_string(),
+        ),
+    }
 }
 
 /// The `scheme://host` a request was addressed to, without the root path.
-pub fn request_base_url(headers: &HeaderMap) -> String {
-    format!("{}://{}", request_scheme(headers), request_host(headers))
+pub fn request_base_url(headers: &HeaderMap, uri: &Uri) -> String {
+    format!(
+        "{}://{}",
+        request_scheme(headers),
+        request_host(headers, uri)
+    )
 }
 
 /// Origin of the webapp (login and consent pages, emailed links, WebAuthn
@@ -330,11 +338,27 @@ mod tests {
         args.server.root_path = "/api".to_string();
         let headers = headers("acme.example.com", Some("https"));
 
-        let issuer_base = root_scoped_base_url(&request_base_url(&headers), &args.server.root_path);
+        let issuer_base = root_scoped_base_url(
+            &request_base_url(&headers, &Uri::default()),
+            &args.server.root_path,
+        );
         let webapp = resolve(&args, &headers).unwrap();
 
         assert_eq!(issuer_base, "https://acme.example.com/api");
         assert_eq!(webapp, "https://acme.example.com");
+    }
+
+    #[test]
+    fn the_issuer_origin_takes_the_uri_authority_when_there_is_no_host_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-proto", "https".parse().unwrap());
+        let uri: Uri = "https://acme.example.com/realms/acme".parse().unwrap();
+
+        assert_eq!(request_base_url(&headers, &uri), "https://acme.example.com");
+        assert_eq!(
+            request_base_url(&headers, &Uri::default()),
+            "https://localhost"
+        );
     }
 
     #[test]
