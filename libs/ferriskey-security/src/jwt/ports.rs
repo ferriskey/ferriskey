@@ -100,6 +100,7 @@ pub trait RefreshTokenRepository: Send + Sync {
     fn delete_expired(
         &self,
         before: DateTime<Utc>,
+        limit: u64,
     ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
 }
 
@@ -138,6 +139,7 @@ pub trait AccessTokenRepository: Send + Sync {
     fn delete_expired(
         &self,
         before: DateTime<Utc>,
+        limit: u64,
     ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
 }
 

@@ -110,6 +110,7 @@ pub trait UserSessionRepository: Send + Sync {
     fn delete_expired(
         &self,
         before: chrono::DateTime<chrono::Utc>,
+        limit: u64,
     ) -> impl Future<Output = Result<u64, SessionError>> + Send;
 
     fn update_last_seen(

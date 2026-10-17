@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -9,6 +10,10 @@ pub const EXPIRED_ROW_RETENTION_DAYS: i64 = 7;
 
 pub const SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
+pub const RETENTION_BATCH_SIZE: u64 = 1_000;
+
+const MAX_BATCHES_PER_SWEEP: u64 = 1_000;
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Swept {
     pub access_tokens: u64,
@@ -16,35 +21,63 @@ pub struct Swept {
     pub user_sessions: u64,
 }
 
+async fn purge_in_batches<F, Fut, E>(table: &str, batch: u64, mut delete_batch: F) -> u64
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<u64, E>>,
+    E: std::fmt::Debug,
+{
+    let mut purged = 0;
+    for _ in 0..MAX_BATCHES_PER_SWEEP {
+        match delete_batch().await {
+            Ok(deleted) => {
+                purged += deleted;
+                if deleted < batch {
+                    return purged;
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = ?e, table, "Retention: failed to purge expired rows");
+                return purged;
+            }
+        }
+        tokio::task::yield_now().await;
+    }
+
+    tracing::warn!(
+        table,
+        purged,
+        "Retention: stopped after the maximum number of batches, the rest waits for the next sweep"
+    );
+    purged
+}
+
 pub async fn sweep_expired_rows<A, R, S>(
     access_tokens: &A,
     refresh_tokens: &R,
     user_sessions: &S,
     before: DateTime<Utc>,
+    batch: u64,
 ) -> Swept
 where
     A: AccessTokenRepository,
     R: RefreshTokenRepository,
     S: UserSessionRepository,
 {
-    let mut swept = Swept::default();
-
-    match access_tokens.delete_expired(before).await {
-        Ok(count) => swept.access_tokens = count,
-        Err(e) => tracing::error!(error = ?e, "Retention: failed to purge expired access tokens"),
+    Swept {
+        access_tokens: purge_in_batches("access_tokens", batch, || {
+            access_tokens.delete_expired(before, batch)
+        })
+        .await,
+        refresh_tokens: purge_in_batches("refresh_tokens", batch, || {
+            refresh_tokens.delete_expired(before, batch)
+        })
+        .await,
+        user_sessions: purge_in_batches("user_sessions", batch, || {
+            user_sessions.delete_expired(before, batch)
+        })
+        .await,
     }
-
-    match refresh_tokens.delete_expired(before).await {
-        Ok(count) => swept.refresh_tokens = count,
-        Err(e) => tracing::error!(error = ?e, "Retention: failed to purge expired refresh tokens"),
-    }
-
-    match user_sessions.delete_expired(before).await {
-        Ok(count) => swept.user_sessions = count,
-        Err(e) => tracing::error!(error = ?e, "Retention: failed to purge expired user sessions"),
-    }
-
-    swept
 }
 
 pub async fn expired_rows_retention_task<A, R, S>(
@@ -63,8 +96,14 @@ pub async fn expired_rows_retention_task<A, R, S>(
         ticker.tick().await;
 
         let before = Utc::now() - chrono::Duration::days(EXPIRED_ROW_RETENTION_DAYS);
-        let swept =
-            sweep_expired_rows(&access_tokens, &refresh_tokens, &user_sessions, before).await;
+        let swept = sweep_expired_rows(
+            &access_tokens,
+            &refresh_tokens,
+            &user_sessions,
+            before,
+            RETENTION_BATCH_SIZE,
+        )
+        .await;
 
         if swept != Swept::default() {
             tracing::info!(
@@ -213,6 +252,7 @@ mod db_tests {
         let just_expired = now - Duration::hours(1);
 
         let gone_access = access_token(&fixture, long_expired).await;
+        let also_gone_access = access_token(&fixture, long_expired).await;
         let kept_access = access_token(&fixture, just_expired).await;
         let live_access = access_token(&fixture, now + Duration::hours(1)).await;
         let gone_refresh = refresh_token(&fixture, long_expired).await;
@@ -225,25 +265,28 @@ mod db_tests {
             &fixture.refresh_tokens,
             &fixture.user_sessions,
             now - Duration::days(7),
+            1,
         )
         .await;
 
         assert_eq!(
             swept,
             Swept {
-                access_tokens: 1,
+                access_tokens: 2,
                 refresh_tokens: 1,
                 user_sessions: 1,
             }
         );
-        assert!(
-            fixture
-                .access_tokens
-                .get_by_token_hash(gone_access)
-                .await
-                .expect("read")
-                .is_none()
-        );
+        for hash in [gone_access, also_gone_access] {
+            assert!(
+                fixture
+                    .access_tokens
+                    .get_by_token_hash(hash)
+                    .await
+                    .expect("read")
+                    .is_none()
+            );
+        }
         for hash in [kept_access, live_access] {
             assert!(
                 fixture
@@ -296,6 +339,7 @@ mod db_tests {
             &fixture.refresh_tokens,
             &fixture.user_sessions,
             Utc::now(),
+            super::RETENTION_BATCH_SIZE,
         )
         .await;
 
