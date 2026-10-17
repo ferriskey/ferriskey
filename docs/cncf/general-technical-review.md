@@ -1,0 +1,96 @@
+# General Technical Review - FerrisKey / Sandbox
+
+- **Project:** FerrisKey
+- **Project Version:** 0.9.0
+- **Website:** https://ferriskey.rs
+- **Date Updated:** 2026-10-17
+- **Template Version:** v1.0.1
+- **Description:** FerrisKey is an open source Identity and Access Management system written in Rust. It provides OpenID Connect, OAuth 2.0 and SAML 2.0, multi-factor authentication, identity brokering, audit events and webhooks, with multi-tenancy through realms, a web console, Helm charts and a Kubernetes operator.
+
+This document answers the Day 0 questions of the CNCF [General Technical Review](https://github.com/cncf/toc/blob/main/operations/project-reviews/general-technical-questions.md). It is a living document kept in the repository, as the template recommends. Links to code point at a fixed commit so that they stay valid; the Date Updated field says when the answers were last checked against `main`. Questions that do not apply to FerrisKey are marked N/A with a reason. Items marked [to confirm] are open with the maintainers and tracked in [#1719](https://github.com/ferriskey/ferriskey/issues/1719).
+
+## Day 0 - Planning Phase
+
+### Scope
+
+To be written (#1719).
+
+- Describe the project's vision and goals.
+- Describe the primary use cases for the project. Describe any additional use cases the project supports. Describe any use cases specifically out of scope of the project.
+- Describe the roadmap process, how scope is determined for mid to long term features, as well as how the roadmap maps back to current contributions and maintainer ladder.
+- Describe the target persona or users for the project.
+- Describe the intended types of organizations who would benefit from adopting this project.
+- Describe any completed end user research and link to any reports.
+
+### Usability
+
+To be written (#1719).
+
+- How should the target personas interact with your project?
+- Describe the user experience (UX) and user interface (UI) of the project.
+- Describe how this project integrates with other projects in a production environment.
+
+### Design
+
+To be written (#1719).
+
+- Explain the design principles and best practices the project is following.
+- Outline or link to the project's architecture requirements. Describe how they differ for Proof of Concept, Development, Test and Production environments, as applicable.
+- Define any specific service dependencies the project relies on in the cluster.
+- Describe how the project implements Identity and Access Management.
+- Describe how the project has addressed sovereignty.
+- Describe any compliance requirements addressed by the project.
+- Describe the project's High Availability requirements.
+- Describe the project's resource requirements, including CPU, Network and Memory.
+- Describe the project's storage requirements, including its use of ephemeral and/or persistent storage.
+- Outline the project's API design: topology and conventions, defaults, additional configuration from default, new or changed API types and calls, compatibility with API servers including the Kubernetes API server, versioning and how breaking changes are handled.
+- Describe the project's release processes, including major, minor and patch releases.
+
+### Installation
+
+To be written (#1719).
+
+- Describe how the project is installed and initialized, e.g. a minimal install with a few lines of code or does it require more complex integration and configuration?
+- How does an adopter test and validate the installation?
+
+### Security
+
+#### Security self assessment
+
+No cloud native security self assessment has been written yet. The maintainers plan to start it with TAG Security and Compliance after Sandbox acceptance, since the assessment is a joint exercise with the TAG. In the meantime the security policy is in [SECURITY.md](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/SECURITY.md) and the supply chain posture is tracked by the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/ferriskey/ferriskey) and the [OpenSSF Best Practices badge](https://www.bestpractices.dev/projects/11019).
+
+#### Cloud Native Security Tenets
+
+**1. Security as a design requirement.** FerrisKey is an identity provider, so most of its behaviour is a security control. The main design evidence is the integration test suite under [`api/tests`](https://github.com/ferriskey/ferriskey/tree/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests), which runs in CI against PostgreSQL ([`rust.yaml`](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/.github/workflows/rust.yaml)). Named examples: a client that requires PKCE refuses an authorization without a challenge ([pkce_test.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests/pkce_test.rs#L453)); an authorization code is refused at another realm's token endpoint ([oidc_cross_realm_test.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests/oidc_cross_realm_test.rs#L576)); a code cannot be redeemed by another client ([oidc_conformance_test.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests/oidc_conformance_test.rs#L313)); a temporary MFA step token cannot be replayed to finish a login ([mfa_bypass_test.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests/mfa_bypass_test.rs#L396)); a tenant administrator cannot read another tenant's client secret ([client_cross_realm_test.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests/client_cross_realm_test.rs#L615)) [to confirm]. A source-level test freezes the list of files allowed to resolve a realm by hand, so that every other code path goes through the scoped resolver ([realm_scope_ratchet_test.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/api/tests/realm_scope_ratchet_test.rs)). The cross-realm test family was written after advisory [GHSA-v2hq-9v44-43ff](https://github.com/ferriskey/ferriskey/security/advisories/GHSA-v2hq-9v44-43ff) (critical, fixed in 0.8.0), which is the project's feedback loop so far. There is no written threat model yet; see Cloud Native Threat Modeling below.
+
+**2. Secure configuration is the easiest path.** Clients created through the admin API require PKCE unless the caller opts out ([validators.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/libs/ferriskey-api-client/src/validators.rs#L44)); clients registered dynamically (RFC 7591) require PKCE whenever they are public ([client_registration/services.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/src/domain/client_registration/services.rs#L115)); the admin console itself is a public client with PKCE required. Realm defaults: password policy with a minimum length of 12 ([entity.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/libs/ferriskey-password-policy/src/entity.rs#L37)), account lockout after 10 failed attempts for 15 minutes ([realm/mod.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/libs/ferriskey-domain/src/realm/mod.rs#L289)), refresh token rotation, passwords hashed with Argon2id, session cookies HttpOnly and SameSite=Lax, with Secure set when the public URL is https ([auth.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/libs/ferriskey-api-authentication/src/handlers/auth.rs#L56)). The Helm chart generates a random admin password into a Secret on first install. The production guide is a checklist, not a tuning exercise ([Production Guide](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/kubernetes/default/en/production-guide.mdx)).
+
+**3. Insecure configuration is a conscious decision.** The two switches that weaken network protections, `WEBHOOK_ALLOW_PRIVATE_ENDPOINTS` and `CLIENT_METADATA_ALLOW_PRIVATE_ENDPOINTS`, default to off and log a warning at startup that says never to enable them in production ([application/mod.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/src/application/mod.rs#L240)). `SERVER_TRUST_FORWARDED_FOR` defaults to off. Per client, PKCE and the resource owner password grant are explicit toggles. Known gap: the default `ADMIN_PASSWORD` is `admin` for a bare-metal or Compose install and nothing warns about it at startup; the seeded admin has no forced password change. The Helm path does not have this gap.
+
+**4. Transition from insecure to secure state.** Legacy bcrypt password hashes are verified and rehashed to Argon2id at the next successful login, so imported user bases migrate without a reset ([rehash_password_if_needed](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/src/domain/authentication/services.rs#L4003)). Security changes ship as reversible SQL migrations with the rationale in the file, for example the admin console moving from a confidential client with an unusable secret to a public client with PKCE ([20260731000000](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/migrations/20260731000000_security_admin_console_public_pkce.up.sql)) and inbound PKCE on brokered logins ([20260819120000](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/migrations/20260819120000_broker_session_inbound_pkce.up.sql)). There are no feature gates; a secure default applies at upgrade and can be undone by the down migration.
+
+**5. Secure defaults are inherited.** On Kubernetes the chart runs every container as non-root with a read-only root filesystem, all capabilities dropped, no privilege escalation and the RuntimeDefault seccomp profile ([values.yaml](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/charts/ferriskey/values.yaml#L262)). The API and operator images are built on `gcr.io/distroless/cc-debian12:nonroot`, the console on `nginx-unprivileged`. TLS is terminated by the Ingress or Gateway API HTTPRoute the chart renders, with cert-manager in the documented example, or natively by the API with rustls when `SERVER_TLS_CERT` and `SERVER_TLS_KEY` are set. The production guide asks for PostgreSQL TLS (`sslMode: require` or `verify-full`). What stays with the adopter is listed under "Security hardening" in the same guide: network policies, external secret management, image scanning, audit forwarding.
+
+**6. Exception lists have first class support.** Redirect URIs match by exact string first; an operator may register an anchored pattern, and a URI that merely contains a registered value is refused ([redirect_uri_matching.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/libs/ferriskey-domain/src/client/redirect_uri_matching.rs)). Browser origins are allowed per client within a realm, and globally through `ALLOWED_ORIGINS` as exact origins with no wildcard. Maintenance mode carries a per-client allowlist of users who may still sign in. Token exchange is enabled per client under a policy object. Webhook destinations are resolved before connecting and loopback, private and link-local addresses are refused unless the switch above is on; link-local stays refused regardless ([delivery.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/src/infrastructure/webhook/delivery.rs#L228)). Security relevant events, including refused attempts, are recorded by the SeaWatch module.
+
+**7. Protection against pervasive exploits.** Rust removes the memory safety class. Client secrets are compared in constant time ([client_secret_matches](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/src/domain/authentication/services.rs#L724)), secrets are wrapped in a masking type so they do not reach logs, webhook deliveries reject reserved headers and apply the SSRF guard above. The pipeline runs clippy with warnings as errors, `cargo deny` for advisories, bans, licenses and sources with every ignore justified in [deny.toml](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/deny.toml), a license check on the console, Dependabot weekly on Cargo, npm, GitHub Actions and Docker, and the OpenSSF Scorecard with SARIF upload. Known gaps: no static analysis or secret scanning job in CI, no image vulnerability scan in CI (a one-off Trivy report is in [docs/docker-hardening-report.md](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/docs/docker-hardening-report.md)), client secrets stored in clear in the database.
+
+**8. Security limitations are explainable.** Documented today: the TLS at the proxy choice and the `ALLOWED_ORIGINS` semantics in the [Configuration guide](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/discover/default/en/guides/configuration.mdx), the adopter's share of hardening in the Production Guide, and the support window in SECURITY.md (security fixes land in the latest minor only while the project is pre-1.0). Not documented yet, and listed here on purpose: one RS256 2048-bit signing key per realm, generated once and stored in PostgreSQL, with no rotation path and no overlap of keys in the JWKS document; no HSM or KMS integration; the operator needs a cluster-wide role; no request rate limiting at the API layer beyond account lockout. A "Known limitations" page in the docs is planned.
+
+#### Loosening the defaults
+
+The adopter-facing knobs and their consequences are in the [Configuration guide](https://docs.ferriskey.rs/en/discover/guides/configuration) (versioned source linked above): `WEBHOOK_ALLOW_PRIVATE_ENDPOINTS` and `CLIENT_METADATA_ALLOW_PRIVATE_ENDPOINTS` for local development, `SERVER_TRUST_FORWARDED_FOR` behind a trusted proxy, unset `SERVER_TLS_*` to terminate TLS upstream. Per client, in the console or the API: `require_pkce`, `direct_access_grants_enabled`, `token_exchange_enabled`, `consent_required`. Per realm: password policy, lockout threshold and duration, `require_mfa`. The recommended production shape is the checklist at the end of the [Production Guide](https://docs.ferriskey.rs/en/kubernetes/production-guide).
+
+#### Security Hygiene
+
+**Frameworks, practices and procedures.** Vulnerability intake through GitHub private advisories or security@ferriskey.rs, with targets of 3 business days to acknowledge, 7 days to triage, 30 days to fix a critical or high issue and 90 days to disclose ([SECURITY.md](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/SECURITY.md)). One advisory published so far (GHSA-v2hq-9v44-43ff); the process for requesting a CVE and publishing advisories is being standardized [to confirm]. Every pull request needs a DCO sign-off and a review; `main` is protected. Dependencies are pinned through `Cargo.lock` and `pnpm-lock.yaml`, updated weekly by Dependabot, and gated by `cargo deny`. Security relevant behaviour is covered by integration tests that run on every push. Reviews so far are internal to the maintainers; no external audit or penetration test has been performed, and that is the first item the project would like to do with the TAG after acceptance.
+
+**Features that are a security risk if left unmaintained.** The protocol implementations themselves: OpenID Connect and OAuth 2.0 (authorization code with PKCE, device flow, token exchange, back-channel logout, dynamic client registration), SAML 2.0, identity brokering to upstream providers, and the MFA module (TOTP, WebAuthn, magic links, recovery codes). Each carries a conformance or regression suite in `api/tests` so that a regression fails CI rather than a user. Password hashing and the JWT signing path live in a dedicated crate ([libs/ferriskey-security](https://github.com/ferriskey/ferriskey/tree/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/libs/ferriskey-security)) built on `argon2`, `jsonwebtoken` and `rustls`; the project does not implement cryptographic primitives. Pre-1.0, only the latest minor receives security fixes, which keeps the maintained surface small and is stated in SECURITY.md.
+
+#### Cloud Native Threat Modeling
+
+**Least privilege.** The API needs a PostgreSQL role on its own database and schema, outbound HTTPS to the identity providers it brokers to, to client metadata documents and to webhook endpoints, and SMTP if email is enabled. It binds a non-privileged port and runs as a non-root user with no capabilities. The operator, when used, needs a ClusterRole with read and write on Services, Secrets, Events, Deployments and Jobs, read on Pods and CustomResourceDefinitions, and status and finalizer updates on its own `FerrisKeyCluster` resource ([cluster-role.yaml](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/charts/ferriskey-operator/templates/operator/cluster-role.yaml)). Secrets are needed to store the generated admin and database passwords. A namespaced Role variant is not offered yet. No written threat model exists; a lightweight one, per flow (browser login, token endpoint, admin API, operator), is planned to live next to this document [to confirm scope with the team].
+
+**Certificate and key rotation.** Transport certificates are not managed by FerrisKey: on Kubernetes they come from the Ingress or Gateway and cert-manager, elsewhere from the proxy, or from the files passed to `SERVER_TLS_CERT` and `SERVER_TLS_KEY`, which are read at startup. Token signing keys are generated per realm on first use, RS256 with a 2048-bit RSA key, and persisted in PostgreSQL ([keystore_repository.rs](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/core/src/infrastructure/repositories/keystore_repository.rs#L94)). There is no rotation procedure yet, neither automatic nor through the API, and the JWKS document publishes a single key, so a compromise requires replacing the key and invalidating every outstanding token. This is the main open item in this section and is tracked for the roadmap. Client secrets and webhook secrets can be rotated through the API.
+
+**Secure software supply chain.** Source: Apache-2.0, DCO on every commit, protected `main`, required review. Dependencies: lock files, weekly Dependabot, `cargo deny` with advisories, license allowlist and source restrictions, license policy on the console. Build: GitHub Actions with the actions in the test, supply chain and Scorecard workflows pinned by commit SHA; multi-architecture images built by digest and published to `ghcr.io/ferriskey`. Posture: OpenSSF Scorecard published, OpenSSF Best Practices badge. Known gaps against the CNCF supply chain paper: images and release archives are not signed, no SBOM or provenance attestation is produced, and the Docker and release workflows still pin actions by tag. Signing with cosign and attaching an SBOM are planned before the application is submitted [to confirm with the team].
