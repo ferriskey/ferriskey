@@ -411,6 +411,13 @@ impl From<CoreError> for ApiError {
                 "This policy template is linked by one or more policies",
                 reason,
             )),
+            CoreError::InvalidAuthorizationRequest(message) => {
+                Self::BadRequest(ApiErrorBody::new(message, reason))
+            }
+            CoreError::AuthorizationNotEnabled => Self::NotFound(ApiErrorBody::new(
+                "Authorization is not enabled for this realm",
+                reason,
+            )),
             CoreError::PasswordCredentialAlreadyExists => {
                 Self::Conflict("User already has a password credential".into())
             }

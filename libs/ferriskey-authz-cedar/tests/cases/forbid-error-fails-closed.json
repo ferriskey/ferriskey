@@ -1,0 +1,55 @@
+{
+  "schema": null,
+  "policies": [
+    {
+      "name": "allow-all",
+      "source": "permit (principal, action, resource);"
+    },
+    {
+      "name": "boom",
+      "source": "forbid (principal, action, resource) when { principal.email == \"x@x.io\" };"
+    }
+  ],
+  "slice": {
+    "user": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "username": "u01",
+      "email": null,
+      "email_verified": true,
+      "enabled": true,
+      "tags": {},
+      "roles": [],
+      "groups": [],
+      "organizations": []
+    },
+    "roles": [],
+    "groups": [],
+    "organizations": []
+  },
+  "request": {
+    "subject": "ferriskey",
+    "action": "document:read",
+    "resource": {
+      "entity": {
+        "type": "App::Document",
+        "id": "doc-1"
+      },
+      "properties": {
+        "owner": {
+          "__entity": {
+            "type": "FerrisKey::User",
+            "id": "00000000-0000-4000-8000-000000000001"
+          }
+        }
+      },
+      "parents": []
+    },
+    "context": {}
+  },
+  "expect": {
+    "outcome": "deny",
+    "policies": [
+      "boom"
+    ]
+  }
+}

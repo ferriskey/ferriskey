@@ -1,0 +1,59 @@
+{
+  "schema": "namespace App {\n  entity Document = {\n    owner: FerrisKey::User,\n  };\n\n  entity Device = {\n    trusted: Bool,\n  };\n\n  action \"document:read\" appliesTo {\n    principal: [FerrisKey::User, FerrisKey::Client, Device],\n    resource: [Document],\n  };\n}\n",
+  "policies": [
+    {
+      "name": "reader",
+      "source": "permit (principal in FerrisKey::Role::\"00000000-0000-4000-8000-000000000003\", action == App::Action::\"document:read\", resource is App::Document);"
+    }
+  ],
+  "slice": {
+    "user": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "username": "u01",
+      "email": "a@x.io",
+      "email_verified": true,
+      "enabled": true,
+      "tags": {},
+      "roles": [
+        "00000000-0000-4000-8000-000000000003"
+      ],
+      "groups": [],
+      "organizations": []
+    },
+    "roles": [
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "name": "r"
+      }
+    ],
+    "groups": [],
+    "organizations": []
+  },
+  "request": {
+    "subject": "ferriskey",
+    "action": "document:read",
+    "resource": {
+      "entity": {
+        "type": "App::Document",
+        "id": "doc-1"
+      },
+      "properties": {
+        "owner": {
+          "__entity": {
+            "type": "FerrisKey::User",
+            "id": "00000000-0000-4000-8000-000000000001"
+          }
+        }
+      },
+      "parents": []
+    },
+    "context": {
+      "ip": "1.2.3.4"
+    }
+  },
+  "expect": {
+    "outcome": "invalid_request",
+    "policies": [],
+    "message": "ip"
+  }
+}

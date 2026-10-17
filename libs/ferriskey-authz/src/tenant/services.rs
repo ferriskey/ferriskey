@@ -10,6 +10,7 @@ use ferriskey_domain::realm::scope::RealmScope;
 use uuid::Uuid;
 
 use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
+use super::evaluation::{RuleSet, load_rule_set};
 use super::ports::{
     AuthzManagementService, AuthzSchemaRepository, AuthzStateRepository, PolicyCompiler,
     PolicyRepository, PolicyTemplateRepository, TenantAuthorizationPolicy,
@@ -20,14 +21,6 @@ use super::value_objects::{
 };
 
 const FORBIDDEN: &str = "insufficient permissions";
-
-/// The realm's whole rule set, read at one version.
-struct RuleSet {
-    version: i64,
-    schema: Option<AuthzSchema>,
-    policies: Vec<Policy>,
-    templates: Vec<PolicyTemplate>,
-}
 
 #[derive(Clone, Debug)]
 pub struct AuthzManagementServiceImpl<R, P, S, SC, PR, T>
@@ -85,16 +78,14 @@ where
     /// repository refuses ours instead of storing a set nobody validated.
     async fn load(&self, scope: &RealmScope) -> Result<RuleSet, CoreError> {
         let version = self.state_repository.get(scope).await?.version;
-        let schema = self.schema_repository.get(scope).await?;
-        let policies = self.policy_repository.list(scope).await?;
-        let templates = self.template_repository.list(scope).await?;
-
-        Ok(RuleSet {
+        load_rule_set(
+            scope,
             version,
-            schema,
-            policies,
-            templates,
-        })
+            self.schema_repository.as_ref(),
+            self.policy_repository.as_ref(),
+            self.template_repository.as_ref(),
+        )
+        .await
     }
 
     fn validate(

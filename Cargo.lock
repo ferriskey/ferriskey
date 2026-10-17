@@ -2250,6 +2250,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
@@ -2262,6 +2263,8 @@ dependencies = [
  "ferriskey-authz",
  "ferriskey-domain",
  "miette",
+ "serde",
+ "serde_json",
  "uuid",
 ]
 

@@ -5,6 +5,8 @@
 //! the tenant.
 
 pub mod entities;
+pub mod evaluation;
+pub mod evaluator;
 pub mod names;
 pub mod ports;
 pub mod services;
