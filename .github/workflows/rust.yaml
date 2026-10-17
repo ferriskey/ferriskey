@@ -1,0 +1,143 @@
+name: rust
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/rust.yaml
+      - sh/rust-tests.sh
+      - Cargo.toml
+      - Cargo.lock
+      - api/**
+      - client/**
+      - core/**
+      - libs/**
+      - operator/**
+      - '!**.md'
+  pull_request:
+    paths:
+      - .github/workflows/rust.yaml
+      - sh/rust-tests.sh
+      - Cargo.toml
+      - Cargo.lock
+      - api/**
+      - client/**
+      - core/**
+      - libs/**
+      - operator/**
+      - '!**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Full debug info doubles link time and cache size for nothing CI reads;
+  # line tables keep file:line in panic backtraces.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+
+jobs:
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: set up rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          components: clippy
+          cache: false
+
+      # Pull requests restore the cache main saved and never write their own:
+      # one multi-GB entry per PR evicts main's under the 10 GB repo quota.
+      - name: cache rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: clippy
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: run clippy
+        run: cargo clippy --workspace --exclude ferriskey-client --all-targets --locked -- -D warnings
+
+  test:
+    name: tests
+    runs-on: ubuntu-latest
+
+    # DB-backed tests are `#[ignore]` so a plain `cargo test` skips them.
+    # sh/rust-tests.sh runs every test binary with --include-ignored against
+    # this service, so a new suite is picked up without touching this file.
+    services:
+      postgres:
+        image: postgres:18.2
+        env:
+          POSTGRES_USER: ferriskey
+          POSTGRES_PASSWORD: ferriskey
+          POSTGRES_DB: ferriskey
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: ferriskey
+      DATABASE_USER: ferriskey
+      DATABASE_PASSWORD: ferriskey
+      DATABASE_URL: postgres://ferriskey:ferriskey@localhost:5432/ferriskey
+      FERRISKEY_BDD: "1"
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: set up rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+
+      - name: cache rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # The SAML signer is never validated by our own code: xmlsec1 is the
+      # reference XML-DSig implementation and verifies the assertions we emit.
+      - name: install xmlsec1
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xmlsec1
+
+      - name: run unit and integration tests
+        run: ./sh/rust-tests.sh
+
+  doctests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: set up rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+
+      # Dependencies build the same way as in the test job, so its cache fits.
+      - name: cache rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: test
+          save-if: false
+
+      - name: run doctests
+        run: cargo test --workspace --exclude ferriskey-client --doc --locked
