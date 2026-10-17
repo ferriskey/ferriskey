@@ -101,6 +101,16 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
         Ok(result.rows_affected)
     }
 
+    async fn delete_expired(&self, before: DateTime<Utc>) -> Result<u64, JwtError> {
+        let result = crate::entity::access_tokens::Entity::delete_many()
+            .filter(crate::entity::access_tokens::Column::ExpiresAt.lt(before.naive_utc()))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
+    }
+
     async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<u64, JwtError> {
         let result = crate::entity::access_tokens::Entity::update_many()
             .col_expr(

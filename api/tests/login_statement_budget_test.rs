@@ -29,6 +29,9 @@ const BACKGROUND_WORK: &[&str] = &[
     "password_reset_tokens",
     "DELETE FROM \"compass_flows\"",
     "\"compass_flows\".\"started_at\" <",
+    "DELETE FROM \"access_tokens\"",
+    "DELETE FROM \"refresh_tokens\"",
+    "DELETE FROM \"user_sessions\" WHERE \"user_sessions\".\"expires_at\"",
 ];
 
 static STATEMENTS: Mutex<Vec<String>> = Mutex::new(Vec::new());

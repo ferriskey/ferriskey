@@ -96,6 +96,11 @@ pub trait RefreshTokenRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
+
+    fn delete_expired(
+        &self,
+        before: DateTime<Utc>,
+    ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -128,6 +133,11 @@ pub trait AccessTokenRepository: Send + Sync {
     fn revoke_all_for_user(
         &self,
         user_id: Uuid,
+    ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
+
+    fn delete_expired(
+        &self,
+        before: DateTime<Utc>,
     ) -> impl Future<Output = Result<u64, SecurityError>> + Send;
 }
 
