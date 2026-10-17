@@ -39,7 +39,7 @@ use crate::{
         },
         crypto::HasherRepository,
         email_template::{
-            entities::interpolate_variables,
+            entities::{insert_request_variables, interpolate_variables},
             ports::{EmailTemplateRepository, TemplateRenderer},
         },
         password_policy::{
@@ -559,6 +559,7 @@ where
         scope: &RealmScope,
         template_id: Uuid,
         user: &crate::domain::user::entities::User,
+        user_agent: Option<&str>,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
         let template = self
@@ -585,6 +586,7 @@ where
             "user.email".to_string(),
             user.email.clone().unwrap_or_default(),
         );
+        insert_request_variables(&mut variables, Utc::now(), user_agent);
         for (key, value) in extra_vars {
             variables.insert(key.to_string(), value.to_string());
         }
@@ -1835,6 +1837,7 @@ where
                         &scope,
                         tid,
                         &user,
+                        input.user_agent.as_deref(),
                         &[
                             ("magic_link", magic_link_url.as_str()),
                             ("expiration", &format!("{ttl_minutes} minutes")),
@@ -2159,6 +2162,7 @@ where
                         &scope,
                         tid,
                         &user,
+                        input.user_agent.as_deref(),
                         &[
                             ("reset_link", reset_link.as_str()),
                             ("expiration", &format!("{ttl_minutes} minutes")),
@@ -2775,6 +2779,7 @@ mod tests {
             base_url: "https://auth.example".to_string(),
             session_code: Some(session_code.to_string()),
             remember_me: false,
+            user_agent: Some("Mozilla/5.0 (test)".to_string()),
         }
     }
 
@@ -2909,6 +2914,7 @@ mod tests {
                 email: "user@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
                 session_code: None,
+                user_agent: Some("Mozilla/5.0 (test)".to_string()),
             })
             .await;
 
@@ -2951,6 +2957,7 @@ mod tests {
                 email: "unknown@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
                 session_code: None,
+                user_agent: Some("Mozilla/5.0 (test)".to_string()),
             })
             .await;
 
@@ -3012,6 +3019,7 @@ mod tests {
                 email: "user@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
                 session_code: None,
+                user_agent: Some("Mozilla/5.0 (test)".to_string()),
             })
             .await;
 
@@ -3050,6 +3058,7 @@ mod tests {
                 email: "user@example.com".to_string(),
                 base_url: "http://localhost:5555".to_string(),
                 session_code: None,
+                user_agent: Some("Mozilla/5.0 (test)".to_string()),
             })
             .await;
 

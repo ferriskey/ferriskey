@@ -9,6 +9,7 @@ use ferriskey_api_core::api_entities::{
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::decoded_token::OptionalToken;
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::WebappUrl;
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -37,6 +38,7 @@ pub async fn resend_verification_email_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     WebappUrl(verification_base_url): WebappUrl,
+    context: RequestContext,
     OptionalToken(token): OptionalToken,
 ) -> Result<Response<ResendVerificationEmailResponse>, ApiError> {
     let token = token.ok_or_else(|| ApiError::Unauthorized("Missing or invalid token".into()))?;
@@ -45,7 +47,12 @@ pub async fn resend_verification_email_handler(
     state
         .service
         .email_verification_service
-        .send_verification_email(user_id, realm_name, verification_base_url)
+        .send_verification_email(
+            user_id,
+            realm_name,
+            verification_base_url,
+            context.user_agent,
+        )
         .await?;
 
     Ok(Response::OK(ResendVerificationEmailResponse {

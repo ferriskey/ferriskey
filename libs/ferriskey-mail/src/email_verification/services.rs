@@ -8,7 +8,7 @@ use tokio::time::timeout;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::email_template::entities::interpolate_variables;
+use crate::email_template::entities::{insert_request_variables, interpolate_variables};
 use crate::email_template::ports::{EmailTemplateRepository, TemplateRenderer};
 use ferriskey_domain::common::app_errors::CoreError;
 use ferriskey_domain::common::email::EmailPort;
@@ -136,6 +136,7 @@ where
         scope: &RealmScope,
         template_id: Uuid,
         user: &ferriskey_domain::user::entities::User,
+        user_agent: Option<&str>,
         extra_vars: &[(&str, &str)],
     ) -> Result<String, CoreError> {
         let template = self
@@ -162,6 +163,7 @@ where
             "user.email".to_string(),
             user.email.clone().unwrap_or_default(),
         );
+        insert_request_variables(&mut variables, Utc::now(), user_agent);
         for (key, value) in extra_vars {
             variables.insert(key.to_string(), value.to_string());
         }
@@ -189,6 +191,7 @@ where
         user_id: Uuid,
         realm_name: String,
         base_url: String,
+        user_agent: Option<String>,
     ) -> Result<(), CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
         let realm = scope.realm().clone();
@@ -259,6 +262,7 @@ where
                 &scope,
                 template_id,
                 &user,
+                user_agent.as_deref(),
                 &[
                     ("verification_link", verification_link.as_str()),
                     ("expiration", expiration_label.as_str()),
@@ -458,6 +462,7 @@ mod tests {
     use ferriskey_seawatch::ports::MockSecurityEventRepository;
     use ferriskey_webhook::ports::MockWebhookRepository;
     use mockall::predicate::*;
+    use std::sync::Mutex;
 
     struct TestRenderer;
 
@@ -469,8 +474,13 @@ mod tests {
             Ok("<mjml><mj-body>Test</mjml>".to_string())
         }
 
+        /// Carries the request-origin placeholders so a test can assert they
+        /// are interpolated before the email goes out.
         fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
-            Ok("<html><body>Test</body></html>".to_string())
+            Ok(
+                "<html><body>Test, requested at {{requested_at}} from {{user_agent}}</body></html>"
+                    .to_string(),
+            )
         }
 
         fn parse_intermediate(&self, _intermediate: &str) -> Result<serde_json::Value, CoreError> {
@@ -850,6 +860,7 @@ mod tests {
                 Uuid::new_v4(),
                 "nonexistent-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             )
             .await;
 
@@ -935,10 +946,115 @@ mod tests {
                 user.id,
                 "test-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             )
             .await;
 
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn the_verification_email_reports_when_and_from_what_it_was_requested() {
+        let mut realm = test_realm();
+        let template = test_template(&realm);
+        let smtp_config = test_smtp_config(&realm);
+
+        let mut settings = RealmSetting::new(realm.id, Some("RS256".to_string()));
+        settings.email_verification_template_id = Some(template.id);
+        settings.email_verification_ttl_hours = 24;
+        realm.settings = Some(settings);
+
+        let user = test_user(&realm);
+        let realm_clone = realm.clone();
+        let user_clone = user.clone();
+        let template_clone = template.clone();
+        let smtp_clone = smtp_config.clone();
+
+        let mut realm_repo = MockRealmRepository::new();
+        realm_repo.expect_get_by_name().returning(move |_| {
+            let r = realm_clone.clone();
+            Box::pin(async move { Ok(Some(r)) })
+        });
+
+        let mut user_repo = MockUserRepository::new();
+        user_repo.expect_get_by_id().returning(move |_| {
+            let u = user_clone.clone();
+            Box::pin(async move { Ok(Unscoped::new(u)) })
+        });
+
+        let mut evrt = MockEmailVerificationTokenRepository::new();
+        evrt.expect_create().returning(|_| {
+            let token = EmailVerificationToken {
+                id: Uuid::new_v4(),
+                user_id: Uuid::new_v4(),
+                realm_id: Uuid::new_v4(),
+                token_hash: "hash".to_string(),
+                expires_at: Utc::now() + Duration::hours(24),
+                created_at: Utc::now(),
+                used_at: None,
+            };
+            Box::pin(async move { Ok(token) })
+        });
+
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo.expect_get_by_id().returning(move |_, _| {
+            let t = template_clone.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
+        });
+
+        let mut smtp_repo = MockSmtpConfigRepository::new();
+        smtp_repo.expect_get_by_realm_id().returning(move |_| {
+            let s = smtp_clone.clone();
+            Box::pin(async move { Ok(Some(s)) })
+        });
+
+        let delivered_html: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+        let sink = Arc::clone(&delivered_html);
+        let mut email_port = MockEmailPort::new();
+        email_port
+            .expect_send_email()
+            .returning(move |_, _, _, _, html_body| {
+                *sink.lock().expect("the capture lock") = html_body;
+                Box::pin(async move { Ok(()) })
+            });
+
+        let service = build_service(
+            evrt,
+            user_repo,
+            realm_repo,
+            MockUserRequiredActionRepository::new(),
+            email_port,
+            smtp_repo,
+            et_repo,
+            MockWebhookRepository::new(),
+            MockSecurityEventRepository::new(),
+        );
+
+        let result = service
+            .send_verification_email(
+                user.id,
+                "test-realm".to_string(),
+                "http://localhost".to_string(),
+                Some("Mozilla/5.0 (X11; Linux x86_64)".to_string()),
+            )
+            .await;
+
+        assert!(result.is_ok());
+
+        let html = delivered_html
+            .lock()
+            .expect("the capture lock")
+            .clone()
+            .expect("an html body");
+
+        assert!(
+            html.contains("Mozilla/5.0 (X11; Linux x86_64)"),
+            "the user agent is missing from {html}"
+        );
+        assert!(
+            !html.contains("{{requested_at}}") && !html.contains("{{user_agent}}"),
+            "a placeholder survived interpolation in {html}"
+        );
     }
 
     #[tokio::test]
@@ -980,6 +1096,7 @@ mod tests {
                 Uuid::new_v4(),
                 "test-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             )
             .await;
 
@@ -1035,6 +1152,7 @@ mod tests {
                 Uuid::new_v4(),
                 "test-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             )
             .await;
 
@@ -1135,6 +1253,7 @@ mod tests {
                 Uuid::new_v4(),
                 "test-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             )
             .await;
 
@@ -1217,6 +1336,7 @@ mod tests {
                 Uuid::new_v4(),
                 "test-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             )
             .await;
 
@@ -1300,6 +1420,7 @@ mod tests {
                 Uuid::new_v4(),
                 "test-realm".to_string(),
                 "http://localhost".to_string(),
+                None,
             ),
         )
         .await;

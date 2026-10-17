@@ -92,6 +92,9 @@ pub struct RegisterUserInput {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub session_code: Option<Uuid>,
+    /// User-Agent of the registration request, surfaced to the verification
+    /// email template as `{{user_agent}}`. `None` when none was sent.
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
