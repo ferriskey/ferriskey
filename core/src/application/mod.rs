@@ -1,10 +1,14 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use ferriskey_authz::tenant::evaluation_service::EvaluationServiceImpl;
 use ferriskey_authz::tenant::services::AuthzManagementServiceImpl;
 use ferriskey_authz_cedar::CedarPolicyCompiler;
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_webhook::endpoint::PrivateEndpoints;
+
+use crate::infrastructure::client::cache::CachedClientRepository;
+use crate::infrastructure::realm::cache::CachedRealmRepository;
 
 use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
 use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
@@ -212,9 +216,16 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         .await
         .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
-    let realm = Arc::new(PostgresRealmRepository::new(postgres.get_db()));
+    let config_cache_ttl = Duration::from_secs(config.config_cache_ttl_seconds);
+    let realm = Arc::new(CachedRealmRepository::new(
+        PostgresRealmRepository::new(postgres.get_db()),
+        config_cache_ttl,
+    ));
     let authz = Arc::new(PostgresAuthzRepository::new(postgres.get_db()));
-    let client = Arc::new(PostgresClientRepository::new(postgres.get_db()));
+    let client = Arc::new(CachedClientRepository::new(
+        PostgresClientRepository::new(postgres.get_db()),
+        config_cache_ttl,
+    ));
     let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
     let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
     let hasher = Arc::new(PasswordHasherRepository::new());
@@ -863,6 +874,7 @@ mod tests {
         let app = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
+            config_cache_ttl_seconds: 0,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -1041,6 +1053,7 @@ mod tests {
         let app = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
+            config_cache_ttl_seconds: 0,
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,

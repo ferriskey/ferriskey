@@ -103,6 +103,13 @@ pub struct Args {
         long_help = "Allow client metadata documents to be fetched over http from loopback or private addresses. For tests only — never enable this in production. Link-local addresses stay refused regardless."
     )]
     pub client_metadata_allow_private_endpoints: bool,
+    #[arg(
+        long = "config-cache-ttl-seconds",
+        env = "CONFIG_CACHE_TTL_SECONDS",
+        default_value_t = 5,
+        long_help = "How long an instance keeps a realm, its settings and a client in memory before reading them again (seconds). Writes made through the API invalidate the entry immediately on the instance that handled them; other instances see them after this delay. 0 disables the cache."
+    )]
+    pub config_cache_ttl_seconds: u64,
     #[command(flatten)]
     pub observability: ObservabilityArgs,
     #[command(subcommand)]
@@ -119,6 +126,7 @@ impl Default for Args {
             server: ServerArgs::default(),
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
+            config_cache_ttl_seconds: 5,
             webapp_url: "http://localhost:5555".to_string(),
             webapp_url_from_request: false,
             webapp_allowed_hosts: vec![],
@@ -438,6 +446,7 @@ impl From<Args> for FerriskeyConfig {
             webapp_url: value.webapp_url,
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
             client_metadata_allow_private_endpoints: value.client_metadata_allow_private_endpoints,
+            config_cache_ttl_seconds: value.config_cache_ttl_seconds,
         }
     }
 }

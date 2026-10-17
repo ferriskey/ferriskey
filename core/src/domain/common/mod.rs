@@ -25,6 +25,7 @@ pub struct FerriskeyConfig {
     /// or private address. Off unless explicitly enabled. Link-local addresses stay refused even
     /// when this is on — see `PrivateEndpoints`.
     pub webhook_allow_private_endpoints: bool,
+    pub config_cache_ttl_seconds: u64,
     /// Test-only escape hatch: lets a client metadata document be fetched over http from a
     /// loopback or private address. Off unless explicitly enabled.
     pub client_metadata_allow_private_endpoints: bool,
