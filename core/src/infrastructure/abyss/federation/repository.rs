@@ -306,8 +306,17 @@ impl FederationRepository for FederationRepositoryImpl {
     ) -> Result<FederationMapping, CoreError> {
         let active_model: user_federation_mappings::ActiveModel = mapping.try_into()?;
 
-        let model = active_model.insert(&self.db).await.map_err(|e| {
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| CoreError::Database(format!("Failed to open a transaction: {}", e)))?;
+        let model = active_model.insert(&txn).await.map_err(|e| {
             CoreError::Database(format!("Failed to create federation mapping: {}", e))
+        })?;
+        mark_user_federated(&txn, model.user_id, Some(model.provider_id)).await?;
+        txn.commit().await.map_err(|e| {
+            CoreError::Database(format!("Failed to commit a federation mapping: {}", e))
         })?;
 
         model.try_into()
@@ -407,16 +416,54 @@ impl FederationRepository for FederationRepositoryImpl {
         provider: &Scoped<FederationProvider>,
         id: Uuid,
     ) -> Result<(), CoreError> {
-        user_federation_mappings::Entity::delete_many()
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| CoreError::Database(format!("Failed to open a transaction: {}", e)))?;
+        let mapping = user_federation_mappings::Entity::find()
             .filter(user_federation_mappings::Column::Id.eq(id))
             .filter(user_federation_mappings::Column::ProviderId.eq(provider.get().id))
-            .exec(&self.db)
+            .one(&txn)
+            .await
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to find federation mapping: {}", e))
+            })?;
+        let Some(mapping) = mapping else {
+            return Ok(());
+        };
+        user_federation_mappings::Entity::delete_by_id(mapping.id)
+            .exec(&txn)
             .await
             .map_err(|e| {
                 CoreError::Database(format!("Failed to delete federation mapping: {}", e))
             })?;
+        mark_user_federated(&txn, mapping.user_id, None).await?;
+        txn.commit().await.map_err(|e| {
+            CoreError::Database(format!(
+                "Failed to commit a federation mapping removal: {}",
+                e
+            ))
+        })?;
         Ok(())
     }
+}
+
+async fn mark_user_federated(
+    txn: &DatabaseTransaction,
+    user_id: Uuid,
+    provider_id: Option<Uuid>,
+) -> Result<(), CoreError> {
+    crate::entity::users::Entity::update_many()
+        .col_expr(
+            crate::entity::users::Column::FederationProviderId,
+            sea_query::Expr::value(provider_id),
+        )
+        .filter(crate::entity::users::Column::Id.eq(user_id))
+        .exec(txn)
+        .await
+        .map_err(|e| CoreError::Database(format!("Failed to mark the user as federated: {}", e)))?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -581,5 +628,150 @@ mod tests {
             never.contains(r#""user_federation_providers"."last_sync_at" IS NULL"#),
             "{never}"
         );
+    }
+}
+
+#[cfg(test)]
+mod db_tests {
+    use chrono::Utc;
+    use sea_orm::Database as SeaOrmDatabase;
+    use sqlx::Executor as _;
+    use uuid::Uuid;
+
+    use super::FederationRepositoryImpl;
+    use crate::domain::abyss::federation::entities::FederationMapping;
+    use crate::domain::abyss::federation::ports::FederationRepository;
+    use crate::domain::realm::entities::{Realm, RealmId, RealmScope};
+
+    struct Fixture {
+        repository: FederationRepositoryImpl,
+        pool: sqlx::PgPool,
+        realm: Realm,
+        provider_id: Uuid,
+        user_id: Uuid,
+    }
+
+    async fn setup() -> Fixture {
+        let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
+        let schema = format!("federation_repository_test_{}", Uuid::new_v4().simple());
+
+        let admin_pool = sqlx::PgPool::connect(&base_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .await
+            .expect("create test schema");
+
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let realm_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(realm_id)
+        .bind(format!("realm-{}", realm_id.simple()))
+        .execute(&pool)
+        .await
+        .expect("insert realm");
+        let user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+             VALUES ($1, $2, $3, TRUE, TRUE, NOW(), NOW())",
+        )
+        .bind(user_id)
+        .bind(realm_id)
+        .bind(format!("user-{}", user_id.simple()))
+        .execute(&pool)
+        .await
+        .expect("insert user");
+        let provider_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO user_federation_providers (id, realm_id, name, provider_type, config) \
+             VALUES ($1, $2, 'corporate ldap', 'ldap', '{}'::jsonb)",
+        )
+        .bind(provider_id)
+        .bind(realm_id)
+        .execute(&pool)
+        .await
+        .expect("insert provider");
+
+        let db = SeaOrmDatabase::connect(&schema_url)
+            .await
+            .expect("sea-orm connect");
+
+        Fixture {
+            repository: FederationRepositoryImpl::new(db),
+            pool,
+            realm: Realm {
+                id: RealmId::from(realm_id),
+                name: format!("realm-{}", realm_id.simple()),
+                display_name: None,
+                settings: None,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            },
+            provider_id,
+            user_id,
+        }
+    }
+
+    async fn marker_of(pool: &sqlx::PgPool, user_id: Uuid) -> Option<Uuid> {
+        sqlx::query_scalar("SELECT federation_provider_id FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("read the marker")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_mapping_marks_the_user_as_federated_until_it_is_removed() {
+        let fixture = setup().await;
+        assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
+
+        let mapping = fixture
+            .repository
+            .create_mapping(FederationMapping {
+                id: Uuid::new_v4(),
+                provider_id: fixture.provider_id,
+                user_id: fixture.user_id,
+                external_id: "uid=alice".to_string(),
+                external_username: "alice".to_string(),
+                mapping_metadata: serde_json::Value::Null,
+                last_synced_at: Utc::now(),
+            })
+            .await
+            .expect("create the mapping");
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(fixture.provider_id)
+        );
+
+        let provider = fixture
+            .repository
+            .get_by_id(fixture.provider_id)
+            .await
+            .expect("read the provider")
+            .expect("the provider exists")
+            .in_realm(&RealmScope::from_realm(fixture.realm.clone()))
+            .expect("the provider belongs to the realm");
+        fixture
+            .repository
+            .delete_mapping(&provider, mapping.id)
+            .await
+            .expect("delete the mapping");
+
+        assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
     }
 }

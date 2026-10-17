@@ -27,6 +27,7 @@ pub struct Model {
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTimeWithTimeZone>,
     pub locale: Option<String>,
+    pub federation_provider_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -45,6 +46,7 @@ pub enum Column {
     FailedLoginAttempts,
     LockedUntil,
     Locale,
+    FederationProviderId,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -62,22 +64,29 @@ impl PrimaryKeyTrait for PrimaryKey {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     AccessTokens,
+    AccountElevations,
     AuthSessions,
     ClientMaintenanceWhitelist,
     Clients,
     CompassFlows,
+    ConsentSessions,
     Credentials,
     DeviceAuthSessions,
     EmailVerificationTokens,
     IdentityProviderLinks,
+    LoginActionTokens,
     MagicLinks,
+    OrganizationGroupMembers,
     OrganizationMembers,
+    OtpEnrollments,
+    PasskeyRegistrations,
     PasswordResetTokens,
     RealmMaintenanceWhitelist,
     Realms,
     RefreshTokens,
     UserAttributes,
     UserFederationMappings,
+    UserFederationProviders,
     UserRequiredActions,
     UserRole,
     UserSessions,
@@ -101,6 +110,7 @@ impl ColumnTrait for Column {
             Self::FailedLoginAttempts => ColumnType::Integer.def(),
             Self::LockedUntil => ColumnType::TimestampWithTimeZone.def().null(),
             Self::Locale => ColumnType::Text.def().null(),
+            Self::FederationProviderId => ColumnType::Uuid.def().null(),
         }
     }
 }
@@ -109,6 +119,7 @@ impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
             Self::AccessTokens => Entity::has_many(super::access_tokens::Entity).into(),
+            Self::AccountElevations => Entity::has_many(super::account_elevations::Entity).into(),
             Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
             Self::ClientMaintenanceWhitelist => {
                 Entity::has_many(super::client_maintenance_whitelist::Entity).into()
@@ -118,6 +129,7 @@ impl RelationTrait for Relation {
                 .to(super::clients::Column::Id)
                 .into(),
             Self::CompassFlows => Entity::has_many(super::compass_flows::Entity).into(),
+            Self::ConsentSessions => Entity::has_many(super::consent_sessions::Entity).into(),
             Self::Credentials => Entity::has_many(super::credentials::Entity).into(),
             Self::DeviceAuthSessions => {
                 Entity::has_many(super::device_auth_sessions::Entity).into()
@@ -128,9 +140,17 @@ impl RelationTrait for Relation {
             Self::IdentityProviderLinks => {
                 Entity::has_many(super::identity_provider_links::Entity).into()
             }
+            Self::LoginActionTokens => Entity::has_many(super::login_action_tokens::Entity).into(),
             Self::MagicLinks => Entity::has_many(super::magic_links::Entity).into(),
+            Self::OrganizationGroupMembers => {
+                Entity::has_many(super::organization_group_members::Entity).into()
+            }
             Self::OrganizationMembers => {
                 Entity::has_many(super::organization_members::Entity).into()
+            }
+            Self::OtpEnrollments => Entity::has_many(super::otp_enrollments::Entity).into(),
+            Self::PasskeyRegistrations => {
+                Entity::has_many(super::passkey_registrations::Entity).into()
             }
             Self::PasswordResetTokens => {
                 Entity::has_many(super::password_reset_tokens::Entity).into()
@@ -147,6 +167,12 @@ impl RelationTrait for Relation {
             Self::UserFederationMappings => {
                 Entity::has_many(super::user_federation_mappings::Entity).into()
             }
+            Self::UserFederationProviders => {
+                Entity::belongs_to(super::user_federation_providers::Entity)
+                    .from(Column::FederationProviderId)
+                    .to(super::user_federation_providers::Column::Id)
+                    .into()
+            }
             Self::UserRequiredActions => {
                 Entity::has_many(super::user_required_actions::Entity).into()
             }
@@ -159,6 +185,12 @@ impl RelationTrait for Relation {
 impl Related<super::access_tokens::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AccessTokens.def()
+    }
+}
+
+impl Related<super::account_elevations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AccountElevations.def()
     }
 }
 
@@ -186,6 +218,12 @@ impl Related<super::compass_flows::Entity> for Entity {
     }
 }
 
+impl Related<super::consent_sessions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ConsentSessions.def()
+    }
+}
+
 impl Related<super::credentials::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Credentials.def()
@@ -210,15 +248,39 @@ impl Related<super::identity_provider_links::Entity> for Entity {
     }
 }
 
+impl Related<super::login_action_tokens::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::LoginActionTokens.def()
+    }
+}
+
 impl Related<super::magic_links::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MagicLinks.def()
     }
 }
 
+impl Related<super::organization_group_members::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::OrganizationGroupMembers.def()
+    }
+}
+
 impl Related<super::organization_members::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::OrganizationMembers.def()
+    }
+}
+
+impl Related<super::otp_enrollments::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::OtpEnrollments.def()
+    }
+}
+
+impl Related<super::passkey_registrations::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PasskeyRegistrations.def()
     }
 }
 
@@ -255,6 +317,12 @@ impl Related<super::user_attributes::Entity> for Entity {
 impl Related<super::user_federation_mappings::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::UserFederationMappings.def()
+    }
+}
+
+impl Related<super::user_federation_providers::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UserFederationProviders.def()
     }
 }
 

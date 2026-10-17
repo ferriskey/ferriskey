@@ -64,6 +64,7 @@ pub(crate) fn make_user(realm: &Realm) -> User {
         failed_login_attempts: 0,
         locked_until: None,
         locale: None,
+        federation_provider_id: None,
     }
 }
 

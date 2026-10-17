@@ -243,6 +243,7 @@ impl UserRepository for PostgresUserRepository {
             updated_at: Set(user.updated_at.naive_utc()),
             failed_login_attempts: Set(0),
             locked_until: Set(None),
+            federation_provider_id: Set(None),
             locale: Set(user.locale),
         };
 
