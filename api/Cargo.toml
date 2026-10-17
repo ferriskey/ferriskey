@@ -77,7 +77,7 @@ hmac = "0.12.1"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
 cucumber = "0.23.0"
-sea-orm = { version = "1.1.19", features = ["sqlx-postgres"] }
+sea-orm = { version = "2.0.4", features = ["sqlx-postgres"] }
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "migrate"] }
 serde_json = "1.0.148"
 ferriskey-saml = { path = "../libs/ferriskey-saml" }
