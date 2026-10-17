@@ -1,6 +1,7 @@
 use crate::validators::webauthn_rp_info_from_webapp_url;
 use axum::{Extension, extract::State};
 use axum_cookie::CookieManager;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
@@ -57,6 +58,7 @@ impl PartialSchema for CreatePublicKeyResponse {
 )]
 pub async fn webauthn_public_key_create_options(
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
 ) -> Result<Response<CreatePublicKeyResponse>, ApiError> {
@@ -66,7 +68,7 @@ pub async fn webauthn_public_key_create_options(
         .value()
         .to_string();
 
-    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
+    let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let output = state
         .service

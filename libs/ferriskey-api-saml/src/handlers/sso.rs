@@ -7,6 +7,7 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::ApiError;
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::request_context::RequestContext;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_core::domain::saml::entities::StartSsoInput;
 use ferriskey_core::domain::saml::ports::SamlService;
@@ -70,10 +71,19 @@ impl Binding {
 pub async fn saml_sso_redirect(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     context: RequestContext,
     Query(params): Query<SamlAuthnRequestParams>,
 ) -> Result<Response, ApiError> {
-    begin_sso(state, realm_name, Binding::HttpRedirect, context, params).await
+    begin_sso(
+        state,
+        webapp_url,
+        realm_name,
+        Binding::HttpRedirect,
+        context,
+        params,
+    )
+    .await
 }
 
 #[utoipa::path(
@@ -93,14 +103,24 @@ pub async fn saml_sso_redirect(
 pub async fn saml_sso_post(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     context: RequestContext,
     Form(params): Form<SamlAuthnRequestParams>,
 ) -> Result<Response, ApiError> {
-    begin_sso(state, realm_name, Binding::HttpPost, context, params).await
+    begin_sso(
+        state,
+        webapp_url,
+        realm_name,
+        Binding::HttpPost,
+        context,
+        params,
+    )
+    .await
 }
 
 async fn begin_sso(
     state: AppState,
+    webapp_url: String,
     realm_name: String,
     binding: Binding,
     context: RequestContext,
@@ -144,7 +164,7 @@ async fn begin_sso(
     };
 
     redirect_to_login(
-        &webapp_login_url(&state.args.webapp_url, &realm_name, &output.login_url),
+        &webapp_login_url(&webapp_url, &realm_name, &output.login_url),
         &output.session.id.to_string(),
     )
 }

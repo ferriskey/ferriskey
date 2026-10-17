@@ -15,6 +15,7 @@ use utoipa::{
 };
 
 use crate::validators::webauthn_rp_info_from_webapp_url;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -76,6 +77,7 @@ pub struct AuthenticationAttemptResponse {
 )]
 pub async fn webauthn_public_key_authenticate(
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,
@@ -88,7 +90,7 @@ pub async fn webauthn_public_key_authenticate(
         .value()
         .to_string();
 
-    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
+    let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let output = state
         .service

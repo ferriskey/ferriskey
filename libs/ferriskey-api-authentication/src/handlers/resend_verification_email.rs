@@ -9,6 +9,7 @@ use ferriskey_api_core::api_entities::{
 };
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::decoded_token::OptionalToken;
+use ferriskey_api_core::url::WebappUrl;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ResendVerificationEmailResponse {
@@ -35,13 +36,11 @@ pub struct ResendVerificationEmailResponse {
 pub async fn resend_verification_email_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(verification_base_url): WebappUrl,
     OptionalToken(token): OptionalToken,
 ) -> Result<Response<ResendVerificationEmailResponse>, ApiError> {
     let token = token.ok_or_else(|| ApiError::Unauthorized("Missing or invalid token".into()))?;
     let user_id = token.claims.sub;
-
-    // Use webapp_url (frontend URL) as the base for verification links
-    let verification_base_url = state.args.webapp_url.trim_end_matches('/').to_string();
 
     state
         .service

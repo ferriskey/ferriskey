@@ -16,6 +16,7 @@ use utoipa::{
 };
 
 use crate::validators::webauthn_rp_info_from_webapp_url;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse},
@@ -63,6 +64,7 @@ impl PartialSchema for RequestOptionsResponse {
 pub async fn webauthn_public_key_request_options(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     Extension(identity): Extension<Identity>,
     cookie: CookieManager,
 ) -> Result<Response<RequestOptionsResponse>, ApiError> {
@@ -72,7 +74,7 @@ pub async fn webauthn_public_key_request_options(
         .value()
         .to_string();
 
-    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
+    let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let output = state
         .service

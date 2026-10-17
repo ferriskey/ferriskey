@@ -6,7 +6,7 @@ use axum_cookie::CookieManager;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
 use ferriskey_api_core::app_state::AppState;
-use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::url::{FullUrl, WebappUrl};
 
 use ferriskey_core::domain::authentication::entities::AuthenticateInput;
 use ferriskey_core::domain::authentication::entities::AuthenticationStepStatus;
@@ -65,6 +65,7 @@ pub async fn authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     Query(query): Query<AuthenticateQueryParams>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
@@ -94,6 +95,7 @@ pub async fn authenticate(
         query.client_id.clone(),
         session_code,
         base_url.clone(),
+        webapp_url.clone(),
         username,
         password,
         payload.remember_me,
@@ -105,23 +107,19 @@ pub async fn authenticate(
         && result
             .required_actions
             .contains(&RequiredAction::VerifyEmail)
-    {
-        let verification_base_url = state.args.webapp_url.trim_end_matches('/').to_string();
-
-        if let Err(e) = state
+        && let Err(e) = state
             .service
             .email_verification_service
-            .send_verification_email(result.user_id, realm_name.clone(), verification_base_url)
+            .send_verification_email(result.user_id, realm_name.clone(), webapp_url)
             .await
-        {
-            // Log the error but don't fail the authentication - user can still use resend button
-            warn!(
-                user_id = %result.user_id,
-                realm = %realm_name,
-                error = %e,
-                "Failed to send verification email during authentication"
-            );
-        }
+    {
+        // Log the error but don't fail the authentication - user can still use resend button
+        warn!(
+            user_id = %result.user_id,
+            realm = %realm_name,
+            error = %e,
+            "Failed to send verification email during authentication"
+        );
     }
 
     let step_token = result.temporary_token.clone();

@@ -440,7 +440,6 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         flow_recorder.clone(),
         consent_service.clone(),
         client_metadata_resolver,
-        config.webapp_url.clone(),
     );
 
     // The auth service doubles as the device flow's token issuer.

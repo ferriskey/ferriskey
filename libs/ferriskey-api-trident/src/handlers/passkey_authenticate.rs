@@ -14,6 +14,7 @@ use utoipa::{
 use validator::Validate;
 
 use crate::validators::webauthn_rp_info_from_webapp_url;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -87,6 +88,7 @@ pub struct PasskeyAuthenticateQuery {
 pub async fn passkey_authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     FullUrl(_, base_url): FullUrl,
     Query(query): Query<PasskeyAuthenticateQuery>,
     cookie: CookieManager,
@@ -98,7 +100,7 @@ pub async fn passkey_authenticate(
         .value()
         .to_string();
 
-    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
+    let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let output = state
         .service

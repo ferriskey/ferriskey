@@ -14,6 +14,7 @@ use utoipa::ToSchema;
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::sso_cookie::SSO_SESSION_COOKIE;
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_core::domain::user::entities::User;
 
 /// The signed-in user behind the browser's `FERRISKEY_SSO` cookie, if any.
@@ -116,17 +117,13 @@ pub async fn device_preview(
         (status = 302, description = "Redirect to the web app verification page"),
     )
 )]
-#[instrument(skip(state), fields(realm_name = %realm_name))]
+#[instrument(skip(webapp_url), fields(realm_name = %realm_name))]
 pub async fn device_verification_page(
     Path(realm_name): Path<String>,
-    State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     Query(query): Query<DevicePageQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let mut url = format!(
-        "{}/realms/{}/authentication/device",
-        state.args.webapp_url.trim_end_matches('/'),
-        realm_name
-    );
+    let mut url = format!("{webapp_url}/realms/{realm_name}/authentication/device");
 
     if let Some(user_code) = query.user_code.as_deref().filter(|c| !c.trim().is_empty()) {
         url = format!("{url}?user_code={}", urlencoding::encode(user_code));
