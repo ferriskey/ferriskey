@@ -2444,6 +2444,7 @@ dependencies = [
  "hmac",
  "jsonwebtoken",
  "ldap3",
+ "log",
  "maskass",
  "mockall 0.13.1",
  "mrml",
