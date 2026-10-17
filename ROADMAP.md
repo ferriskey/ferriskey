@@ -21,3 +21,7 @@ Every roadmap item that has started has an issue labelled [`epic`](https://githu
 - The maintainers review the roadmap at each minor release and move shipped items to "Current capabilities".
 - Items are added or reprioritized through [GitHub Discussions](https://github.com/ferriskey/ferriskey/discussions), following the RFC process described in [GOVERNANCE.md](./GOVERNANCE.md).
 - Changes to the roadmap page are made in the [ferriskey/website](https://github.com/ferriskey/website/blob/main/apps/website/src/lib/roadmap.ts) repository.
+
+## CNCF
+
+FerrisKey is preparing a CNCF Sandbox application, tracked in [#1623](https://github.com/ferriskey/ferriskey/issues/1623). The answers to the Day 0 General Technical Review live in [docs/cncf/general-technical-review.md](./docs/cncf/general-technical-review.md) and are updated at each minor release.
