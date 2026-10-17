@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ferriskey_aegis::entities::ScopeType;
 use sea_orm::sea_query::{Query, SelectStatement};
 use sea_orm::{
@@ -6,7 +8,7 @@ use sea_orm::{
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::domain::aegis::entities::{ClientScope, ClientScopeMapping};
+use crate::domain::aegis::entities::{ClientScope, ClientScopeMapping, ClientScopeSet};
 use crate::domain::aegis::ports::ClientScopeMappingRepository;
 use crate::domain::client::entities::Client;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -158,6 +160,57 @@ impl ClientScopeMappingRepository for PostgresScopeMappingRepository {
     }
 
     #[instrument(skip(self))]
+    #[instrument(skip(self))]
+    async fn get_scope_set(&self, client_id: Uuid) -> Result<ClientScopeSet, CoreError> {
+        let mappings = client_scope_mappings::Entity::find()
+            .filter(client_scope_mappings::Column::ClientId.eq(client_id))
+            .filter(
+                client_scope_mappings::Column::DefaultScopeType
+                    .is_in([ScopeType::Default.as_str(), ScopeType::Optional.as_str()]),
+            )
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to get client scope mappings: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        if mappings.is_empty() {
+            return Ok(ClientScopeSet::default());
+        }
+
+        let kinds: HashMap<Uuid, ScopeType> = mappings
+            .into_iter()
+            .map(|mapping| (mapping.client_scope_id, mapping.default_scope_type.into()))
+            .collect();
+
+        let scopes = client_scopes::Entity::find()
+            .filter(client_scopes::Column::Id.is_in(kinds.keys().copied()))
+            .filter(client_scopes::Column::RealmId.in_subquery(realm_of_client(client_id)))
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to get client scopes: {}", e);
+                CoreError::InternalServerError
+            })?;
+
+        let mut set = ClientScopeSet::default();
+        for model in scopes {
+            let Some(kind) = kinds.get(&model.id) else {
+                continue;
+            };
+            let mut scope = ClientScope::from(model);
+            scope.default_scope_type = kind.clone();
+            match kind {
+                ScopeType::Default => set.default.push(scope),
+                ScopeType::Optional => set.optional.push(scope),
+                ScopeType::None => {}
+            }
+        }
+
+        Ok(set)
+    }
+
     async fn get_optional_scopes(&self, client_id: Uuid) -> Result<Vec<ClientScope>, CoreError> {
         let mappings = client_scope_mappings::Entity::find()
             .filter(client_scope_mappings::Column::ClientId.eq(client_id))

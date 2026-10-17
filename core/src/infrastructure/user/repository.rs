@@ -1,8 +1,8 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, ConnectionTrait,
     DatabaseConnection, DbBackend, DbErr, EntityTrait, ModelTrait, QueryFilter, QuerySelect,
-    QueryTrait, Select, SqlErr, Statement,
+    QueryTrait, Select, SqlErr, Statement, UpdateMany, sea_query::Expr,
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -151,6 +151,21 @@ fn classify_user_unique_violation(err: &DbErr) -> Option<UserUniqueViolation> {
     }
 }
 
+fn reset_lockout_update(user_id: Uuid) -> UpdateMany<users::Entity> {
+    users::Entity::update_many()
+        .col_expr(users::Column::FailedLoginAttempts, Expr::value(0))
+        .col_expr(
+            users::Column::LockedUntil,
+            Expr::value(None::<DateTime<FixedOffset>>),
+        )
+        .filter(users::Column::Id.eq(user_id))
+        .filter(
+            Condition::any()
+                .add(users::Column::FailedLoginAttempts.ne(0))
+                .add(users::Column::LockedUntil.is_not_null()),
+        )
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresUserRepository {
     pub db: DatabaseConnection,
@@ -159,6 +174,24 @@ pub struct PostgresUserRepository {
 impl PostgresUserRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self { db }
+    }
+
+    async fn required_actions_of(
+        &self,
+        user: &users::Model,
+    ) -> Result<Vec<RequiredAction>, CoreError> {
+        user.find_related(crate::entity::user_required_actions::Entity)
+            .all(&self.db)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .into_iter()
+            .map(|action| {
+                action
+                    .action
+                    .try_into()
+                    .map_err(|_| CoreError::InternalServerError)
+            })
+            .collect()
     }
 }
 
@@ -236,24 +269,12 @@ impl UserRepository for PostgresUserRepository {
             return Ok(None);
         };
 
-        let required_actions: Vec<RequiredAction> = user_model
-            .find_related(crate::entity::user_required_actions::Entity)
-            .all(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .into_iter()
-            .map(|action| {
-                action
-                    .action
-                    .try_into()
-                    .map_err(|_| CoreError::InternalServerError)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let required_actions = self.required_actions_of(&user_model).await?;
 
-        let mut user: User = user_model.clone().into();
+        let mut user: User = user_model.into();
         user.required_actions = required_actions;
-        if let Some(realm_model) = realm_model.as_ref() {
-            user.realm = Some(realm_model.clone().into());
+        if let Some(realm_model) = realm_model {
+            user.realm = Some(realm_model.into());
         }
 
         Ok(Some(user))
@@ -293,30 +314,15 @@ impl UserRepository for PostgresUserRepository {
                 CoreError::NotFound
             })?;
 
-        let user_model = users_model.first().cloned();
+        let (user_model, realm_model) =
+            users_model.into_iter().next().ok_or(CoreError::NotFound)?;
 
-        let (user_model, realm_models) = user_model.ok_or(CoreError::NotFound)?;
+        let required_actions = self.required_actions_of(&user_model).await?;
 
-        let required_actions: Vec<RequiredAction> = user_model
-            .find_related(crate::entity::user_required_actions::Entity)
-            .all(&self.db)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?
-            .into_iter()
-            .map(|action| {
-                action
-                    .action
-                    .try_into()
-                    .map_err(|_| CoreError::InternalServerError)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let mut user: User = user_model.clone().into();
-
+        let mut user: User = user_model.into();
         user.required_actions = required_actions;
-
-        if let Some(realm_model) = realm_models.as_ref() {
-            user.realm = Some(realm_model.clone().into());
+        if let Some(realm_model) = realm_model {
+            user.realm = Some(realm_model.into());
         }
 
         Ok(Unscoped::new(user))
@@ -346,7 +352,7 @@ impl UserRepository for PostgresUserRepository {
         email: &str,
         realm_id: RealmId,
     ) -> Result<Option<User>, CoreError> {
-        let user = crate::entity::users::Entity::find()
+        let user_model = crate::entity::users::Entity::find()
             .filter(
                 sea_orm::sea_query::Expr::expr(sea_orm::sea_query::Func::lower(
                     sea_orm::sea_query::Expr::col(crate::entity::users::Column::Email),
@@ -361,7 +367,16 @@ impl UserRepository for PostgresUserRepository {
                 CoreError::InternalServerError
             })?;
 
-        Ok(user.map(|u| u.into()))
+        let Some(user_model) = user_model else {
+            return Ok(None);
+        };
+
+        let required_actions = self.required_actions_of(&user_model).await?;
+
+        let mut user: User = user_model.into();
+        user.required_actions = required_actions;
+
+        Ok(Some(user))
     }
 
     async fn bulk_delete_user(&self, realm_id: RealmId, ids: Vec<Uuid>) -> Result<u64, CoreError> {
@@ -493,24 +508,13 @@ impl UserRepository for PostgresUserRepository {
 
     #[instrument(skip(self), err)]
     async fn reset_failed_login_attempts(&self, user_id: Uuid) -> Result<(), CoreError> {
-        let user = crate::entity::users::Entity::find()
-            .filter(crate::entity::users::Column::Id.eq(user_id))
-            .one(&self.db)
+        reset_lockout_update(user_id)
+            .exec(&self.db)
             .await
             .map_err(|e| {
-                error!("error finding user for lockout reset: {:?}", e);
+                error!("error resetting failed login attempts: {:?}", e);
                 CoreError::InternalServerError
-            })?
-            .ok_or(CoreError::NotFound)?;
-
-        let mut active_model: crate::entity::users::ActiveModel = user.into();
-        active_model.failed_login_attempts = Set(0);
-        active_model.locked_until = Set(None);
-
-        active_model.update(&self.db).await.map_err(|e| {
-            error!("error resetting failed login attempts: {:?}", e);
-            CoreError::InternalServerError
-        })?;
+            })?;
 
         Ok(())
     }
@@ -547,7 +551,10 @@ mod tests {
 
     use chrono::{TimeZone, Utc};
 
-    use super::{UserUniqueViolation, classify_user_unique_violation_message, listing_select};
+    use super::{
+        UserUniqueViolation, classify_user_unique_violation_message, listing_select,
+        reset_lockout_update,
+    };
     use crate::domain::common::pagination::DateRange;
     use crate::domain::user::entities::UserFilter;
 
@@ -756,5 +763,178 @@ mod tests {
         let message = r#"ERROR: duplicate key value violates unique constraint "users_pkey""#;
 
         assert_eq!(classify_user_unique_violation_message(message), None);
+    }
+
+    #[test]
+    fn resetting_the_lockout_counter_is_a_single_conditional_update() {
+        let sql = reset_lockout_update(Uuid::nil())
+            .build(DbBackend::Postgres)
+            .to_string();
+
+        assert!(sql.starts_with(r#"UPDATE "users" SET"#), "{sql}");
+        assert!(sql.contains(r#""failed_login_attempts" = 0"#), "{sql}");
+        assert!(sql.contains(r#""locked_until" = NULL"#), "{sql}");
+        assert!(
+            sql.contains(r#""id" = '00000000-0000-0000-0000-000000000000'"#),
+            "{sql}"
+        );
+        assert!(
+            sql.contains(r#""failed_login_attempts" <> 0 OR "users"."locked_until" IS NOT NULL"#),
+            "{sql}"
+        );
+    }
+
+    mod postgres {
+        use sea_orm::Database as SeaOrmDatabase;
+        use sqlx::Executor as _;
+        use uuid::Uuid;
+
+        use crate::domain::realm::entities::RealmId;
+        use crate::domain::user::entities::RequiredAction;
+        use crate::domain::user::ports::UserRepository;
+        use crate::infrastructure::user::repository::PostgresUserRepository;
+
+        struct Fixture {
+            repository: PostgresUserRepository,
+            pool: sqlx::PgPool,
+        }
+
+        async fn setup() -> Fixture {
+            let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+                "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+            });
+
+            let schema = format!("user_repository_test_{}", Uuid::new_v4().simple());
+
+            let admin_pool = sqlx::PgPool::connect(&base_url)
+                .await
+                .expect("connect admin pool");
+            admin_pool
+                .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+                .await
+                .expect("create test schema");
+
+            let separator = if base_url.contains('?') { '&' } else { '?' };
+            let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
+            let pool = sqlx::PgPool::connect(&schema_url)
+                .await
+                .expect("connect schema pool");
+            sqlx::migrate!("./migrations")
+                .run(&pool)
+                .await
+                .expect("run migrations");
+
+            let db = SeaOrmDatabase::connect(&schema_url)
+                .await
+                .expect("sea-orm connect");
+
+            Fixture {
+                repository: PostgresUserRepository::new(db),
+                pool,
+            }
+        }
+
+        async fn insert_user(pool: &sqlx::PgPool) -> (Uuid, Uuid) {
+            let realm_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+            )
+            .bind(realm_id)
+            .bind(format!("realm-{}", realm_id.simple()))
+            .execute(pool)
+            .await
+            .expect("insert realm");
+
+            let user_id = Uuid::new_v4();
+            sqlx::query(
+                "INSERT INTO users (id, realm_id, username, firstname, lastname, email) \
+                 VALUES ($1, $2, 'alice', '', '', 'alice@example.com')",
+            )
+            .bind(user_id)
+            .bind(realm_id)
+            .execute(pool)
+            .await
+            .expect("insert user");
+
+            (realm_id, user_id)
+        }
+
+        async fn lockout_state(pool: &sqlx::PgPool, user_id: Uuid) -> (i32, bool, String) {
+            sqlx::query_as::<_, (i32, bool, String)>(
+                "SELECT failed_login_attempts, locked_until IS NULL, xmin::text FROM users WHERE id = $1",
+            )
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("read lockout state")
+        }
+
+        #[tokio::test]
+        #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+        async fn resetting_the_lockout_counter_clears_the_attempts_and_the_lock() {
+            let fixture = setup().await;
+            let (_, user_id) = insert_user(&fixture.pool).await;
+            sqlx::query(
+                "UPDATE users SET failed_login_attempts = 3, locked_until = NOW() + INTERVAL '1 hour' WHERE id = $1",
+            )
+            .bind(user_id)
+            .execute(&fixture.pool)
+            .await
+            .expect("lock the user");
+
+            fixture
+                .repository
+                .reset_failed_login_attempts(user_id)
+                .await
+                .expect("reset");
+
+            let (attempts, unlocked, _) = lockout_state(&fixture.pool, user_id).await;
+            assert_eq!(attempts, 0);
+            assert!(unlocked);
+        }
+
+        #[tokio::test]
+        #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+        async fn resetting_a_clean_counter_leaves_the_row_untouched() {
+            let fixture = setup().await;
+            let (_, user_id) = insert_user(&fixture.pool).await;
+            let (_, _, before) = lockout_state(&fixture.pool, user_id).await;
+
+            fixture
+                .repository
+                .reset_failed_login_attempts(user_id)
+                .await
+                .expect("reset");
+
+            let (attempts, unlocked, after) = lockout_state(&fixture.pool, user_id).await;
+            assert_eq!(attempts, 0);
+            assert!(unlocked);
+            assert_eq!(before, after, "the row version must not change");
+        }
+
+        #[tokio::test]
+        #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+        async fn looking_a_user_up_by_email_carries_the_required_actions() {
+            let fixture = setup().await;
+            let (realm_id, user_id) = insert_user(&fixture.pool).await;
+            sqlx::query(
+                "INSERT INTO user_required_actions (id, user_id, action) VALUES ($1, $2, 'update_password')",
+            )
+            .bind(Uuid::new_v4())
+            .bind(user_id)
+            .execute(&fixture.pool)
+            .await
+            .expect("insert required action");
+
+            let user = fixture
+                .repository
+                .get_by_email("Alice@Example.com", RealmId::from(realm_id))
+                .await
+                .expect("lookup")
+                .expect("user exists");
+
+            assert_eq!(user.id, user_id);
+            assert_eq!(user.required_actions, vec![RequiredAction::UpdatePassword]);
+        }
     }
 }

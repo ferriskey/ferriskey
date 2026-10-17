@@ -3,6 +3,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::authentication::entities::{GrantType, JwtToken};
+use crate::client::entities::Client;
 use crate::realm::scope::RealmScope;
 use crate::user::entities::{RequiredAction, User};
 
@@ -61,6 +62,7 @@ pub struct CreateAuthSessionRequest {
 
 pub struct GrantTypeParams {
     pub realm: RealmScope,
+    pub client: Client,
     pub base_url: String,
     pub client_id: String,
     pub client_secret: Option<String>,

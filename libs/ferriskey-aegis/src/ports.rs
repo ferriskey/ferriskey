@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::{
-        ClientScope, ClientScopeAttribute, ClientScopeFilter, ClientScopeMapping,
+        ClientScope, ClientScopeAttribute, ClientScopeFilter, ClientScopeMapping, ClientScopeSet,
         ClientScopeSortField, ProtocolMapper,
     },
     value_objects::{
@@ -115,6 +115,11 @@ pub trait ProtocolMapperRepository: Send + Sync {
         scope_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ProtocolMapper>, CoreError>> + Send;
 
+    fn get_by_scope_ids(
+        &self,
+        scope_ids: &[Uuid],
+    ) -> impl Future<Output = Result<HashMap<Uuid, Vec<ProtocolMapper>>, CoreError>> + Send;
+
     fn update_by_id(
         &self,
         client_scope: &Scoped<ClientScope>,
@@ -159,6 +164,11 @@ pub trait ClientScopeMappingRepository: Send + Sync {
         &self,
         client_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ClientScope>, CoreError>> + Send;
+
+    fn get_scope_set(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<ClientScopeSet, CoreError>> + Send;
 }
 
 pub trait ClientScopePolicy: Send + Sync {

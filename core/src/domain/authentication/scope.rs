@@ -1,5 +1,9 @@
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt;
+
+use crate::domain::aegis::entities::ClientScopeSet;
+use crate::domain::common::entities::app_errors::CoreError;
 
 /// Standard OpenID Connect scopes
 pub const SCOPE_OPENID: &str = "openid";
@@ -87,6 +91,47 @@ impl From<OidcScope> for &'static str {
     fn from(scope: OidcScope) -> Self {
         scope.as_str()
     }
+}
+
+pub fn resolve_requested_scope(
+    scopes: &ClientScopeSet,
+    requested: Option<&str>,
+) -> Result<String, CoreError> {
+    let default_names: HashSet<&str> = scopes
+        .default
+        .iter()
+        .map(|scope| scope.name.as_str())
+        .collect();
+    let optional_names: HashSet<&str> = scopes
+        .optional
+        .iter()
+        .map(|scope| scope.name.as_str())
+        .collect();
+
+    let mut granted: HashSet<&str> = if default_names.is_empty() {
+        DEFAULT_SCOPES.iter().copied().collect()
+    } else {
+        default_names.clone()
+    };
+
+    for scope in requested.unwrap_or_default().split_whitespace() {
+        if OidcScope::is_standard(scope) || optional_names.contains(scope) {
+            granted.insert(scope);
+        } else if !default_names.contains(scope) {
+            return Err(CoreError::InvalidScope(format!(
+                "Scope '{scope}' is not assigned to this client"
+            )));
+        }
+    }
+
+    let mut sorted: Vec<&str> = granted.into_iter().collect();
+    sorted.sort_by(|a, b| match (*a == SCOPE_OPENID, *b == SCOPE_OPENID) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        _ => a.cmp(b),
+    });
+
+    Ok(sorted.join(" "))
 }
 
 #[derive(Debug, Clone)]
@@ -409,5 +454,69 @@ mod tests {
         let result = manager.validate_and_filter(Some("profile other_scope".to_string()));
         assert!(result.contains("profile"));
         assert!(!result.contains("other_scope"));
+    }
+
+    mod resolve_requested_scope {
+        use crate::domain::aegis::entities::{ClientScope, ClientScopeSet};
+        use crate::domain::authentication::scope::resolve_requested_scope;
+        use crate::domain::common::entities::app_errors::CoreError;
+        use crate::domain::realm::entities::RealmId;
+        use uuid::Uuid;
+
+        fn scope(name: &str) -> ClientScope {
+            ClientScope::new(
+                RealmId::from(Uuid::new_v4()),
+                name.to_string(),
+                None,
+                "openid-connect".to_string(),
+            )
+        }
+
+        fn client_scopes() -> ClientScopeSet {
+            ClientScopeSet {
+                default: vec![scope("roles"), scope("profile")],
+                optional: vec![scope("groups")],
+            }
+        }
+
+        #[test]
+        fn a_client_without_default_scopes_falls_back_to_profile_and_email() {
+            let resolved = resolve_requested_scope(&ClientScopeSet::default(), None).unwrap();
+            assert_eq!(resolved, "email profile");
+        }
+
+        #[test]
+        fn default_scopes_are_always_granted_and_openid_comes_first() {
+            let resolved =
+                resolve_requested_scope(&client_scopes(), Some("openid profile")).unwrap();
+            assert_eq!(resolved, "openid profile roles");
+        }
+
+        #[test]
+        fn standard_scopes_are_granted_even_when_the_client_does_not_list_them() {
+            let resolved = resolve_requested_scope(&client_scopes(), Some("phone")).unwrap();
+            assert_eq!(resolved, "phone profile roles");
+        }
+
+        #[test]
+        fn optional_scopes_are_granted_only_when_requested() {
+            assert_eq!(
+                resolve_requested_scope(&client_scopes(), Some("groups")).unwrap(),
+                "groups profile roles"
+            );
+            assert_eq!(
+                resolve_requested_scope(&client_scopes(), None).unwrap(),
+                "profile roles"
+            );
+        }
+
+        #[test]
+        fn a_scope_the_client_does_not_hold_is_refused() {
+            let error =
+                resolve_requested_scope(&client_scopes(), Some("profile billing")).unwrap_err();
+            assert!(
+                matches!(error, CoreError::InvalidScope(message) if message.contains("billing"))
+            );
+        }
     }
 }

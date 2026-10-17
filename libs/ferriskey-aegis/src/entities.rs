@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 
 use chrono::{DateTime, Utc};
@@ -177,4 +178,79 @@ pub struct ClientScopeMapping {
     pub client_id: Uuid,
     pub scope_id: Uuid,
     pub default_scope_type: ScopeType,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ClientScopeSet {
+    pub default: Vec<ClientScope>,
+    pub optional: Vec<ClientScope>,
+}
+
+impl ClientScopeSet {
+    pub fn applicable(
+        &self,
+        token_scope: Option<&str>,
+        only_token_scopes: bool,
+    ) -> Vec<&ClientScope> {
+        let requested: HashSet<&str> = token_scope
+            .map(|scope| scope.split_whitespace().collect())
+            .unwrap_or_default();
+
+        self.default
+            .iter()
+            .filter(|scope| !only_token_scopes || requested.contains(scope.name.as_str()))
+            .chain(
+                self.optional
+                    .iter()
+                    .filter(|scope| requested.contains(scope.name.as_str())),
+            )
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scope(name: &str) -> ClientScope {
+        ClientScope::new(
+            RealmId::from(Uuid::new_v4()),
+            name.to_string(),
+            None,
+            "openid-connect".to_string(),
+        )
+    }
+
+    fn names<'a>(scopes: &[&'a ClientScope]) -> Vec<&'a str> {
+        scopes.iter().map(|scope| scope.name.as_str()).collect()
+    }
+
+    fn set() -> ClientScopeSet {
+        ClientScopeSet {
+            default: vec![scope("profile"), scope("email")],
+            optional: vec![scope("groups"), scope("billing")],
+        }
+    }
+
+    #[test]
+    fn default_scopes_always_apply_and_optional_ones_only_when_the_token_names_them() {
+        let set = set();
+
+        assert_eq!(
+            names(&set.applicable(Some("openid groups"), false)),
+            ["profile", "email", "groups"]
+        );
+        assert_eq!(names(&set.applicable(None, false)), ["profile", "email"]);
+    }
+
+    #[test]
+    fn only_token_scopes_narrows_the_defaults_to_the_token() {
+        let set = set();
+
+        assert_eq!(
+            names(&set.applicable(Some("email groups"), true)),
+            ["email", "groups"]
+        );
+        assert!(set.applicable(None, true).is_empty());
+    }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
@@ -84,6 +86,14 @@ impl ProtocolMapperRepository for PostgresProtocolMapperRepository {
             })?;
 
         Ok(models.into_iter().map(ProtocolMapper::from).collect())
+    }
+
+    #[instrument(skip(self, scope_ids))]
+    async fn get_by_scope_ids(
+        &self,
+        scope_ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, Vec<ProtocolMapper>>, CoreError> {
+        super::protocol_mappers_by_scope(&self.db, scope_ids).await
     }
 
     #[instrument(skip(self, payload), fields(scope.id = %client_scope.get().id))]
