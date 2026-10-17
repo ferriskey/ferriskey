@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -62,6 +62,14 @@ impl EmailType {
             TemplateVariable {
                 name: "expiration".to_string(),
                 description: "Expiration time".to_string(),
+            },
+            TemplateVariable {
+                name: "requested_at".to_string(),
+                description: "Date and time the email was requested (UTC, RFC 3339)".to_string(),
+            },
+            TemplateVariable {
+                name: "user_agent".to_string(),
+                description: "User agent of the request that triggered the email".to_string(),
             },
         ];
 
@@ -130,6 +138,33 @@ pub enum EmailTemplateSortField {
     #[default]
     CreatedAt,
     UpdatedAt,
+}
+
+/// Stands in for a `User-Agent` the triggering request did not carry, so a
+/// template reading "requested from {{user_agent}}" never renders a gap.
+pub const UNKNOWN_USER_AGENT: &str = "unknown";
+
+/// Adds the variables describing the request that triggered an email: when it
+/// was made and from what client. Every email type exposes them, so a
+/// security-sensitive notice can let its recipient spot a request they never
+/// made.
+pub fn insert_request_variables(
+    variables: &mut HashMap<String, String>,
+    requested_at: DateTime<Utc>,
+    user_agent: Option<&str>,
+) {
+    variables.insert(
+        "requested_at".to_string(),
+        requested_at.to_rfc3339_opts(SecondsFormat::Secs, true),
+    );
+    variables.insert(
+        "user_agent".to_string(),
+        user_agent
+            .map(str::trim)
+            .filter(|agent| !agent.is_empty())
+            .unwrap_or(UNKNOWN_USER_AGENT)
+            .to_string(),
+    );
 }
 
 /// Interpolates template variables into HTML content.
@@ -204,6 +239,74 @@ mod tests {
         let result = interpolate_variables(html, &vars);
         assert!(result.contains("&lt;script&gt;"));
         assert!(!result.contains("<script>"));
+    }
+
+    #[test]
+    fn every_email_type_exposes_the_request_origin_variables() {
+        for email_type in [
+            EmailType::ResetPassword,
+            EmailType::MagicLink,
+            EmailType::EmailVerification,
+        ] {
+            let vars = email_type.available_variables();
+
+            assert!(
+                vars.iter().any(|v| v.name == "requested_at"),
+                "{email_type} is missing requested_at"
+            );
+            assert!(
+                vars.iter().any(|v| v.name == "user_agent"),
+                "{email_type} is missing user_agent"
+            );
+        }
+    }
+
+    #[test]
+    fn request_variables_render_the_time_as_rfc_3339_without_subsecond_noise() {
+        let requested_at = DateTime::parse_from_rfc3339("2026-10-17T12:34:56.789Z")
+            .expect("a valid timestamp")
+            .with_timezone(&Utc);
+        let mut variables = HashMap::new();
+
+        insert_request_variables(&mut variables, requested_at, Some("Mozilla/5.0"));
+
+        assert_eq!(
+            variables.get("requested_at").map(String::as_str),
+            Some("2026-10-17T12:34:56Z")
+        );
+        assert_eq!(
+            variables.get("user_agent").map(String::as_str),
+            Some("Mozilla/5.0")
+        );
+    }
+
+    #[test]
+    fn a_missing_or_blank_user_agent_falls_back_to_unknown() {
+        for absent in [None, Some(""), Some("   ")] {
+            let mut variables = HashMap::new();
+
+            insert_request_variables(&mut variables, Utc::now(), absent);
+
+            assert_eq!(
+                variables.get("user_agent").map(String::as_str),
+                Some(UNKNOWN_USER_AGENT)
+            );
+        }
+    }
+
+    #[test]
+    fn a_user_agent_is_escaped_when_interpolated() {
+        let mut variables = HashMap::new();
+        insert_request_variables(
+            &mut variables,
+            Utc::now(),
+            Some("<img src=x onerror=alert(1)>"),
+        );
+
+        let result = interpolate_variables("<p>{{user_agent}}</p>", &variables);
+
+        assert!(result.contains("&lt;img src=x onerror=alert(1)&gt;"));
+        assert!(!result.contains("<img"));
     }
 
     #[test]
