@@ -34,20 +34,26 @@ impl LoginContext<'_> {
     }
 
     pub fn has_temporary_password(&self) -> bool {
-        self.credentials
-            .iter()
-            .any(|credential| credential.temporary)
+        !self.is_federated()
+            && self
+                .credentials
+                .iter()
+                .any(|credential| credential.temporary)
     }
 
     pub fn credential_names(&self) -> Vec<String> {
+        let local = self
+            .credentials
+            .iter()
+            .map(|credential| credential.credential_type.to_string());
+
         if self.is_federated() {
-            return vec![FEDERATED_CREDENTIAL.to_string()];
+            return std::iter::once(FEDERATED_CREDENTIAL.to_string())
+                .chain(local)
+                .collect();
         }
 
-        self.credentials
-            .iter()
-            .map(|credential| credential.credential_type.to_string())
-            .collect()
+        local.collect()
     }
 
     pub fn pending_step(
@@ -173,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn a_federated_login_reports_one_federated_credential_and_nothing_local() {
+    fn a_federated_login_without_local_credentials_owes_no_step() {
         let realm_id = RealmId::from(Uuid::new_v4());
         let client = client(realm_id);
         let user = user(realm_id, Vec::new());
@@ -185,6 +191,34 @@ mod tests {
         assert!(context.password_credential().is_none());
         assert!(!context.has_otp_credential());
         assert!(context.pending_step(None, &[]).is_none());
+    }
+
+    #[test]
+    fn a_federated_login_keeps_its_local_otp_and_ignores_a_temporary_local_password() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let client = client(realm_id);
+        let user = user(realm_id, Vec::new());
+        let user_id = user.id;
+        let context = context(
+            &client,
+            user,
+            Some(mapping(user_id)),
+            vec![
+                credential(user_id, CredentialType::Password, true),
+                credential(user_id, CredentialType::Otp, false),
+            ],
+        );
+
+        assert_eq!(
+            context.credential_names(),
+            vec![FEDERATED_CREDENTIAL, "password", "otp"]
+        );
+        assert!(context.has_otp_credential());
+        assert!(!context.has_temporary_password());
+        assert_eq!(
+            context.pending_step(None, &[]),
+            Some(PendingAuthStep::OtpChallenge)
+        );
     }
 
     #[test]

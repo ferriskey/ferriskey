@@ -2865,9 +2865,6 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        self.enforce_maintenance_mode(realm_id, client, user.id, &user.username)
-            .await?;
-
         let now = Utc::now();
         if user.is_locked(now) {
             self.record_login_failure(realm_id, Some(user.id), "account_locked")
@@ -2880,14 +2877,11 @@ where
             .get_mapping_by_user_id(user.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
-        let credentials = if federation.is_some() {
-            Vec::new()
-        } else {
-            self.credential_repository
-                .get_credentials_by_user_id(user.id)
-                .await
-                .map_err(|_| CoreError::GetUserCredentialsError)?
-        };
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
         let context = LoginContext {
             client,
             user,
@@ -2926,6 +2920,9 @@ where
                 .await;
             return Err(CoreError::InvalidPassword);
         }
+
+        self.enforce_maintenance_mode(realm_id, client, context.user.id, &context.user.username)
+            .await?;
 
         let roles = self
             .user_role_repository
