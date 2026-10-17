@@ -5,7 +5,7 @@ use std::sync::Arc;
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use ferriskey_security::crypto::password_check::{
-    rehash_password_if_needed, verify_password_hash, verify_user_password,
+    rehash_password_if_needed, verify_password_credential, verify_password_hash,
 };
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
@@ -15,7 +15,7 @@ use subtle::ConstantTimeEq;
 use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
-use ferriskey_aegis::entities::{ClientScope, ProtocolMapper};
+use ferriskey_aegis::entities::{ClientScope, ClientScopeSet, ProtocolMapper};
 use ferriskey_aegis::ports::{ClientScopeMappingRepository, ProtocolMapperRepository};
 use ferriskey_compass::entities::{FlowId, FlowStatus, FlowStepName};
 use ferriskey_compass::recorder::FlowRecorder;
@@ -32,6 +32,7 @@ use ferriskey_organization::{
 
 use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
 use crate::domain::authentication::mapper_engine::{ContextGroup, ContextOrganization};
+use crate::domain::authentication::scope::resolve_requested_scope;
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
 };
@@ -1337,9 +1338,11 @@ where
     /// preview uses it directly to show exactly what a real token would contain.
     async fn assemble_token_claims(
         &self,
+        client_scopes: &ClientScopeSet,
         input: &GenerateTokenInput,
     ) -> Result<AssembledClaims, CoreError> {
-        self.assemble_token_claims_for(input, false).await
+        self.assemble_token_claims_for(client_scopes, input, false)
+            .await
     }
 
     /// See [`Self::assemble_token_claims`]. With `only_token_scopes`, the
@@ -1347,51 +1350,23 @@ where
     /// a narrowed scope also narrows the mapped claims (RFC 8693 exchange).
     async fn assemble_token_claims_for(
         &self,
+        client_scopes: &ClientScopeSet,
         input: &GenerateTokenInput,
         only_token_scopes: bool,
     ) -> Result<AssembledClaims, CoreError> {
         let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
         let realm_audit = format!("{}-realm", input.realm.name());
 
-        let token_scope_names: HashSet<&str> = input
-            .scope
-            .as_deref()
-            .map(|s| s.split_whitespace().collect())
-            .unwrap_or_default();
-
-        // Resolve protocol mappers from client scopes (default + requested optional)
-        let mut applicable_scopes = self
-            .scope_mapping_repository
-            .get_default_scopes(input.client_uuid)
-            .await
-            .unwrap_or_default();
-
-        if only_token_scopes {
-            applicable_scopes.retain(|scope| token_scope_names.contains(scope.name.as_str()));
-        }
-
-        let optional_scopes = self
-            .scope_mapping_repository
-            .get_optional_scopes(input.client_uuid)
-            .await
-            .unwrap_or_default();
-
-        // Include optional scopes whose names appear in the resolved token scope
-        for scope in optional_scopes {
-            if token_scope_names.contains(scope.name.as_str()) {
-                applicable_scopes.push(scope);
-            }
-        }
-
-        let mut all_mappers = Vec::new();
-        for scope in &applicable_scopes {
-            let mappers = self
-                .protocol_mapper_repository
-                .get_by_scope_id(scope.id)
-                .await
-                .unwrap_or_default();
-            all_mappers.extend(mappers);
-        }
+        let applicable_scopes = client_scopes.applicable(input.scope.as_deref(), only_token_scopes);
+        let scope_ids: Vec<Uuid> = applicable_scopes.iter().map(|scope| scope.id).collect();
+        let mut mappers_by_scope = self
+            .protocol_mapper_repository
+            .get_by_scope_ids(&scope_ids)
+            .await?;
+        let all_mappers: Vec<ProtocolMapper> = applicable_scopes
+            .iter()
+            .flat_map(|scope| mappers_by_scope.remove(&scope.id).unwrap_or_default())
+            .collect();
 
         // Fetch user roles and group client-scoped roles by client string id.
         let user_roles = self
@@ -1643,7 +1618,7 @@ where
         Ok(AssembledClaims {
             access_claims,
             id_mapper_claims,
-            effective_scopes: applicable_scopes,
+            effective_scopes: applicable_scopes.into_iter().cloned().collect(),
             effective_mappers: all_mappers,
         })
     }
@@ -1701,6 +1676,10 @@ where
         let lifetimes = self
             .resolve_token_lifetimes(&input.realm, input.client_uuid)
             .await?;
+        let client_scopes = self
+            .scope_mapping_repository
+            .get_scope_set(input.client_uuid)
+            .await?;
 
         let gen_input = GenerateTokenInput {
             base_url: input.base_url,
@@ -1725,7 +1704,9 @@ where
             resource: None,
         };
 
-        let assembled = self.assemble_token_claims(&gen_input).await?;
+        let assembled = self
+            .assemble_token_claims(&client_scopes, &gen_input)
+            .await?;
 
         // Effective role scope mappings: the user's directly-assigned roles plus roles inherited
         // from their effective (recursive) group memberships — matching what tokens carry.
@@ -2038,6 +2019,7 @@ where
 
     async fn create_jwt(
         &self,
+        client_scopes: &ClientScopeSet,
         input: GenerateTokenInput,
     ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
         let jwt_key_pair = self
@@ -2050,7 +2032,7 @@ where
             access_claims: mut claims,
             id_mapper_claims,
             ..
-        } = self.assemble_token_claims(&input).await?;
+        } = self.assemble_token_claims(client_scopes, &input).await?;
 
         // Bind the token pair to the SSO session so introspection and refresh can
         // check it is still alive. Absent for flows that establish no session.
@@ -2202,7 +2184,13 @@ where
             resource: None,
         };
 
-        let assembled = self.assemble_token_claims_for(&input, true).await?;
+        let client_scopes = self
+            .scope_mapping_repository
+            .get_scope_set(client.id)
+            .await?;
+        let assembled = self
+            .assemble_token_claims_for(&client_scopes, &input, true)
+            .await?;
         Ok(assembled.access_claims.additional_claims)
     }
 
@@ -2302,16 +2290,6 @@ where
         }
 
         Ok(token_data.claims)
-    }
-
-    async fn verify_password(&self, user_id: Uuid, password: String) -> Result<bool, CoreError> {
-        verify_user_password(
-            self.credential_repository.as_ref(),
-            self.hasher_repository.as_ref(),
-            user_id,
-            &password,
-        )
-        .await
     }
 
     async fn refuse_login_identifier_collision(
@@ -2431,64 +2409,25 @@ where
         client_uuid: Uuid,
         requested_scope: Option<String>,
     ) -> Result<String, CoreError> {
-        let default_scopes = self
+        let (scope, _) = self
+            .resolve_client_scopes(client_uuid, requested_scope.as_deref())
+            .await?;
+
+        Ok(scope)
+    }
+
+    async fn resolve_client_scopes(
+        &self,
+        client_uuid: Uuid,
+        requested_scope: Option<&str>,
+    ) -> Result<(String, ClientScopeSet), CoreError> {
+        let client_scopes = self
             .scope_mapping_repository
-            .get_default_scopes(client_uuid)
-            .await
-            .unwrap_or_default();
+            .get_scope_set(client_uuid)
+            .await?;
+        let scope = resolve_requested_scope(&client_scopes, requested_scope)?;
 
-        let optional_scopes = self
-            .scope_mapping_repository
-            .get_optional_scopes(client_uuid)
-            .await
-            .unwrap_or_default();
-
-        let default_scope_names: HashSet<String> =
-            default_scopes.iter().map(|s| s.name.clone()).collect();
-        let optional_scope_names: HashSet<String> =
-            optional_scopes.iter().map(|s| s.name.clone()).collect();
-
-        // Always include the client's default scopes
-        let mut final_scopes: HashSet<String> = default_scope_names.clone();
-
-        // Fall back to OIDC defaults when the client has no configured default scopes
-        if final_scopes.is_empty() {
-            final_scopes.insert(OidcScope::Profile.to_string());
-            final_scopes.insert(OidcScope::Email.to_string());
-        }
-
-        if let Some(scope_str) = requested_scope {
-            for scope in scope_str.split_whitespace() {
-                if OidcScope::is_standard(scope) {
-                    // Standard OIDC scopes are always permitted
-                    final_scopes.insert(scope.to_string());
-                } else if optional_scope_names.contains(scope) {
-                    // Optional client scope requested explicitly
-                    final_scopes.insert(scope.to_string());
-                } else if default_scope_names.contains(scope) {
-                    // Already present as a default scope — no-op
-                } else {
-                    // Scope is not assigned to this client
-                    return Err(CoreError::InvalidScope(format!(
-                        "Scope '{}' is not assigned to this client",
-                        scope
-                    )));
-                }
-            }
-        }
-
-        let mut sorted: Vec<String> = final_scopes.into_iter().collect();
-        sorted.sort_by(|a, b| {
-            if a == OidcScope::OpenId.as_str() {
-                std::cmp::Ordering::Less
-            } else if b == OidcScope::OpenId.as_str() {
-                std::cmp::Ordering::Greater
-            } else {
-                a.cmp(b)
-            }
-        });
-
-        Ok(sorted.join(" "))
+        Ok((scope, client_scopes))
     }
 
     async fn narrow_scope_by_consent_decision(
@@ -2686,8 +2625,8 @@ where
             return Err(error);
         }
 
-        let final_scope = self
-            .resolve_scopes_for_client(auth_session.client_id, auth_session.scope.clone())
+        let (final_scope, client_scopes) = self
+            .resolve_client_scopes(auth_session.client_id, auth_session.scope.as_deref())
             .await?;
 
         let final_scope = self
@@ -2722,27 +2661,30 @@ where
         };
 
         let (jwt, refresh_token, id_token) = self
-            .create_jwt(GenerateTokenInput {
-                base_url: params.base_url,
-                client_id: params.client_id.clone(),
-                client_uuid: auth_session.client_id,
-                email: user.email.clone().unwrap_or_default(),
-                email_verified: user.email_verified,
-                firstname: user.firstname.clone().unwrap_or_default(),
-                lastname: user.lastname.clone().unwrap_or_default(),
-                realm: params.realm.clone(),
-                user_id: user.id,
-                username: user.username.clone(),
-                scope: Some(final_scope.clone()),
-                access_token_lifetime: lifetimes.access_token,
-                refresh_token_lifetime: lifetimes.refresh_token,
-                id_token_lifetime: lifetimes.id_token,
-                nonce: auth_session.nonce.clone(),
-                refresh_jti_override: None,
-                session_id: Some(user_session.id),
-                auth_time: Some(user_session.authenticated_at.timestamp()),
-                resource,
-            })
+            .create_jwt(
+                &client_scopes,
+                GenerateTokenInput {
+                    base_url: params.base_url,
+                    client_id: params.client_id.clone(),
+                    client_uuid: auth_session.client_id,
+                    email: user.email.clone().unwrap_or_default(),
+                    email_verified: user.email_verified,
+                    firstname: user.firstname.clone().unwrap_or_default(),
+                    lastname: user.lastname.clone().unwrap_or_default(),
+                    realm: params.realm.clone(),
+                    user_id: user.id,
+                    username: user.username.clone(),
+                    scope: Some(final_scope.clone()),
+                    access_token_lifetime: lifetimes.access_token,
+                    refresh_token_lifetime: lifetimes.refresh_token,
+                    id_token_lifetime: lifetimes.id_token,
+                    nonce: auth_session.nonce.clone(),
+                    refresh_jti_override: None,
+                    session_id: Some(user_session.id),
+                    auth_time: Some(user_session.authenticated_at.timestamp()),
+                    resource,
+                },
+            )
             .await
             .map_err(|e| {
                 warn!("Failed to create JWT for authorization code grant: {:?}", e);
@@ -2864,8 +2806,8 @@ where
             ));
         }
 
-        let final_scope = self
-            .resolve_scopes_for_client(client.id, params.scope)
+        let (final_scope, client_scopes) = self
+            .resolve_client_scopes(client.id, params.scope.as_deref())
             .await?;
 
         let lifetimes = self
@@ -2873,28 +2815,31 @@ where
             .await?;
 
         let (jwt, refresh_token, id_token) = self
-            .create_jwt(GenerateTokenInput {
-                base_url: params.base_url,
-                client_id: params.client_id,
-                client_uuid: client.id,
-                email: user.email.clone().unwrap_or_default(),
-                email_verified: user.email_verified,
-                firstname: user.firstname.clone().unwrap_or_default(),
-                lastname: user.lastname.clone().unwrap_or_default(),
-                realm: params.realm,
-                user_id: user.id,
-                username: user.username,
-                scope: Some(final_scope),
-                access_token_lifetime: lifetimes.access_token,
-                refresh_token_lifetime: lifetimes.refresh_token,
-                id_token_lifetime: lifetimes.id_token,
-                nonce: None,
-                refresh_jti_override: None,
-                // Machine-to-machine: no user is present, so no SSO session exists.
-                session_id: None,
-                auth_time: None,
-                resource: None,
-            })
+            .create_jwt(
+                &client_scopes,
+                GenerateTokenInput {
+                    base_url: params.base_url,
+                    client_id: params.client_id,
+                    client_uuid: client.id,
+                    email: user.email.clone().unwrap_or_default(),
+                    email_verified: user.email_verified,
+                    firstname: user.firstname.clone().unwrap_or_default(),
+                    lastname: user.lastname.clone().unwrap_or_default(),
+                    realm: params.realm,
+                    user_id: user.id,
+                    username: user.username,
+                    scope: Some(final_scope),
+                    access_token_lifetime: lifetimes.access_token,
+                    refresh_token_lifetime: lifetimes.refresh_token,
+                    id_token_lifetime: lifetimes.id_token,
+                    nonce: None,
+                    refresh_jti_override: None,
+                    // Machine-to-machine: no user is present, so no SSO session exists.
+                    session_id: None,
+                    auth_time: None,
+                    resource: None,
+                },
+            )
             .await?;
 
         let id_token_value = id_token.map(|t| t.token);
@@ -2914,16 +2859,7 @@ where
     async fn password(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let username = params.username.ok_or(CoreError::InternalServerError)?;
         let password = params.password.ok_or(CoreError::InternalServerError)?;
-
-        let client = self
-            .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm.id())
-            .instrument(info_span!("auth.password.client_lookup"))
-            .await
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .in_realm(&params.realm)
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .into_inner();
+        let client = params.client;
 
         authenticate_client(
             &client,
@@ -2931,11 +2867,9 @@ where
             ClientGrant::Password,
         )?;
 
-        let login_aliases = self
-            .realm_repository
-            .get_realm_settings(params.realm.id())
-            .await?
-            .map(|s| s.login_aliases)
+        let realm_settings = params.realm.settings();
+        let login_aliases = realm_settings
+            .map(|settings| settings.login_aliases.clone())
             .unwrap_or_default();
 
         let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
@@ -2959,18 +2893,11 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let realm_settings = self
-            .realm_repository
-            .get_realm_settings(params.realm.id())
-            .await?;
-
         let lockout_threshold = realm_settings
-            .as_ref()
-            .map(|s| s.lockout_threshold)
+            .map(|settings| settings.lockout_threshold)
             .unwrap_or(10);
         let lockout_duration_seconds = realm_settings
-            .as_ref()
-            .map(|s| s.lockout_duration_seconds)
+            .map(|settings| settings.lockout_duration_seconds)
             .unwrap_or(900);
 
         let now = Utc::now();
@@ -2980,27 +2907,25 @@ where
             return Err(CoreError::AccountLocked);
         }
 
-        let credential = self
-            .verify_password(user.id, password)
-            .instrument(info_span!("auth.password.verify_password"))
-            .await;
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .instrument(info_span!("auth.password.credentials_lookup"))
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
 
-        let is_valid = match credential {
-            Ok(is_valid) => is_valid,
-            Err(_) => {
-                let _ = self
-                    .user_repository
-                    .increment_failed_login_attempts(
-                        user.id,
-                        lockout_threshold,
-                        now + chrono::Duration::seconds(lockout_duration_seconds as i64),
-                    )
-                    .await;
-                self.record_login_failure(params.realm.id(), Some(user.id), "invalid_credentials")
-                    .await;
-                return Err(CoreError::Invalid);
-            }
-        };
+        let password_credential = credentials
+            .iter()
+            .find(|credential| credential.credential_type == CredentialType::Password);
+
+        let is_valid = verify_password_credential(
+            self.hasher_repository.as_ref(),
+            self.credential_repository.as_ref(),
+            password_credential,
+            &password,
+        )
+        .instrument(info_span!("auth.password.verify_password"))
+        .await;
 
         if !is_valid {
             let _ = self
@@ -3016,10 +2941,21 @@ where
             return Err(CoreError::Invalid);
         }
 
-        let pending_step = self
-            .resolve_pending_auth_step(user.id, params.realm.id())
-            .instrument(info_span!("auth.password.pending_step"))
-            .await?;
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        let pending_step = mfa_policy::pending_auth_step(
+            &user.required_actions,
+            realm_settings,
+            &user_roles,
+            credentials
+                .iter()
+                .any(|credential| credential.credential_type == CredentialType::Otp),
+            credentials.iter().any(|credential| credential.temporary),
+        );
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
             warn!(
@@ -3039,40 +2975,42 @@ where
         self.enforce_maintenance_mode(params.realm.id(), &client, user.id, &user.username)
             .await?;
 
-        let final_scope = self
-            .resolve_scopes_for_client(client.id, params.scope)
+        let (final_scope, client_scopes) = self
+            .resolve_client_scopes(client.id, params.scope.as_deref())
             .await?;
 
-        let lifetimes = self
-            .resolve_token_lifetimes(&params.realm, client.id)
-            .await?;
+        let lifetimes =
+            TokenLifetimes::resolve(realm_settings.ok_or(CoreError::InvalidRealm)?, &client);
 
         let (user_session, _) = self
             .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
             .await?;
 
         let (jwt, refresh_token, id_token) = self
-            .create_jwt(GenerateTokenInput {
-                base_url: params.base_url,
-                client_id: params.client_id,
-                client_uuid: client.id,
-                email: user.email.clone().unwrap_or_default(),
-                email_verified: user.email_verified,
-                firstname: user.firstname.clone().unwrap_or_default(),
-                lastname: user.lastname.clone().unwrap_or_default(),
-                realm: params.realm,
-                user_id: user.id,
-                username: user.username,
-                scope: Some(final_scope),
-                access_token_lifetime: lifetimes.access_token,
-                refresh_token_lifetime: lifetimes.refresh_token,
-                id_token_lifetime: lifetimes.id_token,
-                nonce: None,
-                refresh_jti_override: None,
-                session_id: Some(user_session.id),
-                auth_time: Some(user_session.authenticated_at.timestamp()),
-                resource: None,
-            })
+            .create_jwt(
+                &client_scopes,
+                GenerateTokenInput {
+                    base_url: params.base_url,
+                    client_id: params.client_id,
+                    client_uuid: client.id,
+                    email: user.email.clone().unwrap_or_default(),
+                    email_verified: user.email_verified,
+                    firstname: user.firstname.clone().unwrap_or_default(),
+                    lastname: user.lastname.clone().unwrap_or_default(),
+                    realm: params.realm,
+                    user_id: user.id,
+                    username: user.username,
+                    scope: Some(final_scope),
+                    access_token_lifetime: lifetimes.access_token,
+                    refresh_token_lifetime: lifetimes.refresh_token,
+                    id_token_lifetime: lifetimes.id_token,
+                    nonce: None,
+                    refresh_jti_override: None,
+                    session_id: Some(user_session.id),
+                    auth_time: Some(user_session.authenticated_at.timestamp()),
+                    resource: None,
+                },
+            )
             .instrument(info_span!("auth.password.create_jwt"))
             .await?;
 
@@ -3169,6 +3107,11 @@ where
             .resolve_token_lifetimes(&params.realm, client.id)
             .await?;
 
+        let client_scopes = self
+            .scope_mapping_repository
+            .get_scope_set(client.id)
+            .await?;
+
         let new_refresh_jti = Uuid::new_v4();
         let new_refresh_expires_at = {
             let ts = Utc::now().timestamp() + lifetimes.refresh_token;
@@ -3210,30 +3153,33 @@ where
                 // Pass its jti as an override so `create_jwt` signs a matching JWT
                 // without inserting a duplicate DB row.
                 let (jwt, rotated_refresh_jwt, id_token) = self
-                    .create_jwt(GenerateTokenInput {
-                        base_url: params.base_url,
-                        client_id: params.client_id,
-                        client_uuid: client.id,
-                        email: user.email.clone().unwrap_or_default(),
-                        email_verified: user.email_verified,
-                        firstname: user.firstname.clone().unwrap_or_default(),
-                        lastname: user.lastname.clone().unwrap_or_default(),
-                        realm: params.realm,
-                        user_id: user.id,
-                        username: user.username,
-                        scope: claims.scope.clone(),
-                        access_token_lifetime: lifetimes.access_token,
-                        refresh_token_lifetime: lifetimes.refresh_token,
-                        id_token_lifetime: lifetimes.id_token,
-                        nonce: None,
-                        refresh_jti_override: Some(new_stored.jti),
-                        // Carry the session binding across rotation, otherwise a
-                        // single refresh would silently detach the token pair from
-                        // its session and make it immune to revocation.
-                        session_id: claims.sid,
-                        auth_time: None,
-                        resource,
-                    })
+                    .create_jwt(
+                        &client_scopes,
+                        GenerateTokenInput {
+                            base_url: params.base_url,
+                            client_id: params.client_id,
+                            client_uuid: client.id,
+                            email: user.email.clone().unwrap_or_default(),
+                            email_verified: user.email_verified,
+                            firstname: user.firstname.clone().unwrap_or_default(),
+                            lastname: user.lastname.clone().unwrap_or_default(),
+                            realm: params.realm,
+                            user_id: user.id,
+                            username: user.username,
+                            scope: claims.scope.clone(),
+                            access_token_lifetime: lifetimes.access_token,
+                            refresh_token_lifetime: lifetimes.refresh_token,
+                            id_token_lifetime: lifetimes.id_token,
+                            nonce: None,
+                            refresh_jti_override: Some(new_stored.jti),
+                            // Carry the session binding across rotation, otherwise a
+                            // single refresh would silently detach the token pair from
+                            // its session and make it immune to revocation.
+                            session_id: claims.sid,
+                            auth_time: None,
+                            resource,
+                        },
+                    )
                     .await?;
 
                 let id_token_value = id_token.map(|t| t.token);
@@ -4673,7 +4619,8 @@ where
             .instrument(info_span!("auth.exchange_token.realm_lookup"))
             .await?;
 
-        self.client_repository
+        let client = self
+            .client_repository
             .get_by_client_id(input.client_id.clone(), scope.id())
             .instrument(info_span!("auth.exchange_token.client_lookup"))
             .await
@@ -4688,7 +4635,8 @@ where
                 }
             })?
             .in_realm(&scope)
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?;
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .into_inner();
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
@@ -4710,6 +4658,7 @@ where
 
         let params = GrantTypeParams {
             realm: scope,
+            client,
             base_url: input.base_url,
             client_id: input.client_id,
             client_secret: input.client_secret,
@@ -5613,32 +5562,35 @@ where
 
         if let Some(client) = client {
             let client_uuid = client.id;
-            let scope = self
-                .resolve_scopes_for_client(client_uuid, input.scope.clone())
+            let (scope, client_scopes) = self
+                .resolve_client_scopes(client_uuid, input.scope.as_deref())
                 .await?;
 
             let (jwt, refresh_token, id_token) = self
-                .create_jwt(GenerateTokenInput {
-                    base_url: input.base_url.clone(),
-                    realm: realm_scope.clone(),
-                    user_id: user.id,
-                    username: user.username.clone(),
-                    firstname: user.firstname.clone().unwrap_or_default(),
-                    lastname: user.lastname.clone().unwrap_or_default(),
-                    email_verified: user.email_verified,
-                    client_id: client.client_id,
-                    client_uuid,
-                    email: user.email.clone().unwrap_or_default(),
-                    scope: Some(scope),
-                    access_token_lifetime: lifetimes.access_token,
-                    refresh_token_lifetime: lifetimes.refresh_token,
-                    id_token_lifetime: lifetimes.id_token,
-                    nonce: None,
-                    refresh_jti_override: None,
-                    session_id: Some(user_session.id),
-                    auth_time: Some(user_session.authenticated_at.timestamp()),
-                    resource: None,
-                })
+                .create_jwt(
+                    &client_scopes,
+                    GenerateTokenInput {
+                        base_url: input.base_url.clone(),
+                        realm: realm_scope.clone(),
+                        user_id: user.id,
+                        username: user.username.clone(),
+                        firstname: user.firstname.clone().unwrap_or_default(),
+                        lastname: user.lastname.clone().unwrap_or_default(),
+                        email_verified: user.email_verified,
+                        client_id: client.client_id,
+                        client_uuid,
+                        email: user.email.clone().unwrap_or_default(),
+                        scope: Some(scope),
+                        access_token_lifetime: lifetimes.access_token,
+                        refresh_token_lifetime: lifetimes.refresh_token,
+                        id_token_lifetime: lifetimes.id_token,
+                        nonce: None,
+                        refresh_jti_override: None,
+                        session_id: Some(user_session.id),
+                        auth_time: Some(user_session.authenticated_at.timestamp()),
+                        resource: None,
+                    },
+                )
                 .await?;
 
             return Ok(JwtToken::new(

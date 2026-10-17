@@ -2,7 +2,7 @@ use tracing::warn;
 
 use crate::common::app_errors::CoreError;
 use crate::realm::ports::RealmRepository;
-use crate::realm::{Realm, RealmId};
+use crate::realm::{Realm, RealmId, RealmSetting};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RealmScope(Realm);
@@ -38,6 +38,10 @@ impl RealmScope {
 
     pub fn realm(&self) -> &Realm {
         &self.0
+    }
+
+    pub fn settings(&self) -> Option<&RealmSetting> {
+        self.0.settings.as_ref()
     }
 }
 

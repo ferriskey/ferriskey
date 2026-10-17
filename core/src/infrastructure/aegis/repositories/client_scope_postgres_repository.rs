@@ -4,7 +4,7 @@ use chrono::Utc;
 use ferriskey_aegis::entities::ScopeType;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, QuerySelect, QueryTrait, Select,
+    QueryFilter, QuerySelect, QueryTrait, Select,
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -158,29 +158,7 @@ impl ClientScopeRepository for PostgresClientScopeRepository {
         &self,
         scope_ids: &[Uuid],
     ) -> Result<HashMap<Uuid, Vec<ProtocolMapper>>, CoreError> {
-        let mut mappers: HashMap<Uuid, Vec<ProtocolMapper>> = HashMap::new();
-        if scope_ids.is_empty() {
-            return Ok(mappers);
-        }
-
-        let rows = client_scope_protocol_mappers::Entity::find()
-            .filter(client_scope_protocol_mappers::Column::ClientScopeId.is_in(scope_ids.to_vec()))
-            .order_by_asc(client_scope_protocol_mappers::Column::CreatedAt)
-            .order_by_asc(client_scope_protocol_mappers::Column::Id)
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                error!("error loading protocol mappers of client scopes: {:?}", e);
-                CoreError::InternalServerError
-            })?;
-        for row in rows {
-            mappers
-                .entry(row.client_scope_id)
-                .or_default()
-                .push(ProtocolMapper::from(row));
-        }
-
-        Ok(mappers)
+        super::protocol_mappers_by_scope(&self.db, scope_ids).await
     }
 
     #[instrument(skip(self, request), fields(realm.id = ?scope.id()))]
