@@ -20,11 +20,6 @@ pub trait ConsentDecisionRepository: Send + Sync {
         decision: ConsentDecision,
     ) -> impl Future<Output = Result<ConsentDecision, CoreError>> + Send;
 
-    fn get_client_consent_required(
-        &self,
-        client_id: Uuid,
-    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
-
     fn get_consent_ttl_days(
         &self,
         realm_id: RealmId,

@@ -2306,43 +2306,31 @@ where
 
     async fn resolve_pending_auth_step(
         &self,
-        user_id: Uuid,
-        realm_id: RealmId,
-    ) -> Result<(Option<mfa_policy::PendingAuthStep>, Vec<Role>), CoreError> {
-        let persisted_actions = self
-            .user_required_action_repository
-            .get_required_actions(user_id)
-            .await
-            .map_err(|e| {
-                warn!(user_id = %user_id, error = ?e, "Failed to load required actions");
-                CoreError::InternalServerError
-            })?;
-
+        user: &User,
+        scope: &RealmScope,
+    ) -> Result<(Option<PendingAuthStep>, Vec<Role>), CoreError> {
         let credentials = self
             .credential_repository
-            .get_credentials_by_user_id(user_id)
+            .get_credentials_by_user_id(user.id)
             .await
             .map_err(|_| CoreError::GetUserCredentialsError)?;
 
-        let has_otp_credential = credentials
-            .iter()
-            .any(|credential| matches!(credential.credential_type, CredentialType::Otp));
-        let has_temporary_password = credentials.iter().any(|credential| credential.temporary);
-
         let user_roles = self
             .user_role_repository
-            .get_user_roles(user_id)
+            .get_user_roles(user.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+        let realm_settings = self.realm_settings_of(scope).await.ok();
 
         let pending_step = mfa_policy::pending_auth_step(
-            &persisted_actions,
-            realm_settings.as_ref(),
+            &user.required_actions,
+            realm_settings.as_deref(),
             &user_roles,
-            has_otp_credential,
-            has_temporary_password,
+            credentials
+                .iter()
+                .any(|credential| matches!(credential.credential_type, CredentialType::Otp)),
+            credentials.iter().any(|credential| credential.temporary),
         );
 
         Ok((pending_step, user_roles))
@@ -2411,18 +2399,14 @@ where
         &self,
         realm_id: RealmId,
         user_id: Uuid,
-        client_id: Uuid,
+        client: &Client,
         scope: String,
     ) -> Result<String, CoreError> {
-        let consent_required = self
-            .consent_service
-            .decision_repository
-            .get_client_consent_required(client_id)
-            .await?;
-
-        if !consent_required {
+        if !client.consent_is_required() {
             return Ok(scope);
         }
+
+        let client_id = client.id;
 
         let optional_scopes = self
             .scope_mapping_repository
@@ -2509,16 +2493,11 @@ where
             Utc::now(),
         )?;
 
-        let allowed_resources = self
-            .realm_repository
-            .get_realm_settings(params.realm.id())
-            .await?
-            .map(|settings| settings.allowed_resources)
-            .unwrap_or_default();
+        let realm_settings = self.realm_settings_of(&params.realm).await?;
         let resource = effective_code_resource(
             auth_session.resource.as_deref(),
             params.resource.as_deref(),
-            &allowed_resources,
+            &realm_settings.allowed_resources,
         )?;
 
         // PKCE verification (RFC 7636 §4.6).
@@ -2581,9 +2560,8 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let (pending_step, user_roles) = self
-            .resolve_pending_auth_step(user_id, params.realm.id())
-            .await?;
+        let (pending_step, user_roles) =
+            self.resolve_pending_auth_step(&user, &params.realm).await?;
 
         if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
             warn!(
@@ -2600,19 +2578,12 @@ where
             .await?;
 
         let final_scope = self
-            .narrow_scope_by_consent_decision(
-                params.realm.id(),
-                user_id,
-                auth_session.client_id,
-                final_scope,
-            )
+            .narrow_scope_by_consent_decision(params.realm.id(), user_id, &client, final_scope)
             .await?;
 
         info!("Final scope for authorization code grant: {}", final_scope);
 
-        let lifetimes = self
-            .resolve_token_lifetimes(&params.realm, auth_session.client_id)
-            .await?;
+        let lifetimes = TokenLifetimes::resolve(&realm_settings, &client);
 
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
@@ -3838,25 +3809,19 @@ where
         let sso_session_max_age_secs = sso_session.cookie_max_age();
 
         self.auth_session_repository
-            .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
-            .await
-            .map_err(|e| {
-                warn!(
-                    "failed to update auth session with code and user id: {:?}",
-                    e
-                );
-                CoreError::SessionNotFound
-            })?;
-
-        self.auth_session_repository
-            .bind_user_session(session_code, sso_session_id)
+            .complete_login(
+                session_code,
+                authorization_code.clone(),
+                user_id,
+                sso_session_id,
+            )
             .await
             .map_err(|e| {
                 warn!(
                     session_code = %session_code,
                     sso_session_id = %sso_session_id,
                     error = ?e,
-                    "failed to bind the auth session to its SSO session"
+                    "failed to complete the login on the auth session"
                 );
                 CoreError::SessionNotFound
             })?;
@@ -4934,7 +4899,7 @@ where
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
 
-        if let Some(step) = self.resolve_pending_auth_step(user.id, realm.id).await?.0 {
+        if let Some(step) = self.resolve_pending_auth_step(&user, &scope).await?.0 {
             return Ok(RegisterUserOutput::PendingAction {
                 message: pending_step_message(&step),
                 user_id: user.id,
@@ -5367,9 +5332,8 @@ where
             return Err(CoreError::Forbidden("account is disabled".to_string()));
         }
 
-        let (pending_step, user_roles) = self
-            .resolve_pending_auth_step(user.id, realm_scope.id())
-            .await?;
+        let (pending_step, user_roles) =
+            self.resolve_pending_auth_step(&user, &realm_scope).await?;
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
             warn!(

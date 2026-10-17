@@ -64,12 +64,13 @@ pub trait AuthSessionRepository: Send + Sync {
         &self,
         code: String,
     ) -> impl Future<Output = Result<Option<Unscoped<AuthSession>>, AuthenticationError>> + Send;
-    fn update_code_and_user_id(
+    fn complete_login(
         &self,
         session_code: Uuid,
         code: String,
         user_id: Uuid,
-    ) -> impl Future<Output = Result<AuthSession, AuthenticationError>> + Send;
+        user_session_id: Uuid,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
     fn save_webauthn_challenge(
         &self,
         session_code: Uuid,
