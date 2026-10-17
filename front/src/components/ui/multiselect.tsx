@@ -256,22 +256,21 @@ const MultipleSelector = ({
     }
   }, [open])
 
-  useEffect(() => {
+  const [prevValue, setPrevValue] = React.useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
     if (value) {
       setSelected(value)
     }
-  }, [value])
+  }
 
-  useEffect(() => {
-    /** If `onSearch` is provided, do not trigger options updated. */
-    if (!arrayOptions || onSearch) {
-      return
-    }
-    const newOption = transToGroupOption(arrayOptions || [], groupBy)
+  /** If `onSearch` is provided, do not trigger options updated. */
+  if (arrayOptions && !onSearch) {
+    const newOption = transToGroupOption(arrayOptions, groupBy)
     if (JSON.stringify(newOption) !== JSON.stringify(options)) {
       setOptions(newOption)
     }
-  }, [arrayDefaultOptions, arrayOptions, groupBy, onSearch, options])
+  }
 
   useEffect(() => {
     /** sync search */
@@ -389,9 +388,10 @@ const MultipleSelector = ({
   )
 
   /** Avoid Creatable Selector freezing or lagging when paste a long string. */
+  const customFilter = commandProps?.filter
   const commandFilter = React.useCallback(() => {
-    if (commandProps?.filter) {
-      return commandProps.filter
+    if (customFilter) {
+      return customFilter
     }
 
     if (creatable) {
@@ -401,7 +401,7 @@ const MultipleSelector = ({
     }
     // Using default filter in `cmdk`. We don&lsquo;t have to provide it.
     return undefined
-  }, [creatable, commandProps?.filter])
+  }, [creatable, customFilter])
 
   return (
     <Command
