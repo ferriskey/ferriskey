@@ -23,6 +23,7 @@
 //!
 //! Chains are per-realm. Events from different realms form independent chains.
 
+use chrono::SubsecRound;
 use sha2::{Digest, Sha256};
 
 use super::entities::SecurityEvent;
@@ -142,6 +143,7 @@ pub fn canonical_preimage(event: &SecurityEvent) -> String {
     let resource = opt_str(event.resource.clone());
     let timestamp = event
         .timestamp
+        .trunc_subsecs(6)
         .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
     let trace_id = opt_str(event.trace_id.clone());
     let ip_address = opt_str(event.ip_address.clone());
@@ -300,6 +302,22 @@ mod tests {
             assert!(v.get("event_hash").is_some());
             assert!(v.get("prev_hash").is_some());
         }
+    }
+
+    #[test]
+    fn the_timestamp_is_hashed_at_the_precision_postgres_keeps() {
+        use chrono::Timelike;
+
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let mut written = make_event(realm_id);
+        written.timestamp = written.timestamp.with_nanosecond(123_456_789).unwrap();
+        let mut read_back = written.clone();
+        read_back.timestamp = written.timestamp.with_nanosecond(123_456_000).unwrap();
+
+        assert_eq!(
+            compute_event_hash(&written, &GENESIS_PREV_HASH),
+            compute_event_hash(&read_back, &GENESIS_PREV_HASH)
+        );
     }
 
     #[test]

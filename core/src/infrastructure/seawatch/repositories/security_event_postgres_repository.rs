@@ -402,6 +402,7 @@ mod tests {
     }
 
     mod postgres {
+        use chrono::Timelike;
         use sea_orm::Database as SeaOrmDatabase;
         use sqlx::Executor as _;
         use uuid::Uuid;
@@ -469,13 +470,18 @@ mod tests {
         }
 
         fn login_event(realm_id: RealmId, index: usize) -> SecurityEvent {
-            SecurityEvent::new(
+            let mut event = SecurityEvent::new(
                 realm_id,
                 SecurityEventType::LoginSuccess,
                 EventStatus::Success,
                 Uuid::new_v4(),
             )
-            .with_details(serde_json::json!({ "index": index }))
+            .with_details(serde_json::json!({ "index": index }));
+            event.timestamp = event
+                .timestamp
+                .with_nanosecond(123_456_789)
+                .unwrap_or(event.timestamp);
+            event
         }
 
         async fn stored_head(pool: &sqlx::PgPool, realm_id: RealmId) -> Option<String> {
