@@ -367,7 +367,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     tokio::spawn(webhook_delivery_worker_task(
         webhook_delivery.as_ref().clone(),
         webhook.as_ref().clone(),
-        PostgresSecurityEventRepository::new(postgres.get_db()),
+        security_event.as_ref().clone(),
         private_endpoints,
     ));
     tokio::spawn(webhook_delivery_retention_task(

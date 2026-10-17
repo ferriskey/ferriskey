@@ -34,7 +34,7 @@ pub const GENESIS_PREV_HASH: [u8; 32] = [0u8; 32];
 ///
 /// This is a **pure** function — no I/O, trivially unit-testable.
 pub fn compute_event_hash(event: &SecurityEvent, prev_hash: &[u8; 32]) -> [u8; 32] {
-    let preimage = build_preimage(event);
+    let preimage = canonical_preimage(event);
     let mut hasher = Sha256::new();
     hasher.update(preimage.as_bytes());
     hasher.update(prev_hash);
@@ -128,7 +128,7 @@ pub fn export_chain_jsonl(events: &[SecurityEvent]) -> String {
     lines.join("\n")
 }
 
-fn build_preimage(event: &SecurityEvent) -> String {
+pub fn canonical_preimage(event: &SecurityEvent) -> String {
     let id: uuid::Uuid = event.id.0;
     let id = id.to_string();
     let realm_uuid: uuid::Uuid = event.realm_id.into();
