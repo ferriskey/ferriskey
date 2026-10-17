@@ -285,6 +285,8 @@ Report vulnerabilities privately through the [Security tab](https://github.com/f
 
 FerrisKey is Apache-2.0 only, with no CLA, no open-core model and no enterprise edition. Sponsors fund the project but do not control it. See [Sponsors and open source commitments](./GOVERNANCE.md#sponsors-and-open-source-commitments) in GOVERNANCE.md.
 
+The project is preparing a CNCF Sandbox application, tracked in [#1623](https://github.com/ferriskey/ferriskey/issues/1623). The answers to the Day 0 General Technical Review live in [docs/cncf/general-technical-review.md](./docs/cncf/general-technical-review.md).
+
 <a id="license"></a>
 
 ## 📜 License
