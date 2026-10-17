@@ -1,20 +1,26 @@
 name: release
 
-permissions:
-  contents: write
-
 on:
   push:
     tags:
       - v*.*.*
       - v*.*.*-rc*
 
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    # id-token lets cosign get an OIDC token for keyless signing.
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: check prerelease
         id: prerelease
@@ -25,8 +31,43 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # GitHub's own source archives are generated on request and ship no
+      # checksum, so the release carries its own archive, built from the
+      # tagged commit, next to a sha256 manifest. The archive can be rebuilt
+      # from the tag; its bytes may differ across git versions, which is why
+      # the checksums are signed rather than recomputed by users.
+      - name: build source archive
+        id: archive
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          dir="$RUNNER_TEMP/release"
+          mkdir -p "$dir"
+          git archive --format=tar.gz --prefix="ferriskey-$TAG/" -o "$dir/ferriskey-$TAG-src.tar.gz" HEAD
+          (cd "$dir" && sha256sum ./*.tar.gz > "ferriskey-$TAG-checksums.txt")
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "checksums=ferriskey-$TAG-checksums.txt" >> "$GITHUB_OUTPUT"
+
+      - name: install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Keyless: the signature is bound to this workflow's OIDC identity and
+      # recorded in the Sigstore transparency log. To verify a download:
+      #   cosign verify-blob ferriskey-<tag>-checksums.txt \
+      #     --bundle ferriskey-<tag>-checksums.txt.sigstore.json \
+      #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      #     --certificate-identity-regexp '^https://github.com/ferriskey/ferriskey/\.github/workflows/release\.yaml@'
+      #   sha256sum --check ferriskey-<tag>-checksums.txt
+      - name: sign checksums
+        working-directory: ${{ steps.archive.outputs.dir }}
+        env:
+          CHECKSUMS: ${{ steps.archive.outputs.checksums }}
+        run: cosign sign-blob --yes --bundle "$CHECKSUMS.sigstore.json" "$CHECKSUMS"
+
       - name: release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           generate_release_notes: true
           prerelease: ${{ steps.prerelease.outputs.prerelease }}
+          files: ${{ steps.archive.outputs.dir }}/*
+          fail_on_unmatched_files: true

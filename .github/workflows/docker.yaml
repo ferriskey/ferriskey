@@ -40,11 +40,13 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
     runs-on: ${{ matrix.runner.name }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         runner:
@@ -58,14 +60,16 @@ jobs:
           - webapp
     steps:
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: set up builx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # Restore only: saving is reserved to main, see the last step.
       - name: restore layer cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/.buildx-cache
           key: buildx-${{ runner.arch }}-${{ matrix.target }}-${{ github.sha }}
@@ -74,20 +78,20 @@ jobs:
 
       - name: get image metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
 
       - name: log-in to ghcr
         if: inputs.push || startsWith(github.ref, 'refs/tags/v') || github.ref_name == github.event.repository.default_branch
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: build
         with:
           context: .
@@ -97,6 +101,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
           cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+          # Both attestations ride along in the per-platform image index that
+          # the manifest step merges, so the published image carries them.
+          provenance: mode=max
+          sbom: true
           outputs: type=image,push-by-digest=true,name-canonical=true,push=${{ inputs.push || startsWith(github.ref, 'refs/tags/v') || github.ref_name == github.event.repository.default_branch }}
 
       - name: prepare digest
@@ -109,7 +117,7 @@ jobs:
 
       - name: upload digest
         if: inputs.push || startsWith(github.ref, 'refs/tags/v') || github.ref_name == github.event.repository.default_branch
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: digests-${{ runner.arch }}-${{ matrix.target }}
           path: ${{ runner.temp }}/digests/*
@@ -127,7 +135,7 @@ jobs:
       # repo quota, so pull requests reuse main's layers without writing.
       - name: save layer cache
         if: github.ref_name == github.event.repository.default_branch
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/.buildx-cache
           key: buildx-${{ runner.arch }}-${{ matrix.target }}-${{ github.sha }}
@@ -137,6 +145,11 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
+    # id-token lets cosign get an OIDC token for keyless signing.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     strategy:
       matrix:
         target:
@@ -145,17 +158,17 @@ jobs:
           - webapp
     steps:
       - name: set up builx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: download digests
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: ${{ runner.temp }}/digests
           pattern: digests-*-${{ matrix.target }}
           merge-multiple: true
 
       - name: log-in to ghcr
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -163,7 +176,7 @@ jobs:
 
       - name: get image metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
           tags: |
@@ -174,7 +187,27 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
       - name: push manifest
         working-directory: ${{ runner.temp }}/digests
         run: |
+          # shellcheck disable=SC2046 # the tag flags and digest list are meant to split
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf 'ghcr.io/ferriskey/ferriskey-${{ matrix.target }}@sha256:%s ' *)
+
+      # Signing the index digest covers every tag pushed above. The digest is
+      # read back through the sha- tag, the only one no other run can move
+      # between the push and this step. Keyless: the
+      # signature is bound to this workflow's OIDC identity and recorded in
+      # the Sigstore transparency log. To verify:
+      #   cosign verify ghcr.io/ferriskey/ferriskey-api:<tag> \
+      #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      #     --certificate-identity-regexp '^https://github.com/ferriskey/ferriskey/\.github/workflows/docker\.yaml@'
+      - name: sign manifest
+        env:
+          IMAGE: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
+        run: |
+          ref="$(jq -er '.tags | map(select(test(":sha-[0-9a-f]+$"))) | first' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+          digest="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest)"
+          cosign sign --yes "$IMAGE@$digest"
