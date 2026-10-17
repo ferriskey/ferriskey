@@ -1917,6 +1917,7 @@ dependencies = [
  "ferriskey-api-account",
  "ferriskey-api-aegis",
  "ferriskey-api-authentication",
+ "ferriskey-api-authz",
  "ferriskey-api-broker",
  "ferriskey-api-client",
  "ferriskey-api-compass",
@@ -2038,6 +2039,21 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "uuid",
+ "validator",
+]
+
+[[package]]
+name = "ferriskey-api-authz"
+version = "0.9.0"
+dependencies = [
+ "axum",
+ "ferriskey-api-core",
+ "ferriskey-authz",
+ "ferriskey-core",
+ "ferriskey-domain",
+ "serde",
+ "serde_json",
+ "utoipa",
  "validator",
 ]
 

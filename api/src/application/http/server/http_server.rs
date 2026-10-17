@@ -9,6 +9,7 @@ use ferriskey_api_abyss::routes::abyss_routes;
 use ferriskey_api_account::router::account_routes;
 use ferriskey_api_aegis::router::aegis_routes;
 use ferriskey_api_authentication::router::authentication_routes;
+use ferriskey_api_authz::router::authz_routes;
 use ferriskey_api_broker::router::broker_routes;
 use ferriskey_api_client::router::{client_registration_routes, client_routes};
 use ferriskey_api_compass::router::compass_routes;
@@ -143,6 +144,8 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
     let root_path = state.args.server.root_path.clone();
     let api_docs_url = format!("{}/api-docs/openapi.json", root_path);
 
+    let authz_enabled = state.args.authz_enabled;
+
     let router = axum::Router::new()
         .merge(Scalar::with_url(
             format!("{}/scalar", root_path),
@@ -176,6 +179,11 @@ pub fn router(state: AppState) -> Result<Router, anyhow::Error> {
         .merge(saml_routes(state.clone(), &root_path))
         .merge(organization_routes(state.clone()))
         .merge(health_routes(&root_path))
+        .merge(if authz_enabled {
+            authz_routes(state.clone())
+        } else {
+            axum::Router::new()
+        })
         .route(
             &format!("{}/metrics", root_path),
             get(|| async move { metric_handle.render() }),
