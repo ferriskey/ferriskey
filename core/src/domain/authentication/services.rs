@@ -551,17 +551,6 @@ where
         CoreError::SessionCreateError
     })?;
 
-    if let Err(e) = sessions
-        .delete_expired_for_user(user_id, realm_id.into(), Utc::now())
-        .await
-    {
-        warn!(
-            user_id = %user_id,
-            error = ?e,
-            "Failed to purge expired sessions before opening a new one"
-        );
-    }
-
     let mut session =
         UserSession::new(user_id, realm_id.into(), None, None, session_duration, None);
 
@@ -3067,10 +3056,12 @@ where
             return Err(error);
         }
 
-        let _ = self
-            .user_repository
-            .reset_failed_login_attempts(user.id)
-            .await;
+        if user.needs_lockout_reset() {
+            let _ = self
+                .user_repository
+                .reset_failed_login_attempts(user.id)
+                .await;
+        }
 
         let realm_settings = params.realm.settings().ok_or(CoreError::InvalidRealm)?;
         let (final_scope, client_scopes) = self
@@ -3855,7 +3846,7 @@ where
         let login = self.verify_login(scope, client, username, password).await?;
         let user_id = login.context.user.id;
 
-        if !login.otp_challenge_follows() {
+        if !login.otp_challenge_follows() && login.context.user.needs_lockout_reset() {
             let _ = self
                 .user_repository
                 .reset_failed_login_attempts(user_id)
@@ -7143,9 +7134,6 @@ mod bound_session_tests {
         let mut sessions = sessions_holding(session);
         sessions.expect_reauthenticate().never();
         sessions
-            .expect_delete_expired_for_user()
-            .returning(|_, _, _| Box::pin(async { Ok(0) }));
-        sessions
             .expect_create()
             .times(1)
             .returning(|_| Box::pin(async { Ok(()) }));
@@ -7180,9 +7168,6 @@ mod bound_session_tests {
             .times(1)
             .returning(|_| Box::pin(async { Err(SessionError::NotFound) }));
         sessions
-            .expect_delete_expired_for_user()
-            .returning(|_, _, _| Box::pin(async { Ok(0) }));
-        sessions
             .expect_create()
             .times(1)
             .returning(|_| Box::pin(async { Ok(()) }));
@@ -7207,9 +7192,6 @@ mod bound_session_tests {
         let realm_id = Uuid::new_v4();
 
         let mut sessions = MockUserSessionRepository::new();
-        sessions
-            .expect_delete_expired_for_user()
-            .returning(|_, _, _| Box::pin(async { Ok(0) }));
         sessions
             .expect_create()
             .times(1)
