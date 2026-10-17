@@ -204,6 +204,10 @@ impl Client {
         self.secret.as_ref().map(|secret| secret.expose().as_str())
     }
 
+    pub fn consent_is_required(&self) -> bool {
+        self.consent_required || self.registration_source != ClientRegistrationSource::Admin
+    }
+
     pub fn new(config: ClientConfig) -> Self {
         let (now, timestamp) = generate_timestamp();
         Self {
@@ -397,5 +401,18 @@ mod tests {
             serde_json::to_string(&ClientRegistrationSource::MetadataDocument).ok(),
             Some("\"metadata_document\"".to_string())
         );
+    }
+
+    #[test]
+    fn consent_is_required_when_the_flag_is_set_or_the_client_registered_itself() {
+        let mut client = client_speaking(AuthProtocol::OpenIdConnect);
+        assert!(!client.consent_is_required());
+
+        client.consent_required = true;
+        assert!(client.consent_is_required());
+
+        client.consent_required = false;
+        client.registration_source = ClientRegistrationSource::Dynamic;
+        assert!(client.consent_is_required());
     }
 }

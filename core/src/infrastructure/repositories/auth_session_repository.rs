@@ -169,13 +169,14 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(session.map(Unscoped::new))
     }
 
-    async fn update_code_and_user_id(
+    async fn complete_login(
         &self,
         session_code: Uuid,
         code: String,
         user_id: Uuid,
-    ) -> Result<AuthSession, AuthenticationError> {
-        let session = crate::entity::auth_sessions::Entity::update_many()
+        user_session_id: Uuid,
+    ) -> Result<(), AuthenticationError> {
+        let result = crate::entity::auth_sessions::Entity::update_many()
             .col_expr(
                 crate::entity::auth_sessions::Column::Code,
                 Expr::value(code),
@@ -188,19 +189,23 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
                 crate::entity::auth_sessions::Column::UserId,
                 Expr::value(user_id),
             )
+            .col_expr(
+                crate::entity::auth_sessions::Column::UserSessionId,
+                Expr::value(user_session_id),
+            )
             .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
-            .exec_with_returning(&self.db)
+            .exec(&self.db)
             .await
             .map_err(|e| {
-                error!("Error updating session: {:?}", e);
+                error!("Error completing the login on the auth session: {:?}", e);
                 AuthenticationError::Invalid
-            })?
-            .into_iter()
-            .next()
-            .ok_or(AuthenticationError::NotFound)?
-            .try_into()?;
+            })?;
 
-        Ok(session)
+        if result.rows_affected == 0 {
+            return Err(AuthenticationError::NotFound);
+        }
+
+        Ok(())
     }
 
     async fn save_webauthn_challenge(
@@ -756,14 +761,9 @@ mod tests {
         assert_eq!(after_second.code, Some("code-round-2".into()));
     }
 
-    /// `update_code_and_user_id` must also reset `authenticated` to `false`.
-    ///
-    /// This path is taken when Ferriskey simultaneously stamps a fresh code and
-    /// binds a user to the session (e.g. direct-grant flows).  The same RFC 6749
-    /// §4.1.2 invariant applies: the code has not been exchanged yet.
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
-    async fn update_code_and_user_id_resets_authenticated_to_false() {
+    async fn complete_login_stamps_the_code_the_user_and_the_session_in_one_update() {
         let (repo, realm_id, client_id) = setup().await;
 
         let session = make_session(realm_id, client_id, true);
@@ -778,17 +778,48 @@ mod tests {
             ))
             .await
             .expect("insert the user the code is issued to");
-        let updated = repo
-            .update_code_and_user_id(created.id, "fresh-code-with-user".into(), user_id)
+        let user_session_id = Uuid::new_v4();
+        repo.db
+            .execute_unprepared(&format!(
+                "INSERT INTO user_sessions (id, user_id, realm_id, created_at, expires_at, persistent, authenticated_at) \
+                 VALUES ('{user_session_id}', '{user_id}', '{realm_id}', NOW(), NOW() + INTERVAL '1 hour', FALSE, NOW())"
+            ))
             .await
-            .expect("update_code_and_user_id");
+            .expect("insert the SSO session the login opened");
+
+        repo.complete_login(created.id, "fresh-code".into(), user_id, user_session_id)
+            .await
+            .expect("complete_login");
+
+        let updated = repo
+            .get_by_session_code(created.id)
+            .await
+            .expect("read the session back")
+            .across_realms();
+        assert!(!updated.authenticated);
+        assert_eq!(updated.code, Some("fresh-code".into()));
+        assert_eq!(updated.user_id, Some(user_id));
+        assert_eq!(updated.user_session_id, Some(user_session_id));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn complete_login_fails_when_the_auth_session_is_gone() {
+        let (repo, _realm_id, _client_id) = setup().await;
+
+        let result = repo
+            .complete_login(
+                Uuid::new_v4(),
+                "code".into(),
+                Uuid::new_v4(),
+                Uuid::new_v4(),
+            )
+            .await;
 
         assert!(
-            !updated.authenticated,
-            "update_code_and_user_id must reset authenticated to false (RFC 6749 §4.1.2)"
+            matches!(result, Err(AuthenticationError::NotFound)),
+            "completing an unknown auth session must fail, got {result:?}"
         );
-        assert_eq!(updated.code, Some("fresh-code-with-user".into()));
-        assert_eq!(updated.user_id, Some(user_id));
     }
 
     /// Binding an auth session that no longer exists must not report success,

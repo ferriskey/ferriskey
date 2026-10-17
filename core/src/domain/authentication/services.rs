@@ -1,12 +1,11 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::Arc;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ferriskey_security::crypto::password_check::{
-    rehash_password_if_needed, verify_password_credential, verify_password_hash,
-};
+use ferriskey_security::crypto::password_check::verify_password_credential;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
@@ -30,13 +29,15 @@ use ferriskey_organization::{
     OrganizationMemberRepository, OrganizationRepository,
 };
 
+use crate::domain::abyss::federation::entities::FederationMapping;
 use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
+use crate::domain::authentication::login_context::{LoginContext, VerifiedLogin};
 use crate::domain::authentication::mapper_engine::{ContextGroup, ContextOrganization};
 use crate::domain::authentication::scope::resolve_requested_scope;
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
 };
-use crate::domain::trident::mfa_policy;
+use crate::domain::trident::mfa_policy::{self, PendingAuthStep};
 use crate::domain::{
     abyss::federation::ports::FederationRepository,
     authentication::{
@@ -67,10 +68,7 @@ use crate::domain::{
     },
     client_metadata::{ports::ClientMetadataResolver, validation::client_uri_host},
     common::{entities::app_errors::CoreError, generate_random_string, generate_random_token},
-    credential::{
-        entities::{CredentialData, CredentialError, CredentialType},
-        ports::CredentialRepository,
-    },
+    credential::{entities::CredentialType, ports::CredentialRepository},
     crypto::HasherRepository,
     email_verification::ports::EmailVerificationService,
     jwt::{
@@ -1284,15 +1282,6 @@ where
         Ok(TokenLifetimes::resolve(&realm_settings, &client))
     }
 
-    /// Whether the realm lets a login ask to be remembered past the browser.
-    async fn remember_me_allowed(&self, scope: &RealmScope) -> Result<bool, CoreError> {
-        Ok(self
-            .realm_repository
-            .get_realm_settings(scope.id())
-            .await?
-            .is_some_and(|settings| settings.remember_me_enabled))
-    }
-
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
         let jwt_key_pair = self
             .keystore_repository
@@ -2317,43 +2306,31 @@ where
 
     async fn resolve_pending_auth_step(
         &self,
-        user_id: Uuid,
-        realm_id: RealmId,
-    ) -> Result<(Option<mfa_policy::PendingAuthStep>, Vec<Role>), CoreError> {
-        let persisted_actions = self
-            .user_required_action_repository
-            .get_required_actions(user_id)
-            .await
-            .map_err(|e| {
-                warn!(user_id = %user_id, error = ?e, "Failed to load required actions");
-                CoreError::InternalServerError
-            })?;
-
+        user: &User,
+        scope: &RealmScope,
+    ) -> Result<(Option<PendingAuthStep>, Vec<Role>), CoreError> {
         let credentials = self
             .credential_repository
-            .get_credentials_by_user_id(user_id)
+            .get_credentials_by_user_id(user.id)
             .await
             .map_err(|_| CoreError::GetUserCredentialsError)?;
 
-        let has_otp_credential = credentials
-            .iter()
-            .any(|credential| matches!(credential.credential_type, CredentialType::Otp));
-        let has_temporary_password = credentials.iter().any(|credential| credential.temporary);
-
         let user_roles = self
             .user_role_repository
-            .get_user_roles(user_id)
+            .get_user_roles(user.id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
+        let realm_settings = self.realm_settings_of(scope).await.ok();
 
         let pending_step = mfa_policy::pending_auth_step(
-            &persisted_actions,
-            realm_settings.as_ref(),
+            &user.required_actions,
+            realm_settings.as_deref(),
             &user_roles,
-            has_otp_credential,
-            has_temporary_password,
+            credentials
+                .iter()
+                .any(|credential| matches!(credential.credential_type, CredentialType::Otp)),
+            credentials.iter().any(|credential| credential.temporary),
         );
 
         Ok((pending_step, user_roles))
@@ -2422,18 +2399,14 @@ where
         &self,
         realm_id: RealmId,
         user_id: Uuid,
-        client_id: Uuid,
+        client: &Client,
         scope: String,
     ) -> Result<String, CoreError> {
-        let consent_required = self
-            .consent_service
-            .decision_repository
-            .get_client_consent_required(client_id)
-            .await?;
-
-        if !consent_required {
+        if !client.consent_is_required() {
             return Ok(scope);
         }
+
+        let client_id = client.id;
 
         let optional_scopes = self
             .scope_mapping_repository
@@ -2520,16 +2493,11 @@ where
             Utc::now(),
         )?;
 
-        let allowed_resources = self
-            .realm_repository
-            .get_realm_settings(params.realm.id())
-            .await?
-            .map(|settings| settings.allowed_resources)
-            .unwrap_or_default();
+        let realm_settings = self.realm_settings_of(&params.realm).await?;
         let resource = effective_code_resource(
             auth_session.resource.as_deref(),
             params.resource.as_deref(),
-            &allowed_resources,
+            &realm_settings.allowed_resources,
         )?;
 
         // PKCE verification (RFC 7636 §4.6).
@@ -2592,9 +2560,8 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let (pending_step, user_roles) = self
-            .resolve_pending_auth_step(user_id, params.realm.id())
-            .await?;
+        let (pending_step, user_roles) =
+            self.resolve_pending_auth_step(&user, &params.realm).await?;
 
         if let Err(error) = refuse_token_issuance_when_actions_pending(pending_step.as_ref()) {
             warn!(
@@ -2611,19 +2578,12 @@ where
             .await?;
 
         let final_scope = self
-            .narrow_scope_by_consent_decision(
-                params.realm.id(),
-                user_id,
-                auth_session.client_id,
-                final_scope,
-            )
+            .narrow_scope_by_consent_decision(params.realm.id(), user_id, &client, final_scope)
             .await?;
 
         info!("Final scope for authorization code grant: {}", final_scope);
 
-        let lifetimes = self
-            .resolve_token_lifetimes(&params.realm, auth_session.client_id)
-            .await?;
+        let lifetimes = TokenLifetimes::resolve(&realm_settings, &client);
 
         // The SSO session backing this login. Every token minted below carries its
         // id as `sid`, which is what lets revocation take effect on introspection
@@ -2838,6 +2798,244 @@ where
         .without_refresh_token())
     }
 
+    async fn client_of_session(
+        &self,
+        scope: &RealmScope,
+        auth_session: &AuthSession,
+    ) -> Result<Client, CoreError> {
+        self.client_repository
+            .get_by_id(scope.id(), auth_session.client_id)
+            .await
+            .map_err(|e| {
+                warn!(client_id = %auth_session.client_id, error = ?e, "Client of the auth session not found");
+                CoreError::InvalidClient
+            })?
+            .in_realm(scope)
+            .map_err(|_| CoreError::InvalidClient)
+            .map(|client| client.into_inner())
+    }
+
+    async fn realm_settings_of<'s>(
+        &self,
+        scope: &'s RealmScope,
+    ) -> Result<Cow<'s, RealmSetting>, CoreError> {
+        if let Some(settings) = scope.settings() {
+            return Ok(Cow::Borrowed(settings));
+        }
+
+        self.realm_repository
+            .get_realm_settings(scope.id())
+            .await?
+            .map(Cow::Owned)
+            .ok_or(CoreError::InvalidRealm)
+    }
+
+    async fn verify_login<'c>(
+        &self,
+        scope: &RealmScope,
+        client: &'c Client,
+        username: &str,
+        password: &str,
+    ) -> Result<VerifiedLogin<'c>, CoreError> {
+        let realm_id = scope.id();
+        let settings = self.realm_settings_of(scope).await.ok();
+        let settings = settings.as_deref();
+        let login_aliases = settings
+            .map(|settings| settings.login_aliases.clone())
+            .unwrap_or_default();
+
+        let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
+            self.user_repository.as_ref(),
+            username,
+            realm_id,
+            &login_aliases,
+        )
+        .await?;
+
+        let Some(user) = user else {
+            self.record_login_failure(realm_id, None, "user_not_found")
+                .await;
+            let _ = self.hasher_repository.hash_password(password).await;
+            return Err(CoreError::InvalidPassword);
+        };
+
+        if !user.enabled {
+            self.record_login_failure(realm_id, Some(user.id), "user_disabled")
+                .await;
+            return Err(CoreError::UserDisabled);
+        }
+
+        let now = Utc::now();
+        if user.is_locked(now) {
+            self.record_login_failure(realm_id, Some(user.id), "account_locked")
+                .await;
+            return Err(CoreError::AccountLocked);
+        }
+
+        let federation = self
+            .federation_repository
+            .get_mapping_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+        let credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+        let context = LoginContext {
+            client,
+            user,
+            federation,
+            credentials,
+        };
+
+        let (is_valid, failure) = match &context.federation {
+            Some(mapping) => (
+                self.verify_federated_password(scope, &context, mapping, password)
+                    .await?,
+                "ldap_authentication_failed",
+            ),
+            None => (
+                self.verify_local_password(&context, password).await,
+                "invalid_credentials",
+            ),
+        };
+
+        if !is_valid {
+            let lockout_threshold = settings
+                .map(|settings| settings.lockout_threshold)
+                .unwrap_or(10);
+            let lockout_duration_seconds = settings
+                .map(|settings| settings.lockout_duration_seconds)
+                .unwrap_or(900);
+            let _ = self
+                .user_repository
+                .increment_failed_login_attempts(
+                    context.user.id,
+                    lockout_threshold,
+                    now + Duration::seconds(lockout_duration_seconds as i64),
+                )
+                .await;
+            self.record_login_failure(realm_id, Some(context.user.id), failure)
+                .await;
+            return Err(CoreError::InvalidPassword);
+        }
+
+        self.enforce_maintenance_mode(realm_id, client, context.user.id, &context.user.username)
+            .await?;
+
+        let roles = self
+            .user_role_repository
+            .get_user_roles(context.user.id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+        let pending_step = context.pending_step(settings, &roles);
+
+        Ok(VerifiedLogin {
+            context,
+            roles,
+            pending_step,
+        })
+    }
+
+    async fn verify_local_password(&self, context: &LoginContext<'_>, password: &str) -> bool {
+        match context.password_credential() {
+            Some(credential) => {
+                verify_password_credential(
+                    self.hasher_repository.as_ref(),
+                    self.credential_repository.as_ref(),
+                    Some(credential),
+                    password,
+                )
+                .instrument(info_span!("auth.verify_login.password"))
+                .await
+            }
+            None => {
+                let _ = self.hasher_repository.hash_password(password).await;
+                false
+            }
+        }
+    }
+
+    async fn verify_federated_password(
+        &self,
+        scope: &RealmScope,
+        context: &LoginContext<'_>,
+        mapping: &FederationMapping,
+        password: &str,
+    ) -> Result<bool, CoreError> {
+        let provider = self
+            .federation_repository
+            .get_by_id(mapping.provider_id)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::InternalServerError)?
+            .in_realm(scope)?
+            .into_inner();
+
+        if !provider.enabled {
+            error!(provider = %provider.name, "Refused a login through a disabled federation provider");
+            self.record_login_failure(scope.id(), Some(context.user.id), "provider_disabled")
+                .await;
+            return Err(CoreError::InvalidPassword);
+        }
+
+        match self
+            .ldap_client
+            .authenticate_user(&provider, &context.user.username, password)
+            .await
+        {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                error!(user_id = %context.user.id, error = %e, "LDAP authentication failed");
+                Ok(false)
+            }
+        }
+    }
+
+    async fn issue_step_token(
+        &self,
+        scope: &RealmScope,
+        context: &LoginContext<'_>,
+        auth_session: &AuthSession,
+        base_url: &str,
+    ) -> Result<String, CoreError> {
+        let settings = self.realm_settings_of(scope).await.ok();
+        let temporary_lifetime = temporary_token_lifetime(settings.as_deref());
+        let user = &context.user;
+        let iss = format!("{}/realms/{}", base_url, scope.name());
+
+        let mut jwt_claim = JwtClaim::new(
+            user.id,
+            user.username.clone(),
+            iss,
+            vec![format!("{}-realm", scope.name()), "account".to_string()],
+            ClaimsTyp::Temporary,
+            context.client.client_id.clone(),
+            user.email.clone(),
+            auth_session.scope.clone(),
+            temporary_lifetime,
+        );
+        jwt_claim.additional_claims.insert(
+            LOGIN_ACTION_SESSION_CLAIM.to_string(),
+            serde_json::Value::String(auth_session.id.to_string()),
+        );
+
+        self.login_action_token_repository
+            .create(LoginActionToken {
+                jti: jwt_claim.jti,
+                user_id: user.id,
+                realm_id: scope.id().into(),
+                auth_session_id: auth_session.id,
+                expires_at: Utc::now() + Duration::seconds(temporary_lifetime),
+                consumed_at: None,
+            })
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(self.generate_token(jwt_claim, scope.id()).await?.token)
+    }
+
     async fn password(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
         let username = params.username.ok_or(CoreError::InternalServerError)?;
         let password = params.password.ok_or(CoreError::InternalServerError)?;
@@ -2849,101 +3047,21 @@ where
             ClientGrant::Password,
         )?;
 
-        let realm_settings = params.realm.settings();
-        let login_aliases = realm_settings
-            .map(|settings| settings.login_aliases.clone())
-            .unwrap_or_default();
-
-        let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
-            self.user_repository.as_ref(),
-            &username,
-            params.realm.id(),
-            &login_aliases,
-        )
-        .instrument(info_span!("auth.password.user_lookup"))
-        .await?;
-
-        let Some(user) = user else {
-            self.record_login_failure(params.realm.id(), None, "user_not_found")
-                .await;
-            return Err(CoreError::Invalid);
-        };
-
-        if !user.enabled {
-            self.record_login_failure(params.realm.id(), Some(user.id), "user_disabled")
-                .await;
-            return Err(CoreError::UserDisabled);
-        }
-
-        let lockout_threshold = realm_settings
-            .map(|settings| settings.lockout_threshold)
-            .unwrap_or(10);
-        let lockout_duration_seconds = realm_settings
-            .map(|settings| settings.lockout_duration_seconds)
-            .unwrap_or(900);
-
-        let now = Utc::now();
-        if user.is_locked(now) {
-            self.record_login_failure(params.realm.id(), Some(user.id), "account_locked")
-                .await;
-            return Err(CoreError::AccountLocked);
-        }
-
-        let credentials = self
-            .credential_repository
-            .get_credentials_by_user_id(user.id)
-            .instrument(info_span!("auth.password.credentials_lookup"))
+        let login = self
+            .verify_login(&params.realm, &client, &username, &password)
+            .instrument(info_span!("auth.password.verify_login"))
             .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?;
+            .map_err(|error| match error {
+                CoreError::InvalidPassword => CoreError::Invalid,
+                other => other,
+            })?;
+        let user = login.context.user;
 
-        let password_credential = credentials
-            .iter()
-            .find(|credential| credential.credential_type == CredentialType::Password);
-
-        let is_valid = verify_password_credential(
-            self.hasher_repository.as_ref(),
-            self.credential_repository.as_ref(),
-            password_credential,
-            &password,
-        )
-        .instrument(info_span!("auth.password.verify_password"))
-        .await;
-
-        if !is_valid {
-            let _ = self
-                .user_repository
-                .increment_failed_login_attempts(
-                    user.id,
-                    lockout_threshold,
-                    now + chrono::Duration::seconds(lockout_duration_seconds as i64),
-                )
-                .await;
-            self.record_login_failure(params.realm.id(), Some(user.id), "invalid_credentials")
-                .await;
-            return Err(CoreError::Invalid);
-        }
-
-        let user_roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let pending_step = mfa_policy::pending_auth_step(
-            &user.required_actions,
-            realm_settings,
-            &user_roles,
-            credentials
-                .iter()
-                .any(|credential| credential.credential_type == CredentialType::Otp),
-            credentials.iter().any(|credential| credential.temporary),
-        );
-
-        if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
+        if let Err(error) = refuse_token_issuance_when_step_pending(login.pending_step.as_ref()) {
             warn!(
                 user_id = %user.id,
                 client_id = %params.client_id,
-                step = ?pending_step,
+                step = ?login.pending_step,
                 "Refusing a direct grant: the account still owes an authentication step"
             );
             return Err(error);
@@ -2954,15 +3072,12 @@ where
             .reset_failed_login_attempts(user.id)
             .await;
 
-        self.enforce_maintenance_mode(params.realm.id(), &client, user.id, &user.username)
-            .await?;
-
+        let realm_settings = params.realm.settings().ok_or(CoreError::InvalidRealm)?;
         let (final_scope, client_scopes) = self
             .resolve_client_scopes(client.id, params.scope.as_deref())
             .await?;
 
-        let lifetimes =
-            TokenLifetimes::resolve(realm_settings.ok_or(CoreError::InvalidRealm)?, &client);
+        let lifetimes = TokenLifetimes::resolve(realm_settings, &client);
 
         let (user_session, _) = self
             .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
@@ -2971,7 +3086,7 @@ where
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
-                &user_roles,
+                &login.roles,
                 GenerateTokenInput {
                     base_url: params.base_url,
                     client_id: params.client_id,
@@ -3209,14 +3324,15 @@ where
         let flow_id = auth_session.compass_flow_id.map(FlowId);
         let step_start = Utc::now();
 
+        let client = self.client_of_session(&params.realm, &auth_session).await?;
         let auth_result = self
             .using_session_code(
                 &params.realm,
-                auth_session.client_id,
-                params.session_code,
-                params.username,
-                params.password,
-                params.base_url,
+                &client,
+                &auth_session,
+                &params.username,
+                &params.password,
+                &params.base_url,
             )
             .await
             .map_err(|e| {
@@ -3257,6 +3373,7 @@ where
             auth_session,
             &params.realm,
             &params.webapp_base_url,
+            &client,
         )
         .await
     }
@@ -3268,6 +3385,7 @@ where
         auth_session: AuthSession,
         scope: &RealmScope,
         webapp_base_url: &str,
+        client: &Client,
     ) -> Result<AuthenticateOutput, CoreError> {
         let flow_id = auth_session.compass_flow_id.map(FlowId);
 
@@ -3315,6 +3433,7 @@ where
                 &auth_session,
                 scope,
                 webapp_base_url,
+                client,
             )
             .await?
         {
@@ -3327,6 +3446,7 @@ where
             auth_session,
             SsoSessionBinding::Open,
             scope,
+            client,
         )
         .await
     }
@@ -3417,26 +3537,13 @@ where
         auth_session: &AuthSession,
         scope: &RealmScope,
         webapp_base_url: &str,
+        client: &Client,
     ) -> Result<Option<AuthenticateOutput>, CoreError> {
-        let always_consents = self
-            .client_repository
-            .get_by_id(scope.id(), auth_session.client_id)
-            .await?
-            .in_realm(scope)?
-            .into_inner()
-            .registration_source
-            != ClientRegistrationSource::Admin;
-
-        let consent_required = always_consents
-            || self
-                .consent_service
-                .decision_repository
-                .get_client_consent_required(auth_session.client_id)
-                .await?;
-
-        if !consent_required {
+        if !client.consent_is_required() {
             return Ok(None);
         }
+
+        let always_consents = client.registration_source != ClientRegistrationSource::Admin;
 
         let (default_scope_descriptors, requested_optional_scopes) = self
             .consent_scope_view(auth_session.client_id, auth_session.scope.as_deref())
@@ -3634,6 +3741,8 @@ where
             .map_err(|_| CoreError::SessionNotFound)?
             .into_inner();
 
+        let client = self.client_of_session(scope, &auth_session).await?;
+
         let binding = match auth_session.user_session_id {
             Some(resumed) => {
                 let session =
@@ -3654,7 +3763,7 @@ where
             None => SsoSessionBinding::Open,
         };
 
-        self.finalize_authentication(user_id, session_code, auth_session, binding, scope)
+        self.finalize_authentication(user_id, session_code, auth_session, binding, scope, &client)
             .await
     }
 
@@ -3665,6 +3774,7 @@ where
         auth_session: AuthSession,
         sso_session: SsoSessionBinding,
         scope: &RealmScope,
+        client: &Client,
     ) -> Result<AuthenticateOutput, CoreError> {
         let authorization_code = generate_random_string();
 
@@ -3674,11 +3784,9 @@ where
             }
             SsoSessionBinding::Keep { session } => (*session, None),
             SsoSessionBinding::Open => {
-                let lifetimes = self
-                    .resolve_token_lifetimes(scope, auth_session.client_id)
-                    .await?;
-                let persistent =
-                    auth_session.remember_me && self.remember_me_allowed(scope).await?;
+                let settings = self.realm_settings_of(scope).await?;
+                let lifetimes = TokenLifetimes::resolve(&settings, client);
+                let persistent = auth_session.remember_me && settings.remember_me_enabled;
 
                 let (session, cookie) = open_or_reauthenticate_session(
                     self.user_session_repository.as_ref(),
@@ -3698,25 +3806,19 @@ where
         let sso_session_max_age_secs = sso_session.cookie_max_age();
 
         self.auth_session_repository
-            .update_code_and_user_id(session_code, authorization_code.clone(), user_id)
-            .await
-            .map_err(|e| {
-                warn!(
-                    "failed to update auth session with code and user id: {:?}",
-                    e
-                );
-                CoreError::SessionNotFound
-            })?;
-
-        self.auth_session_repository
-            .bind_user_session(session_code, sso_session_id)
+            .complete_login(
+                session_code,
+                authorization_code.clone(),
+                user_id,
+                sso_session_id,
+            )
             .await
             .map_err(|e| {
                 warn!(
                     session_code = %session_code,
                     sso_session_id = %sso_session_id,
                     error = ?e,
-                    "failed to bind the auth session to its SSO session"
+                    "failed to complete the login on the auth session"
                 );
                 CoreError::SessionNotFound
             })?;
@@ -3744,346 +3846,59 @@ where
     async fn using_session_code(
         &self,
         scope: &RealmScope,
-        client_uuid: Uuid,
-        session_code: Uuid,
-        username: String,
-        password: String,
-        base_url: String,
+        client: &Client,
+        auth_session: &AuthSession,
+        username: &str,
+        password: &str,
+        base_url: &str,
     ) -> Result<AuthenticationResult, CoreError> {
-        let client = self
-            .client_repository
-            .get_by_id(scope.id(), client_uuid)
-            .await
-            .map_err(|e| {
-                warn!(client_id = %client_uuid, error = ?e, "Client of the auth session not found");
-                CoreError::InvalidClient
-            })?
-            .in_realm(scope)?
-            .into_inner();
+        let login = self.verify_login(scope, client, username, password).await?;
+        let user_id = login.context.user.id;
 
-        let realm_settings = self.realm_repository.get_realm_settings(scope.id()).await?;
-        let login_aliases = realm_settings
-            .as_ref()
-            .map(|s| s.login_aliases.clone())
-            .unwrap_or_default();
-
-        let user = crate::domain::authentication::login_resolver::resolve_user_by_identifier(
-            self.user_repository.as_ref(),
-            &username,
-            scope.id(),
-            &login_aliases,
-        )
-        .await?;
-
-        let Some(user) = user else {
-            self.record_login_failure(scope.id(), None, "user_not_found")
+        if !login.otp_challenge_follows() {
+            let _ = self
+                .user_repository
+                .reset_failed_login_attempts(user_id)
                 .await;
-
-            // To prevent timing attacks for user enumeration, compute a dummy hash
-            // taking approximately the same time as a normal password verification.
-            let _ = self.hasher_repository.hash_password(&password).await;
-
-            return Err(CoreError::InvalidPassword);
-        };
-
-        if !user.enabled {
-            self.record_login_failure(scope.id(), Some(user.id), "user_disabled")
-                .await;
-            return Err(CoreError::UserDisabled);
         }
 
-        self.enforce_maintenance_mode(scope.id(), &client, user.id, &user.username)
-            .await?;
+        let credentials = login.context.credential_names();
 
-        let realm_settings = self.realm_repository.get_realm_settings(scope.id()).await?;
-        let lockout_threshold = realm_settings
-            .as_ref()
-            .map(|s| s.lockout_threshold)
-            .unwrap_or(10);
-        let lockout_duration_seconds = realm_settings
-            .as_ref()
-            .map(|s| s.lockout_duration_seconds)
-            .unwrap_or(900);
+        match login.pending_step {
+            Some(PendingAuthStep::RequiredActions(required_actions)) => {
+                let token = self
+                    .issue_step_token(scope, &login.context, auth_session, base_url)
+                    .await?;
 
-        let now = Utc::now();
-        if user.is_locked(now) {
-            self.record_login_failure(scope.id(), Some(user.id), "account_locked")
-                .await;
-            return Err(CoreError::AccountLocked);
-        }
-
-        // Check if user has federation mapping (LDAP authentication) FIRST
-        let federation_mapping = self
-            .federation_repository
-            .get_mapping_by_user_id(user.id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let is_federated = federation_mapping.is_some();
-
-        info!(
-            "User {} (ID: {}): federation_mapping = {}",
-            user.username,
-            user.id,
-            if federation_mapping.is_some() {
-                "YES (LDAP user)"
-            } else {
-                "NO (local user)"
+                Ok(AuthenticationResult {
+                    code: None,
+                    required_actions,
+                    user_id,
+                    token: Some(token),
+                    credentials,
+                })
             }
-        );
+            Some(PendingAuthStep::OtpChallenge) => {
+                let token = self
+                    .issue_step_token(scope, &login.context, auth_session, base_url)
+                    .await?;
 
-        let (has_valid_password, credentials, has_temporary_password) =
-            if let Some(mapping) = federation_mapping {
-                // User is federated - authenticate via LDAP
-                info!(
-                    "User {} is federated (provider_id: {}), authenticating via LDAP",
-                    user.username, mapping.provider_id
-                );
-
-                let provider = self
-                    .federation_repository
-                    .get_by_id(mapping.provider_id)
-                    .await
-                    .map_err(|_| CoreError::InternalServerError)?
-                    .ok_or(CoreError::InternalServerError)?
-                    .in_realm(scope)?
-                    .into_inner();
-
-                if !provider.enabled {
-                    error!("Federation provider {} is disabled", provider.name);
-                    self.record_login_failure(scope.id(), Some(user.id), "provider_disabled")
-                        .await;
-                    return Err(CoreError::InvalidPassword);
-                }
-
-                // Authenticate via LDAP
-                let ldap_auth_result = match self
-                    .ldap_client
-                    .authenticate_user(&provider, &user.username, &password)
-                    .await
-                {
-                    Ok(_) => {
-                        info!("LDAP authentication successful for user {}", user.username);
-                        true
-                    }
-                    Err(e) => {
-                        error!(
-                            "LDAP authentication failed for user {}: {}",
-                            user.username, e
-                        );
-                        false
-                    }
-                };
-
-                // Federated users don't have local credentials
-                (ldap_auth_result, vec!["federated".to_string()], false)
-            } else {
-                // User is not federated - use local password hash
-                info!(
-                    "User {} is not federated, using local password hash",
-                    user.username
-                );
-
-                let user_credentials = self
-                    .credential_repository
-                    .get_credentials_by_user_id(user.id)
-                    .await
-                    .map_err(|_| CoreError::GetUserCredentialsError)?;
-
-                let has_temp_password = user_credentials.iter().any(|cred| cred.temporary);
-
-                let creds: Vec<String> = user_credentials
-                    .iter()
-                    .map(|cred| cred.credential_type.clone().to_string())
-                    .collect();
-
-                let credential_result = self
-                    .credential_repository
-                    .get_password_credential(user.id)
-                    .await;
-
-                let is_valid = match credential_result {
-                    Ok(credential) => {
-                        let CredentialData::Hash {
-                            hash_iterations,
-                            algorithm,
-                        } = &credential.credential_data
-                        else {
-                            tracing::error!(
-                                "A password credential doesn't have Hash credential data.
-This is a server error that should be investigated. Do not forward back this message to the client"
-                            );
-                            return Err(CoreError::InternalServerError);
-                        };
-
-                        let valid = verify_password_hash(
-                            self.hasher_repository.as_ref(),
-                            &credential.secret_data,
-                            credential.salt.as_deref(),
-                            *hash_iterations,
-                            algorithm,
-                            &password,
-                        )
-                        .await
-                        .map_err(|_| CoreError::InvalidPassword)?;
-
-                        if valid {
-                            rehash_password_if_needed(
-                                self.hasher_repository.as_ref(),
-                                self.credential_repository.as_ref(),
-                                user.id,
-                                &credential.secret_data,
-                                &password,
-                                algorithm,
-                                credential.temporary,
-                            )
-                            .await;
-                        }
-
-                        valid
-                    }
-                    Err(CredentialError::CredentialNotFound) => {
-                        // User has no password credential. They cannot log in with a password.
-                        false
-                    }
-                    Err(_) => return Err(CoreError::InternalServerError),
-                };
-
-                (is_valid, creds, has_temp_password)
-            };
-
-        if !has_valid_password {
-            let _ = self
-                .user_repository
-                .increment_failed_login_attempts(
-                    user.id,
-                    lockout_threshold,
-                    now + chrono::Duration::seconds(lockout_duration_seconds as i64),
-                )
-                .await;
-            let reason = if is_federated {
-                "ldap_authentication_failed"
-            } else {
-                "invalid_credentials"
-            };
-            self.record_login_failure(scope.id(), Some(user.id), reason)
-                .await;
-            return Err(CoreError::InvalidPassword);
-        }
-
-        let auth_session = self
-            .auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .map_err(|_| CoreError::SessionNotFound)?
-            .in_realm(scope)
-            .map_err(|_| CoreError::SessionNotFound)?
-            .into_inner();
-
-        let iss = format!("{}/realms/{}", base_url, scope.name());
-
-        // A step token must not borrow the (possibly hours-long) access-token
-        // lifetime — it only has to survive the next hop of the login flow.
-        let temporary_lifetime = temporary_token_lifetime(realm_settings.as_ref());
-
-        let auth_session_id = auth_session.id;
-        let mut jwt_claim = JwtClaim::new(
-            user.id,
-            user.username.clone(),
-            iss,
-            vec![format!("{}-realm", scope.name()), "account".to_string()],
-            ClaimsTyp::Temporary,
-            client.client_id.clone(),
-            user.email.clone(),
-            auth_session.scope,
-            temporary_lifetime,
-        );
-        jwt_claim.additional_claims.insert(
-            LOGIN_ACTION_SESSION_CLAIM.to_string(),
-            serde_json::Value::String(auth_session_id.to_string()),
-        );
-
-        self.login_action_token_repository
-            .create(LoginActionToken {
-                jti: jwt_claim.jti,
-                user_id: user.id,
-                realm_id: scope.id().into(),
-                auth_session_id,
-                expires_at: Utc::now() + Duration::seconds(temporary_lifetime),
-                consumed_at: None,
-            })
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        // Resolve MFA enforcement: realm-level or role-level require_mfa.
-        let has_otp_credentials = credentials.iter().any(|cred| cred == "otp");
-        let user_roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        let mut effective_required_actions = user.required_actions.clone();
-
-        let mfa_required_action = (!has_temporary_password
-            && mfa_policy::user_requires_mfa(realm_settings.as_ref(), &user_roles))
-        .then(|| {
-            mfa_policy::required_action_for_mfa(has_otp_credentials)
-                .filter(|a| !effective_required_actions.contains(a))
-        })
-        .flatten();
-
-        if let Some(action) = mfa_required_action {
-            effective_required_actions.push(action);
-        }
-
-        let otp_challenge_follows =
-            effective_required_actions.is_empty() && !has_temporary_password && has_otp_credentials;
-
-        if !otp_challenge_follows {
-            let _ = self
-                .user_repository
-                .reset_failed_login_attempts(user.id)
-                .await;
-        }
-
-        if !effective_required_actions.is_empty() || has_temporary_password {
-            let jwt_token = self.generate_token(jwt_claim, scope.id()).await?;
-
-            let required_actions = if has_temporary_password {
-                vec![RequiredAction::UpdatePassword]
-            } else {
-                effective_required_actions
-            };
-
-            return Ok(AuthenticationResult {
-                code: None,
-                required_actions,
-                user_id: user.id,
-                token: Some(jwt_token.token),
-                credentials,
-            });
-        }
-
-        if has_otp_credentials {
-            let jwt_token = self.generate_token(jwt_claim, scope.id()).await?;
-
-            return Ok(AuthenticationResult {
-                code: None,
+                Ok(AuthenticationResult {
+                    code: None,
+                    required_actions: Vec::new(),
+                    user_id,
+                    token: Some(token),
+                    credentials,
+                })
+            }
+            None => Ok(AuthenticationResult {
+                code: Some(generate_random_string()),
                 required_actions: Vec::new(),
-                user_id: user.id,
-                token: Some(jwt_token.token),
+                user_id,
+                token: None,
                 credentials,
-            });
+            }),
         }
-
-        Ok(AuthenticationResult {
-            code: Some(generate_random_string()),
-            required_actions: Vec::new(),
-            user_id: user.id,
-            token: None,
-            credentials,
-        })
     }
 
     /// The live SSO session a `FERRISKEY_SSO` cookie names in this realm, with
@@ -4223,6 +4038,7 @@ This is a server error that should be investigated. Do not forward back this mes
                 &auth_session,
                 &scope,
                 webapp_base_url,
+                &client,
             )
             .await?
         {
@@ -4246,6 +4062,7 @@ This is a server error that should be investigated. Do not forward back this mes
                 cookie,
             },
             &scope,
+            &client,
         )
         .await
     }
@@ -5049,6 +4866,7 @@ where
             && auth_session_can_resume(scoped_session.get(), realm.id, Utc::now())
         {
             let auth_session = scoped_session.into_inner();
+            let client = self.client_of_session(&scope, &auth_session).await?;
 
             let output = match self
                 .consent_gate(
@@ -5057,6 +4875,7 @@ where
                     &auth_session,
                     &scope,
                     &verification_base_url,
+                    &client,
                 )
                 .await?
             {
@@ -5068,6 +4887,7 @@ where
                         auth_session,
                         SsoSessionBinding::Open,
                         &scope,
+                        &client,
                     )
                     .await?
                 }
@@ -5076,7 +4896,7 @@ where
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
 
-        if let Some(step) = self.resolve_pending_auth_step(user.id, realm.id).await?.0 {
+        if let Some(step) = self.resolve_pending_auth_step(&user, &scope).await?.0 {
             return Ok(RegisterUserOutput::PendingAction {
                 message: pending_step_message(&step),
                 user_id: user.id,
@@ -5509,9 +5329,8 @@ where
             return Err(CoreError::Forbidden("account is disabled".to_string()));
         }
 
-        let (pending_step, user_roles) = self
-            .resolve_pending_auth_step(user.id, realm_scope.id())
-            .await?;
+        let (pending_step, user_roles) =
+            self.resolve_pending_auth_step(&user, &realm_scope).await?;
 
         if let Err(error) = refuse_token_issuance_when_step_pending(pending_step.as_ref()) {
             warn!(

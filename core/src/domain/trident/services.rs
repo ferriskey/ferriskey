@@ -531,19 +531,19 @@ where
         let authorization_code = generate_random_string();
 
         self.auth_session_repository
-            .update_code_and_user_id(auth_session.id, authorization_code.clone(), user_id)
-            .await
-            .map_err(|_| CoreError::AuthorizationCodeStorageFailed)?;
-
-        self.auth_session_repository
-            .bind_user_session(auth_session.id, sso_session.session_id)
+            .complete_login(
+                auth_session.id,
+                authorization_code.clone(),
+                user_id,
+                sso_session.session_id,
+            )
             .await
             .map_err(|e| {
                 warn!(
                     auth_session_id = %auth_session.id,
                     sso_session_id = %sso_session.session_id,
                     error = ?e,
-                    "failed to bind the auth session to its SSO session"
+                    "failed to complete the login on the auth session"
                 );
                 CoreError::AuthorizationCodeStorageFailed
             })?;
@@ -4416,9 +4416,9 @@ mod tests {
     fn expect_no_authorization_code(builder: &mut TridentTestBuilder) {
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
-            .expect_update_code_and_user_id()
+            .expect_complete_login()
             .never()
-            .returning(|_, _, _| Box::pin(async { Err(AuthenticationError::NotFound) }));
+            .returning(|_, _, _, _| Box::pin(async { Err(AuthenticationError::NotFound) }));
         Arc::get_mut(&mut builder.sso_session)
             .unwrap()
             .expect_open_for_login()
@@ -4450,18 +4450,10 @@ mod tests {
             });
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
-            .expect_update_code_and_user_id()
+            .expect_complete_login()
+            .withf(move |auth, _, _, sso| *auth == auth_session_id && *sso == sso_session_id)
             .times(1)
-            .returning(move |_, _, _| {
-                let s = session.clone();
-                Box::pin(async move { Ok(s) })
-            });
-        Arc::get_mut(&mut builder.auth_session_repo)
-            .unwrap()
-            .expect_bind_user_session()
-            .withf(move |auth, sso| *auth == auth_session_id && *sso == sso_session_id)
-            .times(1)
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .returning(|_, _, _, _| Box::pin(async { Ok(()) }));
     }
 
     struct MagicLinkFixture {
@@ -4951,7 +4943,7 @@ mod tests {
             .returning(|_, _, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
-            .expect_update_code_and_user_id()
+            .expect_complete_login()
             .never();
 
         let service = builder.build();
