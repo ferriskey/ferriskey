@@ -171,6 +171,27 @@ pub trait TenantAuthorizationPolicy: Send + Sync {
         identity: &Identity,
         target_realm: &Realm,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    fn can_evaluate_authorization(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EvaluationOutcome {
+    pub allowed: bool,
+    pub reason_admin: Option<Vec<String>>,
+}
+
+pub trait EvaluationService: Send + Sync {
+    fn evaluate(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        request: EvaluationRequest,
+    ) -> impl Future<Output = Result<EvaluationOutcome, CoreError>> + Send;
 }
 
 pub trait AuthzManagementService: Send + Sync {

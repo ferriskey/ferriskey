@@ -6,6 +6,7 @@
 
 pub mod entities;
 pub mod evaluation;
+pub mod evaluation_service;
 pub mod evaluator;
 pub mod names;
 pub mod ports;
@@ -13,6 +14,9 @@ pub mod services;
 pub mod value_objects;
 
 mod policies;
+
+#[cfg(test)]
+mod fakes;
 
 /// Reserved for the types FerrisKey resolves itself (`FerrisKey::User`, …).
 pub const FERRISKEY_NAMESPACE: &str = "FerrisKey";

@@ -220,6 +220,15 @@ pub(crate) type ApplicationAuthzManagementService =
         AuthzRepo,
     >;
 
+pub(crate) type ApplicationEvaluationService =
+    ferriskey_authz::tenant::evaluation_service::EvaluationServiceImpl<
+        RealmRepo,
+        PolicyImpl,
+        AuthzRepo,
+        crate::infrastructure::authz::principal_slice::PostgresPrincipalSliceRepository,
+        ferriskey_authz_cedar::CedarPolicyCompiler,
+    >;
+
 type ApplicationTokenExchangePolicyService = TokenExchangePolicyServiceImpl<
     RealmRepo,
     UserRepo,
@@ -516,6 +525,7 @@ pub struct ApplicationService {
     pub(crate) client_service: ApplicationClientService,
     pub(crate) token_exchange_policy_service: ApplicationTokenExchangePolicyService,
     pub(crate) authz_management_service: ApplicationAuthzManagementService,
+    pub(crate) authz_evaluation_service: std::sync::Arc<ApplicationEvaluationService>,
     pub(crate) saml_service: ApplicationSamlService,
     pub(crate) realm_service: RealmServiceImpl<
         RealmRepo,

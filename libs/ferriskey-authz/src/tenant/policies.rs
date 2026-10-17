@@ -50,4 +50,27 @@ where
             &[Permissions::ManageRealm, Permissions::ManageAuthorization],
         ))
     }
+
+    async fn can_evaluate_authorization(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+    ) -> Result<bool, CoreError> {
+        let is_service_account = match identity {
+            Identity::Client(_) => true,
+            Identity::User(user) => user.client_id.is_some(),
+        };
+        if !is_service_account {
+            return Ok(false);
+        }
+        let user = self.get_user_from_identity(identity).await?;
+        let permissions = self
+            .get_permission_for_target_realm(&user, target_realm)
+            .await?;
+
+        Ok(Permissions::has_one_of_permissions(
+            &permissions,
+            &[Permissions::ManageRealm, Permissions::EvaluateAuthorization],
+        ))
+    }
 }

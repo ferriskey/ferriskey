@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ferriskey_authz::tenant::evaluation_service::EvaluationServiceImpl;
 use ferriskey_authz::tenant::services::AuthzManagementServiceImpl;
 use ferriskey_authz_cedar::CedarPolicyCompiler;
 use ferriskey_compass::recorder::FlowRecorder;
@@ -11,6 +12,7 @@ use crate::domain::common::rate_limit::{
     CIMD_FETCHES_PER_MINUTE, DEFAULT_REQUESTS_PER_MINUTE, IpRateLimiter,
     REALM_REGISTRATIONS_PER_HOUR, RealmBudget,
 };
+use crate::infrastructure::authz::principal_slice::PostgresPrincipalSliceRepository;
 use crate::infrastructure::authz::repository::PostgresAuthzRepository;
 use crate::infrastructure::client_metadata::{
     CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
@@ -509,6 +511,13 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             scope_mapping.clone(),
             policy.clone(),
         ),
+        authz_evaluation_service: Arc::new(EvaluationServiceImpl::new(
+            realm.clone(),
+            policy.clone(),
+            authz.clone(),
+            Arc::new(PostgresPrincipalSliceRepository::new(postgres.get_db())),
+            Arc::new(CedarPolicyCompiler::new()),
+        )),
         authz_management_service: AuthzManagementServiceImpl::new(
             realm.clone(),
             policy.clone(),

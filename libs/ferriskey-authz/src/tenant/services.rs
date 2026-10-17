@@ -530,6 +530,14 @@ mod tests {
         ) -> Result<bool, CoreError> {
             Ok(self.manage)
         }
+
+        async fn can_evaluate_authorization(
+            &self,
+            _identity: &Identity,
+            _target_realm: &Realm,
+        ) -> Result<bool, CoreError> {
+            Ok(false)
+        }
     }
 
     type Service = AuthzManagementServiceImpl<
