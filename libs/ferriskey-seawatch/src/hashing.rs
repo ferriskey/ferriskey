@@ -310,7 +310,7 @@ mod tests {
         let mut read_back = written.clone();
         read_back.details = serde_json::from_str(r#"{"a":{"c":2,"d":1},"b":1}"#).ok();
 
-        assert!(build_preimage(&written).ends_with(r#"|{"a":{"c":2,"d":1},"b":1}"#));
+        assert!(canonical_preimage(&written).ends_with(r#"|{"a":{"c":2,"d":1},"b":1}"#));
         assert_eq!(
             compute_event_hash(&written, &GENESIS_PREV_HASH),
             compute_event_hash(&read_back, &GENESIS_PREV_HASH)
