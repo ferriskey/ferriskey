@@ -97,6 +97,7 @@ WITH steps AS (
     SELECT s.id, s.flow_id, s.step_name, s.status, s.duration_ms, s.error_code, s.error_message, s.details, s.started_at, NOW()
     FROM UNNEST($1::uuid[], $2::uuid[], $3::text[], $4::text[], $5::bigint[], $6::text[], $7::text[], $8::jsonb[], $9::timestamp[])
         AS s(id, flow_id, step_name, status, duration_ms, error_code, error_message, details, started_at)
+    JOIN compass_flows AS f ON f.id = s.flow_id
     RETURNING 1
 ),
 completed AS (
@@ -160,7 +161,7 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
         let flow_durations: Vec<i64> = completions.iter().map(|c| c.duration_ms).collect();
         let flow_user_ids: Vec<Option<Uuid>> = completions.iter().map(|c| c.user_id).collect();
 
-        let (_, completed): (i64, i64) = sqlx::query_as(WRITE_BATCH_SQL)
+        let (written, completed): (i64, i64) = sqlx::query_as(WRITE_BATCH_SQL)
             .bind(&step_ids)
             .bind(&step_flow_ids)
             .bind(&step_names)
@@ -181,6 +182,14 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
                 tracing::error!("Failed to write a compass batch: {}", e);
                 CoreError::InternalServerError
             })?;
+
+        if written < steps.len() as i64 {
+            tracing::warn!(
+                expected = steps.len(),
+                written,
+                "Compass: steps of flows that were never stored were skipped"
+            );
+        }
 
         if completed < completions.len() as i64 {
             tracing::warn!(
@@ -832,6 +841,48 @@ mod db_tests {
             .across_realms();
         assert_eq!(stored.status, FlowStatus::Pending);
         assert_eq!(stored.steps.len(), 2);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_step_of_a_flow_that_was_never_stored_is_skipped_without_losing_the_batch() {
+        let fixture = setup().await;
+        let flow_id = started_flow(&fixture).await;
+        let never_stored = FlowId::new();
+
+        fixture
+            .flows
+            .write_batch(
+                vec![
+                    step(
+                        &never_stored,
+                        FlowStepName::Authorize,
+                        StepOutcome::success(),
+                    ),
+                    step(&flow_id, FlowStepName::Authorize, StepOutcome::success()),
+                ],
+                vec![completion(flow_id.0, FlowStatus::Success, None)],
+            )
+            .await
+            .expect("the orphan step must not fail the batch");
+
+        let stored = fixture
+            .flows
+            .get_flow_by_id(flow_id.0)
+            .await
+            .expect("read the flow")
+            .expect("the flow exists")
+            .across_realms();
+        assert_eq!(stored.status, FlowStatus::Success);
+        assert_eq!(stored.steps.len(), 1);
+        assert!(
+            fixture
+                .steps
+                .get_steps_for_flow(never_stored.0)
+                .await
+                .expect("read the orphan steps")
+                .is_empty()
+        );
     }
 
     #[tokio::test]
