@@ -5,7 +5,7 @@ use crate::domain::crypto::{HashResult, HasherRepository};
 use crate::domain::trident::entities::MfaRecoveryCode;
 use crate::domain::trident::ports::RecoveryCodeRepository;
 
-use rand::prelude::*;
+use rand::RngExt;
 
 /// MFA code of L bytes generated randomly.
 /// You generally don't want to use this directly but rather variants of RecoveryCodeRepoAny
@@ -25,10 +25,8 @@ impl<const L: usize, H: HasherRepository> RecoveryCodeRepository
     for RandBytesRecoveryCodeRepository<L, H>
 {
     fn generate_recovery_code(&self) -> MfaRecoveryCode {
-        let mut rng = rand::thread_rng();
         let mut bytes = [0u8; L];
-        rng.try_fill_bytes(&mut bytes)
-            .expect("Thread rng failed to fill byte slice");
+        rand::rng().fill(&mut bytes[..]);
         MfaRecoveryCode::from_bytes(&bytes)
     }
 

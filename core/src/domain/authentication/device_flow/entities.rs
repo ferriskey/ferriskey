@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use chrono::{DateTime, Duration, Utc};
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -31,10 +31,10 @@ impl UserCode {
     /// Produces 8 characters drawn from [`USER_CODE_CHARSET`] grouped as
     /// `XXXX-XXXX`.
     pub fn generate() -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let chars: String = (0..USER_CODE_LENGTH)
             .map(|_| {
-                let idx = rng.gen_range(0..USER_CODE_CHARSET.len());
+                let idx = rng.random_range(0..USER_CODE_CHARSET.len());
                 USER_CODE_CHARSET[idx] as char
             })
             .collect();
