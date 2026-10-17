@@ -34,11 +34,9 @@ impl LoginContext<'_> {
     }
 
     pub fn has_temporary_password(&self) -> bool {
-        !self.is_federated()
-            && self
-                .credentials
-                .iter()
-                .any(|credential| credential.temporary)
+        self.credentials
+            .iter()
+            .any(|credential| credential.temporary)
     }
 
     pub fn credential_names(&self) -> Vec<String> {
@@ -194,7 +192,32 @@ mod tests {
     }
 
     #[test]
-    fn a_federated_login_keeps_its_local_otp_and_ignores_a_temporary_local_password() {
+    fn a_federated_login_keeps_its_local_credentials() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let client = client(realm_id);
+        let user = user(realm_id, Vec::new());
+        let user_id = user.id;
+        let context = context(
+            &client,
+            user,
+            Some(mapping(user_id)),
+            vec![credential(user_id, CredentialType::Otp, false)],
+        );
+
+        assert_eq!(
+            context.credential_names(),
+            vec![FEDERATED_CREDENTIAL, "otp"]
+        );
+        assert!(context.has_otp_credential());
+        assert!(!context.has_temporary_password());
+        assert_eq!(
+            context.pending_step(None, &[]),
+            Some(PendingAuthStep::OtpChallenge)
+        );
+    }
+
+    #[test]
+    fn a_temporary_local_password_binds_a_federated_login_like_any_other() {
         let realm_id = RealmId::from(Uuid::new_v4());
         let client = client(realm_id);
         let user = user(realm_id, Vec::new());
@@ -209,15 +232,12 @@ mod tests {
             ],
         );
 
-        assert_eq!(
-            context.credential_names(),
-            vec![FEDERATED_CREDENTIAL, "password", "otp"]
-        );
-        assert!(context.has_otp_credential());
-        assert!(!context.has_temporary_password());
+        assert!(context.has_temporary_password());
         assert_eq!(
             context.pending_step(None, &[]),
-            Some(PendingAuthStep::OtpChallenge)
+            Some(PendingAuthStep::RequiredActions(vec![
+                RequiredAction::UpdatePassword,
+            ]))
         );
     }
 
