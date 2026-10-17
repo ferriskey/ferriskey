@@ -20,6 +20,7 @@ pub mod pagination;
 pub mod realm;
 pub mod recovery_code;
 pub mod repositories;
+pub mod retention;
 pub mod role;
 pub mod seawatch;
 pub mod trident;
