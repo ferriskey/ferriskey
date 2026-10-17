@@ -130,7 +130,7 @@ where
 
     let next_delay = if error.is_retryable() {
         job.policy
-            .next_attempt_delay(attempt_count, job.elapsed, &mut rand::thread_rng())
+            .next_attempt_delay(attempt_count, job.elapsed, &mut rand::rng())
             .and_then(|delay| chrono::Duration::from_std(delay).ok())
     } else {
         None

@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::time::Duration;
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utoipa::ToSchema;
@@ -134,7 +134,7 @@ impl RetryPolicy {
         let ceiling = self.backoff_delay(attempt + 1).min(remaining);
         let ceiling = u64::try_from(ceiling.as_millis()).unwrap_or(u64::MAX);
 
-        Some(Duration::from_millis(rng.gen_range(0..=ceiling)))
+        Some(Duration::from_millis(rng.random_range(0..=ceiling)))
     }
 }
 

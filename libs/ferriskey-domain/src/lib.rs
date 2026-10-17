@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use rand::{Rng, distributions::Alphanumeric};
+use rand::{RngExt, distr::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
 pub mod auth;
@@ -30,7 +30,7 @@ pub fn generate_uuid_v7() -> Uuid {
 }
 
 pub fn generate_random_string() -> String {
-    rand::thread_rng()
+    rand::rng()
         .sample_iter(&Alphanumeric)
         .take(16)
         .map(char::from)

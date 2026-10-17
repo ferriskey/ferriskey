@@ -2,8 +2,9 @@
 
 use hex::encode;
 use hmac::{Hmac, Mac};
-use rand::RngCore;
-use rand::rngs::OsRng;
+use rand::Rng;
+use rand::rand_core::UnwrapErr;
+use rand::rngs::SysRng;
 use sha2::Sha256;
 
 /// Carries the hex-encoded output of [`sign`].
@@ -23,7 +24,7 @@ type HmacSha256 = Hmac<Sha256>;
 /// unique, not to resist guessing, whereas a signing secret's entire value must resist guessing.
 pub fn generate_secret() -> String {
     let mut bytes = [0u8; 32];
-    OsRng.fill_bytes(&mut bytes);
+    UnwrapErr(SysRng).fill_bytes(&mut bytes);
     encode(bytes)
 }
 
