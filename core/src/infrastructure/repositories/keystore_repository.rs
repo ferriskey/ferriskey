@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use std::fmt;
+use std::sync::{Arc, RwLock};
+
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use sea_orm::{
     ActiveValue::Set,
@@ -13,14 +17,39 @@ use crate::domain::{
 };
 use crate::entity::{jwt_keys, realms};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PostgresKeyStoreRepository {
     pub db: DatabaseConnection,
+    keys: Arc<RwLock<HashMap<Uuid, JwtKeyPair>>>,
+}
+
+impl fmt::Debug for PostgresKeyStoreRepository {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PostgresKeyStoreRepository")
+            .field("db", &self.db)
+            .finish_non_exhaustive()
+    }
 }
 
 impl PostgresKeyStoreRepository {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self {
+            db,
+            keys: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    fn cached_key(&self, realm_id: Uuid) -> Option<JwtKeyPair> {
+        self.keys
+            .read()
+            .ok()
+            .and_then(|keys| keys.get(&realm_id).cloned())
+    }
+
+    fn remember_key(&self, realm_id: Uuid, key: &JwtKeyPair) {
+        if let Ok(mut keys) = self.keys.write() {
+            keys.insert(realm_id, key.clone());
+        }
     }
 
     async fn find_by_realm(&self, realm_id: Uuid) -> Result<Option<jwt_keys::Model>, JwtError> {
@@ -94,6 +123,10 @@ impl KeyStoreRepository for PostgresKeyStoreRepository {
     async fn get_or_generate_key(&self, realm_id: RealmId) -> Result<JwtKeyPair, JwtError> {
         let realm_id: Uuid = realm_id.into();
 
+        if let Some(key) = self.cached_key(realm_id) {
+            return Ok(key);
+        }
+
         let key = match self.find_by_realm(realm_id).await? {
             Some(key) => key,
             None => self.generate_key(realm_id).await?,
@@ -107,13 +140,16 @@ impl KeyStoreRepository for PostgresKeyStoreRepository {
 
         let certificate = key.certificate.ok_or(JwtError::RealmKeyNotFound)?;
 
-        JwtKeyPair::from_pem(
+        let key_pair = JwtKeyPair::from_pem(
             &key.private_key,
             &key.public_key,
             &certificate,
             key.realm_id,
             key.id,
-        )
+        )?;
+        self.remember_key(realm_id, &key_pair);
+
+        Ok(key_pair)
     }
 }
 
@@ -294,5 +330,32 @@ mod tests {
         assert_ne!(alpha_key.certificate, beta_key.certificate);
         assert_eq!(common_name_of(&alpha_key.certificate), "CN=tenant-one");
         assert_eq!(common_name_of(&beta_key.certificate), "CN=tenant-two");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_loaded_key_is_served_from_memory_afterwards() {
+        let fixture = setup().await;
+        let realm_id = insert_realm(&fixture.pool, "cached").await;
+
+        let first = fixture
+            .repository
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("first load");
+        sqlx::query("DELETE FROM jwt_keys WHERE realm_id = $1")
+            .bind(Uuid::from(realm_id))
+            .execute(&fixture.pool)
+            .await
+            .expect("delete the stored key");
+
+        let second = fixture
+            .repository
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("second load");
+
+        assert_eq!(second.id, first.id);
+        assert_eq!(count_keys(&fixture.pool, realm_id).await, 0);
     }
 }
