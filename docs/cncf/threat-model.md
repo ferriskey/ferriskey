@@ -69,7 +69,7 @@ Weaknesses that are not fixed yet are not listed in this file. They go through t
 | Threat | Mitigation in place | Evidence |
 | --- | --- | --- |
 | A realm administrator reads or changes another realm | Realm is resolved through one scoped resolver; a source-level test freezes the list of files allowed to bypass it | `api/tests/realm_scope_ratchet_test.rs` |
-| Probing which realms or objects exist | A missing right in one's own realm answers 403, a foreign realm answers 404 | `api/tests/realm_cross_realm_test.rs` |
+| Probing which realms or objects exist | A missing right in one's own realm answers 403; a foreign realm, and any object it holds, answers 404 | `api/tests/realm_cross_realm_test.rs`, `api/tests/*_cross_realm_test.rs` |
 | Cross-realm access through nested objects (clients, roles, users, organizations, webhooks, themes, sessions) | One cross-realm suite per domain | `api/tests/*_cross_realm_test.rs` (15 suites) |
 | Permission checks drifting between endpoints | One authorization matrix (`AUTHZ_MATRIX`) in the `ferriskey-authz` crate | `libs/ferriskey-authz` |
 | Covering tracks after an admin action | Security events are hash-chained and the chain can be verified | `api/tests/seawatch_test.rs` |
