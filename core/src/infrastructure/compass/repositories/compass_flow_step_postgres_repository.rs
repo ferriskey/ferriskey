@@ -18,20 +18,6 @@ impl PostgresCompassFlowStepRepository {
 }
 
 impl CompassFlowStepRepository for PostgresCompassFlowStepRepository {
-    async fn create_step(&self, step: CompassFlowStep) -> Result<(), CoreError> {
-        let active_model: compass_flow_steps::ActiveModel = step.into();
-
-        compass_flow_steps::Entity::insert(active_model)
-            .exec(&self.db)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to create compass flow step: {}", e);
-                CoreError::InternalServerError
-            })?;
-
-        Ok(())
-    }
-
     async fn get_steps_for_flow(&self, flow_id: Uuid) -> Result<Vec<CompassFlowStep>, CoreError> {
         let models = compass_flow_steps::Entity::find()
             .filter(compass_flow_steps::Column::FlowId.eq(flow_id))

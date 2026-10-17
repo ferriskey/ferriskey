@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use ferriskey_domain::realm::Realm;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 use crate::entities::{CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName};
-use crate::value_objects::StepOutcome;
+use crate::value_objects::{FlowCompletion, StepOutcome};
 
 pub enum CompassEvent {
     FlowStarted {
@@ -12,13 +12,7 @@ pub enum CompassEvent {
         ack: oneshot::Sender<()>,
     },
     StepRecorded(CompassFlowStep),
-    FlowCompleted {
-        flow_id: Uuid,
-        status: FlowStatus,
-        completed_at: DateTime<Utc>,
-        duration_ms: i64,
-        user_id: Option<Uuid>,
-    },
+    FlowCompleted(FlowCompletion),
 }
 
 /// Records authentication flows for the Compass dashboard.
@@ -118,13 +112,13 @@ impl FlowRecorder {
             return;
         };
 
-        self.send(CompassEvent::FlowCompleted {
+        self.send(CompassEvent::FlowCompleted(FlowCompletion {
             flow_id: flow_id.0,
             status,
             completed_at: Utc::now(),
             duration_ms,
             user_id,
-        });
+        }));
     }
 }
 

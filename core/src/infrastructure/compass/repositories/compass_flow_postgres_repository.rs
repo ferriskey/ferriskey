@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, PaginatorTrait,
-    QueryFilter, QueryOrder, QueryTrait, Select, Statement, sea_query::Expr,
+    QueryFilter, QueryOrder, QueryTrait, Select, Statement,
 };
 use uuid::Uuid;
 
+use ferriskey_compass::value_objects::FlowCompletion;
 use ferriskey_compass::{
     entities::{CompassFlow, CompassFlowStep, FlowStatus},
     ports::CompassFlowRepository,
@@ -89,6 +90,26 @@ fn listing_select(realm_id: Uuid, filter: &FlowFilter) -> Select<compass_flows::
         })
 }
 
+const WRITE_BATCH_SQL: &str = r#"
+WITH steps AS (
+    INSERT INTO compass_flow_steps
+        (id, flow_id, step_name, status, duration_ms, error_code, error_message, details, started_at, created_at)
+    SELECT s.id, s.flow_id, s.step_name, s.status, s.duration_ms, s.error_code, s.error_message, s.details, s.started_at, NOW()
+    FROM UNNEST($1::uuid[], $2::uuid[], $3::text[], $4::text[], $5::bigint[], $6::text[], $7::text[], $8::jsonb[], $9::timestamp[])
+        AS s(id, flow_id, step_name, status, duration_ms, error_code, error_message, details, started_at)
+    RETURNING 1
+),
+completed AS (
+    UPDATE compass_flows AS f
+    SET status = c.status, completed_at = c.completed_at, duration_ms = c.duration_ms, user_id = c.user_id
+    FROM UNNEST($10::uuid[], $11::text[], $12::timestamp[], $13::bigint[], $14::uuid[])
+        AS c(id, status, completed_at, duration_ms, user_id)
+    WHERE f.id = c.id
+    RETURNING 1
+)
+SELECT (SELECT count(*) FROM steps) AS steps, (SELECT count(*) FROM completed) AS completed
+"#;
+
 impl CompassFlowRepository for PostgresCompassFlowRepository {
     async fn create_flow(&self, flow: CompassFlow) -> Result<(), CoreError> {
         let active_model: compass_flows::ActiveModel = flow.into();
@@ -104,35 +125,69 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
         Ok(())
     }
 
-    async fn update_flow_status(
+    async fn write_batch(
         &self,
-        flow_id: Uuid,
-        status: FlowStatus,
-        completed_at: DateTime<Utc>,
-        duration_ms: Option<i64>,
-        user_id: Option<Uuid>,
+        steps: Vec<CompassFlowStep>,
+        completions: Vec<FlowCompletion>,
     ) -> Result<(), CoreError> {
-        let updated = compass_flows::Entity::update_many()
-            .col_expr(
-                compass_flows::Column::Status,
-                Expr::value(status.to_string()),
-            )
-            .col_expr(
-                compass_flows::Column::CompletedAt,
-                Expr::value(completed_at.naive_utc()),
-            )
-            .col_expr(compass_flows::Column::DurationMs, Expr::value(duration_ms))
-            .col_expr(compass_flows::Column::UserId, Expr::value(user_id))
-            .filter(compass_flows::Column::Id.eq(flow_id))
-            .exec(&self.db)
+        let step_ids: Vec<Uuid> = steps.iter().map(|step| step.id.0).collect();
+        let step_flow_ids: Vec<Uuid> = steps.iter().map(|step| step.flow_id.0).collect();
+        let step_names: Vec<String> = steps
+            .iter()
+            .map(|step| step.step_name.to_string())
+            .collect();
+        let step_statuses: Vec<String> = steps.iter().map(|step| step.status.to_string()).collect();
+        let step_durations: Vec<Option<i64>> = steps.iter().map(|step| step.duration_ms).collect();
+        let step_error_codes: Vec<Option<String>> =
+            steps.iter().map(|step| step.error_code.clone()).collect();
+        let step_error_messages: Vec<Option<String>> = steps
+            .iter()
+            .map(|step| step.error_message.clone())
+            .collect();
+        let step_details: Vec<Option<serde_json::Value>> =
+            steps.iter().map(|step| step.details.clone()).collect();
+        let step_started_at: Vec<NaiveDateTime> = steps
+            .iter()
+            .map(|step| step.started_at.naive_utc())
+            .collect();
+
+        let flow_ids: Vec<Uuid> = completions.iter().map(|c| c.flow_id).collect();
+        let flow_statuses: Vec<String> = completions.iter().map(|c| c.status.to_string()).collect();
+        let flow_completed_at: Vec<NaiveDateTime> = completions
+            .iter()
+            .map(|c| c.completed_at.naive_utc())
+            .collect();
+        let flow_durations: Vec<i64> = completions.iter().map(|c| c.duration_ms).collect();
+        let flow_user_ids: Vec<Option<Uuid>> = completions.iter().map(|c| c.user_id).collect();
+
+        let (_, completed): (i64, i64) = sqlx::query_as(WRITE_BATCH_SQL)
+            .bind(&step_ids)
+            .bind(&step_flow_ids)
+            .bind(&step_names)
+            .bind(&step_statuses)
+            .bind(&step_durations)
+            .bind(&step_error_codes)
+            .bind(&step_error_messages)
+            .bind(&step_details)
+            .bind(&step_started_at)
+            .bind(&flow_ids)
+            .bind(&flow_statuses)
+            .bind(&flow_completed_at)
+            .bind(&flow_durations)
+            .bind(&flow_user_ids)
+            .fetch_one(self.db.get_postgres_connection_pool())
             .await
             .map_err(|e| {
-                tracing::error!("Failed to update compass flow status: {}", e);
+                tracing::error!("Failed to write a compass batch: {}", e);
                 CoreError::InternalServerError
             })?;
 
-        if updated.rows_affected == 0 {
-            return Err(CoreError::NotFound);
+        if completed < completions.len() as i64 {
+            tracing::warn!(
+                expected = completions.len(),
+                completed,
+                "Compass: some completed flows no longer exist"
+            );
         }
 
         Ok(())
@@ -566,5 +621,231 @@ mod tests {
             sql.contains(r#""compass_flows"."started_at" <= '2026-01-02 00:00:00.000000'"#),
             "{sql}"
         );
+    }
+}
+
+#[cfg(test)]
+mod db_tests {
+    use chrono::Utc;
+    use ferriskey_compass::entities::{
+        CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName, StepStatus,
+    };
+    use ferriskey_compass::ports::{CompassFlowRepository, CompassFlowStepRepository};
+    use ferriskey_compass::value_objects::{FlowCompletion, StepOutcome};
+    use ferriskey_domain::realm::RealmId;
+    use sea_orm::Database as SeaOrmDatabase;
+    use sqlx::Executor as _;
+    use uuid::Uuid;
+
+    use super::PostgresCompassFlowRepository;
+    use crate::infrastructure::compass::repositories::PostgresCompassFlowStepRepository;
+
+    struct Fixture {
+        flows: PostgresCompassFlowRepository,
+        steps: PostgresCompassFlowStepRepository,
+        pool: sqlx::PgPool,
+        realm_id: RealmId,
+    }
+
+    async fn setup() -> Fixture {
+        let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
+        let schema = format!("compass_flow_repository_test_{}", Uuid::new_v4().simple());
+
+        let admin_pool = sqlx::PgPool::connect(&base_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .await
+            .expect("create test schema");
+
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let realm_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(realm_id)
+        .bind(format!("realm-{}", realm_id.simple()))
+        .execute(&pool)
+        .await
+        .expect("insert realm");
+
+        let db = SeaOrmDatabase::connect(&schema_url)
+            .await
+            .expect("sea-orm connect");
+
+        Fixture {
+            flows: PostgresCompassFlowRepository::new(db.clone()),
+            steps: PostgresCompassFlowStepRepository::new(db),
+            pool,
+            realm_id: RealmId::from(realm_id),
+        }
+    }
+
+    async fn started_flow(fixture: &Fixture) -> FlowId {
+        let flow = CompassFlow::new(
+            fixture.realm_id,
+            Some("console".to_string()),
+            "password".to_string(),
+            None,
+            None,
+        );
+        let flow_id = flow.id.clone();
+        fixture.flows.create_flow(flow).await.expect("create flow");
+        flow_id
+    }
+
+    fn step(flow_id: &FlowId, name: FlowStepName, outcome: StepOutcome) -> CompassFlowStep {
+        CompassFlowStep::new(flow_id.clone(), name, outcome, Utc::now())
+    }
+
+    fn completion(flow_id: Uuid, status: FlowStatus, user_id: Option<Uuid>) -> FlowCompletion {
+        FlowCompletion {
+            flow_id,
+            status,
+            completed_at: Utc::now(),
+            duration_ms: 42,
+            user_id,
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn one_batch_writes_the_steps_and_completes_the_flow() {
+        let fixture = setup().await;
+        let flow_id = started_flow(&fixture).await;
+        let user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+             VALUES ($1, $2, $3, TRUE, TRUE, NOW(), NOW())",
+        )
+        .bind(user_id)
+        .bind(Uuid::from(fixture.realm_id))
+        .bind(format!("user-{}", user_id.simple()))
+        .execute(&fixture.pool)
+        .await
+        .expect("insert the user who logged in");
+        let mut with_details = step(&flow_id, FlowStepName::MfaChallenge, StepOutcome::skipped());
+        with_details.details = Some(serde_json::json!({ "reason": "no otp credential" }));
+        let steps = vec![
+            step(
+                &flow_id,
+                FlowStepName::CredentialValidation,
+                StepOutcome::success().with_duration(7),
+            ),
+            with_details,
+            step(
+                &flow_id,
+                FlowStepName::Finalize,
+                StepOutcome::failure("boom"),
+            ),
+        ];
+
+        fixture
+            .flows
+            .write_batch(
+                steps,
+                vec![completion(flow_id.0, FlowStatus::Failure, Some(user_id))],
+            )
+            .await
+            .expect("write the batch");
+
+        let stored = fixture
+            .flows
+            .get_flow_by_id(flow_id.0)
+            .await
+            .expect("read the flow")
+            .expect("the flow exists")
+            .across_realms();
+        assert_eq!(stored.status, FlowStatus::Failure);
+        assert_eq!(stored.duration_ms, Some(42));
+        assert_eq!(stored.user_id, Some(user_id));
+        assert_eq!(stored.steps.len(), 3);
+
+        let stored_steps = fixture
+            .steps
+            .get_steps_for_flow(flow_id.0)
+            .await
+            .expect("read the steps");
+        assert_eq!(
+            stored_steps
+                .iter()
+                .filter(|step| step.status == StepStatus::Failure)
+                .count(),
+            1
+        );
+        assert_eq!(
+            stored_steps
+                .iter()
+                .filter(|step| step.duration_ms == Some(7))
+                .count(),
+            1
+        );
+        assert_eq!(
+            stored_steps
+                .iter()
+                .filter(|step| step.details.is_some())
+                .count(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn steps_alone_leave_the_flow_pending() {
+        let fixture = setup().await;
+        let flow_id = started_flow(&fixture).await;
+
+        fixture
+            .flows
+            .write_batch(
+                vec![
+                    step(&flow_id, FlowStepName::Authorize, StepOutcome::success()),
+                    step(
+                        &flow_id,
+                        FlowStepName::CredentialValidation,
+                        StepOutcome::success(),
+                    ),
+                ],
+                Vec::new(),
+            )
+            .await
+            .expect("write the batch");
+
+        let stored = fixture
+            .flows
+            .get_flow_by_id(flow_id.0)
+            .await
+            .expect("read the flow")
+            .expect("the flow exists")
+            .across_realms();
+        assert_eq!(stored.status, FlowStatus::Pending);
+        assert_eq!(stored.steps.len(), 2);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_completion_for_a_vanished_flow_is_not_an_error() {
+        let fixture = setup().await;
+
+        fixture
+            .flows
+            .write_batch(
+                Vec::new(),
+                vec![completion(Uuid::new_v4(), FlowStatus::Success, None)],
+            )
+            .await
+            .expect("a missing flow is only logged");
     }
 }

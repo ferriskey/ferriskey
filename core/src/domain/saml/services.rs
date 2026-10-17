@@ -958,9 +958,12 @@ pub(crate) mod tests {
                                 .expect("the recorder waits for this acknowledgement");
                         }
                         CompassEvent::StepRecorded(step) => recorded.push(Recorded::Step(step)),
-                        CompassEvent::FlowCompleted {
-                            status, user_id, ..
-                        } => recorded.push(Recorded::FlowCompleted { status, user_id }),
+                        CompassEvent::FlowCompleted(completion) => {
+                            recorded.push(Recorded::FlowCompleted {
+                                status: completion.status,
+                                user_id: completion.user_id,
+                            })
+                        }
                     }
                 }
 
