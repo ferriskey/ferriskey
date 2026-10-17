@@ -195,6 +195,26 @@ impl PostgresUserRepository {
     }
 }
 
+fn user_with_required_actions(
+    user_model: users::Model,
+    actions: Vec<crate::entity::user_required_actions::Model>,
+) -> Result<User, CoreError> {
+    let required_actions = actions
+        .into_iter()
+        .map(|action| {
+            action
+                .action
+                .try_into()
+                .map_err(|_| CoreError::InternalServerError)
+        })
+        .collect::<Result<Vec<RequiredAction>, CoreError>>()?;
+
+    let mut user: User = user_model.into();
+    user.required_actions = required_actions;
+
+    Ok(user)
+}
+
 impl UserRepository for PostgresUserRepository {
     async fn create_user(&self, dto: CreateUserRequest) -> Result<User, CoreError> {
         let user = User::new(UserConfig {
@@ -249,7 +269,7 @@ impl UserRepository for PostgresUserRepository {
         username: String,
         realm_id: RealmId,
     ) -> Result<Option<User>, CoreError> {
-        let users_model = crate::entity::users::Entity::find()
+        let found = crate::entity::users::Entity::find()
             .filter(
                 sea_orm::sea_query::Expr::expr(sea_orm::sea_query::Func::lower(
                     sea_orm::sea_query::Expr::col(crate::entity::users::Column::Username),
@@ -257,7 +277,7 @@ impl UserRepository for PostgresUserRepository {
                 .eq(username.trim().to_lowercase()),
             )
             .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
-            .find_also_related(crate::entity::realms::Entity)
+            .find_with_related(crate::entity::user_required_actions::Entity)
             .all(&self.db)
             .await
             .map_err(|e| {
@@ -265,19 +285,11 @@ impl UserRepository for PostgresUserRepository {
                 CoreError::NotFound
             })?;
 
-        let Some((user_model, realm_model)) = users_model.first().cloned() else {
-            return Ok(None);
-        };
-
-        let required_actions = self.required_actions_of(&user_model).await?;
-
-        let mut user: User = user_model.into();
-        user.required_actions = required_actions;
-        if let Some(realm_model) = realm_model {
-            user.realm = Some(realm_model.into());
-        }
-
-        Ok(Some(user))
+        found
+            .into_iter()
+            .next()
+            .map(|(user_model, actions)| user_with_required_actions(user_model, actions))
+            .transpose()
     }
 
     async fn get_by_username(
@@ -352,7 +364,7 @@ impl UserRepository for PostgresUserRepository {
         email: &str,
         realm_id: RealmId,
     ) -> Result<Option<User>, CoreError> {
-        let user_model = crate::entity::users::Entity::find()
+        let found = crate::entity::users::Entity::find()
             .filter(
                 sea_orm::sea_query::Expr::expr(sea_orm::sea_query::Func::lower(
                     sea_orm::sea_query::Expr::col(crate::entity::users::Column::Email),
@@ -360,23 +372,19 @@ impl UserRepository for PostgresUserRepository {
                 .eq(email.trim().to_lowercase()),
             )
             .filter(crate::entity::users::Column::RealmId.eq::<Uuid>(realm_id.into()))
-            .one(&self.db)
+            .find_with_related(crate::entity::user_required_actions::Entity)
+            .all(&self.db)
             .await
             .map_err(|e| {
                 error!("Error retrieving user by email: {:?}", e);
                 CoreError::InternalServerError
             })?;
 
-        let Some(user_model) = user_model else {
-            return Ok(None);
-        };
-
-        let required_actions = self.required_actions_of(&user_model).await?;
-
-        let mut user: User = user_model.into();
-        user.required_actions = required_actions;
-
-        Ok(Some(user))
+        found
+            .into_iter()
+            .next()
+            .map(|(user_model, actions)| user_with_required_actions(user_model, actions))
+            .transpose()
     }
 
     async fn bulk_delete_user(&self, realm_id: RealmId, ids: Vec<Uuid>) -> Result<u64, CoreError> {

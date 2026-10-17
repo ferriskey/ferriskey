@@ -100,13 +100,6 @@ pub trait UserSessionRepository: Send + Sync {
         realm_id: Uuid,
     ) -> impl Future<Output = Result<u64, SessionError>> + Send;
 
-    fn delete_expired_for_user(
-        &self,
-        user_id: Uuid,
-        realm_id: Uuid,
-        now: chrono::DateTime<chrono::Utc>,
-    ) -> impl Future<Output = Result<u64, SessionError>> + Send;
-
     fn delete_expired(
         &self,
         before: chrono::DateTime<chrono::Utc>,

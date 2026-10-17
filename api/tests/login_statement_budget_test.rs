@@ -14,11 +14,11 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
 use tracing_subscriber::util::SubscriberInitExt;
 
-const PASSWORD_GRANT_BUDGET: usize = 19;
-const WRONG_PASSWORD_BUDGET: usize = 8;
+const PASSWORD_GRANT_BUDGET: usize = 16;
+const WRONG_PASSWORD_BUDGET: usize = 7;
 const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
-const AUTHENTICATE_BUDGET: usize = 14;
+const AUTHENTICATE_BUDGET: usize = 11;
 const CODE_EXCHANGE_BUDGET: usize = 16;
 
 const BACKGROUND_WORK: &[&str] = &[
@@ -242,6 +242,20 @@ fn a_login_stays_within_its_statement_budget() {
         assert_eq!(granted.status_code(), 200, "{}", granted.text());
         assert_within("password grant", PASSWORD_GRANT_BUDGET, &statements);
 
+        let (authorize_statements, authenticate_statements, exchange_statements) =
+            browser_login(&server, app, &client, &user.username, &user.password).await;
+        assert_within(
+            "authorization request",
+            AUTHORIZE_BUDGET,
+            &authorize_statements,
+        );
+        assert_within(
+            "authenticate",
+            AUTHENTICATE_BUDGET,
+            &authenticate_statements,
+        );
+        assert_within("code exchange", CODE_EXCHANGE_BUDGET, &exchange_statements);
+
         let (refused, statements) = capture(password_grant(
             &server,
             app,
@@ -265,19 +279,5 @@ fn a_login_stays_within_its_statement_budget() {
         .await;
         assert_ne!(refused.status_code(), 200);
         assert_within("unknown user", UNKNOWN_USER_BUDGET, &statements);
-
-        let (authorize_statements, authenticate_statements, exchange_statements) =
-            browser_login(&server, app, &client, &user.username, &user.password).await;
-        assert_within(
-            "authorization request",
-            AUTHORIZE_BUDGET,
-            &authorize_statements,
-        );
-        assert_within(
-            "authenticate",
-            AUTHENTICATE_BUDGET,
-            &authenticate_statements,
-        );
-        assert_within("code exchange", CODE_EXCHANGE_BUDGET, &exchange_statements);
     });
 }
