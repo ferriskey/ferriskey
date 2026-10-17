@@ -1339,9 +1339,10 @@ where
     async fn assemble_token_claims(
         &self,
         client_scopes: &ClientScopeSet,
+        user_roles: &[Role],
         input: &GenerateTokenInput,
     ) -> Result<AssembledClaims, CoreError> {
-        self.assemble_token_claims_for(client_scopes, input, false)
+        self.assemble_token_claims_for(client_scopes, user_roles, input, false)
             .await
     }
 
@@ -1351,6 +1352,7 @@ where
     async fn assemble_token_claims_for(
         &self,
         client_scopes: &ClientScopeSet,
+        user_roles: &[Role],
         input: &GenerateTokenInput,
         only_token_scopes: bool,
     ) -> Result<AssembledClaims, CoreError> {
@@ -1368,16 +1370,9 @@ where
             .flat_map(|scope| mappers_by_scope.remove(&scope.id).unwrap_or_default())
             .collect();
 
-        // Fetch user roles and group client-scoped roles by client string id.
-        let user_roles = self
-            .user_role_repository
-            .get_user_roles(input.user_id)
-            .await
-            .unwrap_or_default();
-
         let mut realm_roles: Vec<String> = Vec::new();
         let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
-        for role in &user_roles {
+        for role in user_roles {
             match &role.client {
                 Some(client) => client_roles
                     .entry(client.client_id.clone())
@@ -1387,13 +1382,15 @@ where
             }
         }
 
-        // Roles inherited from the user's effective (recursive) group memberships, merged into
-        // the role maps so they flow into tokens exactly like directly-assigned roles.
-        let group_role_ids = self
+        let membership = self
             .group_token_repository
-            .list_effective_role_ids_for_user(input.user_id)
+            .token_membership(input.user_id)
             .await
             .unwrap_or_default();
+
+        // Roles inherited from the user's effective (recursive) group memberships, merged into
+        // the role maps so they flow into tokens exactly like directly-assigned roles.
+        let group_role_ids = membership.effective_role_ids();
         if !group_role_ids.is_empty() {
             let group_roles = self
                 .user_role_repository
@@ -1417,21 +1414,12 @@ where
         // under the `organizations.<alias>` claim (via the org-role mapper), never flattened
         // into the global `realm_access` / `resource_access` claims above.
         let mut org_role_ids: HashMap<Uuid, HashSet<Uuid>> = HashMap::new();
-        for (org_id, role_id) in self
-            .group_token_repository
-            .list_member_role_ids_by_org_for_user(input.user_id)
-            .await
-            .unwrap_or_default()
+        for (org_id, role_id) in membership
+            .member_role_ids_by_org
+            .iter()
+            .chain(&membership.group_role_ids_by_org)
         {
-            org_role_ids.entry(org_id).or_default().insert(role_id);
-        }
-        for (org_id, role_id) in self
-            .group_token_repository
-            .list_effective_group_role_ids_by_org_for_user(input.user_id)
-            .await
-            .unwrap_or_default()
-        {
-            org_role_ids.entry(org_id).or_default().insert(role_id);
+            org_role_ids.entry(*org_id).or_default().insert(*role_id);
         }
 
         // Resolve the distinct role ids once, then bucket per org into realm vs client roles.
@@ -1472,19 +1460,8 @@ where
 
         // Effective groups (direct + ancestors) with their full paths, for the group mapper.
         // Direct ids let the mapper emit direct-only membership when configured.
-        let effective_groups = self
-            .group_token_repository
-            .list_effective_groups_for_user(input.user_id)
-            .await
-            .unwrap_or_default();
-        let direct_group_ids: HashSet<Uuid> = self
-            .group_token_repository
-            .list_direct_group_ids_for_user(input.user_id)
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .collect();
-        let groups = build_context_groups(&effective_groups, &direct_group_ids);
+        let groups =
+            build_context_groups(&membership.effective_groups, &membership.direct_group_ids);
 
         // Load user organization memberships with their attributes
         let org_memberships = self
@@ -1704,10 +1681,6 @@ where
             resource: None,
         };
 
-        let assembled = self
-            .assemble_token_claims(&client_scopes, &gen_input)
-            .await?;
-
         // Effective role scope mappings: the user's directly-assigned roles plus roles inherited
         // from their effective (recursive) group memberships — matching what tokens carry.
         let mut user_roles = self
@@ -1715,6 +1688,11 @@ where
             .get_user_roles(user.id)
             .await
             .unwrap_or_default();
+
+        let assembled = self
+            .assemble_token_claims(&client_scopes, &user_roles, &gen_input)
+            .await?;
+
         let group_role_ids = self
             .group_token_repository
             .list_effective_role_ids_for_user(user.id)
@@ -2020,6 +1998,7 @@ where
     async fn create_jwt(
         &self,
         client_scopes: &ClientScopeSet,
+        user_roles: &[Role],
         input: GenerateTokenInput,
     ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
         let jwt_key_pair = self
@@ -2032,7 +2011,9 @@ where
             access_claims: mut claims,
             id_mapper_claims,
             ..
-        } = self.assemble_token_claims(client_scopes, &input).await?;
+        } = self
+            .assemble_token_claims(client_scopes, user_roles, &input)
+            .await?;
 
         // Bind the token pair to the SSO session so introspection and refresh can
         // check it is still alive. Absent for flows that establish no session.
@@ -2188,8 +2169,13 @@ where
             .scope_mapping_repository
             .get_scope_set(client.id)
             .await?;
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .unwrap_or_default();
         let assembled = self
-            .assemble_token_claims_for(&client_scopes, &input, true)
+            .assemble_token_claims_for(&client_scopes, &user_roles, &input, true)
             .await?;
         Ok(assembled.access_claims.additional_claims)
     }
@@ -2333,7 +2319,7 @@ where
         &self,
         user_id: Uuid,
         realm_id: RealmId,
-    ) -> Result<Option<mfa_policy::PendingAuthStep>, CoreError> {
+    ) -> Result<(Option<mfa_policy::PendingAuthStep>, Vec<Role>), CoreError> {
         let persisted_actions = self
             .user_required_action_repository
             .get_required_actions(user_id)
@@ -2362,13 +2348,15 @@ where
 
         let realm_settings = self.realm_repository.get_realm_settings(realm_id).await?;
 
-        Ok(mfa_policy::pending_auth_step(
+        let pending_step = mfa_policy::pending_auth_step(
             &persisted_actions,
             realm_settings.as_ref(),
             &user_roles,
             has_otp_credential,
             has_temporary_password,
-        ))
+        );
+
+        Ok((pending_step, user_roles))
     }
 
     async fn verify_refresh_token(
@@ -2496,14 +2484,7 @@ where
 
         // Authenticate the caller before touching the code, so an unauthenticated
         // request can never reach the code lookup at all.
-        let client = self
-            .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm.id())
-            .await
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .in_realm(&params.realm)
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .into_inner();
+        let client = params.client;
 
         // The code itself is a secret: never log it, since log exposure is one of
         // the ways it gets into an attacker's hands in the first place.
@@ -2611,7 +2592,7 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let pending_step = self
+        let (pending_step, user_roles) = self
             .resolve_pending_auth_step(user_id, params.realm.id())
             .await?;
 
@@ -2663,6 +2644,7 @@ where
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
+                &user_roles,
                 GenerateTokenInput {
                     base_url: params.base_url,
                     client_id: params.client_id.clone(),
@@ -2760,14 +2742,7 @@ where
     }
 
     async fn client_credential(&self, params: GrantTypeParams) -> Result<JwtToken, CoreError> {
-        let client = self
-            .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm.id())
-            .await
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .in_realm(&params.realm)
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .into_inner();
+        let client = params.client;
 
         authenticate_client(
             &client,
@@ -2806,6 +2781,12 @@ where
             ));
         }
 
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .unwrap_or_default();
+
         let (final_scope, client_scopes) = self
             .resolve_client_scopes(client.id, params.scope.as_deref())
             .await?;
@@ -2817,6 +2798,7 @@ where
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
+                &user_roles,
                 GenerateTokenInput {
                     base_url: params.base_url,
                     client_id: params.client_id,
@@ -2989,6 +2971,7 @@ where
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
+                &user_roles,
                 GenerateTokenInput {
                     base_url: params.base_url,
                     client_id: params.client_id,
@@ -3047,14 +3030,7 @@ where
             return Err(CoreError::InvalidToken);
         }
 
-        let client = self
-            .client_repository
-            .get_by_client_id(params.client_id.clone(), params.realm.id())
-            .await
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .in_realm(&params.realm)
-            .map_err(|_| CoreError::ClientAuthenticationFailed)?
-            .into_inner();
+        let client = params.client;
 
         authenticate_client(
             &client,
@@ -3111,6 +3087,11 @@ where
             .scope_mapping_repository
             .get_scope_set(client.id)
             .await?;
+        let user_roles = self
+            .user_role_repository
+            .get_user_roles(user.id)
+            .await
+            .unwrap_or_default();
 
         let new_refresh_jti = Uuid::new_v4();
         let new_refresh_expires_at = {
@@ -3155,6 +3136,7 @@ where
                 let (jwt, rotated_refresh_jwt, id_token) = self
                     .create_jwt(
                         &client_scopes,
+                        &user_roles,
                         GenerateTokenInput {
                             base_url: params.base_url,
                             client_id: params.client_id,
@@ -5094,7 +5076,7 @@ where
             return Ok(RegisterUserOutput::Redirect { url: redirect_url });
         }
 
-        if let Some(step) = self.resolve_pending_auth_step(user.id, realm.id).await? {
+        if let Some(step) = self.resolve_pending_auth_step(user.id, realm.id).await?.0 {
             return Ok(RegisterUserOutput::PendingAction {
                 message: pending_step_message(&step),
                 user_id: user.id,
@@ -5527,7 +5509,7 @@ where
             return Err(CoreError::Forbidden("account is disabled".to_string()));
         }
 
-        let pending_step = self
+        let (pending_step, user_roles) = self
             .resolve_pending_auth_step(user.id, realm_scope.id())
             .await?;
 
@@ -5569,6 +5551,7 @@ where
             let (jwt, refresh_token, id_token) = self
                 .create_jwt(
                     &client_scopes,
+                    &user_roles,
                     GenerateTokenInput {
                         base_url: input.base_url.clone(),
                         realm: realm_scope.clone(),

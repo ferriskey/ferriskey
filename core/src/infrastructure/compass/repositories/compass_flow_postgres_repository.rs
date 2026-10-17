@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
-    EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QueryTrait, Select, Statement,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, QueryTrait, Select, Statement, sea_query::Expr,
 };
 use uuid::Uuid;
 
@@ -112,28 +112,28 @@ impl CompassFlowRepository for PostgresCompassFlowRepository {
         duration_ms: Option<i64>,
         user_id: Option<Uuid>,
     ) -> Result<(), CoreError> {
-        let model = compass_flows::Entity::find_by_id(flow_id)
-            .one(&self.db)
-            .await
-            .map_err(|e| {
-                tracing::error!("Failed to find compass flow: {}", e);
-                CoreError::InternalServerError
-            })?
-            .ok_or(CoreError::NotFound)?;
-
-        let mut active_model: compass_flows::ActiveModel = model.into();
-        active_model.status = Set(status.to_string());
-        active_model.completed_at = Set(Some(completed_at.naive_utc()));
-        active_model.duration_ms = Set(duration_ms);
-        active_model.user_id = Set(user_id);
-
-        compass_flows::Entity::update(active_model)
+        let updated = compass_flows::Entity::update_many()
+            .col_expr(
+                compass_flows::Column::Status,
+                Expr::value(status.to_string()),
+            )
+            .col_expr(
+                compass_flows::Column::CompletedAt,
+                Expr::value(completed_at.naive_utc()),
+            )
+            .col_expr(compass_flows::Column::DurationMs, Expr::value(duration_ms))
+            .col_expr(compass_flows::Column::UserId, Expr::value(user_id))
+            .filter(compass_flows::Column::Id.eq(flow_id))
             .exec(&self.db)
             .await
             .map_err(|e| {
                 tracing::error!("Failed to update compass flow status: {}", e);
                 CoreError::InternalServerError
             })?;
+
+        if updated.rows_affected == 0 {
+            return Err(CoreError::NotFound);
+        }
 
         Ok(())
     }

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use uuid::Uuid;
 
 use ferriskey_domain::auth::Identity;
@@ -333,24 +335,29 @@ pub trait GroupAttributeRepository: Send + Sync {
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TokenGroupMembership {
+    pub effective_groups: Vec<Group>,
+    pub direct_group_ids: HashSet<Uuid>,
+    pub group_role_ids_by_org: Vec<(Uuid, Uuid)>,
+    pub member_role_ids_by_org: Vec<(Uuid, Uuid)>,
+}
+
+impl TokenGroupMembership {
+    pub fn effective_role_ids(&self) -> Vec<Uuid> {
+        let mut seen = HashSet::new();
+        self.group_role_ids_by_org
+            .iter()
+            .map(|(_, role_id)| *role_id)
+            .filter(|role_id| seen.insert(*role_id))
+            .collect()
+    }
+}
+
 /// Read model powering token issuance: resolves a user's *effective* (recursive) group
-/// membership and inherited roles via a single query each. Implemented with a recursive CTE.
+/// membership and inherited roles. Implemented with a recursive CTE.
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait GroupTokenRepository: Send + Sync {
-    /// The groups a user belongs to plus all their ancestors (deduplicated).
-    fn list_effective_groups_for_user(
-        &self,
-        user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Group>, CoreError>> + Send;
-
-    /// Ids of the groups the user is a *direct* member of (no ancestor expansion). Used by the
-    /// group-membership mapper in `direct` mode to distinguish direct memberships from inherited
-    /// ancestors already present in the effective set.
-    fn list_direct_group_ids_for_user(
-        &self,
-        user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<Uuid>, CoreError>> + Send;
-
     /// Distinct role ids inherited from the user's effective (recursive) groups. Callers resolve
     /// these to full `Role`s (with client) via `UserRoleRepository::get_roles_by_ids`.
     fn list_effective_role_ids_for_user(
@@ -358,20 +365,14 @@ pub trait GroupTokenRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Vec<Uuid>, CoreError>> + Send;
 
-    /// `(organization_id, role_id)` pairs for roles inherited from the user's effective
-    /// (recursive) group memberships, tagged with the organization each group belongs to.
-    /// Powers the org-scoped role claim (`organizations.<alias>.roles`).
-    fn list_effective_group_role_ids_by_org_for_user(
+    /// Everything token issuance needs about a user's groups and organisation roles, in two
+    /// queries: the effective (recursive) groups with the direct ones flagged, the roles
+    /// inherited through those groups tagged with their organisation, and the roles assigned
+    /// directly to the user's organisation memberships.
+    fn token_membership(
         &self,
         user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<(Uuid, Uuid)>, CoreError>> + Send;
-
-    /// `(organization_id, role_id)` pairs for roles assigned *directly* to the user's
-    /// organization memberships (not via groups). Powers the org-scoped role claim.
-    fn list_member_role_ids_by_org_for_user(
-        &self,
-        user_id: Uuid,
-    ) -> impl Future<Output = Result<Vec<(Uuid, Uuid)>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<TokenGroupMembership, CoreError>> + Send;
 }
 
 /// Service trait for member-scoped role business logic.
