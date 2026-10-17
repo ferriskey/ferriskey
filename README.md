@@ -87,6 +87,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Roadmap](#roadmap)
 - [Adopters](#-adopters)
 - [Contributing](#contributing)
+- [Governance](#governance)
 - [Code of Conduct](#code-of-conduct)
 - [Security](#security)
 - [License](#license)
@@ -265,6 +266,12 @@ We welcome contributions of all kinds bugfixes, features, docs, testing.
 3. Open a PR with tests and a concise description
 
 > Join discussions to help shape modules, APIs, and UX.
+
+<a id="governance"></a>
+
+## 🤝 Governance
+
+How decisions are made, who sponsors the project and the open source commitments (Apache-2.0 only, no CLA, no enterprise edition) are in [GOVERNANCE.md](./GOVERNANCE.md#sponsors-and-open-source-commitments).
 
 <a id="code-of-conduct"></a>
 
