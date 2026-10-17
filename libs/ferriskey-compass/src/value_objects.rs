@@ -176,3 +176,12 @@ mod tests {
         assert_eq!(outcome.duration_ms, Some(42));
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FlowCompletion {
+    pub flow_id: Uuid,
+    pub status: FlowStatus,
+    pub completed_at: DateTime<Utc>,
+    pub duration_ms: i64,
+    pub user_id: Option<Uuid>,
+}

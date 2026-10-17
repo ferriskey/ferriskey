@@ -11,7 +11,7 @@ ferriskey-domain = { path = "../ferriskey-domain" }
 chrono = { version = "0.4.44", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { workspace = true }
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["sync", "time"] }
 tracing = "0.1.44"
 utoipa = { version = "5.4.0", features = ["uuid", "chrono"] }
 uuid = { version = "1.21.0", features = ["serde"] }
@@ -19,4 +19,4 @@ uuid = { version = "1.21.0", features = ["serde"] }
 [dev-dependencies]
 ferriskey-domain = { path = "../ferriskey-domain", features = ["mock"] }
 mockall = "0.14.0"
-tokio = { version = "1", features = ["sync", "macros", "rt"] }
+tokio = { version = "1", features = ["sync", "macros", "rt", "time", "test-util"] }

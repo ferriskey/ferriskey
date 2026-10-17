@@ -17,6 +17,7 @@ pub mod entities;
 pub mod ports;
 pub mod recorder;
 pub mod value_objects;
+pub mod writer;
 
 pub mod policies;
 pub mod services;

@@ -1,3 +1,4 @@
+use crate::value_objects::FlowCompletion;
 use std::future::Future;
 
 use chrono::{DateTime, Utc};
@@ -15,7 +16,7 @@ use ferriskey_domain::{
 use uuid::Uuid;
 
 use crate::{
-    entities::{CompassFlow, CompassFlowStep, FlowStatus},
+    entities::{CompassFlow, CompassFlowStep},
     value_objects::{
         DailyActivityStats, DailyActivityStatsFilter, FlowFilter, FlowSortField, FlowStats,
     },
@@ -62,13 +63,10 @@ pub trait CompassPolicy: Send + Sync {
 pub trait CompassFlowRepository: Send + Sync {
     fn create_flow(&self, flow: CompassFlow) -> impl Future<Output = Result<(), CoreError>> + Send;
 
-    fn update_flow_status(
+    fn write_batch(
         &self,
-        flow_id: Uuid,
-        status: FlowStatus,
-        completed_at: DateTime<Utc>,
-        duration_ms: Option<i64>,
-        user_id: Option<Uuid>,
+        steps: Vec<CompassFlowStep>,
+        completions: Vec<FlowCompletion>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn list(
@@ -116,11 +114,6 @@ pub trait CompassFlowRepository: Send + Sync {
 
 #[cfg_attr(test, mockall::automock)]
 pub trait CompassFlowStepRepository: Send + Sync {
-    fn create_step(
-        &self,
-        step: CompassFlowStep,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
-
     fn get_steps_for_flow(
         &self,
         flow_id: Uuid,

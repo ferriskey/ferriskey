@@ -5,6 +5,7 @@ use ferriskey_authz::tenant::evaluation_service::EvaluationServiceImpl;
 use ferriskey_authz::tenant::services::AuthzManagementServiceImpl;
 use ferriskey_authz_cedar::CedarPolicyCompiler;
 use ferriskey_compass::recorder::FlowRecorder;
+use ferriskey_compass::writer::{WriterConfig, compass_writer_task};
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::infrastructure::client::cache::CachedClientRepository;
@@ -96,7 +97,6 @@ use crate::{
         compass::{
             repositories::{PostgresCompassFlowRepository, PostgresCompassFlowStepRepository},
             retention::compass_retention_task,
-            writer::compass_writer_task,
         },
         db::postgres::{Postgres, PostgresConfig},
         email::SmtpEmailPort,
@@ -370,7 +370,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     tokio::spawn(compass_writer_task(
         compass_rx,
         PostgresCompassFlowRepository::new(postgres.get_db()),
-        PostgresCompassFlowStepRepository::new(postgres.get_db()),
+        WriterConfig::default(),
     ));
     tokio::spawn(compass_retention_task(PostgresCompassFlowRepository::new(
         postgres.get_db(),
