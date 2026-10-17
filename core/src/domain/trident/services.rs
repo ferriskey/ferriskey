@@ -1458,9 +1458,11 @@ where
             StepOutcome::success(),
         );
 
-        self.user_repository
-            .reset_failed_login_attempts(user.id)
-            .await?;
+        if user.needs_lockout_reset() {
+            self.user_repository
+                .reset_failed_login_attempts(user.id)
+                .await?;
+        }
 
         let required_actions = self
             .user_required_action_repository
