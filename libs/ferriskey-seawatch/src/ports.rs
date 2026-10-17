@@ -29,9 +29,10 @@ pub trait SecurityEventService: Send + Sync {
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait SecurityEventRepository: Send + Sync {
     /// Store an event, atomically linking it into the realm's tamper-evident
-    /// hash chain: the implementation retrieves the current chain head under
-    /// an exclusive lock, computes `event_hash`/`prev_hash` from it, and
-    /// inserts in the same transaction so concurrent writers stay serialised.
+    /// hash chain: the implementation computes `event_hash`/`prev_hash` from
+    /// the realm's current chain head and advances that head with a
+    /// compare-and-swap in the same statement as the insert, so concurrent
+    /// writers always chain linearly and a stale head is retried, never forked.
     /// There is deliberately only one write path — a non-chained `store_event`
     /// invites a caller to bypass the chain and leave `event_hash`/`prev_hash`
     /// NULL, which is exactly how the chain went unbuilt before.
