@@ -13,7 +13,7 @@ This document answers the Day 0 questions of the CNCF [General Technical Review]
 
 ### Scope
 
-Draft written from the repository and the documentation; to be reviewed by @NathaelB.
+Draft written from the repository and the documentation; to be reviewed by a contributor.
 
 **Vision and goals.** FerrisKey is an open source Identity and Access Management system written in Rust, built for teams who want an IAM they can read, deploy and operate without the weight of the older platforms ([What is FerrisKey](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/discover/default/en/what-is-ferriskey.mdx)). The goals stated in [GOVERNANCE.md](https://github.com/ferriskey/ferriskey/blob/fdf2056eff5b4377dbce7ff47e4efb87df7ef555/GOVERNANCE.md): identity and access management, OAuth 2.0 and OpenID Connect, multi-tenant realms, policy and role enforcement. Design goals: performance and low memory through Rust and async I/O, a hexagonal architecture that keeps the domain testable, modules that can be enabled independently, secure defaults, and cloud native packaging (container images, Helm charts, an operator).
 
@@ -29,7 +29,7 @@ Draft written from the repository and the documentation; to be reviewed by @Nath
 
 ### Usability
 
-Draft written from the repository and the documentation; to be reviewed by @NathaelB.
+Draft written from the repository and the documentation; to be reviewed by a contributor.
 
 **How personas interact with the project.** Operators install with one `helm install` from an OCI registry, or with the `FerrisKeyCluster` custom resource through the operator, or with Docker Compose profiles. Administrators use the web console (React) scoped by realm, or the REST API documented with OpenAPI, or the [CLI](https://github.com/ferriskey/ferriskey-cli) (realms, clients, users, contexts, imports from Keycloak, Zitadel and Supabase), or the [Terraform provider](https://github.com/ferriskey/terraform-provider-ferriskey). Developers point their application at the realm's discovery document and use any standard OpenID Connect, OAuth 2.0 or SAML 2.0 library. End users sign in on the hosted portal and manage credentials, sessions, MFA and profile in the account pages.
 
@@ -39,7 +39,7 @@ Draft written from the repository and the documentation; to be reviewed by @Nath
 
 ### Design
 
-Draft written from the repository and the documentation; to be reviewed by @NathaelB.
+Draft written from the repository and the documentation; to be reviewed by a contributor.
 
 **Design principles.** Hexagonal architecture: the domain knows nothing about HTTP, SQL or SMTP; ports are traits, adapters implement them, and `ApplicationService` is the single place where the object graph is assembled ([Architecture](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/discover/default/en/guides/architecture.mdx)). Modules own one part of identity management and move to their own crate under `libs/` when they are worth versioning separately. Type driven invariants and no `unwrap` in production code. Behaviour is specified by integration tests at the HTTP boundary, run against PostgreSQL in CI. Secure by default, with explicit toggles to loosen (see Security).
 
@@ -65,7 +65,7 @@ Draft written from the repository and the documentation; to be reviewed by @Nath
 
 ### Installation
 
-Draft written from the repository and the documentation; to be reviewed by @NathaelB.
+Draft written from the repository and the documentation; to be reviewed by a contributor.
 
 **Installation and initialization.** Kubernetes: `helm install ferriskey oci://ghcr.io/ferriskey/charts/ferriskey --namespace ferriskey --create-namespace` brings up the API, the console, a migration Job and an embedded PostgreSQL, and generates the database and admin passwords into Secrets; production points `database.host` at an external instance and sets `postgresql.enabled: false` ([Helm Chart](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/kubernetes/default/en/helm-chart.mdx)). Declaratively: install the operator chart, create a Secret with database credentials, apply a `FerrisKeyCluster` manifest ([Operator](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/kubernetes/default/en/operator.mdx)). Elsewhere: Docker Compose with profiles for registry images, local builds, or a single standalone container; or `cargo run` after `sqlx migrate run` ([Getting Started](https://github.com/ferriskey/website/blob/2529ade8da32ac17b70c0c2e7e98f47de17b5fd1/apps/docs/src/content/docs/discover/default/en/getting-started.mdx)). First start seeds the `master` realm, the admin user and the console client; everything after that is done in the console, the API, the CLI or Terraform.
 
