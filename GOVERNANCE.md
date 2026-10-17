@@ -57,7 +57,7 @@ Other features may be added through community proposals.
 
 ## Sponsors and open source commitments
 
-FerrisKey is funded by sponsors and owned by nobody. The current sponsors are listed in the [README](./README.md#sponsors): Cloud IAM, France Nuage, Gilded Health and Nudibranches. Cloud IAM is the first and largest sponsor and funds the time Nathaël Bonnal spends on the project. Sponsorship buys visibility in the README and nothing else: it gives no say in the roadmap, no priority in reviews and no seat among the maintainers.
+FerrisKey is funded by sponsors and owned by nobody. The current sponsors are listed in the [README](./README.md#sponsors): Cloud IAM, France Nuage, Gilded Health and Nudibranches. Cloud IAM is the first and largest sponsor and funds the time Nathaël Bonnal spends on the project. The other sponsors contribute to the project as a whole; their contributions are not earmarked for specific work or features. Sponsorship buys visibility in the README and nothing else: it gives no say in the roadmap, no priority in reviews and no seat among the maintainers.
 
 FerrisKey is released under the Apache-2.0 license only. There is no dual licensing and no plan to change the license. No Contributor License Agreement is required: contributors sign off their commits under the Developer Certificate of Origin, as described in [CONTRIBUTING.md](./CONTRIBUTING.md#dco).
 
