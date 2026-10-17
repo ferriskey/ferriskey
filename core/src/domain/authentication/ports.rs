@@ -8,14 +8,13 @@ use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::domain::{
     authentication::{
         entities::{
-            AuthCompletion, AuthInput, AuthOutput, AuthSession, AuthenticateInput,
-            AuthenticateOutput, AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput,
-            CredentialsAuthParams, ExchangeTokenInput, JwtToken, SsoSessionBinding,
-            TokenIntrospectionResponse, WebAuthnChallenge,
+            AuthInput, AuthOutput, AuthSession, AuthenticateInput, AuthenticateOutput,
+            AuthenticationError, AuthorizeRequestInput, AuthorizeRequestOutput, ExchangeTokenInput,
+            JwtToken, TokenIntrospectionResponse, WebAuthnChallenge,
         },
         value_objects::{
-            AuthenticationResult, CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput,
-            RegisterUserOutput, RegisterUserUrlContext,
+            CreateAuthSessionRequest, GrantTypeParams, RegisterUserInput, RegisterUserOutput,
+            RegisterUserUrlContext,
         },
     },
     common::entities::app_errors::CoreError,
@@ -241,46 +240,6 @@ pub trait GrantTypeStrategy: Send + Sync {
         &self,
         params: GrantTypeParams,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
-}
-
-pub trait AuthenticatePort: Send + Sync {
-    fn handle_user_credentials_authentication(
-        &self,
-        params: CredentialsAuthParams,
-        auth_session: AuthSession,
-    ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
-    fn determine_next_step(
-        &self,
-        auth_result: AuthenticationResult,
-        session_code: Uuid,
-        auth_session: AuthSession,
-        scope: &RealmScope,
-        webapp_base_url: &str,
-    ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
-    fn finalize_authentication(
-        &self,
-        user_id: Uuid,
-        session_code: Uuid,
-        auth_session: AuthSession,
-        sso_session: SsoSessionBinding,
-        scope: &RealmScope,
-    ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
-
-    fn build_auth_completion(
-        &self,
-        auth_session: &AuthSession,
-        authorization_code: &str,
-    ) -> Result<AuthCompletion, CoreError>;
-
-    fn using_session_code(
-        &self,
-        scope: &RealmScope,
-        client_id: String,
-        session_code: Uuid,
-        username: String,
-        password: String,
-        base_url: String,
-    ) -> impl Future<Output = Result<AuthenticationResult, CoreError>> + Send;
 }
 
 pub struct LoginActionToken {
