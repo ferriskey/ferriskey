@@ -14,5 +14,10 @@ uuid = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+criterion = "0.8.2"
 chrono = { workspace = true }
 serde = { workspace = true }
+
+[[bench]]
+name = "decide"
+harness = false
