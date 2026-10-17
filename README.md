@@ -89,6 +89,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
 - [Security](#security)
+- [Sponsors and Governance](#sponsors-and-governance)
 - [License](#license)
 - [Links](#links)
 
@@ -277,6 +278,12 @@ FerrisKey follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/
 ## 🔐 Security
 
 Report vulnerabilities privately through the [Security tab](https://github.com/ferriskey/ferriskey/security/advisories/new), never in a public issue. Supported versions, response targets and the disclosure process are in [SECURITY.md](./SECURITY.md).
+
+<a id="sponsors-and-governance"></a>
+
+## 🏛️ Sponsors and Governance
+
+FerrisKey is Apache-2.0 only, with no CLA, no open-core model and no enterprise edition. Sponsors fund the project but do not control it. See [Sponsors and open source commitments](./GOVERNANCE.md#sponsors-and-open-source-commitments) in GOVERNANCE.md.
 
 <a id="license"></a>
 
