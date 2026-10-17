@@ -1,7 +1,7 @@
 //! HMAC-SHA256 signing for outbound webhook deliveries and the per-webhook secrets that back it.
 
 use hex::encode;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rand::RngCore;
 use rand::rngs::OsRng;
 use sha2::Sha256;

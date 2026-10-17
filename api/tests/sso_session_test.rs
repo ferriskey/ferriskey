@@ -255,7 +255,7 @@ mod tests {
     }
 
     fn totp_code_for(secret_base32: &str) -> String {
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha1::Sha1;
 
         let secret = base32::decode(base32::Alphabet::Rfc4648 { padding: false }, secret_base32)

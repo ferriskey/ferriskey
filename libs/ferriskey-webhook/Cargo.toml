@@ -13,8 +13,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 url = "2.5.4"
-hmac = "0.12.1"
-sha2 = "0.10.9"
+hmac = "0.13.0"
+sha2 = "0.11.1"
 hex = "0.4.3"
 rand = "0.8.0"
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
