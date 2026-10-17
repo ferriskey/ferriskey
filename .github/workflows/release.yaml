@@ -33,8 +33,9 @@ jobs:
 
       # GitHub's own source archives are generated on request and ship no
       # checksum, so the release carries its own archive, built from the
-      # tagged commit, next to a sha256 manifest. The compression is git's
-      # own, so the archive is reproducible from the tag.
+      # tagged commit, next to a sha256 manifest. The archive can be rebuilt
+      # from the tag; its bytes may differ across git versions, which is why
+      # the checksums are signed rather than recomputed by users.
       - name: build source archive
         id: archive
         env:

@@ -196,7 +196,9 @@ jobs:
           # shellcheck disable=SC2046 # the tag flags and digest list are meant to split
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $(printf 'ghcr.io/ferriskey/ferriskey-${{ matrix.target }}@sha256:%s ' *)
 
-      # Signing the index digest covers every tag pushed above. Keyless: the
+      # Signing the index digest covers every tag pushed above. The digest is
+      # read back through the sha- tag, the only one no other run can move
+      # between the push and this step. Keyless: the
       # signature is bound to this workflow's OIDC identity and recorded in
       # the Sigstore transparency log. To verify:
       #   cosign verify ghcr.io/ferriskey/ferriskey-api:<tag> \
@@ -206,6 +208,6 @@ jobs:
         env:
           IMAGE: ghcr.io/ferriskey/ferriskey-${{ matrix.target }}
         run: |
-          ref="$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+          ref="$(jq -er '.tags | map(select(test(":sha-[0-9a-f]+$"))) | first' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
           digest="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest)"
           cosign sign --yes "$IMAGE@$digest"
