@@ -75,6 +75,28 @@ pub struct MapperContext {
 }
 
 /// Which token the mapper should apply to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ClaimSources {
+    pub organizations: bool,
+    pub user_attributes: bool,
+}
+
+impl ClaimSources {
+    pub fn needed_by(mappers: &[ProtocolMapper]) -> Self {
+        let mut sources = Self::default();
+        for mapper in mappers {
+            match mapper.mapper_type.as_str() {
+                "oidc-organization-membership-mapper"
+                | "oidc-organization-detail-mapper"
+                | "oidc-organization-role-mapper" => sources.organizations = true,
+                "oidc-usermodel-attribute-mapper" => sources.user_attributes = true,
+                _ => {}
+            }
+        }
+        sources
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
     AccessToken,
@@ -669,5 +691,45 @@ mod tests {
         assert_eq!(context.organizations[0].alias, "org-a");
         assert_eq!(context.organizations[1].alias, "org-b");
         assert!(context.organizations[1].domain.is_some());
+    }
+
+    fn mapper_of_type(mapper_type: &str) -> ProtocolMapper {
+        ProtocolMapper {
+            id: Uuid::new_v4(),
+            client_scope_id: Uuid::new_v4(),
+            name: mapper_type.to_string(),
+            mapper_type: mapper_type.to_string(),
+            config: serde_json::json!({}),
+            created_at: chrono::Utc::now(),
+        }
+    }
+
+    #[test]
+    fn property_and_role_mappers_need_neither_organizations_nor_attributes() {
+        let sources = ClaimSources::needed_by(&[
+            mapper_of_type("oidc-usermodel-property-mapper"),
+            mapper_of_type("oidc-usermodel-realm-role-mapper"),
+            mapper_of_type("oidc-group-membership-mapper"),
+        ]);
+
+        assert_eq!(sources, ClaimSources::default());
+    }
+
+    #[test]
+    fn organization_and_attribute_mappers_ask_for_their_sources() {
+        assert!(
+            ClaimSources::needed_by(&[mapper_of_type("oidc-organization-role-mapper")])
+                .organizations
+        );
+        assert!(
+            ClaimSources::needed_by(&[mapper_of_type("oidc-organization-detail-mapper")])
+                .organizations
+        );
+        let both = ClaimSources::needed_by(&[
+            mapper_of_type("oidc-organization-membership-mapper"),
+            mapper_of_type("oidc-usermodel-attribute-mapper"),
+        ]);
+        assert!(both.organizations && both.user_attributes);
+        assert!(!ClaimSources::needed_by(&[]).user_attributes);
     }
 }
