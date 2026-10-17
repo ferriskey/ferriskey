@@ -41,6 +41,18 @@ pub trait SecurityEventRepository: Send + Sync {
         event: SecurityEvent,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
+    fn store_events(
+        &self,
+        events: Vec<SecurityEvent>,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send {
+        async move {
+            for event in events {
+                self.store_event(event).await?;
+            }
+            Ok(())
+        }
+    }
+
     fn list(
         &self,
         scope: &RealmScope,

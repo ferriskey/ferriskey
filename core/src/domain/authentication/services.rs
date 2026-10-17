@@ -571,30 +571,31 @@ where
 
     // The session exists at this point, so an audit outage must not turn a
     // completed login into a failure, as for the SSO resume path.
-    for event in [
-        SecurityEvent::new(
-            realm_id,
-            SecurityEventType::LoginSuccess,
-            EventStatus::Success,
-            user_id,
-        )
-        .with_actor(user_id, ActorType::User)
-        .with_target("session".to_string(), session.id, None),
-        SecurityEvent::new(
-            realm_id,
-            SecurityEventType::SessionCreated,
-            EventStatus::Success,
-            user_id,
-        )
-        .with_target("session".to_string(), session.id, None),
-    ] {
-        if let Err(e) = events.store_event(event).await {
-            warn!(
-                session_id = %session.id,
-                error = %e,
-                "Failed to record a login in the audit log"
-            );
-        }
+    let recorded = events
+        .store_events(vec![
+            SecurityEvent::new(
+                realm_id,
+                SecurityEventType::LoginSuccess,
+                EventStatus::Success,
+                user_id,
+            )
+            .with_actor(user_id, ActorType::User)
+            .with_target("session".to_string(), session.id, None),
+            SecurityEvent::new(
+                realm_id,
+                SecurityEventType::SessionCreated,
+                EventStatus::Success,
+                user_id,
+            )
+            .with_target("session".to_string(), session.id, None),
+        ])
+        .await;
+    if let Err(e) = recorded {
+        warn!(
+            session_id = %session.id,
+            error = %e,
+            "Failed to record a login in the audit log"
+        );
     }
 
     Ok((session, sso_token))
@@ -7100,6 +7101,9 @@ mod bound_session_tests {
             .expect_store_event()
             .returning(|_| Box::pin(async { Ok(()) }));
         events
+            .expect_store_events()
+            .returning(|_| Box::pin(async { Ok(()) }));
+        events
     }
 
     #[tokio::test]
@@ -7219,8 +7223,8 @@ mod bound_session_tests {
 
         let mut events = MockSecurityEventRepository::new();
         events
-            .expect_store_event()
-            .times(2)
+            .expect_store_events()
+            .times(1)
             .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
 
         let opened = open_user_session(

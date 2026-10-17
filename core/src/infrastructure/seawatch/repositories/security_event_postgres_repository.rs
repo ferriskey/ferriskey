@@ -77,6 +77,83 @@ fn chained_insert(event: &SecurityEvent, preimage: Vec<u8>) -> Statement {
     )
 }
 
+const EVENT_COLUMNS: &str = r#"(id, realm_id, actor_id, actor_type, event_type, status, target_type, target_id, resource,
+     "timestamp", trace_id, ip_address, user_agent, details, event_hash, prev_hash, created_at)"#;
+
+fn chain_expression(links: usize, base: &str, preimage_param: impl Fn(usize) -> usize) -> String {
+    (1..=links).fold(base.to_string(), |previous, link| {
+        format!("sha256(${} || {previous})", preimage_param(link))
+    })
+}
+
+fn chained_batch_insert(
+    realm_id: Uuid,
+    events: &[SecurityEvent],
+    preimages: &[Vec<u8>],
+) -> Statement {
+    let per_event = 15;
+    let preimage_param = |link: usize| 3 + per_event * (link - 1) + 14;
+    let head_base = "COALESCE(decode(h.event_hash, 'hex'), $2)";
+    let count = events.len();
+
+    let rows: Vec<String> = (0..count)
+        .map(|index| {
+            let base = 3 + per_event * index;
+            let columns: Vec<String> = (0..14)
+                .map(|offset| format!("${}", base + offset))
+                .collect();
+            format!(
+                "SELECT {}, encode({}, 'hex'), encode({}, 'hex'), clock_timestamp() FROM head",
+                columns.join(", "),
+                chain_expression(index + 1, "head.before", preimage_param),
+                chain_expression(index, "head.before", preimage_param),
+            )
+        })
+        .collect();
+
+    let sql = format!(
+        "WITH head AS (
+    UPDATE security_event_chain_heads h
+    SET prev_hash = encode({prev}, 'hex'),
+        event_hash = encode({last}, 'hex'),
+        updated_at = NOW()
+    WHERE realm_id = $1
+    RETURNING (SELECT COALESCE(decode(o.event_hash, 'hex'), $2)
+               FROM security_event_chain_heads o WHERE o.realm_id = h.realm_id) AS before
+)
+INSERT INTO security_events
+    {EVENT_COLUMNS}
+{rows}
+RETURNING id",
+        prev = chain_expression(count - 1, head_base, preimage_param),
+        last = chain_expression(count, head_base, preimage_param),
+        rows = rows.join("\nUNION ALL\n"),
+    );
+
+    let mut values: Vec<Value> = vec![realm_id.into(), GENESIS_PREV_HASH.to_vec().into()];
+    for (event, preimage) in events.iter().zip(preimages) {
+        values.extend([
+            event.id.0.into(),
+            Uuid::from(event.realm_id).into(),
+            event.actor_id.into(),
+            event.actor_type.as_ref().map(ToString::to_string).into(),
+            event.event_type.to_string().into(),
+            event.status.to_string().into(),
+            event.target_type.clone().into(),
+            event.target_id.into(),
+            event.resource.clone().into(),
+            event.timestamp.naive_utc().into(),
+            event.trace_id.clone().into(),
+            event.ip_address.clone().into(),
+            event.user_agent.clone().into(),
+            Value::Json(event.details.clone().map(Box::new)),
+            preimage.clone().into(),
+        ]);
+    }
+
+    Statement::from_sql_and_values(DbBackend::Postgres, sql, values)
+}
+
 #[derive(Debug, Clone)]
 pub struct PostgresSecurityEventRepository {
     pub db: DatabaseConnection,
@@ -215,6 +292,49 @@ impl SecurityEventRepository for PostgresSecurityEventRepository {
                 })?;
 
             if inserted.is_some() {
+                return Ok(());
+            }
+
+            self.ensure_head(realm_id).await?;
+        }
+
+        error!(%realm_id, "The audit chain head could not be initialised");
+        Err(CoreError::InternalServerError)
+    }
+
+    async fn store_events(&self, events: Vec<SecurityEvent>) -> Result<(), CoreError> {
+        let Some(first) = events.first() else {
+            return Ok(());
+        };
+        let realm_id: Uuid = first.realm_id.into();
+        if events.len() == 1 || !events.iter().all(|event| event.realm_id == first.realm_id) {
+            for event in events {
+                self.store_event(event).await?;
+            }
+            return Ok(());
+        }
+
+        let pii_cfg = self.pii_config(realm_id).await;
+        let events: Vec<SecurityEvent> = events
+            .into_iter()
+            .map(|event| apply_to_event(event, &pii_cfg))
+            .collect();
+        let preimages: Vec<Vec<u8>> = events
+            .iter()
+            .map(|event| canonical_preimage(event).into_bytes())
+            .collect();
+
+        for _ in 0..CHAIN_ATTEMPTS {
+            let inserted = self
+                .db
+                .query_all(chained_batch_insert(realm_id, &events, &preimages))
+                .await
+                .map_err(|e| {
+                    error!("Failed to store a batch of chained security events: {}", e);
+                    CoreError::InternalServerError
+                })?;
+
+            if inserted.len() == events.len() {
                 return Ok(());
             }
 
@@ -553,6 +673,74 @@ mod tests {
             assert_eq!(
                 stored_head(&fixture.pool, realm_id).await,
                 events[0].event_hash.map(hex::encode)
+            );
+        }
+
+        #[tokio::test]
+        #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+        async fn a_batch_stored_together_chains_in_order_after_and_before_single_events() {
+            let fixture = setup().await;
+            let realm_id = insert_realm(&fixture.pool).await;
+
+            fixture
+                .repository
+                .store_event(login_event(realm_id, 0))
+                .await
+                .expect("first event");
+            fixture
+                .repository
+                .store_events(vec![login_event(realm_id, 1), login_event(realm_id, 2)])
+                .await
+                .expect("the pair");
+            fixture
+                .repository
+                .store_event(login_event(realm_id, 3))
+                .await
+                .expect("last event");
+
+            let events = fixture
+                .repository
+                .get_events_ordered_for_verification(realm_id)
+                .await
+                .expect("events");
+            assert_eq!(events.len(), 4);
+            assert_eq!(verify_chain(&events), VerifyResult::Ok);
+            for pair in events.windows(2) {
+                assert_eq!(pair[1].prev_hash, pair[0].event_hash);
+            }
+            assert_eq!(
+                stored_head(&fixture.pool, realm_id).await,
+                events[3].event_hash.map(hex::encode)
+            );
+        }
+
+        #[tokio::test]
+        #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+        async fn a_batch_on_a_fresh_realm_chains_on_genesis() {
+            let fixture = setup().await;
+            let realm_id = insert_realm(&fixture.pool).await;
+
+            fixture
+                .repository
+                .store_events(vec![
+                    login_event(realm_id, 0),
+                    login_event(realm_id, 1),
+                    login_event(realm_id, 2),
+                ])
+                .await
+                .expect("the batch");
+
+            let events = fixture
+                .repository
+                .get_events_ordered_for_verification(realm_id)
+                .await
+                .expect("events");
+            assert_eq!(events.len(), 3);
+            assert_eq!(events[0].prev_hash, Some(GENESIS_PREV_HASH));
+            assert_eq!(verify_chain(&events), VerifyResult::Ok);
+            assert_eq!(
+                stored_head(&fixture.pool, realm_id).await,
+                events[2].event_hash.map(hex::encode)
             );
         }
 
