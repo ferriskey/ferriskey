@@ -1,5 +1,4 @@
 use std::fmt::{self, Display, Formatter};
-use std::str::from_utf8;
 
 use chrono::{DateTime, Utc};
 use quick_xml::events::{BytesRef, BytesStart, Event};
@@ -306,30 +305,27 @@ impl RootAttributes {
         let mut force_authn = false;
         let mut is_passive = false;
 
-        let attributes = root.attributes();
-        let decoder = attributes.decoder();
-
-        for attribute in attributes {
+        for attribute in root.attributes() {
             let attribute = attribute.map_err(malformed)?;
             if attribute.key.prefix().is_some() {
                 continue;
             }
             let value = attribute
-                .decoded_and_normalized_value(XmlVersion::Implicit1_0, decoder)
+                .normalized_value(XmlVersion::Implicit1_0)
                 .map_err(malformed)?;
 
             match attribute.key.local_name().as_ref() {
-                b"ID" => id = Some(RequestId::parse(&value)?),
-                b"Version" => version = Some(SamlVersion::parse(&value)?),
-                b"IssueInstant" => issue_instant = Some(utc_timestamp("IssueInstant", &value)?),
-                b"Destination" => destination = Some(AbsoluteUri::parse("Destination", &value)?),
-                b"AssertionConsumerServiceURL" => {
+                "ID" => id = Some(RequestId::parse(&value)?),
+                "Version" => version = Some(SamlVersion::parse(&value)?),
+                "IssueInstant" => issue_instant = Some(utc_timestamp("IssueInstant", &value)?),
+                "Destination" => destination = Some(AbsoluteUri::parse("Destination", &value)?),
+                "AssertionConsumerServiceURL" => {
                     assertion_consumer_service_url =
                         Some(AbsoluteUri::parse("AssertionConsumerServiceURL", &value)?);
                 }
-                b"ProtocolBinding" => protocol_binding = Some(ProtocolBinding::parse(&value)?),
-                b"ForceAuthn" => force_authn = xsd_boolean("ForceAuthn", &value)?,
-                b"IsPassive" => is_passive = xsd_boolean("IsPassive", &value)?,
+                "ProtocolBinding" => protocol_binding = Some(ProtocolBinding::parse(&value)?),
+                "ForceAuthn" => force_authn = xsd_boolean("ForceAuthn", &value)?,
+                "IsPassive" => is_passive = xsd_boolean("IsPassive", &value)?,
                 _ => {}
             }
         }
@@ -363,7 +359,7 @@ impl Children {
             let (namespace, event) = read_event(reader)?;
             match event {
                 Event::Start(child) if depth == 0 => {
-                    let local = local_name(&child)?;
+                    let local = local_name(&child);
                     match (namespace.as_deref(), local.as_str()) {
                         (Some(ASSERTION_NAMESPACE), "Issuer") => {
                             if issuer.is_some() {
@@ -410,7 +406,7 @@ fn read_root<'i>(reader: &mut NsReader<&'i [u8]>) -> Result<BytesStart<'i>, Auth
         let (namespace, event) = read_event(reader)?;
         match event {
             Event::Start(tag) => {
-                let local = local_name(&tag)?;
+                let local = local_name(&tag);
                 if namespace.as_deref() == Some(PROTOCOL_NAMESPACE) && local == "AuthnRequest" {
                     return Ok(tag);
                 }
@@ -429,16 +425,13 @@ fn read_root<'i>(reader: &mut NsReader<&'i [u8]>) -> Result<BytesStart<'i>, Auth
 }
 
 fn read_name_id_policy_format(tag: &BytesStart<'_>) -> Result<Option<NameIdFormat>, AuthnError> {
-    let attributes = tag.attributes();
-    let decoder = attributes.decoder();
-
-    for attribute in attributes {
+    for attribute in tag.attributes() {
         let attribute = attribute.map_err(malformed)?;
-        if attribute.key.prefix().is_some() || attribute.key.local_name().as_ref() != b"Format" {
+        if attribute.key.prefix().is_some() || attribute.key.local_name().as_ref() != "Format" {
             continue;
         }
         let value = attribute
-            .decoded_and_normalized_value(XmlVersion::Implicit1_0, decoder)
+            .normalized_value(XmlVersion::Implicit1_0)
             .map_err(malformed)?;
         return NameIdFormat::parse(&value).map(Some);
     }
@@ -452,8 +445,8 @@ fn read_text(reader: &mut NsReader<&[u8]>, element: &'static str) -> Result<Stri
     loop {
         let (_, event) = read_event(reader)?;
         match event {
-            Event::Text(chunk) => text.push_str(&chunk.xml10_content().map_err(malformed)?),
-            Event::CData(chunk) => text.push_str(&chunk.xml10_content().map_err(malformed)?),
+            Event::Text(chunk) => text.push_str(&chunk.xml10_content()),
+            Event::CData(chunk) => text.push_str(&chunk.xml10_content()),
             Event::GeneralRef(reference) => text.push(resolve_reference(&reference)?),
             Event::End(_) => break,
             Event::Start(_) => {
@@ -478,12 +471,12 @@ fn read_event<'i>(
 ) -> Result<(Option<String>, Event<'i>), AuthnError> {
     let (resolved, event) = reader.read_resolved_event().map_err(malformed)?;
     let namespace = match resolved {
-        ResolveResult::Bound(Namespace(uri)) => Some(utf8(uri)?),
+        ResolveResult::Bound(Namespace(uri)) => Some(uri.to_owned()),
         ResolveResult::Unbound => None,
         ResolveResult::Unknown(prefix) => {
             return Err(AuthnError::MalformedXml(format!(
                 "undeclared namespace prefix `{}`",
-                utf8(&prefix)?
+                prefix
             )));
         }
     };
@@ -495,8 +488,8 @@ fn resolve_reference(reference: &BytesRef<'_>) -> Result<char, AuthnError> {
         return Ok(character);
     }
 
-    let name = reference.decode().map_err(malformed)?;
-    match name.as_ref() {
+    let name: &str = reference;
+    match name {
         "amp" => Ok('&'),
         "lt" => Ok('<'),
         "gt" => Ok('>'),
@@ -591,14 +584,8 @@ fn qualified_name(namespace: Option<&str>, local: &str) -> String {
     }
 }
 
-fn local_name(tag: &BytesStart<'_>) -> Result<String, AuthnError> {
-    utf8(tag.local_name().as_ref())
-}
-
-fn utf8(bytes: &[u8]) -> Result<String, AuthnError> {
-    from_utf8(bytes)
-        .map(str::to_owned)
-        .map_err(|error| AuthnError::MalformedXml(error.to_string()))
+fn local_name(tag: &BytesStart<'_>) -> String {
+    tag.local_name().as_ref().to_owned()
 }
 
 fn malformed<E: Display>(error: E) -> AuthnError {
