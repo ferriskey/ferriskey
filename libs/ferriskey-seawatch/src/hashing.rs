@@ -10,8 +10,9 @@
 //!
 //! Fields use their `Display` representation. Optional fields that are `None`
 //! are encoded as the literal string `NONE`. The `details` JSON value is
-//! serialised with [`serde_json::to_string`] (compact, deterministic for the
-//! same value) when present.
+//! serialised with [`serde_json::to_string`] (compact) after sorting object
+//! keys recursively, so the hash does not depend on key order (`serde_json`'s
+//! `preserve_order` feature, or JSONB reordering keys on read).
 //!
 //! The 32-byte `prev_hash` is appended as raw bytes after the UTF-8 encoded
 //! preimage text, with no separator.
@@ -149,7 +150,7 @@ fn build_preimage(event: &SecurityEvent) -> String {
         event
             .details
             .as_ref()
-            .and_then(|v| serde_json::to_string(v).ok()),
+            .and_then(|v| serde_json::to_string(&with_sorted_keys(v)).ok()),
     );
 
     format!(
@@ -157,6 +158,24 @@ fn build_preimage(event: &SecurityEvent) -> String {
          {target_type}|{target_id}|{resource}|{timestamp}|{trace_id}|\
          {ip_address}|{user_agent}|{details}"
     )
+}
+
+fn with_sorted_keys(value: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+
+    match value {
+        Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            Value::Object(
+                keys.into_iter()
+                    .map(|key| (key.clone(), with_sorted_keys(&map[key])))
+                    .collect(),
+            )
+        }
+        Value::Array(items) => Value::Array(items.iter().map(with_sorted_keys).collect()),
+        other => other.clone(),
+    }
 }
 
 fn opt_str(v: Option<String>) -> String {
@@ -281,5 +300,20 @@ mod tests {
             assert!(v.get("event_hash").is_some());
             assert!(v.get("prev_hash").is_some());
         }
+    }
+
+    #[test]
+    fn details_hash_the_same_whatever_their_key_order() {
+        let realm_id = RealmId::new(Uuid::new_v4());
+        let mut written = make_event(realm_id);
+        written.details = serde_json::from_str(r#"{"b":1,"a":{"d":1,"c":2}}"#).ok();
+        let mut read_back = written.clone();
+        read_back.details = serde_json::from_str(r#"{"a":{"c":2,"d":1},"b":1}"#).ok();
+
+        assert!(build_preimage(&written).ends_with(r#"|{"a":{"c":2,"d":1},"b":1}"#));
+        assert_eq!(
+            compute_event_hash(&written, &GENESIS_PREV_HASH),
+            compute_event_hash(&read_back, &GENESIS_PREV_HASH)
+        );
     }
 }

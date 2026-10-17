@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use ferriskey_authz::tenant::services::AuthzManagementServiceImpl;
+use ferriskey_authz_cedar::CedarPolicyCompiler;
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
@@ -9,6 +11,7 @@ use crate::domain::common::rate_limit::{
     CIMD_FETCHES_PER_MINUTE, DEFAULT_REQUESTS_PER_MINUTE, IpRateLimiter,
     REALM_REGISTRATIONS_PER_HOUR, RealmBudget,
 };
+use crate::infrastructure::authz::repository::PostgresAuthzRepository;
 use crate::infrastructure::client_metadata::{
     CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
 };
@@ -161,6 +164,7 @@ pub mod abyss;
 pub mod account_security;
 pub mod aegis;
 pub mod auth;
+pub mod authz;
 pub mod broker;
 pub mod client;
 pub mod client_registration;
@@ -207,6 +211,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
     let realm = Arc::new(PostgresRealmRepository::new(postgres.get_db()));
+    let authz = Arc::new(PostgresAuthzRepository::new(postgres.get_db()));
     let client = Arc::new(PostgresClientRepository::new(postgres.get_db()));
     let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
     let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
@@ -503,6 +508,15 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             client_scope.clone(),
             scope_mapping.clone(),
             policy.clone(),
+        ),
+        authz_management_service: AuthzManagementServiceImpl::new(
+            realm.clone(),
+            policy.clone(),
+            authz.clone(),
+            authz.clone(),
+            authz.clone(),
+            authz,
+            Arc::new(CedarPolicyCompiler::new()),
         ),
         token_exchange_policy_service: TokenExchangePolicyServiceImpl::new(
             realm.clone(),
