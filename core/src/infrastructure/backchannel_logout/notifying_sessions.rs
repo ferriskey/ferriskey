@@ -152,6 +152,10 @@ where
             .await
     }
 
+    async fn delete_expired(&self, before: DateTime<Utc>) -> Result<u64, SessionError> {
+        self.inner.delete_expired(before).await
+    }
+
     async fn update_last_seen(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
         self.inner.update_last_seen(session).await
     }

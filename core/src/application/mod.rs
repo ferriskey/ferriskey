@@ -10,6 +10,7 @@ use ferriskey_webhook::endpoint::PrivateEndpoints;
 
 use crate::infrastructure::client::cache::CachedClientRepository;
 use crate::infrastructure::realm::cache::CachedRealmRepository;
+use crate::infrastructure::retention::expired_rows_retention_task;
 
 use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
 use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
@@ -482,6 +483,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     tokio::spawn(purge_expired_device_sessions_task(
         device_flow_service.clone(),
         DEVICE_SESSION_PURGE_PERIOD,
+    ));
+    tokio::spawn(expired_rows_retention_task(
+        access_token.as_ref().clone(),
+        refresh_token.as_ref().clone(),
+        PostgresUserSessionRepository::new(postgres.get_db()),
     ));
 
     let app = ApplicationService {
