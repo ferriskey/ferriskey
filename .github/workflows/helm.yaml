@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: set up helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: log-in to ghcr
         run: |
@@ -51,10 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: set up helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       - name: log-in to ghcr
         run: |

@@ -14,7 +14,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use super::auth::root_scoped_base_url;
-use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::url::{FullUrl, WebappUrl};
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -97,6 +97,7 @@ pub async fn registration_handler(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     cookie: CookieManager,
     ValidateJson(req): ValidateJson<RegistrationRequest>,
 ) -> Result<Response<RegistrationResponse>, ApiError> {
@@ -120,11 +121,8 @@ pub async fn registration_handler(
         )
         .await?;
 
-    let url_context = registration_url_context(
-        &state.args.webapp_url,
-        &base_url,
-        &state.args.server.root_path,
-    );
+    let url_context =
+        registration_url_context(&webapp_url, &base_url, &state.args.server.root_path);
     let output = state
         .service
         .register_user(

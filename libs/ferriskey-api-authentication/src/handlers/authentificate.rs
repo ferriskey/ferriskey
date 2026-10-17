@@ -6,7 +6,7 @@ use axum_cookie::CookieManager;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
 use ferriskey_api_core::app_state::AppState;
-use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::url::{FullUrl, WebappUrl};
 
 use ferriskey_core::domain::authentication::entities::AuthenticateInput;
 use ferriskey_core::domain::authentication::entities::AuthenticationStepStatus;
@@ -65,6 +65,7 @@ pub async fn authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     Query(query): Query<AuthenticateQueryParams>,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
@@ -94,6 +95,7 @@ pub async fn authenticate(
         query.client_id.clone(),
         session_code,
         base_url.clone(),
+        webapp_url.clone(),
         username,
         password,
         payload.remember_me,
@@ -105,23 +107,19 @@ pub async fn authenticate(
         && result
             .required_actions
             .contains(&RequiredAction::VerifyEmail)
-    {
-        let verification_base_url = state.args.webapp_url.trim_end_matches('/').to_string();
-
-        if let Err(e) = state
+        && let Err(e) = state
             .service
             .email_verification_service
-            .send_verification_email(result.user_id, realm_name.clone(), verification_base_url)
+            .send_verification_email(result.user_id, realm_name.clone(), webapp_url)
             .await
-        {
-            // Log the error but don't fail the authentication - user can still use resend button
-            warn!(
-                user_id = %result.user_id,
-                realm = %realm_name,
-                error = %e,
-                "Failed to send verification email during authentication"
-            );
-        }
+    {
+        // Log the error but don't fail the authentication - user can still use resend button
+        warn!(
+            user_id = %result.user_id,
+            realm = %realm_name,
+            error = %e,
+            "Failed to send verification email during authentication"
+        );
     }
 
     let step_token = result.temporary_token.clone();
@@ -141,7 +139,10 @@ pub async fn authenticate(
     }
     if let Some(token) = step_token {
         let mut flow_cookie = Cookie::build((LOGIN_ACTION_COOKIE, token))
-            .path(format!("/realms/{realm_name}/login-actions"))
+            .path(login_action_cookie_path(
+                &state.args.server.root_path,
+                &realm_name,
+            ))
             .http_only(true)
             .same_site(SameSite::Lax);
 
@@ -157,4 +158,29 @@ pub async fn authenticate(
     }
 
     Ok((StatusCode::OK, headers, axum::Json(response)).into_response())
+}
+
+fn login_action_cookie_path(root_path: &str, realm_name: &str) -> String {
+    format!("{root_path}/realms/{realm_name}/login-actions")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::login_action_cookie_path;
+
+    #[test]
+    fn the_cookie_is_scoped_to_the_realm_login_actions_without_a_root_path() {
+        assert_eq!(
+            login_action_cookie_path("", "master"),
+            "/realms/master/login-actions"
+        );
+    }
+
+    #[test]
+    fn the_cookie_path_carries_the_root_path_the_routes_are_mounted_under() {
+        assert_eq!(
+            login_action_cookie_path("/api", "master"),
+            "/api/realms/master/login-actions"
+        );
+    }
 }

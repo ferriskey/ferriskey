@@ -16,6 +16,12 @@
   <a href="https://github.com/ferriskey/ferriskey/releases">
     <img alt="Release" src="https://img.shields.io/github/v/release/ferriskey/ferriskey?display_name=tag&logo=semantic-release" />
   </a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ferriskey/ferriskey">
+    <img alt="OpenSSF Scorecard" src="https://api.scorecard.dev/projects/github.com/ferriskey/ferriskey/badge" />
+  </a>
+  <a href="https://www.bestpractices.dev/projects/11019">
+    <img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/11019/badge" />
+  </a>
   <a href="https://opensource.org/licenses/Apache-2.0">
     <img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
   </a>
@@ -83,6 +89,7 @@ It aims to be a serious open‑source alternative to heavyweight IAMs fast, modu
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
 - [Security](#security)
+- [Sponsors and Governance](#sponsors-and-governance)
 - [License](#license)
 - [Links](#links)
 
@@ -271,6 +278,12 @@ FerrisKey follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/
 ## 🔐 Security
 
 Report vulnerabilities privately through the [Security tab](https://github.com/ferriskey/ferriskey/security/advisories/new), never in a public issue. Supported versions, response targets and the disclosure process are in [SECURITY.md](./SECURITY.md).
+
+<a id="sponsors-and-governance"></a>
+
+## 🏛️ Sponsors and Governance
+
+FerrisKey is Apache-2.0 only, with no CLA, no open-core model and no enterprise edition. Sponsors fund the project but do not control it. See [Sponsors and open source commitments](./GOVERNANCE.md#sponsors-and-open-source-commitments) in GOVERNANCE.md.
 
 <a id="license"></a>
 

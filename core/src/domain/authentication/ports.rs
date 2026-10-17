@@ -255,6 +255,7 @@ pub trait AuthenticatePort: Send + Sync {
         session_code: Uuid,
         auth_session: AuthSession,
         scope: &RealmScope,
+        webapp_base_url: &str,
     ) -> impl Future<Output = Result<AuthenticateOutput, CoreError>> + Send;
     fn finalize_authentication(
         &self,

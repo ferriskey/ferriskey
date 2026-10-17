@@ -5,6 +5,7 @@ all-features = true
 yanked = "deny"
 ignore = [
     { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is unmaintained, pulled at build time only by validator_derive and sea-bae; no maintained release of either drops it yet" },
+    { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is unmaintained, pulled by serde_yaml through kube-client 2.x and the operator crdgen binary; kube 4 moves to serde-saphyr" },
 ]
 
 [licenses]

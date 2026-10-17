@@ -10,7 +10,7 @@ use ferriskey_core::domain::abyss::identity_provider::broker::{
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 
 use ferriskey_api_core::request_context::RequestContext;
-use ferriskey_api_core::url::FullUrl;
+use ferriskey_api_core::url::{FullUrl, WebappUrl};
 use ferriskey_api_core::{
     api_entities::api_error::{ApiError, ApiErrorResponse},
     app_state::AppState,
@@ -45,6 +45,7 @@ pub async fn broker_callback(
     Path((realm_name, alias)): Path<(String, String)>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     context: RequestContext,
     Query(params): Query<BrokerCallbackQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -66,13 +67,17 @@ pub async fn broker_callback(
     {
         Ok(result) => result,
         Err(CoreError::UserDisabled) => {
-            let frontend_origin = state
-                .args
-                .server
-                .allowed_origins
-                .first()
-                .map(|s| s.trim_end_matches('/').to_string())
-                .unwrap_or_else(|| base_url.clone());
+            let frontend_origin = if state.args.webapp_url_from_request {
+                webapp_url
+            } else {
+                state
+                    .args
+                    .server
+                    .allowed_origins
+                    .first()
+                    .map(|s| s.trim_end_matches('/').to_string())
+                    .unwrap_or_else(|| base_url.clone())
+            };
 
             let login_url = format!(
                 "{frontend_origin}/realms/{realm_name}/authentication/login?login_error=User+account+is+disabled"

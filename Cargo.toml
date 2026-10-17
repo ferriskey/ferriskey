@@ -13,7 +13,7 @@ edition = "2024"
 # migrated in a follow-up refactor.
 [workspace.dependencies]
 axum = "0.8.8"
-axum-cookie = "0.2.3"
+axum-cookie = "0.3.0"
 axum-extra = { version = "0.12.5", features = ["cookie", "typed-header"] }
 base64 = "0.22.1"
 chrono = { version = "0.4.40", features = ["serde"] }

@@ -1,4 +1,4 @@
-FROM rust:1.95.0-bookworm AS chef
+FROM rust:1.99.0-bookworm AS chef
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -53,16 +53,14 @@ EXPOSE 80
 ENTRYPOINT ["ferriskey-operator"]
 
 # ── Frontend build ────────────────────────────────────────────────────────────
-FROM node:24.21.0-alpine3.24 AS webapp-build
+FROM node:26.11.1-alpine3.24 AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN \
-    corepack enable && \
-    corepack prepare pnpm@9.15.0 --activate
+RUN npm install -g pnpm@9.15.0
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -73,7 +71,7 @@ COPY front/ .
 RUN VITE_API_URL="" pnpm run build
 
 # ── Frontend runtime ──────────────────────────────────────────────────────────
-FROM nginxinc/nginx-unprivileged:1.31.1-alpine3.23-slim AS webapp
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim AS webapp
 
 # The unprivileged image ships root-owned index.html/50x.html in the web root and
 # runs as the non-root "nginx" user. The runtime entrypoint wipes and repopulates

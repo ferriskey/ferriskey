@@ -2,6 +2,7 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use ferriskey_api_core::url::WebappUrl;
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -70,11 +71,12 @@ impl PartialSchema for PasskeyCreationOptionsResponse {
 pub async fn start_own_passkey_registration(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    WebappUrl(webapp_url): WebappUrl,
     Extension(identity): Extension<Identity>,
     CallerSession(session_id): CallerSession,
     ValidateJson(payload): ValidateJson<ElevationOnlyValidator>,
 ) -> Result<Response<PasskeyCreationOptionsResponse>, ApiError> {
-    let rp_info = webauthn_rp_info_from_webapp_url(&state.args.webapp_url);
+    let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let challenge = state
         .service

@@ -21,19 +21,19 @@ jobs:
       SKIP: rust-clippy
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: set up rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           components: rustfmt
           cache: false
 
       - name: set up python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
 
       - name: set up node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -41,7 +41,7 @@ jobs:
         run: npm install -g pnpm@latest-10
 
       - name: cache node modules
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: front/node_modules
           key: node-${{ runner.arch }}-${{ hashFiles('front/pnpm-lock.yaml') }}

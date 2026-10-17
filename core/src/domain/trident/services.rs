@@ -75,7 +75,7 @@ use crate::{
             },
         },
         user::{
-            entities::{RequiredAction, User},
+            entities::{RequiredAction, RequiredActionError, User},
             ports::{UserRepository, UserRequiredActionRepository, UserRoleRepository},
         },
         webhook::{
@@ -1596,10 +1596,14 @@ where
             .await
             .map_err(|_| CoreError::CreateCredentialError)?;
 
-        self.user_required_action_repository
+        match self
+            .user_required_action_repository
             .remove_required_action(user.id, RequiredAction::UpdatePassword)
             .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        {
+            Ok(()) | Err(RequiredActionError::NotFound) => {}
+            Err(_) => return Err(CoreError::InternalServerError),
+        }
 
         self.token_revocation
             .revoke_all_user_access(user.id, scope.id().into())
@@ -3208,6 +3212,106 @@ mod tests {
             .unwrap()
             .expect_remove_required_action()
             .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        let service = builder.with_user_access_revoked(1).build();
+
+        let result = service
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "update_password should succeed: {result:?}");
+    }
+
+    #[tokio::test]
+    async fn update_password_succeeds_for_a_temporary_password_without_a_stored_required_action() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let user_id = user.id;
+
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let temporary = Credential {
+                    id: Uuid::new_v4(),
+                    salt: Some("salt".to_string()),
+                    credential_type: CredentialType::Password,
+                    user_id,
+                    user_label: None,
+                    secret_data: "temporary_hash".to_string(),
+                    credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+                    temporary: true,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(vec![temporary]) })
+            });
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_password_credential()
+            .returning(|_| Box::pin(async { Err(CredentialError::GetPasswordCredentialError) }));
+
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "new_hash".to_string(),
+                        "salt".to_string(),
+                        1,
+                        "argon2".to_string(),
+                    ))
+                })
+            });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .returning(move |_, _, _, _, _| {
+                let cred = Credential {
+                    id: Uuid::new_v4(),
+                    salt: Some("salt".to_string()),
+                    credential_type: CredentialType::Password,
+                    user_id,
+                    user_label: None,
+                    secret_data: "new_hash".to_string(),
+                    credential_data: CredentialData::new_hash(1, "argon2".to_string()),
+                    temporary: false,
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                    webauthn_credential_id: None,
+                };
+                Box::pin(async move { Ok(cred) })
+            });
+
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Err(RequiredActionError::NotFound) }));
 
         let service = builder.with_user_access_revoked(1).build();
 
