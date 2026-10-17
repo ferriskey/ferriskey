@@ -24,6 +24,7 @@ use ferriskey_consent::{
     ConsentServiceImpl, DecideConsentInput, EvaluateConsentInput, ScopeDescriptor,
     ports::ConsentDecisionRepository,
 };
+use ferriskey_organization::ports::TokenGroupMembership;
 use ferriskey_organization::{
     Group, GroupId, GroupTokenRepository, OrganizationAttributeRepository, OrganizationId,
     OrganizationMemberRepository, OrganizationRepository,
@@ -32,7 +33,9 @@ use ferriskey_organization::{
 use crate::domain::abyss::federation::entities::FederationMapping;
 use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
 use crate::domain::authentication::login_context::{LoginContext, VerifiedLogin};
-use crate::domain::authentication::mapper_engine::{ContextGroup, ContextOrganization};
+use crate::domain::authentication::mapper_engine::{
+    ClaimSources, ContextGroup, ContextOrganization,
+};
 use crate::domain::authentication::scope::resolve_requested_scope;
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
@@ -1327,70 +1330,11 @@ where
     /// See [`Self::assemble_token_claims`]. With `only_token_scopes`, the
     /// client's default scopes apply only when the token scope names them, so
     /// a narrowed scope also narrows the mapped claims (RFC 8693 exchange).
-    async fn assemble_token_claims_for(
+    async fn organizations_for_token(
         &self,
-        client_scopes: &ClientScopeSet,
-        user_roles: &[Role],
+        membership: &TokenGroupMembership,
         input: &GenerateTokenInput,
-        only_token_scopes: bool,
-    ) -> Result<AssembledClaims, CoreError> {
-        let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
-        let realm_audit = format!("{}-realm", input.realm.name());
-
-        let applicable_scopes = client_scopes.applicable(input.scope.as_deref(), only_token_scopes);
-        let scope_ids: Vec<Uuid> = applicable_scopes.iter().map(|scope| scope.id).collect();
-        let mut mappers_by_scope = self
-            .protocol_mapper_repository
-            .get_by_scope_ids(&scope_ids)
-            .await?;
-        let all_mappers: Vec<ProtocolMapper> = applicable_scopes
-            .iter()
-            .flat_map(|scope| mappers_by_scope.remove(&scope.id).unwrap_or_default())
-            .collect();
-
-        let mut realm_roles: Vec<String> = Vec::new();
-        let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
-        for role in user_roles {
-            match &role.client {
-                Some(client) => client_roles
-                    .entry(client.client_id.clone())
-                    .or_default()
-                    .push(role.name.clone()),
-                None => realm_roles.push(role.name.clone()),
-            }
-        }
-
-        let membership = self
-            .group_token_repository
-            .token_membership(input.user_id)
-            .await
-            .unwrap_or_default();
-
-        // Roles inherited from the user's effective (recursive) group memberships, merged into
-        // the role maps so they flow into tokens exactly like directly-assigned roles.
-        let group_role_ids = membership.effective_role_ids();
-        if !group_role_ids.is_empty() {
-            let group_roles = self
-                .user_role_repository
-                .get_roles_by_ids(group_role_ids)
-                .await
-                .unwrap_or_default();
-            for role in &group_roles {
-                match &role.client {
-                    Some(client) => client_roles
-                        .entry(client.client_id.clone())
-                        .or_default()
-                        .push(role.name.clone()),
-                    None => realm_roles.push(role.name.clone()),
-                }
-            }
-        }
-
-        // Organization-scoped roles: roles that apply only within a specific organization,
-        // aggregated per org from (a) roles assigned directly to the membership and
-        // (b) roles inherited from the user's groups in that org. These are surfaced *only*
-        // under the `organizations.<alias>` claim (via the org-role mapper), never flattened
-        // into the global `realm_access` / `resource_access` claims above.
+    ) -> Vec<ContextOrganization> {
         let mut org_role_ids: HashMap<Uuid, HashSet<Uuid>> = HashMap::new();
         for (org_id, role_id) in membership
             .member_role_ids_by_org
@@ -1400,7 +1344,6 @@ where
             org_role_ids.entry(*org_id).or_default().insert(*role_id);
         }
 
-        // Resolve the distinct role ids once, then bucket per org into realm vs client roles.
         let mut org_roles: OrgScopedRoles = HashMap::new();
         if !org_role_ids.is_empty() {
             let distinct_ids: Vec<Uuid> = org_role_ids
@@ -1436,20 +1379,12 @@ where
             }
         }
 
-        // Effective groups (direct + ancestors) with their full paths, for the group mapper.
-        // Direct ids let the mapper emit direct-only membership when configured.
-        let groups =
-            build_context_groups(&membership.effective_groups, &membership.direct_group_ids);
-
-        // Load user organization memberships with their attributes
         let org_memberships = self
             .organization_member_repository
             .list_organizations_for_user(input.realm.id(), input.user_id)
             .await
             .unwrap_or_default();
 
-        // Union of the orgs the user is a direct member of and any org that granted scoped
-        // roles (a user may inherit roles from a group in an org without a direct membership row).
         let mut org_ids: Vec<OrganizationId> = Vec::new();
         let mut seen_org_ids: HashSet<Uuid> = HashSet::new();
         for membership in &org_memberships {
@@ -1494,19 +1429,99 @@ where
             }
         }
 
-        // Load custom user attributes for protocol mappers
-        let raw_user_attributes = self
-            .user_attribute_repository
-            .list_by_user_id(input.user_id)
+        organizations
+    }
+
+    async fn user_attributes_for_token(&self, user_id: Uuid) -> HashMap<String, serde_json::Value> {
+        self.user_attribute_repository
+            .list_by_user_id(user_id)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|a: UserAttribute| (a.key, serde_json::Value::String(a.value)))
+            .collect()
+    }
+
+    async fn assemble_token_claims_for(
+        &self,
+        client_scopes: &ClientScopeSet,
+        user_roles: &[Role],
+        input: &GenerateTokenInput,
+        only_token_scopes: bool,
+    ) -> Result<AssembledClaims, CoreError> {
+        let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
+        let realm_audit = format!("{}-realm", input.realm.name());
+
+        let applicable_scopes = client_scopes.applicable(input.scope.as_deref(), only_token_scopes);
+        let scope_ids: Vec<Uuid> = applicable_scopes.iter().map(|scope| scope.id).collect();
+        let mut mappers_by_scope = self
+            .protocol_mapper_repository
+            .get_by_scope_ids(&scope_ids)
+            .await?;
+        let all_mappers: Vec<ProtocolMapper> = applicable_scopes
+            .iter()
+            .flat_map(|scope| mappers_by_scope.remove(&scope.id).unwrap_or_default())
+            .collect();
+        let sources = ClaimSources::needed_by(&all_mappers);
+
+        let mut realm_roles: Vec<String> = Vec::new();
+        let mut client_roles: HashMap<String, Vec<String>> = HashMap::new();
+        for role in user_roles {
+            match &role.client {
+                Some(client) => client_roles
+                    .entry(client.client_id.clone())
+                    .or_default()
+                    .push(role.name.clone()),
+                None => realm_roles.push(role.name.clone()),
+            }
+        }
+
+        let membership = self
+            .group_token_repository
+            .token_membership(input.user_id)
             .await
             .unwrap_or_default();
 
-        let user_attributes: HashMap<String, serde_json::Value> = raw_user_attributes
-            .into_iter()
-            .map(|a: UserAttribute| (a.key, serde_json::Value::String(a.value)))
-            .collect();
+        // Roles inherited from the user's effective (recursive) group memberships, merged into
+        // the role maps so they flow into tokens exactly like directly-assigned roles.
+        let group_role_ids = membership.effective_role_ids();
+        if !group_role_ids.is_empty() {
+            let group_roles = self
+                .user_role_repository
+                .get_roles_by_ids(group_role_ids)
+                .await
+                .unwrap_or_default();
+            for role in &group_roles {
+                match &role.client {
+                    Some(client) => client_roles
+                        .entry(client.client_id.clone())
+                        .or_default()
+                        .push(role.name.clone()),
+                    None => realm_roles.push(role.name.clone()),
+                }
+            }
+        }
 
-        // Build mapper context
+        // Organization-scoped roles: roles that apply only within a specific organization,
+        // aggregated per org from (a) roles assigned directly to the membership and
+        // (b) roles inherited from the user's groups in that org. These are surfaced *only*
+        // under the `organizations.<alias>` claim (via the org-role mapper), never flattened
+        // into the global `realm_access` / `resource_access` claims above.
+        let groups =
+            build_context_groups(&membership.effective_groups, &membership.direct_group_ids);
+
+        let organizations = if sources.organizations {
+            self.organizations_for_token(&membership, input).await
+        } else {
+            Vec::new()
+        };
+
+        let user_attributes = if sources.user_attributes {
+            self.user_attributes_for_token(input.user_id).await
+        } else {
+            HashMap::new()
+        };
+
         let context = MapperContext {
             user_id: input.user_id,
             username: input.username.clone(),

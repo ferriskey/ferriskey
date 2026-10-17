@@ -11,7 +11,7 @@ use crate::domain::common::entities::app_errors::CoreError;
 
 /// The user's direct groups plus every ancestor, resolved with a recursive CTE; `direct` marks
 /// the groups the user is a member of without ancestor expansion.
-const TOKEN_GROUPS_SQL: &str = r#"
+const TOKEN_MEMBERSHIP_SQL: &str = r#"
 WITH RECURSIVE user_groups AS (
     SELECT g.id, g.organization_id, g.parent_group_id, g.name, g.description, g.created_at, g.updated_at, TRUE AS direct
     FROM organization_groups g
@@ -21,37 +21,31 @@ WITH RECURSIVE user_groups AS (
     SELECT p.id, p.organization_id, p.parent_group_id, p.name, p.description, p.created_at, p.updated_at, FALSE
     FROM organization_groups p
     JOIN user_groups ug ON ug.parent_group_id = p.id
-)
-SELECT id, organization_id, parent_group_id, name, description, created_at, updated_at, bool_or(direct) AS direct
-FROM user_groups
-GROUP BY id, organization_id, parent_group_id, name, description, created_at, updated_at
-"#;
-
-/// `(organization_id, role_id, source)` for the roles inherited through the user's effective
-/// groups (`source = 'group'`) and the roles assigned to the user's organisation memberships
-/// (`source = 'member'`).
-const TOKEN_ROLE_IDS_SQL: &str = r#"
-WITH RECURSIVE user_groups AS (
-    SELECT g.id, g.organization_id, g.parent_group_id
-    FROM organization_groups g
-    JOIN organization_group_members m ON m.group_id = g.id
+),
+groups AS (
+    SELECT id, organization_id, parent_group_id, name, description, created_at, updated_at, bool_or(direct) AS direct
+    FROM user_groups
+    GROUP BY id, organization_id, parent_group_id, name, description, created_at, updated_at
+),
+role_ids AS (
+    SELECT DISTINCT ug.organization_id, gr.role_id, 'group' AS source
+    FROM organization_group_roles gr
+    JOIN user_groups ug ON ug.id = gr.group_id
+  UNION ALL
+    SELECT m.organization_id, mr.role_id, 'member' AS source
+    FROM organization_member_roles mr
+    JOIN organization_members m ON m.id = mr.organization_member_id
     WHERE m.user_id = $1
-  UNION
-    SELECT p.id, p.organization_id, p.parent_group_id
-    FROM organization_groups p
-    JOIN user_groups ug ON ug.parent_group_id = p.id
 )
-SELECT DISTINCT ug.organization_id, gr.role_id, 'group' AS source
-FROM organization_group_roles gr
-JOIN user_groups ug ON ug.id = gr.group_id
+SELECT 'group' AS kind, id, organization_id, parent_group_id, name, description, created_at, updated_at, direct,
+       NULL::uuid AS role_id, NULL::text AS source
+FROM groups
 UNION ALL
-SELECT m.organization_id, mr.role_id, 'member' AS source
-FROM organization_member_roles mr
-JOIN organization_members m ON m.id = mr.organization_member_id
-WHERE m.user_id = $1
+SELECT 'role' AS kind, NULL::uuid, organization_id, NULL::uuid, NULL::text, NULL::text, NULL::timestamptz, NULL::timestamptz, NULL::boolean,
+       role_id, source
+FROM role_ids
 "#;
 
-/// Distinct role ids inherited from the user's effective (recursive) groups.
 const EFFECTIVE_ROLE_IDS_SQL: &str = r#"
 WITH RECURSIVE user_groups AS (
     SELECT g.id, g.parent_group_id
@@ -81,24 +75,33 @@ impl PostgresGroupTokenRepository {
 
 impl GroupTokenRepository for PostgresGroupTokenRepository {
     async fn token_membership(&self, user_id: Uuid) -> Result<TokenGroupMembership, CoreError> {
-        let group_rows = self
+        let rows = self
             .db
             .query_all(Statement::from_sql_and_values(
                 DbBackend::Postgres,
-                TOKEN_GROUPS_SQL,
+                TOKEN_MEMBERSHIP_SQL,
                 [user_id.into()],
             ))
             .await
             .map_err(|e| {
-                error!("Failed to resolve effective groups for user: {}", e);
+                error!("Failed to resolve the token membership of a user: {}", e);
                 CoreError::InternalServerError
             })?;
 
-        let mut membership = TokenGroupMembership {
-            effective_groups: Vec::with_capacity(group_rows.len()),
-            ..TokenGroupMembership::default()
-        };
-        for row in group_rows {
+        let mut membership = TokenGroupMembership::default();
+        for row in rows {
+            let kind: String = row.try_get("", "kind").map_err(map_row_err)?;
+            if kind == "role" {
+                let org_id: Uuid = row.try_get("", "organization_id").map_err(map_row_err)?;
+                let role_id: Uuid = row.try_get("", "role_id").map_err(map_row_err)?;
+                let source: String = row.try_get("", "source").map_err(map_row_err)?;
+                match source.as_str() {
+                    "group" => membership.group_role_ids_by_org.push((org_id, role_id)),
+                    _ => membership.member_role_ids_by_org.push((org_id, role_id)),
+                }
+                continue;
+            }
+
             let id: Uuid = row.try_get("", "id").map_err(map_row_err)?;
             let direct: bool = row.try_get("", "direct").map_err(map_row_err)?;
             let created_at: DateTime<FixedOffset> =
@@ -121,29 +124,6 @@ impl GroupTokenRepository for PostgresGroupTokenRepository {
                 created_at: created_at.with_timezone(&Utc),
                 updated_at: updated_at.with_timezone(&Utc),
             });
-        }
-
-        let role_rows = self
-            .db
-            .query_all(Statement::from_sql_and_values(
-                DbBackend::Postgres,
-                TOKEN_ROLE_IDS_SQL,
-                [user_id.into()],
-            ))
-            .await
-            .map_err(|e| {
-                error!("Failed to resolve organisation roles for user: {}", e);
-                CoreError::InternalServerError
-            })?;
-
-        for row in role_rows {
-            let org_id: Uuid = row.try_get("", "organization_id").map_err(map_row_err)?;
-            let role_id: Uuid = row.try_get("", "role_id").map_err(map_row_err)?;
-            let source: String = row.try_get("", "source").map_err(map_row_err)?;
-            match source.as_str() {
-                "group" => membership.group_role_ids_by_org.push((org_id, role_id)),
-                _ => membership.member_role_ids_by_org.push((org_id, role_id)),
-            }
         }
 
         Ok(membership)
