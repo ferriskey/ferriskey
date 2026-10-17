@@ -126,7 +126,7 @@ fn signature_insertion_point(xml: &str, element_id: &str) -> Result<usize, Signa
                     target_depth = Some(depth);
                     insertion = Some(reader.buffer_position() as usize);
                 } else if target_depth.is_some()
-                    && local_name_of(tag.name().as_ref()) == b"Signature"
+                    && local_name_of(tag.name().as_ref()) == "Signature"
                 {
                     return Err(SignatureError::AlreadySigned(element_id.to_owned()));
                 }
@@ -144,7 +144,7 @@ fn signature_insertion_point(xml: &str, element_id: &str) -> Result<usize, Signa
                 }
                 if target_depth.is_some()
                     && depth == target_depth.unwrap_or_default() + 1
-                    && local_name_of(tag.name().as_ref()) == b"Issuer"
+                    && local_name_of(tag.name().as_ref()) == "Issuer"
                 {
                     insertion = Some(reader.buffer_position() as usize);
                 }
@@ -162,16 +162,16 @@ fn carries_id(tag: &BytesStart<'_>, element_id: &str) -> Result<bool, SignatureE
         let attribute = attribute.map_err(|e| {
             SignatureError::Canonicalisation(C14nError::MalformedXml(e.to_string()))
         })?;
-        if attribute.key.as_ref() == b"ID" && attribute.value.as_ref() == element_id.as_bytes() {
+        if attribute.key.as_ref() == "ID" && attribute.value.as_ref() == element_id {
             return Ok(true);
         }
     }
     Ok(false)
 }
 
-fn local_name_of(qualified: &[u8]) -> &[u8] {
-    match qualified.iter().position(|byte| *byte == b':') {
-        Some(index) => &qualified[index + 1..],
+fn local_name_of(qualified: &str) -> &str {
+    match qualified.split_once(':') {
+        Some((_, local)) => local,
         None => qualified,
     }
 }

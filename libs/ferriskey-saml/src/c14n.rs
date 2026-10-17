@@ -56,7 +56,7 @@ fn canonicalize(xml: &str, target_id: Option<&str>) -> Result<String, C14nError>
                 if emitting(&target_depth) || is_target {
                     out.push_str(&rendered_tag);
                     out.push_str("</");
-                    out.push_str(&name_of(&tag)?);
+                    out.push_str(&name_of(&tag));
                     out.push('>');
                 }
                 declared.pop();
@@ -68,7 +68,7 @@ fn canonicalize(xml: &str, target_id: Option<&str>) -> Result<String, C14nError>
             Event::End(tag) => {
                 if emitting(&target_depth) {
                     out.push_str("</");
-                    out.push_str(&utf8(tag.name().as_ref())?);
+                    out.push_str(tag.name().as_ref());
                     out.push('>');
                 }
                 depth = depth.saturating_sub(1);
@@ -79,9 +79,7 @@ fn canonicalize(xml: &str, target_id: Option<&str>) -> Result<String, C14nError>
                 }
             }
             Event::Text(text) if depth > 0 && emitting(&target_depth) => {
-                let decoded = text
-                    .xml10_content()
-                    .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
+                let decoded = text.xml10_content();
                 out.push_str(&escape_text(&decoded));
             }
             Event::GeneralRef(reference) if depth > 0 && emitting(&target_depth) => {
@@ -91,23 +89,19 @@ fn canonicalize(xml: &str, target_id: Option<&str>) -> Result<String, C14nError>
                 let character = match resolved {
                     Some(character) => ensure_legal_xml_char(character)?,
                     None => {
-                        let name = reference
-                            .decode()
-                            .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
-                        resolve_reference(&name, &name)?
+                        let name: &str = &reference;
+                        resolve_reference(name, name)?
                     }
                 };
                 out.push_str(&escape_text(&character.to_string()));
             }
             Event::CData(data) if depth > 0 && emitting(&target_depth) => {
-                let decoded = data
-                    .xml10_content()
-                    .map_err(|e| C14nError::MalformedXml(e.to_string()))?;
+                let decoded = data.xml10_content();
                 out.push_str(&escape_text(&decoded));
             }
             Event::PI(instruction) if emitting(&target_depth) => {
                 out.push_str("<?");
-                out.push_str(&utf8(instruction.as_ref())?);
+                out.push_str(&instruction);
                 out.push_str("?>");
             }
             Event::Text(_) | Event::GeneralRef(_) | Event::CData(_) => {}
@@ -130,8 +124,8 @@ fn canonicalize(xml: &str, target_id: Option<&str>) -> Result<String, C14nError>
 fn element_id_of(tag: &BytesStart<'_>) -> Result<Option<String>, C14nError> {
     for attribute in tag.attributes() {
         let attribute = attribute.map_err(|e| C14nError::MalformedXml(e.to_string()))?;
-        if attribute.key.as_ref() == b"ID" {
-            return Ok(Some(utf8(attribute.value.as_ref())?));
+        if attribute.key.as_ref() == "ID" {
+            return Ok(Some(attribute.value.to_string()));
         }
     }
     Ok(None)
@@ -142,14 +136,14 @@ fn render_start_tag(
     declared: &mut Vec<BTreeMap<String, String>>,
     rendered: &mut Vec<BTreeMap<String, String>>,
 ) -> Result<String, C14nError> {
-    let name = name_of(tag)?;
+    let name = name_of(tag);
     let mut declarations = BTreeMap::new();
     let mut attributes = Vec::new();
 
     for attribute in tag.attributes() {
         let attribute = attribute.map_err(|e| C14nError::MalformedXml(e.to_string()))?;
-        let key = utf8(attribute.key.as_ref())?;
-        let value = normalise_attribute_value(&utf8(attribute.value.as_ref())?)?;
+        let key = attribute.key.as_ref().to_owned();
+        let value = normalise_attribute_value(&attribute.value)?;
 
         match key.strip_prefix("xmlns") {
             Some("") => {
@@ -354,16 +348,8 @@ fn lookup(scopes: &[BTreeMap<String, String>], prefix: &str) -> Option<String> {
         .cloned()
 }
 
-fn utf8(bytes: &[u8]) -> Result<String, C14nError> {
-    std::str::from_utf8(bytes)
-        .map(str::to_owned)
-        .map_err(|e| C14nError::MalformedXml(e.to_string()))
-}
-
-fn name_of(tag: &BytesStart<'_>) -> Result<String, C14nError> {
-    std::str::from_utf8(tag.name().as_ref())
-        .map(str::to_owned)
-        .map_err(|e| C14nError::MalformedXml(e.to_string()))
+fn name_of(tag: &BytesStart<'_>) -> String {
+    tag.name().as_ref().to_owned()
 }
 
 #[cfg(test)]
