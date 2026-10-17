@@ -144,6 +144,7 @@ mod tests {
         let service = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
+            config_cache_ttl_seconds: 0,
             webapp_url: WEBAPP_URL.to_string(),
             database: DatabaseConfig {
                 host: db_host,

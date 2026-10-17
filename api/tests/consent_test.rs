@@ -103,6 +103,7 @@ mod tests {
         let svc = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
+            config_cache_ttl_seconds: 0,
             webapp_url: "http://localhost:5555".to_string(),
             database: db.clone(),
         })

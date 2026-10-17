@@ -167,8 +167,11 @@ use crate::{
     },
 };
 
-type RealmRepo = PostgresRealmRepository;
-type ClientRepo = PostgresClientRepository;
+use crate::infrastructure::client::cache::CachedClientRepository;
+use crate::infrastructure::realm::cache::CachedRealmRepository;
+
+type RealmRepo = CachedRealmRepository<PostgresRealmRepository>;
+type ClientRepo = CachedClientRepository<PostgresClientRepository>;
 type UserRepo = PostgresUserRepository;
 type UserRoleRepo = PostgresUserRoleRepository;
 type SecurityEventRepo = PostgresSecurityEventRepository;
