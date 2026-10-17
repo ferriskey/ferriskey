@@ -14,7 +14,7 @@ use ferriskey_domain::elevation::ports::ElevationRepository;
 use ferriskey_domain::elevation::{self, Claim};
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rand::RngCore;
 use sha1::Sha1;
 use tracing::{debug, error, warn};

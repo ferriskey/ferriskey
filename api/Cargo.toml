@@ -73,9 +73,9 @@ jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
 test-context = "*"
 axum-test = "*"
 bcrypt = "0.19.3"
-hmac = "0.12.1"
-sha1 = "0.10.6"
-sha2 = "0.10.9"
+hmac = "0.13.0"
+sha1 = "0.11.0"
+sha2 = "0.11.1"
 cucumber = "0.23.0"
 sea-orm = { version = "1.1.19", features = ["sqlx-postgres"] }
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "migrate"] }

@@ -14,7 +14,7 @@ mod tests {
             DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
         },
     };
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use serde_json::{Value, json};
     use sha1::Sha1;
     use sqlx::{Executor, PgPool};

@@ -109,7 +109,7 @@ use crate::infrastructure::abyss::federation::ldap::LdapClientImpl;
 type OrgScopedRoles = HashMap<Uuid, (Vec<String>, HashMap<String, Vec<String>>)>;
 
 pub(crate) fn sso_token_hash(token: &str) -> String {
-    format!("{:x}", Sha256::digest(token.as_bytes()))
+    hex::encode(Sha256::digest(token.as_bytes()))
 }
 
 fn with_issuer(mut url: String, issuer: Option<&str>) -> String {
@@ -2015,7 +2015,7 @@ where
             })?;
 
         // Persist access tokens so backend services can introspect/revoke them immediately.
-        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_hash = hex::encode(Sha256::digest(jwt.token.as_bytes()));
         let access_token_claims =
             serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
         let access_token_expires_at = claims
@@ -2184,7 +2184,7 @@ where
 
         let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)?;
 
-        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_hash = hex::encode(Sha256::digest(jwt.token.as_bytes()));
         let access_token_claims =
             serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
         let access_token_expires_at = claims
@@ -2251,7 +2251,7 @@ where
 
         // Enforce immediate access token revocation when a persisted token has been marked revoked.
         if token_data.claims.typ == ClaimsTyp::Bearer {
-            let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+            let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
             if let Some(stored) = self
                 .access_token_repository
                 .get_by_token_hash(token_hash)
@@ -4993,7 +4993,7 @@ where
         )?;
 
         let token = input.token;
-        let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
+        let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
 
         // Opaque token support: prefer DB lookup by hash. This also enables immediate revocation.
         let stored = self
@@ -5102,7 +5102,7 @@ where
                     .map_err(|_| CoreError::InternalServerError)?;
             }
             ClaimsTyp::Bearer => {
-                let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
+                let token_hash = hex::encode(Sha256::digest(input.token.as_bytes()));
                 self.access_token_repository
                     .revoke_by_token_hash(token_hash)
                     .await
@@ -5444,7 +5444,7 @@ where
             .generate_token(refresh_claims.clone(), realm_scope.id())
             .await?;
 
-        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
+        let access_token_hash = hex::encode(Sha256::digest(jwt.token.as_bytes()));
         let access_token_claims =
             serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
         let access_token_expires_at = claims
