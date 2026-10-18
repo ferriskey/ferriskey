@@ -13,7 +13,8 @@ impl Postgres {
     pub async fn new(config: PostgresConfig) -> Result<Self, anyhow::Error> {
         let mut opt = ConnectOptions::new(config.database_url.clone());
         opt.max_connections(100).min_connections(5);
-        opt.sqlx_logging(false);
+        opt.sqlx_logging(true)
+            .sqlx_logging_level(log::LevelFilter::Debug);
 
         let db = Database::connect(opt).await?;
 

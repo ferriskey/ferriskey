@@ -35,6 +35,7 @@ pub struct TestApp {
 
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 static APP: OnceLock<TestApp> = OnceLock::new();
+static CACHED_APP: OnceLock<TestApp> = OnceLock::new();
 
 pub fn rt() -> &'static tokio::runtime::Runtime {
     RUNTIME.get_or_init(|| {
@@ -46,10 +47,20 @@ pub fn rt() -> &'static tokio::runtime::Runtime {
 }
 
 pub fn app() -> &'static TestApp {
-    APP.get_or_init(|| match tokio::runtime::Handle::try_current() {
-        Ok(handle) => tokio::task::block_in_place(|| handle.block_on(TestApp::boot())),
-        Err(_) => rt().block_on(TestApp::boot()),
-    })
+    APP.get_or_init(|| boot_blocking(0))
+}
+
+pub fn cached_app() -> &'static TestApp {
+    CACHED_APP.get_or_init(|| boot_blocking(60))
+}
+
+fn boot_blocking(config_cache_ttl_seconds: u64) -> TestApp {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            tokio::task::block_in_place(|| handle.block_on(TestApp::boot(config_cache_ttl_seconds)))
+        }
+        Err(_) => rt().block_on(TestApp::boot(config_cache_ttl_seconds)),
+    }
 }
 
 fn env_or(key: &str, default: &str) -> String {
@@ -64,7 +75,7 @@ fn env_u16_or(key: &str, default: u16) -> u16 {
 }
 
 impl TestApp {
-    async fn boot() -> TestApp {
+    async fn boot(config_cache_ttl_seconds: u64) -> TestApp {
         let host = env_or("DATABASE_HOST", "localhost");
         let port = env_u16_or("DATABASE_PORT", 5432);
         let name = env_or("DATABASE_NAME", "ferriskey");
@@ -97,7 +108,7 @@ impl TestApp {
         let service = create_service(FerriskeyConfig {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
-            config_cache_ttl_seconds: 0,
+            config_cache_ttl_seconds,
             webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host,
