@@ -79,32 +79,3 @@ COPY --chown=101:101 front/nginx.conf /etc/nginx/conf.d/default.conf
 # Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
 COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
-
-# ── Standalone image (API + Frontend, single container) ───────────────────────
-FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS standalone
-
-# hadolint ignore=DL3008
-RUN \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates=20250419 \
-    libssl3t64=3.5.7-1~deb13u3 \
-    nginx \
-    supervisor && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -f /etc/nginx/sites-enabled/default
-
-COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
-COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
-COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
-# Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
-COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
-COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
-
-COPY front/nginx-standalone.conf /etc/nginx/conf.d/default.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/ferriskey.conf
-COPY --chmod=0755 docker/standalone-entrypoint.sh /standalone-entrypoint.sh
-
-EXPOSE 80
-
-ENTRYPOINT ["/standalone-entrypoint.sh"]
