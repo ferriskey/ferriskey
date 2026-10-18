@@ -14,12 +14,12 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
 use tracing_subscriber::util::SubscriberInitExt;
 
-const PASSWORD_GRANT_BUDGET: usize = 16;
+const PASSWORD_GRANT_BUDGET: usize = 15;
 const WRONG_PASSWORD_BUDGET: usize = 7;
 const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 11;
-const CODE_EXCHANGE_BUDGET: usize = 16;
+const CODE_EXCHANGE_BUDGET: usize = 15;
 
 const BACKGROUND_WORK: &[&str] = &[
     "webhook_deliveries",
@@ -207,6 +207,16 @@ fn a_login_stays_within_its_statement_budget() {
     rt().block_on(async {
         let server = app.server();
         let client = app.client(ClientSpec::public().with_direct_access()).await;
+        sqlx::query(
+            "INSERT INTO client_scope_mappings (client_id, client_scope_id, default_scope_type) \
+             SELECT $1, id, 'DEFAULT' FROM client_scopes \
+             WHERE realm_id = $2 AND name IN ('openid', 'profile', 'email', 'roles')",
+        )
+        .bind(client.id)
+        .bind(app.realm_id)
+        .execute(&app.pool)
+        .await
+        .expect("attach the realm default scopes, as the client service does");
         let user = app.user(&server, "Correct-horse-battery-7").await;
 
         let warm = password_grant(

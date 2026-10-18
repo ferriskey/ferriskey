@@ -47,19 +47,19 @@ pub fn rt() -> &'static tokio::runtime::Runtime {
 }
 
 pub fn app() -> &'static TestApp {
-    APP.get_or_init(|| boot_blocking(0))
+    APP.get_or_init(|| boot_blocking(0, false))
 }
 
 pub fn cached_app() -> &'static TestApp {
-    CACHED_APP.get_or_init(|| boot_blocking(60))
+    CACHED_APP.get_or_init(|| boot_blocking(60, true))
 }
 
-fn boot_blocking(config_cache_ttl_seconds: u64) -> TestApp {
+fn boot_blocking(config_cache_ttl_seconds: u64, seed_default_scopes: bool) -> TestApp {
     match tokio::runtime::Handle::try_current() {
-        Ok(handle) => {
-            tokio::task::block_in_place(|| handle.block_on(TestApp::boot(config_cache_ttl_seconds)))
-        }
-        Err(_) => rt().block_on(TestApp::boot(config_cache_ttl_seconds)),
+        Ok(handle) => tokio::task::block_in_place(|| {
+            handle.block_on(TestApp::boot(config_cache_ttl_seconds, seed_default_scopes))
+        }),
+        Err(_) => rt().block_on(TestApp::boot(config_cache_ttl_seconds, seed_default_scopes)),
     }
 }
 
@@ -75,7 +75,7 @@ fn env_u16_or(key: &str, default: u16) -> u16 {
 }
 
 impl TestApp {
-    async fn boot(config_cache_ttl_seconds: u64) -> TestApp {
+    async fn boot(config_cache_ttl_seconds: u64, seed_default_scopes: bool) -> TestApp {
         let host = env_or("DATABASE_HOST", "localhost");
         let port = env_u16_or("DATABASE_PORT", 5432);
         let name = env_or("DATABASE_NAME", "ferriskey");
@@ -134,6 +134,13 @@ impl TestApp {
             })
             .await
             .expect("initialize application");
+
+        if seed_default_scopes {
+            service
+                .run_data_migrations()
+                .await
+                .expect("seed the default client scopes");
+        }
 
         let (realm_id,): (Uuid,) = sqlx::query_as("SELECT id FROM realms WHERE name = $1")
             .bind(&realm)
