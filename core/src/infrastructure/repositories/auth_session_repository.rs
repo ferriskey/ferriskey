@@ -699,6 +699,25 @@ mod tests {
     /// Ferriskey reused an existing `auth_session` row.
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_session_may_name_a_compass_flow_the_writer_has_not_stored_yet() {
+        let (repo, realm_id, client_id) = setup().await;
+        let mut session = make_session(realm_id, client_id, false);
+        session.compass_flow_id = Some(Uuid::new_v4());
+
+        repo.create(&session)
+            .await
+            .expect("the flow row is written by another task, possibly later");
+
+        let stored = repo
+            .get_by_session_code(session.id)
+            .await
+            .expect("read the session back")
+            .across_realms();
+        assert_eq!(stored.compass_flow_id, session.compass_flow_id);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn update_code_resets_authenticated_to_false() {
         let (repo, realm_id, client_id) = setup().await;
 

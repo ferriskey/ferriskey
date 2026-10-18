@@ -413,16 +413,13 @@ where
 
         let redirect_uri = sso_continue_url(&input.public_base_url, scope.name());
 
-        let flow_id = self
-            .flow_recorder
-            .start_referenced_flow(
-                scope.realm(),
-                Some(accepted.client.client_id.clone()),
-                SAML_SSO_GRANT_TYPE.to_string(),
-                input.ip_address.clone(),
-                input.user_agent.clone(),
-            )
-            .await;
+        let flow_id = self.flow_recorder.start_flow(
+            scope.realm(),
+            Some(accepted.client.client_id.clone()),
+            SAML_SSO_GRANT_TYPE.to_string(),
+            input.ip_address.clone(),
+            input.user_agent.clone(),
+        );
 
         let parked = self
             .auth_session_repository
@@ -949,12 +946,8 @@ pub(crate) mod tests {
 
                 while let Some(event) = events.recv().await {
                     match event {
-                        CompassEvent::FlowStarted { flow, ack } => {
+                        CompassEvent::FlowStarted(flow) => {
                             recorded.push(Recorded::FlowStarted(flow));
-                            if let Some(ack) = ack {
-                                ack.send(())
-                                    .expect("the recorder waits for this acknowledgement");
-                            }
                         }
                         CompassEvent::StepRecorded(step) => recorded.push(Recorded::Step(step)),
                         CompassEvent::FlowCompleted(completion) => {
