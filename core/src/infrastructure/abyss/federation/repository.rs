@@ -306,17 +306,8 @@ impl FederationRepository for FederationRepositoryImpl {
     ) -> Result<FederationMapping, CoreError> {
         let active_model: user_federation_mappings::ActiveModel = mapping.try_into()?;
 
-        let txn = self
-            .db
-            .begin()
-            .await
-            .map_err(|e| CoreError::Database(format!("Failed to open a transaction: {}", e)))?;
-        let model = active_model.insert(&txn).await.map_err(|e| {
+        let model = active_model.insert(&self.db).await.map_err(|e| {
             CoreError::Database(format!("Failed to create federation mapping: {}", e))
-        })?;
-        mark_user_federated(&txn, model.user_id, Some(model.provider_id)).await?;
-        txn.commit().await.map_err(|e| {
-            CoreError::Database(format!("Failed to commit a federation mapping: {}", e))
         })?;
 
         model.try_into()
@@ -416,69 +407,16 @@ impl FederationRepository for FederationRepositoryImpl {
         provider: &Scoped<FederationProvider>,
         id: Uuid,
     ) -> Result<(), CoreError> {
-        let txn = self
-            .db
-            .begin()
-            .await
-            .map_err(|e| CoreError::Database(format!("Failed to open a transaction: {}", e)))?;
-        let mapping = user_federation_mappings::Entity::find()
+        user_federation_mappings::Entity::delete_many()
             .filter(user_federation_mappings::Column::Id.eq(id))
             .filter(user_federation_mappings::Column::ProviderId.eq(provider.get().id))
-            .one(&txn)
-            .await
-            .map_err(|e| {
-                CoreError::Database(format!("Failed to find federation mapping: {}", e))
-            })?;
-        let Some(mapping) = mapping else {
-            return Ok(());
-        };
-        crate::entity::users::Entity::find_by_id(mapping.user_id)
-            .lock_exclusive()
-            .one(&txn)
-            .await
-            .map_err(|e| {
-                CoreError::Database(format!("Failed to lock the user of the mapping: {}", e))
-            })?;
-        user_federation_mappings::Entity::delete_by_id(mapping.id)
-            .exec(&txn)
+            .exec(&self.db)
             .await
             .map_err(|e| {
                 CoreError::Database(format!("Failed to delete federation mapping: {}", e))
             })?;
-        let remaining = user_federation_mappings::Entity::find()
-            .filter(user_federation_mappings::Column::UserId.eq(mapping.user_id))
-            .order_by_desc(user_federation_mappings::Column::LastSyncedAt)
-            .one(&txn)
-            .await
-            .map_err(|e| {
-                CoreError::Database(format!("Failed to find the remaining mappings: {}", e))
-            })?;
-        mark_user_federated(&txn, mapping.user_id, remaining.map(|m| m.provider_id)).await?;
-        txn.commit().await.map_err(|e| {
-            CoreError::Database(format!(
-                "Failed to commit a federation mapping removal: {}",
-                e
-            ))
-        })?;
         Ok(())
     }
-}
-
-async fn mark_user_federated(
-    txn: &DatabaseTransaction,
-    user_id: Uuid,
-    provider_id: Option<Uuid>,
-) -> Result<(), CoreError> {
-    crate::entity::users::Entity::update_many()
-        .col_expr(
-            crate::entity::users::Column::FederationProviderId,
-            sea_query::Expr::value(provider_id),
-        )
-        .filter(crate::entity::users::Column::Id.eq(user_id))
-        .exec(txn)
-        .await
-        .map_err(|e| CoreError::Database(format!("Failed to mark the user as federated: {}", e)))?;
-    Ok(())
 }
 
 #[cfg(test)]
