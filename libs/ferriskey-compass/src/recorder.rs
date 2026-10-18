@@ -9,7 +9,7 @@ use crate::value_objects::{FlowCompletion, StepOutcome};
 pub enum CompassEvent {
     FlowStarted {
         flow: CompassFlow,
-        ack: oneshot::Sender<()>,
+        ack: Option<oneshot::Sender<()>>,
     },
     StepRecorded(CompassFlowStep),
     FlowCompleted(FlowCompletion),
@@ -53,7 +53,7 @@ impl FlowRecorder {
     /// `None` means "not being traced". Every later call keyed on that `None`
     /// is a no-op, so a disabled realm cannot emit steps referencing a flow row
     /// that was never written.
-    pub async fn start_flow(
+    pub fn start_flow(
         &self,
         realm: &Realm,
         client_id: Option<String>,
@@ -61,17 +61,48 @@ impl FlowRecorder {
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Option<FlowId> {
+        self.open_flow(realm, client_id, grant_type, ip_address, user_agent, None)
+    }
+
+    pub async fn start_referenced_flow(
+        &self,
+        realm: &Realm,
+        client_id: Option<String>,
+        grant_type: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Option<FlowId> {
+        let (ack_tx, ack_rx) = oneshot::channel();
+        let id = self.open_flow(
+            realm,
+            client_id,
+            grant_type,
+            ip_address,
+            user_agent,
+            Some(ack_tx),
+        )?;
+
+        let _ = ack_rx.await;
+
+        Some(id)
+    }
+
+    fn open_flow(
+        &self,
+        realm: &Realm,
+        client_id: Option<String>,
+        grant_type: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        ack: Option<oneshot::Sender<()>>,
+    ) -> Option<FlowId> {
         if !Self::is_enabled_for(realm) {
             return None;
         }
 
         let flow = CompassFlow::new(realm.id, client_id, grant_type, ip_address, user_agent);
         let id = flow.id.clone();
-
-        let (ack_tx, ack_rx) = oneshot::channel();
-        self.send(CompassEvent::FlowStarted { flow, ack: ack_tx });
-
-        let _ = ack_rx.await;
+        self.send(CompassEvent::FlowStarted { flow, ack });
 
         Some(id)
     }
@@ -124,6 +155,9 @@ impl FlowRecorder {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
     use chrono::Utc;
     use ferriskey_domain::realm::{Realm, RealmId, RealmSetting};
     use uuid::Uuid;
@@ -156,7 +190,9 @@ mod tests {
         tokio::spawn(async move {
             match events.recv().await {
                 Some(CompassEvent::FlowStarted { flow, ack }) => {
-                    let _ = ack.send(());
+                    if let Some(ack) = ack {
+                        let _ = ack.send(());
+                    }
                     Some(flow)
                 }
                 _ => None,
@@ -169,15 +205,13 @@ mod tests {
         let (tx, mut events) = mpsc::channel(16);
         let recorder = FlowRecorder::new(tx);
 
-        let flow_id = recorder
-            .start_flow(
-                &realm_with_compass(Some(false)),
-                Some("account".to_string()),
-                "authorization_code".to_string(),
-                None,
-                None,
-            )
-            .await;
+        let flow_id = recorder.start_flow(
+            &realm_with_compass(Some(false)),
+            Some("account".to_string()),
+            "authorization_code".to_string(),
+            None,
+            None,
+        );
 
         assert!(
             flow_id.is_none(),
@@ -204,7 +238,6 @@ mod tests {
                 None,
                 None,
             )
-            .await
             .expect("an enabled realm opens a flow");
 
         let flow = writer
@@ -226,15 +259,13 @@ mod tests {
         let recorder = FlowRecorder::new(tx);
         let writer = stand_in_writer(events);
 
-        let flow_id = recorder
-            .start_flow(
-                &realm_with_compass(None),
-                None,
-                "password".to_string(),
-                None,
-                None,
-            )
-            .await;
+        let flow_id = recorder.start_flow(
+            &realm_with_compass(None),
+            None,
+            "password".to_string(),
+            None,
+            None,
+        );
 
         assert!(flow_id.is_some());
         assert!(writer.await.expect("writer task").is_some());
@@ -242,6 +273,75 @@ mod tests {
 
     /// The disabled path must stay consistent end to end: a step keyed on a flow
     /// that was never opened would reference a row that does not exist.
+    #[tokio::test]
+    async fn a_flow_start_does_not_wait_for_the_writer() {
+        let (tx, mut events) = mpsc::channel(16);
+        let recorder = FlowRecorder::new(tx);
+
+        let flow_id = recorder
+            .start_flow(
+                &realm_with_compass(Some(true)),
+                Some("account".to_string()),
+                "client_credentials".to_string(),
+                None,
+                None,
+            )
+            .expect("an enabled realm opens a flow");
+
+        match events
+            .try_recv()
+            .expect("the start is queued for the writer")
+        {
+            CompassEvent::FlowStarted { flow, ack } => {
+                assert_eq!(flow.id, flow_id);
+                assert!(ack.is_none(), "nobody waits for a flow no row references");
+            }
+            _ => panic!("expected a FlowStarted event"),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_referenced_flow_returns_once_the_writer_stored_it() {
+        let (tx, mut events) = mpsc::channel(16);
+        let recorder = FlowRecorder::new(tx);
+        let stored = Arc::new(AtomicBool::new(false));
+        let writer_stored = Arc::clone(&stored);
+        let writer = tokio::spawn(async move {
+            match events.recv().await {
+                Some(CompassEvent::FlowStarted {
+                    flow,
+                    ack: Some(ack),
+                }) => {
+                    writer_stored.store(true, Ordering::SeqCst);
+                    let _ = ack.send(());
+                    Some(flow)
+                }
+                _ => None,
+            }
+        });
+
+        let flow_id = recorder
+            .start_referenced_flow(
+                &realm_with_compass(Some(true)),
+                Some("account".to_string()),
+                "authorization_code".to_string(),
+                None,
+                None,
+            )
+            .await
+            .expect("an enabled realm opens a flow");
+
+        assert!(
+            stored.load(Ordering::SeqCst),
+            "a flow another row will reference must be stored before the caller continues"
+        );
+        let flow = writer
+            .await
+            .expect("writer task")
+            .expect("a FlowStarted event");
+        assert_eq!(flow.id, flow_id);
+    }
+
     #[tokio::test]
     async fn steps_and_completion_are_no_ops_without_a_flow() {
         let (tx, mut events) = mpsc::channel(16);

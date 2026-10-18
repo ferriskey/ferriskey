@@ -464,16 +464,13 @@ where
         // client_id must not be able to fill the Compass and audit tables.
         let client = self.authenticate_client(&params).await?;
 
-        let flow_id = self
-            .flow_recorder
-            .start_flow(
-                params.realm.realm(),
-                Some(params.client_id.clone()),
-                GrantType::TokenExchange.to_string(),
-                params.input.ip_address.clone(),
-                params.input.user_agent.clone(),
-            )
-            .await;
+        let flow_id = self.flow_recorder.start_flow(
+            params.realm.realm(),
+            Some(params.client_id.clone()),
+            GrantType::TokenExchange.to_string(),
+            params.input.ip_address.clone(),
+            params.input.user_agent.clone(),
+        );
 
         let mut trace = ExchangeTrace {
             client: client.id,

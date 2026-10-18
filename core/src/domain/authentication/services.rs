@@ -4385,7 +4385,7 @@ where
 
         let flow_id = self
             .flow_recorder
-            .start_flow(
+            .start_referenced_flow(
                 scope.realm(),
                 Some(input.client_id.clone()),
                 "authorization_code".to_string(),
@@ -4498,16 +4498,13 @@ where
         let standalone_flow_id = if is_code_grant || is_refresh_grant {
             None
         } else {
-            self.flow_recorder
-                .start_flow(
-                    scope.realm(),
-                    Some(input.client_id.clone()),
-                    grant_type.to_string(),
-                    input.ip_address.clone(),
-                    input.user_agent.clone(),
-                )
-                .instrument(info_span!("auth.exchange_token.start_flow"))
-                .await
+            self.flow_recorder.start_flow(
+                scope.realm(),
+                Some(input.client_id.clone()),
+                grant_type.to_string(),
+                input.ip_address.clone(),
+                input.user_agent.clone(),
+            )
         };
 
         let params = GrantTypeParams {

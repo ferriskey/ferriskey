@@ -386,16 +386,13 @@ where
         let accepted = match self.accept_authn_request(&scope, &input).await {
             Ok(accepted) => accepted,
             Err(rejection) => {
-                let flow_id = self
-                    .flow_recorder
-                    .start_flow(
-                        scope.realm(),
-                        rejection.client_id,
-                        SAML_SSO_GRANT_TYPE.to_string(),
-                        input.ip_address.clone(),
-                        input.user_agent.clone(),
-                    )
-                    .await;
+                let flow_id = self.flow_recorder.start_flow(
+                    scope.realm(),
+                    rejection.client_id,
+                    SAML_SSO_GRANT_TYPE.to_string(),
+                    input.ip_address.clone(),
+                    input.user_agent.clone(),
+                );
 
                 let duration = elapsed_since(started_at);
 
@@ -418,7 +415,7 @@ where
 
         let flow_id = self
             .flow_recorder
-            .start_flow(
+            .start_referenced_flow(
                 scope.realm(),
                 Some(accepted.client.client_id.clone()),
                 SAML_SSO_GRANT_TYPE.to_string(),
@@ -954,8 +951,10 @@ pub(crate) mod tests {
                     match event {
                         CompassEvent::FlowStarted { flow, ack } => {
                             recorded.push(Recorded::FlowStarted(flow));
-                            ack.send(())
-                                .expect("the recorder waits for this acknowledgement");
+                            if let Some(ack) = ack {
+                                ack.send(())
+                                    .expect("the recorder waits for this acknowledgement");
+                            }
                         }
                         CompassEvent::StepRecorded(step) => recorded.push(Recorded::Step(step)),
                         CompassEvent::FlowCompleted(completion) => {

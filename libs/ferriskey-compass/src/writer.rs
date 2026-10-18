@@ -74,7 +74,9 @@ async fn absorb<F: CompassFlowRepository>(event: CompassEvent, batch: &mut Batch
             if let Err(e) = flows.create_flow(flow).await {
                 tracing::error!("Compass writer: failed to persist flow: {e}");
             }
-            let _ = ack.send(());
+            if let Some(ack) = ack {
+                let _ = ack.send(());
+            }
         }
         CompassEvent::StepRecorded(step) => batch.steps.push(step),
         CompassEvent::FlowCompleted(completion) => batch.completions.push(completion),
@@ -226,7 +228,7 @@ mod tests {
                 None,
                 None,
             ),
-            ack: ack_tx,
+            ack: Some(ack_tx),
         })
         .await
         .unwrap();
