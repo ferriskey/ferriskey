@@ -36,3 +36,7 @@ harness = false
 [[bench]]
 name = "claims_assembly"
 harness = false
+
+[[bench]]
+name = "client_credentials"
+harness = false
