@@ -1261,14 +1261,18 @@ where
     async fn resolve_token_lifetimes(
         &self,
         scope: &RealmScope,
+        client: &Client,
+    ) -> Result<TokenLifetimes, CoreError> {
+        let realm_settings = self.realm_settings_of(scope).await?;
+
+        Ok(TokenLifetimes::resolve(&realm_settings, client))
+    }
+
+    async fn resolve_token_lifetimes_of(
+        &self,
+        scope: &RealmScope,
         client_uuid: Uuid,
     ) -> Result<TokenLifetimes, CoreError> {
-        let realm_settings = self
-            .realm_repository
-            .get_realm_settings(scope.id())
-            .await?
-            .ok_or(CoreError::InvalidRealm)?;
-
         let client = self
             .client_repository
             .get_by_id(scope.id(), client_uuid)
@@ -1278,7 +1282,7 @@ where
             .map_err(|_| CoreError::InvalidClient)?
             .into_inner();
 
-        Ok(TokenLifetimes::resolve(&realm_settings, &client))
+        self.resolve_token_lifetimes(scope, &client).await
     }
 
     async fn generate_token(&self, claims: JwtClaim, realm_id: RealmId) -> Result<Jwt, CoreError> {
@@ -1651,7 +1655,7 @@ where
             .in_realm(&input.realm)?
             .into_inner();
         let lifetimes = self
-            .resolve_token_lifetimes(&input.realm, input.client_uuid)
+            .resolve_token_lifetimes_of(&input.realm, input.client_uuid)
             .await?;
         let client_scopes = self
             .scope_mapping_repository
@@ -2813,7 +2817,7 @@ where
             .await?;
 
         let lifetimes = self
-            .resolve_token_lifetimes(&params.realm, client.id)
+            .resolve_token_lifetimes(&params.realm, &client)
             .instrument(info_span!("auth.client_credentials.lifetimes"))
             .await?;
 
@@ -3248,9 +3252,7 @@ where
             return Err(CoreError::UserDisabled);
         }
 
-        let lifetimes = self
-            .resolve_token_lifetimes(&params.realm, client.id)
-            .await?;
+        let lifetimes = self.resolve_token_lifetimes(&params.realm, &client).await?;
 
         let client_scopes = self
             .scope_mapping_repository
@@ -5358,7 +5360,7 @@ where
 
         let lifetimes = match input.client_id {
             Some(client_uuid) => {
-                self.resolve_token_lifetimes(&realm_scope, client_uuid)
+                self.resolve_token_lifetimes_of(&realm_scope, client_uuid)
                     .await?
             }
             None => {

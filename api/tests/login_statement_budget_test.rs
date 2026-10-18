@@ -20,7 +20,7 @@ const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
-const CLIENT_CREDENTIALS_BUDGET: usize = 7;
+const CLIENT_CREDENTIALS_BUDGET: usize = 6;
 
 const BACKGROUND_WORK: &[&str] = &[
     "webhook_deliveries",
