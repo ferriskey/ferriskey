@@ -85,30 +85,3 @@ USER 101
 COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
-
-# ── Standalone image (API + Frontend, single container) ───────────────────────
-FROM debian:trixie-slim AS standalone
-
-# hadolint ignore=DL3008
-RUN \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates=20250419 \
-    libssl3t64=3.5.7-1~deb13u3 \
-    nginx \
-    supervisor && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -f /etc/nginx/sites-enabled/default
-
-COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
-COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
-COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
-
-COPY front/nginx-standalone.conf /etc/nginx/conf.d/default.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/ferriskey.conf
-COPY --chmod=0755 docker/standalone-entrypoint.sh /standalone-entrypoint.sh
-
-EXPOSE 80
-
-ENTRYPOINT ["/standalone-entrypoint.sh"]
