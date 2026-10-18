@@ -583,3 +583,254 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod db_tests {
+    use chrono::Utc;
+    use sea_orm::Database as SeaOrmDatabase;
+    use sqlx::Executor as _;
+    use uuid::Uuid;
+
+    use super::FederationRepositoryImpl;
+    use crate::domain::abyss::federation::entities::FederationMapping;
+    use crate::domain::abyss::federation::ports::FederationRepository;
+    use crate::domain::realm::entities::{Realm, RealmId, RealmScope};
+
+    struct Fixture {
+        repository: FederationRepositoryImpl,
+        pool: sqlx::PgPool,
+        realm: Realm,
+        provider_id: Uuid,
+        user_id: Uuid,
+    }
+
+    async fn setup() -> Fixture {
+        let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
+        let schema = format!("federation_repository_test_{}", Uuid::new_v4().simple());
+
+        let admin_pool = sqlx::PgPool::connect(&base_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .await
+            .expect("create test schema");
+
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let realm_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(realm_id)
+        .bind(format!("realm-{}", realm_id.simple()))
+        .execute(&pool)
+        .await
+        .expect("insert realm");
+        let user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+             VALUES ($1, $2, $3, TRUE, TRUE, NOW(), NOW())",
+        )
+        .bind(user_id)
+        .bind(realm_id)
+        .bind(format!("user-{}", user_id.simple()))
+        .execute(&pool)
+        .await
+        .expect("insert user");
+        let provider_id = insert_provider(&pool, realm_id, "corporate ldap").await;
+
+        let db = SeaOrmDatabase::connect(&schema_url)
+            .await
+            .expect("sea-orm connect");
+
+        Fixture {
+            repository: FederationRepositoryImpl::new(db),
+            pool,
+            realm: Realm {
+                id: RealmId::from(realm_id),
+                name: format!("realm-{}", realm_id.simple()),
+                display_name: None,
+                settings: None,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            },
+            provider_id,
+            user_id,
+        }
+    }
+
+    async fn insert_provider(pool: &sqlx::PgPool, realm_id: Uuid, name: &str) -> Uuid {
+        let provider_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO user_federation_providers (id, realm_id, name, provider_type, config) \
+             VALUES ($1, $2, $3, 'ldap', '{}'::jsonb)",
+        )
+        .bind(provider_id)
+        .bind(realm_id)
+        .bind(name)
+        .execute(pool)
+        .await
+        .expect("insert provider");
+        provider_id
+    }
+
+    fn mapping_to(provider_id: Uuid, user_id: Uuid, external_id: &str) -> FederationMapping {
+        FederationMapping {
+            id: Uuid::new_v4(),
+            provider_id,
+            user_id,
+            external_id: external_id.to_string(),
+            external_username: "alice".to_string(),
+            mapping_metadata: serde_json::Value::Null,
+            last_synced_at: Utc::now(),
+        }
+    }
+
+    async fn scoped_provider(
+        fixture: &Fixture,
+        provider_id: Uuid,
+    ) -> crate::domain::realm::entities::Scoped<
+        crate::domain::abyss::federation::entities::FederationProvider,
+    > {
+        fixture
+            .repository
+            .get_by_id(provider_id)
+            .await
+            .expect("read the provider")
+            .expect("the provider exists")
+            .in_realm(&RealmScope::from_realm(fixture.realm.clone()))
+            .expect("the provider belongs to the realm")
+    }
+
+    async fn marker_of(pool: &sqlx::PgPool, user_id: Uuid) -> Option<Uuid> {
+        sqlx::query_scalar("SELECT federation_provider_id FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .expect("read the marker")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_mapping_marks_the_user_as_federated_until_it_is_removed() {
+        let fixture = setup().await;
+        assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
+
+        let mapping = fixture
+            .repository
+            .create_mapping(mapping_to(
+                fixture.provider_id,
+                fixture.user_id,
+                "uid=alice",
+            ))
+            .await
+            .expect("create the mapping");
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(fixture.provider_id)
+        );
+
+        let provider = scoped_provider(&fixture, fixture.provider_id).await;
+        fixture
+            .repository
+            .delete_mapping(&provider, mapping.id)
+            .await
+            .expect("delete the mapping");
+
+        assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn moving_a_mapping_to_another_user_resyncs_both_markers() {
+        let fixture = setup().await;
+        let other_user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+             VALUES ($1, $2, $3, TRUE, TRUE, NOW(), NOW())",
+        )
+        .bind(other_user_id)
+        .bind(Uuid::from(fixture.realm.id))
+        .bind(format!("user-{}", other_user_id.simple()))
+        .execute(&fixture.pool)
+        .await
+        .expect("insert the other user");
+
+        let mapping = fixture
+            .repository
+            .create_mapping(mapping_to(
+                fixture.provider_id,
+                fixture.user_id,
+                "uid=alice",
+            ))
+            .await
+            .expect("create the mapping");
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(fixture.provider_id)
+        );
+
+        sqlx::query("UPDATE user_federation_mappings SET user_id = $1 WHERE id = $2")
+            .bind(other_user_id)
+            .bind(mapping.id)
+            .execute(&fixture.pool)
+            .await
+            .expect("move the mapping to the other user");
+
+        assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
+        assert_eq!(
+            marker_of(&fixture.pool, other_user_id).await,
+            Some(fixture.provider_id)
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn removing_one_of_two_mappings_keeps_the_user_federated_by_the_other() {
+        let fixture = setup().await;
+        let other_provider_id =
+            insert_provider(&fixture.pool, Uuid::from(fixture.realm.id), "partner ldap").await;
+
+        let first = fixture
+            .repository
+            .create_mapping(mapping_to(
+                fixture.provider_id,
+                fixture.user_id,
+                "uid=alice",
+            ))
+            .await
+            .expect("create the first mapping");
+        fixture
+            .repository
+            .create_mapping(mapping_to(other_provider_id, fixture.user_id, "cn=alice"))
+            .await
+            .expect("create the second mapping");
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(other_provider_id)
+        );
+
+        let provider = scoped_provider(&fixture, fixture.provider_id).await;
+        fixture
+            .repository
+            .delete_mapping(&provider, first.id)
+            .await
+            .expect("delete the first mapping");
+
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(other_provider_id)
+        );
+    }
+}

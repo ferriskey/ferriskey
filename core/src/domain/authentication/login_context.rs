@@ -1,10 +1,10 @@
-use crate::domain::abyss::federation::entities::FederationMapping;
 use crate::domain::client::entities::Client;
 use crate::domain::credential::entities::{Credential, CredentialType};
 use crate::domain::realm::entities::RealmSetting;
 use crate::domain::role::entities::Role;
 use crate::domain::trident::mfa_policy::{self, PendingAuthStep};
 use crate::domain::user::entities::User;
+use uuid::Uuid;
 
 pub const FEDERATED_CREDENTIAL: &str = "federated";
 
@@ -12,13 +12,13 @@ pub const FEDERATED_CREDENTIAL: &str = "federated";
 pub struct LoginContext<'c> {
     pub client: &'c Client,
     pub user: User,
-    pub federation: Option<FederationMapping>,
+    pub federated_by: Option<Uuid>,
     pub credentials: Vec<Credential>,
 }
 
 impl LoginContext<'_> {
     pub fn is_federated(&self) -> bool {
-        self.federation.is_some()
+        self.federated_by.is_some()
     }
 
     pub fn password_credential(&self) -> Option<&Credential> {
@@ -87,7 +87,6 @@ mod tests {
     use chrono::Utc;
     use uuid::Uuid;
 
-    use crate::domain::abyss::federation::entities::FederationMapping;
     use crate::domain::authentication::entities::AuthProtocol;
     use crate::domain::client::entities::{Client, ClientConfig, ClientType};
     use crate::domain::credential::entities::{Credential, CredentialData, CredentialType};
@@ -150,28 +149,16 @@ mod tests {
         }
     }
 
-    fn mapping(user_id: Uuid) -> FederationMapping {
-        FederationMapping {
-            id: Uuid::new_v4(),
-            provider_id: Uuid::new_v4(),
-            user_id,
-            external_id: "uid=alice".to_string(),
-            external_username: "alice".to_string(),
-            mapping_metadata: serde_json::Value::Null,
-            last_synced_at: Utc::now(),
-        }
-    }
-
     fn context(
         client: &Client,
         user: User,
-        federation: Option<FederationMapping>,
+        federated_by: Option<Uuid>,
         credentials: Vec<Credential>,
     ) -> LoginContext<'_> {
         LoginContext {
             client,
             user,
-            federation,
+            federated_by,
             credentials,
         }
     }
@@ -181,8 +168,7 @@ mod tests {
         let realm_id = RealmId::from(Uuid::new_v4());
         let client = client(realm_id);
         let user = user(realm_id, Vec::new());
-        let user_id = user.id;
-        let context = context(&client, user, Some(mapping(user_id)), Vec::new());
+        let context = context(&client, user, Some(Uuid::new_v4()), Vec::new());
 
         assert!(context.is_federated());
         assert_eq!(context.credential_names(), vec![FEDERATED_CREDENTIAL]);
@@ -200,7 +186,7 @@ mod tests {
         let context = context(
             &client,
             user,
-            Some(mapping(user_id)),
+            Some(Uuid::new_v4()),
             vec![credential(user_id, CredentialType::Otp, false)],
         );
 
@@ -225,7 +211,7 @@ mod tests {
         let context = context(
             &client,
             user,
-            Some(mapping(user_id)),
+            Some(Uuid::new_v4()),
             vec![
                 credential(user_id, CredentialType::Password, true),
                 credential(user_id, CredentialType::Otp, false),

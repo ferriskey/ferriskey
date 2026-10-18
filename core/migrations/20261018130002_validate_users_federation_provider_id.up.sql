@@ -1,0 +1,1 @@
+ALTER TABLE users VALIDATE CONSTRAINT users_federation_provider_id_fkey;

@@ -26,6 +26,7 @@ impl From<crate::entity::users::Model> for User {
             failed_login_attempts: value.failed_login_attempts,
             locked_until,
             locale: value.locale,
+            federation_provider_id: value.federation_provider_id,
         }
     }
 }

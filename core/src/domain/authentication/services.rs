@@ -30,7 +30,6 @@ use ferriskey_organization::{
     OrganizationMemberRepository, OrganizationRepository,
 };
 
-use crate::domain::abyss::federation::entities::FederationMapping;
 use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
 use crate::domain::authentication::login_context::{LoginContext, VerifiedLogin};
 use crate::domain::authentication::mapper_engine::{
@@ -2877,11 +2876,7 @@ where
             return Err(CoreError::AccountLocked);
         }
 
-        let federation = self
-            .federation_repository
-            .get_mapping_by_user_id(user.id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        let federated_by = user.federation_provider_id;
         let credentials = self
             .credential_repository
             .get_credentials_by_user_id(user.id)
@@ -2890,13 +2885,13 @@ where
         let context = LoginContext {
             client,
             user,
-            federation,
+            federated_by,
             credentials,
         };
 
-        let (is_valid, failure) = match &context.federation {
-            Some(mapping) => (
-                self.verify_federated_password(scope, &context, mapping, password)
+        let (is_valid, failure) = match context.federated_by {
+            Some(provider_id) => (
+                self.verify_federated_password(scope, &context, provider_id, password)
                     .await?,
                 "ldap_authentication_failed",
             ),
@@ -2966,12 +2961,12 @@ where
         &self,
         scope: &RealmScope,
         context: &LoginContext<'_>,
-        mapping: &FederationMapping,
+        provider_id: Uuid,
         password: &str,
     ) -> Result<bool, CoreError> {
         let provider = self
             .federation_repository
-            .get_by_id(mapping.provider_id)
+            .get_by_id(provider_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .ok_or(CoreError::InternalServerError)?

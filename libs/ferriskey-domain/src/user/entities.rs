@@ -45,6 +45,7 @@ pub struct User {
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTime<Utc>>,
     pub locale: Option<String>,
+    pub federation_provider_id: Option<Uuid>,
 }
 
 impl User {
@@ -118,6 +119,7 @@ mod tests {
             failed_login_attempts: 0,
             locked_until: None,
             locale: None,
+            federation_provider_id: None,
         }
     }
 
@@ -297,6 +299,7 @@ impl User {
             failed_login_attempts: 0,
             locked_until: None,
             locale: None,
+            federation_provider_id: None,
         }
     }
 }

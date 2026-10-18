@@ -173,6 +173,7 @@ mod tests {
             failed_login_attempts: 0,
             locked_until: None,
             locale: None,
+            federation_provider_id: None,
         };
 
         Unscoped::new(user)
