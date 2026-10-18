@@ -94,7 +94,7 @@ RUN \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates=20250419 \
-    libssl3t64=3.5.7-1~deb13u2 \
+    libssl3t64=3.5.7-1~deb13u3 \
     nginx \
     supervisor && \
     rm -rf /var/lib/apt/lists/* && \
