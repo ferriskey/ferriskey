@@ -34,7 +34,7 @@ chrono = { version = "0.4.41", features = ["serde"] }
 enum-display = "0.2.1"
 hmac = "0.12.1"
 jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
-rand = "0.8.0"
+rand = "0.10.3"
 sea-orm = { version = "1.1.19", features = [
     "sqlx-postgres",
     "macros",

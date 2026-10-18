@@ -7,7 +7,7 @@ use ferriskey_compass::{
     recorder::FlowRecorder,
     value_objects::StepOutcome,
 };
-use rand::{RngCore, thread_rng};
+use rand::RngExt;
 use sha2::{Digest, Sha256};
 use tracing::{error, instrument, warn};
 use uuid::Uuid;
@@ -122,7 +122,7 @@ where
     /// Generates a cryptographically secure random string
     fn generate_random_string(length: usize) -> String {
         let mut bytes = vec![0u8; length];
-        thread_rng().fill_bytes(&mut bytes);
+        rand::rng().fill(&mut bytes[..]);
         URL_SAFE_NO_PAD.encode(&bytes)
     }
 

@@ -15,7 +15,7 @@ use ferriskey_domain::elevation::{self, Claim};
 use ferriskey_domain::generate_uuid_v7;
 use futures::future::try_join_all;
 use hmac::{Hmac, Mac};
-use rand::RngCore;
+use rand::RngExt;
 use sha1::Sha1;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
@@ -111,9 +111,7 @@ fn login_url_from(completion: AuthCompletion) -> Result<String, CoreError> {
 
 pub(crate) fn generate_secret() -> Result<TotpSecret, CoreError> {
     let mut bytes = [0u8; 20];
-    rand::thread_rng()
-        .try_fill_bytes(&mut bytes)
-        .map_err(|_| CoreError::InternalServerError)?;
+    rand::rng().fill(&mut bytes[..]);
 
     let base32 = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &bytes);
 
