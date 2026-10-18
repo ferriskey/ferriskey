@@ -74,7 +74,7 @@ test-context = "*"
 axum-test = "*"
 bcrypt = "0.19.3"
 hmac = "0.12.1"
-sha1 = "0.10.6"
+sha1 = "0.11.0"
 sha2 = "0.10.9"
 cucumber = "0.23.0"
 sea-orm = { version = "1.1.19", features = ["sqlx-postgres"] }
