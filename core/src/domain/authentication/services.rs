@@ -177,6 +177,19 @@ fn effective_refresh_resource(
     }
 }
 
+fn effective_direct_grant_resource(
+    requested: Option<&str>,
+    allowed_resources: &[String],
+) -> Result<Option<String>, CoreError> {
+    match requested {
+        None => Ok(None),
+        Some(resource) if resource_is_allowed(allowed_resources, resource) => {
+            Ok(Some(resource.to_string()))
+        }
+        Some(_) => Err(CoreError::InvalidTarget),
+    }
+}
+
 fn narrow_scope_to_consented(
     scope: &str,
     optional_names: &HashSet<&str>,
@@ -1272,6 +1285,15 @@ where
         let realm_settings = self.realm_settings_of(scope).await?;
 
         Ok(TokenLifetimes::resolve(&realm_settings, client))
+    }
+
+    async fn direct_grant_resource(
+        &self,
+        scope: &RealmScope,
+        requested: Option<&str>,
+    ) -> Result<Option<String>, CoreError> {
+        let settings = self.realm_settings_of(scope).await?;
+        effective_direct_grant_resource(requested, &settings.allowed_resources)
     }
 
     async fn resolve_token_lifetimes_of(
@@ -2835,6 +2857,9 @@ where
             .resolve_token_lifetimes(&params.realm, &client)
             .instrument(info_span!("auth.client_credentials.lifetimes"))
             .await?;
+        let resource = self
+            .direct_grant_resource(&params.realm, params.resource.as_deref())
+            .await?;
 
         let (jwt, id_token) = self
             .create_access_token(
@@ -2860,7 +2885,7 @@ where
                     // Machine-to-machine: no user is present, so no SSO session exists.
                     session_id: None,
                     auth_time: None,
-                    resource: None,
+                    resource,
                 },
                 id_token,
             )
@@ -3157,6 +3182,9 @@ where
             .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
             .await?;
 
+        let resource = self
+            .direct_grant_resource(&params.realm, params.resource.as_deref())
+            .await?;
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
@@ -3180,7 +3208,7 @@ where
                     refresh_jti_override: None,
                     session_id: Some(user_session.id),
                     auth_time: Some(user_session.authenticated_at.timestamp()),
-                    resource: None,
+                    resource,
                 },
             )
             .instrument(info_span!("auth.password.create_jwt"))
@@ -7443,5 +7471,38 @@ mod bound_session_tests {
         .await;
 
         assert!(matches!(result, Err(CoreError::InternalServerError)));
+    }
+}
+
+#[cfg(test)]
+mod direct_grant_resource_tests {
+    use super::effective_direct_grant_resource;
+    use crate::domain::common::entities::app_errors::CoreError;
+
+    #[test]
+    fn no_resource_asked_means_no_resource() {
+        assert!(matches!(
+            effective_direct_grant_resource(None, &["https://api.example".to_string()]),
+            Ok(None)
+        ));
+    }
+
+    #[test]
+    fn an_allowed_resource_is_kept() {
+        assert!(matches!(
+            effective_direct_grant_resource(
+                Some("https://api.example"),
+                &["https://api.example".to_string()]
+            ),
+            Ok(Some(resource)) if resource == "https://api.example"
+        ));
+    }
+
+    #[test]
+    fn a_resource_outside_the_allowed_list_is_an_invalid_target() {
+        assert!(matches!(
+            effective_direct_grant_resource(Some("https://other.example"), &[]),
+            Err(CoreError::InvalidTarget)
+        ));
     }
 }
