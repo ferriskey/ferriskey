@@ -2800,8 +2800,6 @@ where
             }
         }
 
-        info!("try to fetch user client, client id: {}", client.id);
-
         let user = self
             .user_repository
             .get_by_client_id(client.id)
