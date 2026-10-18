@@ -9,21 +9,28 @@ ALTER TABLE users
 CREATE OR REPLACE FUNCTION users_sync_federation_provider() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-    affected_user UUID := COALESCE(NEW.user_id, OLD.user_id);
+    affected_user UUID;
     latest_provider UUID;
 BEGIN
-    PERFORM 1 FROM users WHERE id = affected_user FOR UPDATE;
+    PERFORM 1 FROM users
+    WHERE id IN (NEW.user_id, OLD.user_id)
+    ORDER BY id
+    FOR UPDATE;
 
-    SELECT provider_id INTO latest_provider
-    FROM user_federation_mappings
-    WHERE user_id = affected_user
-    ORDER BY last_synced_at DESC
-    LIMIT 1;
+    FOR affected_user IN
+        SELECT DISTINCT u FROM unnest(ARRAY[NEW.user_id, OLD.user_id]) AS u WHERE u IS NOT NULL
+    LOOP
+        SELECT provider_id INTO latest_provider
+        FROM user_federation_mappings
+        WHERE user_id = affected_user
+        ORDER BY last_synced_at DESC
+        LIMIT 1;
 
-    UPDATE users
-    SET federation_provider_id = latest_provider
-    WHERE id = affected_user
-      AND federation_provider_id IS DISTINCT FROM latest_provider;
+        UPDATE users
+        SET federation_provider_id = latest_provider
+        WHERE id = affected_user
+          AND federation_provider_id IS DISTINCT FROM latest_provider;
+    END LOOP;
 
     RETURN NULL;
 END;

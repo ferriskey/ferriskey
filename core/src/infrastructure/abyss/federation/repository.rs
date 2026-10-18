@@ -753,6 +753,50 @@ mod db_tests {
 
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn moving_a_mapping_to_another_user_resyncs_both_markers() {
+        let fixture = setup().await;
+        let other_user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, email_verified, enabled, created_at, updated_at) \
+             VALUES ($1, $2, $3, TRUE, TRUE, NOW(), NOW())",
+        )
+        .bind(other_user_id)
+        .bind(Uuid::from(fixture.realm.id))
+        .bind(format!("user-{}", other_user_id.simple()))
+        .execute(&fixture.pool)
+        .await
+        .expect("insert the other user");
+
+        let mapping = fixture
+            .repository
+            .create_mapping(mapping_to(
+                fixture.provider_id,
+                fixture.user_id,
+                "uid=alice",
+            ))
+            .await
+            .expect("create the mapping");
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(fixture.provider_id)
+        );
+
+        sqlx::query("UPDATE user_federation_mappings SET user_id = $1 WHERE id = $2")
+            .bind(other_user_id)
+            .bind(mapping.id)
+            .execute(&fixture.pool)
+            .await
+            .expect("move the mapping to the other user");
+
+        assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
+        assert_eq!(
+            marker_of(&fixture.pool, other_user_id).await,
+            Some(fixture.provider_id)
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn removing_one_of_two_mappings_keeps_the_user_federated_by_the_other() {
         let fixture = setup().await;
         let other_provider_id =
