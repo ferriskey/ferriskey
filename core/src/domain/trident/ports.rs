@@ -162,8 +162,6 @@ pub struct MagicLinkInput {
     pub session_code: Option<String>,
     /// The "remember me" choice, applied when the link completes the login.
     pub remember_me: bool,
-    /// User-Agent of the request asking for the link, surfaced to the email
-    /// template as `{{user_agent}}`. `None` when the request carried none.
     pub user_agent: Option<String>,
 }
 
@@ -179,8 +177,6 @@ pub struct RequestPasswordResetInput {
     /// Session code from the FERRISKEY_SESSION cookie at request time,
     /// stored so completion can resume the original OAuth flow.
     pub session_code: Option<String>,
-    /// User-Agent of the request asking for the reset, surfaced to the email
-    /// template as `{{user_agent}}`. `None` when the request carried none.
     pub user_agent: Option<String>,
 }
 
