@@ -4511,6 +4511,12 @@ where
             .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
 
+        authenticate_client(
+            &client,
+            input.client_secret.as_deref(),
+            ClientGrant::for_token_grant(&grant_type)?,
+        )?;
+
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
         // renewal and would dominate the table (see #1307).

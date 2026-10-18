@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub const DEFAULT_REQUESTS_PER_MINUTE: u32 = 10;
 pub const CIMD_FETCHES_PER_MINUTE: u32 = 30;
 pub const REALM_REGISTRATIONS_PER_HOUR: u32 = 60;
+pub const CLIENT_AUTH_FAILURES_PER_MINUTE: u32 = 10;
 pub const MAX_TRACKED_ADDRESSES: usize = 10_000;
 pub const MAX_TRACKED_REALMS: usize = 10_000;
 const REALM_BUDGET_WINDOW: Duration = Duration::from_secs(60 * 60);
@@ -56,7 +57,15 @@ impl IpRateLimiter {
         self.allow_at(ip, Instant::now())
     }
 
+    pub fn would_allow(&self, ip: IpAddr) -> bool {
+        self.check_at(ip, Instant::now(), false)
+    }
+
     fn allow_at(&self, ip: IpAddr, now: Instant) -> bool {
+        self.check_at(ip, now, true)
+    }
+
+    fn check_at(&self, ip: IpAddr, now: Instant, consume: bool) -> bool {
         let ip = rate_limit_key(ip);
         let Ok(mut buckets) = self.buckets.lock() else {
             return false;
@@ -80,7 +89,9 @@ impl IpRateLimiter {
             return false;
         }
 
-        bucket.tokens -= 1.0;
+        if consume {
+            bucket.tokens -= 1.0;
+        }
         true
     }
 
@@ -104,6 +115,37 @@ impl IpRateLimiter {
     #[cfg(test)]
     fn tracked(&self) -> usize {
         self.buckets.lock().map(|b| b.len()).unwrap_or(0)
+    }
+}
+
+#[derive(Debug)]
+pub struct ClientAuthThrottle {
+    failures: IpRateLimiter,
+}
+
+impl ClientAuthThrottle {
+    pub fn per_minute(failures: u32) -> Self {
+        Self {
+            failures: IpRateLimiter::per_minute(failures),
+        }
+    }
+
+    pub fn blocked(&self, ip: IpAddr) -> bool {
+        !self.failures.would_allow(ip)
+    }
+
+    pub fn failed(&self, ip: IpAddr) {
+        self.failures.allow(ip);
+    }
+
+    #[cfg(test)]
+    fn blocked_at(&self, ip: IpAddr, now: Instant) -> bool {
+        !self.failures.check_at(ip, now, false)
+    }
+
+    #[cfg(test)]
+    fn failed_at(&self, ip: IpAddr, now: Instant) {
+        self.failures.allow_at(ip, now);
     }
 }
 
@@ -271,5 +313,34 @@ mod tests {
         assert!(budget.allow_at(Uuid::new_v4(), now));
         assert!(!budget.allow_at(Uuid::new_v4(), now));
         assert!(budget.allow_at(Uuid::new_v4(), now + Duration::from_secs(61)));
+    }
+
+    #[test]
+    fn a_peek_does_not_consume_a_token() {
+        let limiter = IpRateLimiter::per_minute(1);
+        let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
+        let now = Instant::now();
+
+        assert!(limiter.check_at(ip, now, false));
+        assert!(limiter.check_at(ip, now, false));
+        assert!(limiter.allow_at(ip, now));
+        assert!(!limiter.check_at(ip, now, false));
+    }
+
+    #[test]
+    fn an_address_is_blocked_after_its_failures_and_freed_as_the_window_refills() {
+        let throttle = ClientAuthThrottle::per_minute(3);
+        let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 8));
+        let other = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 9));
+        let now = Instant::now();
+
+        for _ in 0..3 {
+            assert!(!throttle.blocked_at(ip, now));
+            throttle.failed_at(ip, now);
+        }
+        assert!(throttle.blocked_at(ip, now));
+        assert!(!throttle.blocked_at(other, now));
+        assert!(throttle.blocked_at(ip, now + Duration::from_secs(10)));
+        assert!(!throttle.blocked_at(ip, now + Duration::from_secs(21)));
     }
 }

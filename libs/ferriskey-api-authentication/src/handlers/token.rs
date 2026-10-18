@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use super::auth::root_scoped_base_url;
 use crate::basic_auth::try_parse_basic_client_credentials;
 use crate::validators::TokenRequestValidator;
@@ -45,6 +47,8 @@ enum TokenUnauthorizedResponse {
     OAuth(OAuth2ErrorResponse),
 }
 
+const CLIENT_AUTH_RETRY_AFTER_SECONDS: u32 = 60;
+
 #[utoipa::path(
     post,
     path = "/protocol/openid-connect/token",
@@ -59,6 +63,7 @@ enum TokenUnauthorizedResponse {
         (status = 200, body = TokenResponse),
         (status = 400, description = "RFC 6749 error (`invalid_request`, `invalid_scope`, `invalid_target`, `unauthorized_client`, ...)", body = OAuth2ErrorResponse),
         (status = 401, description = "Realm not found or client authentication failed. Token exchange always answers with the RFC 6749 body (`invalid_client`).", body = TokenUnauthorizedResponse),
+        (status = 429, description = "Too many failed client authentications from this address; retry after the `Retry-After` delay.", body = OAuth2ErrorResponse),
         (status = 404, description = "Client not found", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
@@ -181,6 +186,21 @@ async fn token_response(
         ),
     };
 
+    let client_ip = context
+        .ip_address
+        .as_deref()
+        .and_then(|ip| ip.parse::<IpAddr>().ok());
+    if let Some(ip) = client_ip
+        && state.client_auth_throttle.blocked(ip)
+    {
+        return Err(ApiError::OAuthTooManyRequests {
+            error: "temporarily_unavailable".into(),
+            error_description:
+                "Too many failed client authentications from this address; retry later.".into(),
+            retry_after_seconds: CLIENT_AUTH_RETRY_AFTER_SECONDS,
+        });
+    }
+
     // RFC 8693 has its own service and error codes; it never goes through
     // `exchange_token`, which would also open a second Compass flow.
     if payload.grant_type == GrantType::TokenExchange {
@@ -249,6 +269,14 @@ async fn token_response(
         match state.service.exchange_token(exchange_input).await {
             Ok(token) => token,
             Err(error) => {
+                if let Some(ip) = client_ip
+                    && matches!(
+                        error,
+                        CoreError::ClientAuthenticationFailed | CoreError::InvalidClientSecret
+                    )
+                {
+                    state.client_auth_throttle.failed(ip);
+                }
                 warn!(
                     client_id = %client_id,
                     grant_type = ?grant_type,

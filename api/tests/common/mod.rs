@@ -166,6 +166,12 @@ impl TestApp {
         TestServer::new(router).expect("create test server")
     }
 
+    pub fn server_with_peer_address(&self) -> TestServer {
+        let router = self.router.lock().expect("router mutex poisoned").clone();
+        TestServer::new(router.into_make_service_with_connect_info::<std::net::SocketAddr>())
+            .expect("create test server with a peer address")
+    }
+
     pub fn path(&self, suffix: &str) -> String {
         format!("/realms/{}{suffix}", self.realm)
     }

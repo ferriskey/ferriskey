@@ -1,3 +1,4 @@
+use crate::domain::authentication::entities::GrantType;
 use crate::domain::authentication::services::client_secret_matches;
 use crate::domain::client::entities::Client;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -11,6 +12,19 @@ pub enum ClientGrant {
     DeviceCode,
     Revocation,
     Introspection,
+}
+
+impl ClientGrant {
+    pub fn for_token_grant(grant_type: &GrantType) -> Result<Self, CoreError> {
+        match grant_type {
+            GrantType::Code => Ok(Self::AuthorizationCode),
+            GrantType::Password => Ok(Self::Password),
+            GrantType::Credentials => Ok(Self::ClientCredentials),
+            GrantType::RefreshToken => Ok(Self::RefreshToken),
+            GrantType::DeviceCode => Ok(Self::DeviceCode),
+            GrantType::TokenExchange => Err(CoreError::InvalidRequest),
+        }
+    }
 }
 
 pub fn authenticate_client(
