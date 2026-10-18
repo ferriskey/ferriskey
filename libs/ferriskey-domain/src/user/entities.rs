@@ -51,6 +51,10 @@ impl User {
     pub fn is_locked(&self, now: DateTime<Utc>) -> bool {
         self.locked_until.is_some_and(|t| t > now)
     }
+
+    pub fn needs_lockout_reset(&self) -> bool {
+        self.failed_login_attempts > 0 || self.locked_until.is_some()
+    }
 }
 
 impl RealmOwned for User {
@@ -169,6 +173,29 @@ mod tests {
 
         assert_eq!(user.id, supplied);
         assert_eq!(user.id.get_version_num(), 4);
+    }
+
+    #[test]
+    fn a_lockout_reset_is_only_needed_after_a_failure_or_a_lock() {
+        let mut user = User::new(UserConfig {
+            id: None,
+            realm_id: RealmId::from(Uuid::new_v4()),
+            client_id: None,
+            username: "alice".to_string(),
+            firstname: None,
+            lastname: None,
+            email: None,
+            email_verified: true,
+            enabled: true,
+        });
+        assert!(!user.needs_lockout_reset());
+
+        user.failed_login_attempts = 1;
+        assert!(user.needs_lockout_reset());
+
+        user.failed_login_attempts = 0;
+        user.locked_until = Some(Utc::now());
+        assert!(user.needs_lockout_reset());
     }
 }
 

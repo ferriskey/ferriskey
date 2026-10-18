@@ -141,17 +141,6 @@ where
         Ok(deleted)
     }
 
-    async fn delete_expired_for_user(
-        &self,
-        user_id: Uuid,
-        realm_id: Uuid,
-        now: DateTime<Utc>,
-    ) -> Result<u64, SessionError> {
-        self.inner
-            .delete_expired_for_user(user_id, realm_id, now)
-            .await
-    }
-
     async fn delete_expired(&self, before: DateTime<Utc>, limit: u64) -> Result<u64, SessionError> {
         self.inner.delete_expired(before, limit).await
     }
@@ -334,28 +323,5 @@ mod tests {
             *log.lock().expect("log lock"),
             vec!["participants", "delete"]
         );
-    }
-
-    #[tokio::test]
-    async fn purging_expired_sessions_reports_nothing() {
-        let log = CallLog::default();
-        let mut inner = MockUserSessionRepository::new();
-        inner
-            .expect_delete_expired_for_user()
-            .returning(|_, _, _| Box::pin(async { Ok(3) }));
-        let notifier = RecordingNotifier::default();
-        let repository = NotifyingUserSessionRepository::new(
-            Arc::new(inner),
-            participants(&log),
-            notifier.clone(),
-        );
-
-        repository
-            .delete_expired_for_user(Uuid::new_v4(), Uuid::new_v4(), Utc::now())
-            .await
-            .expect("purge succeeds");
-
-        assert!(notifier.0.lock().expect("notified lock").is_empty());
-        assert!(log.lock().expect("log lock").is_empty());
     }
 }
