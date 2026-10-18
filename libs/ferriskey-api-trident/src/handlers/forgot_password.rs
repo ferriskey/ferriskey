@@ -12,6 +12,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    request_context::RequestContext,
 };
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -43,6 +44,7 @@ pub async fn forgot_password(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     WebappUrl(base_url): WebappUrl,
+    context: RequestContext,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ForgotPasswordRequest>,
 ) -> Result<Response<ForgotPasswordResponse>, ApiError> {
@@ -57,6 +59,7 @@ pub async fn forgot_password(
             email: payload.email,
             base_url,
             session_code,
+            user_agent: context.user_agent,
         })
         .await?;
 

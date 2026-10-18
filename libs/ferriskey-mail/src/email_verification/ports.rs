@@ -60,6 +60,7 @@ pub trait EmailVerificationService: Send + Sync {
         user_id: Uuid,
         realm_name: String,
         base_url: String,
+        user_agent: Option<String>,
     ) -> impl std::future::Future<Output = Result<(), CoreError>> + Send;
 
     fn verify_email(

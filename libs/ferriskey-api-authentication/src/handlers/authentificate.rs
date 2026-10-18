@@ -6,6 +6,7 @@ use axum_cookie::CookieManager;
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::{FullUrl, WebappUrl};
 
 use ferriskey_core::domain::authentication::entities::AuthenticateInput;
@@ -61,12 +62,14 @@ pub struct AuthenticateRequest {
         (status = 500, description = "Internal server error", body = ApiError)
     )
 )]
+#[allow(clippy::too_many_arguments)]
 pub async fn authenticate(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
     Query(query): Query<AuthenticateQueryParams>,
+    context: RequestContext,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<AuthenticateRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -110,7 +113,12 @@ pub async fn authenticate(
         && let Err(e) = state
             .service
             .email_verification_service
-            .send_verification_email(result.user_id, realm_name.clone(), webapp_url)
+            .send_verification_email(
+                result.user_id,
+                realm_name.clone(),
+                webapp_url,
+                context.user_agent,
+            )
             .await
     {
         // Log the error but don't fail the authentication - user can still use resend button

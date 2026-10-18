@@ -21,6 +21,7 @@ use ferriskey_api_core::{
     },
     app_state::AppState,
     authentication::{AuthenticateResponse, AuthenticationStatus},
+    request_context::RequestContext,
     sso_cookie,
     url::FullUrl,
 };
@@ -66,6 +67,7 @@ pub async fn send_magic_link(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     WebappUrl(base_url): WebappUrl,
+    context: RequestContext,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<SendMagicLinkRequest>,
 ) -> Result<Response<SendMagicLinkResponse>, ApiError> {
@@ -86,6 +88,7 @@ pub async fn send_magic_link(
             base_url,
             session_code,
             remember_me: payload.remember_me,
+            user_agent: context.user_agent,
         })
         .await?;
 

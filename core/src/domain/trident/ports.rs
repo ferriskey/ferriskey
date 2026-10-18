@@ -162,6 +162,7 @@ pub struct MagicLinkInput {
     pub session_code: Option<String>,
     /// The "remember me" choice, applied when the link completes the login.
     pub remember_me: bool,
+    pub user_agent: Option<String>,
 }
 
 pub struct VerifyMagicLinkInput {
@@ -176,6 +177,7 @@ pub struct RequestPasswordResetInput {
     /// Session code from the FERRISKEY_SESSION cookie at request time,
     /// stored so completion can resume the original OAuth flow.
     pub session_code: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 pub struct CompletePasswordResetInput {

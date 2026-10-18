@@ -94,6 +94,7 @@ pub struct RegisterUserInput {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub session_code: Option<Uuid>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

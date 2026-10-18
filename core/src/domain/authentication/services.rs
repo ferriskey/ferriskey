@@ -4765,7 +4765,12 @@ where
 
             if let Err(err) = self
                 .email_verification_service
-                .send_verification_email(user.id, input.realm_name, verification_base_url)
+                .send_verification_email(
+                    user.id,
+                    input.realm_name,
+                    verification_base_url,
+                    input.user_agent,
+                )
                 .await
             {
                 // Avoid leaving behind an unverified user that can no longer re-register.
