@@ -71,3 +71,36 @@ fn a_client_credentials_grant_issues_no_refresh_token() {
         );
     });
 }
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test client_credentials_test -- --ignored"]
+fn an_id_token_comes_only_with_the_openid_scope() {
+    let app = app();
+    rt().block_on(async {
+        let server = app.server();
+        let client = app
+            .client(ClientSpec::confidential().with_service_account())
+            .await;
+        app.bind_service_account(&server, &client).await;
+
+        let without_scope = grant(&server, app, &client, None).await;
+        let without_openid = grant(&server, app, &client, Some("profile email")).await;
+        let with_openid = grant(&server, app, &client, Some("openid")).await;
+
+        assert!(
+            without_scope.get("id_token").is_none(),
+            "no scope asked, no ID token: {without_scope}"
+        );
+        assert!(
+            without_openid.get("id_token").is_none(),
+            "openid not asked, no ID token: {without_openid}"
+        );
+        let id_token = with_openid["id_token"]
+            .as_str()
+            .expect("openid asked, an ID token comes back");
+        assert_eq!(
+            decode_unverified(id_token)["sub"],
+            Value::String(subject(&with_openid).to_string())
+        );
+    });
+}

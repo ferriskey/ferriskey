@@ -871,6 +871,12 @@ fn build_context_groups(groups: &[Group], direct_ids: &HashSet<Uuid>) -> Vec<Con
 /// Token claims assembled from a client's scopes + protocol mappers for a given user,
 /// independent of signing and persistence. Reused by `create_jwt` (real issuance) and by the
 /// client-scope evaluation preview, so the preview reflects exactly what a real token carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdTokenIssuance {
+    FollowScope,
+    Withheld,
+}
+
 struct SignedAccessToken {
     key: JwtKeyPair,
     claims: JwtClaim,
@@ -2004,6 +2010,7 @@ where
         client_scopes: &ClientScopeSet,
         user_roles: &[Role],
         input: &GenerateTokenInput,
+        id_token: IdTokenIssuance,
     ) -> Result<SignedAccessToken, CoreError> {
         let key = self
             .keystore_repository
@@ -2033,8 +2040,8 @@ where
         })?;
 
         let id_token =
-            match id_mapper_claims {
-                Some(id_mapper_claims) => {
+            match (id_token, id_mapper_claims) {
+                (IdTokenIssuance::FollowScope, Some(id_mapper_claims)) => {
                     // at_hash = base64url(left-half of SHA-256(access_token))
                     let digest = Sha256::digest(jwt.token.as_bytes());
                     let at_hash = Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]));
@@ -2050,7 +2057,7 @@ where
                         Self::encode_token_with_key(&id_claims, id_claims.exp, &key)
                     })?)
                 }
-                None => None,
+                _ => None,
             };
 
         Ok(SignedAccessToken {
@@ -2094,9 +2101,10 @@ where
         client_scopes: &ClientScopeSet,
         user_roles: &[Role],
         input: GenerateTokenInput,
+        id_token: IdTokenIssuance,
     ) -> Result<(Jwt, Option<Jwt>), CoreError> {
         let signed = self
-            .sign_access_token(client_scopes, user_roles, &input)
+            .sign_access_token(client_scopes, user_roles, &input, id_token)
             .await?;
         self.persist_access_token(&signed, input.realm.id())
             .instrument(info_span!("auth.create_jwt.persist"))
@@ -2112,7 +2120,12 @@ where
         input: GenerateTokenInput,
     ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
         let signed = self
-            .sign_access_token(client_scopes, user_roles, &input)
+            .sign_access_token(
+                client_scopes,
+                user_roles,
+                &input,
+                IdTokenIssuance::FollowScope,
+            )
             .await?;
 
         let mut refresh_claims = JwtClaim::new_refresh_token(
@@ -2772,6 +2785,7 @@ where
             ClientGrant::ClientCredentials,
         )?;
 
+        let mut id_token = IdTokenIssuance::Withheld;
         if let Some(ref scope_str) = params.scope {
             for scope in scope_str.split_whitespace() {
                 if scope == OidcScope::OfflineAccess.as_str() {
@@ -2779,6 +2793,9 @@ where
                         "Scope 'offline_access' is not allowed for client credentials grant"
                             .to_string(),
                     ));
+                }
+                if scope == OidcScope::OpenId.as_str() {
+                    id_token = IdTokenIssuance::FollowScope;
                 }
             }
         }
@@ -2847,6 +2864,7 @@ where
                     auth_time: None,
                     resource: None,
                 },
+                id_token,
             )
             .instrument(info_span!("auth.client_credentials.create_jwt"))
             .await?;
