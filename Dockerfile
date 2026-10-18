@@ -74,7 +74,9 @@ RUN VITE_API_URL="" pnpm run build
 FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim AS webapp
 
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+# Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
+COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
 FROM debian:trixie-slim AS standalone
@@ -93,7 +95,9 @@ RUN \
 COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
 COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+# Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
+COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 COPY front/nginx-standalone.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/ferriskey.conf
