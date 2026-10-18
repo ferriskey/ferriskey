@@ -245,6 +245,29 @@ impl UserSessionRepository for PostgresUserSessionRepository {
         Ok(result.rows_affected)
     }
 
+    async fn delete_expired(
+        &self,
+        before: chrono::DateTime<chrono::Utc>,
+        limit: u64,
+    ) -> Result<u64, SessionError> {
+        let oldest = sea_orm::sea_query::Query::select()
+            .column(crate::entity::user_sessions::Column::Id)
+            .from(crate::entity::user_sessions::Entity)
+            .and_where(crate::entity::user_sessions::Column::ExpiresAt.lt(before.naive_utc()))
+            .limit(limit)
+            .to_owned();
+        let result = crate::entity::user_sessions::Entity::delete_many()
+            .filter(crate::entity::user_sessions::Column::Id.in_subquery(oldest))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error deleting expired user sessions: {:?}", e);
+                SessionError::DeleteError
+            })?;
+
+        Ok(result.rows_affected)
+    }
+
     async fn update_last_seen(&self, session: &Scoped<UserSession>) -> Result<(), SessionError> {
         crate::entity::user_sessions::Entity::update_many()
             .col_expr(

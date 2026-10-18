@@ -1,5 +1,5 @@
 use chrono::{DateTime, TimeZone, Utc};
-use sea_orm::sea_query::Expr;
+use sea_orm::sea_query::{Expr, Query};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
 };
@@ -94,6 +94,22 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
                 "claims ->> 'sid' = $1",
                 [session_id.to_string()],
             ))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
+    }
+
+    async fn delete_expired(&self, before: DateTime<Utc>, limit: u64) -> Result<u64, JwtError> {
+        let oldest = Query::select()
+            .column(crate::entity::access_tokens::Column::Id)
+            .from(crate::entity::access_tokens::Entity)
+            .and_where(crate::entity::access_tokens::Column::ExpiresAt.lt(before.naive_utc()))
+            .limit(limit)
+            .to_owned();
+        let result = crate::entity::access_tokens::Entity::delete_many()
+            .filter(crate::entity::access_tokens::Column::Id.in_subquery(oldest))
             .exec(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;

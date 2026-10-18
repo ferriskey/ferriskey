@@ -1,5 +1,5 @@
 use chrono::{DateTime, TimeZone, Utc};
-use sea_orm::sea_query::Expr;
+use sea_orm::sea_query::{Expr, Query};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
     TransactionTrait,
@@ -260,6 +260,22 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
                 Expr::value(true),
             )
             .filter(crate::entity::refresh_tokens::Column::SessionId.eq(session_id))
+            .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        Ok(result.rows_affected)
+    }
+
+    async fn delete_expired(&self, before: DateTime<Utc>, limit: u64) -> Result<u64, JwtError> {
+        let oldest = Query::select()
+            .column(crate::entity::refresh_tokens::Column::Id)
+            .from(crate::entity::refresh_tokens::Entity)
+            .and_where(crate::entity::refresh_tokens::Column::ExpiresAt.lt(before.naive_utc()))
+            .limit(limit)
+            .to_owned();
+        let result = crate::entity::refresh_tokens::Entity::delete_many()
+            .filter(crate::entity::refresh_tokens::Column::Id.in_subquery(oldest))
             .exec(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
