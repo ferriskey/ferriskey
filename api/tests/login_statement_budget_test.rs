@@ -14,12 +14,12 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
 use tracing_subscriber::util::SubscriberInitExt;
 
-const PASSWORD_GRANT_BUDGET: usize = 15;
+const PASSWORD_GRANT_BUDGET: usize = 12;
 const WRONG_PASSWORD_BUDGET: usize = 7;
 const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 11;
-const CODE_EXCHANGE_BUDGET: usize = 15;
+const CODE_EXCHANGE_BUDGET: usize = 12;
 
 const BACKGROUND_WORK: &[&str] = &[
     "webhook_deliveries",

@@ -8,6 +8,10 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_compass::writer::{WriterConfig, compass_writer_task};
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
+use crate::infrastructure::aegis::cache::{
+    AegisConfigCache, CachedClientScopeRepository, CachedProtocolMapperRepository,
+    CachedScopeMappingRepository,
+};
 use crate::infrastructure::client::cache::CachedClientRepository;
 use crate::infrastructure::realm::cache::CachedRealmRepository;
 use crate::infrastructure::retention::expired_rows_retention_task;
@@ -325,9 +329,19 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let oauth_client = Arc::new(ReqwestOAuthClient::new(private_endpoints));
     let magic_link = Arc::new(PostgresMagicLinkRepository::new(postgres.get_db()));
-    let client_scope = Arc::new(PostgresClientScopeRepository::new(postgres.get_db()));
-    let protocol_mapper = Arc::new(PostgresProtocolMapperRepository::new(postgres.get_db()));
-    let scope_mapping = Arc::new(PostgresScopeMappingRepository::new(postgres.get_db()));
+    let aegis_cache = Arc::new(AegisConfigCache::new(config_cache_ttl));
+    let client_scope = Arc::new(CachedClientScopeRepository::new(
+        PostgresClientScopeRepository::new(postgres.get_db()),
+        Arc::clone(&aegis_cache),
+    ));
+    let protocol_mapper = Arc::new(CachedProtocolMapperRepository::new(
+        PostgresProtocolMapperRepository::new(postgres.get_db()),
+        Arc::clone(&aegis_cache),
+    ));
+    let scope_mapping = Arc::new(CachedScopeMappingRepository::new(
+        PostgresScopeMappingRepository::new(postgres.get_db()),
+        aegis_cache,
+    ));
     let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
     let smtp_config = Arc::new(PostgresSmtpConfigRepository::new(postgres.get_db()));

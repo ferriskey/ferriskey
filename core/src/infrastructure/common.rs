@@ -49,6 +49,16 @@ impl<K: Eq + Hash, V: Clone> TtlCache<K, V> {
         }
     }
 
+    pub fn remove<Q>(&self, key: &Q)
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        if let Ok(mut entries) = self.entries.lock() {
+            entries.remove(key);
+        }
+    }
+
     pub fn clear(&self) {
         if let Ok(mut entries) = self.entries.lock() {
             entries.clear();

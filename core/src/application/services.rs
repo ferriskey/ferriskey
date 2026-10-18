@@ -167,6 +167,9 @@ use crate::{
     },
 };
 
+use crate::infrastructure::aegis::cache::{
+    CachedClientScopeRepository, CachedProtocolMapperRepository, CachedScopeMappingRepository,
+};
 use crate::infrastructure::client::cache::CachedClientRepository;
 use crate::infrastructure::realm::cache::CachedRealmRepository;
 
@@ -263,9 +266,9 @@ type FederationRepo = FederationRepositoryImpl;
 type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
 type IdentityProviderLinkRepo = PostgresIdentityProviderLinkRepository;
 type OAuthClientImpl = ReqwestOAuthClient;
-type ClientScopeRepo = PostgresClientScopeRepository;
-type ProtocolMapperRepo = PostgresProtocolMapperRepository;
-type ScopeMappingRepo = PostgresScopeMappingRepository;
+type ClientScopeRepo = CachedClientScopeRepository<PostgresClientScopeRepository>;
+type ProtocolMapperRepo = CachedProtocolMapperRepository<PostgresProtocolMapperRepository>;
+type ScopeMappingRepo = CachedScopeMappingRepository<PostgresScopeMappingRepository>;
 type ConsentDecisionRepo =
     crate::infrastructure::consent::repositories::consent_decision_postgres_repository::PostgresConsentDecisionRepository;
 type ApplicationConsentService = ferriskey_consent::ConsentServiceImpl<ConsentDecisionRepo>;
