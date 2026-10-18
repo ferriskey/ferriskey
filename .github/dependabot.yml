@@ -15,6 +15,12 @@ updates:
         update-types:
           - minor
           - patch
+    # sea-orm 2 requires sqlx 0.9 and both must move together, see #1758.
+    ignore:
+      - dependency-name: sea-orm
+        versions: [">=2"]
+      - dependency-name: sqlx
+        versions: [">=0.9"]
 
   - package-ecosystem: npm
     directory: /front
