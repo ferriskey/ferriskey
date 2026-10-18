@@ -1,0 +1,56 @@
+name: codspeed
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/codspeed.yaml
+      - benches/**
+      - core/**
+      - libs/**
+      - Cargo.toml
+      - Cargo.lock
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  benchmarks:
+    name: benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: set up rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+
+      - name: cache rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: codspeed
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: install cargo-codspeed
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-codspeed
+
+      - name: build the benchmarks
+        run: cargo codspeed build -p ferriskey-benchmarks
+
+      - name: run the benchmarks
+        uses: CodSpeedHQ/action@v5
+        with:
+          mode: simulation
+          run: cargo codspeed run -p ferriskey-benchmarks
