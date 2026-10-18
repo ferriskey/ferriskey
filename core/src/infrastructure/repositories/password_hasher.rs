@@ -1,3 +1,4 @@
+use ferriskey_domain::crypto::PasswordHashingCost;
 use std::str::FromStr;
 
 use bcrypt::{BcryptError, HashParts};
@@ -19,9 +20,9 @@ pub struct PasswordHasherRepository {
 }
 
 impl PasswordHasherRepository {
-    pub fn new() -> Self {
+    pub fn new(cost: PasswordHashingCost) -> Self {
         Self {
-            argon2: Argon2HasherRepository::new(),
+            argon2: Argon2HasherRepository::new(cost),
         }
     }
 
@@ -102,8 +103,8 @@ impl HasherRepository for PasswordHasherRepository {
             .await
     }
 
-    fn needs_rehash(&self, algorithm: &str) -> bool {
-        self.argon2.needs_rehash(algorithm)
+    fn needs_rehash(&self, algorithm: &str, secret_data: &str) -> bool {
+        self.argon2.needs_rehash(algorithm, secret_data)
     }
 
     fn validate_hash(
@@ -156,7 +157,7 @@ mod tests {
 
     #[tokio::test]
     async fn verifies_every_bcrypt_version_prefix() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
 
         for version in [Version::TwoA, Version::TwoB, Version::TwoY] {
             let hash = bcrypt_hash(PASSWORD, version);
@@ -166,7 +167,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_wrong_password_against_bcrypt_hash() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoA);
 
         assert!(!verify_bcrypt(&hasher, "wrong password", &hash).await);
@@ -174,7 +175,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_password_longer_than_bcrypt_limit_instead_of_truncating() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let prefix = "a".repeat(72);
         let hash = bcrypt_hash(&prefix, Version::TwoB);
         let longer = format!("{prefix}suffix");
@@ -184,7 +185,7 @@ mod tests {
 
     #[tokio::test]
     async fn errors_on_malformed_bcrypt_hash() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
 
         let result = hasher
             .verify_password(PASSWORD, "not-a-bcrypt-hash", 10, BCRYPT_ALGORITHM, "")
@@ -195,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn verifies_argon2id_hash_through_argon2() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = hasher.hash_password(PASSWORD).await.expect("argon2 hash");
 
         let is_valid = hasher
@@ -214,18 +215,18 @@ mod tests {
 
     #[tokio::test]
     async fn hashes_new_passwords_with_argon2id() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
 
         let hash = hasher.hash_password(PASSWORD).await.expect("argon2 hash");
 
         assert_eq!(hash.algorithm, "argon2id");
         assert!(hash.hash.starts_with("$argon2id$"));
-        assert!(!hasher.needs_rehash(&hash.algorithm));
+        assert!(!hasher.needs_rehash(&hash.algorithm, &hash.hash));
     }
 
     #[tokio::test]
     async fn bcrypt_hash_under_argon2_label_is_rejected() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoB);
 
         let result = hasher
@@ -237,14 +238,14 @@ mod tests {
 
     #[test]
     fn flags_bcrypt_credentials_for_rehash() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
 
-        assert!(hasher.needs_rehash(BCRYPT_ALGORITHM));
+        assert!(hasher.needs_rehash(BCRYPT_ALGORITHM, &bcrypt_hash(PASSWORD, Version::TwoB)));
     }
 
     #[test]
     fn validates_every_supported_bcrypt_prefix() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
 
         for version in [Version::TwoA, Version::TwoB, Version::TwoY] {
             let hash = bcrypt_hash(PASSWORD, version);
@@ -255,7 +256,7 @@ mod tests {
 
     #[test]
     fn refuses_the_2x_bcrypt_variant() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoX);
 
         assert!(matches!(
@@ -266,7 +267,7 @@ mod tests {
 
     #[test]
     fn refuses_a_bcrypt_cost_that_disagrees_with_hash_iterations() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoB);
 
         assert!(matches!(
@@ -277,7 +278,7 @@ mod tests {
 
     #[test]
     fn refuses_a_truncated_bcrypt_hash() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoB);
 
         assert!(matches!(
@@ -288,7 +289,7 @@ mod tests {
 
     #[tokio::test]
     async fn delegates_argon2_validation() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = hasher.hash_password(PASSWORD).await.expect("argon2 hash");
 
         assert!(
@@ -304,7 +305,7 @@ mod tests {
 
     #[test]
     fn refuses_a_bcrypt_cost_above_the_operational_ceiling() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoB).replacen("$04$", "$15$", 1);
 
         assert!(matches!(
@@ -315,7 +316,7 @@ mod tests {
 
     #[test]
     fn accepts_the_highest_allowed_bcrypt_cost() {
-        let hasher = PasswordHasherRepository::new();
+        let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
         let hash = bcrypt_hash(PASSWORD, Version::TwoB).replacen("$04$", "$14$", 1);
 
         assert!(hasher.validate_hash(BCRYPT_ALGORITHM, &hash, 14).is_ok());

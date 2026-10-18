@@ -6821,7 +6821,7 @@ mod password_hash_tests {
         let mut hasher = MockHasherRepository::new();
         hasher
             .expect_needs_rehash()
-            .with(eq("argon2id"))
+            .withf(|algorithm, _| algorithm == "argon2id")
             .return_const(false);
         hasher.expect_hash_password().never();
         let mut credentials = MockCredentialRepository::new();
@@ -6845,7 +6845,7 @@ mod password_hash_tests {
         let mut hasher = MockHasherRepository::new();
         hasher
             .expect_needs_rehash()
-            .with(eq("bcrypt"))
+            .withf(|algorithm, _| algorithm == "bcrypt")
             .return_const(true);
         hasher
             .expect_hash_password()

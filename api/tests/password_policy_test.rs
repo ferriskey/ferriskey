@@ -8,6 +8,7 @@
 ///   DATABASE_NAME=ferriskey  DATABASE_USER=ferriskey  DATABASE_PASSWORD=ferriskey
 #[cfg(test)]
 mod tests {
+    use ferriskey_core::domain::common::PasswordHashingCost;
     use std::{env, sync::Arc};
 
     use axum::http::HeaderValue;
@@ -91,6 +92,7 @@ mod tests {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
+            password_hashing: PasswordHashingCost::default(),
             webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,

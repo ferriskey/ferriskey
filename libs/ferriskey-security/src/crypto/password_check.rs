@@ -35,7 +35,7 @@ pub async fn rehash_password_if_needed<H: HasherRepository, CR: CredentialReposi
     algorithm: &str,
     temporary: bool,
 ) {
-    if !hasher.needs_rehash(algorithm) {
+    if !hasher.needs_rehash(algorithm, verified_secret_data) {
         return;
     }
 
@@ -231,7 +231,7 @@ mod tests {
                         .ok_or_else(|| SecurityError::HashingError("not a PHC string".to_string()))
                 })
             });
-        hasher.expect_needs_rehash().returning(|_| false);
+        hasher.expect_needs_rehash().returning(|_, _| false);
         hasher
     }
 

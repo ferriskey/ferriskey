@@ -1,5 +1,6 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use ferriskey_core::{PasswordHasherRepository, verify_argon2_password};
+use ferriskey_domain::crypto::PasswordHashingCost;
 use ferriskey_security::crypto::ports::HasherRepository;
 
 const PASSWORD: &str = "Correct-horse-battery-7";
@@ -8,7 +9,7 @@ fn password_hashing(c: &mut Criterion) {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
         .expect("runtime");
-    let hasher = PasswordHasherRepository::new();
+    let hasher = PasswordHasherRepository::new(PasswordHashingCost::default());
     let stored = runtime
         .block_on(hasher.hash_password(PASSWORD))
         .expect("hash the password");
