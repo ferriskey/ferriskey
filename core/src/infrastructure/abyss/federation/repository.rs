@@ -432,6 +432,13 @@ impl FederationRepository for FederationRepositoryImpl {
         let Some(mapping) = mapping else {
             return Ok(());
         };
+        crate::entity::users::Entity::find_by_id(mapping.user_id)
+            .lock_exclusive()
+            .one(&txn)
+            .await
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to lock the user of the mapping: {}", e))
+            })?;
         user_federation_mappings::Entity::delete_by_id(mapping.id)
             .exec(&txn)
             .await
