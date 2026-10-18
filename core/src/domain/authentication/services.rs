@@ -871,6 +871,13 @@ fn build_context_groups(groups: &[Group], direct_ids: &HashSet<Uuid>) -> Vec<Con
 /// Token claims assembled from a client's scopes + protocol mappers for a given user,
 /// independent of signing and persistence. Reused by `create_jwt` (real issuance) and by the
 /// client-scope evaluation preview, so the preview reflects exactly what a real token carries.
+struct SignedAccessToken {
+    key: JwtKeyPair,
+    claims: JwtClaim,
+    jwt: Jwt,
+    id_token: Option<Jwt>,
+}
+
 struct AssembledClaims {
     access_claims: JwtClaim,
     /// ID-token additional claims produced by `IdToken` mappers; `None` when the `openid`
@@ -1988,15 +1995,16 @@ where
         Ok(())
     }
 
-    async fn create_jwt(
+    async fn sign_access_token(
         &self,
         client_scopes: &ClientScopeSet,
         user_roles: &[Role],
-        input: GenerateTokenInput,
-    ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
-        let jwt_key_pair = self
+        input: &GenerateTokenInput,
+    ) -> Result<SignedAccessToken, CoreError> {
+        let key = self
             .keystore_repository
             .get_or_generate_key(input.realm.id())
+            .instrument(info_span!("auth.create_jwt.key"))
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
@@ -2005,36 +2013,112 @@ where
             id_mapper_claims,
             ..
         } = self
-            .assemble_token_claims(client_scopes, user_roles, &input)
+            .assemble_token_claims(client_scopes, user_roles, input)
+            .instrument(info_span!("auth.create_jwt.claims"))
             .await?;
 
         // Bind the token pair to the SSO session so introspection and refresh can
         // check it is still alive. Absent for flows that establish no session.
         claims.sid = input.session_id;
 
-        let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)
-            .map_err(|e| {
+        let jwt = info_span!("auth.create_jwt.sign_access").in_scope(|| {
+            Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &key).map_err(|e| {
                 warn!("Failed to generate JWT: {:?}", e);
                 e
-            })?;
+            })
+        })?;
 
-        // Persist access tokens so backend services can introspect/revoke them immediately.
-        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
-        let access_token_claims =
-            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
-        let access_token_expires_at = claims
+        let id_token =
+            match id_mapper_claims {
+                Some(id_mapper_claims) => {
+                    // at_hash = base64url(left-half of SHA-256(access_token))
+                    let digest = Sha256::digest(jwt.token.as_bytes());
+                    let at_hash = Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]));
+                    let mut id_claims = Self::build_id_token_claims(
+                        &claims,
+                        id_mapper_claims,
+                        at_hash,
+                        input.nonce.clone(),
+                        input.id_token_lifetime,
+                    );
+                    id_claims.auth_time = input.auth_time;
+                    Some(info_span!("auth.create_jwt.sign_id").in_scope(|| {
+                        Self::encode_token_with_key(&id_claims, id_claims.exp, &key)
+                    })?)
+                }
+                None => None,
+            };
+
+        Ok(SignedAccessToken {
+            key,
+            claims,
+            jwt,
+            id_token,
+        })
+    }
+
+    // Persist access tokens so backend services can introspect/revoke them immediately.
+    async fn persist_access_token(
+        &self,
+        signed: &SignedAccessToken,
+        realm_id: RealmId,
+    ) -> Result<(), CoreError> {
+        let token_hash = format!("{:x}", Sha256::digest(signed.jwt.token.as_bytes()));
+        let claims =
+            serde_json::to_value(&signed.claims).map_err(|_| CoreError::InternalServerError)?;
+        let expires_at = signed
+            .claims
             .exp
             .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
 
+        self.access_token_repository
+            .create(
+                token_hash,
+                Some(signed.claims.jti),
+                signed.claims.sub,
+                realm_id,
+                expires_at,
+                claims,
+            )
+            .await
+            .map(|_| ())
+            .map_err(|_| CoreError::InternalServerError)
+    }
+
+    async fn create_access_token(
+        &self,
+        client_scopes: &ClientScopeSet,
+        user_roles: &[Role],
+        input: GenerateTokenInput,
+    ) -> Result<(Jwt, Option<Jwt>), CoreError> {
+        let signed = self
+            .sign_access_token(client_scopes, user_roles, &input)
+            .await?;
+        self.persist_access_token(&signed, input.realm.id())
+            .instrument(info_span!("auth.create_jwt.persist"))
+            .await?;
+
+        Ok((signed.jwt, signed.id_token))
+    }
+
+    async fn create_jwt(
+        &self,
+        client_scopes: &ClientScopeSet,
+        user_roles: &[Role],
+        input: GenerateTokenInput,
+    ) -> Result<(Jwt, Jwt, Option<Jwt>), CoreError> {
+        let signed = self
+            .sign_access_token(client_scopes, user_roles, &input)
+            .await?;
+
         let mut refresh_claims = JwtClaim::new_refresh_token(
-            claims.sub,
-            claims.iss.clone(),
-            claims.aud.clone(),
-            claims.azp.clone(),
-            claims.scope.clone(),
+            signed.claims.sub,
+            signed.claims.iss.clone(),
+            signed.claims.aud.clone(),
+            signed.claims.azp.clone(),
+            signed.claims.scope.clone(),
             input.refresh_token_lifetime,
         );
-
         refresh_claims.sid = input.session_id;
 
         // When the caller has already persisted the refresh token row (rotation path),
@@ -2043,75 +2127,45 @@ where
             refresh_claims.jti = override_jti;
         }
 
-        let refresh_token = Self::encode_token_with_key(
-            &refresh_claims,
-            refresh_claims.exp.unwrap_or(0),
-            &jwt_key_pair,
-        )?;
-
-        let id_token: Option<Jwt> = if let Some(id_mapper_claims) = id_mapper_claims {
-            // at_hash = base64url(left-half of SHA-256(access_token))
-            let at_hash = {
-                let digest = Sha256::digest(jwt.token.as_bytes());
-                Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]))
-            };
-
-            let mut id_claims = Self::build_id_token_claims(
-                &claims,
-                id_mapper_claims,
-                at_hash,
-                input.nonce.clone(),
-                input.id_token_lifetime,
-            );
-            id_claims.auth_time = input.auth_time;
-            let t = Self::encode_token_with_key(&id_claims, id_claims.exp, &jwt_key_pair)?;
-
-            Some(t)
-        } else {
-            None
-        };
-
+        let refresh_token = info_span!("auth.create_jwt.sign_refresh").in_scope(|| {
+            Self::encode_token_with_key(
+                &refresh_claims,
+                refresh_claims.exp.unwrap_or(0),
+                &signed.key,
+            )
+        })?;
         let refresh_token_expires_at = Utc
             .timestamp_opt(refresh_token.expires_at, 0)
             .single()
             .ok_or(CoreError::InternalServerError)?;
 
+        let persist_access = self.persist_access_token(&signed, input.realm.id());
+
         // When rotating, the refresh token DB row is already committed by `rotate()`.
         // Skip re-inserting it; only persist the new access token.
         if input.refresh_jti_override.is_some() {
-            self.access_token_repository
-                .create(
-                    access_token_hash,
-                    Some(claims.jti),
-                    claims.sub,
-                    input.realm.id(),
-                    access_token_expires_at,
-                    access_token_claims,
-                )
-                .await
-                .map_err(|_| CoreError::InternalServerError)?;
+            persist_access
+                .instrument(info_span!("auth.create_jwt.persist"))
+                .await?;
         } else {
-            tokio::try_join!(
-                self.access_token_repository.create(
-                    access_token_hash,
-                    Some(claims.jti),
-                    claims.sub,
-                    input.realm.id(),
-                    access_token_expires_at,
-                    access_token_claims,
-                ),
-                self.refresh_token_repository.create(
-                    refresh_claims.jti,
-                    input.user_id,
-                    Some(refresh_token_expires_at),
-                    input.session_id,
-                    input.resource.clone(),
-                )
-            )
-            .map_err(|_| CoreError::InternalServerError)?;
+            let persist_refresh = async {
+                self.refresh_token_repository
+                    .create(
+                        refresh_claims.jti,
+                        input.user_id,
+                        Some(refresh_token_expires_at),
+                        input.session_id,
+                        input.resource.clone(),
+                    )
+                    .await
+                    .map_err(|_| CoreError::InternalServerError)
+            };
+            async { tokio::try_join!(persist_access, persist_refresh) }
+                .instrument(info_span!("auth.create_jwt.persist"))
+                .await?;
         }
 
-        Ok((jwt, refresh_token, id_token))
+        Ok((signed.jwt, refresh_token, signed.id_token))
     }
 
     /// Verify a token this realm signed, for the RFC 8693 exchange. See
@@ -2730,6 +2784,7 @@ where
         let user = self
             .user_repository
             .get_by_client_id(client.id)
+            .instrument(info_span!("auth.client_credentials.service_account"))
             .await
             .map_err(|e| match e {
                 CoreError::NotFound => CoreError::ServiceAccountNotFound,
@@ -2748,19 +2803,22 @@ where
         let user_roles = self
             .user_role_repository
             .get_user_roles(user.id)
+            .instrument(info_span!("auth.client_credentials.roles"))
             .await
             .unwrap_or_default();
 
         let (final_scope, client_scopes) = self
             .resolve_client_scopes(client.id, params.scope.as_deref())
+            .instrument(info_span!("auth.client_credentials.scopes"))
             .await?;
 
         let lifetimes = self
             .resolve_token_lifetimes(&params.realm, client.id)
+            .instrument(info_span!("auth.client_credentials.lifetimes"))
             .await?;
 
-        let (jwt, refresh_token, id_token) = self
-            .create_jwt(
+        let (jwt, id_token) = self
+            .create_access_token(
                 &client_scopes,
                 &user_roles,
                 GenerateTokenInput {
@@ -2786,20 +2844,14 @@ where
                     resource: None,
                 },
             )
+            .instrument(info_span!("auth.client_credentials.create_jwt"))
             .await?;
 
-        let id_token_value = id_token.map(|t| t.token);
-
-        Ok(JwtToken::new(
+        Ok(JwtToken::bearer(
             jwt.token,
-            "Bearer".to_string(),
-            refresh_token.token,
             Self::expires_in_from(jwt.expires_at),
-            Self::expires_in_from(refresh_token.expires_at),
-            None,
-            id_token_value,
-        )
-        .without_refresh_token())
+            id_token.map(|token| token.token),
+        ))
     }
 
     async fn client_of_session(
@@ -4454,6 +4506,7 @@ where
                     input.ip_address.clone(),
                     input.user_agent.clone(),
                 )
+                .instrument(info_span!("auth.exchange_token.start_flow"))
                 .await
         };
 
