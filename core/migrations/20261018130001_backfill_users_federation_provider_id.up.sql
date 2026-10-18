@@ -1,3 +1,5 @@
+LOCK TABLE user_federation_mappings IN SHARE MODE;
+
 UPDATE users u
 SET federation_provider_id = m.provider_id
 FROM (

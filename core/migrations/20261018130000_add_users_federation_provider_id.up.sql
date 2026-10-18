@@ -10,15 +10,24 @@ CREATE OR REPLACE FUNCTION users_sync_federation_provider() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
     affected_user UUID;
+    affected_user_ids UUID[];
     latest_provider UUID;
 BEGIN
+    IF TG_OP = 'INSERT' THEN
+        affected_user_ids := ARRAY[NEW.user_id];
+    ELSIF TG_OP = 'DELETE' THEN
+        affected_user_ids := ARRAY[OLD.user_id];
+    ELSE
+        affected_user_ids := ARRAY[NEW.user_id, OLD.user_id];
+    END IF;
+
     PERFORM 1 FROM users
-    WHERE id IN (NEW.user_id, OLD.user_id)
+    WHERE id = ANY (affected_user_ids)
     ORDER BY id
     FOR UPDATE;
 
     FOR affected_user IN
-        SELECT DISTINCT u FROM unnest(ARRAY[NEW.user_id, OLD.user_id]) AS u WHERE u IS NOT NULL
+        SELECT DISTINCT u FROM unnest(affected_user_ids) AS u WHERE u IS NOT NULL
     LOOP
         SELECT provider_id INTO latest_provider
         FROM user_federation_mappings
