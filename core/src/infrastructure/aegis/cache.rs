@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use ferriskey_aegis::entities::{
@@ -24,6 +25,7 @@ use crate::infrastructure::common::TtlCache;
 
 #[derive(Debug)]
 pub struct AegisConfigCache {
+    generation: AtomicU64,
     scope_sets: TtlCache<Uuid, ClientScopeSet>,
     mappers: TtlCache<Vec<Uuid>, HashMap<Uuid, Vec<ProtocolMapper>>>,
 }
@@ -31,14 +33,39 @@ pub struct AegisConfigCache {
 impl AegisConfigCache {
     pub fn new(ttl: Duration) -> Self {
         Self {
+            generation: AtomicU64::new(0),
             scope_sets: TtlCache::new(ttl),
             mappers: TtlCache::new(ttl),
         }
     }
 
     pub fn clear(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
         self.scope_sets.clear();
         self.mappers.clear();
+    }
+
+    fn generation(&self) -> u64 {
+        self.generation.load(Ordering::SeqCst)
+    }
+
+    fn remember_scope_set(&self, read_at: u64, client_id: Uuid, set: &ClientScopeSet) {
+        self.scope_sets.insert(client_id, set.clone());
+        if self.generation() != read_at {
+            self.scope_sets.remove(&client_id);
+        }
+    }
+
+    fn remember_mappers(
+        &self,
+        read_at: u64,
+        key: Vec<Uuid>,
+        mappers: &HashMap<Uuid, Vec<ProtocolMapper>>,
+    ) {
+        self.mappers.insert(key.clone(), mappers.clone());
+        if self.generation() != read_at {
+            self.mappers.remove(&key);
+        }
     }
 }
 
@@ -112,8 +139,9 @@ impl<R: ClientScopeMappingRepository> ClientScopeMappingRepository
             return Ok(set);
         }
 
+        let read_at = self.cache.generation();
         let set = self.inner.get_scope_set(client_id).await?;
-        self.cache.scope_sets.insert(client_id, set.clone());
+        self.cache.remember_scope_set(read_at, client_id, &set);
 
         Ok(set)
     }
@@ -162,8 +190,9 @@ impl<R: ProtocolMapperRepository> ProtocolMapperRepository for CachedProtocolMap
             return Ok(mappers);
         }
 
+        let read_at = self.cache.generation();
         let mappers = self.inner.get_by_scope_ids(scope_ids).await?;
-        self.cache.mappers.insert(key, mappers.clone());
+        self.cache.remember_mappers(read_at, key, &mappers);
 
         Ok(mappers)
     }
@@ -379,6 +408,41 @@ mod tests {
             .await
             .unwrap();
         let _ = mappings.get_scope_set(client_id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_read_overtaken_by_a_write_is_not_kept() {
+        let cache = Arc::new(AegisConfigCache::new(Duration::from_secs(5)));
+        let during_read = Arc::clone(&cache);
+        let mut inner = MockClientScopeMappingRepository::new();
+        inner.expect_get_scope_set().times(2).returning(move |_| {
+            during_read.clear();
+            Box::pin(async { Ok(ClientScopeSet::default()) })
+        });
+        let mappings = CachedScopeMappingRepository::new(inner, cache);
+        let client_id = Uuid::new_v4();
+
+        let _ = mappings.get_scope_set(client_id).await.unwrap();
+        let _ = mappings.get_scope_set(client_id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_mapper_read_overtaken_by_a_write_is_not_kept() {
+        let cache = Arc::new(AegisConfigCache::new(Duration::from_secs(5)));
+        let during_read = Arc::clone(&cache);
+        let mut inner = MockProtocolMapperRepository::new();
+        inner
+            .expect_get_by_scope_ids()
+            .times(2)
+            .returning(move |_| {
+                during_read.clear();
+                Box::pin(async { Ok(HashMap::new()) })
+            });
+        let mappers = CachedProtocolMapperRepository::new(inner, cache);
+        let scope_id = Uuid::new_v4();
+
+        let _ = mappers.get_by_scope_ids(&[scope_id]).await.unwrap();
+        let _ = mappers.get_by_scope_ids(&[scope_id]).await.unwrap();
     }
 
     #[tokio::test]
