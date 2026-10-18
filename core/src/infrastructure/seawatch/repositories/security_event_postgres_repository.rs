@@ -93,7 +93,6 @@ fn chained_batch_insert(
 ) -> Statement {
     let per_event = 15;
     let preimage_param = |link: usize| 3 + per_event * (link - 1) + 14;
-    let head_base = "COALESCE(decode(h.event_hash, 'hex'), $2)";
     let count = events.len();
 
     let rows: Vec<String> = (0..count)
@@ -103,7 +102,7 @@ fn chained_batch_insert(
                 .map(|offset| format!("${}", base + offset))
                 .collect();
             format!(
-                "SELECT {}, encode({}, 'hex'), encode({}, 'hex'), clock_timestamp() FROM head",
+                "SELECT {}, encode({}, 'hex'), encode({}, 'hex'), head.stamped_at + {index} * interval '1 microsecond' FROM head",
                 columns.join(", "),
                 chain_expression(index + 1, "head.before", preimage_param),
                 chain_expression(index, "head.before", preimage_param),
@@ -112,21 +111,27 @@ fn chained_batch_insert(
         .collect();
 
     let sql = format!(
-        "WITH head AS (
+        "WITH locked AS (
+    SELECT COALESCE(decode(event_hash, 'hex'), $2) AS before
+    FROM security_event_chain_heads
+    WHERE realm_id = $1
+    FOR UPDATE
+),
+head AS (
     UPDATE security_event_chain_heads h
     SET prev_hash = encode({prev}, 'hex'),
         event_hash = encode({last}, 'hex'),
         updated_at = NOW()
-    WHERE realm_id = $1
-    RETURNING (SELECT COALESCE(decode(o.event_hash, 'hex'), $2)
-               FROM security_event_chain_heads o WHERE o.realm_id = h.realm_id) AS before
+    FROM locked
+    WHERE h.realm_id = $1
+    RETURNING locked.before AS before, clock_timestamp() AS stamped_at
 )
 INSERT INTO security_events
     {EVENT_COLUMNS}
 {rows}
 RETURNING id",
-        prev = chain_expression(count - 1, head_base, preimage_param),
-        last = chain_expression(count, head_base, preimage_param),
+        prev = chain_expression(count - 1, "locked.before", preimage_param),
+        last = chain_expression(count, "locked.before", preimage_param),
         rows = rows.join("\nUNION ALL\n"),
     );
 
@@ -673,6 +678,55 @@ mod tests {
             assert_eq!(
                 stored_head(&fixture.pool, realm_id).await,
                 events[0].event_hash.map(hex::encode)
+            );
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+        async fn concurrent_pairs_and_single_events_form_one_linear_chain() {
+            let fixture = setup().await;
+            let realm_id = insert_realm(&fixture.pool).await;
+            let other = PostgresSecurityEventRepository::new(fixture.db.clone());
+
+            let mut tasks = tokio::task::JoinSet::new();
+            for index in 0..30 {
+                let repository = if index % 2 == 0 {
+                    other.clone()
+                } else {
+                    fixture.repository.clone()
+                };
+                if index % 3 == 0 {
+                    tasks.spawn(async move {
+                        repository.store_event(login_event(realm_id, index)).await
+                    });
+                } else {
+                    tasks.spawn(async move {
+                        repository
+                            .store_events(vec![
+                                login_event(realm_id, index),
+                                login_event(realm_id, index + 100),
+                            ])
+                            .await
+                    });
+                }
+            }
+            while let Some(result) = tasks.join_next().await {
+                result.expect("task").expect("store");
+            }
+
+            let events = fixture
+                .repository
+                .get_events_ordered_for_verification(realm_id)
+                .await
+                .expect("events");
+            assert_eq!(events.len(), 50);
+            assert_eq!(verify_chain(&events), VerifyResult::Ok);
+            for pair in events.windows(2) {
+                assert_eq!(pair[1].prev_hash, pair[0].event_hash);
+            }
+            assert_eq!(
+                stored_head(&fixture.pool, realm_id).await,
+                events[49].event_hash.map(hex::encode)
             );
         }
 
