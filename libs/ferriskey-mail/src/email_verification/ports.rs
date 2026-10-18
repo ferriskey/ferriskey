@@ -55,9 +55,6 @@ pub trait EmailVerificationTokenRepository: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait EmailVerificationService: Send + Sync {
-    /// `user_agent` is the User-Agent of the request that asked for the email,
-    /// surfaced to the template as `{{user_agent}}`; `None` when the request
-    /// carried none.
     fn send_verification_email(
         &self,
         user_id: Uuid,

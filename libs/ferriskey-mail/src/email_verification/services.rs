@@ -474,8 +474,6 @@ mod tests {
             Ok("<mjml><mj-body>Test</mjml>".to_string())
         }
 
-        /// Carries the request-origin placeholders so a test can assert they
-        /// are interpolated before the email goes out.
         fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
             Ok(
                 "<html><body>Test, requested at {{requested_at}} from {{user_agent}}</body></html>"

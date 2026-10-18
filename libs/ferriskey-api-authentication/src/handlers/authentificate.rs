@@ -62,9 +62,6 @@ pub struct AuthenticateRequest {
         (status = 500, description = "Internal server error", body = ApiError)
     )
 )]
-// Eight extractors, not eight parameters: every one of them is a slice of the
-// same request, and splitting the handler would only move the pulling apart
-// somewhere else.
 #[allow(clippy::too_many_arguments)]
 pub async fn authenticate(
     Path(realm_name): Path<String>,
