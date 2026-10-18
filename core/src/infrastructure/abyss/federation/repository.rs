@@ -438,7 +438,15 @@ impl FederationRepository for FederationRepositoryImpl {
             .map_err(|e| {
                 CoreError::Database(format!("Failed to delete federation mapping: {}", e))
             })?;
-        mark_user_federated(&txn, mapping.user_id, None).await?;
+        let remaining = user_federation_mappings::Entity::find()
+            .filter(user_federation_mappings::Column::UserId.eq(mapping.user_id))
+            .order_by_desc(user_federation_mappings::Column::LastSyncedAt)
+            .one(&txn)
+            .await
+            .map_err(|e| {
+                CoreError::Database(format!("Failed to find the remaining mappings: {}", e))
+            })?;
+        mark_user_federated(&txn, mapping.user_id, remaining.map(|m| m.provider_id)).await?;
         txn.commit().await.map_err(|e| {
             CoreError::Database(format!(
                 "Failed to commit a federation mapping removal: {}",
@@ -695,16 +703,7 @@ mod db_tests {
         .execute(&pool)
         .await
         .expect("insert user");
-        let provider_id = Uuid::new_v4();
-        sqlx::query(
-            "INSERT INTO user_federation_providers (id, realm_id, name, provider_type, config) \
-             VALUES ($1, $2, 'corporate ldap', 'ldap', '{}'::jsonb)",
-        )
-        .bind(provider_id)
-        .bind(realm_id)
-        .execute(&pool)
-        .await
-        .expect("insert provider");
+        let provider_id = insert_provider(&pool, realm_id, "corporate ldap").await;
 
         let db = SeaOrmDatabase::connect(&schema_url)
             .await
@@ -726,6 +725,49 @@ mod db_tests {
         }
     }
 
+    async fn insert_provider(pool: &sqlx::PgPool, realm_id: Uuid, name: &str) -> Uuid {
+        let provider_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO user_federation_providers (id, realm_id, name, provider_type, config) \
+             VALUES ($1, $2, $3, 'ldap', '{}'::jsonb)",
+        )
+        .bind(provider_id)
+        .bind(realm_id)
+        .bind(name)
+        .execute(pool)
+        .await
+        .expect("insert provider");
+        provider_id
+    }
+
+    fn mapping_to(provider_id: Uuid, user_id: Uuid, external_id: &str) -> FederationMapping {
+        FederationMapping {
+            id: Uuid::new_v4(),
+            provider_id,
+            user_id,
+            external_id: external_id.to_string(),
+            external_username: "alice".to_string(),
+            mapping_metadata: serde_json::Value::Null,
+            last_synced_at: Utc::now(),
+        }
+    }
+
+    async fn scoped_provider(
+        fixture: &Fixture,
+        provider_id: Uuid,
+    ) -> crate::domain::realm::entities::Scoped<
+        crate::domain::abyss::federation::entities::FederationProvider,
+    > {
+        fixture
+            .repository
+            .get_by_id(provider_id)
+            .await
+            .expect("read the provider")
+            .expect("the provider exists")
+            .in_realm(&RealmScope::from_realm(fixture.realm.clone()))
+            .expect("the provider belongs to the realm")
+    }
+
     async fn marker_of(pool: &sqlx::PgPool, user_id: Uuid) -> Option<Uuid> {
         sqlx::query_scalar("SELECT federation_provider_id FROM users WHERE id = $1")
             .bind(user_id)
@@ -742,15 +784,11 @@ mod db_tests {
 
         let mapping = fixture
             .repository
-            .create_mapping(FederationMapping {
-                id: Uuid::new_v4(),
-                provider_id: fixture.provider_id,
-                user_id: fixture.user_id,
-                external_id: "uid=alice".to_string(),
-                external_username: "alice".to_string(),
-                mapping_metadata: serde_json::Value::Null,
-                last_synced_at: Utc::now(),
-            })
+            .create_mapping(mapping_to(
+                fixture.provider_id,
+                fixture.user_id,
+                "uid=alice",
+            ))
             .await
             .expect("create the mapping");
         assert_eq!(
@@ -758,14 +796,7 @@ mod db_tests {
             Some(fixture.provider_id)
         );
 
-        let provider = fixture
-            .repository
-            .get_by_id(fixture.provider_id)
-            .await
-            .expect("read the provider")
-            .expect("the provider exists")
-            .in_realm(&RealmScope::from_realm(fixture.realm.clone()))
-            .expect("the provider belongs to the realm");
+        let provider = scoped_provider(&fixture, fixture.provider_id).await;
         fixture
             .repository
             .delete_mapping(&provider, mapping.id)
@@ -773,5 +804,44 @@ mod db_tests {
             .expect("delete the mapping");
 
         assert_eq!(marker_of(&fixture.pool, fixture.user_id).await, None);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn removing_one_of_two_mappings_keeps_the_user_federated_by_the_other() {
+        let fixture = setup().await;
+        let other_provider_id =
+            insert_provider(&fixture.pool, Uuid::from(fixture.realm.id), "partner ldap").await;
+
+        let first = fixture
+            .repository
+            .create_mapping(mapping_to(
+                fixture.provider_id,
+                fixture.user_id,
+                "uid=alice",
+            ))
+            .await
+            .expect("create the first mapping");
+        fixture
+            .repository
+            .create_mapping(mapping_to(other_provider_id, fixture.user_id, "cn=alice"))
+            .await
+            .expect("create the second mapping");
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(other_provider_id)
+        );
+
+        let provider = scoped_provider(&fixture, fixture.provider_id).await;
+        fixture
+            .repository
+            .delete_mapping(&provider, first.id)
+            .await
+            .expect("delete the first mapping");
+
+        assert_eq!(
+            marker_of(&fixture.pool, fixture.user_id).await,
+            Some(other_provider_id)
+        );
     }
 }
