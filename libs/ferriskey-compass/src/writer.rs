@@ -70,12 +70,9 @@ pub async fn compass_writer_task<F: CompassFlowRepository>(
 
 async fn absorb<F: CompassFlowRepository>(event: CompassEvent, batch: &mut Batch, flows: &F) {
     match event {
-        CompassEvent::FlowStarted { flow, ack } => {
+        CompassEvent::FlowStarted(flow) => {
             if let Err(e) = flows.create_flow(flow).await {
                 tracing::error!("Compass writer: failed to persist flow: {e}");
-            }
-            if let Some(ack) = ack {
-                let _ = ack.send(());
             }
         }
         CompassEvent::StepRecorded(step) => batch.steps.push(step),
@@ -100,7 +97,7 @@ mod tests {
     use chrono::Utc;
     use ferriskey_domain::common::app_errors::CoreError;
     use ferriskey_domain::realm::RealmId;
-    use tokio::sync::{mpsc, oneshot};
+    use tokio::sync::mpsc;
     use uuid::Uuid;
 
     use crate::entities::{CompassFlow, CompassFlowStep, FlowId, FlowStatus, FlowStepName};
@@ -209,33 +206,28 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_flow_start_is_written_at_once_and_acknowledged() {
+    async fn a_flow_start_is_written_at_once_outside_the_batch() {
         let (tx, rx) = mpsc::channel(16);
+        let (stored_tx, mut stored_rx) = mpsc::unbounded_channel();
         let mut flows = MockCompassFlowRepository::new();
-        flows
-            .expect_create_flow()
-            .times(1)
-            .returning(|_| Box::pin(async { Ok(()) }));
+        flows.expect_create_flow().times(1).returning(move |flow| {
+            let _ = stored_tx.send(flow.id);
+            Box::pin(async { Ok(()) })
+        });
         flows.expect_write_batch().never();
-        let writer = tokio::spawn(compass_writer_task(rx, flows, config(60_000, 256)));
-        let (ack_tx, ack_rx) = oneshot::channel();
+        let _writer = tokio::spawn(compass_writer_task(rx, flows, config(60_000, 256)));
+        let flow = CompassFlow::new(
+            RealmId::from(Uuid::new_v4()),
+            Some("console".to_string()),
+            "password".to_string(),
+            None,
+            None,
+        );
+        let flow_id = flow.id.clone();
 
-        tx.send(CompassEvent::FlowStarted {
-            flow: CompassFlow::new(
-                RealmId::from(Uuid::new_v4()),
-                Some("console".to_string()),
-                "password".to_string(),
-                None,
-                None,
-            ),
-            ack: Some(ack_tx),
-        })
-        .await
-        .unwrap();
+        tx.send(CompassEvent::FlowStarted(flow)).await.unwrap();
 
-        assert!(ack_rx.await.is_ok());
-        drop(tx);
-        writer.await.unwrap();
+        assert_eq!(stored_rx.recv().await, Some(flow_id));
     }
 
     #[tokio::test(start_paused = true)]

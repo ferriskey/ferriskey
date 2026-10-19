@@ -4429,16 +4429,13 @@ where
             }
         }
 
-        let flow_id = self
-            .flow_recorder
-            .start_referenced_flow(
-                scope.realm(),
-                Some(input.client_id.clone()),
-                "authorization_code".to_string(),
-                input.ip_address.clone(),
-                input.user_agent.clone(),
-            )
-            .await;
+        let flow_id = self.flow_recorder.start_flow(
+            scope.realm(),
+            Some(input.client_id.clone()),
+            "authorization_code".to_string(),
+            input.ip_address.clone(),
+            input.user_agent.clone(),
+        );
 
         let params = AuthSessionParams {
             realm_id: scope.id(),

@@ -57,7 +57,6 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    AuthSessions,
     CompassFlowSteps,
     Realms,
     Users,
@@ -86,7 +85,6 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::AuthSessions => Entity::has_many(super::auth_sessions::Entity).into(),
             Self::CompassFlowSteps => Entity::has_many(super::compass_flow_steps::Entity).into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
@@ -97,12 +95,6 @@ impl RelationTrait for Relation {
                 .to(super::users::Column::Id)
                 .into(),
         }
-    }
-}
-
-impl Related<super::auth_sessions::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::AuthSessions.def()
     }
 }
 

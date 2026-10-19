@@ -87,7 +87,6 @@ impl PrimaryKeyTrait for PrimaryKey {
 pub enum Relation {
     BrokerAuthSessions,
     Clients,
-    CompassFlows,
     Realms,
     UserSessions2,
     UserSessions1,
@@ -101,9 +100,9 @@ impl ColumnTrait for Column {
             Self::Id => ColumnType::Uuid.def(),
             Self::RealmId => ColumnType::Uuid.def(),
             Self::ClientId => ColumnType::Uuid.def(),
-            Self::RedirectUri => ColumnType::String(StringLen::N(255u32)).def(),
-            Self::ResponseType => ColumnType::String(StringLen::N(255u32)).def().null(),
-            Self::Scope => ColumnType::String(StringLen::N(255u32)).def().null(),
+            Self::RedirectUri => ColumnType::Text.def(),
+            Self::ResponseType => ColumnType::Text.def().null(),
+            Self::Scope => ColumnType::Text.def().null(),
             Self::State => ColumnType::Text.def().null(),
             Self::Nonce => ColumnType::Text.def().null(),
             Self::UserId => ColumnType::Uuid.def().null(),
@@ -141,10 +140,6 @@ impl RelationTrait for Relation {
                 .from(Column::ClientId)
                 .to(super::clients::Column::Id)
                 .into(),
-            Self::CompassFlows => Entity::belongs_to(super::compass_flows::Entity)
-                .from(Column::CompassFlowId)
-                .to(super::compass_flows::Column::Id)
-                .into(),
             Self::Realms => Entity::belongs_to(super::realms::Entity)
                 .from(Column::RealmId)
                 .to(super::realms::Column::Id)
@@ -174,12 +169,6 @@ impl Related<super::broker_auth_sessions::Entity> for Entity {
 impl Related<super::clients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Clients.def()
-    }
-}
-
-impl Related<super::compass_flows::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::CompassFlows.def()
     }
 }
 
