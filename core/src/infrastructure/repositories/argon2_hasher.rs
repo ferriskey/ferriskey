@@ -28,6 +28,25 @@ impl Default for Argon2HasherRepository {
     }
 }
 
+pub fn verify_argon2_password(
+    password: &str,
+    secret_data: &str,
+    algorithm: &str,
+) -> Result<bool, SecurityError> {
+    let algorithm = match algorithm {
+        "argon2i" => Algorithm::Argon2i,
+        "argon2d" => Algorithm::Argon2d,
+        _ => Algorithm::Argon2id,
+    };
+    let argon2 = Argon2::new(algorithm, Version::V0x13, Params::default());
+    let parsed_hash =
+        PasswordHash::new(secret_data).map_err(|e| SecurityError::HashingError(e.to_string()))?;
+
+    Ok(argon2
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .is_ok())
+}
+
 impl HasherRepository for Argon2HasherRepository {
     async fn hash_password(&self, password: &str) -> Result<HashResult, SecurityError> {
         let salt = SaltString::generate(&mut OsRng);
@@ -69,22 +88,11 @@ impl HasherRepository for Argon2HasherRepository {
         algorithm: &str,
         _salt: &str,
     ) -> Result<bool, SecurityError> {
-        let algorithm = match algorithm {
-            "argon2i" => Algorithm::Argon2i,
-            "argon2d" => Algorithm::Argon2d,
-            _ => Algorithm::Argon2id, // Par défaut, utiliser Argon2id
-        };
-
         let password = password.to_string();
         let secret_data = secret_data.to_string();
+        let algorithm = algorithm.to_string();
         let is_valid = task::spawn_blocking(move || {
-            let argon2 = Argon2::new(algorithm, Version::V0x13, Params::default());
-            let parsed_hash = PasswordHash::new(&secret_data)
-                .map_err(|e| SecurityError::HashingError(e.to_string()))?;
-            let is_valid = argon2
-                .verify_password(password.as_bytes(), &parsed_hash)
-                .is_ok();
-            Ok::<bool, SecurityError>(is_valid)
+            verify_argon2_password(&password, &secret_data, &algorithm)
         })
         .await
         .map_err(|e| {
@@ -369,5 +377,15 @@ mod tests {
             hash_result1.hash, hash_result2.hash,
             "Same password should have different hashes due to the random salt"
         );
+    }
+
+    #[tokio::test]
+    async fn the_blocking_verification_agrees_with_the_asynchronous_one() {
+        let hasher = Argon2HasherRepository::new();
+        let stored = hasher.hash_password("secret").await.expect("hash");
+
+        assert!(verify_argon2_password("secret", &stored.hash, &stored.algorithm).expect("verify"));
+        assert!(!verify_argon2_password("other", &stored.hash, &stored.algorithm).expect("verify"));
+        assert!(verify_argon2_password("secret", "not a phc string", "argon2id").is_err());
     }
 }
