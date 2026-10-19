@@ -61,6 +61,13 @@ pub trait CredentialRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<(), CredentialError>> + Send;
 
+    fn set_password_credential(
+        &self,
+        user_id: Uuid,
+        hash_result: HashResult,
+        temporary: bool,
+    ) -> impl Future<Output = Result<(), CredentialError>> + Send;
+
     fn get_credentials_by_user_id(
         &self,
         user_id: Uuid,

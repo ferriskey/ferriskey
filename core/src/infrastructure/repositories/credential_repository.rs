@@ -4,8 +4,10 @@ use crate::{
 };
 use chrono::{TimeZone, Utc};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
-    IntoActiveModel, ModelTrait, QueryFilter, sea_query::Expr,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, ModelTrait, QueryFilter,
+    sea_query::{Expr, OnConflict},
 };
 use serde_json::Value;
 use tracing::error;
@@ -194,6 +196,69 @@ impl CredentialRepository for PostgresCredentialRepository {
                 error!("Error checking password credential for user {user_id}: {e:?}");
                 CredentialError::GetPasswordCredentialError
             })
+    }
+
+    async fn set_password_credential(
+        &self,
+        user_id: uuid::Uuid,
+        hash_result: HashResult,
+        temporary: bool,
+    ) -> Result<(), CredentialError> {
+        let (now, _) = generate_timestamp();
+        let credential_data = serde_json::to_value(CredentialData::new_hash(
+            hash_result.hash_iterations,
+            hash_result.algorithm.clone(),
+        ))
+        .map_err(|e| {
+            error!("Error serializing credential_data for user {user_id}: {e:?}");
+            CredentialError::CreateCredentialError
+        })?;
+        let payload = ActiveModel {
+            id: Set(generate_uuid_v7()),
+            salt: Set(Some(hash_result.salt).filter(|salt| !salt.is_empty())),
+            credential_type: Set(CredentialType::Password.as_str().to_string()),
+            user_id: Set(user_id),
+            user_label: Set(Some(String::new())),
+            secret_data: Set(hash_result.hash),
+            credential_data: Set(credential_data),
+            created_at: Set(now.naive_utc()),
+            updated_at: Set(now.naive_utc()),
+            temporary: Set(Some(temporary)),
+            webauthn_credential_id: Set(None),
+            last_used_at: Set(None),
+        };
+
+        CredentialEntity::insert(payload)
+            .on_conflict(
+                OnConflict::columns([
+                    crate::entity::credentials::Column::UserId,
+                    crate::entity::credentials::Column::CredentialType,
+                ])
+                .target_and_where(
+                    crate::entity::credentials::Column::CredentialType
+                        .ne(CredentialType::RecoveryCode.as_str())
+                        .and(
+                            crate::entity::credentials::Column::CredentialType
+                                .ne(CredentialType::WebAuthnPublicKeyCredential.as_str()),
+                        ),
+                )
+                .update_columns([
+                    crate::entity::credentials::Column::Salt,
+                    crate::entity::credentials::Column::SecretData,
+                    crate::entity::credentials::Column::CredentialData,
+                    crate::entity::credentials::Column::Temporary,
+                    crate::entity::credentials::Column::UpdatedAt,
+                ])
+                .to_owned(),
+            )
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("Error setting the password credential of user {user_id}: {e:?}");
+                CredentialError::CreateCredentialError
+            })?;
+
+        Ok(())
     }
 
     async fn delete_password_credential(&self, user_id: uuid::Uuid) -> Result<(), CredentialError> {
@@ -684,5 +749,68 @@ mod tests {
             result,
             Err(CredentialError::UpdateCredentialError)
         ));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn set_password_credential_inserts_then_replaces_in_place() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        let rows = |pool: sqlx::PgPool| async move {
+            sqlx::query_scalar::<_, i64>(
+                "SELECT COUNT(*) FROM credentials WHERE user_id = $1 AND credential_type = 'password'",
+            )
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .expect("count password credentials")
+        };
+
+        fixture
+            .repository
+            .set_password_credential(
+                user_id,
+                HashResult::new(
+                    "$argon2id$v=19$m=7168,t=5,p=1$one".to_string(),
+                    "salt-one".to_string(),
+                    5,
+                    "argon2id".to_string(),
+                ),
+                true,
+            )
+            .await
+            .expect("a user without a password gets one");
+        let first = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("read the first credential");
+        assert_eq!(first.secret_data, "$argon2id$v=19$m=7168,t=5,p=1$one");
+        assert!(first.temporary);
+
+        fixture
+            .repository
+            .set_password_credential(
+                user_id,
+                HashResult::new(
+                    "$argon2id$v=19$m=7168,t=5,p=1$two".to_string(),
+                    "salt-two".to_string(),
+                    5,
+                    "argon2id".to_string(),
+                ),
+                false,
+            )
+            .await
+            .expect("an existing password is replaced in place");
+        let second = fixture
+            .repository
+            .get_password_credential(user_id)
+            .await
+            .expect("read the replaced credential");
+        assert_eq!(second.id, first.id, "the row is updated, not recreated");
+        assert_eq!(second.secret_data, "$argon2id$v=19$m=7168,t=5,p=1$two");
+        assert_eq!(second.salt.as_deref(), Some("salt-two"));
+        assert!(!second.temporary);
+        assert_eq!(rows(fixture.pool.clone()).await, 1);
     }
 }
