@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use super::auth::root_scoped_base_url;
 use crate::basic_auth::try_parse_basic_client_credentials;
 use crate::validators::TokenRequestValidator;
@@ -13,6 +15,7 @@ use ferriskey_api_core::api_entities::api_error::OAuth2ErrorResponse;
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::FullUrl;
+use ferriskey_core::domain::authentication::device_flow::error::DeviceFlowError;
 use ferriskey_core::domain::authentication::entities::{GrantType, JwtToken};
 use ferriskey_core::domain::authentication::token_exchange::{
     TokenExchangeError, TokenExchangeInput, TokenExchangeOutput,
@@ -45,6 +48,17 @@ enum TokenUnauthorizedResponse {
     OAuth(OAuth2ErrorResponse),
 }
 
+const CLIENT_AUTH_RETRY_AFTER_SECONDS: u32 = 60;
+
+fn throttled() -> ApiError {
+    ApiError::OAuthTooManyRequests {
+        error: "temporarily_unavailable".into(),
+        error_description: "Too many failed client authentications from this address; retry later."
+            .into(),
+        retry_after_seconds: CLIENT_AUTH_RETRY_AFTER_SECONDS,
+    }
+}
+
 #[utoipa::path(
     post,
     path = "/protocol/openid-connect/token",
@@ -59,6 +73,7 @@ enum TokenUnauthorizedResponse {
         (status = 200, body = TokenResponse),
         (status = 400, description = "RFC 6749 error (`invalid_request`, `invalid_scope`, `invalid_target`, `unauthorized_client`, ...)", body = OAuth2ErrorResponse),
         (status = 401, description = "Realm not found or client authentication failed. Token exchange always answers with the RFC 6749 body (`invalid_client`).", body = TokenUnauthorizedResponse),
+        (status = 429, description = "Too many failed client authentications from this address; retry after the `Retry-After` delay.", body = OAuth2ErrorResponse),
         (status = 404, description = "Client not found", body = ApiErrorResponse),
         (status = 500, description = "Internal Server Error", body = ApiErrorResponse),
     )
@@ -181,10 +196,22 @@ async fn token_response(
         ),
     };
 
+    let client_ip = context
+        .ip_address
+        .as_deref()
+        .and_then(|ip| ip.parse::<IpAddr>().ok());
+    let attempt = match client_ip {
+        Some(ip) => match state.client_auth_throttle.reserve(ip) {
+            Some(attempt) => Some(attempt),
+            None => return Err(throttled()),
+        },
+        None => None,
+    };
+
     // RFC 8693 has its own service and error codes; it never goes through
     // `exchange_token`, which would also open a second Compass flow.
     if payload.grant_type == GrantType::TokenExchange {
-        return exchange_subject_token(
+        let response = exchange_subject_token(
             &state,
             realm_name,
             client_id,
@@ -193,8 +220,13 @@ async fn token_response(
             context.ip_address,
             context.user_agent,
         )
-        .await
-        .map(IntoResponse::into_response);
+        .await;
+        if let Some(attempt) = attempt
+            && matches!(&response, Err(ApiError::OAuthUnauthorized { error, .. }) if error == "invalid_client")
+        {
+            attempt.failed();
+        }
+        return response.map(IntoResponse::into_response);
     }
 
     if let Some(parameter) = missing_parameter(&payload) {
@@ -241,6 +273,11 @@ async fn token_response(
         match state.service.poll_device_token(exchange_input).await {
             Ok(token) => token,
             Err(error) => {
+                if let Some(attempt) = attempt
+                    && matches!(error, DeviceFlowError::InvalidClient)
+                {
+                    attempt.failed();
+                }
                 warn!(client_id = %client_id, error = ?error, "Device token poll failed");
                 return Err(error.into());
             }
@@ -249,6 +286,14 @@ async fn token_response(
         match state.service.exchange_token(exchange_input).await {
             Ok(token) => token,
             Err(error) => {
+                if let Some(attempt) = attempt
+                    && matches!(
+                        error,
+                        CoreError::ClientAuthenticationFailed | CoreError::InvalidClientSecret
+                    )
+                {
+                    attempt.failed();
+                }
                 warn!(
                     client_id = %client_id,
                     grant_type = ?grant_type,

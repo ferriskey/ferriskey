@@ -2800,8 +2800,6 @@ where
             }
         }
 
-        info!("try to fetch user client, client id: {}", client.id);
-
         let user = self
             .user_repository
             .get_by_client_id(client.id)
@@ -4510,6 +4508,12 @@ where
             .in_realm(&scope)
             .map_err(|_| CoreError::ClientAuthenticationFailed)?
             .into_inner();
+
+        authenticate_client(
+            &client,
+            input.client_secret.as_deref(),
+            ClientGrant::for_token_grant(&grant_type)?,
+        )?;
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token

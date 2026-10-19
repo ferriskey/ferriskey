@@ -120,6 +120,11 @@ pub enum ApiError {
         error: Cow<'static, str>,
         error_description: Cow<'static, str>,
     },
+    OAuthTooManyRequests {
+        error: Cow<'static, str>,
+        error_description: Cow<'static, str>,
+        retry_after_seconds: u32,
+    },
 }
 
 impl ApiError {
@@ -162,6 +167,15 @@ impl ApiError {
             } => Self::OAuthUnauthorized {
                 error,
                 error_description,
+            },
+            Self::OAuthTooManyRequests {
+                error,
+                error_description,
+                retry_after_seconds,
+            } => Self::OAuthTooManyRequests {
+                error,
+                error_description,
+                retry_after_seconds,
             },
         }
     }
@@ -384,6 +398,21 @@ impl IntoResponse for ApiError {
                 return (
                     StatusCode::UNAUTHORIZED,
                     [(header::WWW_AUTHENTICATE, "Basic")],
+                    Json(OAuth2ErrorResponse {
+                        error: error.into(),
+                        error_description: error_description.into(),
+                    }),
+                )
+                    .into_response();
+            }
+            ApiError::OAuthTooManyRequests {
+                error,
+                error_description,
+                retry_after_seconds,
+            } => {
+                return (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    [(header::RETRY_AFTER, retry_after_seconds.to_string())],
                     Json(OAuth2ErrorResponse {
                         error: error.into(),
                         error_description: error_description.into(),

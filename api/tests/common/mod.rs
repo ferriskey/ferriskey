@@ -10,7 +10,7 @@ use axum::Router;
 use axum_test::TestServer;
 use ferriskey_api::{
     application::http::server::{app_state::AppState, http_server::router},
-    args::Args,
+    args::{Args, ServerArgs},
 };
 use ferriskey_core::{
     application::create_service,
@@ -37,6 +37,7 @@ pub struct TestApp {
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 static APP: OnceLock<TestApp> = OnceLock::new();
 static CACHED_APP: OnceLock<TestApp> = OnceLock::new();
+static FORWARDED_APP: OnceLock<TestApp> = OnceLock::new();
 
 pub fn rt() -> &'static tokio::runtime::Runtime {
     RUNTIME.get_or_init(|| {
@@ -48,19 +49,30 @@ pub fn rt() -> &'static tokio::runtime::Runtime {
 }
 
 pub fn app() -> &'static TestApp {
-    APP.get_or_init(|| boot_blocking(0, false))
+    APP.get_or_init(|| boot_blocking(0, false, false))
 }
 
 pub fn cached_app() -> &'static TestApp {
-    CACHED_APP.get_or_init(|| boot_blocking(60, true))
+    CACHED_APP.get_or_init(|| boot_blocking(60, true, false))
 }
 
-fn boot_blocking(config_cache_ttl_seconds: u64, seed_default_scopes: bool) -> TestApp {
+pub fn forwarded_app() -> &'static TestApp {
+    FORWARDED_APP.get_or_init(|| boot_blocking(0, false, true))
+}
+
+fn boot_blocking(
+    config_cache_ttl_seconds: u64,
+    seed_default_scopes: bool,
+    trust_forwarded_for: bool,
+) -> TestApp {
+    let boot = TestApp::boot(
+        config_cache_ttl_seconds,
+        seed_default_scopes,
+        trust_forwarded_for,
+    );
     match tokio::runtime::Handle::try_current() {
-        Ok(handle) => tokio::task::block_in_place(|| {
-            handle.block_on(TestApp::boot(config_cache_ttl_seconds, seed_default_scopes))
-        }),
-        Err(_) => rt().block_on(TestApp::boot(config_cache_ttl_seconds, seed_default_scopes)),
+        Ok(handle) => tokio::task::block_in_place(|| handle.block_on(boot)),
+        Err(_) => rt().block_on(boot),
     }
 }
 
@@ -76,7 +88,11 @@ fn env_u16_or(key: &str, default: u16) -> u16 {
 }
 
 impl TestApp {
-    async fn boot(config_cache_ttl_seconds: u64, seed_default_scopes: bool) -> TestApp {
+    async fn boot(
+        config_cache_ttl_seconds: u64,
+        seed_default_scopes: bool,
+        trust_forwarded_for: bool,
+    ) -> TestApp {
         let host = env_or("DATABASE_HOST", "localhost");
         let port = env_u16_or("DATABASE_PORT", 5432);
         let name = env_or("DATABASE_NAME", "ferriskey");
@@ -150,7 +166,14 @@ impl TestApp {
             .await
             .expect("fetch realm id");
 
-        let state = AppState::new(Arc::new(Args::default()), service);
+        let args = Args {
+            server: ServerArgs {
+                trust_forwarded_for,
+                ..ServerArgs::default()
+            },
+            ..Args::default()
+        };
+        let state = AppState::new(Arc::new(args), service);
         let router = router(state).expect("build router");
 
         TestApp {
