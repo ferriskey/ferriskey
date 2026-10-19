@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use common::{
     ADMIN_CLIENT_ID, ADMIN_PASSWORD, ADMIN_USERNAME, ClientSpec, TestApp, authorize, cached_app,
-    exchange_code, password_grant, query_param, rt,
+    client_credentials, exchange_code, password_grant, query_param, rt,
 };
 use serde_json::{Value, json};
 use tracing::field::{Field, Visit};
@@ -20,6 +20,7 @@ const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
+const CLIENT_CREDENTIALS_BUDGET: usize = 6;
 
 const BACKGROUND_WORK: &[&str] = &[
     "webhook_deliveries",
@@ -289,5 +290,15 @@ fn a_login_stays_within_its_statement_budget() {
         .await;
         assert_ne!(refused.status_code(), 200);
         assert_within("unknown user", UNKNOWN_USER_BUDGET, &statements);
+
+        let service = app
+            .client(ClientSpec::confidential().with_service_account())
+            .await;
+        app.bind_service_account(&server, &service).await;
+        let warm = client_credentials(&server, app, &service).await;
+        assert_eq!(warm.status_code(), 200, "{}", warm.text());
+        let (granted, statements) = capture(client_credentials(&server, app, &service)).await;
+        assert_eq!(granted.status_code(), 200, "{}", granted.text());
+        assert_within("client credentials", CLIENT_CREDENTIALS_BUDGET, &statements);
     });
 }

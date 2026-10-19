@@ -642,16 +642,13 @@ where
         let oauth_config: OAuthProviderConfig = idp.get().config.clone().try_into()?;
 
         // Start compass flow for broker authentication
-        let flow_id = self
-            .flow_recorder
-            .start_flow(
-                &realm,
-                Some(client.client_id.clone()),
-                format!("broker_{}", idp.get().alias),
-                input.ip_address.clone(),
-                input.user_agent.clone(),
-            )
-            .await;
+        let flow_id = self.flow_recorder.start_flow(
+            &realm,
+            Some(client.client_id.clone()),
+            format!("broker_{}", idp.get().alias),
+            input.ip_address.clone(),
+            input.user_agent.clone(),
+        );
 
         // Step 1: IdP Redirect (the user was redirected to the external IdP)
         self.flow_recorder.record_step(

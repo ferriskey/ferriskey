@@ -48,11 +48,15 @@ impl JwtToken {
         }
     }
 
-    pub fn without_refresh_token(self) -> Self {
+    pub fn bearer(access_token: String, expires_in: u32, id_token: Option<String>) -> Self {
         Self {
+            access_token,
+            token_type: "Bearer".to_string(),
             refresh_token: None,
+            expires_in,
             refresh_expires_in: None,
-            ..self
+            session_state: None,
+            id_token,
         }
     }
 
