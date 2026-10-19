@@ -16,7 +16,13 @@ pub fn try_parse_basic_client_credentials(headers: &HeaderMap) -> Option<(String
     let decoded = String::from_utf8(decoded).ok()?;
 
     let (client_id, client_secret) = decoded.split_once(':')?;
-    Some((client_id.to_string(), client_secret.to_string()))
+    Some((form_decoded(client_id)?, form_decoded(client_secret)?))
+}
+
+fn form_decoded(part: &str) -> Option<String> {
+    urlencoding::decode(&part.replace('+', " "))
+        .ok()
+        .map(|decoded| decoded.into_owned())
 }
 
 #[cfg(test)]
@@ -59,6 +65,22 @@ mod tests {
         assert_eq!(
             try_parse_basic_client_credentials(&encoded("client:se:cr:et")),
             Some(("client".to_string(), "se:cr:et".to_string()))
+        );
+    }
+
+    #[test]
+    fn form_encoded_parts_are_decoded_as_rfc_6749_requires() {
+        assert_eq!(
+            try_parse_basic_client_credentials(&encoded("my%3Aclient:se%2Bcr%25et+with+space")),
+            Some(("my:client".to_string(), "se+cr%et with space".to_string()))
+        );
+    }
+
+    #[test]
+    fn plain_parts_are_unchanged_by_the_decoding() {
+        assert_eq!(
+            try_parse_basic_client_credentials(&encoded("orders-api:4c1f2d8e-9b7a")),
+            Some(("orders-api".to_string(), "4c1f2d8e-9b7a".to_string()))
         );
     }
 
