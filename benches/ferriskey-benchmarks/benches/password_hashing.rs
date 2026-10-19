@@ -1,5 +1,5 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use ferriskey_core::PasswordHasherRepository;
+use ferriskey_core::{PasswordHasherRepository, verify_argon2_password};
 use ferriskey_security::crypto::ports::HasherRepository;
 
 const PASSWORD: &str = "Correct-horse-battery-7";
@@ -23,14 +23,7 @@ fn password_hashing(c: &mut Criterion) {
 
     c.bench_function("argon2 verify a password", |b| {
         b.iter(|| {
-            runtime
-                .block_on(hasher.verify_password(
-                    black_box(PASSWORD),
-                    &stored.hash,
-                    stored.hash_iterations,
-                    &stored.algorithm,
-                    &stored.salt,
-                ))
+            verify_argon2_password(black_box(PASSWORD), &stored.hash, &stored.algorithm)
                 .expect("verify the password")
         })
     });

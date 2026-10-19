@@ -5,4 +5,5 @@ mod infrastructure;
 
 pub use application::ApplicationService;
 
+pub use infrastructure::repositories::argon2_hasher::verify_argon2_password;
 pub use infrastructure::repositories::password_hasher::PasswordHasherRepository;
