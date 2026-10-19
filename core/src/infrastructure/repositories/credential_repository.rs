@@ -65,6 +65,9 @@ impl PostgresCredentialRepository {
     }
 }
 
+const PASSWORD_CONFLICT_PREDICATE: &str =
+    "credential_type <> 'recovery-code' AND credential_type <> 'webauthn-public-key-credential'";
+
 impl CredentialRepository for PostgresCredentialRepository {
     async fn create_credential(
         &self,
@@ -234,14 +237,7 @@ impl CredentialRepository for PostgresCredentialRepository {
                     crate::entity::credentials::Column::UserId,
                     crate::entity::credentials::Column::CredentialType,
                 ])
-                .target_and_where(
-                    crate::entity::credentials::Column::CredentialType
-                        .ne(CredentialType::RecoveryCode.as_str())
-                        .and(
-                            crate::entity::credentials::Column::CredentialType
-                                .ne(CredentialType::WebAuthnPublicKeyCredential.as_str()),
-                        ),
-                )
+                .target_and_where(Expr::cust(PASSWORD_CONFLICT_PREDICATE))
                 .update_columns([
                     crate::entity::credentials::Column::Salt,
                     crate::entity::credentials::Column::SecretData,
@@ -519,6 +515,8 @@ impl CredentialRepository for PostgresCredentialRepository {
 
 #[cfg(test)]
 mod tests {
+    use sea_orm::{ConnectionTrait, DbBackend, Statement};
+
     use super::*;
     use sea_orm::Database as SeaOrmDatabase;
     use sqlx::Executor as _;
@@ -527,6 +525,7 @@ mod tests {
     struct Fixture {
         repository: PostgresCredentialRepository,
         pool: sqlx::PgPool,
+        schema_url: String,
     }
 
     async fn setup() -> Fixture {
@@ -561,6 +560,7 @@ mod tests {
         Fixture {
             repository: PostgresCredentialRepository::new(db),
             pool,
+            schema_url,
         }
     }
 
@@ -812,5 +812,43 @@ mod tests {
         assert_eq!(second.salt.as_deref(), Some("salt-two"));
         assert!(!second.temporary);
         assert_eq!(rows(fixture.pool.clone()).await, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn set_password_credential_survives_a_generic_plan() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        let single = sea_orm::Database::connect(
+            sea_orm::ConnectOptions::new(fixture.schema_url.clone())
+                .max_connections(1)
+                .to_owned(),
+        )
+        .await
+        .expect("one pooled connection");
+        single
+            .execute(Statement::from_string(
+                DbBackend::Postgres,
+                "SET plan_cache_mode = force_generic_plan",
+            ))
+            .await
+            .expect("force generic plans on the connection");
+        let repository = PostgresCredentialRepository::new(single);
+
+        for round in 1..=3u32 {
+            repository
+                .set_password_credential(
+                    user_id,
+                    HashResult::new(
+                        format!("$argon2id$v=19$m=7168,t=5,p=1$round{round}"),
+                        "salt".to_string(),
+                        5,
+                        "argon2id".to_string(),
+                    ),
+                    false,
+                )
+                .await
+                .unwrap_or_else(|e| panic!("round {round} under a generic plan: {e:?}"));
+        }
     }
 }
