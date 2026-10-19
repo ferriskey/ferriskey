@@ -19,9 +19,9 @@ impl HashResult {
 
 pub const OWASP_MINIMUM_MEMORY_KIB: u32 = 7_168;
 pub const OWASP_LOW_MEMORY_ITERATIONS: u32 = 5;
-pub const ARGON2_MAX_PARALLELISM: u32 = 0xFF_FFFF;
-pub const ARGON2_MAX_MEMORY_KIB: u32 = 0x0FFF_FFFF;
-pub const ARGON2_MEMORY_PER_LANE_KIB: u32 = 8;
+pub const MAX_PASSWORD_HASH_MEMORY_KIB: u32 = 262_144;
+pub const MAX_PASSWORD_HASH_ITERATIONS: u32 = 16;
+pub const MAX_PASSWORD_HASH_PARALLELISM: u32 = 8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PasswordHashingCost {
@@ -56,16 +56,22 @@ impl PasswordHashingCost {
         if self.parallelism == 0 {
             return Err("password hashing parallelism must be at least 1".to_string());
         }
-        if self.parallelism > ARGON2_MAX_PARALLELISM {
+        if self.parallelism > MAX_PASSWORD_HASH_PARALLELISM {
             return Err(format!(
-                "password hashing parallelism {} exceeds the Argon2 limit of {ARGON2_MAX_PARALLELISM}",
+                "password hashing parallelism {} exceeds the ceiling of {MAX_PASSWORD_HASH_PARALLELISM}",
                 self.parallelism
             ));
         }
-        if self.memory_kib > ARGON2_MAX_MEMORY_KIB {
+        if self.memory_kib > MAX_PASSWORD_HASH_MEMORY_KIB {
             return Err(format!(
-                "password hashing memory {} KiB exceeds the Argon2 limit of {ARGON2_MAX_MEMORY_KIB} KiB",
+                "password hashing memory {} KiB exceeds the ceiling of {MAX_PASSWORD_HASH_MEMORY_KIB} KiB",
                 self.memory_kib
+            ));
+        }
+        if self.iterations > MAX_PASSWORD_HASH_ITERATIONS {
+            return Err(format!(
+                "password hashing iterations {} exceed the ceiling of {MAX_PASSWORD_HASH_ITERATIONS}",
+                self.iterations
             ));
         }
         let Some(owasp_floor) = Self::owasp_minimum_memory_kib(self.iterations) else {
@@ -77,20 +83,16 @@ impl PasswordHashingCost {
                 self.iterations, self.memory_kib
             ));
         }
-        let lanes_floor = self.parallelism.saturating_mul(ARGON2_MEMORY_PER_LANE_KIB);
-        if self.memory_kib < lanes_floor {
-            return Err(format!(
-                "password hashing memory {} KiB is below the {lanes_floor} KiB Argon2 needs for {} lanes",
-                self.memory_kib, self.parallelism
-            ));
-        }
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ARGON2_MAX_MEMORY_KIB, ARGON2_MAX_PARALLELISM, PasswordHashingCost};
+    use super::{
+        MAX_PASSWORD_HASH_ITERATIONS, MAX_PASSWORD_HASH_MEMORY_KIB, MAX_PASSWORD_HASH_PARALLELISM,
+        PasswordHashingCost,
+    };
 
     fn cost(memory_kib: u32, iterations: u32, parallelism: u32) -> PasswordHashingCost {
         PasswordHashingCost {
@@ -137,15 +139,33 @@ mod tests {
     }
 
     #[test]
-    fn costs_argon2_itself_cannot_run_are_refused() {
+    fn costs_outside_the_ceilings_shared_with_imports_are_refused() {
         assert!(cost(19_456, 2, 0).validate().is_err());
-        assert!(cost(7_168, 5, 897).validate().is_err());
-        assert!(cost(7_168, 5, 896).validate().is_ok());
         assert!(
-            cost(u32::MAX, 5, ARGON2_MAX_PARALLELISM + 1)
+            cost(65_536, 3, MAX_PASSWORD_HASH_PARALLELISM + 1)
                 .validate()
                 .is_err()
         );
-        assert!(cost(ARGON2_MAX_MEMORY_KIB + 1, 5, 1).validate().is_err());
+        assert!(
+            cost(65_536, 3, MAX_PASSWORD_HASH_PARALLELISM)
+                .validate()
+                .is_ok()
+        );
+        assert!(
+            cost(MAX_PASSWORD_HASH_MEMORY_KIB + 1, 5, 1)
+                .validate()
+                .is_err()
+        );
+        assert!(cost(MAX_PASSWORD_HASH_MEMORY_KIB, 5, 1).validate().is_ok());
+        assert!(
+            cost(7_168, MAX_PASSWORD_HASH_ITERATIONS + 1, 1)
+                .validate()
+                .is_err()
+        );
+        assert!(
+            cost(7_168, MAX_PASSWORD_HASH_ITERATIONS, 1)
+                .validate()
+                .is_ok()
+        );
     }
 }

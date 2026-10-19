@@ -8,11 +8,10 @@ use tracing::instrument;
 use ferriskey_security::SecurityError;
 
 use crate::domain::crypto::{HashResult, HasherRepository};
-use ferriskey_domain::crypto::PasswordHashingCost;
-
-const MAX_IMPORTED_M_COST: u32 = 262_144;
-const MAX_IMPORTED_T_COST: u32 = 16;
-const MAX_IMPORTED_P_COST: u32 = 8;
+use ferriskey_domain::crypto::{
+    MAX_PASSWORD_HASH_ITERATIONS, MAX_PASSWORD_HASH_MEMORY_KIB, MAX_PASSWORD_HASH_PARALLELISM,
+    PasswordHashingCost,
+};
 
 #[derive(Debug, Clone)]
 pub struct Argon2HasherRepository {
@@ -23,17 +22,6 @@ impl Argon2HasherRepository {
     pub fn new(cost: PasswordHashingCost) -> Self {
         Self { cost }
     }
-
-    fn params(&self) -> Result<Params, SecurityError> {
-        Params::new(
-            self.cost.memory_kib,
-            self.cost.iterations,
-            self.cost.parallelism,
-            Some(32),
-        )
-        .map_err(|e| SecurityError::HashingError(e.to_string()))
-    }
-
     fn stored_cost_matches(&self, secret_data: &str) -> bool {
         PasswordHash::new(secret_data)
             .ok()
@@ -50,6 +38,31 @@ impl Default for Argon2HasherRepository {
     fn default() -> Self {
         Self::new(PasswordHashingCost::default())
     }
+}
+
+fn argon2_params(cost: PasswordHashingCost) -> Result<Params, SecurityError> {
+    Params::new(cost.memory_kib, cost.iterations, cost.parallelism, Some(32))
+        .map_err(|e| SecurityError::HashingError(e.to_string()))
+}
+
+pub fn hash_argon2_password(
+    password: &str,
+    cost: PasswordHashingCost,
+) -> Result<HashResult, SecurityError> {
+    let salt = SaltString::generate(&mut OsRng);
+    let params = argon2_params(cost)?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
+    let password_hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .map_err(|e| SecurityError::HashingError(e.to_string()))?
+        .to_string();
+
+    Ok(HashResult::new(
+        password_hash,
+        salt.to_string(),
+        params.t_cost(),
+        Algorithm::Argon2id.to_string(),
+    ))
 }
 
 pub fn verify_argon2_password(
@@ -73,22 +86,12 @@ pub fn verify_argon2_password(
 
 impl HasherRepository for Argon2HasherRepository {
     async fn hash_password(&self, password: &str) -> Result<HashResult, SecurityError> {
-        let salt = SaltString::generate(&mut OsRng);
-        let params = self.params()?;
-        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params.clone());
+        let password = password.to_string();
+        let cost = self.cost;
 
-        let password_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| SecurityError::HashingError(e.to_string()))?
-            .to_string();
-
-        let hash_result = HashResult::new(
-            password_hash,
-            salt.to_string(),
-            params.t_cost(),
-            argon2::Algorithm::Argon2id.to_string(),
-        );
-        Ok(hash_result)
+        task::spawn_blocking(move || hash_argon2_password(&password, cost))
+            .await
+            .map_err(|e| SecurityError::HashingError(format!("argon2 hash task join error: {e}")))?
     }
 
     #[instrument(
@@ -162,12 +165,12 @@ impl HasherRepository for Argon2HasherRepository {
             )));
         }
 
-        if params.m_cost() > MAX_IMPORTED_M_COST
-            || params.t_cost() > MAX_IMPORTED_T_COST
-            || params.p_cost() > MAX_IMPORTED_P_COST
+        if params.m_cost() > MAX_PASSWORD_HASH_MEMORY_KIB
+            || params.t_cost() > MAX_PASSWORD_HASH_ITERATIONS
+            || params.p_cost() > MAX_PASSWORD_HASH_PARALLELISM
         {
             return Err(SecurityError::UnsupportedHash(format!(
-                "argon2 parameters m={},t={},p={} exceed m={MAX_IMPORTED_M_COST},t={MAX_IMPORTED_T_COST},p={MAX_IMPORTED_P_COST}",
+                "argon2 parameters m={},t={},p={} exceed m={MAX_PASSWORD_HASH_MEMORY_KIB},t={MAX_PASSWORD_HASH_ITERATIONS},p={MAX_PASSWORD_HASH_PARALLELISM}",
                 params.m_cost(),
                 params.t_cost(),
                 params.p_cost()
@@ -447,5 +450,23 @@ mod tests {
         assert!(verify_argon2_password("secret", &stored.hash, &stored.algorithm).expect("verify"));
         assert!(!verify_argon2_password("other", &stored.hash, &stored.algorithm).expect("verify"));
         assert!(verify_argon2_password("secret", "not a phc string", "argon2id").is_err());
+    }
+
+    #[test]
+    fn the_blocking_hash_carries_the_cost_and_verifies() {
+        let cost = PasswordHashingCost {
+            memory_kib: 9_216,
+            iterations: 4,
+            parallelism: 1,
+        };
+        let stored = hash_argon2_password("secret", cost).expect("hash");
+        let parsed = PasswordHash::new(&stored.hash).expect("phc string");
+        let params = Params::try_from(&parsed).expect("params");
+
+        assert_eq!(
+            (params.m_cost(), params.t_cost(), params.p_cost()),
+            (9_216, 4, 1)
+        );
+        assert!(verify_argon2_password("secret", &stored.hash, &stored.algorithm).expect("verify"));
     }
 }
