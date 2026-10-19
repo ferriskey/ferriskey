@@ -13,4 +13,4 @@ axum-cookie = { workspace = true }
 uuid = { version = "1.16.0", features = ["serde", "v4"] }
 serde = { version = "1.0.228", features = ["derive"] }
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
-validator = { version = "0.20.0", features = ["derive"] }
+validator = { version = "0.21.0", features = ["derive"] }
