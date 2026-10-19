@@ -2,30 +2,91 @@ use argon2::{
     Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
+use std::sync::Arc;
+
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::task;
 use tracing::instrument;
 
 use ferriskey_security::SecurityError;
 
 use crate::domain::crypto::{HashResult, HasherRepository};
-
-const MAX_IMPORTED_M_COST: u32 = 262_144;
-const MAX_IMPORTED_T_COST: u32 = 16;
-const MAX_IMPORTED_P_COST: u32 = 8;
+use ferriskey_domain::crypto::{
+    MAX_PASSWORD_HASH_ITERATIONS, MAX_PASSWORD_HASH_MEMORY_KIB, MAX_PASSWORD_HASH_PARALLELISM,
+    PasswordHashingCost,
+};
 
 #[derive(Debug, Clone)]
-pub struct Argon2HasherRepository {}
+pub struct Argon2HasherRepository {
+    cost: PasswordHashingCost,
+    memory: Arc<Semaphore>,
+}
 
 impl Argon2HasherRepository {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(cost: PasswordHashingCost) -> Self {
+        Self {
+            cost,
+            memory: Arc::new(Semaphore::new(cost.memory_budget_kib.max(1) as usize)),
+        }
+    }
+
+    async fn reserve_memory(&self, kib: u32) -> Result<OwnedSemaphorePermit, SecurityError> {
+        let wanted = kib.clamp(1, self.cost.memory_budget_kib.max(1));
+        Arc::clone(&self.memory)
+            .acquire_many_owned(wanted)
+            .await
+            .map_err(|_| SecurityError::HashingError("argon2 memory budget closed".to_string()))
+    }
+    fn stored_cost_matches(&self, secret_data: &str) -> bool {
+        PasswordHash::new(secret_data)
+            .ok()
+            .and_then(|parsed| Params::try_from(&parsed).ok())
+            .is_some_and(|params| {
+                params.m_cost() == self.cost.memory_kib
+                    && params.t_cost() == self.cost.iterations
+                    && params.p_cost() == self.cost.parallelism
+            })
     }
 }
 
 impl Default for Argon2HasherRepository {
     fn default() -> Self {
-        Self::new()
+        Self::new(PasswordHashingCost::default())
     }
+}
+
+fn argon2_params(cost: PasswordHashingCost) -> Result<Params, SecurityError> {
+    Params::new(cost.memory_kib, cost.iterations, cost.parallelism, Some(32))
+        .map_err(|e| SecurityError::HashingError(e.to_string()))
+}
+
+pub fn hash_argon2_password(
+    password: &str,
+    cost: PasswordHashingCost,
+) -> Result<HashResult, SecurityError> {
+    let salt = SaltString::generate(&mut OsRng);
+    let params = argon2_params(cost)?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
+    let password_hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .map_err(|e| SecurityError::HashingError(e.to_string()))?
+        .to_string();
+
+    Ok(HashResult::new(
+        password_hash,
+        salt.to_string(),
+        params.t_cost(),
+        Algorithm::Argon2id.to_string(),
+    ))
+}
+
+fn stored_memory_kib(secret_data: &str) -> Result<u32, SecurityError> {
+    let parsed =
+        PasswordHash::new(secret_data).map_err(|e| SecurityError::HashingError(e.to_string()))?;
+    let params =
+        Params::try_from(&parsed).map_err(|e| SecurityError::HashingError(e.to_string()))?;
+
+    Ok(params.m_cost())
 }
 
 pub fn verify_argon2_password(
@@ -49,28 +110,16 @@ pub fn verify_argon2_password(
 
 impl HasherRepository for Argon2HasherRepository {
     async fn hash_password(&self, password: &str) -> Result<HashResult, SecurityError> {
-        let salt = SaltString::generate(&mut OsRng);
-        let params = argon2::Params::new(
-            7168,     // Memory cost (KiB) aligned with Keycloak profile
-            5,        // Number of iterations aligned with Keycloak profile
-            1,        // Parallelism degree
-            Some(32), // Output length
-        )
-        .map_err(|e| SecurityError::HashingError(e.to_string()))?;
-        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params.clone());
+        let password = password.to_string();
+        let cost = self.cost;
+        let permit = self.reserve_memory(cost.memory_kib).await?;
 
-        let password_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| SecurityError::HashingError(e.to_string()))?
-            .to_string();
-
-        let hash_result = HashResult::new(
-            password_hash,
-            salt.to_string(),
-            params.t_cost(),
-            argon2::Algorithm::Argon2id.to_string(),
-        );
-        Ok(hash_result)
+        task::spawn_blocking(move || {
+            let _memory = permit;
+            hash_argon2_password(&password, cost)
+        })
+        .await
+        .map_err(|e| SecurityError::HashingError(format!("argon2 hash task join error: {e}")))?
     }
 
     #[instrument(
@@ -88,10 +137,12 @@ impl HasherRepository for Argon2HasherRepository {
         algorithm: &str,
         _salt: &str,
     ) -> Result<bool, SecurityError> {
+        let permit = self.reserve_memory(stored_memory_kib(secret_data)?).await?;
         let password = password.to_string();
         let secret_data = secret_data.to_string();
         let algorithm = algorithm.to_string();
         let is_valid = task::spawn_blocking(move || {
+            let _memory = permit;
             verify_argon2_password(&password, &secret_data, &algorithm)
         })
         .await
@@ -102,8 +153,8 @@ impl HasherRepository for Argon2HasherRepository {
         Ok(is_valid)
     }
 
-    fn needs_rehash(&self, algorithm: &str) -> bool {
-        algorithm != Algorithm::Argon2id.as_str()
+    fn needs_rehash(&self, algorithm: &str, secret_data: &str) -> bool {
+        algorithm != Algorithm::Argon2id.as_str() || !self.stored_cost_matches(secret_data)
     }
 
     fn validate_hash(
@@ -144,12 +195,12 @@ impl HasherRepository for Argon2HasherRepository {
             )));
         }
 
-        if params.m_cost() > MAX_IMPORTED_M_COST
-            || params.t_cost() > MAX_IMPORTED_T_COST
-            || params.p_cost() > MAX_IMPORTED_P_COST
+        if params.m_cost() > MAX_PASSWORD_HASH_MEMORY_KIB
+            || params.t_cost() > MAX_PASSWORD_HASH_ITERATIONS
+            || params.p_cost() > MAX_PASSWORD_HASH_PARALLELISM
         {
             return Err(SecurityError::UnsupportedHash(format!(
-                "argon2 parameters m={},t={},p={} exceed m={MAX_IMPORTED_M_COST},t={MAX_IMPORTED_T_COST},p={MAX_IMPORTED_P_COST}",
+                "argon2 parameters m={},t={},p={} exceed m={MAX_PASSWORD_HASH_MEMORY_KIB},t={MAX_PASSWORD_HASH_ITERATIONS},p={MAX_PASSWORD_HASH_PARALLELISM}",
                 params.m_cost(),
                 params.t_cost(),
                 params.p_cost()
@@ -177,11 +228,13 @@ impl HasherRepository for Argon2HasherRepository {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
 
     #[tokio::test]
     async fn test_hash_password_success() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let password = "my_password";
 
         let result = hasher.hash_password(password).await;
@@ -207,7 +260,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_password_success() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let password = "my_password";
 
         let hash_result = hasher.hash_password(password).await.unwrap();
@@ -228,7 +281,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_password_wrong_password() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let password = "my_password";
         let wrong_password = "bad_password";
 
@@ -249,7 +302,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_verify_password_invalid_hash() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let password = "my_password";
         let invalid_hash = "invalid_hash";
         let hash_iterations = 1;
@@ -271,18 +324,63 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_needs_rehash_only_for_non_argon2id() {
-        let hasher = Argon2HasherRepository::new();
+    #[tokio::test]
+    async fn a_hash_made_with_the_configured_cost_needs_no_rehash() {
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
+        let hash = hasher.hash_password("secret").await.expect("hash");
 
-        assert!(!hasher.needs_rehash("argon2id"));
-        assert!(hasher.needs_rehash("argon2i"));
-        assert!(hasher.needs_rehash("bcrypt"));
+        assert!(!hasher.needs_rehash("argon2id", &hash.hash));
+        assert!(hasher.needs_rehash("argon2i", &hash.hash));
+        assert!(hasher.needs_rehash("bcrypt", "$2b$10$abcdefghijklmnopqrstuu"));
+    }
+
+    #[tokio::test]
+    async fn a_hash_made_with_another_cost_is_rehashed_on_login() {
+        let yesterday = Argon2HasherRepository::new(PasswordHashingCost {
+            memory_kib: 7_168,
+            iterations: 5,
+            parallelism: 1,
+            ..PasswordHashingCost::default()
+        });
+        let today = Argon2HasherRepository::new(PasswordHashingCost {
+            memory_kib: 19_456,
+            iterations: 2,
+            parallelism: 1,
+            ..PasswordHashingCost::default()
+        });
+        let old_hash = yesterday.hash_password("secret").await.expect("hash");
+
+        assert!(today.needs_rehash("argon2id", &old_hash.hash));
+        assert!(
+            today
+                .verify_password("secret", &old_hash.hash, 5, "argon2id", "")
+                .await
+                .expect("verify")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_new_hash_carries_the_configured_cost() {
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost {
+            memory_kib: 19_456,
+            iterations: 2,
+            parallelism: 1,
+            ..PasswordHashingCost::default()
+        });
+        let hash = hasher.hash_password("secret").await.expect("hash");
+        let parsed = PasswordHash::new(&hash.hash).expect("phc string");
+        let params = Params::try_from(&parsed).expect("params");
+
+        assert_eq!(
+            (params.m_cost(), params.t_cost(), params.p_cost()),
+            (19_456, 2, 1)
+        );
+        assert_eq!(hash.hash_iterations, 2);
     }
 
     #[tokio::test]
     async fn validate_hash_accepts_its_own_argon2id_output() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let hash = hasher.hash_password("my_password").await.unwrap();
 
         let result = hasher.validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations);
@@ -292,7 +390,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_hash_rejects_mismatched_iterations() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let hash = hasher.hash_password("my_password").await.unwrap();
 
         let result = hasher.validate_hash(&hash.algorithm, &hash.hash, hash.hash_iterations + 1);
@@ -302,7 +400,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_hash_rejects_an_algorithm_label_that_contradicts_the_hash() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let hash = hasher.hash_password("my_password").await.unwrap();
 
         let result = hasher.validate_hash("argon2i", &hash.hash, hash.hash_iterations);
@@ -312,7 +410,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_hash_rejects_parameters_above_the_operational_ceilings() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let hash = hasher.hash_password("my_password").await.unwrap();
         let own = "m=7168,t=5,p=1";
         assert!(hash.hash.contains(own), "{}", hash.hash);
@@ -338,7 +436,7 @@ mod tests {
 
     #[test]
     fn validate_hash_rejects_non_phc_strings_and_unknown_algorithms() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
 
         assert!(matches!(
             hasher.validate_hash("argon2id", "not-a-hash", 5),
@@ -352,7 +450,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_different_passwords_different_hashes() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let password1 = "first_password";
         let password2 = "second_password";
 
@@ -367,7 +465,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_same_password_different_hashes() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let password = "my_password";
 
         let hash_result1 = hasher.hash_password(password).await.unwrap();
@@ -381,11 +479,76 @@ mod tests {
 
     #[tokio::test]
     async fn the_blocking_verification_agrees_with_the_asynchronous_one() {
-        let hasher = Argon2HasherRepository::new();
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
         let stored = hasher.hash_password("secret").await.expect("hash");
 
         assert!(verify_argon2_password("secret", &stored.hash, &stored.algorithm).expect("verify"));
         assert!(!verify_argon2_password("other", &stored.hash, &stored.algorithm).expect("verify"));
         assert!(verify_argon2_password("secret", "not a phc string", "argon2id").is_err());
+    }
+
+    #[test]
+    fn the_blocking_hash_carries_the_cost_and_verifies() {
+        let cost = PasswordHashingCost {
+            memory_kib: 9_216,
+            iterations: 4,
+            parallelism: 1,
+            ..PasswordHashingCost::default()
+        };
+        let stored = hash_argon2_password("secret", cost).expect("hash");
+        let parsed = PasswordHash::new(&stored.hash).expect("phc string");
+        let params = Params::try_from(&parsed).expect("params");
+
+        assert_eq!(
+            (params.m_cost(), params.t_cost(), params.p_cost()),
+            (9_216, 4, 1)
+        );
+        assert!(verify_argon2_password("secret", &stored.hash, &stored.algorithm).expect("verify"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn argon2_work_waits_for_the_memory_budget() {
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost::default());
+        let whole_budget = Arc::clone(&hasher.memory)
+            .acquire_many_owned(hasher.cost.memory_budget_kib)
+            .await
+            .expect("take the whole budget");
+        let worker = hasher.clone();
+        let mut hashing = tokio::spawn(async move { worker.hash_password("secret").await });
+
+        assert!(
+            tokio::time::timeout(Duration::from_millis(300), &mut hashing)
+                .await
+                .is_err(),
+            "no memory left in the budget, the hash must wait"
+        );
+        drop(whole_budget);
+        assert!(hashing.await.expect("join").is_ok());
+    }
+
+    #[tokio::test]
+    async fn a_verification_dearer_than_the_budget_still_runs_alone() {
+        let hasher = Argon2HasherRepository::new(PasswordHashingCost {
+            memory_budget_kib: 8_192,
+            ..PasswordHashingCost::default()
+        });
+        let stored = hash_argon2_password(
+            "secret",
+            PasswordHashingCost {
+                memory_kib: 19_456,
+                iterations: 2,
+                parallelism: 1,
+                ..PasswordHashingCost::default()
+            },
+        )
+        .expect("hash");
+
+        assert!(
+            hasher
+                .verify_password("secret", &stored.hash, 2, &stored.algorithm, "")
+                .await
+                .expect("verify")
+        );
+        assert_eq!(hasher.memory.available_permits(), 8_192);
     }
 }

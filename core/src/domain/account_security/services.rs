@@ -902,7 +902,7 @@ mod tests {
                 .expect_verify_password()
                 .returning(move |_, _, _, _, _| Box::pin(async move { Ok(accepted) }));
 
-            self.hasher.expect_needs_rehash().returning(|_| false);
+            self.hasher.expect_needs_rehash().returning(|_, _| false);
 
             self.users
                 .expect_reset_failed_login_attempts()
@@ -1567,7 +1567,7 @@ mod tests {
         harness
             .hasher
             .expect_needs_rehash()
-            .returning(|algorithm| algorithm == "bcrypt");
+            .returning(|algorithm, _| algorithm == "bcrypt");
         harness.hasher.expect_hash_password().returning(|_| {
             Box::pin(async move {
                 Ok(HashResult::new(
@@ -1794,7 +1794,7 @@ mod tests {
             .hasher
             .expect_verify_password()
             .returning(|_, _, _, _, _| Box::pin(async move { Ok(true) }));
-        harness.hasher.expect_needs_rehash().returning(|_| false);
+        harness.hasher.expect_needs_rehash().returning(|_, _| false);
         harness
             .users
             .expect_reset_failed_login_attempts()

@@ -3,7 +3,7 @@
 use std::{fmt::Display, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig};
+use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig, PasswordHashingCost};
 use url::Url;
 
 #[derive(Debug, Clone, ValueEnum, Default)]
@@ -111,6 +111,34 @@ pub struct Args {
     )]
     pub config_cache_ttl_seconds: u64,
     #[arg(
+        long = "password-hash-memory-kib",
+        env = "PASSWORD_HASH_MEMORY_KIB",
+        default_value_t = 7168,
+        long_help = "Memory cost of a new Argon2id password hash, in KiB. Verification reads the cost from the stored hash, so this only changes new hashes; a login whose stored hash used another cost is rehashed with this one. Refused below the OWASP floor at startup."
+    )]
+    pub password_hash_memory_kib: u32,
+    #[arg(
+        long = "password-hash-iterations",
+        env = "PASSWORD_HASH_ITERATIONS",
+        default_value_t = 5,
+        long_help = "Number of Argon2id iterations of a new password hash. Refused below the OWASP floor at startup."
+    )]
+    pub password_hash_iterations: u32,
+    #[arg(
+        long = "password-hash-parallelism",
+        env = "PASSWORD_HASH_PARALLELISM",
+        default_value_t = 1,
+        long_help = "Parallelism degree of a new Argon2id password hash."
+    )]
+    pub password_hash_parallelism: u32,
+    #[arg(
+        long = "password-hash-memory-budget-mib",
+        env = "PASSWORD_HASH_MEMORY_BUDGET_MIB",
+        default_value_t = 256,
+        long_help = "Memory the instance lets Argon2 use at once across every password hash and verification in flight, in MiB. A request beyond the budget waits for memory to free up instead of allocating; one hash dearer than the budget runs alone. Must hold at least one hash of PASSWORD_HASH_MEMORY_KIB."
+    )]
+    pub password_hash_memory_budget_mib: u32,
+    #[arg(
         long,
         env = "AUTHZ_ENABLED",
         default_value_t = false,
@@ -134,6 +162,10 @@ impl Default for Args {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 5,
+            password_hash_memory_kib: 7168,
+            password_hash_iterations: 5,
+            password_hash_parallelism: 1,
+            password_hash_memory_budget_mib: 256,
             authz_enabled: false,
             webapp_url: "http://localhost:5555".to_string(),
             webapp_url_from_request: false,
@@ -455,6 +487,12 @@ impl From<Args> for FerriskeyConfig {
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
             client_metadata_allow_private_endpoints: value.client_metadata_allow_private_endpoints,
             config_cache_ttl_seconds: value.config_cache_ttl_seconds,
+            password_hashing: PasswordHashingCost {
+                memory_kib: value.password_hash_memory_kib,
+                iterations: value.password_hash_iterations,
+                parallelism: value.password_hash_parallelism,
+                memory_budget_kib: value.password_hash_memory_budget_mib.saturating_mul(1024),
+            },
         }
     }
 }

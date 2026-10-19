@@ -233,7 +233,11 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
     let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
-    let hasher = Arc::new(PasswordHasherRepository::new());
+    config
+        .password_hashing
+        .validate()
+        .map_err(CoreError::Configuration)?;
+    let hasher = Arc::new(PasswordHasherRepository::new(config.password_hashing));
     let auth_session = Arc::new(PostgresAuthSessionRepository::new(postgres.get_db()));
     let device_auth = Arc::new(PostgresDeviceAuthRepository::new(postgres.get_db()));
     let login_action_token = Arc::new(PostgresLoginActionTokenRepository::new(postgres.get_db()));
@@ -806,6 +810,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
 #[cfg(test)]
 mod tests {
     use crate::domain::authentication::entities::AuthProtocol;
+    use crate::domain::common::PasswordHashingCost;
     use std::env;
 
     use sqlx::Executor;
@@ -895,6 +900,7 @@ mod tests {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
+            password_hashing: PasswordHashingCost::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -1074,6 +1080,7 @@ mod tests {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
+            password_hashing: PasswordHashingCost::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,

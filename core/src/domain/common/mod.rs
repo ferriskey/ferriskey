@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use rand::{RngExt, distr::Alphanumeric};
 use uuid::{NoContext, Timestamp, Uuid};
 
+pub use ferriskey_domain::crypto::PasswordHashingCost;
+
 pub mod email;
 pub mod entities;
 pub mod locale;
@@ -26,6 +28,7 @@ pub struct FerriskeyConfig {
     /// when this is on — see `PrivateEndpoints`.
     pub webhook_allow_private_endpoints: bool,
     pub config_cache_ttl_seconds: u64,
+    pub password_hashing: PasswordHashingCost,
     /// Test-only escape hatch: lets a client metadata document be fetched over http from a
     /// loopback or private address. Off unless explicitly enabled.
     pub client_metadata_allow_private_endpoints: bool,

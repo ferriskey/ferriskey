@@ -29,7 +29,7 @@ pub trait HasherRepository: Send + Sync {
         algorithm: &str,
         salt: &str,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
-    fn needs_rehash(&self, algorithm: &str) -> bool;
+    fn needs_rehash(&self, algorithm: &str, secret_data: &str) -> bool;
     fn validate_hash(
         &self,
         algorithm: &str,
