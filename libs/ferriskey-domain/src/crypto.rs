@@ -22,12 +22,14 @@ pub const OWASP_LOW_MEMORY_ITERATIONS: u32 = 5;
 pub const MAX_PASSWORD_HASH_MEMORY_KIB: u32 = 262_144;
 pub const MAX_PASSWORD_HASH_ITERATIONS: u32 = 16;
 pub const MAX_PASSWORD_HASH_PARALLELISM: u32 = 8;
+pub const DEFAULT_PASSWORD_HASH_MEMORY_BUDGET_KIB: u32 = 262_144;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PasswordHashingCost {
     pub memory_kib: u32,
     pub iterations: u32,
     pub parallelism: u32,
+    pub memory_budget_kib: u32,
 }
 
 impl Default for PasswordHashingCost {
@@ -36,6 +38,7 @@ impl Default for PasswordHashingCost {
             memory_kib: OWASP_MINIMUM_MEMORY_KIB,
             iterations: OWASP_LOW_MEMORY_ITERATIONS,
             parallelism: 1,
+            memory_budget_kib: DEFAULT_PASSWORD_HASH_MEMORY_BUDGET_KIB,
         }
     }
 }
@@ -83,6 +86,12 @@ impl PasswordHashingCost {
                 self.iterations, self.memory_kib
             ));
         }
+        if self.memory_budget_kib < self.memory_kib {
+            return Err(format!(
+                "password hashing memory budget {} KiB cannot hold one hash of {} KiB",
+                self.memory_budget_kib, self.memory_kib
+            ));
+        }
         Ok(())
     }
 }
@@ -99,15 +108,35 @@ mod tests {
             memory_kib,
             iterations,
             parallelism,
+            ..PasswordHashingCost::default()
         }
+    }
+
+    #[test]
+    fn a_budget_that_cannot_hold_one_hash_is_refused() {
+        let starved = PasswordHashingCost {
+            memory_budget_kib: 4_096,
+            ..PasswordHashingCost::default()
+        };
+        let tight = PasswordHashingCost {
+            memory_budget_kib: 7_168,
+            ..PasswordHashingCost::default()
+        };
+        assert!(starved.validate().is_err());
+        assert!(tight.validate().is_ok());
     }
 
     #[test]
     fn the_default_cost_is_an_owasp_recommended_configuration() {
         let cost = PasswordHashingCost::default();
         assert_eq!(
-            (cost.memory_kib, cost.iterations, cost.parallelism),
-            (7_168, 5, 1)
+            (
+                cost.memory_kib,
+                cost.iterations,
+                cost.parallelism,
+                cost.memory_budget_kib
+            ),
+            (7_168, 5, 1, 262_144)
         );
         assert!(cost.validate().is_ok());
     }

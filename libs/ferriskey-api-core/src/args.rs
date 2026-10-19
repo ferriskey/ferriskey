@@ -132,6 +132,13 @@ pub struct Args {
     )]
     pub password_hash_parallelism: u32,
     #[arg(
+        long = "password-hash-memory-budget-mib",
+        env = "PASSWORD_HASH_MEMORY_BUDGET_MIB",
+        default_value_t = 256,
+        long_help = "Memory the instance lets Argon2 use at once across every password hash and verification in flight, in MiB. A request beyond the budget waits for memory to free up instead of allocating; one hash dearer than the budget runs alone. Must hold at least one hash of PASSWORD_HASH_MEMORY_KIB."
+    )]
+    pub password_hash_memory_budget_mib: u32,
+    #[arg(
         long,
         env = "AUTHZ_ENABLED",
         default_value_t = false,
@@ -158,6 +165,7 @@ impl Default for Args {
             password_hash_memory_kib: 7168,
             password_hash_iterations: 5,
             password_hash_parallelism: 1,
+            password_hash_memory_budget_mib: 256,
             authz_enabled: false,
             webapp_url: "http://localhost:5555".to_string(),
             webapp_url_from_request: false,
@@ -483,6 +491,7 @@ impl From<Args> for FerriskeyConfig {
                 memory_kib: value.password_hash_memory_kib,
                 iterations: value.password_hash_iterations,
                 parallelism: value.password_hash_parallelism,
+                memory_budget_kib: value.password_hash_memory_budget_mib.saturating_mul(1024),
             },
         }
     }
