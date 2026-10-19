@@ -287,24 +287,6 @@ where
             },
         )?;
 
-        let password_credential = self
-            .credential_repository
-            .get_password_credential(input.user_id)
-            .await;
-
-        if password_credential.is_ok() {
-            self.credential_repository
-                .delete_password_credential(input.user_id)
-                .await
-                .map_err(|e| {
-                    error!(
-                        "reset_password: failed to delete existing password credential for user {}: {e:?}",
-                        input.user_id
-                    );
-                    CoreError::DeletePasswordCredentialError
-                })?;
-        }
-
         let hash_result = self
             .hasher_repository
             .hash_password(&input.password)
@@ -318,17 +300,11 @@ where
             })?;
 
         self.credential_repository
-            .create_credential(
-                input.user_id,
-                "password".into(),
-                hash_result,
-                "".into(),
-                input.temporary,
-            )
+            .set_password_credential(input.user_id, hash_result, input.temporary)
             .await
             .map_err(|e| {
                 error!(
-                    "reset_password: failed to create password credential for user {}: {e:?}",
+                    "reset_password: failed to store the password credential for user {}: {e:?}",
                     input.user_id
                 );
                 CoreError::CreateCredentialError
@@ -1965,6 +1941,11 @@ mod tests {
                     )
                 })
             });
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
 
         Arc::get_mut(&mut builder.hasher_repo)
             .unwrap()

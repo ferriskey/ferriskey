@@ -1575,28 +1575,22 @@ where
         )
         .map_err(violations_to_core_error)?;
 
-        let password_credential = self
-            .credential_repository
-            .get_password_credential(user.id)
-            .await;
-
-        if password_credential.is_ok() {
-            self.credential_repository
-                .delete_password_credential(user.id)
-                .await
-                .map_err(|_| CoreError::DeleteCredentialError)?;
-        }
-
         let hash_result = self
             .hasher_repository
             .hash_password(&input.value)
             .await
-            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+            .map_err(|e| {
+                error!(user_id = %user.id, error = %e, "update_password: hashing the new password failed");
+                CoreError::HashPasswordError(e.to_string())
+            })?;
 
         self.credential_repository
-            .create_credential(user.id, "password".into(), hash_result, "".into(), false)
+            .set_password_credential(user.id, hash_result, false)
             .await
-            .map_err(|_| CoreError::CreateCredentialError)?;
+            .map_err(|e| {
+                error!(user_id = %user.id, error = ?e, "update_password: storing the password credential failed");
+                CoreError::CreateCredentialError
+            })?;
 
         match self
             .user_required_action_repository
@@ -1604,12 +1598,19 @@ where
             .await
         {
             Ok(()) | Err(RequiredActionError::NotFound) => {}
-            Err(_) => return Err(CoreError::InternalServerError),
+            Err(e) => {
+                error!(user_id = %user.id, error = ?e, "update_password: clearing the required action failed");
+                return Err(CoreError::InternalServerError);
+            }
         }
 
         self.token_revocation
             .revoke_all_user_access(user.id, scope.id().into())
-            .await?;
+            .await
+            .map_err(|e| {
+                error!(user_id = %user.id, error = ?e, "update_password: revoking the user's sessions failed");
+                e
+            })?;
 
         Ok(())
     }
@@ -2369,29 +2370,22 @@ where
         validator::validate(&input.new_password, &policy, username_ref, email_local_ref)
             .map_err(violations_to_core_error)?;
 
-        // 4. Delete old password credential
-        let _ = self
-            .credential_repository
-            .delete_password_credential(prt.user_id)
-            .await;
-
-        // 5. Create new hashed credential
         let hash_result = self
             .hasher_repository
             .hash_password(&input.new_password)
             .await
-            .map_err(|e| CoreError::HashPasswordError(e.to_string()))?;
+            .map_err(|e| {
+                error!(user_id = %prt.user_id, error = %e, "complete_password_reset: hashing the new password failed");
+                CoreError::HashPasswordError(e.to_string())
+            })?;
 
         self.credential_repository
-            .create_credential(
-                prt.user_id,
-                "password".into(),
-                hash_result,
-                "".into(),
-                false,
-            )
+            .set_password_credential(prt.user_id, hash_result, false)
             .await
-            .map_err(|_| CoreError::CreateCredentialError)?;
+            .map_err(|e| {
+                error!(user_id = %prt.user_id, error = ?e, "complete_password_reset: storing the password credential failed");
+                CoreError::CreateCredentialError
+            })?;
 
         let user_id = prt.user_id;
         let realm_id = prt.realm_id;
@@ -3105,6 +3099,121 @@ mod tests {
         );
     }
 
+    fn builder_owing_a_password_update(realm: &Realm, user: &User) -> TridentTestBuilder {
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(realm, user);
+        let user_id = user.id;
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let mut temporary = password_credential(user_id);
+                temporary.temporary = true;
+                Box::pin(async move { Ok(vec![temporary]) })
+            });
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Ok(None) }));
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "$argon2id$v=19$m=7168,t=5,p=1$new".to_string(),
+                        "salt".to_string(),
+                        5,
+                        "argon2id".to_string(),
+                    ))
+                })
+            });
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_delete_password_credential()
+            .never();
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_credential()
+            .never();
+        builder
+    }
+
+    #[tokio::test]
+    async fn update_password_replaces_the_credential_in_one_write_and_clears_the_action() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder =
+            builder_owing_a_password_update(&realm, &user).with_user_access_revoked(1);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .times(1)
+            .withf(|_, hash, temporary| hash.hash.ends_with("$new") && !temporary)
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .times(1)
+            .returning(|_, _| Box::pin(async { Err(RequiredActionError::NotFound) }));
+
+        let result = builder
+            .build()
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "a password update owed by a temporary credential, with no persisted action row, succeeds: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_credential_write_reports_the_error_and_touches_nothing_else() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder =
+            builder_owing_a_password_update(&realm, &user).with_user_access_revoked(0);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .times(1)
+            .returning(|_, _, _| Box::pin(async { Err(CredentialError::CreateCredentialError) }));
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .never();
+
+        let result = builder
+            .build()
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::CreateCredentialError)),
+            "the repository failure must surface, not be swallowed: {result:?}"
+        );
+    }
+
     #[tokio::test]
     async fn verify_otp_refuses_an_enrolment_nobody_asked_for() {
         let realm = create_test_realm_with_name("test-realm");
@@ -3182,6 +3291,11 @@ mod tests {
             .unwrap()
             .expect_get_password_credential()
             .returning(|_| Box::pin(async { Err(CredentialError::GetPasswordCredentialError) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
 
         Arc::get_mut(&mut builder.hasher_repo)
             .unwrap()
@@ -3282,6 +3396,11 @@ mod tests {
             .unwrap()
             .expect_get_password_credential()
             .returning(|_| Box::pin(async { Err(CredentialError::GetPasswordCredentialError) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
 
         Arc::get_mut(&mut builder.hasher_repo)
             .unwrap()
@@ -3453,6 +3572,11 @@ mod tests {
             .unwrap()
             .expect_delete_password_credential()
             .returning(|_| Box::pin(async { Ok(()) }));
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
 
         Arc::get_mut(&mut builder.hasher_repo)
             .unwrap()
@@ -4748,12 +4872,9 @@ mod tests {
 
         Arc::get_mut(&mut builder.credential_repo)
             .unwrap()
-            .expect_create_credential()
+            .expect_set_password_credential()
             .times(1)
-            .returning(move |_, _, _, _, _| {
-                let cred = password_credential(user_id);
-                Box::pin(async move { Ok(cred) })
-            });
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
 
         Arc::get_mut(&mut builder.prt_repo)
             .unwrap()

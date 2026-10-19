@@ -46,6 +46,20 @@ impl CredentialRepository for CredentialRepoAny {
         }
     }
 
+    async fn set_password_credential(
+        &self,
+        user_id: Uuid,
+        hash_result: HashResult,
+        temporary: bool,
+    ) -> Result<(), CredentialError> {
+        match self {
+            CredentialRepoAny::Postgres(repo) => {
+                repo.set_password_credential(user_id, hash_result, temporary)
+                    .await
+            }
+        }
+    }
+
     async fn get_credentials_by_user_id(
         &self,
         user_id: Uuid,
