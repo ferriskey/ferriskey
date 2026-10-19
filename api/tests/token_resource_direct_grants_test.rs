@@ -14,6 +14,14 @@ async fn token(
     server.post(&app.oidc("token")).form(form).await
 }
 
+async fn sessions_of(app: &TestApp, user_id: &str) -> i64 {
+    sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1::uuid")
+        .bind(user_id)
+        .fetch_one(&app.pool)
+        .await
+        .expect("count the sessions of the user")
+}
+
 fn audience(body: &Value) -> Value {
     decode_unverified(body["access_token"].as_str().expect("access_token"))["aud"].clone()
 }
@@ -66,16 +74,22 @@ fn the_password_grant_honours_the_resource_parameter() {
             ("password", user.password.as_str()),
         ];
 
-        let mut allowed = base.to_vec();
-        allowed.push(("resource", ALLOWED));
-        let granted = token(&server, app, &allowed).await;
-        assert_eq!(granted.status_code(), 200, "{}", granted.text());
-        assert_eq!(audience(&granted.json()), json!([ALLOWED]));
-
         let mut refused = base.to_vec();
         refused.push(("resource", OTHER));
         let refused = token(&server, app, &refused).await;
         assert_eq!(refused.status_code(), 400, "{}", refused.text());
         assert_eq!(refused.json::<Value>()["error"], "invalid_target");
+        assert_eq!(
+            sessions_of(app, &user.id).await,
+            0,
+            "a grant refused on its resource must not open a session"
+        );
+
+        let mut allowed = base.to_vec();
+        allowed.push(("resource", ALLOWED));
+        let granted = token(&server, app, &allowed).await;
+        assert_eq!(granted.status_code(), 200, "{}", granted.text());
+        assert_eq!(audience(&granted.json()), json!([ALLOWED]));
+        assert_eq!(sessions_of(app, &user.id).await, 1);
     });
 }

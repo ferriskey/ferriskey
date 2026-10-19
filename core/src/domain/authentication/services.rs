@@ -3143,6 +3143,9 @@ where
             params.client_secret.as_deref(),
             ClientGrant::Password,
         )?;
+        let resource = self
+            .direct_grant_resource(&params.realm, params.resource.as_deref())
+            .await?;
 
         let login = self
             .verify_login(&params.realm, &client, &username, &password)
@@ -3182,9 +3185,6 @@ where
             .create_user_session(user.id, params.realm.id(), lifetimes.refresh_token, false)
             .await?;
 
-        let resource = self
-            .direct_grant_resource(&params.realm, params.resource.as_deref())
-            .await?;
         let (jwt, refresh_token, id_token) = self
             .create_jwt(
                 &client_scopes,
