@@ -57,15 +57,11 @@ impl IpRateLimiter {
         self.allow_at(ip, Instant::now())
     }
 
-    pub fn would_allow(&self, ip: IpAddr) -> bool {
-        self.check_at(ip, Instant::now(), false)
+    pub fn refund(&self, ip: IpAddr) {
+        self.refund_at(ip, Instant::now());
     }
 
     fn allow_at(&self, ip: IpAddr, now: Instant) -> bool {
-        self.check_at(ip, now, true)
-    }
-
-    fn check_at(&self, ip: IpAddr, now: Instant, consume: bool) -> bool {
         let ip = rate_limit_key(ip);
         let Ok(mut buckets) = self.buckets.lock() else {
             return false;
@@ -79,20 +75,37 @@ impl IpRateLimiter {
             tokens: self.capacity,
             refilled_at: now,
         });
-
-        let elapsed = now.saturating_duration_since(bucket.refilled_at);
-        bucket.tokens =
-            (bucket.tokens + elapsed.as_secs_f64() * self.refill_per_second).min(self.capacity);
-        bucket.refilled_at = now;
+        self.refill(bucket, now);
 
         if bucket.tokens < 1.0 {
             return false;
         }
 
-        if consume {
-            bucket.tokens -= 1.0;
-        }
+        bucket.tokens -= 1.0;
         true
+    }
+
+    fn refund_at(&self, ip: IpAddr, now: Instant) {
+        let ip = rate_limit_key(ip);
+        let Ok(mut buckets) = self.buckets.lock() else {
+            return;
+        };
+        let Some(bucket) = buckets.get_mut(&ip) else {
+            return;
+        };
+
+        self.refill(bucket, now);
+        bucket.tokens = (bucket.tokens + 1.0).min(self.capacity);
+        if bucket.tokens >= self.capacity {
+            buckets.remove(&ip);
+        }
+    }
+
+    fn refill(&self, bucket: &mut Bucket, now: Instant) {
+        let elapsed = now.saturating_duration_since(bucket.refilled_at);
+        bucket.tokens =
+            (bucket.tokens + elapsed.as_secs_f64() * self.refill_per_second).min(self.capacity);
+        bucket.refilled_at = now;
     }
 
     fn make_room(&self, buckets: &mut HashMap<IpAddr, Bucket>, now: Instant) {
@@ -130,22 +143,43 @@ impl ClientAuthThrottle {
         }
     }
 
-    pub fn blocked(&self, ip: IpAddr) -> bool {
-        !self.failures.would_allow(ip)
+    pub fn reserve(&self, ip: IpAddr) -> Option<ClientAuthAttempt<'_>> {
+        self.reserve_at(ip, Instant::now())
     }
 
-    pub fn failed(&self, ip: IpAddr) {
-        self.failures.allow(ip);
+    fn reserve_at(&self, ip: IpAddr, now: Instant) -> Option<ClientAuthAttempt<'_>> {
+        self.failures.allow_at(ip, now).then(|| ClientAuthAttempt {
+            throttle: self,
+            ip,
+            failed: false,
+        })
     }
 
     #[cfg(test)]
-    fn blocked_at(&self, ip: IpAddr, now: Instant) -> bool {
-        !self.failures.check_at(ip, now, false)
+    fn tracked(&self) -> usize {
+        self.failures.tracked()
     }
+}
 
-    #[cfg(test)]
-    fn failed_at(&self, ip: IpAddr, now: Instant) {
-        self.failures.allow_at(ip, now);
+#[must_use]
+#[derive(Debug)]
+pub struct ClientAuthAttempt<'a> {
+    throttle: &'a ClientAuthThrottle,
+    ip: IpAddr,
+    failed: bool,
+}
+
+impl ClientAuthAttempt<'_> {
+    pub fn failed(mut self) {
+        self.failed = true;
+    }
+}
+
+impl Drop for ClientAuthAttempt<'_> {
+    fn drop(&mut self) {
+        if !self.failed {
+            self.throttle.failures.refund(self.ip);
+        }
     }
 }
 
@@ -316,31 +350,87 @@ mod tests {
     }
 
     #[test]
-    fn a_peek_does_not_consume_a_token() {
-        let limiter = IpRateLimiter::per_minute(1);
+    fn a_refunded_token_goes_back_and_a_full_bucket_is_forgotten() {
+        let limiter = IpRateLimiter::per_minute(2);
         let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
         let now = Instant::now();
 
-        assert!(limiter.check_at(ip, now, false));
-        assert!(limiter.check_at(ip, now, false));
         assert!(limiter.allow_at(ip, now));
-        assert!(!limiter.check_at(ip, now, false));
+        assert!(limiter.allow_at(ip, now));
+        assert!(!limiter.allow_at(ip, now));
+        limiter.refund_at(ip, now);
+        assert_eq!(limiter.tracked(), 1);
+        limiter.refund_at(ip, now);
+        assert_eq!(
+            limiter.tracked(),
+            0,
+            "a bucket back to capacity carries no information"
+        );
+        assert!(limiter.allow_at(ip, now));
     }
 
     #[test]
-    fn an_address_is_blocked_after_its_failures_and_freed_as_the_window_refills() {
+    fn an_attempt_that_did_not_fail_leaves_no_trace() {
+        let throttle = ClientAuthThrottle::per_minute(3);
+        let now = Instant::now();
+
+        for host in 1..=50u8 {
+            let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, host));
+            let attempt = throttle
+                .reserve_at(ip, now)
+                .expect("a fresh address may try");
+            drop(attempt);
+        }
+
+        assert_eq!(throttle.tracked(), 0);
+    }
+
+    #[test]
+    fn failed_attempts_block_the_address_until_the_window_refills() {
         let throttle = ClientAuthThrottle::per_minute(3);
         let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 8));
         let other = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 9));
         let now = Instant::now();
 
         for _ in 0..3 {
-            assert!(!throttle.blocked_at(ip, now));
-            throttle.failed_at(ip, now);
+            throttle
+                .reserve_at(ip, now)
+                .expect("under the budget")
+                .failed();
         }
-        assert!(throttle.blocked_at(ip, now));
-        assert!(!throttle.blocked_at(other, now));
-        assert!(throttle.blocked_at(ip, now + Duration::from_secs(10)));
-        assert!(!throttle.blocked_at(ip, now + Duration::from_secs(21)));
+        assert!(throttle.reserve_at(ip, now).is_none());
+        assert!(throttle.reserve_at(other, now).is_some());
+        assert!(
+            throttle
+                .reserve_at(ip, now + Duration::from_secs(10))
+                .is_none()
+        );
+        assert!(
+            throttle
+                .reserve_at(ip, now + Duration::from_secs(21))
+                .is_some()
+        );
+        assert_eq!(
+            throttle.tracked(),
+            1,
+            "only addresses with failures are tracked"
+        );
+    }
+
+    #[test]
+    fn attempts_in_flight_count_against_the_budget() {
+        let throttle = ClientAuthThrottle::per_minute(3);
+        let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 10));
+        let now = Instant::now();
+
+        let in_flight: Vec<_> = (0..3)
+            .map(|_| throttle.reserve_at(ip, now).expect("under the budget"))
+            .collect();
+        assert!(
+            throttle.reserve_at(ip, now).is_none(),
+            "a burst cannot exceed the budget before any attempt is settled"
+        );
+        drop(in_flight);
+        assert!(throttle.reserve_at(ip, now).is_some());
     }
 }
