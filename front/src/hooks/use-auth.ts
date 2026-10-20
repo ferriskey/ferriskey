@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { IUser, OrganizationClaim } from '@/contracts/states.interface'
 import { translate } from '@/lib/i18n'
+import { realmFromToken, sessionRealm } from '@/lib/session-realm'
 import { authRefreshController } from './auth-refresh-controller'
 
 type JwtPayload = {
@@ -69,6 +70,10 @@ export function useAuth() {
   const { realm_name = 'master' } = useParams<RouterParams>()
   //const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
   const { accessToken, refreshToken, idToken, setTokens } = authStore()
+  // The realm that issued the session. It differs from `realm_name` while an
+  // admin signed in to one realm (usually master) browses another, and every
+  // token-endpoint call and sign-in redirect belongs to it.
+  const authRealm = sessionRealm(accessToken, refreshToken, realm_name)
   const {
     expiration,
     isAuthenticated,
@@ -96,7 +101,7 @@ export function useAuth() {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
-      authRefreshController.reset(realm_name)
+      authRefreshController.reset(realmFromToken(access_token) ?? realm_name)
       setTokens(access_token, refresh_token, id_token)
       setExpiration(expiration)
 
@@ -109,7 +114,7 @@ export function useAuth() {
 
   const clearAuthState = useCallback(
     (redirectToLogin: boolean, errorMessage?: string) => {
-      authRefreshController.reset(realm_name)
+      authRefreshController.reset(authRealm)
       authStore.persist?.clearStorage?.()
       setTokens(null, null, null)
       setUser(null)
@@ -125,12 +130,12 @@ export function useAuth() {
 
         const suffix = params.toString()
         navigate(
-          `/realms/${realm_name}/authentication/login${suffix ? `?${suffix}` : ''}`,
+          `/realms/${authRealm}/authentication/login${suffix ? `?${suffix}` : ''}`,
           { replace: true }
         )
       }
     },
-    [navigate, realm_name, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
+    [navigate, authRealm, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
   )
 
   function isTokenExpired(): boolean {
@@ -151,7 +156,7 @@ export function useAuth() {
       if (accessToken) {
         revokeRequests.push(
           revokeToken({
-            realm: realm_name,
+            realm: authRealm,
             data: {
               token: accessToken,
               client_id: clientIdFromToken,
@@ -164,7 +169,7 @@ export function useAuth() {
       if (refreshToken) {
         revokeRequests.push(
           revokeToken({
-            realm: realm_name,
+            realm: authRealm,
             data: {
               token: refreshToken,
               client_id: clientIdFromToken,
@@ -179,7 +184,7 @@ export function useAuth() {
       }
 
       await remoteLogout({
-        realm: realm_name,
+        realm: authRealm,
         data: {
           id_token_hint: idToken ?? undefined,
           client_id: clientIdFromToken,
@@ -198,9 +203,9 @@ export function useAuth() {
       return Promise.resolve()
     }
 
-    return authRefreshController.run(realm_name, async () => {
+    return authRefreshController.run(authRealm, async () => {
       const response = await exchangeToken({
-        realm: realm_name,
+        realm: authRealm,
         data: {
           grant_type: GrantType.RefreshToken,
           client_id: 'security-admin-console',
@@ -224,7 +229,7 @@ export function useAuth() {
     clearAuthState,
     exchangeToken,
     idToken,
-    realm_name,
+    authRealm,
     refreshToken,
     setAuthTokensWrapper,
     setAuthenticated,
