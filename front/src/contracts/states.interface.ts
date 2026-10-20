@@ -37,9 +37,16 @@ export interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   idToken: string | null
+  /**
+   * The realm that issued the session, kept when the tokens are cleared so an
+   * expired session is sent back to the sign-in page of that realm rather than
+   * to the realm being browsed.
+   */
+  sessionRealm: string | null
   setTokens: (
     accessToken: string | null,
     refreshToken: string | null,
     idToken: string | null
   ) => void
+  setSessionRealm: (realm: string | null) => void
 }

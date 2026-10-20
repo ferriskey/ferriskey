@@ -9,8 +9,10 @@ export const authStore = create<AuthState>()(
         accessToken: null,
         refreshToken: null,
         idToken: null,
+        sessionRealm: null,
         setTokens: (accessToken: string | null, refreshToken: string | null, idToken: string | null) =>
           set({ accessToken, refreshToken, idToken }),
+        setSessionRealm: (sessionRealm: string | null) => set({ sessionRealm }),
       }),
       {
         name: 'auth',

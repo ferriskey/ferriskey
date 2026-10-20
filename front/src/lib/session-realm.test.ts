@@ -1,57 +1,32 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { realmFromToken, sessionRealm } from './session-realm.ts'
-
-function token(claims: Record<string, unknown>): string {
-  const encode = (value: unknown) =>
-    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-  return `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode(claims)}.signature`
-}
+import { realmFromIssuer } from './session-realm.ts'
 
 test('the realm is the last segment of the issuer', () => {
-  assert.equal(realmFromToken(token({ iss: 'https://auth.example.com/realms/master' })), 'master')
+  assert.equal(realmFromIssuer('https://auth.example.com/realms/master'), 'master')
 })
 
 test('an issuer behind a path prefix still names its realm', () => {
-  assert.equal(realmFromToken(token({ iss: 'https://example.com/auth/realms/clients' })), 'clients')
+  assert.equal(realmFromIssuer('https://example.com/auth/realms/clients'), 'clients')
 })
 
 test('a trailing slash on the issuer is tolerated', () => {
-  assert.equal(realmFromToken(token({ iss: 'http://localhost:3333/realms/master/' })), 'master')
+  assert.equal(realmFromIssuer('http://localhost:3333/realms/master/'), 'master')
 })
 
-test('a percent-encoded realm name is decoded', () => {
-  assert.equal(
-    realmFromToken(token({ iss: 'http://localhost:3333/realms/my%20realm' })),
-    'my realm'
-  )
+test('every character a realm name may hold is kept', () => {
+  assert.equal(realmFromIssuer('http://localhost:3333/realms/Tenant_01-eu'), 'Tenant_01-eu')
 })
 
-test('a token without a realm issuer gives no realm', () => {
-  assert.equal(realmFromToken(token({ iss: 'https://accounts.example.com' })), null)
-  assert.equal(realmFromToken(token({ sub: 'no-issuer' })), null)
-  assert.equal(realmFromToken(token({ iss: 42 })), null)
+test('an issuer that names no realm gives no realm', () => {
+  assert.equal(realmFromIssuer('https://accounts.example.com'), null)
+  assert.equal(realmFromIssuer('http://localhost:3333/realms/'), null)
+  assert.equal(realmFromIssuer('http://localhost:3333/realms/master/extra'), null)
 })
 
-test('a missing or malformed token gives no realm', () => {
-  assert.equal(realmFromToken(null), null)
-  assert.equal(realmFromToken(undefined), null)
-  assert.equal(realmFromToken(''), null)
-  assert.equal(realmFromToken('not-a-jwt'), null)
-  assert.equal(realmFromToken('header.%%%.signature'), null)
-})
-
-test('the session realm wins over the browsed realm', () => {
-  const access = token({ iss: 'http://localhost:3333/realms/master' })
-  assert.equal(sessionRealm(access, null, 'clients'), 'master')
-})
-
-test('the refresh token answers when the access token is gone', () => {
-  const refresh = token({ iss: 'http://localhost:3333/realms/master' })
-  assert.equal(sessionRealm(null, refresh, 'clients'), 'master')
-})
-
-test('without a session the browsed realm is used', () => {
-  assert.equal(sessionRealm(null, null, 'clients'), 'clients')
+test('a missing issuer gives no realm', () => {
+  assert.equal(realmFromIssuer(null), null)
+  assert.equal(realmFromIssuer(undefined), null)
+  assert.equal(realmFromIssuer(''), null)
 })
