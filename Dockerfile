@@ -64,7 +64,7 @@ COPY tools/pnpm/package.json tools/pnpm/package-lock.json /opt/pnpm/
 
 RUN npm ci --prefix /opt/pnpm --ignore-scripts
 
-COPY front/package.json front/pnpm-lock.yaml ./
+COPY front/package.json front/pnpm-lock.yaml front/pnpm-workspace.yaml ./
 
 RUN pnpm install --frozen-lockfile
 
