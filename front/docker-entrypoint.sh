@@ -2,19 +2,14 @@
 
 set -eu
 
-HTML_DIR=/usr/share/nginx/html
-SRC_DIR=/usr/local/src/ferriskey
-CONFIG_FILE="$HTML_DIR/config.json"
+CONFIG_FILE=/usr/share/nginx/html/config.json
+# shellcheck disable=SC2016
+PLACEHOLDER='${API_URL}'
 
-rm -rf -- "${HTML_DIR:?}/"* "${HTML_DIR:?}/".[!.]* "${HTML_DIR:?}/"..?*
-cp -r "$SRC_DIR"/* "$HTML_DIR"
-
-if [ -f "$CONFIG_FILE" ]; then
-  api_url="${API_URL:-}"
-  escaped_api_url=$(printf '%s' "$api_url" | sed -e 's/[\/&|]/\\&/g')
-  # shellcheck disable=SC2016
-  placeholder='${API_URL}'
-  sed -i "s|$placeholder|$escaped_api_url|g" "$CONFIG_FILE"
+# The Helm chart mounts its own config.json from a ConfigMap, without the
+# placeholder; API_URL only applies to the config.json shipped in the image.
+if [ -n "${API_URL:-}" ] && grep -qF "$PLACEHOLDER" "$CONFIG_FILE"; then
+  escaped_api_url=$(printf '%s' "$API_URL" | sed -e 's/[\/&|]/\\&/g')
+  content=$(sed "s|$PLACEHOLDER|$escaped_api_url|g" "$CONFIG_FILE")
+  printf '%s\n' "$content" > "$CONFIG_FILE"
 fi
-
-exec "$@"

@@ -73,17 +73,9 @@ RUN VITE_API_URL="" pnpm run build
 # ── Frontend runtime ──────────────────────────────────────────────────────────
 FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim AS webapp
 
-# The unprivileged image ships root-owned index.html/50x.html in the web root and
-# runs as the non-root "nginx" user. The runtime entrypoint wipes and repopulates
-# that directory, so it must be owned by the runtime user — otherwise the rm fails
-# with "Permission denied" and (under `set -e`) nginx never starts.
-# Numeric ids (hadolint DL3066): 0 = root, 101 = the image's nginx user.
-USER 0
-RUN rm -rf /usr/share/nginx/html/* && chown -R nginx:nginx /usr/share/nginx/html
-USER 101
-
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/local/src/ferriskey
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
+# Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
+COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
@@ -103,7 +95,9 @@ RUN \
 COPY --from=builder /usr/local/src/ferriskey/target/release/ferriskey-api /usr/local/bin/
 COPY --from=builder /usr/local/src/ferriskey/core/migrations /usr/local/src/ferriskey/migrations
 COPY --from=builder /usr/local/cargo/bin/sqlx /usr/local/bin/
-COPY --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+# Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
+COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
+COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 COPY front/nginx-standalone.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/ferriskey.conf
