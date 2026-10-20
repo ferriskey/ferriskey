@@ -252,12 +252,12 @@ export function useAuth() {
       if (!authState) {
         setAuthenticated(false)
         localStorage.removeItem('auth')
-        navigate(`/realms/${realm_name}/authentication/login`)
+        navigate(`/realms/${authRealm}/authentication/login`)
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [hasHydrated, navigate, realm_name, setAuthenticated])
+  }, [hasHydrated, navigate, authRealm, setAuthenticated])
 
   useEffect(() => {
     const interval = setInterval(() => {
