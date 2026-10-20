@@ -1,15 +1,13 @@
-<!-- PROJECT BANNER -->
 <p align="center">
-  <img src="./front/public/logo_ferriskey.png" alt="FerrisKey — Modern Open‑Source IAM in Rust" width="100" />
+  <img src="./front/public/logo_ferriskey.png" alt="FerrisKey logo" width="100" />
 </p>
 
 <p align="center">
-  <strong>FerrisKey</strong> — Open‑Source, High‑Performance Identity & Access Management<br/>
-  <em>Cloud‑native • Extensible • Built in Rust</em>
+  <strong>FerrisKey</strong><br/>
+  Open-source identity and access management, written in Rust
 </p>
 
 <p align="center">
-  <!-- Badges (tweak org/repo names as needed) -->
   <a href="https://github.com/ferriskey/ferriskey/actions">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ferriskey/ferriskey/docker.yaml?label=CI&logo=github" />
   </a>
@@ -58,125 +56,111 @@
 
 ---
 
-## ✨ Why FerrisKey?
+## Why FerrisKey?
 
-FerrisKey is a modern **Identity & Access Management (IAM)** platform built with **Rust** and a **hexagonal architecture**.
-It aims to be a serious open‑source alternative to heavyweight IAMs fast, modular, and cloud‑native by design.
+FerrisKey is an identity and access management (IAM) server written in Rust. It implements OpenID Connect and OAuth 2.0, keeps the users, roles and clients of each tenant in a separate realm, and ships with an admin console and a Helm chart. It is meant as an open-source alternative to the heavier IAM servers.
 
-- 🦀 **Performance-first** — Rust, async I/O, low latency.
-- 🧱 **Hexagonal architecture** — clean domain, clear ports/adapters.
-- 🏢 **Multi‑tenant realms** — strong isolation of users/roles/clients.
-- 🔐 **Modern auth** — OIDC/OAuth2, MFA (TOTP).
-- 🧩 **Extensibility** — native modules for MFA, auditability, and webhooks.
-- ☁️ **Cloud‑native** — official Helm chart; ready for Kubernetes.
-
-## 🧭 Table of Contents
+## Table of contents
 
 - [Features](#features)
-- [Quick Start](#quick-start)
+- [Quick start](#quick-start)
 - [Configuration](#configuration)
-- [Database Migrations](#database-migrations)
+- [Database migrations](#database-migrations)
 - [Modules](#modules)
 - [Architecture](#architecture)
 - [Observability](#observability)
 - [Roadmap](#roadmap)
-- [Adopters](#-adopters)
+- [Adopters](#adopters)
 - [Contributing](#contributing)
-- [Code of Conduct](#code-of-conduct)
+- [Code of conduct](#code-of-conduct)
 - [Security](#security)
-- [Sponsors and Governance](#sponsors-and-governance)
+- [Sponsors and governance](#sponsors-and-governance)
 - [License](#license)
 - [Links](#links)
 
 <a id="features"></a>
 
-## 🌟 Features
+## Features
 
-| Capability                      | Details |
-|---------------------------------|---|
-| **OIDC / OAuth2**               | Standards‑compliant flows for modern apps & services. |
-| **Multi‑Tenant Realms**         | Logical isolation of users, roles, clients, secrets. |
-| **Clients & Service Accounts**  | Fine‑grained role mapping; bitwise role system. |
-| **MFA (TOTP)**                  | Pluggable strategies with required actions. |
-| **Observability**               | Prometheus metrics, Grafana dashboards. |
-| **Kubernetes‑ready**            | Helm chart with sane defaults; OCI distribution. |
-
-> **License:** Apache‑2.0. No paywalls. Community‑first.
+| Capability                   | Details |
+|------------------------------|---|
+| OpenID Connect / OAuth 2.0   | Standard flows for applications and services. |
+| Multi-tenant realms          | Users, roles, clients and secrets are isolated per realm. |
+| Clients and service accounts | Fine-grained role mapping on a bitwise role system. |
+| MFA                          | TOTP, WebAuthn, magic links and recovery codes, enforced through required actions. |
+| Observability                | Prometheus metrics and a security event log. |
+| Kubernetes                   | Helm chart published as an OCI artifact. |
 
 <a id="quick-start"></a>
 
-## 🚀 Quick Start
+## Quick start
 
-For local development using the repo `justfile`, see `DEVELOPMENT.md`.
+For local development with the repository `justfile`, see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
-### Option A — Using latest Docker image
+### Option A: published Docker images
 
-```yaml
+```bash
 docker compose --profile registry up -d
 ```
 
-Then visit [http://localhost:5556](http://localhost:5556) to access the console. The default credentials are `admin` and `admin`.
+### Option B: build the Docker images
 
-### Option B — Re-build Docker image
-
-```yaml
+```bash
 docker compose --profile build up -d
 ```
 
-> **Important migration note (Postgres 18+ volume path):** local compose mounts `pgdata` at `/var/lib/postgresql` (the Postgres 18+ recommended mount point). If you are migrating from an older local setup that used a different mount path, remove or migrate the old volume first. Quick reset (destructive): `docker compose down -v`.
+With either option, the console is at <http://localhost:5555>. The default credentials are `admin` / `admin`.
 
-Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
+> The compose file mounts `pgdata` at `/var/lib/postgresql`, the mount point recommended from Postgres 18. If an older local setup used a different path, remove or migrate the old volume first. `docker compose down -v` resets it and deletes its data.
 
-### Option C — Helm (Kubernetes)
->
-> Requires a reachable Postgres (or include it via your platform’s recommended operator).
+### Option C: Helm (Kubernetes)
 
-See [chart documentation](charts/ferriskey/README.md).
+The chart needs a reachable Postgres, external or deployed by your platform's operator. See the [chart documentation](charts/ferriskey/README.md).
 
-### Option D - Cargo
+### Option D: Cargo
 
-1. Clone the repo
+1. Clone the repository.
 
-```bash
-git clone https://github.com/ferriskey/ferriskey
-```
+   ```bash
+   git clone https://github.com/ferriskey/ferriskey
+   cd ferriskey
+   ```
 
-1. Launch the database and execute migrations with sourced env variables
+2. Start the database and run the migrations.
 
-```bash
-cd api
-cp env.example .env
-# feel free to change the env variables in .env to your liking.
-docker compose up -d
-cd ../core
-# to install sqlx you might need to run `cargo install sqlx-cli --no-default-features --features postgres`
-DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate run
-```
+   ```bash
+   cd api
+   cp env.example .env
+   # edit .env if the defaults do not suit you
+   docker compose up -d
+   cd ../core
+   # sqlx-cli: cargo install sqlx-cli --no-default-features --features postgres
+   DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate run
+   ```
 
-1. Launch the API
+3. Start the API. It needs a recent stable Rust toolchain (`rustup update`).
 
-```bash
-# to upgrade rustc version to 1.89.0, you can run `rustup update`
-cd ../api
-cargo run
-```
+   ```bash
+   cd ../api
+   cargo run
+   ```
 
-1. Launch the frontend (optional)
+4. Start the frontend (optional).
 
-```bash
-cd ../front
-cp .env.example .env
-pnpm install
-pnpm run dev
-```
+   ```bash
+   cd ../front
+   cp .env.example .env
+   pnpm install
+   pnpm run dev
+   ```
 
-Then visit [http://localhost:5555](http://localhost:5555) to access the console. The default credentials are `admin` and `admin`.
+The console is at <http://localhost:5555>. The default credentials are `admin` / `admin`.
 
 <a id="configuration"></a>
 
-## ⚙️ Configuration
+## Configuration
 
-Common environment variables (example):
+Common environment variables:
 
 ```
 PORT=3333
@@ -191,13 +175,13 @@ ADMIN_EMAIL=admin@ferriskey.rs
 ALLOWED_ORIGINS=http://localhost:5555
 ```
 
-`ALLOWED_ORIGINS` lists the origins accepted on **every** route. Beyond it, each client declares its own web origins at runtime, enforced per realm — see the `web-origins` endpoints under a client. Those per-client origins never replace `ALLOWED_ORIGINS`: `/config`, the health probes and the API docs carry no realm, so an admin console served from a different origin than the API must keep its origin in `ALLOWED_ORIGINS`.
+`ALLOWED_ORIGINS` lists the origins accepted on every route. Each client can also declare its own web origins at runtime, enforced per realm (see the `web-origins` endpoints of a client). Those per-client origins never replace `ALLOWED_ORIGINS`: `/config`, the health probes and the API docs carry no realm, so an admin console served from another origin than the API must keep its origin in `ALLOWED_ORIGINS`.
 
-By default, the API will listen on port 3333 and the frontend on port 5555.
+By default, the API listens on port 3333 and the frontend on port 5555.
 
 <a id="database-migrations"></a>
 
-## 🗄️ Database Migrations
+## Database migrations
 
 FerrisKey uses SQLx for database migrations. To apply pending migrations:
 
@@ -212,71 +196,67 @@ To check migration status:
 DATABASE_URL=postgres://ferriskey:ferriskey@localhost:5432/ferriskey sqlx migrate info
 ```
 
-> **Note:** If you have `DATABASE_URL` set in your environment or `.env` file, you can omit it from the command.
+If `DATABASE_URL` is set in your environment or in `.env`, you can drop it from the command.
 
 <a id="modules"></a>
 
-## 🧩 Modules
+## Modules
 
-- Trident — MFA & security scopes
-TOTP, WebAuthn, Magic Link; flexible required actions.
-
-- SeaWatch — Observability & audit logs
-Security event trails; queryable from the console; exportable.
-
-- Webhooks — Event‑driven extensibility
-Subscribe to user/client/realm lifecycle events without forking core.
+- Trident: multi-factor authentication (TOTP, WebAuthn, magic links, recovery codes) and the required actions that enforce it.
+- SeaWatch: security event log, queryable and exportable from the console.
+- Webhooks: notifications on user, client and realm lifecycle events, so integrations do not need a fork.
 
 <a id="architecture"></a>
 
-## 🏗️ Architecture
+## Architecture
 
-FerrisKey follows a Hexagonal Architecture (Ports & Adapters) to keep business logic pure and infrastructure replaceable.
+FerrisKey follows a hexagonal (ports and adapters) architecture. The domain logic does not depend on the database or the HTTP layer: those implement the ports the domain defines, and can be replaced without touching it.
 
 <a id="observability"></a>
 
-## 📈 Observability
+## Observability
 
-- Metrics: /metrics (Prometheus format)
-- Dashboards: Starter Grafana dashboards included in Helm values (optional)
+The API serves Prometheus metrics on `/metrics`, under the configured root path.
 
 <a id="roadmap"></a>
 
-## 🗺️ Roadmap
+## Roadmap
 
 The public roadmap is at <https://ferriskey.rs/roadmap>. [ROADMAP.md](./ROADMAP.md) lists the epics in progress and how the roadmap is maintained.
 
-<a id="contributing"></a>
+<a id="adopters"></a>
 
-## 🏢 Adopters
+## Adopters
 
 Organizations using FerrisKey are listed in [ADOPTERS.md](./ADOPTERS.md). If you run FerrisKey, add yourself with a pull request.
 
-## 🤝 Contributing
+<a id="contributing"></a>
 
-We welcome contributions of all kinds bugfixes, features, docs, testing.
+## Contributing
 
-1. Read [CONTRIBUTING.md](./CONTRIBUTING.md)
-2. Pick an issue (good first issues labelled)
-3. Open a PR with tests and a concise description
+Bug fixes, features, documentation and tests are all welcome.
 
-> Join discussions to help shape modules, APIs, and UX.
+1. Read [CONTRIBUTING.md](./CONTRIBUTING.md).
+2. Pick an issue. Those labelled `good first issue` are a good place to start.
+3. Open a pull request with tests and a short description.
+
+Questions about modules, APIs or the console go to [Discussions](https://github.com/ferriskey/ferriskey/discussions).
 
 <a id="code-of-conduct"></a>
 
-## 🫱 Code of Conduct
+## Code of conduct
 
 FerrisKey follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md). See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for scope and how to report an incident.
 
 <a id="security"></a>
 
-## 🔐 Security
+## Security
 
 Report vulnerabilities privately through the [Security tab](https://github.com/ferriskey/ferriskey/security/advisories/new), never in a public issue. Supported versions, response targets and the disclosure process are in [SECURITY.md](./SECURITY.md).
 
 <a id="sponsors-and-governance"></a>
 
-## 🏛️ Sponsors and Governance
+## Sponsors and governance
 
 FerrisKey is Apache-2.0 only, with no CLA, no open-core model and no enterprise edition. Sponsors fund the project but do not control it. See [Sponsors and open source commitments](./GOVERNANCE.md#sponsors-and-open-source-commitments) in GOVERNANCE.md.
 
@@ -284,16 +264,16 @@ The project is preparing a CNCF Sandbox application, tracked in [#1623](https://
 
 <a id="license"></a>
 
-## 📜 License
+## License
 
-Apache‑2.0 — free to use, modify, and distribute.
+FerrisKey is released under the [Apache-2.0 license](./LICENSE).
 
 <a id="links"></a>
 
-## 🔗 Links
+## Links
 
-- 📂 Source: <https://github.com/ferriskey/ferriskey>
-- 📦 Helm Chart (OCI): `oci://ghcr.io/ferriskey/charts/ferriskey`
-- 📖 Documentation: <https://docs.ferriskey.rs/en/discover/what-is-ferriskey>
-- 💬 Discussions: <https://github.com/ferriskey/ferriskey/discussions>
-- 🏆 Sponsor: <https://github.com/sponsors/ferriskey>
+- Source: <https://github.com/ferriskey/ferriskey>
+- Helm chart (OCI): `oci://ghcr.io/ferriskey/charts/ferriskey`
+- Documentation: <https://docs.ferriskey.rs/en/discover/what-is-ferriskey>
+- Discussions: <https://github.com/ferriskey/ferriskey/discussions>
+- Sponsor: <https://github.com/sponsors/ferriskey>
