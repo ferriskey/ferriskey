@@ -12,12 +12,14 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   helm:
     if: startsWith(github.ref_name, 'ferriskey-') && !startsWith(github.ref_name, 'ferriskey-operator-')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: checkout
         uses: actions/checkout@v7
@@ -49,6 +51,9 @@ jobs:
   helm-operator:
     if: startsWith(github.ref_name, 'ferriskey-operator-')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: checkout
         uses: actions/checkout@v7
