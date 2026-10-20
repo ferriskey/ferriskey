@@ -22,6 +22,9 @@
   <a href="https://www.bestpractices.dev/projects/11019">
     <img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/11019/badge" />
   </a>
+  <a href="https://landscape.cncf.io/?item=provisioning--security-compliance--ferriskey">
+    <img alt="CNCF Landscape" src="https://img.shields.io/badge/CNCF%20Landscape-5699C6" />
+  </a>
   <a href="https://opensource.org/licenses/Apache-2.0">
     <img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
   </a>
