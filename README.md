@@ -40,19 +40,11 @@
 <p align="center"><sub>Sponsors</sub></p>
 <p align="center">
   <a href="https://cloud-iam.com">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./docs/logos/cloud-iam-dark.svg">
-      <source media="(prefers-color-scheme: light)" srcset="./docs/logos/cloud-iam-light.svg">
-      <img src="./docs/logos/cloud-iam-light.svg" alt="Cloud-IAM" height="40">
-    </picture>
+    <img src="./docs/logos/cloud-iam.svg" alt="Cloud-IAM" height="40">
   </a>
   &nbsp;&nbsp;&nbsp;
   <a href="https://france-nuage.fr">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./docs/logos/france-nuage-dark.png">
-      <source media="(prefers-color-scheme: light)" srcset="./docs/logos/france-nuage-light.png">
-      <img src="./docs/logos/france-nuage-light.png" alt="France Nuage" height="40">
-    </picture>
+    <img src="./docs/logos/france-nuage.png" alt="France Nuage" height="40">
   </a>
   &nbsp;&nbsp;&nbsp;
   <a href="https://www.gilded.ch/">
