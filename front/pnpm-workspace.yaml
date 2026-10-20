@@ -7,3 +7,6 @@ allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
+
+overrides:
+  'tinypool@<2.1.2': ^2.1.2
