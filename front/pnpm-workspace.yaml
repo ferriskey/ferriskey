@@ -1,6 +1,3 @@
-# Single-package "workspace": the front is the only package here. pnpm 9 (pinned
-# in the Dockerfile) refuses to run any command when a pnpm-workspace.yaml has no
-# `packages` field — "packages field missing or empty" — so this must stay.
 packages:
   - '.'
 
