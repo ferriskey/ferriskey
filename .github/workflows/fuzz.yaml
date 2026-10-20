@@ -1,0 +1,80 @@
+name: fuzz
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fuzz.yaml
+      - fuzz/**
+      - libs/ferriskey-saml/**
+  schedule:
+    - cron: "29 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  FUZZ_TOOLCHAIN: nightly-2026-10-20
+  CARGO_FUZZ_VERSION: 0.13.2
+
+jobs:
+  fuzz:
+    name: fuzz ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - authn_request
+          - redirect_binding
+          - post_binding
+          - c14n
+    env:
+      TARGET: ${{ matrix.target }}
+      MAX_TOTAL_TIME: ${{ github.event_name == 'schedule' && '600' || '60' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: set up rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f
+        with:
+          toolchain: ${{ env.FUZZ_TOOLCHAIN }}
+          cache: false
+
+      - name: cache rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: fuzz
+          shared-key: fuzz
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: restore the corpus
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.target }}-
+
+      - name: install cargo-fuzz
+        run: cargo install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked
+
+      - name: fuzz the target
+        run: |
+          mkdir -p "fuzz/corpus/$TARGET"
+          cargo "+$FUZZ_TOOLCHAIN" fuzz run "$TARGET" "fuzz/corpus/$TARGET" "fuzz/seeds/$TARGET" -- -max_total_time="$MAX_TOTAL_TIME"
+
+      - name: upload the crashing input
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
