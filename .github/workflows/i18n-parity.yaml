@@ -21,18 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: set up node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24
 
       - name: install pnpm
-        run: npm install -g pnpm@latest-10
+        run: |
+          npm ci --prefix tools/pnpm --ignore-scripts
+          echo "$GITHUB_WORKSPACE/tools/pnpm/node_modules/.bin" >> "$GITHUB_PATH"
 
       - name: cache node modules
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: front/node_modules
           key: node-${{ runner.arch }}-${{ hashFiles('front/pnpm-lock.yaml') }}

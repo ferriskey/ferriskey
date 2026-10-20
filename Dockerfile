@@ -1,4 +1,4 @@
-FROM rust:1.99.0-trixie AS chef
+FROM rust:1.99.0-trixie@sha256:81015672d6939b0265f09adf96d5de125482bb1330106076956b0518e74edc90 AS chef
 
 WORKDIR /usr/local/src/ferriskey
 
@@ -27,7 +27,7 @@ RUN cargo build --release --bin ferriskey-api --bin ferriskey-operator
 # It has no shell and no package manager: every entrypoint used against these
 # images (`ferriskey-api`, `ferriskey-operator`, `sqlx migrate run`) is an exec
 # of a binary on PATH, so nothing depends on /bin/sh.
-FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:b7e81cb1af38d9345680e68bcf564d388f96304e25222030fc8c051faf8565b3 AS runtime
 
 # distroless defaults WORKDIR to /home/nonroot; keep / as before.
 WORKDIR /
@@ -53,14 +53,16 @@ EXPOSE 80
 ENTRYPOINT ["ferriskey-operator"]
 
 # ── Frontend build ────────────────────────────────────────────────────────────
-FROM node:26.11.1-alpine3.24 AS webapp-build
+FROM node:26.11.1-alpine3.24@sha256:143494b1da2945f061539253adc65e4f1569ddf07da2d384c022c791a9d90a4a AS webapp-build
 
 WORKDIR /usr/local/src/ferriskey
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+ENV PATH="/opt/pnpm/node_modules/.bin:$PNPM_HOME:$PATH"
 
-RUN npm install -g pnpm@9.15.0
+COPY tools/pnpm/package.json tools/pnpm/package-lock.json /opt/pnpm/
+
+RUN npm ci --prefix /opt/pnpm --ignore-scripts
 
 COPY front/package.json front/pnpm-lock.yaml ./
 
@@ -71,7 +73,7 @@ COPY front/ .
 RUN VITE_API_URL="" pnpm run build
 
 # ── Frontend runtime ──────────────────────────────────────────────────────────
-FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim AS webapp
+FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim@sha256:eed3e4c2f3f9285e80610238e0b18fe1bf311c50559434db1969b1cfabd5518b AS webapp
 
 COPY front/nginx.conf /etc/nginx/conf.d/default.conf
 # Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
@@ -79,7 +81,7 @@ COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/shar
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
-FROM debian:trixie-slim AS standalone
+FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS standalone
 
 # hadolint ignore=DL3008
 RUN \

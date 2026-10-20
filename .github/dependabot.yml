@@ -31,6 +31,18 @@ updates:
           - minor
           - patch
 
+  - package-ecosystem: npm
+    directory: /tools/pnpm
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: build
+    ignore:
+      - dependency-name: pnpm
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
