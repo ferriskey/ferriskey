@@ -1946,7 +1946,7 @@ dependencies = [
  "ferriskey-authz",
  "ferriskey-domain",
  "maskass",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "tracing",
@@ -1961,7 +1961,7 @@ dependencies = [
  "chrono",
  "ferriskey-authz",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "tokio",
@@ -2420,7 +2420,7 @@ version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -2481,7 +2481,7 @@ dependencies = [
  "chrono",
  "ferriskey-authz",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "tokio",
@@ -2496,7 +2496,7 @@ version = "0.9.0"
 dependencies = [
  "chrono",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "tokio",
  "utoipa",
@@ -2539,7 +2539,7 @@ dependencies = [
  "ldap3",
  "log",
  "maskass",
- "mockall 0.13.1",
+ "mockall",
  "mrml",
  "p256",
  "rand 0.10.3",
@@ -2570,7 +2570,7 @@ version = "0.9.0"
 dependencies = [
  "chrono",
  "maskass",
- "mockall 0.14.0",
+ "mockall",
  "rand 0.10.3",
  "regex",
  "serde",
@@ -2594,7 +2594,7 @@ dependencies = [
  "ferriskey-seawatch",
  "ferriskey-webhook",
  "lettre",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "sha2",
@@ -2610,7 +2610,7 @@ name = "ferriskey-migrate"
 version = "0.9.0"
 dependencies = [
  "chrono",
- "mockall 0.13.1",
+ "mockall",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -2624,7 +2624,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kube-derive",
- "mockall 0.13.1",
+ "mockall",
  "rand 0.10.3",
  "reqwest 0.12.24",
  "rustls",
@@ -2647,7 +2647,7 @@ dependencies = [
  "chrono",
  "ferriskey-authz",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "thiserror 2.0.21",
  "tokio",
@@ -2663,7 +2663,7 @@ dependencies = [
  "chrono",
  "ferriskey-authz",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "utoipa",
@@ -2677,7 +2677,7 @@ dependencies = [
  "chrono",
  "ferriskey-authz",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "tokio",
@@ -2692,7 +2692,7 @@ dependencies = [
  "chrono",
  "ferriskey-authz",
  "ferriskey-domain",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "tokio",
@@ -2723,7 +2723,7 @@ dependencies = [
  "ferriskey-domain",
  "hex",
  "hmac",
- "mockall 0.14.0",
+ "mockall",
  "serde",
  "serde_json",
  "sha2",
@@ -2742,7 +2742,7 @@ dependencies = [
  "chrono",
  "ferriskey-domain",
  "jsonwebtoken",
- "mockall 0.14.0",
+ "mockall",
  "pem 3.0.6",
  "rcgen",
  "serde",
@@ -2776,7 +2776,7 @@ dependencies = [
  "ferriskey-domain",
  "hex",
  "hmac",
- "mockall 0.14.0",
+ "mockall",
  "rand 0.10.3",
  "serde",
  "serde_json",
@@ -4399,20 +4399,6 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39a6bfcc6c8c7eed5ee98b9c3e33adc726054389233e201c95dab2d41a3839d2"
-dependencies = [
- "cfg-if",
- "downcast",
- "fragile",
- "mockall_derive 0.13.1",
- "predicates",
- "predicates-tree",
-]
-
-[[package]]
-name = "mockall"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f58d964098a5f9c6b63d0798e5372fd04708193510a7af313c22e9f29b7b620b"
@@ -4420,21 +4406,9 @@ dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "mockall_derive 0.14.0",
+ "mockall_derive",
  "predicates",
  "predicates-tree",
-]
-
-[[package]]
-name = "mockall_derive"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25ca3004c2efe9011bd4e461bd8256445052b9615405b4f7ea43fc8ca5c20898"
-dependencies = [
- "cfg-if",
- "proc-macro2",
- "quote",
- "syn 2.0.111",
 ]
 
 [[package]]
