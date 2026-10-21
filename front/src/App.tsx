@@ -13,6 +13,7 @@ import { BasicSpinner } from './components/ui/spinner'
 import { useAuth } from './hooks/use-auth'
 import { useConfig } from './hooks/use-config'
 import { useLocaleSync } from './hooks/use-locale'
+import { authStore } from './store/auth.store'
 import PageAuthentication from './pages/authentication/page-authentication'
 import IamApp from './iam-app'
 
@@ -202,6 +203,10 @@ function AppRoutes() {
   const { data: responseConfig } = useGetConfig()
 
   const currentRealm = useMemo(() => realmFromPath(pathname), [pathname])
+  // An expired session signs in again at the realm that issued it, which is
+  // not the browsed realm while an admin of one realm manages another.
+  const sessionRealm = authStore((state) => state.sessionRealm)
+  const loginRealm = sessionRealm ?? currentRealm
 
   useLocaleSync()
 
@@ -226,7 +231,7 @@ function AppRoutes() {
       return
     if (!isAuthenticated && !authenticateRoute) {
       if (!pathname.includes('authentication/login')) {
-        navigate(`/realms/${currentRealm}/authentication/login`, { replace: true })
+        navigate(`/realms/${loginRealm}/authentication/login`, { replace: true })
       }
     } else if (
       isAuthenticated &&
@@ -237,7 +242,7 @@ function AppRoutes() {
     ) {
       navigate(`/realms/${currentRealm}/overview`, { replace: true })
     }
-  }, [isAuthenticated, isLoading, authenticateRoute, pathname, currentRealm, navigate])
+  }, [isAuthenticated, isLoading, authenticateRoute, pathname, currentRealm, loginRealm, navigate])
 
   return (
     <>
@@ -259,7 +264,7 @@ function AppRoutes() {
                 to={
                   isAuthenticated
                     ? `/realms/${currentRealm}/overview`
-                    : `/realms/${currentRealm}/authentication/login`
+                    : `/realms/${loginRealm}/authentication/login`
                 }
                 replace
               />
@@ -278,7 +283,7 @@ function AppRoutes() {
                 to={
                   isAuthenticated
                     ? `/realms/${currentRealm}/overview`
-                    : `/realms/${currentRealm}/authentication/login`
+                    : `/realms/${loginRealm}/authentication/login`
                 }
                 replace
               />

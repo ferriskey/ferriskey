@@ -118,14 +118,17 @@ export const fetcher: Fetcher['fetch'] = async (input) => {
   //   - the request that 401'd was the token endpoint itself (refresh of a
   //     refresh would loop forever)
   //   - we have no refresh token to spend
-  //   - we can't figure out the realm from the URL (extremely unlikely —
-  //     every API endpoint lives under /realms/<name>/)
+  //   - we can't figure out the realm (extremely unlikely — it is stored with
+  //     the session, and every API endpoint lives under /realms/<name>/)
+  // The refresh goes to the realm that issued the session, not the realm in
+  // the request URL: an admin signed in to master browses other realms, and
+  // those realms' token endpoints do not know a master session.
   // The shared `authRefreshController` de-dupes concurrent attempts so a
   // page that fires 12 parallel queries on mount only triggers one refresh.
   const isTokenEndpoint = input.url.pathname.includes(TOKEN_ENDPOINT_SEGMENT)
   if (response.status === 401 && !isTokenEndpoint) {
-    const refreshToken = authStore.getState().refreshToken
-    const realm = extractRealm(input.url)
+    const { refreshToken, sessionRealm } = authStore.getState()
+    const realm = sessionRealm ?? extractRealm(input.url)
     if (refreshToken && realm) {
       try {
         const refreshed = await authRefreshController.run(realm, () =>

@@ -7,10 +7,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { IUser, OrganizationClaim } from '@/contracts/states.interface'
 import { translate } from '@/lib/i18n'
+import { realmFromIssuer } from '@/lib/session-realm'
 import { authRefreshController } from './auth-refresh-controller'
 
 type JwtPayload = {
   exp?: number
+  iss?: string
   azp?: string
   avatar?: string
   preferred_username?: string
@@ -39,6 +41,7 @@ function decodeJwt(token: string): JwtPayload | null {
 
     return {
       exp: typeof claims.exp === 'number' ? claims.exp : undefined,
+      iss: typeof claims.iss === 'string' ? claims.iss : undefined,
       azp: typeof claims.azp === 'string' ? claims.azp : undefined,
       avatar: typeof claims.avatar === 'string' ? claims.avatar : undefined,
       preferred_username:
@@ -64,11 +67,40 @@ function decodeJwt(token: string): JwtPayload | null {
   }
 }
 
+/**
+ * The realm that issued a session, from whichever of its tokens names one,
+ * falling back to `fallback` when neither does (no session yet, or a malformed
+ * token).
+ */
+function sessionRealm(
+  accessToken: string | null,
+  refreshToken: string | null,
+  fallback: string
+): string {
+  return (
+    realmFromIssuer(accessToken ? decodeJwt(accessToken)?.iss : null) ??
+    realmFromIssuer(refreshToken ? decodeJwt(refreshToken)?.iss : null) ??
+    fallback
+  )
+}
+
 export function useAuth() {
   const navigate = useNavigate()
   const { realm_name = 'master' } = useParams<RouterParams>()
   //const { setAuthTokens, setAuthenticated, setLoading, access_token, refresh_token, expiration, isAuthenticated, isLoading } = userStore()
-  const { accessToken, refreshToken, idToken, setTokens } = authStore()
+  const {
+    accessToken,
+    refreshToken,
+    idToken,
+    sessionRealm: storedSessionRealm,
+    setTokens,
+    setSessionRealm,
+  } = authStore()
+  // The realm that issued the session. It differs from `realm_name` while an
+  // admin signed in to one realm (usually master) browses another, and every
+  // token-endpoint call and sign-in redirect belongs to it. The stored copy
+  // answers once the tokens are gone.
+  const authRealm = sessionRealm(accessToken, refreshToken, storedSessionRealm ?? realm_name)
   const {
     expiration,
     isAuthenticated,
@@ -96,7 +128,9 @@ export function useAuth() {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
-      authRefreshController.reset(realm_name)
+      const realm = sessionRealm(access_token, refresh_token, realm_name)
+      authRefreshController.reset(realm)
+      setSessionRealm(realm)
       setTokens(access_token, refresh_token, id_token)
       setExpiration(expiration)
 
@@ -104,12 +138,12 @@ export function useAuth() {
         setAuthenticated(true)
       }
     },
-    [realm_name, setAuthenticated, setTokens, setExpiration]
+    [realm_name, setAuthenticated, setTokens, setSessionRealm, setExpiration]
   )
 
   const clearAuthState = useCallback(
     (redirectToLogin: boolean, errorMessage?: string) => {
-      authRefreshController.reset(realm_name)
+      authRefreshController.reset(authRealm)
       authStore.persist?.clearStorage?.()
       setTokens(null, null, null)
       setUser(null)
@@ -125,12 +159,12 @@ export function useAuth() {
 
         const suffix = params.toString()
         navigate(
-          `/realms/${realm_name}/authentication/login${suffix ? `?${suffix}` : ''}`,
+          `/realms/${authRealm}/authentication/login${suffix ? `?${suffix}` : ''}`,
           { replace: true }
         )
       }
     },
-    [navigate, realm_name, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
+    [navigate, authRealm, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
   )
 
   function isTokenExpired(): boolean {
@@ -151,7 +185,7 @@ export function useAuth() {
       if (accessToken) {
         revokeRequests.push(
           revokeToken({
-            realm: realm_name,
+            realm: authRealm,
             data: {
               token: accessToken,
               client_id: clientIdFromToken,
@@ -164,7 +198,7 @@ export function useAuth() {
       if (refreshToken) {
         revokeRequests.push(
           revokeToken({
-            realm: realm_name,
+            realm: authRealm,
             data: {
               token: refreshToken,
               client_id: clientIdFromToken,
@@ -179,7 +213,7 @@ export function useAuth() {
       }
 
       await remoteLogout({
-        realm: realm_name,
+        realm: authRealm,
         data: {
           id_token_hint: idToken ?? undefined,
           client_id: clientIdFromToken,
@@ -198,9 +232,9 @@ export function useAuth() {
       return Promise.resolve()
     }
 
-    return authRefreshController.run(realm_name, async () => {
+    return authRefreshController.run(authRealm, async () => {
       const response = await exchangeToken({
-        realm: realm_name,
+        realm: authRealm,
         data: {
           grant_type: GrantType.RefreshToken,
           client_id: 'security-admin-console',
@@ -224,11 +258,18 @@ export function useAuth() {
     clearAuthState,
     exchangeToken,
     idToken,
-    realm_name,
+    authRealm,
     refreshToken,
     setAuthTokensWrapper,
     setAuthenticated,
   ])
+
+  // A session signed in before the realm was stored still names it in its
+  // tokens: keep the stored copy in step, so it is there when they expire.
+  useEffect(() => {
+    const realm = accessToken ? realmFromIssuer(decodeJwt(accessToken)?.iss) : null
+    if (realm && realm !== storedSessionRealm) setSessionRealm(realm)
+  }, [accessToken, storedSessionRealm, setSessionRealm])
 
   useEffect(() => {
     if (!authStore.persist?.onFinishHydration) return
@@ -247,12 +288,12 @@ export function useAuth() {
       if (!authState) {
         setAuthenticated(false)
         localStorage.removeItem('auth')
-        navigate(`/realms/${realm_name}/authentication/login`)
+        navigate(`/realms/${authRealm}/authentication/login`)
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [hasHydrated, navigate, realm_name, setAuthenticated])
+  }, [hasHydrated, navigate, authRealm, setAuthenticated])
 
   useEffect(() => {
     const interval = setInterval(() => {
