@@ -103,5 +103,10 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.7",
     "yaml": "^2.9.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "tinypool": "^2.1.2"
+    }
   }
 }

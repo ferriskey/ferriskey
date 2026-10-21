@@ -10,3 +10,8 @@ allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
+
+# Patched tinypool for GHSA-5gmw-xhrv-c9v3 and GHSA-85c8-ppgw-ccpr; typed-openapi
+# pins oxfmt 0.59, which pins tinypool 2.1.0. Mirrored in package.json for pnpm 9.
+overrides:
+  tinypool: ^2.1.2
