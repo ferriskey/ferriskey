@@ -9,6 +9,7 @@ ignore = [
     { id = "RUSTSEC-2026-0367", reason = "zip 3 is a build dependency of utoipa-swagger-ui, which only extracts the swagger-ui archive pinned by its own release; utoipa-swagger-ui 10 still resolves zip below 9" },
     { id = "RUSTSEC-2026-0368", reason = "same zip 3 build dependency of utoipa-swagger-ui, never given an archive we do not control" },
     { id = "RUSTSEC-2026-0369", reason = "same zip 3 build dependency of utoipa-swagger-ui, never given an archive we do not control" },
+    { id = "RUSTSEC-2026-0381", reason = "webpki-roots 0.26.11 is a shim pulled by sqlx-core 0.8 that holds no certificate; it re-exports TLS_SERVER_ROOTS from webpki-roots 1.0.10, which is not affected" },
 ]
 
 [licenses]

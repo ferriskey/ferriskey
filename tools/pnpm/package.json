@@ -1,0 +1,7 @@
+{
+  "name": "ferriskey-pnpm",
+  "private": true,
+  "dependencies": {
+    "pnpm": "10.34.7"
+  }
+}
