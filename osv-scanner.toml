@@ -1,0 +1,34 @@
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0173"
+reason = "proc-macro-error2 is unmaintained, pulled at build time only by validator_derive and sea-bae; no maintained release of either drops it yet"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0449"
+reason = "unsafe-libyaml is unmaintained, pulled by serde_yaml through kube-client 2.x and the operator crdgen binary; kube 4 moves to serde-saphyr"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0367"
+reason = "zip 3 is a build dependency of utoipa-swagger-ui, which only extracts the swagger-ui archive pinned by its own release; utoipa-swagger-ui 10 still resolves zip below 9"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0368"
+reason = "same zip 3 build dependency of utoipa-swagger-ui, never given an archive we do not control"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0369"
+reason = "same zip 3 build dependency of utoipa-swagger-ui, never given an archive we do not control"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2023-0071"
+reason = "rsa is only in Cargo.lock as an optional dependency of sqlx-mysql; no workspace crate enables MySQL, so it is never compiled"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0235"
+reason = "rkyv is only in Cargo.lock as an optional feature of rust_decimal that no workspace crate enables, so it is never compiled"
+
+[[PackageOverrides]]
+name = "webpki-roots"
+version = "0.26.11"
+ecosystem = "crates.io"
+vulnerability.ignore = true
+reason = "shim pulled by sqlx-core 0.8 that holds no certificate; it re-exports TLS_SERVER_ROOTS from webpki-roots 1.0.10, which is not affected"
