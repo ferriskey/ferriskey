@@ -47,6 +47,7 @@
     "@tiptap/starter-kit": "^3.31.4",
     "axios": "^1.20.0",
     "canvas-confetti": "^1.9.4",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useBuilder } from '../builder-core'
 import { treeToHtml } from './renderer'
 
@@ -10,10 +10,24 @@ export function MjmlPreview({ previewWidth = 600 }: MjmlPreviewProps) {
   const { tree } = useBuilder()
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  const html = useMemo(() => {
-    if (tree.length === 0) return ''
-    return treeToHtml(tree)
+  const [rendered, setRendered] = useState('')
+
+  useEffect(() => {
+    if (tree.length === 0) return
+    let cancelled = false
+    treeToHtml(tree)
+      .then((result) => {
+        if (!cancelled) setRendered(result)
+      })
+      .catch((error) => {
+        console.error('Failed to render the email preview:', error)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [tree])
+
+  const html = tree.length === 0 ? '' : rendered
 
   const writeToIframe = useCallback(() => {
     const iframe = iframeRef.current

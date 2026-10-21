@@ -36,8 +36,8 @@ function nodeToMjml(node: BuilderNode): string {
 /**
  * Converts a builder node tree into HTML via MJML.
  */
-export function treeToHtml(tree: BuilderNode[]): string {
+export async function treeToHtml(tree: BuilderNode[]): Promise<string> {
   const mjml = treeToMjml(tree)
-  const result = mjml2html(mjml, { validationLevel: 'soft' })
+  const result = await mjml2html(mjml, { validationLevel: 'soft' })
   return result.html
 }
