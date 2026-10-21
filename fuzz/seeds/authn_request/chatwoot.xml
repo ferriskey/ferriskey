@@ -1,0 +1,4 @@
+<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_324d8ca747d9c07921d2abe9df447832" Version="2.0" IssueInstant="2026-08-25T18:51:18.334Z" Destination="https://auth.example.com/realms/master/protocol/saml" AssertionConsumerServiceURL="https://chat.example.com/omniauth/saml/callback?account_id=1" ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">
+  <saml:Issuer>https://chat.example.com/saml/sp/1</saml:Issuer>
+  <samlp:NameIDPolicy Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" AllowCreate="true"/>
+</samlp:AuthnRequest>

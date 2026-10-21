@@ -1,0 +1,43 @@
+[package]
+name = "ferriskey-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+ferriskey-saml = { path = "../libs/ferriskey-saml" }
+libfuzzer-sys = "0.4.13"
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "authn_request"
+path = "fuzz_targets/authn_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "redirect_binding"
+path = "fuzz_targets/redirect_binding.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "post_binding"
+path = "fuzz_targets/post_binding.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "c14n"
+path = "fuzz_targets/c14n.rs"
+test = false
+doc = false
+bench = false
