@@ -78,7 +78,7 @@ export interface BuilderAdapter {
   ): ReactNode
 
   /** Render a preview of the full tree (e.g. as HTML string for an iframe) */
-  renderPreview(tree: BuilderNode[]): string
+  renderPreview(tree: BuilderNode[]): string | Promise<string>
 
   /** Render a visual block for the canvas (optional — falls back to label if not provided) */
   renderVisualBlock?(

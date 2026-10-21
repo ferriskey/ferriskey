@@ -20,7 +20,7 @@ export function createMjmlAdapter(
       return renderMjmlConfigPanel(node, onUpdate)
     },
 
-    renderPreview(tree: BuilderNode[]): string {
+    renderPreview(tree: BuilderNode[]): Promise<string> {
       return treeToHtml(tree)
     },
 
