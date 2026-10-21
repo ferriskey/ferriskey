@@ -234,12 +234,14 @@ mod tests {
         assert!(paths["/realms/{realm_name}/portal/theme"].is_object());
 
         // --- Cleanup.
-        admin_pool
-            .execute(sqlx::query(&format!(
-                "DROP SCHEMA IF EXISTS \"{}\" CASCADE",
-                schema
-            )))
-            .await
-            .expect("drop schema");
+        let drop_schema = format!("DROP SCHEMA IF EXISTS \"{}\" CASCADE", schema);
+        for attempt in 1.. {
+            match admin_pool.execute(sqlx::query(&drop_schema)).await {
+                Ok(_) => break,
+                Err(sqlx::Error::Database(error))
+                    if error.code().as_deref() == Some("40P01") && attempt < 5 => {}
+                Err(error) => panic!("drop schema: {error:?}"),
+            }
+        }
     }
 }
