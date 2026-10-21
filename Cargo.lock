@@ -162,15 +162,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
-dependencies = [
- "derive_arbitrary",
-]
-
-[[package]]
 name = "arc-swap"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1595,17 +1586,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive_arbitrary"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e567bd82dcff979e4b03460c307b3cdc9e96fde3d73bed1496d2bc75d9dd62a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.111",
-]
-
-[[package]]
 name = "derive_more"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1960,7 +1940,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -1976,7 +1956,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2047,7 +2027,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "urlencoding",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-rapidoc",
  "utoipa-redoc",
  "utoipa-scalar",
@@ -2068,7 +2048,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2085,7 +2065,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "url",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
  "webauthn-rs",
@@ -2101,7 +2081,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2123,7 +2103,7 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2139,7 +2119,7 @@ dependencies = [
  "ferriskey-domain",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "validator",
 ]
 
@@ -2152,7 +2132,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2169,7 +2149,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2184,7 +2164,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2197,7 +2177,7 @@ dependencies = [
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2226,7 +2206,7 @@ dependencies = [
  "tracing",
  "url",
  "urlencoding",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
  "webauthn-rs",
@@ -2242,7 +2222,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2257,7 +2237,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
@@ -2268,7 +2248,7 @@ dependencies = [
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2282,7 +2262,7 @@ dependencies = [
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2297,7 +2277,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2312,7 +2292,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2328,7 +2308,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "url",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2344,7 +2324,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2360,7 +2340,7 @@ dependencies = [
  "ferriskey-saml",
  "serde",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
@@ -2372,7 +2352,7 @@ dependencies = [
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2388,7 +2368,7 @@ dependencies = [
  "serde",
  "tracing",
  "url",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2404,7 +2384,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2419,7 +2399,7 @@ dependencies = [
  "ferriskey-core",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "validator",
 ]
@@ -2496,7 +2476,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2509,7 +2489,7 @@ dependencies = [
  "mockall 0.14.0",
  "serde",
  "tokio",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2568,7 +2548,7 @@ dependencies = [
  "tracing",
  "url",
  "urlencoding",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "webauthn-rs",
  "x509-parser 0.18.1",
@@ -2589,7 +2569,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "webauthn-rs",
 ]
@@ -2611,7 +2591,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2662,7 +2642,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2676,7 +2656,7 @@ dependencies = [
  "mockall 0.14.0",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2691,7 +2671,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2706,7 +2686,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2738,7 +2718,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tokio",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -2761,7 +2741,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
  "x509-parser 0.18.1",
 ]
@@ -2794,7 +2774,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "url",
- "utoipa",
+ "utoipa 5.4.0",
  "uuid",
 ]
 
@@ -4267,7 +4247,7 @@ dependencies = [
  "blake3",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
@@ -5885,40 +5865,6 @@ dependencies = [
  "spki",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "rust-embed"
-version = "8.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "947d7f3fad52b283d261c4c99a084937e2fe492248cb9a68a8435a861b8798ca"
-dependencies = [
- "rust-embed-impl",
- "rust-embed-utils",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-impl"
-version = "8.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fa2c8c9e8711e10f9c4fd2d64317ef13feaab820a4c51541f1a8c8e2e851ab2"
-dependencies = [
- "proc-macro2",
- "quote",
- "rust-embed-utils",
- "syn 2.0.111",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-utils"
-version = "8.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60b161f275cb337fe0a44d924a5f4df0ed69c2c39519858f931ce61c779d3475"
-dependencies = [
- "sha2",
- "walkdir",
 ]
 
 [[package]]
@@ -7582,6 +7528,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "typed-path"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54ec2755506471f54baf5e4bb5499d8e510cc1caf271270e778a736bd2d7336c"
+
+[[package]]
 name = "typeid"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7754,7 +7706,19 @@ dependencies = [
  "indexmap 2.12.1",
  "serde",
  "serde_json",
- "utoipa-gen",
+ "utoipa-gen 5.4.0",
+]
+
+[[package]]
+name = "utoipa"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8765fe27aeff71012a3f90fa474cf1df863a7d0dd81ed25de4e63fff2544994f"
+dependencies = [
+ "indexmap 2.12.1",
+ "serde",
+ "serde_json",
+ "utoipa-gen 6.0.1",
 ]
 
 [[package]]
@@ -7770,6 +7734,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "utoipa-gen"
+version = "6.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d935f1c83fdf8b88f09bbe050d0cea78ea4afee6d7b0317403228c1200b2c8ab"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.4",
+]
+
+[[package]]
 name = "utoipa-rapidoc"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7778,7 +7753,7 @@ dependencies = [
  "axum",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
@@ -7790,7 +7765,7 @@ dependencies = [
  "axum",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
@@ -7802,24 +7777,23 @@ dependencies = [
  "axum",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
 name = "utoipa-swagger-ui"
-version = "9.0.2"
+version = "10.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d047458f1b5b65237c2f6dc6db136945667f40a7668627b3490b9513a3d43a55"
+checksum = "3f5ec9d7816e4ce8ccb7e0bd7276e090cad0fcb1def4f3540e5b0f7485d7583e"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "mime_guess",
  "regex",
- "rust-embed",
  "serde",
  "serde_json",
  "url",
- "utoipa",
+ "utoipa 6.0.0",
  "zip",
 ]
 
@@ -8839,15 +8813,15 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "3.0.0"
+version = "8.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12598812502ed0105f607f941c386f43d441e00148fce9dec3ca5ffb0bde9308"
+checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
 dependencies = [
- "arbitrary",
  "crc32fast",
  "flate2",
  "indexmap 2.12.1",
  "memchr",
+ "typed-path",
  "zopfli",
 ]
 
