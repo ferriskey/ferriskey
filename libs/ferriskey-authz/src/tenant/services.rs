@@ -524,6 +524,23 @@ where
             .await
     }
 
+    async fn get_builtin_schema(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<&'static str, CoreError> {
+        let scope = self.resolve(&realm_name).await?;
+
+        ensure_policy(
+            self.policy
+                .can_view_authorization(&identity, scope.realm())
+                .await,
+            FORBIDDEN,
+        )?;
+
+        Ok(self.compiler.builtin_schema())
+    }
+
     async fn validate_policies(
         &self,
         identity: Identity,
@@ -1448,6 +1465,34 @@ mod tests {
                         request: simulation(),
                     },
                 )
+                .await,
+            Err(CoreError::Forbidden(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn the_builtin_schema_is_read_with_view_authorization_only() {
+        let mut f = Fixture::new();
+        f.compiler
+            .expect_builtin_schema()
+            .return_const("namespace FerrisKey {}");
+        let service = f.build();
+
+        let source = service
+            .get_builtin_schema(identity(), "acme".to_string())
+            .await
+            .expect("builtin schema");
+        assert_eq!(source, "namespace FerrisKey {}");
+
+        let mut hidden = Fixture::new();
+        hidden.governance = Governance {
+            view: false,
+            manage: true,
+        };
+        assert!(matches!(
+            hidden
+                .build()
+                .get_builtin_schema(identity(), "acme".to_string())
                 .await,
             Err(CoreError::Forbidden(_))
         ));

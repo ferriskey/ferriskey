@@ -153,6 +153,16 @@ impl AuthzManagementService for ApplicationService {
             .await
     }
 
+    async fn get_builtin_schema(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<&'static str, CoreError> {
+        self.authz_management_service
+            .get_builtin_schema(identity, realm_name)
+            .await
+    }
+
     async fn validate_policies(
         &self,
         identity: Identity,

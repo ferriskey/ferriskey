@@ -7,11 +7,13 @@ use ferriskey_domain::realm::scope::RealmScope;
 use tracing::error;
 use uuid::Uuid;
 
-use super::FERRISKEY_NAMESPACE;
 use super::evaluation::{EvaluationRequest, Subject, load_rule_set};
 use super::ports::{
     AuthzSchemaRepository, AuthzStateRepository, PolicyRepository, PolicyTemplateRepository,
     PrincipalSliceRepository, TenantDecisionEngine,
+};
+use super::{
+    ASSERTED_PARENT_TYPES, ASSERTED_SUBJECT_TYPES, DESCRIBABLE_TYPES, FERRISKEY_NAMESPACE,
 };
 use crate::entities::{Decision, EntityRef};
 
@@ -35,26 +37,51 @@ impl<C> Clone for Compiled<C> {
 
 fn ensure_tenant_types(request: &EvaluationRequest) -> Result<(), CoreError> {
     let reserved = format!("{FERRISKEY_NAMESPACE}::");
-    let is_reserved = |entity: &EntityRef| entity.ty.as_str().starts_with(&reserved);
+    let is_reserved = |entity: &EntityRef| {
+        entity.ty.as_str().starts_with(&reserved)
+            && !DESCRIBABLE_TYPES.contains(&entity.ty.as_str())
+    };
     let refuse = |what: String| Err(CoreError::InvalidAuthorizationRequest(what));
 
-    let tenant_entities = match &request.subject {
-        Subject::Tenant(subject) => vec![&request.resource, subject],
-        Subject::FerrisKey(_) => vec![&request.resource],
-    };
-    if let Some(entity) = tenant_entities.iter().find(|e| is_reserved(&e.entity)) {
+    if is_reserved(&request.resource.entity) {
         return refuse(format!(
             "{} is resolved by FerrisKey and cannot be described by the request",
-            entity.entity.ty
+            request.resource.entity.ty
         ));
     }
-    if let Subject::Tenant(subject) = &request.subject
-        && let Some(parent) = subject.parents.iter().find(|p| is_reserved(p))
-    {
-        return refuse(format!(
-            "membership in {} is resolved by FerrisKey and cannot be claimed by the request",
-            parent.ty
-        ));
+    match &request.subject {
+        Subject::FerrisKey(_) => {}
+        Subject::Tenant(subject) => {
+            if is_reserved(&subject.entity) {
+                return refuse(format!(
+                    "{} is resolved by FerrisKey and cannot be described by the request",
+                    subject.entity.ty
+                ));
+            }
+            if let Some(parent) = subject.parents.iter().find(|p| is_reserved(p)) {
+                return refuse(format!(
+                    "membership in {} is resolved by FerrisKey and cannot be claimed by the request",
+                    parent.ty
+                ));
+            }
+        }
+        Subject::Asserted(subject) => {
+            if !ASSERTED_SUBJECT_TYPES.contains(&subject.entity.ty.as_str()) {
+                return refuse(format!(
+                    "{} cannot be asserted as a subject",
+                    subject.entity.ty
+                ));
+            }
+            if let Some(parent) = subject.parents.iter().find(|p| {
+                !ASSERTED_PARENT_TYPES.contains(&p.ty.as_str())
+                    && !DESCRIBABLE_TYPES.contains(&p.ty.as_str())
+            }) {
+                return refuse(format!(
+                    "{} cannot be a parent of an asserted subject",
+                    parent.ty
+                ));
+            }
+        }
     }
     Ok(())
 }
@@ -101,7 +128,7 @@ where
                 Some(slice) => Some(slice),
                 None => return Ok(Decision::deny()),
             },
-            Subject::Tenant(_) => None,
+            Subject::Tenant(_) | Subject::Asserted(_) => None,
         };
 
         self.engine.decide(&compiled, slice.as_ref(), request)

@@ -234,6 +234,20 @@ pub const AUTHZ_MATRIX: &[AuthzRow] = &[
         line: 0,
     },
     AuthzRow {
+        service_fn: "get_builtin_schema",
+        policy_fn: "can_view_authorization",
+        action: actions::AUTHORIZATION_SCHEMA_READ,
+        resource: EntityType::REALM,
+        permissions: &[
+            Permissions::ManageRealm,
+            Permissions::ManageAuthorization,
+            Permissions::ViewAuthorization,
+        ],
+        self_bypass: false,
+        file: "libs/ferriskey-authz/src/tenant/services.rs",
+        line: 0,
+    },
+    AuthzRow {
         service_fn: "create_federation_provider",
         policy_fn: "can_create_federation_provider",
         action: actions::FEDERATION_PROVIDER_CREATE,

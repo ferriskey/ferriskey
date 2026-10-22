@@ -186,6 +186,10 @@ impl PolicyCompiler for CedarPolicyCompiler {
         compile_schema(schema).map(|_| ())
     }
 
+    fn builtin_schema(&self) -> &'static str {
+        crate::builtin::BUILTIN_SCHEMA
+    }
+
     fn validate_policies(
         &self,
         schema: Option<&AuthzSchema>,

@@ -44,12 +44,181 @@ fn required(field: &str, value: &str) -> Result<(), CoreError> {
     Ok(())
 }
 
+fn ferriskey(ty: &str) -> EntityType {
+    EntityType::custom(format!("{FERRISKEY_NAMESPACE}::{ty}"))
+}
+
+fn strings(properties: &Map<String, Value>, key: &str) -> Vec<String> {
+    properties
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn text(properties: &Map<String, Value>, key: &str) -> Option<String> {
+    properties
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+fn agent_user(id: String, properties: Map<String, Value>) -> TenantEntity {
+    let roles = strings(&properties, "roles");
+    let groups = strings(&properties, "groups");
+    let organisation = text(&properties, "organisation");
+
+    let mut attributes = Map::new();
+    attributes.insert(
+        "username".to_string(),
+        Value::String(text(&properties, "username").unwrap_or_else(|| id.clone())),
+    );
+    if let Some(email) = text(&properties, "email") {
+        attributes.insert("email".to_string(), Value::String(email));
+    }
+    attributes.insert(
+        "email_verified".to_string(),
+        properties
+            .get("email_verified")
+            .filter(|value| value.is_boolean())
+            .cloned()
+            .unwrap_or(Value::Bool(false)),
+    );
+    attributes.insert(
+        "enabled".to_string(),
+        properties
+            .get("enabled")
+            .filter(|value| value.is_boolean())
+            .cloned()
+            .unwrap_or(Value::Bool(true)),
+    );
+    attributes.insert(
+        "roles".to_string(),
+        Value::Array(roles.iter().cloned().map(Value::String).collect()),
+    );
+    if let Some(organisation) = &organisation {
+        attributes.insert(
+            "organisation".to_string(),
+            Value::String(organisation.clone()),
+        );
+    }
+
+    let mut parents: Vec<EntityRef> = groups
+        .into_iter()
+        .map(|group| EntityRef::new(ferriskey("Group"), group))
+        .collect();
+    parents.extend(
+        roles
+            .into_iter()
+            .map(|role| EntityRef::new(ferriskey("Role"), role)),
+    );
+    parents.extend(
+        organisation.map(|organisation| EntityRef::new(ferriskey("Organization"), organisation)),
+    );
+
+    TenantEntity {
+        entity: EntityRef::new(ferriskey("User"), id),
+        properties: attributes,
+        parents,
+    }
+}
+
+fn agent_client(id: String, properties: &Map<String, Value>) -> TenantEntity {
+    let mut attributes = Map::new();
+    attributes.insert("client_id".to_string(), Value::String(id.clone()));
+    TenantEntity {
+        entity: EntityRef::new(ferriskey("Agent"), id),
+        properties: attributes,
+        parents: strings(properties, "roles")
+            .into_iter()
+            .map(|role| EntityRef::new(ferriskey("Role"), role))
+            .collect(),
+    }
+}
+
+fn mcp_server_of(id: &str, properties: &Map<String, Value>) -> String {
+    text(properties, "server").unwrap_or_else(|| {
+        id.split_once('/')
+            .map_or(id, |(server, _)| server)
+            .to_string()
+    })
+}
+
+fn agent_resource(kind: &str, id: String, properties: &Map<String, Value>) -> TenantEntity {
+    let server = mcp_server_of(&id, properties);
+    let leaf = id
+        .split_once('/')
+        .map_or(id.as_str(), |(_, rest)| rest)
+        .to_string();
+    let mut attributes = Map::new();
+    let parents = match kind {
+        "mcp_server" | "mcpserver" => {
+            attributes.insert(
+                "name".to_string(),
+                Value::String(text(properties, "name").unwrap_or_else(|| id.clone())),
+            );
+            Vec::new()
+        }
+        other => {
+            attributes.insert("server".to_string(), Value::String(server.clone()));
+            match other {
+                "tool" => {
+                    attributes.insert(
+                        "tool".to_string(),
+                        Value::String(text(properties, "tool").unwrap_or(leaf)),
+                    );
+                    if let Some(annotations) = properties.get("annotations") {
+                        attributes.insert("annotations".to_string(), annotations.clone());
+                    }
+                }
+                "resource" => {
+                    attributes.insert(
+                        "uri".to_string(),
+                        Value::String(text(properties, "uri").unwrap_or_else(|| id.clone())),
+                    );
+                }
+                _ => {
+                    attributes.insert(
+                        "name".to_string(),
+                        Value::String(text(properties, "name").unwrap_or(leaf)),
+                    );
+                }
+            }
+            vec![EntityRef::new(ferriskey("McpServer"), server)]
+        }
+    };
+    let ty = match kind {
+        "tool" => "Tool",
+        "resource" => "Resource",
+        "prompt" => "Prompt",
+        _ => "McpServer",
+    };
+    TenantEntity {
+        entity: EntityRef::new(ferriskey(ty), id),
+        properties: attributes,
+        parents,
+    }
+}
+
 impl TryFrom<AuthzenEntity> for TenantEntity {
     type Error = CoreError;
 
     fn try_from(value: AuthzenEntity) -> Result<Self, Self::Error> {
         required("type", &value.entity_type)?;
         required("id", &value.id)?;
+        let kind = value.entity_type.to_ascii_lowercase();
+        if matches!(
+            kind.as_str(),
+            "tool" | "resource" | "prompt" | "mcp_server" | "mcpserver"
+        ) {
+            let properties = value.properties.unwrap_or_default();
+            return Ok(agent_resource(&kind, value.id, &properties));
+        }
         Ok(Self {
             entity: EntityRef::new(EntityType::custom(value.entity_type), value.id),
             properties: value.properties.unwrap_or_default(),
@@ -64,6 +233,21 @@ impl TryFrom<AuthzenEntity> for Subject {
     fn try_from(value: AuthzenEntity) -> Result<Self, Self::Error> {
         required("type", &value.entity_type)?;
         required("id", &value.id)?;
+        match value.entity_type.to_ascii_lowercase().as_str() {
+            "user" => {
+                return Ok(Self::Asserted(agent_user(
+                    value.id,
+                    value.properties.unwrap_or_default(),
+                )));
+            }
+            "agent" | "client" => {
+                return Ok(Self::Asserted(agent_client(
+                    value.id,
+                    &value.properties.unwrap_or_default(),
+                )));
+            }
+            _ => {}
+        }
         let reserved = format!("{FERRISKEY_NAMESPACE}::");
         if value.entity_type.starts_with(&reserved) {
             return Ok(Self::FerrisKey(EntityRef::new(
@@ -378,6 +562,73 @@ mod tests {
         assert!(!decision.decision);
         let error = decision.context.and_then(|c| c.error).expect("error");
         assert_eq!(error.status, 400);
+    }
+
+    #[test]
+    fn a_user_subject_becomes_a_described_ferriskey_user_with_its_groups_as_parents() {
+        let request = parse(json!({
+            "subject": {
+                "type": "user",
+                "id": "u-1",
+                "properties": {"roles": ["dev"], "groups": ["support"], "organisation": "acme"},
+            },
+            "action": {"name": "call_tool"},
+            "resource": {
+                "type": "tool",
+                "id": "files/read",
+                "properties": {"annotations": {"readOnlyHint": true}},
+            },
+            "context": {"agent": "claude"},
+        }))
+        .expect("valid");
+
+        let Subject::Asserted(user) = request.subject else {
+            panic!("expected an asserted subject");
+        };
+        assert_eq!(user.entity.ty.as_str(), "FerrisKey::User");
+        assert_eq!(user.properties["roles"], json!(["dev"]));
+        assert_eq!(user.properties["organisation"], json!("acme"));
+        let parents: Vec<String> = user
+            .parents
+            .iter()
+            .map(|p| format!("{}::{}", p.ty, p.id))
+            .collect();
+        assert_eq!(
+            parents,
+            [
+                "FerrisKey::Group::support",
+                "FerrisKey::Role::dev",
+                "FerrisKey::Organization::acme"
+            ]
+        );
+
+        assert_eq!(request.resource.entity.ty.as_str(), "FerrisKey::Tool");
+        assert_eq!(request.resource.properties["server"], json!("files"));
+        assert_eq!(request.resource.properties["tool"], json!("read"));
+        assert_eq!(
+            request.resource.properties["annotations"],
+            json!({"readOnlyHint": true})
+        );
+        assert_eq!(request.resource.parents[0].id, "files");
+    }
+
+    #[test]
+    fn a_client_or_agent_subject_becomes_a_ferriskey_agent() {
+        for ty in ["client", "agent", "Agent"] {
+            let request = parse(json!({
+                "subject": {"type": ty, "id": "claude"},
+                "action": {"name": "call_tool"},
+                "resource": {"type": "prompt", "id": "docs/summarise"},
+            }))
+            .expect("valid");
+            let Subject::Asserted(agent) = request.subject else {
+                panic!("expected an asserted subject");
+            };
+            assert_eq!(agent.entity.ty.as_str(), "FerrisKey::Agent");
+            assert_eq!(agent.properties["client_id"], json!("claude"));
+            assert_eq!(request.resource.entity.ty.as_str(), "FerrisKey::Prompt");
+            assert_eq!(request.resource.properties["name"], json!("summarise"));
+        }
     }
 
     #[test]

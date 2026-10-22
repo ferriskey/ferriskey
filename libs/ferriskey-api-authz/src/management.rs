@@ -148,6 +148,12 @@ impl From<AuthzSchema> for SchemaBody {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BuiltinSchemaBody {
+    pub namespace: String,
+    pub source: String,
+}
+
 #[derive(Debug, Clone, Deserialize, Validate, ToSchema)]
 pub struct ReplaceSchemaValidator {
     pub namespace: Option<String>,

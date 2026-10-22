@@ -54,6 +54,7 @@ pub struct TenantEntity {
 pub enum Subject {
     FerrisKey(EntityRef),
     Tenant(TenantEntity),
+    Asserted(TenantEntity),
 }
 
 #[derive(Clone, Debug, PartialEq)]

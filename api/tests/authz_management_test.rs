@@ -746,4 +746,159 @@ mod tests {
             assert_eq!(response.status_code(), 404, "{}", response.text());
         });
     }
+
+    const SUPPORT_POLICY: &str = r#"permit (
+  principal in FerrisKey::Group::"support",
+  action == FerrisKey::Action::"call_tool",
+  resource is FerrisKey::Tool
+) when {
+  context.agent == "claude" &&
+  resource has annotations &&
+  resource.annotations has readOnlyHint &&
+  resource.annotations.readOnlyHint &&
+  context.time.weekday <= 5 &&
+  context.time.hour >= 8 &&
+  context.time.hour < 18
+};"#;
+
+    fn tool_call(groups: &[&str], tool: &str, read_only: bool, weekday: u32) -> Value {
+        json!({
+            "subject": {
+                "type": "user",
+                "id": "9b4c7a52-0000-4000-8000-000000000001",
+                "properties": { "roles": ["dev"], "groups": groups },
+            },
+            "action": { "name": "call_tool" },
+            "resource": {
+                "type": "tool",
+                "id": format!("files/{tool}"),
+                "properties": {
+                    "server": "files",
+                    "tool": tool,
+                    "annotations": { "readOnlyHint": read_only },
+                },
+            },
+            "context": {
+                "agent": "claude",
+                "delegated": true,
+                "arguments": { "path": "/tmp/report.txt" },
+                "time": { "weekday": weekday, "hour": 10, "iso": "2026-10-22T10:00:00Z" },
+            },
+        })
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn an_agent_policy_validates_and_decides_tool_calls_for_the_users_it_names() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let token = &ctx.admin_token;
+
+            let builtin = server
+                .get(&format!("{}/schema/builtin", base(&realm)))
+                .authorization_bearer(token)
+                .await;
+            assert_eq!(builtin.status_code(), 200, "{}", builtin.text());
+            let source = builtin.json::<Value>()["source"]
+                .as_str()
+                .expect("source")
+                .to_string();
+            assert!(source.contains("entity Tool"), "{source}");
+
+            let schema = server
+                .put(&format!("{}/schema", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "source": "namespace App {}" }))
+                .await;
+            assert_eq!(schema.status_code(), 200, "{}", schema.text());
+
+            let wrong = server
+                .post(&format!("{}/policies/validate", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "policies": [static_policy(
+                    "wrong",
+                    "permit (principal is FerrisKey::Agent, action == FerrisKey::Action::\"call_tool\", resource is FerrisKey::Prompt);"
+                )] }))
+                .await;
+            assert_eq!(wrong.json::<Value>()["valid"], json!(true), "a warning does not block");
+
+            let typo = server
+                .post(&format!("{}/policies/validate", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "policies": [static_policy(
+                    "typo",
+                    "permit (principal, action == FerrisKey::Action::\"call_tools\", resource);"
+                )] }))
+                .await;
+            assert_eq!(typo.json::<Value>()["valid"], json!(false));
+
+            let created = server
+                .post(&format!("{}/policies?managed_by=autharie", base(&realm)))
+                .authorization_bearer(token)
+                .json(&static_policy("support-read-only", SUPPORT_POLICY))
+                .await;
+            assert_eq!(created.status_code(), 201, "{}", created.text());
+            let enabled = server
+                .put(&format!("{}/state", base(&realm)))
+                .authorization_bearer(token)
+                .json(&json!({ "enabled": true }))
+                .await;
+            assert_eq!(enabled.status_code(), 200, "{}", enabled.text());
+
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let evaluate = |body: Value| {
+                let server = &server;
+                let pep = &pep;
+                let url = format!("/realms/{}/authzen/access/v1/evaluation", realm.name);
+                async move {
+                    server
+                        .post(&url)
+                        .authorization_bearer(&pep.token)
+                        .json(&body)
+                        .await
+                }
+            };
+
+            let allowed = evaluate(tool_call(&["support"], "read", true, 3)).await;
+            assert_eq!(allowed.status_code(), 200, "{}", allowed.text());
+            assert_eq!(allowed.json::<Value>()["decision"], json!(true));
+
+            for (label, body) in [
+                ("other group", tool_call(&["sales"], "read", true, 3)),
+                ("not read only", tool_call(&["support"], "delete", false, 3)),
+                ("weekend", tool_call(&["support"], "read", true, 6)),
+            ] {
+                let response = evaluate(body).await;
+                assert_eq!(response.status_code(), 200, "{label}: {}", response.text());
+                assert_eq!(response.json::<Value>()["decision"], json!(false), "{label}");
+            }
+
+            let batch = server
+                .post(&format!(
+                    "/realms/{}/authzen/access/v1/evaluations",
+                    realm.name
+                ))
+                .authorization_bearer(&pep.token)
+                .json(&json!({
+                    "subject": tool_call(&["support"], "read", true, 3)["subject"],
+                    "action": { "name": "call_tool" },
+                    "context": tool_call(&["support"], "read", true, 3)["context"],
+                    "evaluations": [
+                        { "resource": tool_call(&["support"], "read", true, 3)["resource"] },
+                        { "resource": tool_call(&["support"], "delete", false, 3)["resource"] },
+                    ],
+                }))
+                .await;
+            assert_eq!(batch.status_code(), 200, "{}", batch.text());
+            let decisions: Vec<bool> = batch.json::<Value>()["evaluations"]
+                .as_array()
+                .expect("evaluations")
+                .iter()
+                .map(|item| item["decision"].as_bool().expect("decision"))
+                .collect();
+            assert_eq!(decisions, [true, false]);
+        });
+    }
 }

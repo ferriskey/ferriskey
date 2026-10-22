@@ -6,7 +6,10 @@ use super::handlers::policies::{
     __path_update_policy, __path_validate_policies, create_policy, delete_policy, get_policy,
     list_policies, update_policy, validate_policies,
 };
-use super::handlers::schema::{__path_get_schema, __path_put_schema, get_schema, put_schema};
+use super::handlers::schema::{
+    __path_get_builtin_schema, __path_get_schema, __path_put_schema, get_builtin_schema,
+    get_schema, put_schema,
+};
 use super::handlers::simulate::{__path_simulate, simulate};
 use super::handlers::state::{__path_get_state, __path_set_state, get_state, set_state};
 use super::handlers::templates::{
@@ -40,6 +43,7 @@ pub struct AuthzApiDoc;
     set_state,
     get_schema,
     put_schema,
+    get_builtin_schema,
     list_policies,
     create_policy,
     get_policy,
@@ -98,6 +102,7 @@ pub fn authz_routes(state: AppState) -> Router<AppState> {
     let management = Router::new()
         .route(&format!("{base}/state"), get(get_state).put(set_state))
         .route(&format!("{base}/schema"), get(get_schema).put(put_schema))
+        .route(&format!("{base}/schema/builtin"), get(get_builtin_schema))
         .route(
             &format!("{base}/policies"),
             get(list_policies).post(create_policy),

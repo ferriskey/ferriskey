@@ -14,6 +14,7 @@ use ferriskey_authz::tenant::evaluation::{
 use ferriskey_authz::tenant::names::Namespace;
 use ferriskey_authz::tenant::ports::TenantDecisionEngine;
 use ferriskey_authz::tenant::value_objects::SimulationRequest;
+use ferriskey_authz::tenant::{FERRISKEY_NAMESPACE, is_agent_action};
 use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
@@ -224,7 +225,7 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
 
         let (principal, entities) = match &request.subject {
             Subject::FerrisKey(_) => slice_entities(slice.ok_or(CoreError::InternalServerError)?)?,
-            Subject::Tenant(subject) => {
+            Subject::Tenant(subject) | Subject::Asserted(subject) => {
                 (uid(&subject.entity)?, vec![tenant_entity(subject, schema)?])
             }
         };
@@ -284,14 +285,23 @@ fn authorize(
 
     let entities = Entities::from_entities(dedupe(entities), schema).map_err(invalid)?;
 
+    let agent_action = is_agent_action(action);
+    let namespace = if agent_action {
+        FERRISKEY_NAMESPACE
+    } else {
+        compiled.namespace.as_str()
+    };
     let action = EntityUid::from_type_name_and_id(
-        EntityTypeName::from_str(&format!("{}::Action", compiled.namespace))
+        EntityTypeName::from_str(&format!("{namespace}::Action"))
             .map_err(|_| CoreError::InternalServerError)?,
         EntityId::new(action),
     );
-    let context =
-        Context::from_json_value(Value::Object(context.clone()), schema.map(|s| (s, &action)))
-            .map_err(invalid)?;
+    let mut context = context.clone();
+    if agent_action {
+        context.remove("arguments");
+    }
+    let context = Context::from_json_value(Value::Object(context), schema.map(|s| (s, &action)))
+        .map_err(invalid)?;
     let cedar_request = Request::new(principal, action, uid(&resource.entity)?, context, schema)
         .map_err(invalid)?;
 

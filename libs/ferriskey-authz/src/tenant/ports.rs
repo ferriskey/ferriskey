@@ -123,6 +123,8 @@ pub trait RelationTupleRepository: Send + Sync {
 pub trait PolicyCompiler: Send + Sync + Debug {
     fn validate_schema(&self, schema: &AuthzSchema) -> Result<(), Vec<PolicyIssue>>;
 
+    fn builtin_schema(&self) -> &'static str;
+
     /// Validates `policies` and `templates` together, against `schema` when
     /// there is one. Callers pass the enabled policies only.
     #[expect(
@@ -300,6 +302,12 @@ pub trait AuthzManagementService: Send + Sync {
         realm_name: String,
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_builtin_schema(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<&'static str, CoreError>> + Send;
 
     fn validate_policies(
         &self,
