@@ -7,19 +7,27 @@ use ferriskey_core::domain::client::ports::WebOriginResolver;
 use tracing::warn;
 
 pub const WEB_ORIGIN_CACHE_TTL: Duration = Duration::from_secs(30);
+pub const MAX_CACHED_REALMS: usize = 10_000;
+pub const MAX_REALM_NAME_CHARS: usize = 255;
 
 type CachedOrigins = (Instant, Arc<HashSet<Origin>>);
 
 pub struct RealmOriginCache {
     entries: RwLock<HashMap<String, CachedOrigins>>,
     ttl: Duration,
+    capacity: usize,
 }
 
 impl RealmOriginCache {
     pub fn new(ttl: Duration) -> Self {
+        Self::with_capacity(ttl, MAX_CACHED_REALMS)
+    }
+
+    pub fn with_capacity(ttl: Duration, capacity: usize) -> Self {
         Self {
             entries: RwLock::new(HashMap::new()),
             ttl,
+            capacity: capacity.max(1),
         }
     }
 
@@ -32,8 +40,29 @@ impl RealmOriginCache {
 
     pub fn store(&self, realm_name: String, origins: Arc<HashSet<Origin>>, now: Instant) {
         if let Ok(mut entries) = self.entries.write() {
+            if !entries.contains_key(&realm_name) && entries.len() >= self.capacity {
+                let ttl = self.ttl;
+                entries.retain(|_, (stored_at, _)| now.saturating_duration_since(*stored_at) < ttl);
+            }
+            if !entries.contains_key(&realm_name) && entries.len() >= self.capacity {
+                let oldest = entries
+                    .iter()
+                    .min_by_key(|(_, (stored_at, _))| *stored_at)
+                    .map(|(name, _)| name.clone());
+                if let Some(oldest) = oldest {
+                    entries.remove(&oldest);
+                }
+            }
             entries.insert(realm_name, (now, origins));
         }
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.entries
+            .read()
+            .map(|entries| entries.len())
+            .unwrap_or(0)
     }
 
     pub fn invalidate(&self, realm_name: &str) {
@@ -360,6 +389,10 @@ impl<R: WebOriginResolver> CorsOriginResolver<R> {
             return false;
         };
 
+        if realm_name.chars().count() > MAX_REALM_NAME_CHARS {
+            return false;
+        }
+
         self.realm_origins(realm_name)
             .await
             .is_some_and(|origins| origins.contains(&origin))
@@ -452,6 +485,74 @@ mod resolver_tests {
                 })
                 .unwrap_or_default())
         }
+    }
+
+    #[test]
+    fn the_cache_never_holds_more_realms_than_its_bound() {
+        let cache = RealmOriginCache::with_capacity(Duration::from_secs(30), 3);
+        let now = Instant::now();
+
+        for index in 0..50 {
+            cache.store(format!("realm-{index}"), Arc::new(HashSet::new()), now);
+        }
+
+        assert_eq!(cache.len(), 3);
+    }
+
+    #[test]
+    fn a_full_cache_drops_expired_entries_before_fresh_ones() {
+        let cache = RealmOriginCache::with_capacity(Duration::from_secs(30), 2);
+        let start = Instant::now();
+
+        cache.store("old".to_string(), Arc::new(HashSet::new()), start);
+        cache.store(
+            "recent".to_string(),
+            Arc::new(HashSet::new()),
+            start + Duration::from_secs(40),
+        );
+        cache.store(
+            "new".to_string(),
+            Arc::new(HashSet::new()),
+            start + Duration::from_secs(45),
+        );
+
+        let now = start + Duration::from_secs(46);
+        assert!(cache.get_fresh("old", now).is_none());
+        assert!(cache.get_fresh("recent", now).is_some());
+        assert!(cache.get_fresh("new", now).is_some());
+    }
+
+    #[test]
+    fn a_full_cache_evicts_the_oldest_entry_when_none_has_expired() {
+        let cache = RealmOriginCache::with_capacity(Duration::from_secs(30), 2);
+        let start = Instant::now();
+
+        cache.store("first".to_string(), Arc::new(HashSet::new()), start);
+        cache.store(
+            "second".to_string(),
+            Arc::new(HashSet::new()),
+            start + Duration::from_secs(1),
+        );
+        cache.store(
+            "third".to_string(),
+            Arc::new(HashSet::new()),
+            start + Duration::from_secs(2),
+        );
+
+        let now = start + Duration::from_secs(3);
+        assert!(cache.get_fresh("first", now).is_none());
+        assert!(cache.get_fresh("second", now).is_some());
+        assert!(cache.get_fresh("third", now).is_some());
+    }
+
+    #[tokio::test]
+    async fn a_realm_name_longer_than_any_realm_can_have_is_refused_without_a_lookup() {
+        let store = Arc::new(FakeStore::holding("master", &[]));
+        let resolver = resolver(Arc::clone(&store), &[]);
+        let path = format!("/realms/{}/protocol/openid-connect/token", "a".repeat(300));
+
+        assert!(!resolver.is_allowed(&path, "https://app.example.com").await);
+        assert_eq!(store.calls(), 0);
     }
 
     fn resolver(store: Arc<FakeStore>, configured: &[String]) -> CorsOriginResolver<FakeStore> {
