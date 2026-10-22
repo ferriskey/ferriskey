@@ -55,8 +55,11 @@ impl<K: Eq + Hash + Clone> KeyedRateLimiter<K> {
             return false;
         };
 
-        if !buckets.contains_key(&key) && buckets.len() >= self.max_tracked {
-            self.make_room(&mut buckets, now);
+        if !buckets.contains_key(&key)
+            && buckets.len() >= self.max_tracked
+            && !self.make_room(&mut buckets, now)
+        {
+            return false;
         }
 
         let bucket = buckets.entry(key).or_insert(Bucket {
@@ -78,9 +81,14 @@ impl<K: Eq + Hash + Clone> KeyedRateLimiter<K> {
             return false;
         };
         let Some(bucket) = buckets.get(key) else {
-            return true;
+            return buckets.len() < self.max_tracked
+                || buckets.values().any(|bucket| self.has_token(bucket, now));
         };
 
+        self.has_token(bucket, now)
+    }
+
+    fn has_token(&self, bucket: &Bucket, now: Instant) -> bool {
         let mut bucket = *bucket;
         self.refill(&mut bucket, now);
         bucket.tokens >= 1.0
@@ -93,20 +101,26 @@ impl<K: Eq + Hash + Clone> KeyedRateLimiter<K> {
         bucket.refilled_at = now;
     }
 
-    fn make_room(&self, buckets: &mut HashMap<K, Bucket>, now: Instant) {
+    fn make_room(&self, buckets: &mut HashMap<K, Bucket>, now: Instant) -> bool {
         let full_again = Duration::from_secs_f64(self.capacity / self.refill_per_second);
         buckets.retain(|_, bucket| now.saturating_duration_since(bucket.refilled_at) < full_again);
 
         if buckets.len() < self.max_tracked {
-            return;
+            return true;
         }
 
         let stalest = buckets
             .iter()
+            .filter(|(_, bucket)| self.has_token(bucket, now))
             .min_by_key(|(_, bucket)| bucket.refilled_at)
             .map(|(key, _)| key.clone());
-        if let Some(key) = stalest {
-            buckets.remove(&key);
+
+        match stalest {
+            Some(key) => {
+                buckets.remove(&key);
+                true
+            }
+            None => false,
         }
     }
 
@@ -475,6 +489,54 @@ mod tests {
                 .reserve_at(key(ip(21), "master", "guessed"), now)
                 .is_some()
         );
+    }
+
+    #[test]
+    fn a_blocked_key_is_not_evicted_to_make_room_for_new_keys() {
+        let limiter = KeyedRateLimiter::with_limits(2, 3);
+        let now = Instant::now();
+
+        assert!(limiter.spend_at("blocked", now));
+        assert!(limiter.spend_at("blocked", now));
+        assert!(!limiter.has_budget_at(&"blocked", now));
+
+        for (second, name) in ["a", "b", "c", "d", "e"].into_iter().enumerate() {
+            limiter.spend_at(name, now + Duration::from_secs(second as u64 + 1));
+        }
+
+        let later = now + Duration::from_secs(6);
+        assert!(!limiter.has_budget_at(&"blocked", later));
+        assert!(!limiter.spend_at("blocked", later));
+        assert!(limiter.tracked() <= 3);
+    }
+
+    #[test]
+    fn a_new_key_is_refused_while_every_tracked_key_is_blocked() {
+        let limiter = KeyedRateLimiter::with_limits(1, 2);
+        let now = Instant::now();
+
+        assert!(limiter.spend_at("a", now));
+        assert!(limiter.spend_at("b", now));
+
+        assert!(!limiter.has_budget_at(&"c", now));
+        assert!(!limiter.spend_at("c", now));
+        assert_eq!(limiter.tracked(), 2);
+        assert!(!limiter.has_budget_at(&"a", now));
+        assert!(!limiter.has_budget_at(&"b", now));
+    }
+
+    #[test]
+    fn a_new_key_is_accepted_once_a_tracked_key_has_a_token_again() {
+        let limiter = KeyedRateLimiter::with_limits(1, 2);
+        let now = Instant::now();
+
+        assert!(limiter.spend_at("a", now));
+        assert!(limiter.spend_at("b", now + Duration::from_secs(30)));
+
+        let later = now + Duration::from_secs(61);
+        assert!(limiter.has_budget_at(&"c", later));
+        assert!(limiter.spend_at("c", later));
+        assert_eq!(limiter.tracked(), 2);
     }
 
     #[test]
