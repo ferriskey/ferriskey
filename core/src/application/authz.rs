@@ -5,9 +5,10 @@ use ferriskey_authz::tenant::ports::{
     AuthzManagementService, EvaluationOutcome, EvaluationService,
 };
 use ferriskey_authz::tenant::value_objects::{
-    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
-    UpdateTemplateInput,
+    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, SimulateInput, SimulationOutcome,
+    UpdatePolicyInput, UpdateTemplateInput, ValidatePoliciesInput,
 };
+use ferriskey_domain::common::app_errors::PolicyIssue;
 use uuid::Uuid;
 
 use crate::application::services::ApplicationService;
@@ -149,6 +150,26 @@ impl AuthzManagementService for ApplicationService {
     ) -> Result<(), CoreError> {
         self.authz_management_service
             .delete_template(identity, realm_name, id)
+            .await
+    }
+
+    async fn validate_policies(
+        &self,
+        identity: Identity,
+        input: ValidatePoliciesInput,
+    ) -> Result<Vec<PolicyIssue>, CoreError> {
+        self.authz_management_service
+            .validate_policies(identity, input)
+            .await
+    }
+
+    async fn simulate(
+        &self,
+        identity: Identity,
+        input: SimulateInput,
+    ) -> Result<SimulationOutcome, CoreError> {
+        self.authz_management_service
+            .simulate(identity, input)
             .await
     }
 }

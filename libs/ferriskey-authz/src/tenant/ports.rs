@@ -10,8 +10,8 @@ use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate, RelationT
 use super::evaluation::{EvaluationRequest, PrincipalSlice, RuleSet};
 use super::names::ManagedBy;
 use super::value_objects::{
-    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
-    UpdateTemplateInput,
+    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, SimulateInput, SimulationOutcome,
+    SimulationRequest, UpdatePolicyInput, UpdateTemplateInput, ValidatePoliciesInput,
 };
 use crate::entities::{Decision, EntityRef};
 
@@ -135,6 +135,18 @@ pub trait PolicyCompiler: Send + Sync + Debug {
         policies: &[Policy],
         templates: &[PolicyTemplate],
     ) -> Result<(), Vec<PolicyIssue>>;
+
+    #[expect(
+        clippy::needless_lifetimes,
+        reason = "mockall cannot mock an elided lifetime inside an Option"
+    )]
+    fn simulate<'a>(
+        &self,
+        schema: Option<&'a AuthzSchema>,
+        policies: &[Policy],
+        templates: &[PolicyTemplate],
+        request: &SimulationRequest,
+    ) -> Result<Decision, CoreError>;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -280,4 +292,16 @@ pub trait AuthzManagementService: Send + Sync {
         realm_name: String,
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn validate_policies(
+        &self,
+        identity: Identity,
+        input: ValidatePoliciesInput,
+    ) -> impl Future<Output = Result<Vec<PolicyIssue>, CoreError>> + Send;
+
+    fn simulate(
+        &self,
+        identity: Identity,
+        input: SimulateInput,
+    ) -> impl Future<Output = Result<SimulationOutcome, CoreError>> + Send;
 }

@@ -17,8 +17,8 @@ use super::ports::{
     PolicyRepository, PolicyTemplateRepository, TenantAuthorizationPolicy,
 };
 use super::value_objects::{
-    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
-    UpdateTemplateInput,
+    CandidatePolicy, CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, SimulateInput,
+    SimulationOutcome, UpdatePolicyInput, UpdateTemplateInput, ValidatePoliciesInput,
 };
 
 const FORBIDDEN: &str = "insufficient permissions";
@@ -105,6 +105,21 @@ where
 
 fn owned_by(policy: &Policy, manager: Option<&ManagedBy>) -> bool {
     manager.is_none_or(|manager| policy.managed_by.as_ref() == Some(manager))
+}
+
+fn candidates(candidates: Vec<CandidatePolicy>) -> Vec<Policy> {
+    candidates
+        .into_iter()
+        .map(|candidate| Policy {
+            id: generate_uuid_v7(),
+            name: candidate.name,
+            description: None,
+            origin: candidate.body.origin(),
+            enabled: true,
+            managed_by: None,
+            body: candidate.body,
+        })
+        .collect()
 }
 
 fn unknown_template(policy: &Policy) -> CoreError {
@@ -507,6 +522,87 @@ where
         self.template_repository
             .delete(&scope, id, rules.version)
             .await
+    }
+
+    async fn validate_policies(
+        &self,
+        identity: Identity,
+        input: ValidatePoliciesInput,
+    ) -> Result<Vec<PolicyIssue>, CoreError> {
+        let scope = self.resolve(&input.realm_name).await?;
+
+        ensure_policy(
+            self.policy
+                .can_view_authorization(&identity, scope.realm())
+                .await,
+            FORBIDDEN,
+        )?;
+
+        let rules = self.load(&scope).await?;
+        let mut issues = Vec::new();
+        let mut checkable = Vec::new();
+        for policy in candidates(input.policies) {
+            match ensure_template_exists(&policy, &rules.templates) {
+                Ok(()) => checkable.push(policy),
+                Err(CoreError::InvalidAuthorizationPolicy(found)) => issues.extend(found),
+                Err(other) => return Err(other),
+            }
+        }
+
+        if let Err(found) =
+            self.compiler
+                .validate_policies(rules.schema.as_ref(), &checkable, &rules.templates)
+        {
+            issues.extend(found);
+        }
+        Ok(issues)
+    }
+
+    async fn simulate(
+        &self,
+        identity: Identity,
+        input: SimulateInput,
+    ) -> Result<SimulationOutcome, CoreError> {
+        let scope = self.resolve(&input.realm_name).await?;
+
+        ensure_policy(
+            self.policy
+                .can_view_authorization(&identity, scope.realm())
+                .await,
+            FORBIDDEN,
+        )?;
+
+        let rules = self.load(&scope).await?;
+        let policies: Vec<Policy> = match input.policies {
+            Some(supplied) => candidates(supplied),
+            None => rules.policies.into_iter().filter(|p| p.enabled).collect(),
+        };
+        for policy in &policies {
+            ensure_template_exists(policy, &rules.templates)?;
+        }
+
+        self.compiler
+            .validate_policies(rules.schema.as_ref(), &policies, &rules.templates)
+            .map_err(CoreError::InvalidAuthorizationPolicy)?;
+        let decision = self.compiler.simulate(
+            rules.schema.as_ref(),
+            &policies,
+            &rules.templates,
+            &input.request,
+        )?;
+
+        let names: std::collections::HashMap<String, String> = policies
+            .iter()
+            .map(|p| (p.id.to_string(), p.name.to_string()))
+            .collect();
+        Ok(SimulationOutcome {
+            allowed: decision.allowed,
+            determining_policies: decision
+                .determining_policies
+                .into_iter()
+                .map(|id| names.get(&id).cloned().unwrap_or(id))
+                .collect(),
+        })
     }
 }
 
@@ -1182,5 +1278,178 @@ mod tests {
             .expect("updated");
 
         assert_eq!(updated.managed_by, Some(manager("autharie")));
+    }
+
+    fn candidate(candidate_name: &str, source: &str) -> CandidatePolicy {
+        CandidatePolicy {
+            name: name(candidate_name),
+            body: PolicyBody::Static {
+                source: source.to_string(),
+            },
+        }
+    }
+
+    fn simulation() -> crate::tenant::value_objects::SimulationRequest {
+        let entity = |ty: &str, id: &str| crate::tenant::evaluation::TenantEntity {
+            entity: EntityRef::new(crate::entities::EntityType::custom(ty.to_string()), id),
+            properties: serde_json::Map::new(),
+            parents: Vec::new(),
+        };
+        crate::tenant::value_objects::SimulationRequest {
+            principal: entity("FerrisKey::User", "u1"),
+            action: "call_tool".to_string(),
+            resource: entity("App::Tool", "files/read"),
+            context: serde_json::Map::new(),
+            entities: Vec::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn validating_returns_the_compilers_diagnostics_and_stores_nothing() {
+        let mut f = Fixture::new();
+        f.schema = Some(schema());
+        f.compiler
+            .expect_validate_policies()
+            .returning(|_, _, _| Err(vec![issue("bad")]));
+        f.policy_repo.expect_save().never();
+
+        let issues = f
+            .build()
+            .validate_policies(
+                identity(),
+                ValidatePoliciesInput {
+                    realm_name: "acme".to_string(),
+                    policies: vec![candidate(
+                        "bad",
+                        "permit (principal, action, resource is App::Folder);",
+                    )],
+                },
+            )
+            .await
+            .expect("diagnostics");
+
+        assert_eq!(issues, vec![issue("bad")]);
+    }
+
+    #[tokio::test]
+    async fn validating_a_link_to_a_missing_template_is_a_diagnostic() {
+        let missing = template("never-stored");
+        let mut f = Fixture::new();
+        f.compiler
+            .expect_validate_policies()
+            .returning(|_, _, _| Ok(()));
+
+        let issues = f
+            .build()
+            .validate_policies(
+                identity(),
+                ValidatePoliciesInput {
+                    realm_name: "acme".to_string(),
+                    policies: vec![CandidatePolicy {
+                        name: name("dangling"),
+                        body: linked_to(&missing, "dangling").body,
+                    }],
+                },
+            )
+            .await
+            .expect("diagnostics");
+
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].policy.as_deref(), Some("dangling"));
+    }
+
+    #[tokio::test]
+    async fn a_simulation_without_policies_uses_the_enabled_stored_ones_and_names_them() {
+        let on = static_policy("on", true);
+        let off = static_policy("off", false);
+        let on_id = on.id;
+
+        let mut f = Fixture::new();
+        f.policies = vec![on, off];
+        f.compiler
+            .expect_validate_policies()
+            .withf(move |_, policies, _| policies.len() == 1 && policies[0].id == on_id)
+            .returning(|_, _, _| Ok(()));
+        f.compiler.expect_simulate().returning(move |_, _, _, _| {
+            Ok(crate::entities::Decision::allow().with_policies(vec![on_id.to_string()]))
+        });
+
+        let outcome = f
+            .build()
+            .simulate(
+                identity(),
+                SimulateInput {
+                    realm_name: "acme".to_string(),
+                    policies: None,
+                    request: simulation(),
+                },
+            )
+            .await
+            .expect("outcome");
+
+        assert!(outcome.allowed);
+        assert_eq!(outcome.determining_policies, vec!["on".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn a_simulation_with_invalid_policies_is_refused_before_deciding() {
+        let mut f = Fixture::new();
+        f.compiler
+            .expect_validate_policies()
+            .returning(|_, _, _| Err(vec![issue("bad")]));
+        f.compiler.expect_simulate().never();
+
+        let result = f
+            .build()
+            .simulate(
+                identity(),
+                SimulateInput {
+                    realm_name: "acme".to_string(),
+                    policies: Some(vec![candidate("bad", "permit")]),
+                    request: simulation(),
+                },
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(CoreError::InvalidAuthorizationPolicy(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn validating_and_simulating_need_view_authorization() {
+        let mut f = Fixture::new();
+        f.governance = Governance {
+            view: false,
+            manage: true,
+        };
+        let service = f.build();
+
+        assert!(matches!(
+            service
+                .validate_policies(
+                    identity(),
+                    ValidatePoliciesInput {
+                        realm_name: "acme".to_string(),
+                        policies: Vec::new(),
+                    },
+                )
+                .await,
+            Err(CoreError::Forbidden(_))
+        ));
+        assert!(matches!(
+            service
+                .simulate(
+                    identity(),
+                    SimulateInput {
+                        realm_name: "acme".to_string(),
+                        policies: None,
+                        request: simulation(),
+                    },
+                )
+                .await,
+            Err(CoreError::Forbidden(_))
+        ));
     }
 }
