@@ -56,9 +56,15 @@ spec:
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with $env }}
+          {{- if or $env .Values.operator.watchNamespaces }}
           env:
+            {{- with .Values.operator.watchNamespaces }}
+            - name: WATCH_NAMESPACES
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with $env }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           {{- with $envFrom }}
           envFrom:

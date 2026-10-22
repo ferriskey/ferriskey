@@ -53,6 +53,29 @@ app.kubernetes.io/component: operator
 {{ include "ferriskey-operator.operator.name" . }}
 {{- end -}}
 
+{{- define "ferriskey-operator.operator.roleName" -}}
+{{ include "ferriskey-operator.operator.name" . }}
+{{- end -}}
+
+{{- define "ferriskey-operator.operator.roleBindingName" -}}
+{{ include "ferriskey-operator.operator.name" . }}
+{{- end -}}
+
+{{- define "ferriskey-operator.operator.rbacRules" -}}
+- apiGroups: [""]
+  resources: ["services", "secrets"]
+  verbs: ["create", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["create", "patch", "delete"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "patch", "delete"]
+- apiGroups: ["ferriskey.rs"]
+  resources: ["ferriskeyclusters", "ferriskeyclusters/status", "ferriskeyclusters/finalizers"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+{{- end -}}
+
 {{- define "ferriskey-operator.util.bool" -}}
 {{- if eq .value nil -}}
 {{- if ne .default nil -}}

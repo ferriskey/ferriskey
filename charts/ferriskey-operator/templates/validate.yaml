@@ -2,3 +2,8 @@
 {{- if and .Values.rbac.create (not .Values.operator.serviceAccount.create) -}}
 {{- fail "rbac.create requires operator.serviceAccount.create to be true — the ClusterRoleBinding needs a ServiceAccount to bind to" -}}
 {{- end -}}
+{{- range .Values.operator.watchNamespaces }}
+{{- if eq (trim (toString .)) "" }}
+{{- fail "operator.watchNamespaces must not contain an empty namespace" -}}
+{{- end }}
+{{- end }}

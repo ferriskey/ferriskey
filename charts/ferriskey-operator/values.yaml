@@ -10,7 +10,7 @@ crds:
   keep: true
 
 rbac:
-  # -- Create the ClusterRole and ClusterRoleBinding required by the operator.
+  # -- Create the RBAC resources the operator needs: a ClusterRole and ClusterRoleBinding, or one Role and RoleBinding per entry of operator.watchNamespaces.
   # Set to `false` if you manage RBAC externally.
   create: true
 
@@ -127,6 +127,9 @@ operator:
   # -- Environment variables from sources for the operator container.
   # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#envfromsource-v1-core
   envFrom: []
+
+  # -- Namespaces where the operator watches FerrisKeyCluster resources. Empty watches the whole cluster through a ClusterRole; otherwise one Role and RoleBinding are created per namespace and clusters elsewhere are ignored.
+  watchNamespaces: []
 
   # -- Volume mounts for the operator container.
   # https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.33/#volumemount-v1-core

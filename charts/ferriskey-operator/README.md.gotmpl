@@ -67,6 +67,15 @@ rbac:
   create: false
 ```
 
+To keep the operator inside a few namespaces, list them. The chart then creates a `Role` and a `RoleBinding` in each one instead of the cluster-wide pair, and the operator only reconciles `FerrisKeyCluster` resources in those namespaces:
+
+```yaml
+operator:
+  watchNamespaces:
+    - tenant-a
+    - tenant-b
+```
+
 {{ template "chart.maintainersSection" . }}
 
 {{ template "chart.sourcesSection" . }}
