@@ -836,6 +836,29 @@ fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallenge
     }
 }
 
+/// Enforce the PKCE policy of an authorization request (RFC 7636 §4.3).
+///
+/// A client that requires PKCE must send an S256 challenge. A public client
+/// that sends a challenge must name S256: an omitted method would silently
+/// mean `plain` (RFC 7636 §4.3), and `plain` hands a challenge intercepted on
+/// the front channel the power to redeem the code.
+fn pkce_request_allowed(
+    client: &Client,
+    challenge: Option<&str>,
+    method: Option<&CodeChallengeMethod>,
+) -> Result<(), CoreError> {
+    let s256 = matches!(method, Some(CodeChallengeMethod::S256));
+    if client.require_pkce && (challenge.is_none() || !s256) {
+        return Err(CoreError::PkceRequired);
+    }
+    let public = client.public_client
+        || client.client_type == ferriskey_domain::client::entities::ClientType::Public;
+    if public && challenge.is_some() && !s256 {
+        return Err(CoreError::PkceRequired);
+    }
+    Ok(())
+}
+
 /// Validate `code_verifier` per RFC 7636 §4.1:
 /// length 43–128, characters in `[A-Z a-z 0-9 \-._~]`.
 fn pkce_validate_verifier(verifier: &str) -> bool {
@@ -4405,16 +4428,11 @@ where
             return Err(CoreError::InvalidClient);
         }
 
-        // Enforce per-client PKCE policy (RFC 7636 §4.3).
-        if client.require_pkce {
-            if input.code_challenge.is_none() {
-                return Err(CoreError::PkceRequired);
-            }
-            // Only S256 is accepted; an omitted method would default to `plain`.
-            if !matches!(input.code_challenge_method, Some(CodeChallengeMethod::S256)) {
-                return Err(CoreError::PkceRequired);
-            }
-        }
+        pkce_request_allowed(
+            &client,
+            input.code_challenge.as_deref(),
+            input.code_challenge_method.as_ref(),
+        )?;
 
         if let Some(resource) = input.resource.as_deref() {
             let allowed_resources = self
@@ -6019,7 +6037,7 @@ mod tests {
 
     // ---- PKCE (RFC 7636) unit tests --------------------------------------
 
-    use super::{pkce_validate_verifier, pkce_verify};
+    use super::{pkce_request_allowed, pkce_validate_verifier, pkce_verify};
     use crate::domain::authentication::value_objects::CodeChallengeMethod;
 
     /// RFC 7636 Appendix B: known S256 test vector.
@@ -6106,6 +6124,37 @@ mod tests {
     fn validate_code_verifier_accepts_128_chars() {
         let max_len = "a".repeat(128);
         assert!(pkce_validate_verifier(&max_len));
+    }
+
+    #[test]
+    fn a_public_client_must_name_s256_when_it_sends_a_challenge() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let mut public = confidential_client(Uuid::new_v4(), realm_id);
+        public.client_type = ClientType::Public;
+        public.public_client = true;
+
+        assert!(pkce_request_allowed(&public, Some("c"), Some(&CodeChallengeMethod::S256)).is_ok());
+        assert!(matches!(
+            pkce_request_allowed(&public, Some("c"), None),
+            Err(CoreError::PkceRequired)
+        ));
+        assert!(matches!(
+            pkce_request_allowed(&public, Some("c"), Some(&CodeChallengeMethod::Plain)),
+            Err(CoreError::PkceRequired)
+        ));
+        assert!(pkce_request_allowed(&public, None, None).is_ok());
+    }
+
+    #[test]
+    fn a_confidential_client_keeps_the_rfc_default_unless_it_requires_pkce() {
+        let confidential = confidential_client(Uuid::new_v4(), RealmId::from(Uuid::new_v4()));
+        assert!(pkce_request_allowed(&confidential, Some("c"), None).is_ok());
+
+        let mut strict = confidential;
+        strict.require_pkce = true;
+        assert!(pkce_request_allowed(&strict, Some("c"), None).is_err());
+        assert!(pkce_request_allowed(&strict, None, None).is_err());
+        assert!(pkce_request_allowed(&strict, Some("c"), Some(&CodeChallengeMethod::S256)).is_ok());
     }
 
     // ---- validate_authorization_code_request -----------------------------

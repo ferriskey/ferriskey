@@ -212,6 +212,7 @@ fn policy(case: &PolicyCase) -> Policy {
         description: None,
         origin: PolicyOrigin::Custom,
         enabled: true,
+        managed_by: None,
         body: PolicyBody::Static {
             source: case.source.clone(),
         },

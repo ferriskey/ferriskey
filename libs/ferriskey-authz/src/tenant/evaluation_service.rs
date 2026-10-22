@@ -8,7 +8,7 @@ use ferriskey_domain::common::policies::ensure_policy;
 use ferriskey_domain::realm::ports::RealmRepository;
 use ferriskey_domain::realm::scope::RealmScope;
 
-use super::evaluation::EvaluationRequest;
+use super::evaluation::{EvaluationRequest, EvaluationsSemantic};
 use super::evaluator::TenantEvaluator;
 use super::ports::{
     AuthzSchemaRepository, AuthzStateRepository, EvaluationOutcome, EvaluationService,
@@ -61,21 +61,19 @@ where
         }
     }
 
-    async fn policy_names(
-        &self,
-        scope: &RealmScope,
-        ids: Vec<String>,
-    ) -> Result<Vec<String>, CoreError> {
-        let names: HashMap<String, String> = PolicyRepository::list(self.rules.as_ref(), scope)
+    async fn policy_names(&self, scope: &RealmScope) -> Result<HashMap<String, String>, CoreError> {
+        Ok(PolicyRepository::list(self.rules.as_ref(), scope)
             .await?
             .into_iter()
             .map(|policy| (policy.id.to_string(), policy.name.to_string()))
-            .collect();
-        Ok(ids
-            .into_iter()
-            .map(|id| names.get(&id).cloned().unwrap_or(id))
             .collect())
     }
+}
+
+fn named(names: &HashMap<String, String>, ids: Vec<String>) -> Vec<String> {
+    ids.into_iter()
+        .map(|id| names.get(&id).cloned().unwrap_or(id))
+        .collect()
 }
 
 impl<RR, P, R, PS, E> EvaluationService for EvaluationServiceImpl<RR, P, R, PS, E>
@@ -111,10 +109,10 @@ where
             .can_view_authorization(&identity, scope.realm())
             .await?
         {
-            Some(
-                self.policy_names(&scope, decision.determining_policies)
-                    .await?,
-            )
+            Some(named(
+                &self.policy_names(&scope).await?,
+                decision.determining_policies,
+            ))
         } else {
             None
         };
@@ -123,6 +121,60 @@ where
             allowed: decision.allowed,
             reason_admin,
         })
+    }
+
+    async fn evaluate_many(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        requests: Vec<EvaluationRequest>,
+        semantic: EvaluationsSemantic,
+    ) -> Result<Vec<Result<EvaluationOutcome, CoreError>>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+
+        ensure_policy(
+            self.policy
+                .can_evaluate_authorization(&identity, scope.realm())
+                .await,
+            FORBIDDEN,
+        )?;
+
+        let names = if self
+            .policy
+            .can_view_authorization(&identity, scope.realm())
+            .await?
+        {
+            Some(self.policy_names(&scope).await?)
+        } else {
+            None
+        };
+
+        let mut outcomes = Vec::with_capacity(requests.len());
+        for request in &requests {
+            let outcome = match self
+                .evaluator
+                .evaluate(&scope, request, Instant::now())
+                .await
+            {
+                Ok(decision) => Ok(EvaluationOutcome {
+                    allowed: decision.allowed,
+                    reason_admin: names
+                        .as_ref()
+                        .map(|names| named(names, decision.determining_policies)),
+                }),
+                Err(error @ CoreError::InvalidAuthorizationRequest(_)) => Err(error),
+                Err(other) => return Err(other),
+            };
+            let stop = match &outcome {
+                Ok(found) => semantic.stops_after(found.allowed),
+                Err(_) => semantic.stops_after(false),
+            };
+            outcomes.push(outcome);
+            if stop {
+                break;
+            }
+        }
+        Ok(outcomes)
     }
 }
 
@@ -225,6 +277,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Custom,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: "permit (principal, action, resource);".to_string(),
             },
@@ -307,5 +360,93 @@ mod tests {
             assert!(outcome.allowed);
             assert_eq!(outcome.reason_admin, expected);
         }
+    }
+
+    fn denied_then_allowed_engine() -> Arc<FakeEngine> {
+        Arc::new(FakeEngine::default())
+    }
+
+    #[tokio::test]
+    async fn a_batch_checks_the_caller_once_and_answers_every_request_in_order() {
+        let rules = Arc::new(FakeRules::default());
+        let engine = denied_then_allowed_engine();
+        let service = service(
+            Governance {
+                evaluate: true,
+                view: false,
+            },
+            Arc::clone(&rules),
+            Arc::clone(&engine),
+        );
+
+        let outcomes = service
+            .evaluate_many(
+                identity(),
+                "acme".to_string(),
+                vec![request(), request(), request()],
+                EvaluationsSemantic::ExecuteAll,
+            )
+            .await
+            .expect("outcomes");
+
+        assert_eq!(outcomes.len(), 3);
+        assert!(outcomes.iter().all(|o| matches!(o, Ok(o) if o.allowed)));
+    }
+
+    #[tokio::test]
+    async fn a_batch_stops_where_its_semantic_says() {
+        let service = service(
+            Governance {
+                evaluate: true,
+                view: false,
+            },
+            Arc::new(FakeRules::default()),
+            denied_then_allowed_engine(),
+        );
+
+        let permit_first = service
+            .evaluate_many(
+                identity(),
+                "acme".to_string(),
+                vec![request(), request()],
+                EvaluationsSemantic::PermitOnFirstPermit,
+            )
+            .await
+            .expect("outcomes");
+        assert_eq!(permit_first.len(), 1);
+
+        let deny_first = service
+            .evaluate_many(
+                identity(),
+                "acme".to_string(),
+                vec![request(), request()],
+                EvaluationsSemantic::DenyOnFirstDeny,
+            )
+            .await
+            .expect("outcomes");
+        assert_eq!(deny_first.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_batch_from_a_caller_that_cannot_evaluate_is_forbidden() {
+        let service = service(
+            Governance {
+                evaluate: false,
+                view: true,
+            },
+            Arc::new(FakeRules::default()),
+            denied_then_allowed_engine(),
+        );
+
+        let result = service
+            .evaluate_many(
+                identity(),
+                "acme".to_string(),
+                vec![request()],
+                EvaluationsSemantic::ExecuteAll,
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))), "{result:?}");
     }
 }

@@ -531,6 +531,42 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test pkce_test -- --ignored"]
+    fn a_public_client_that_sends_a_challenge_must_name_s256() {
+        rt().block_on(async {
+            let ctx = shared_ctx();
+            let server = make_server();
+            let challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+
+            for method in [None, Some("PLAIN")] {
+                let mut request = server
+                    .get(&auth_url(realm()))
+                    .add_query_param("response_type", "code")
+                    .add_query_param("client_id", &ctx.plain_client_id)
+                    .add_query_param("redirect_uri", "http://localhost/callback")
+                    .add_query_param("scope", "openid")
+                    .add_query_param("code_challenge", challenge);
+                if let Some(method) = method {
+                    request = request.add_query_param("code_challenge_method", method);
+                }
+                let response = request.await;
+
+                assert_eq!(
+                    response.status_code(),
+                    400,
+                    "{method:?}: {}",
+                    response.text()
+                );
+                assert!(
+                    response.text().contains("invalid_request"),
+                    "{method:?}: {}",
+                    response.text()
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test pkce_test -- --ignored"]
     fn a_new_client_requires_pkce_by_default() {
         rt().block_on(async {
             let server = make_server();

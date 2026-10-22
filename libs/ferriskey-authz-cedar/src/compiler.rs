@@ -5,11 +5,12 @@ use cedar_policy::{
     EntityId, EntityTypeName, EntityUid, Policy as CedarPolicy, PolicyId, PolicySet, Schema,
     SchemaFragment, SlotId as CedarSlotId, Template, ValidationMode, Validator,
 };
-use ferriskey_authz::entities::EntityRef;
+use ferriskey_authz::entities::{Decision, EntityRef};
 use ferriskey_authz::tenant::entities::{AuthzSchema, Policy, PolicyBody, PolicyTemplate};
 use ferriskey_authz::tenant::names::SlotId;
 use ferriskey_authz::tenant::ports::PolicyCompiler;
-use ferriskey_domain::common::app_errors::PolicyIssue;
+use ferriskey_authz::tenant::value_objects::SimulationRequest;
+use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
 use uuid::Uuid;
 
 use crate::builtin::builtin_fragment;
@@ -185,6 +186,10 @@ impl PolicyCompiler for CedarPolicyCompiler {
         compile_schema(schema).map(|_| ())
     }
 
+    fn builtin_schema(&self) -> &'static str {
+        crate::builtin::BUILTIN_SCHEMA
+    }
+
     fn validate_policies(
         &self,
         schema: Option<&AuthzSchema>,
@@ -197,6 +202,16 @@ impl PolicyCompiler for CedarPolicyCompiler {
             None => Ok(()),
         }
     }
+
+    fn simulate(
+        &self,
+        schema: Option<&AuthzSchema>,
+        policies: &[Policy],
+        templates: &[PolicyTemplate],
+        request: &SimulationRequest,
+    ) -> Result<Decision, CoreError> {
+        crate::engine::simulate(self, schema, policies, templates, request)
+    }
 }
 
 #[cfg(test)]
@@ -205,6 +220,7 @@ mod tests {
 
     use chrono::Utc;
     use ferriskey_authz::entities::{EntityType, PolicyOrigin};
+    use ferriskey_authz::tenant::evaluation::TenantEntity;
     use ferriskey_authz::tenant::names::{Namespace, PolicyName};
 
     use super::*;
@@ -241,6 +257,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Custom,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: source.to_string(),
             },
@@ -267,6 +284,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Generated,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Linked {
                 template_id: template.id,
                 links: links
@@ -450,5 +468,58 @@ mod tests {
             compiler().validate_policies(Some(&app), &[policy], &[]),
             Ok(())
         );
+    }
+
+    fn tenant(ty: &str, id: &str, parents: &[(&str, &str)]) -> TenantEntity {
+        TenantEntity {
+            entity: EntityRef::new(EntityType::custom(ty.to_string()), id),
+            properties: serde_json::Map::new(),
+            parents: parents
+                .iter()
+                .map(|(ty, id)| EntityRef::new(EntityType::custom(ty.to_string()), *id))
+                .collect(),
+        }
+    }
+
+    fn call_tool(parents: &[(&str, &str)]) -> SimulationRequest {
+        SimulationRequest {
+            principal: tenant("FerrisKey::User", "u1", parents),
+            action: "tool:use".to_string(),
+            resource: tenant("App::Tool", "files/read", &[]),
+            context: serde_json::Map::new(),
+            entities: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_simulation_uses_the_supplied_entities_and_the_given_policies() {
+        let policy = static_policy(
+            "support-reads",
+            r#"permit (principal in FerrisKey::Group::"support", action == App::Action::"tool:use", resource);"#,
+        );
+
+        let member = compiler()
+            .simulate(
+                None,
+                std::slice::from_ref(&policy),
+                &[],
+                &call_tool(&[("FerrisKey::Group", "support")]),
+            )
+            .expect("decision");
+        assert!(member.allowed);
+        assert_eq!(member.determining_policies, vec![policy.id.to_string()]);
+
+        let outsider = compiler()
+            .simulate(None, std::slice::from_ref(&policy), &[], &call_tool(&[]))
+            .expect("decision");
+        assert!(!outsider.allowed);
+    }
+
+    #[test]
+    fn a_simulation_of_an_unknown_action_against_a_schema_is_an_error() {
+        let policy = static_policy("any", "permit (principal, action, resource);");
+        let result =
+            compiler().simulate(Some(&schema(APP_SCHEMA)), &[policy], &[], &call_tool(&[]));
+        assert!(result.is_err());
     }
 }

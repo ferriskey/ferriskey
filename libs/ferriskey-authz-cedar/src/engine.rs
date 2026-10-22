@@ -6,14 +6,17 @@ use cedar_policy::{
     EntityTypeName, EntityUid, PolicyId, PolicySet, Request, RestrictedExpression, Schema,
 };
 use ferriskey_authz::entities::{Decision, EntityRef};
+use ferriskey_authz::tenant::entities::{AuthzSchema, Policy, PolicyTemplate};
 use ferriskey_authz::tenant::evaluation::{
     ClientFacts, EvaluationRequest, GroupFacts, OrganizationFacts, PrincipalFacts, PrincipalSlice,
     RoleFacts, RuleSet, Subject, TenantEntity, UserFacts,
 };
 use ferriskey_authz::tenant::names::Namespace;
 use ferriskey_authz::tenant::ports::TenantDecisionEngine;
+use ferriskey_authz::tenant::value_objects::SimulationRequest;
+use ferriskey_authz::tenant::{FERRISKEY_NAMESPACE, is_agent_action};
 use ferriskey_domain::common::app_errors::{CoreError, PolicyIssue};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use crate::compiler::{CedarPolicyCompiler, build_policy_set, compile_schema};
@@ -220,48 +223,99 @@ impl TenantDecisionEngine for CedarPolicyCompiler {
     ) -> Result<Decision, CoreError> {
         let schema = compiled.schema.as_ref();
 
-        let (principal, mut entities) = match &request.subject {
+        let (principal, entities) = match &request.subject {
             Subject::FerrisKey(_) => slice_entities(slice.ok_or(CoreError::InternalServerError)?)?,
-            Subject::Tenant(subject) => {
+            Subject::Tenant(subject) | Subject::Asserted(subject) => {
                 (uid(&subject.entity)?, vec![tenant_entity(subject, schema)?])
             }
         };
-        entities.push(tenant_entity(&request.resource, schema)?);
-
-        let entities = Entities::from_entities(dedupe(entities), schema).map_err(invalid)?;
-
-        let action = EntityUid::from_type_name_and_id(
-            EntityTypeName::from_str(&format!("{}::Action", compiled.namespace))
-                .map_err(|_| CoreError::InternalServerError)?,
-            EntityId::new(&request.action),
-        );
-        let context = Context::from_json_value(
-            Value::Object(request.context.clone()),
-            schema.map(|s| (s, &action)),
-        )
-        .map_err(invalid)?;
-        let cedar_request = Request::new(
+        authorize(
+            compiled,
             principal,
-            action,
-            uid(&request.resource.entity)?,
-            context,
-            schema,
+            entities,
+            &request.resource,
+            &request.action,
+            &request.context,
         )
+    }
+}
+
+pub(crate) fn simulate(
+    compiler: &CedarPolicyCompiler,
+    schema: Option<&AuthzSchema>,
+    policies: &[Policy],
+    templates: &[PolicyTemplate],
+    request: &SimulationRequest,
+) -> Result<Decision, CoreError> {
+    let rules = RuleSet {
+        version: 0,
+        schema: schema.cloned(),
+        policies: policies.to_vec(),
+        templates: templates.to_vec(),
+    };
+    let compiled = compiler
+        .compile(&rules)
+        .map_err(CoreError::InvalidAuthorizationPolicy)?;
+    let known = compiled.schema.as_ref();
+
+    let mut entities = vec![tenant_entity(&request.principal, known)?];
+    for entity in &request.entities {
+        entities.push(tenant_entity(entity, known)?);
+    }
+    authorize(
+        &compiled,
+        uid(&request.principal.entity)?,
+        entities,
+        &request.resource,
+        &request.action,
+        &request.context,
+    )
+}
+
+fn authorize(
+    compiled: &CompiledRules,
+    principal: EntityUid,
+    mut entities: Vec<Entity>,
+    resource: &TenantEntity,
+    action: &str,
+    context: &Map<String, Value>,
+) -> Result<Decision, CoreError> {
+    let schema = compiled.schema.as_ref();
+    entities.push(tenant_entity(resource, schema)?);
+
+    let entities = Entities::from_entities(dedupe(entities), schema).map_err(invalid)?;
+
+    let agent_action = is_agent_action(action);
+    let namespace = if agent_action {
+        FERRISKEY_NAMESPACE
+    } else {
+        compiled.namespace.as_str()
+    };
+    let action = EntityUid::from_type_name_and_id(
+        EntityTypeName::from_str(&format!("{namespace}::Action"))
+            .map_err(|_| CoreError::InternalServerError)?,
+        EntityId::new(action),
+    );
+    let mut context = context.clone();
+    if agent_action {
+        context.remove("arguments");
+    }
+    let context = Context::from_json_value(Value::Object(context), schema.map(|s| (s, &action)))
+        .map_err(invalid)?;
+    let cedar_request = Request::new(principal, action, uid(&resource.entity)?, context, schema)
         .map_err(invalid)?;
 
-        let response =
-            Authorizer::new().is_authorized(&cedar_request, &compiled.policies, &entities);
-        let diagnostics = response.diagnostics();
-        let erroring: Vec<&PolicyId> = diagnostics
-            .errors()
-            .map(|error| match error {
-                AuthorizationError::PolicyEvaluationError(e) => e.policy_id(),
-            })
-            .collect();
-        if !erroring.is_empty() {
-            return Ok(Decision::deny().with_policies(policy_ids(erroring.into_iter())));
-        }
-        let determining = policy_ids(diagnostics.reason());
-        Ok(Decision::from(response.decision() == CedarDecision::Allow).with_policies(determining))
+    let response = Authorizer::new().is_authorized(&cedar_request, &compiled.policies, &entities);
+    let diagnostics = response.diagnostics();
+    let erroring: Vec<&PolicyId> = diagnostics
+        .errors()
+        .map(|error| match error {
+            AuthorizationError::PolicyEvaluationError(e) => e.policy_id(),
+        })
+        .collect();
+    if !erroring.is_empty() {
+        return Ok(Decision::deny().with_policies(policy_ids(erroring.into_iter())));
     }
+    let determining = policy_ids(diagnostics.reason());
+    Ok(Decision::from(response.decision() == CedarDecision::Allow).with_policies(determining))
 }

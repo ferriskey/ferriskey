@@ -573,8 +573,22 @@ fn act_claim(subject: &JwtClaim, actor: Option<&JwtClaim>) -> Option<serde_json:
     match actor {
         Some(actor) => {
             let mut act = json!({ "sub": actor.sub, "client_id": actor.azp });
-            if let Some(previous) = previous {
-                act["act"] = previous;
+            let prior_client = Some(subject.azp.as_str())
+                .filter(|azp| !azp.is_empty())
+                .or(subject.client_id.as_deref())
+                .filter(|client| *client != actor.azp);
+            let nested = match prior_client {
+                Some(client) => {
+                    let mut prior = json!({ "client_id": client });
+                    if let Some(previous) = previous {
+                        prior["act"] = previous;
+                    }
+                    Some(prior)
+                }
+                None => previous,
+            };
+            if let Some(nested) = nested {
+                act["act"] = nested;
             }
             Some(act)
         }
@@ -1756,6 +1770,54 @@ mod tests {
         assert_eq!(
             harness.issued().additional_claims["act"],
             json!({ "sub": actor.sub, "client_id": REQUESTER, "act": first_actor })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_subject_token_of_another_client_stays_in_the_act_chain() {
+        let (realm, requester, user) = standard();
+        let first_actor = json!({ "sub": Uuid::new_v4(), "client_id": "frontend" });
+        let mut subject = subject_claims(&user, "mcp-agent", "openid", 3600);
+        subject.aud.push(REQUESTER.to_string());
+        let actor = actor_claims(&realm, REQUESTER);
+
+        let direct = Harness::new(&realm, requester.clone(), subject.clone())
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor.clone());
+        direct
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect("exchange should succeed");
+        assert_eq!(
+            direct.issued().additional_claims["act"],
+            json!({
+                "sub": actor.sub,
+                "client_id": REQUESTER,
+                "act": { "client_id": "mcp-agent" },
+            })
+        );
+
+        subject
+            .additional_claims
+            .insert("act".to_string(), first_actor.clone());
+        let chained = Harness::new(&realm, requester.clone(), subject)
+            .with_client(client(&realm, AUDIENCE))
+            .with_policy(delegating_policy(&realm, &requester))
+            .with_actor(actor.clone());
+        chained
+            .build()
+            .exchange(params(&realm, delegated(Some(AUDIENCE))))
+            .await
+            .expect("exchange should succeed");
+        assert_eq!(
+            chained.issued().additional_claims["act"],
+            json!({
+                "sub": actor.sub,
+                "client_id": REQUESTER,
+                "act": { "client_id": "mcp-agent", "act": first_actor },
+            })
         );
     }
 

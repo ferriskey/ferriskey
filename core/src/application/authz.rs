@@ -1,12 +1,14 @@
 use ferriskey_authz::tenant::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
-use ferriskey_authz::tenant::evaluation::EvaluationRequest;
+use ferriskey_authz::tenant::evaluation::{EvaluationRequest, EvaluationsSemantic};
+use ferriskey_authz::tenant::names::ManagedBy;
 use ferriskey_authz::tenant::ports::{
     AuthzManagementService, EvaluationOutcome, EvaluationService,
 };
 use ferriskey_authz::tenant::value_objects::{
-    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
-    UpdateTemplateInput,
+    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, SimulateInput, SimulationOutcome,
+    UpdatePolicyInput, UpdateTemplateInput, ValidatePoliciesInput,
 };
+use ferriskey_domain::common::app_errors::PolicyIssue;
 use uuid::Uuid;
 
 use crate::application::services::ApplicationService;
@@ -59,9 +61,10 @@ impl AuthzManagementService for ApplicationService {
         &self,
         identity: Identity,
         realm_name: String,
+        managed_by: Option<ManagedBy>,
     ) -> Result<Vec<Policy>, CoreError> {
         self.authz_management_service
-            .list_policies(identity, realm_name)
+            .list_policies(identity, realm_name, managed_by)
             .await
     }
 
@@ -70,9 +73,10 @@ impl AuthzManagementService for ApplicationService {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> Result<Policy, CoreError> {
         self.authz_management_service
-            .get_policy(identity, realm_name, id)
+            .get_policy(identity, realm_name, id, managed_by)
             .await
     }
 
@@ -101,9 +105,10 @@ impl AuthzManagementService for ApplicationService {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> Result<(), CoreError> {
         self.authz_management_service
-            .delete_policy(identity, realm_name, id)
+            .delete_policy(identity, realm_name, id, managed_by)
             .await
     }
 
@@ -147,6 +152,36 @@ impl AuthzManagementService for ApplicationService {
             .delete_template(identity, realm_name, id)
             .await
     }
+
+    async fn get_builtin_schema(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<&'static str, CoreError> {
+        self.authz_management_service
+            .get_builtin_schema(identity, realm_name)
+            .await
+    }
+
+    async fn validate_policies(
+        &self,
+        identity: Identity,
+        input: ValidatePoliciesInput,
+    ) -> Result<Vec<PolicyIssue>, CoreError> {
+        self.authz_management_service
+            .validate_policies(identity, input)
+            .await
+    }
+
+    async fn simulate(
+        &self,
+        identity: Identity,
+        input: SimulateInput,
+    ) -> Result<SimulationOutcome, CoreError> {
+        self.authz_management_service
+            .simulate(identity, input)
+            .await
+    }
 }
 
 impl EvaluationService for ApplicationService {
@@ -158,6 +193,18 @@ impl EvaluationService for ApplicationService {
     ) -> Result<EvaluationOutcome, CoreError> {
         self.authz_evaluation_service
             .evaluate(identity, realm_name, request)
+            .await
+    }
+
+    async fn evaluate_many(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        requests: Vec<EvaluationRequest>,
+        semantic: EvaluationsSemantic,
+    ) -> Result<Vec<Result<EvaluationOutcome, CoreError>>, CoreError> {
+        self.authz_evaluation_service
+            .evaluate_many(identity, realm_name, requests, semantic)
             .await
     }
 }

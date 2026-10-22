@@ -7,10 +7,11 @@ use ferriskey_domain::realm::scope::RealmScope;
 use uuid::Uuid;
 
 use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate, RelationTuple};
-use super::evaluation::{EvaluationRequest, PrincipalSlice, RuleSet};
+use super::evaluation::{EvaluationRequest, EvaluationsSemantic, PrincipalSlice, RuleSet};
+use super::names::ManagedBy;
 use super::value_objects::{
-    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
-    UpdateTemplateInput,
+    CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, SimulateInput, SimulationOutcome,
+    SimulationRequest, UpdatePolicyInput, UpdateTemplateInput, ValidatePoliciesInput,
 };
 use crate::entities::{Decision, EntityRef};
 
@@ -122,6 +123,8 @@ pub trait RelationTupleRepository: Send + Sync {
 pub trait PolicyCompiler: Send + Sync + Debug {
     fn validate_schema(&self, schema: &AuthzSchema) -> Result<(), Vec<PolicyIssue>>;
 
+    fn builtin_schema(&self) -> &'static str;
+
     /// Validates `policies` and `templates` together, against `schema` when
     /// there is one. Callers pass the enabled policies only.
     #[expect(
@@ -134,6 +137,18 @@ pub trait PolicyCompiler: Send + Sync + Debug {
         policies: &[Policy],
         templates: &[PolicyTemplate],
     ) -> Result<(), Vec<PolicyIssue>>;
+
+    #[expect(
+        clippy::needless_lifetimes,
+        reason = "mockall cannot mock an elided lifetime inside an Option"
+    )]
+    fn simulate<'a>(
+        &self,
+        schema: Option<&'a AuthzSchema>,
+        policies: &[Policy],
+        templates: &[PolicyTemplate],
+        request: &SimulationRequest,
+    ) -> Result<Decision, CoreError>;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
@@ -192,6 +207,14 @@ pub trait EvaluationService: Send + Sync {
         realm_name: String,
         request: EvaluationRequest,
     ) -> impl Future<Output = Result<EvaluationOutcome, CoreError>> + Send;
+
+    fn evaluate_many(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        requests: Vec<EvaluationRequest>,
+        semantic: EvaluationsSemantic,
+    ) -> impl Future<Output = Result<Vec<Result<EvaluationOutcome, CoreError>>, CoreError>> + Send;
 }
 
 pub trait AuthzManagementService: Send + Sync {
@@ -224,6 +247,7 @@ pub trait AuthzManagementService: Send + Sync {
         &self,
         identity: Identity,
         realm_name: String,
+        managed_by: Option<ManagedBy>,
     ) -> impl Future<Output = Result<Vec<Policy>, CoreError>> + Send;
 
     fn get_policy(
@@ -231,6 +255,7 @@ pub trait AuthzManagementService: Send + Sync {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> impl Future<Output = Result<Policy, CoreError>> + Send;
 
     fn create_policy(
@@ -250,6 +275,7 @@ pub trait AuthzManagementService: Send + Sync {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn list_templates(
@@ -276,4 +302,22 @@ pub trait AuthzManagementService: Send + Sync {
         realm_name: String,
         id: Uuid,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn get_builtin_schema(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> impl Future<Output = Result<&'static str, CoreError>> + Send;
+
+    fn validate_policies(
+        &self,
+        identity: Identity,
+        input: ValidatePoliciesInput,
+    ) -> impl Future<Output = Result<Vec<PolicyIssue>, CoreError>> + Send;
+
+    fn simulate(
+        &self,
+        identity: Identity,
+        input: SimulateInput,
+    ) -> impl Future<Output = Result<SimulationOutcome, CoreError>> + Send;
 }

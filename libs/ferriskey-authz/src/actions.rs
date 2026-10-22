@@ -13,7 +13,9 @@ pub const AUTHORIZATION_EVALUATE: ActionId = ActionId::new("authorization:evalua
 pub const AUTHORIZATION_POLICY_CREATE: ActionId = ActionId::new("authorization_policy:create");
 pub const AUTHORIZATION_POLICY_DELETE: ActionId = ActionId::new("authorization_policy:delete");
 pub const AUTHORIZATION_POLICY_READ: ActionId = ActionId::new("authorization_policy:read");
+pub const AUTHORIZATION_POLICY_SIMULATE: ActionId = ActionId::new("authorization_policy:simulate");
 pub const AUTHORIZATION_POLICY_UPDATE: ActionId = ActionId::new("authorization_policy:update");
+pub const AUTHORIZATION_POLICY_VALIDATE: ActionId = ActionId::new("authorization_policy:validate");
 pub const AUTHORIZATION_SCHEMA_READ: ActionId = ActionId::new("authorization_schema:read");
 pub const AUTHORIZATION_SCHEMA_UPDATE: ActionId = ActionId::new("authorization_schema:update");
 pub const AUTHORIZATION_STATE_READ: ActionId = ActionId::new("authorization_state:read");
@@ -126,7 +128,9 @@ pub const ALL: &[ActionId] = &[
     AUTHORIZATION_POLICY_CREATE,
     AUTHORIZATION_POLICY_DELETE,
     AUTHORIZATION_POLICY_READ,
+    AUTHORIZATION_POLICY_SIMULATE,
     AUTHORIZATION_POLICY_UPDATE,
+    AUTHORIZATION_POLICY_VALIDATE,
     AUTHORIZATION_SCHEMA_READ,
     AUTHORIZATION_SCHEMA_UPDATE,
     AUTHORIZATION_STATE_READ,

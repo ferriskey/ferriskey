@@ -785,6 +785,10 @@ mod tests {
                 document["access_evaluation_endpoint"],
                 json!(format!("{pdp}/access/v1/evaluation"))
             );
+            assert_eq!(
+                document["access_evaluations_endpoint"],
+                json!(format!("{pdp}/access/v1/evaluations"))
+            );
 
             let unknown = server
                 .get("/.well-known/authzen-configuration/realms/no-such-realm/authzen")
@@ -862,6 +866,223 @@ mod tests {
             let response = evaluate(&server, &realm.name, Some(&pep.token), &body, None).await;
             assert_eq!(response.status_code(), 400, "{}", response.text());
             assert_no_decision(&response);
+        });
+    }
+
+    fn evaluations_path(realm: &str) -> String {
+        format!("/realms/{realm}/authzen/access/v1/evaluations")
+    }
+
+    fn batch_body(users: &[Uuid], semantic: Option<&str>) -> Value {
+        let mut body = json!({
+            "action": { "name": "document:read" },
+            "resource": {
+                "type": "App::Document",
+                "id": "42",
+                "properties": { "classification": "public" },
+            },
+            "evaluations": users
+                .iter()
+                .map(|user| json!({ "subject": { "type": "FerrisKey::User", "id": user.to_string() } }))
+                .collect::<Vec<_>>(),
+        });
+        if let Some(semantic) = semantic {
+            body["options"] = json!({ "evaluations_semantic": semantic });
+        }
+        body
+    }
+
+    async fn evaluations(
+        server: &TestServer,
+        realm: &str,
+        token: Option<&str>,
+        body: &Value,
+    ) -> TestResponse {
+        let mut request = server.post(&evaluations_path(realm));
+        if let Some(token) = token {
+            request = request.authorization_bearer(token);
+        }
+        request.json(body).await
+    }
+
+    fn decisions(response: &TestResponse) -> Vec<bool> {
+        response.json::<Value>()["evaluations"]
+            .as_array()
+            .expect("evaluations")
+            .iter()
+            .map(|item| item["decision"].as_bool().expect("decision"))
+            .collect()
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_batch_applies_the_defaults_and_answers_each_item_in_order() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let role = create_role(ctx, &server, &realm, &[]).await;
+            seed_rules(ctx, &realm, DOCUMENT_SCHEMA, &role_policy(role)).await;
+            let pep = create_pep(
+                ctx,
+                &server,
+                &realm,
+                &["evaluate_authorization", "view_authorization"],
+            )
+            .await;
+            let holder = create_user(ctx, &server, &realm).await;
+            grant(ctx, holder, role).await;
+            let outsider = create_user(ctx, &server, &realm).await;
+
+            let response = evaluations(
+                &server,
+                &realm.name,
+                Some(&pep.token),
+                &batch_body(&[holder, outsider, holder], None),
+            )
+            .await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            assert_eq!(decisions(&response), [true, false, true]);
+            assert_eq!(
+                response.json::<Value>()["evaluations"][0]["context"]["reason_admin"]["policies"],
+                json!(["readers-can-read"])
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_batch_stops_where_its_semantic_says() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let role = create_role(ctx, &server, &realm, &[]).await;
+            seed_rules(ctx, &realm, DOCUMENT_SCHEMA, &role_policy(role)).await;
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let holder = create_user(ctx, &server, &realm).await;
+            grant(ctx, holder, role).await;
+            let outsider = create_user(ctx, &server, &realm).await;
+            let users = [holder, outsider, holder];
+
+            for (semantic, expected) in [
+                ("execute_all", vec![true, false, true]),
+                ("deny_on_first_deny", vec![true, false]),
+                ("permit_on_first_permit", vec![true]),
+            ] {
+                let response = evaluations(
+                    &server,
+                    &realm.name,
+                    Some(&pep.token),
+                    &batch_body(&users, Some(semantic)),
+                )
+                .await;
+                assert_eq!(
+                    response.status_code(),
+                    200,
+                    "{semantic}: {}",
+                    response.text()
+                );
+                assert_eq!(decisions(&response), expected, "{semantic}");
+            }
+
+            let unknown = evaluations(
+                &server,
+                &realm.name,
+                Some(&pep.token),
+                &batch_body(&users, Some("first_wins")),
+            )
+            .await;
+            assert_eq!(unknown.status_code(), 400, "{}", unknown.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_batch_item_the_schema_rejects_is_a_deny_with_its_error() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let role = create_role(ctx, &server, &realm, &[]).await;
+            seed_rules(ctx, &realm, DOCUMENT_SCHEMA, &role_policy(role)).await;
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let holder = create_user(ctx, &server, &realm).await;
+            grant(ctx, holder, role).await;
+
+            let mut body = batch_body(&[holder, holder], None);
+            body["evaluations"][1]["action"] = json!({ "name": "document:burn" });
+            let response = evaluations(&server, &realm.name, Some(&pep.token), &body).await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            assert_eq!(decisions(&response), [true, false]);
+            assert_eq!(
+                response.json::<Value>()["evaluations"][1]["context"]["error"]["status"],
+                json!(400)
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_malformed_batch_and_a_caller_without_the_permission_get_no_decisions() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            seed_rules(ctx, &realm, DOCUMENT_SCHEMA, &[]).await;
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let without = create_pep(ctx, &server, &realm, &[]).await;
+            let user = create_user(ctx, &server, &realm).await;
+            let body = batch_body(&[user], None);
+
+            let missing_subject = json!({
+                "action": { "name": "document:read" },
+                "resource": { "type": "App::Document", "id": "1" },
+                "evaluations": [{}],
+            });
+            let empty = json!({ "evaluations": [] });
+            for (label, payload) in [("missing subject", missing_subject), ("empty", empty)] {
+                let response = evaluations(&server, &realm.name, Some(&pep.token), &payload).await;
+                assert_eq!(response.status_code(), 400, "{label}: {}", response.text());
+                assert_no_decision(&response);
+            }
+
+            let forbidden = evaluations(&server, &realm.name, Some(&without.token), &body).await;
+            assert_eq!(forbidden.status_code(), 403, "{}", forbidden.text());
+            let anonymous = evaluations(&server, &realm.name, None, &body).await;
+            assert_eq!(anonymous.status_code(), 401, "{}", anonymous.text());
+
+            let off = ctx.disabled_server();
+            let absent = evaluations(&off, &realm.name, Some(&pep.token), &body).await;
+            assert_eq!(absent.status_code(), 404, "{}", absent.text());
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
+    fn a_request_without_evaluations_is_a_single_evaluation() {
+        let ctx = ctx();
+        rt().block_on(async {
+            let server = ctx.server();
+            let realm = create_realm(ctx, &server).await;
+            let role = create_role(ctx, &server, &realm, &[]).await;
+            seed_rules(ctx, &realm, DOCUMENT_SCHEMA, &role_policy(role)).await;
+            let pep = create_pep(ctx, &server, &realm, &["evaluate_authorization"]).await;
+            let holder = create_user(ctx, &server, &realm).await;
+            grant(ctx, holder, role).await;
+
+            let response = evaluations(
+                &server,
+                &realm.name,
+                Some(&pep.token),
+                &read_request(holder, "public"),
+            )
+            .await;
+
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+            assert_eq!(response.json::<Value>(), json!({ "decision": true }));
         });
     }
 }

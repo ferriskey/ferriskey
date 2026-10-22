@@ -54,6 +54,7 @@ pub struct TenantEntity {
 pub enum Subject {
     FerrisKey(EntityRef),
     Tenant(TenantEntity),
+    Asserted(TenantEntity),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -62,6 +63,24 @@ pub struct EvaluationRequest {
     pub action: String,
     pub resource: TenantEntity,
     pub context: Map<String, Value>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum EvaluationsSemantic {
+    #[default]
+    ExecuteAll,
+    DenyOnFirstDeny,
+    PermitOnFirstPermit,
+}
+
+impl EvaluationsSemantic {
+    pub fn stops_after(self, allowed: bool) -> bool {
+        match self {
+            Self::ExecuteAll => false,
+            Self::DenyOnFirstDeny => !allowed,
+            Self::PermitOnFirstPermit => allowed,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

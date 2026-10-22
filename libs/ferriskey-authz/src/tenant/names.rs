@@ -7,6 +7,7 @@ use super::FERRISKEY_NAMESPACE;
 
 const MAX_IDENTIFIER_LEN: usize = 64;
 const MAX_POLICY_NAME_LEN: usize = 128;
+const MAX_MANAGER_LEN: usize = 64;
 
 fn is_cedar_identifier(value: &str) -> bool {
     let mut chars = value.chars();
@@ -109,6 +110,44 @@ impl fmt::Display for PolicyName {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ManagedBy(String);
+
+impl ManagedBy {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for ManagedBy {
+    type Error = CoreError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let valid = !value.is_empty()
+            && value.len() <= MAX_MANAGER_LEN
+            && value.chars().all(|c| {
+                c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '_' | '-' | '.')
+            });
+        if !valid {
+            return Err(invalid("manager", &value));
+        }
+        Ok(Self(value))
+    }
+}
+
+impl From<ManagedBy> for String {
+    fn from(value: ManagedBy) -> Self {
+        value.0
+    }
+}
+
+impl fmt::Display for ManagedBy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 /// The relation half of a tuple, e.g. `viewer` in `doc:42#viewer@user:7`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
@@ -182,6 +221,16 @@ mod tests {
         assert!(PolicyName::try_from(String::new()).is_err());
         assert!(PolicyName::try_from("has space".to_string()).is_err());
         assert!(PolicyName::try_from("x".repeat(129)).is_err());
+    }
+
+    #[test]
+    fn a_manager_label_is_a_short_lowercase_token() {
+        assert!(ManagedBy::try_from("autharie".to_string()).is_ok());
+        assert!(ManagedBy::try_from("autharie.agents-v2".to_string()).is_ok());
+        assert!(ManagedBy::try_from(String::new()).is_err());
+        assert!(ManagedBy::try_from("Autharie".to_string()).is_err());
+        assert!(ManagedBy::try_from("has space".to_string()).is_err());
+        assert!(ManagedBy::try_from("x".repeat(65)).is_err());
     }
 
     #[test]

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::names::{Namespace, PolicyName, RelationName, SlotId};
+use super::names::{ManagedBy, Namespace, PolicyName, RelationName, SlotId};
 use crate::entities::{EntityRef, PolicyOrigin};
 
 /// Whether a realm answers authorization questions, and how many times its
@@ -70,6 +70,7 @@ pub struct Policy {
     pub description: Option<String>,
     pub origin: PolicyOrigin,
     pub enabled: bool,
+    pub managed_by: Option<ManagedBy>,
     pub body: PolicyBody,
 }
 

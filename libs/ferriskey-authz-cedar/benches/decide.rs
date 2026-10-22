@@ -50,6 +50,7 @@ fn policy(index: usize, source: String) -> Policy {
         description: None,
         origin: PolicyOrigin::Custom,
         enabled: true,
+        managed_by: None,
         body: PolicyBody::Static { source },
     }
 }
