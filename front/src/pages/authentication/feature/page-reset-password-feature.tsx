@@ -11,6 +11,7 @@ import PageResetPassword from '../ui/page-reset-password'
 import { usePublicPasswordPolicy, DEFAULT_PASSWORD_POLICY } from '@/api/password-policy.api'
 import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 import { AUTH_NAMESPACE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 type TokenStatus = 'loading' | 'valid' | 'invalid'
 
@@ -94,7 +95,7 @@ export default function PageResetPasswordFeature() {
           setAuthTokens(data.access_token, data.refresh_token ?? null, data.id_token ?? null)
 
           if (data.login_url) {
-            window.location.href = data.login_url
+            followServerRedirect(data.login_url)
             return
           }
 

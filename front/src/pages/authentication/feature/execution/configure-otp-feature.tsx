@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AuthenticationStatus } from '@/api/api.interface'
 import { AUTH_NAMESPACE } from '../../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 export default function ConfigureOtpFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -77,7 +78,7 @@ export default function ConfigureOtpFeature() {
   useEffect(() => {
     if (!authenticateData) return
     if (authenticateData.url) {
-      window.location.href = authenticateData.url
+      followServerRedirect(authenticateData.url)
     }
 
     if (

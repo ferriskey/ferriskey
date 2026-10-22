@@ -13,6 +13,7 @@ import {
   startConditionalAuthentication,
   type PublicKeyCredentialRequestOptionsJSON,
 } from '@/lib/webauthn'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 type Options = {
   realm_name: string | undefined
@@ -67,7 +68,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated, getRememb
         })
 
         if (result.login_url) {
-          window.location.href = result.login_url
+          followServerRedirect(result.login_url)
         }
       } catch {
         // Conditional UI was aborted or failed silently — this is expected
@@ -116,7 +117,7 @@ export function usePasskeyAuth({ realm_name, enabled, isAuthInitiated, getRememb
               {
                 onSuccess: (result) => {
                   if (result.login_url) {
-                    window.location.href = result.login_url
+                    followServerRedirect(result.login_url)
                   }
                 },
                 onError: () => {

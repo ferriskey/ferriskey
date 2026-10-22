@@ -10,6 +10,7 @@ import {
   getVerifyEmailContext,
 } from './execution/verify-email-context'
 import { PORTAL_PAGE_TYPE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 /**
  * Orchestrates the email-verification flow for `/verify-email?token=…`:
@@ -79,7 +80,7 @@ export default function VerifyEmailRoute() {
     clearVerifyEmailContext()
 
     if (authenticateData.url) {
-      window.location.href = authenticateData.url
+      followServerRedirect(authenticateData.url)
       return
     }
 

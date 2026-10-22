@@ -11,6 +11,7 @@ import {
 } from '../utils/consent-decision'
 import PageConsent from '../ui/page-consent'
 import { AUTH_NAMESPACE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 export default function PageConsentFeature() {
   const { realm_name } = useParams()
@@ -62,7 +63,7 @@ export default function PageConsentFeature() {
       },
       {
         onSuccess: (response) => {
-          window.location.href = response.redirect_url
+          followServerRedirect(response.redirect_url)
         },
         onError: (error) => {
           setPendingAction(null)

@@ -19,6 +19,22 @@ function headerValue(config: string, name: string): string {
   return match[1] ?? match[2] ?? match[3]
 }
 
+test('the webapp image lets its entrypoint add the API origin to connect-src', () => {
+  const policy = headerValue(read('nginx.conf'), 'Content-Security-Policy')
+  assert.match(policy, /connect-src 'self' \$\{CSP_CONNECT_SRC\};/)
+  assert.match(read('docker-entrypoint.sh'), /CSP_CONNECT_SRC/)
+})
+
+test('the standalone image reaches its API on its own origin', () => {
+  const policy = headerValue(read('nginx-standalone.conf'), 'Content-Security-Policy')
+  assert.match(policy, /connect-src 'self';/)
+})
+
+test('the console loads no font from a third party', () => {
+  assert.ok(!read('index.html').includes('fonts.googleapis.com'))
+  assert.ok(!read('index.html').includes('fonts.gstatic.com'))
+})
+
 for (const name of CONFIGS) {
   test(`${name} sends its security headers on every response`, () => {
     const config = read(name)
@@ -30,20 +46,24 @@ for (const name of CONFIGS) {
     assert.match(headerValue(config, 'Strict-Transport-Security'), /max-age=\d+/)
   })
 
-  test(`${name} enforces the directives that cannot break the console`, () => {
+  test(`${name} enforces a policy that only runs the console's own scripts`, () => {
     const policy = headerValue(read(name), 'Content-Security-Policy')
+    const directives = Object.fromEntries(
+      policy.split(';').map((directive) => {
+        const [key, ...values] = directive.trim().split(/\s+/)
+        return [key, values]
+      })
+    )
 
-    for (const directive of ['object-src \'none\'', 'base-uri \'self\'', 'frame-ancestors \'self\'']) {
-      assert.ok(policy.includes(directive), directive)
-    }
-  })
-
-  test(`${name} reports scripts that the strict policy would block`, () => {
-    const policy = headerValue(read(name), 'Content-Security-Policy-Report-Only')
-
-    assert.ok(policy.includes(`script-src 'self' '${inlineScriptHash()}'`), 'inline script hash')
-    assert.ok(!policy.includes('\'unsafe-inline\'') || !/script-src[^;]*'unsafe-inline'/.test(policy))
-    assert.ok(!/script-src[^;]*'unsafe-eval'/.test(policy))
+    assert.deepEqual(directives['script-src'], ['\'self\'', `'${inlineScriptHash()}'`])
+    assert.deepEqual(directives['object-src'], ['\'none\''])
+    assert.deepEqual(directives['base-uri'], ['\'self\''])
+    assert.deepEqual(directives['frame-ancestors'], ['\'self\''])
+    assert.deepEqual(directives['form-action'], ['\'self\''])
+    assert.deepEqual(directives['default-src'], ['\'self\''])
+    assert.ok(!policy.includes('\'unsafe-eval\''))
+    assert.ok(!policy.includes('googleapis'), 'fonts are served by the console itself')
+    assert.ok(!read(name).includes('Content-Security-Policy-Report-Only'), 'the policy is enforced')
   })
 
   test(`${name} hides the server version`, () => {

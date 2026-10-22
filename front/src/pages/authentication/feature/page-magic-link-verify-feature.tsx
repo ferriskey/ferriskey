@@ -5,6 +5,7 @@ import { useVerifyMagicLink } from '@/api/trident.api'
 import { apiErrorMessage } from '@/lib/api-error'
 import PageMagicLinkVerify from '../ui/page-magic-link-verify'
 import { AUTH_NAMESPACE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 type VerifyStatus = 'loading' | 'error'
 
@@ -39,7 +40,7 @@ export default function PageMagicLinkVerifyFeature() {
     })
       .then((data) => {
         if (data.url) {
-          window.location.href = data.url
+          followServerRedirect(data.url)
         } else {
           setErrorMessage(t('magic_link.verify.no_redirect'))
           setStatus('error')

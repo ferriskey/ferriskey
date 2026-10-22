@@ -19,6 +19,7 @@ import { usePublicPasswordPolicy } from '@/api/password-policy.api'
 import { passwordPolicyRequirements } from '@/lib/password-policy'
 import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 import { AUTH_NAMESPACE } from '../../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
   password: 'password',
@@ -87,7 +88,7 @@ export default function UpdatePasswordFeature() {
   useEffect(() => {
     if (!authenticateResponse) return
     if (authenticateResponse.url) {
-      window.location.href = authenticateResponse.url
+      followServerRedirect(authenticateResponse.url)
     }
 
     if (

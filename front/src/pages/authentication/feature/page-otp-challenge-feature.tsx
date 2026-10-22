@@ -11,6 +11,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AUTH_NAMESPACE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 export default function PageOtpChallengeFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -53,7 +54,7 @@ export default function PageOtpChallengeFeature() {
     }
 
     if (challengeOtpData.url) {
-      window.location.href = challengeOtpData.url
+      followServerRedirect(challengeOtpData.url)
     }
   }, [challengeOtpData, navigate, realm_name])
 

@@ -8,6 +8,7 @@ import { AuthenticationStatus } from '@/api/api.interface'
 import ConfigurePasskey from '../../ui/execution/configure-passkey'
 import { isWebAuthnAvailable, startRegistration } from '@/lib/webauthn'
 import { AUTH_NAMESPACE } from '../../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 export default function ConfigurePasskeyFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -78,7 +79,7 @@ export default function ConfigurePasskeyFeature() {
   useEffect(() => {
     if (!authenticateData) return
     if (authenticateData.url) {
-      window.location.href = authenticateData.url
+      followServerRedirect(authenticateData.url)
     }
 
     if (
