@@ -10,5 +10,5 @@ chrono = { version = "0.4.43", features = ["serde"] }
 thiserror = "2.0.18"
 
 [dev-dependencies]
-mockall = "0.13"
+mockall = "0.14"
 tokio = { version = "1", features = ["rt", "macros"] }
