@@ -7,7 +7,7 @@ use ferriskey_api_core::{
     },
     app_state::AppState,
     sso_cookie,
-    url::FullUrl,
+    url::{FullUrl, WebappUrl},
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{ChallengeOtpInput, TridentService};
@@ -52,6 +52,7 @@ pub async fn challenge_otp(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ChallengeOtpRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -68,6 +69,7 @@ pub async fn challenge_otp(
             ChallengeOtpInput {
                 code: payload.code,
                 session_code,
+                webapp_base_url: webapp_url,
             },
         )
         .await

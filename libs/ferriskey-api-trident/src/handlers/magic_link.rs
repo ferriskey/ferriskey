@@ -121,6 +121,7 @@ pub async fn send_magic_link(
 pub async fn verify_magic_link(
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     Query(query): Query<VerifyMagicLinkQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     debug!("Verifying magic link for token_id: {}", query.token_id);
@@ -130,6 +131,7 @@ pub async fn verify_magic_link(
         .verify_magic_link(VerifyMagicLinkInput {
             magic_token_id: query.token_id,
             magic_token: query.magic_token,
+            webapp_base_url: webapp_url,
         })
         .await?;
 
@@ -146,7 +148,7 @@ pub async fn verify_magic_link(
 
     Ok((
         StatusCode::OK,
-        sso_cookie::headers(Some(verified.sso_session), base_url.starts_with("https"))?,
+        sso_cookie::headers(verified.sso_session, base_url.starts_with("https"))?,
         [(header::REFERRER_POLICY, "no-referrer")],
         axum::Json(response),
     )

@@ -20,7 +20,9 @@ use crate::domain::abyss::identity_provider::broker::{
 };
 use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProviderRepository};
 use crate::domain::authentication::entities::{AuthProtocol, AuthSession, AuthSessionParams};
-use crate::domain::authentication::ports::AuthSessionRepository;
+use crate::domain::authentication::ports::{
+    AdmitLoginInput, AuthSessionRepository, LoginAdmission, LoginAdmissionPort,
+};
 use crate::domain::authentication::value_objects::CodeChallengeMethod;
 use crate::domain::client::ports::{ClientRepository, RedirectUriRepository};
 use crate::domain::client::redirect_uri_matching::redirect_uri_matches_any;
@@ -44,7 +46,7 @@ const ID_TOKEN_ALGORITHMS: &[jsonwebtoken::Algorithm] = &[
 
 /// Implementation of the BrokerService trait
 #[derive(Clone, Debug)]
-pub struct BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC>
+pub struct BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC, ADM>
 where
     RR: RealmRepository,
     IR: IdentityProviderRepository,
@@ -55,6 +57,7 @@ where
     UR: UserRepository,
     ASR: AuthSessionRepository,
     OC: OAuthClient,
+    ADM: LoginAdmissionPort,
 {
     realm_repository: Arc<RR>,
     identity_provider_repository: Arc<IR>,
@@ -65,6 +68,7 @@ where
     user_repository: Arc<UR>,
     auth_session_repository: Arc<ASR>,
     oauth_client: Arc<OC>,
+    admission: Arc<ADM>,
     flow_recorder: FlowRecorder,
 }
 
@@ -80,7 +84,8 @@ fn evaluate_redirect_uri(allowed: &[String], redirect_uri: &str) -> Result<(), C
     }
 }
 
-impl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC> BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC>
+impl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC, ADM>
+    BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC, ADM>
 where
     RR: RealmRepository,
     IR: IdentityProviderRepository,
@@ -91,6 +96,7 @@ where
     UR: UserRepository,
     ASR: AuthSessionRepository,
     OC: OAuthClient,
+    ADM: LoginAdmissionPort,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -103,6 +109,7 @@ where
         user_repository: Arc<UR>,
         auth_session_repository: Arc<ASR>,
         oauth_client: Arc<OC>,
+        admission: Arc<ADM>,
         flow_recorder: FlowRecorder,
     ) -> Self {
         Self {
@@ -115,6 +122,7 @@ where
             user_repository,
             auth_session_repository,
             oauth_client,
+            admission,
             flow_recorder,
         }
     }
@@ -429,8 +437,85 @@ fn user_info_from_claims(claims: serde_json::Value) -> Result<BrokeredUserInfo, 
     })
 }
 
-impl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC> BrokerService
-    for BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC>
+enum CodeTarget {
+    Existing(Uuid),
+    New(Box<AuthSession>),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum CodeIssue {
+    Issued,
+    ConsentRequired {
+        redirect_url: String,
+        browser_session_id: Option<Uuid>,
+    },
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn issue_login_code<ASR, ADM>(
+    sessions: &ASR,
+    admission: &ADM,
+    scope: &RealmScope,
+    user_id: Uuid,
+    target: CodeTarget,
+    webapp_base_url: &str,
+    authorization_code: &str,
+    compass_flow_id: Option<Uuid>,
+) -> Result<CodeIssue, CoreError>
+where
+    ASR: AuthSessionRepository,
+    ADM: LoginAdmissionPort,
+{
+    let (auth_session, opened_here) = match target {
+        CodeTarget::Existing(auth_session_id) => {
+            let auth_session = sessions
+                .get_by_session_code(auth_session_id)
+                .await?
+                .in_realm(scope)
+                .map_err(|_| CoreError::SessionNotFound)?
+                .into_inner();
+            (auth_session, false)
+        }
+        CodeTarget::New(auth_session) => {
+            sessions.create(&auth_session).await?;
+            (*auth_session, true)
+        }
+    };
+
+    let auth_session_id = auth_session.id;
+    let admitted = admission
+        .admit(AdmitLoginInput {
+            user_id,
+            auth_session,
+            scope: scope.clone(),
+            webapp_base_url: webapp_base_url.to_string(),
+        })
+        .await?;
+
+    if let LoginAdmission::ConsentRequired { redirect_url } = admitted {
+        return Ok(CodeIssue::ConsentRequired {
+            redirect_url,
+            browser_session_id: opened_here.then_some(auth_session_id),
+        });
+    }
+
+    if !opened_here {
+        sessions.update_user_id(auth_session_id, user_id).await?;
+    }
+    sessions
+        .update_code(auth_session_id, authorization_code.to_string())
+        .await?;
+    if let Some(flow_id) = compass_flow_id.filter(|_| !opened_here) {
+        sessions
+            .update_compass_flow_id(auth_session_id, flow_id)
+            .await?;
+    }
+
+    Ok(CodeIssue::Issued)
+}
+
+impl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC, ADM> BrokerService
+    for BrokerServiceImpl<RR, IR, BR, LR, CR, RUR, UR, ASR, OC, ADM>
 where
     RR: RealmRepository,
     IR: IdentityProviderRepository,
@@ -441,6 +526,7 @@ where
     UR: UserRepository,
     ASR: AuthSessionRepository,
     OC: OAuthClient,
+    ADM: LoginAdmissionPort,
 {
     #[instrument(
         skip(self, input),
@@ -735,61 +821,77 @@ where
         }
 
         // 9. Create or update auth session with authorization code
-        // Set compass_flow_id so authorization_code() records TokenExchange + complete_flow
         let authorization_code = Self::generate_random_string(32);
 
-        if let Some(auth_session_id) = session.auth_session_id {
-            self.auth_session_repository
-                .update_user_id(auth_session_id, user.id)
-                .await?;
-            self.auth_session_repository
-                .update_code(auth_session_id, authorization_code.clone())
-                .await?;
-            if let Some(ref flow_id) = flow_id {
-                self.auth_session_repository
-                    .update_compass_flow_id(auth_session_id, flow_id.0)
-                    .await?;
-            }
-        } else {
-            let challenge_method = session
-                .code_challenge_method
-                .as_deref()
-                .map(|method| {
-                    method.parse::<CodeChallengeMethod>().map_err(|_| {
-                        warn!("broker session carries an unusable code_challenge_method");
-                        CoreError::InvalidRequest
+        let target = match session.auth_session_id {
+            Some(auth_session_id) => CodeTarget::Existing(auth_session_id),
+            None => {
+                let challenge_method = session
+                    .code_challenge_method
+                    .as_deref()
+                    .map(|method| {
+                        method.parse::<CodeChallengeMethod>().map_err(|_| {
+                            warn!("broker session carries an unusable code_challenge_method");
+                            CoreError::InvalidRequest
+                        })
                     })
-                })
-                .transpose()?;
+                    .transpose()?;
 
-            let auth_session = AuthSession::new(AuthSessionParams {
-                realm_id: scope.id(),
-                client_id: session.client_id,
-                protocol: AuthProtocol::OpenIdConnect,
-                redirect_uri: session.redirect_uri.clone(),
-                response_type: Some(session.response_type.clone()),
-                scope: Some(session.scope.clone()),
-                state: session.state.clone(),
-                nonce: session.nonce.clone(),
-                user_id: Some(user.id),
-                code: Some(authorization_code.clone()),
-                authenticated: false,
-                webauthn_challenge: None,
-                webauthn_challenge_issued_at: None,
-                compass_flow_id: flow_id.as_ref().map(|id| id.0),
-                code_challenge: session.code_challenge.clone(),
-                code_challenge_method: challenge_method,
-                prompt_consent: false,
-                issuer: None,
-                resource: None,
-            });
-            self.auth_session_repository.create(&auth_session).await?;
-        }
+                CodeTarget::New(Box::new(AuthSession::new(AuthSessionParams {
+                    realm_id: scope.id(),
+                    client_id: session.client_id,
+                    protocol: AuthProtocol::OpenIdConnect,
+                    redirect_uri: session.redirect_uri.clone(),
+                    response_type: Some(session.response_type.clone()),
+                    scope: Some(session.scope.clone()),
+                    state: session.state.clone(),
+                    nonce: session.nonce.clone(),
+                    user_id: Some(user.id),
+                    code: None,
+                    authenticated: false,
+                    webauthn_challenge: None,
+                    webauthn_challenge_issued_at: None,
+                    compass_flow_id: flow_id.as_ref().map(|id| id.0),
+                    code_challenge: session.code_challenge.clone(),
+                    code_challenge_method: challenge_method,
+                    prompt_consent: false,
+                    issuer: None,
+                    resource: None,
+                })))
+            }
+        };
+
+        let issue = issue_login_code(
+            self.auth_session_repository.as_ref(),
+            self.admission.as_ref(),
+            &scope,
+            user.id,
+            target,
+            &input.webapp_base_url,
+            &authorization_code,
+            flow_id.as_ref().map(|id| id.0),
+        )
+        .await?;
 
         // 10. Clean up broker session
         self.broker_session_repository
             .delete(&broker_session)
             .await?;
+
+        if let CodeIssue::ConsentRequired {
+            redirect_url,
+            browser_session_id,
+        } = issue
+        {
+            return Ok(BrokerCallbackOutput {
+                redirect_url,
+                authorization_code: None,
+                user_id: user.id,
+                is_new_user,
+                client_id: client.client_id,
+                browser_session_id,
+            });
+        }
 
         // 11. Build redirect URL back to client
         let mut redirect_url = session.redirect_uri.clone();
@@ -803,10 +905,11 @@ where
 
         Ok(BrokerCallbackOutput {
             redirect_url,
-            authorization_code,
+            authorization_code: Some(authorization_code),
             user_id: user.id,
             is_new_user,
             client_id: client.client_id,
+            browser_session_id: None,
         })
     }
 
@@ -1178,5 +1281,257 @@ mod tests {
         let result = evaluate_redirect_uri(&allowed, "https://evil.example/attacker");
 
         assert!(matches!(result, Err(CoreError::InvalidRedirectUri)));
+    }
+
+    use crate::domain::authentication::entities::AuthSession;
+    use crate::domain::authentication::ports::{MockAuthSessionRepository, MockLoginAdmissionPort};
+    use crate::domain::realm::entities::Unscoped;
+
+    fn scope_and_session() -> (RealmScope, AuthSession) {
+        let realm = crate::domain::common::services::tests::create_test_realm_with_name("realm");
+        let session = AuthSession::new(AuthSessionParams {
+            realm_id: realm.id,
+            client_id: Uuid::new_v4(),
+            protocol: AuthProtocol::OpenIdConnect,
+            redirect_uri: "https://app.example/callback".to_string(),
+            response_type: Some("code".to_string()),
+            scope: Some("openid".to_string()),
+            state: None,
+            nonce: None,
+            user_id: None,
+            code: None,
+            authenticated: false,
+            webauthn_challenge: None,
+            webauthn_challenge_issued_at: None,
+            compass_flow_id: None,
+            code_challenge: None,
+            code_challenge_method: None,
+            prompt_consent: false,
+            issuer: None,
+            resource: None,
+        });
+        (RealmScope::from_realm(realm), session)
+    }
+
+    fn consenting() -> MockLoginAdmissionPort {
+        let mut admission = MockLoginAdmissionPort::new();
+        admission.expect_admit().times(1).returning(|_| {
+            Box::pin(async {
+                Ok(LoginAdmission::ConsentRequired {
+                    redirect_url: "https://app.example/consent?consent_token=t".to_string(),
+                })
+            })
+        });
+        admission
+    }
+
+    fn admitting() -> MockLoginAdmissionPort {
+        let mut admission = MockLoginAdmissionPort::new();
+        admission
+            .expect_admit()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(LoginAdmission::Proceed) }));
+        admission
+    }
+
+    #[tokio::test]
+    async fn a_brokered_login_that_needs_consent_gets_no_code_on_an_existing_session() {
+        let (scope, session) = scope_and_session();
+        let session_id = session.id;
+        let mut sessions = MockAuthSessionRepository::new();
+        let found = session.clone();
+        sessions.expect_get_by_session_code().returning(move |_| {
+            let found = found.clone();
+            Box::pin(async move { Ok(Unscoped::new(found)) })
+        });
+        sessions.expect_update_code().never();
+        sessions.expect_update_user_id().never();
+
+        let issue = issue_login_code(
+            &sessions,
+            &consenting(),
+            &scope,
+            Uuid::new_v4(),
+            CodeTarget::Existing(session_id),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await
+        .expect("consent is not an error");
+
+        assert_eq!(
+            issue,
+            CodeIssue::ConsentRequired {
+                redirect_url: "https://app.example/consent?consent_token=t".to_string(),
+                browser_session_id: None,
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn an_admitted_brokered_login_stamps_the_code_on_the_existing_session() {
+        let (scope, session) = scope_and_session();
+        let stored = session.clone();
+        let session_id = session.id;
+        let user_id = Uuid::new_v4();
+        let mut sessions = MockAuthSessionRepository::new();
+        let found = session.clone();
+        sessions.expect_get_by_session_code().returning(move |_| {
+            let found = found.clone();
+            Box::pin(async move { Ok(Unscoped::new(found)) })
+        });
+        sessions
+            .expect_update_user_id()
+            .withf(move |id, user| *id == session_id && *user == user_id)
+            .times(1)
+            .returning({
+                let stored = stored.clone();
+                move |_, _| {
+                    let stored = stored.clone();
+                    Box::pin(async move { Ok(stored) })
+                }
+            });
+        sessions
+            .expect_update_code()
+            .withf(move |id, code| *id == session_id && code == "the-code")
+            .times(1)
+            .returning({
+                let stored = stored.clone();
+                move |_, _| {
+                    let stored = stored.clone();
+                    Box::pin(async move { Ok(stored) })
+                }
+            });
+
+        let issue = issue_login_code(
+            &sessions,
+            &admitting(),
+            &scope,
+            user_id,
+            CodeTarget::Existing(session_id),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await
+        .expect("an admitted login gets its code");
+
+        assert_eq!(issue, CodeIssue::Issued);
+    }
+
+    #[tokio::test]
+    async fn a_brokered_login_that_needs_consent_opens_a_session_without_a_code_and_names_it() {
+        let (scope, session) = scope_and_session();
+        let stored = session.clone();
+        let session_id = session.id;
+        let mut sessions = MockAuthSessionRepository::new();
+        sessions
+            .expect_create()
+            .withf(|created| created.code.is_none())
+            .times(1)
+            .returning({
+                let stored = stored.clone();
+                move |_| {
+                    let stored = stored.clone();
+                    Box::pin(async move { Ok(stored) })
+                }
+            });
+        sessions.expect_update_code().never();
+
+        let issue = issue_login_code(
+            &sessions,
+            &consenting(),
+            &scope,
+            Uuid::new_v4(),
+            CodeTarget::New(Box::new(session)),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await
+        .expect("consent is not an error");
+
+        assert_eq!(
+            issue,
+            CodeIssue::ConsentRequired {
+                redirect_url: "https://app.example/consent?consent_token=t".to_string(),
+                browser_session_id: Some(session_id),
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn an_admitted_brokered_login_stamps_the_code_on_the_session_it_opened() {
+        let (scope, session) = scope_and_session();
+        let stored = session.clone();
+        let session_id = session.id;
+        let mut sessions = MockAuthSessionRepository::new();
+        sessions.expect_create().times(1).returning({
+            let stored = stored.clone();
+            move |_| {
+                let stored = stored.clone();
+                Box::pin(async move { Ok(stored) })
+            }
+        });
+        sessions
+            .expect_update_code()
+            .withf(move |id, code| *id == session_id && code == "the-code")
+            .times(1)
+            .returning({
+                let stored = stored.clone();
+                move |_, _| {
+                    let stored = stored.clone();
+                    Box::pin(async move { Ok(stored) })
+                }
+            });
+
+        let issue = issue_login_code(
+            &sessions,
+            &admitting(),
+            &scope,
+            Uuid::new_v4(),
+            CodeTarget::New(Box::new(session)),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await
+        .expect("an admitted login gets its code");
+
+        assert_eq!(issue, CodeIssue::Issued);
+    }
+
+    #[tokio::test]
+    async fn a_refusal_by_the_admission_leaves_the_brokered_session_without_a_code() {
+        let (scope, session) = scope_and_session();
+        let stored = session.clone();
+        let mut sessions = MockAuthSessionRepository::new();
+        sessions.expect_create().returning({
+            let stored = stored.clone();
+            move |_| {
+                let stored = stored.clone();
+                Box::pin(async move { Ok(stored) })
+            }
+        });
+        sessions.expect_update_code().never();
+        let mut admission = MockLoginAdmissionPort::new();
+        admission
+            .expect_admit()
+            .returning(|_| Box::pin(async { Err(CoreError::Forbidden("maintenance".into())) }));
+
+        let result = issue_login_code(
+            &sessions,
+            &admission,
+            &scope,
+            Uuid::new_v4(),
+            CodeTarget::New(Box::new(session)),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await;
+
+        assert!(matches!(result, Err(CoreError::Forbidden(_))));
     }
 }

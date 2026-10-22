@@ -61,12 +61,13 @@ pub struct WebAuthnPublicKeyRequestOptionsOutput(pub RequestChallengeResponse);
 pub struct WebAuthnPublicKeyAuthenticateInput {
     pub realm_name: String,
     pub session_code: String,
+    pub webapp_base_url: String,
     pub rp_info: WebAuthnRpInfo,
     pub credential: PublicKeyCredential,
 }
 pub struct WebAuthnPublicKeyAuthenticateOutput {
     pub login_url: String,
-    pub sso_session: OpenedSsoSession,
+    pub sso_session: Option<OpenedSsoSession>,
 }
 
 pub struct PasskeyRequestOptionsInput {
@@ -79,6 +80,7 @@ pub struct PasskeyRequestOptionsInput {
 pub struct PasskeyAuthenticateInput {
     pub realm_name: String,
     pub session_code: String,
+    pub webapp_base_url: String,
     pub rp_info: WebAuthnRpInfo,
     pub credential: PublicKeyCredential,
     pub remember_me: bool,
@@ -86,11 +88,12 @@ pub struct PasskeyAuthenticateInput {
 
 pub struct PasskeyAuthenticateOutput {
     pub login_url: String,
-    pub sso_session: OpenedSsoSession,
+    pub sso_session: Option<OpenedSsoSession>,
 }
 
 pub struct ChallengeOtpInput {
     pub session_code: String,
+    pub webapp_base_url: String,
     pub code: String,
 }
 
@@ -144,13 +147,14 @@ pub struct GenerateRecoveryCodeOutput {
 pub struct BurnRecoveryCodeInput {
     pub realm_name: String,
     pub session_code: String,
+    pub webapp_base_url: String,
     pub format: String,
     pub code: String,
 }
 
 pub struct BurnRecoveryCodeOutput {
     pub login_url: String,
-    pub sso_session: OpenedSsoSession,
+    pub sso_session: Option<OpenedSsoSession>,
 }
 
 pub struct MagicLinkInput {
@@ -168,6 +172,7 @@ pub struct MagicLinkInput {
 pub struct VerifyMagicLinkInput {
     pub magic_token_id: Uuid,
     pub magic_token: String,
+    pub webapp_base_url: String,
 }
 
 pub struct RequestPasswordResetInput {
@@ -184,6 +189,7 @@ pub struct CompletePasswordResetInput {
     pub token_id: Uuid,
     pub token: String,
     pub new_password: String,
+    pub webapp_base_url: String,
 }
 
 pub struct CompletePasswordResetOutput {
@@ -200,7 +206,7 @@ pub struct CompletePasswordResetOutput {
 #[derive(Debug)]
 pub struct VerifyMagicLinkOutput {
     pub login_url: String,
-    pub sso_session: OpenedSsoSession,
+    pub sso_session: Option<OpenedSsoSession>,
 }
 
 pub struct VerifyResetTokenInput {

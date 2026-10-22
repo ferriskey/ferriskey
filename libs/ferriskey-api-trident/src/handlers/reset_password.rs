@@ -21,7 +21,7 @@ use ferriskey_api_core::{
     },
     app_state::AppState,
     sso_cookie,
-    url::FullUrl,
+    url::{FullUrl, WebappUrl},
 };
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
@@ -103,6 +103,7 @@ pub async fn reset_password_with_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     ValidateJson(payload): ValidateJson<ResetPasswordRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     state
@@ -116,6 +117,7 @@ pub async fn reset_password_with_token(
             token_id: payload.token_id,
             token: payload.token,
             new_password: payload.new_password,
+            webapp_base_url: webapp_url,
         })
         .await?;
 

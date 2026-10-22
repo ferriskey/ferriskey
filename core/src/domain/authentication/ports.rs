@@ -310,3 +310,24 @@ pub trait SsoSessionPort: Send + Sync {
         reauth_session_id: Option<Uuid>,
     ) -> impl Future<Output = Result<OpenedSsoSession, CoreError>> + Send;
 }
+
+pub struct AdmitLoginInput {
+    pub user_id: Uuid,
+    pub auth_session: AuthSession,
+    pub scope: RealmScope,
+    pub webapp_base_url: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoginAdmission {
+    Proceed,
+    ConsentRequired { redirect_url: String },
+}
+
+#[cfg_attr(test, mockall::automock)]
+pub trait LoginAdmissionPort: Send + Sync {
+    fn admit(
+        &self,
+        input: AdmitLoginInput,
+    ) -> impl Future<Output = Result<LoginAdmission, CoreError>> + Send;
+}

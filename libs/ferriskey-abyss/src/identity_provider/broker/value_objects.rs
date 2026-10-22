@@ -175,6 +175,8 @@ pub struct BrokerCallbackInput {
     /// Base URL of the API server (e.g., "https://auth.example.com")
     pub base_url: String,
 
+    pub webapp_base_url: String,
+
     pub ip_address: Option<String>,
 
     pub user_agent: Option<String>,
@@ -187,7 +189,7 @@ pub struct BrokerCallbackOutput {
     pub redirect_url: String,
 
     /// Authorization code for the client
-    pub authorization_code: String,
+    pub authorization_code: Option<String>,
 
     /// FerrisKey user ID
     pub user_id: Uuid,
@@ -197,6 +199,8 @@ pub struct BrokerCallbackOutput {
 
     /// OAuth client ID related to this broker authentication
     pub client_id: String,
+
+    pub browser_session_id: Option<Uuid>,
 }
 
 /// User info extracted from IdP tokens
