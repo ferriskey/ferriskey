@@ -965,13 +965,11 @@ impl ApplicationService {
             return false;
         };
 
-        !matches!(
-            self.client_service
-                .client_repository
-                .get_by_client_id(client_id.to_string(), scope.id())
-                .await,
-            Err(CoreError::NotFound)
-        )
+        self.client_service
+            .client_repository
+            .get_by_client_id(client_id.to_string(), scope.id())
+            .await
+            .is_ok()
     }
 
     /// Verification page: bind the authenticated user to the device session
