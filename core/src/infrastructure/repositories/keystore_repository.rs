@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, RwLock};
 
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use ferriskey_security::jwt::ports::KeyStoreRepository;
 use sea_orm::{
     ActiveValue::Set,
@@ -17,10 +18,13 @@ use crate::domain::{
 };
 use crate::entity::{jwt_keys, realms};
 
+pub const PRIVATE_KEY_PURPOSE: &str = "jwt_keys.private_key";
+
 #[derive(Clone)]
 pub struct PostgresKeyStoreRepository {
     pub db: DatabaseConnection,
     keys: Arc<RwLock<HashMap<Uuid, JwtKeyPair>>>,
+    cipher: SecretCipher,
 }
 
 impl fmt::Debug for PostgresKeyStoreRepository {
@@ -33,10 +37,21 @@ impl fmt::Debug for PostgresKeyStoreRepository {
 
 impl PostgresKeyStoreRepository {
     pub fn new(db: DatabaseConnection) -> Self {
+        Self::with_cipher(db, SecretCipher::disabled())
+    }
+
+    pub fn with_cipher(db: DatabaseConnection, cipher: SecretCipher) -> Self {
         Self {
             db,
             keys: Arc::new(RwLock::new(HashMap::new())),
+            cipher,
         }
+    }
+
+    fn private_key_of(&self, key: &jwt_keys::Model) -> Result<String, JwtError> {
+        self.cipher
+            .open(PRIVATE_KEY_PURPOSE, &key.id.to_string(), &key.private_key)
+            .map_err(|error| JwtError::InvalidKey(error.to_string()))
     }
 
     fn cached_key(&self, realm_id: Uuid) -> Option<JwtKeyPair> {
@@ -74,11 +89,17 @@ impl PostgresKeyStoreRepository {
         let (private_key, public_key) = JwtKeyPair::generate()?;
         let certificate = JwtKeyPair::self_signed_certificate(&private_key, &common_name)?;
 
+        let id = generate_uuid_v7();
+        let sealed_private_key = self
+            .cipher
+            .seal(PRIVATE_KEY_PURPOSE, &id.to_string(), &private_key)
+            .map_err(|error| JwtError::GenerationError(error.to_string()))?;
+
         let new_key = jwt_keys::ActiveModel {
-            id: Set(generate_uuid_v7()),
+            id: Set(id),
             realm_id: Set(realm_id),
             public_key: Set(public_key),
-            private_key: Set(private_key),
+            private_key: Set(sealed_private_key),
             certificate: Set(Some(certificate)),
             created_at: Set(chrono::Utc::now().naive_utc()),
         };
@@ -103,7 +124,8 @@ impl PostgresKeyStoreRepository {
         key: &jwt_keys::Model,
     ) -> Result<jwt_keys::Model, JwtError> {
         let common_name = self.certificate_common_name(key.realm_id).await?;
-        let certificate = JwtKeyPair::self_signed_certificate(&key.private_key, &common_name)?;
+        let private_key = self.private_key_of(key)?;
+        let certificate = JwtKeyPair::self_signed_certificate(&private_key, &common_name)?;
 
         jwt_keys::Entity::update_many()
             .col_expr(jwt_keys::Column::Certificate, Expr::value(certificate))
@@ -138,10 +160,11 @@ impl KeyStoreRepository for PostgresKeyStoreRepository {
             self.backfill_certificate(&key).await?
         };
 
+        let private_key = self.private_key_of(&key)?;
         let certificate = key.certificate.ok_or(JwtError::RealmKeyNotFound)?;
 
         let key_pair = JwtKeyPair::from_pem(
-            &key.private_key,
+            &private_key,
             &key.public_key,
             &certificate,
             key.realm_id,
@@ -357,5 +380,103 @@ mod tests {
 
         assert_eq!(second.id, first.id);
         assert_eq!(count_keys(&fixture.pool, realm_id).await, 0);
+    }
+
+    const SEALING_KEY: &str = "kid-a:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+
+    fn sealing(db: sea_orm::DatabaseConnection) -> PostgresKeyStoreRepository {
+        PostgresKeyStoreRepository::with_cipher(
+            db,
+            ferriskey_security::crypto::secret_cipher::SecretCipher::from_config(SEALING_KEY)
+                .expect("a valid key ring"),
+        )
+    }
+
+    async fn stored_private_key(pool: &sqlx::PgPool, realm_id: RealmId) -> String {
+        sqlx::query_scalar("SELECT private_key FROM jwt_keys WHERE realm_id = $1")
+            .bind(Uuid::from(realm_id))
+            .fetch_one(pool)
+            .await
+            .expect("read the stored key")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn with_a_cipher_the_private_key_is_sealed_at_rest_and_still_usable() {
+        let fixture = setup().await;
+        let repository = sealing(fixture.repository.db.clone());
+        let realm_id = insert_realm(&fixture.pool, "tenant-sealed").await;
+
+        let key_pair = repository
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("generate realm key");
+
+        let stored = stored_private_key(&fixture.pool, realm_id).await;
+        assert!(stored.starts_with("fk1:kid-a:"), "{stored}");
+        assert!(!stored.contains("PRIVATE KEY"));
+        assert!(key_pair.private_key.contains("PRIVATE KEY"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_key_is_read_back_by_another_instance_with_the_same_key() {
+        let fixture = setup().await;
+        let realm_id = insert_realm(&fixture.pool, "tenant-shared").await;
+
+        let first = sealing(fixture.repository.db.clone())
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("generate realm key");
+        let second = sealing(fixture.repository.db.clone())
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("read the sealed key");
+
+        assert_eq!(first.private_key, second.private_key);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_plaintext_key_is_still_read_when_a_cipher_is_configured() {
+        let fixture = setup().await;
+        let realm_id = insert_realm(&fixture.pool, "tenant-plain").await;
+        let (private_key, public_key) = JwtKeyPair::generate().expect("generate legacy key");
+        sqlx::query(
+            "INSERT INTO jwt_keys (id, realm_id, private_key, public_key, certificate, created_at) \
+             VALUES ($1, $2, $3, $4, $5, NOW())",
+        )
+        .bind(Uuid::new_v4())
+        .bind(Uuid::from(realm_id))
+        .bind(&private_key)
+        .bind(&public_key)
+        .bind(
+            JwtKeyPair::self_signed_certificate(&private_key, "tenant-plain").expect("certificate"),
+        )
+        .execute(&fixture.pool)
+        .await
+        .expect("insert legacy key");
+
+        let key_pair = sealing(fixture.repository.db.clone())
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("read the legacy key");
+
+        assert_eq!(key_pair.private_key, private_key);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_key_is_refused_by_an_instance_without_a_cipher() {
+        let fixture = setup().await;
+        let realm_id = insert_realm(&fixture.pool, "tenant-locked").await;
+        sealing(fixture.repository.db.clone())
+            .get_or_generate_key(realm_id)
+            .await
+            .expect("generate realm key");
+
+        let unaware = PostgresKeyStoreRepository::new(fixture.repository.db.clone());
+
+        assert!(unaware.get_or_generate_key(realm_id).await.is_err());
     }
 }

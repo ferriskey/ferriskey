@@ -13,7 +13,7 @@ use ferriskey_api::{
     args::{Args, ServerArgs},
 };
 use ferriskey_core::{
-    application::create_service,
+    application::create_service_with_secrets,
     domain::common::{
         DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
     },
@@ -38,6 +38,9 @@ static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 static APP: OnceLock<TestApp> = OnceLock::new();
 static CACHED_APP: OnceLock<TestApp> = OnceLock::new();
 static FORWARDED_APP: OnceLock<TestApp> = OnceLock::new();
+static SEALED_APP: OnceLock<TestApp> = OnceLock::new();
+
+pub const SEALING_KEYS: &str = "kid-a:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
 pub fn rt() -> &'static tokio::runtime::Runtime {
     RUNTIME.get_or_init(|| {
@@ -60,15 +63,38 @@ pub fn forwarded_app() -> &'static TestApp {
     FORWARDED_APP.get_or_init(|| boot_blocking(0, false, true))
 }
 
+pub fn sealed_app() -> &'static TestApp {
+    SEALED_APP.get_or_init(|| boot_sealed_blocking(SEALING_KEYS))
+}
+
 fn boot_blocking(
     config_cache_ttl_seconds: u64,
     seed_default_scopes: bool,
     trust_forwarded_for: bool,
 ) -> TestApp {
+    boot_with(
+        config_cache_ttl_seconds,
+        seed_default_scopes,
+        trust_forwarded_for,
+        "",
+    )
+}
+
+fn boot_sealed_blocking(secrets_encryption_keys: &str) -> TestApp {
+    boot_with(0, false, false, secrets_encryption_keys)
+}
+
+fn boot_with(
+    config_cache_ttl_seconds: u64,
+    seed_default_scopes: bool,
+    trust_forwarded_for: bool,
+    secrets_encryption_keys: &str,
+) -> TestApp {
     let boot = TestApp::boot(
         config_cache_ttl_seconds,
         seed_default_scopes,
         trust_forwarded_for,
+        secrets_encryption_keys,
     );
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => tokio::task::block_in_place(|| handle.block_on(boot)),
@@ -92,6 +118,7 @@ impl TestApp {
         config_cache_ttl_seconds: u64,
         seed_default_scopes: bool,
         trust_forwarded_for: bool,
+        secrets_encryption_keys: &str,
     ) -> TestApp {
         let host = env_or("DATABASE_HOST", "localhost");
         let port = env_u16_or("DATABASE_PORT", 5432);
@@ -122,21 +149,24 @@ impl TestApp {
             .await
             .expect("run migrations");
 
-        let service = create_service(FerriskeyConfig {
-            webhook_allow_private_endpoints: false,
-            client_metadata_allow_private_endpoints: false,
-            config_cache_ttl_seconds,
-            password_hashing: PasswordHashingCost::default(),
-            webapp_url: "http://localhost:5555".to_string(),
-            database: DatabaseConfig {
-                host,
-                port,
-                username: user,
-                password,
-                name,
-                schema,
+        let service = create_service_with_secrets(
+            FerriskeyConfig {
+                webhook_allow_private_endpoints: false,
+                client_metadata_allow_private_endpoints: false,
+                config_cache_ttl_seconds,
+                password_hashing: PasswordHashingCost::default(),
+                webapp_url: "http://localhost:5555".to_string(),
+                database: DatabaseConfig {
+                    host,
+                    port,
+                    username: user,
+                    password,
+                    name,
+                    schema,
+                },
             },
-        })
+            secrets_encryption_keys,
+        )
         .await
         .expect("create service");
 

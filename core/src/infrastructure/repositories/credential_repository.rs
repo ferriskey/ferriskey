@@ -3,6 +3,7 @@ use crate::{
     entity::credentials::{ActiveModel, Entity as CredentialEntity},
 };
 use chrono::{TimeZone, Utc};
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
@@ -54,14 +55,40 @@ impl From<crate::entity::credentials::Model> for Credential {
     }
 }
 
+pub const OTP_SECRET_PURPOSE: &str = "credentials.otp_secret";
+
 #[derive(Debug, Clone)]
 pub struct PostgresCredentialRepository {
     pub db: DatabaseConnection,
+    cipher: SecretCipher,
 }
 
 impl PostgresCredentialRepository {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self::with_cipher(db, SecretCipher::disabled())
+    }
+
+    pub fn with_cipher(db: DatabaseConnection, cipher: SecretCipher) -> Self {
+        Self { db, cipher }
+    }
+
+    fn opened(&self, mut credential: Credential) -> Credential {
+        if credential.credential_type != CredentialType::Otp {
+            return credential;
+        }
+
+        match self.cipher.open(
+            OTP_SECRET_PURPOSE,
+            &credential.id.to_string(),
+            &credential.secret_data,
+        ) {
+            Ok(secret) => credential.secret_data = secret,
+            Err(error) => {
+                tracing::error!(credential_id = %credential.id, %error, "an OTP secret could not be opened");
+            }
+        }
+
+        credential
     }
 }
 
@@ -290,7 +317,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             .await
             .map_err(|_| CredentialError::GetUserCredentialsError)?
             .into_iter()
-            .map(Credential::from)
+            .map(|model| self.opened(Credential::from(model)))
             .collect();
 
         Ok(credentials)
@@ -327,13 +354,25 @@ impl CredentialRepository for PostgresCredentialRepository {
     ) -> Result<Credential, CredentialError> {
         let (now, _) = generate_timestamp();
 
+        let id = generate_uuid_v7();
+        let stored_secret = if credential_type == "otp" {
+            self.cipher
+                .seal(OTP_SECRET_PURPOSE, &id.to_string(), &secret_data)
+                .map_err(|error| {
+                    tracing::error!(%error, "an OTP secret could not be sealed");
+                    CredentialError::CreateCredentialError
+                })?
+        } else {
+            secret_data
+        };
+
         let payload = ActiveModel {
-            id: Set(generate_uuid_v7()),
+            id: Set(id),
             salt: Set(None),
             credential_type: Set(credential_type),
             user_id: Set(user_id),
             user_label: Set(label),
-            secret_data: Set(secret_data),
+            secret_data: Set(stored_secret),
             credential_data: Set(credential_data),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_utc()),
@@ -347,7 +386,7 @@ impl CredentialRepository for PostgresCredentialRepository {
             .await
             .map_err(|_| CredentialError::CreateCredentialError)?;
 
-        Ok(model.into())
+        Ok(self.opened(model.into()))
     }
 
     async fn create_recovery_code_credentials(
@@ -850,5 +889,123 @@ mod tests {
                 .await
                 .unwrap_or_else(|e| panic!("round {round} under a generic plan: {e:?}"));
         }
+    }
+
+    const SEALING_KEY: &str = "kid-a:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+
+    fn sealing_repository(db: DatabaseConnection) -> PostgresCredentialRepository {
+        PostgresCredentialRepository::with_cipher(
+            db,
+            SecretCipher::from_config(SEALING_KEY).expect("a valid key ring"),
+        )
+    }
+
+    async fn stored_secret(pool: &sqlx::PgPool, credential_id: Uuid) -> String {
+        sqlx::query_scalar("SELECT secret_data FROM credentials WHERE id = $1")
+            .bind(credential_id)
+            .fetch_one(pool)
+            .await
+            .expect("read the stored secret")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn an_otp_secret_is_sealed_at_rest_and_read_back_in_the_clear() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        let repository = sealing_repository(fixture.repository.db.clone());
+
+        let created = repository
+            .create_custom_credential(
+                user_id,
+                "otp".to_string(),
+                "JBSWY3DPEHPK3PXP".to_string(),
+                None,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create the otp credential");
+
+        assert_eq!(created.secret_data, "JBSWY3DPEHPK3PXP");
+        let stored = stored_secret(&fixture.pool, created.id).await;
+        assert!(stored.starts_with("fk1:kid-a:"), "{stored}");
+        assert!(!stored.contains("JBSWY3DP"));
+
+        let listed = repository
+            .get_credentials_by_user_id(user_id)
+            .await
+            .expect("list the credentials");
+        assert_eq!(listed[0].secret_data, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_secret_that_is_not_an_otp_seed_is_stored_as_given() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        let repository = sealing_repository(fixture.repository.db.clone());
+
+        let created = repository
+            .create_custom_credential(
+                user_id,
+                "federated".to_string(),
+                "federated".to_string(),
+                None,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create the credential");
+
+        assert_eq!(stored_secret(&fixture.pool, created.id).await, "federated");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_plaintext_otp_seed_is_still_read_when_a_cipher_is_configured() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        let credential_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO credentials (id, credential_type, user_id, secret_data, credential_data) \
+             VALUES ($1, 'otp', $2, 'JBSWY3DPEHPK3PXP', '{}'::jsonb)",
+        )
+        .bind(credential_id)
+        .bind(user_id)
+        .execute(&fixture.pool)
+        .await
+        .expect("insert a legacy seed");
+
+        let listed = sealing_repository(fixture.repository.db.clone())
+            .get_credentials_by_user_id(user_id)
+            .await
+            .expect("list the credentials");
+
+        assert_eq!(listed[0].secret_data, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_seed_is_never_handed_out_as_a_usable_secret_without_the_key() {
+        let fixture = setup().await;
+        let user_id = insert_user(&fixture.pool).await;
+        let created = sealing_repository(fixture.repository.db.clone())
+            .create_custom_credential(
+                user_id,
+                "otp".to_string(),
+                "JBSWY3DPEHPK3PXP".to_string(),
+                None,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create the otp credential");
+
+        let listed = fixture
+            .repository
+            .get_credentials_by_user_id(user_id)
+            .await
+            .expect("list the credentials");
+
+        assert_eq!(listed[0].id, created.id);
+        assert!(listed[0].secret_data.starts_with("fk1:"));
     }
 }

@@ -204,9 +204,27 @@ pub mod webhook;
 
 pub use services::ApplicationService;
 
+use crate::infrastructure::secrets_backfill::seal_existing_secrets;
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
+
 const DEVICE_SESSION_PURGE_PERIOD: std::time::Duration = std::time::Duration::from_secs(900);
 
 pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationService, CoreError> {
+    create_service_with_secrets(config, "").await
+}
+
+pub async fn create_service_with_secrets(
+    config: FerriskeyConfig,
+    secrets_encryption_keys: &str,
+) -> Result<ApplicationService, CoreError> {
+    let secret_cipher = SecretCipher::from_config(secrets_encryption_keys)
+        .map_err(|error| CoreError::Configuration(error.to_string()))?;
+    if !secret_cipher.is_enabled() {
+        tracing::warn!(
+            "SECRETS_ENCRYPTION_KEYS is not set: realm signing keys, TOTP seeds and SMTP passwords are stored in clear in the database"
+        );
+    }
+
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}?options=-c search_path={}",
         config.database.username,
@@ -221,6 +239,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         .await
         .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
+    if let Err(error) = seal_existing_secrets(&postgres.get_db(), &secret_cipher).await {
+        tracing::error!(%error, "the stored secrets could not be sealed, they are sealed on the next start");
+    }
+
     let config_cache_ttl = Duration::from_secs(config.config_cache_ttl_seconds);
     let realm = Arc::new(CachedRealmRepository::new(
         PostgresRealmRepository::new(postgres.get_db()),
@@ -232,7 +254,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         config_cache_ttl,
     ));
     let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
-    let credential = Arc::new(PostgresCredentialRepository::new(postgres.get_db()));
+    let credential = Arc::new(PostgresCredentialRepository::with_cipher(
+        postgres.get_db(),
+        secret_cipher.clone(),
+    ));
     config
         .password_hashing
         .validate()
@@ -251,7 +276,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let client_saml = Arc::new(PostgresClientSamlRepository::new(postgres.get_db()));
     let role = Arc::new(PostgresRoleRepository::new(postgres.get_db()));
-    let keystore = Arc::new(PostgresKeyStoreRepository::new(postgres.get_db()));
+    let keystore = Arc::new(PostgresKeyStoreRepository::with_cipher(
+        postgres.get_db(),
+        secret_cipher.clone(),
+    ));
     let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
     let user_required_action =
         Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db()));
@@ -348,7 +376,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
     ));
     let compass_flow = Arc::new(PostgresCompassFlowRepository::new(postgres.get_db()));
     let compass_flow_step = Arc::new(PostgresCompassFlowStepRepository::new(postgres.get_db()));
-    let smtp_config = Arc::new(PostgresSmtpConfigRepository::new(postgres.get_db()));
+    let smtp_config = Arc::new(PostgresSmtpConfigRepository::with_cipher(
+        postgres.get_db(),
+        secret_cipher.clone(),
+    ));
     let resource_owner = Arc::new(PostgresResourceOwnerRepository::new(postgres.get_db()));
     let email_port = Arc::new(SmtpEmailPort::new());
     let password_reset_token =
@@ -383,7 +414,10 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         postgres.get_db(),
     ));
     let password_policy = Arc::new(PostgresPasswordPolicyRepository::new(postgres.get_db()));
-    let otp_enrollment = Arc::new(PostgresOtpEnrollmentRepository::new(postgres.get_db()));
+    let otp_enrollment = Arc::new(PostgresOtpEnrollmentRepository::with_cipher(
+        postgres.get_db(),
+        secret_cipher.clone(),
+    ));
 
     let (compass_tx, compass_rx) = tokio::sync::mpsc::channel(1024);
     tokio::spawn(compass_writer_task(
