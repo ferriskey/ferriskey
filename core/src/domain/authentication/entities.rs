@@ -134,8 +134,15 @@ pub struct AuthOutput {
     pub session: AuthSession,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenUsage {
+    ManagementApi,
+    AnyClient,
+}
+
 pub struct AuthorizeRequestInput {
     pub claims: JwtClaim,
     pub token: String,
     pub realm_name: Option<String>,
+    pub usage: TokenUsage,
 }
