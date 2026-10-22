@@ -60,7 +60,7 @@ impl<K: Eq + Hash + Clone> KeyedRateLimiter<K> {
             && buckets.len() >= self.max_tracked
             && !self.make_room(&mut buckets, now)
         {
-            return false;
+            return true;
         }
 
         let bucket = buckets.entry(key).or_insert(Bucket {
@@ -82,8 +82,7 @@ impl<K: Eq + Hash + Clone> KeyedRateLimiter<K> {
             return false;
         };
         let Some(bucket) = buckets.get(key) else {
-            return buckets.len() < self.max_tracked
-                || buckets.values().any(|bucket| self.has_token(bucket, now));
+            return true;
         };
 
         self.has_token(bucket, now)
@@ -189,8 +188,12 @@ pub struct ClientAuthThrottle {
 
 impl ClientAuthThrottle {
     pub fn per_minute(failures: u32) -> Self {
+        Self::with_limits(failures, MAX_TRACKED_ADDRESSES)
+    }
+
+    pub fn with_limits(failures_per_minute: u32, max_tracked: usize) -> Self {
         Self {
-            failures: KeyedRateLimiter::with_limits(failures, MAX_TRACKED_ADDRESSES),
+            failures: KeyedRateLimiter::with_limits(failures_per_minute, max_tracked),
         }
     }
 
@@ -514,18 +517,45 @@ mod tests {
     }
 
     #[test]
-    fn a_new_key_is_refused_while_every_tracked_key_is_blocked() {
+    fn a_new_key_is_admitted_untracked_while_every_tracked_key_is_blocked() {
         let limiter = KeyedRateLimiter::with_limits(1, 2);
         let now = Instant::now();
 
         assert!(limiter.spend_at("a", now));
         assert!(limiter.spend_at("b", now));
 
-        assert!(!limiter.has_budget_at(&"c", now));
-        assert!(!limiter.spend_at("c", now));
+        assert!(limiter.has_budget_at(&"c", now));
+        assert!(limiter.spend_at("c", now));
         assert_eq!(limiter.tracked(), 2);
         assert!(!limiter.has_budget_at(&"a", now));
         assert!(!limiter.has_budget_at(&"b", now));
+    }
+
+    #[test]
+    fn blocked_identities_never_deny_admission_to_independent_clients() {
+        let throttle = ClientAuthThrottle::with_limits(1, 3);
+        let now = Instant::now();
+        let junk = |n: usize| key(ip(40), "master", &format!("junk-{n}"));
+
+        for n in 0..3 {
+            throttle
+                .reserve_at(junk(n), now)
+                .expect("a fresh key may try")
+                .failed_at(now);
+        }
+        assert_eq!(throttle.tracked(), 3);
+
+        let independent = key(ip(41), "master", "console");
+        throttle
+            .reserve_at(independent.clone(), now)
+            .expect("an independent client is not denied by someone else's failures")
+            .failed_at(now);
+
+        assert_eq!(throttle.tracked(), 3);
+        for n in 0..3 {
+            assert!(throttle.reserve_at(junk(n), now).is_none());
+        }
+        assert!(throttle.reserve_at(independent, now).is_some());
     }
 
     #[test]
