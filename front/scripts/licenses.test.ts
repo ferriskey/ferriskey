@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  CNCF_POLICY,
   checkLicenses,
   isExpressionAllowed,
   parseLicenseReport,
@@ -43,6 +44,19 @@ test('an exception covers only its package and its license', () => {
   assert.deepEqual(checkLicenses(report, policy), [
     { name: 'other-mpl', versions: ['2.0.0'], license: 'MPL-2.0' },
     { name: 'lightningcss', versions: ['1.31.1'], license: 'OFL-1.1' },
+  ])
+})
+
+test('the self-hosted console fonts are the only packages allowed under OFL-1.1', () => {
+  const report = {
+    'OFL-1.1': [
+      { name: '@fontsource-variable/geist', versions: ['5.2.8'] },
+      { name: '@fontsource/ibm-plex-sans', versions: ['5.3.0'] },
+      { name: '@fontsource/other-font', versions: ['1.0.0'] },
+    ],
+  }
+  assert.deepEqual(checkLicenses(report, CNCF_POLICY), [
+    { name: '@fontsource/other-font', versions: ['1.0.0'], license: 'OFL-1.1' },
   ])
 })
 
