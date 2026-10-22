@@ -1,3 +1,4 @@
+use super::content_sanitizer::{self, escape_attribute_value, is_attribute_name};
 use crate::domain::{
     common::entities::app_errors::CoreError, email_template::ports::TemplateRenderer,
 };
@@ -15,7 +16,14 @@ impl MjmlTemplateRenderer {
 
 impl TemplateRenderer for MjmlTemplateRenderer {
     fn render_to_intermediate(&self, structure: &serde_json::Value) -> Result<String, CoreError> {
-        json_to_mjml(structure)
+        json_to_mjml(&content_sanitizer::sanitize_structure(structure)?)
+    }
+
+    fn sanitize_structure(
+        &self,
+        structure: &serde_json::Value,
+    ) -> Result<serde_json::Value, CoreError> {
+        content_sanitizer::sanitize_structure(structure)
     }
 
     fn render_to_html(&self, intermediate: &str) -> Result<String, CoreError> {
@@ -144,8 +152,9 @@ fn raw_node_to_html(node: &serde_json::Value) -> String {
         .map(|attrs| {
             attrs
                 .iter()
+                .filter(|(key, _)| is_attribute_name(key))
                 .map(|(key, value)| match value.as_str() {
-                    Some(value) => format!(" {key}=\"{value}\""),
+                    Some(value) => format!(" {key}=\"{}\"", escape_attribute_value(value)),
                     None => format!(" {key}"),
                 })
                 .collect::<String>()
@@ -227,13 +236,16 @@ fn json_to_mjml(node: &serde_json::Value) -> Result<String, CoreError> {
     for key in &["attributes", "props", "styles"] {
         if let Some(obj) = node.get(*key).and_then(|v| v.as_object()) {
             for (k, v) in obj {
+                if !is_attribute_name(k) {
+                    continue;
+                }
                 let val = match v {
                     serde_json::Value::String(s) if !s.is_empty() => s.clone(),
                     serde_json::Value::String(_) => continue,
                     serde_json::Value::Null => continue,
                     other => other.to_string(),
                 };
-                attr_parts.push(format!(" {k}=\"{val}\""));
+                attr_parts.push(format!(" {k}=\"{}\"", escape_attribute_value(&val)));
             }
         }
     }
@@ -282,6 +294,78 @@ fn json_to_mjml(node: &serde_json::Value) -> Result<String, CoreError> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn rendering_sanitizes_the_content_and_escapes_attribute_values() {
+        let renderer = MjmlTemplateRenderer::new();
+        let structure = json!({"children": [{
+            "type": "mj-section",
+            "attributes": {"background-color": "#fff\" onload=\"x"},
+            "children": [{"type": "mj-column", "children": [
+                {"type": "mj-text", "content": "<p>Hi</p><script>alert(1)</script>"},
+                {"type": "mj-button", "attributes": {"href": "javascript:alert(1)"}, "content": "Go"}
+            ]}]
+        }]});
+
+        let mjml = renderer
+            .render_to_intermediate(&structure)
+            .expect("renders");
+
+        assert!(!mjml.contains("<script"), "{mjml}");
+        assert!(!mjml.contains("javascript:"), "{mjml}");
+        assert!(
+            mjml.contains(r##"background-color="#fff&quot; onload=&quot;x""##),
+            "{mjml}"
+        );
+        let html = renderer.render_to_html(&mjml).expect("compiles");
+        assert!(!html.contains("<script"), "{html}");
+    }
+
+    #[test]
+    fn sanitized_rich_text_still_compiles_to_html() {
+        let renderer = MjmlTemplateRenderer::new();
+        let structure = json!({"children": [{"type": "mj-section", "children": [{"type": "mj-column", "children": [
+            {"type": "mj-text", "content": "<p>Hello&nbsp;<b>{{user.first_name}}</b><br>second &amp; third</p><ul><li>a</li></ul><a href=\"{{reset_link}}\" target=\"_blank\">Reset</a>"},
+            {"type": "mj-button", "attributes": {"href": "https://ferriskey.rs/go?a=1&b=2"}, "content": "Go"}
+        ]}]}]});
+
+        let mjml = renderer
+            .render_to_intermediate(&structure)
+            .expect("renders");
+        let html = renderer.render_to_html(&mjml).expect("compiles");
+
+        assert!(html.contains("{{user.first_name}}"), "{html}");
+        assert!(html.contains("{{reset_link}}"), "{html}");
+        assert!(html.contains("https://ferriskey.rs/go?a=1&b=2"), "{html}");
+    }
+
+    #[test]
+    fn the_sanitized_structure_is_the_one_exposed_by_the_port() {
+        let renderer = MjmlTemplateRenderer::new();
+        let structure =
+            json!({"children": [{"type": "mj-text", "content": "<p>Hi</p><script>x</script>"}]});
+
+        let clean = renderer.sanitize_structure(&structure).expect("sanitized");
+
+        assert_eq!(clean["children"][0]["content"], "<p>Hi</p>");
+    }
+
+    #[test]
+    fn imported_raw_attribute_values_are_escaped_when_folded_back() {
+        let renderer = MjmlTemplateRenderer::new();
+        let mjml = r#"<mjml><mj-body><mj-section><mj-column><mj-text><a href="https://x?a=1&amp;b=2" title='a "b"'>x</a></mj-text></mj-column></mj-section></mj-body></mjml>"#;
+
+        let structure = renderer.parse_intermediate(mjml).expect("parses");
+
+        let content = structure["children"][0]["children"][0]["children"][0]["content"]
+            .as_str()
+            .expect("content");
+        assert!(
+            content.contains(r#"href="https://x?a=1&amp;b=2""#),
+            "{content}"
+        );
+        assert!(content.contains(r#"title="a &quot;b&quot;""#), "{content}");
+    }
 
     #[test]
     fn test_simple_structure_to_mjml() {

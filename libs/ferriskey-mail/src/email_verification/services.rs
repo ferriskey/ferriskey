@@ -146,9 +146,11 @@ where
             .in_realm(scope)?
             .ok_or(CoreError::EmailTemplateNotFound)?;
 
-        let html = self
+        let structure = self
             .template_renderer
-            .render_to_html(&template.get().mjml)?;
+            .sanitize_structure(&template.get().structure)?;
+        let mjml = self.template_renderer.render_to_intermediate(&structure)?;
+        let html = self.template_renderer.render_to_html(&mjml)?;
 
         let mut variables = HashMap::new();
         variables.insert(
@@ -472,6 +474,13 @@ mod tests {
             _structure: &serde_json::Value,
         ) -> Result<String, CoreError> {
             Ok("<mjml><mj-body>Test</mjml>".to_string())
+        }
+
+        fn sanitize_structure(
+            &self,
+            structure: &serde_json::Value,
+        ) -> Result<serde_json::Value, CoreError> {
+            Ok(structure.clone())
         }
 
         fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {

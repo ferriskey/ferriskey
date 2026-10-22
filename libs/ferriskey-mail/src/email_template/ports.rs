@@ -100,6 +100,11 @@ pub trait TemplateRenderer: Send + Sync {
     /// Converts the builder structure (JSON) into an intermediate representation (e.g. MJML string).
     fn render_to_intermediate(&self, structure: &serde_json::Value) -> Result<String, CoreError>;
 
+    fn sanitize_structure(
+        &self,
+        structure: &serde_json::Value,
+    ) -> Result<serde_json::Value, CoreError>;
+
     /// Converts the intermediate representation into final HTML.
     fn render_to_html(&self, intermediate: &str) -> Result<String, CoreError>;
 
