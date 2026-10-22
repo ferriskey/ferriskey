@@ -225,6 +225,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Custom,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: "permit (principal, action, resource);".to_string(),
             },

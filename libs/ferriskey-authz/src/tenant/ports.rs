@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate, RelationTuple};
 use super::evaluation::{EvaluationRequest, PrincipalSlice, RuleSet};
+use super::names::ManagedBy;
 use super::value_objects::{
     CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, UpdatePolicyInput,
     UpdateTemplateInput,
@@ -224,6 +225,7 @@ pub trait AuthzManagementService: Send + Sync {
         &self,
         identity: Identity,
         realm_name: String,
+        managed_by: Option<ManagedBy>,
     ) -> impl Future<Output = Result<Vec<Policy>, CoreError>> + Send;
 
     fn get_policy(
@@ -231,6 +233,7 @@ pub trait AuthzManagementService: Send + Sync {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> impl Future<Output = Result<Policy, CoreError>> + Send;
 
     fn create_policy(
@@ -250,6 +253,7 @@ pub trait AuthzManagementService: Send + Sync {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> impl Future<Output = Result<(), CoreError>> + Send;
 
     fn list_templates(

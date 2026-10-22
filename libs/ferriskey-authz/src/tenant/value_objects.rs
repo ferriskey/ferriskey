@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use super::entities::PolicyBody;
-use super::names::{Namespace, PolicyName};
+use super::names::{ManagedBy, Namespace, PolicyName};
 
 pub struct ReplaceSchemaInput {
     pub realm_name: String,
@@ -14,6 +14,7 @@ pub struct CreatePolicyInput {
     pub name: PolicyName,
     pub description: Option<String>,
     pub enabled: bool,
+    pub managed_by: Option<ManagedBy>,
     pub body: PolicyBody,
 }
 
@@ -23,6 +24,7 @@ pub struct UpdatePolicyInput {
     pub name: PolicyName,
     pub description: Option<String>,
     pub enabled: bool,
+    pub managed_by: Option<ManagedBy>,
     pub body: PolicyBody,
 }
 

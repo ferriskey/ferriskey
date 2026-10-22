@@ -7,7 +7,7 @@ use ferriskey_authz::entities::{EntityRef, PolicyOrigin};
 use ferriskey_authz::tenant::entities::{
     AuthzSchema, AuthzState, Policy, PolicyBody, PolicyTemplate, RelationTuple,
 };
-use ferriskey_authz::tenant::names::{Namespace, PolicyName, RelationName, SlotId};
+use ferriskey_authz::tenant::names::{ManagedBy, Namespace, PolicyName, RelationName, SlotId};
 use ferriskey_authz::tenant::ports::{
     AuthzSchemaRepository, AuthzStateRepository, PolicyRepository, PolicyTemplateRepository,
     RelationTupleRepository,
@@ -182,6 +182,11 @@ fn policy_from_db(model: authz_policies::Model) -> Result<Policy, CoreError> {
         description: model.description,
         origin: origin_from_db(&model.origin)?,
         enabled: model.enabled,
+        managed_by: model
+            .managed_by
+            .map(ManagedBy::try_from)
+            .transpose()
+            .map_err(corrupt("authz policy manager"))?,
         body,
     })
 }
@@ -361,6 +366,10 @@ impl PolicyRepository for PostgresAuthzRepository {
                 Expr::value(origin_to_db(policy.origin)),
             )
             .col_expr(authz_policies::Column::Enabled, Expr::value(policy.enabled))
+            .col_expr(
+                authz_policies::Column::ManagedBy,
+                Expr::value(policy.managed_by.as_ref().map(ManagedBy::as_str)),
+            )
             .col_expr(authz_policies::Column::Source, Expr::value(source.clone()))
             .col_expr(authz_policies::Column::TemplateId, Expr::value(template_id))
             .col_expr(
@@ -382,6 +391,7 @@ impl PolicyRepository for PostgresAuthzRepository {
                 description: Set(policy.description.clone()),
                 origin: Set(origin_to_db(policy.origin).to_string()),
                 enabled: Set(policy.enabled),
+                managed_by: Set(policy.managed_by.as_ref().map(ToString::to_string)),
                 source: Set(source),
                 template_id: Set(template_id),
                 template_links: Set(template_links),
@@ -689,6 +699,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Custom,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: "permit(principal, action, resource);".to_string(),
             },
@@ -711,6 +722,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Generated,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Linked {
                 template_id: template.id,
                 links: BTreeMap::from([(
@@ -841,6 +853,30 @@ mod tests {
             .await
             .expect("list templates");
         assert_eq!(templates, vec![tpl]);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL"]
+    async fn a_policy_keeps_the_label_of_its_manager() {
+        let f = setup().await;
+        let realm = &f.realm_a;
+        let mut policy = static_policy("agents-read-only");
+        policy.managed_by = Some(ManagedBy::try_from("autharie".to_string()).expect("manager"));
+        PolicyRepository::save(&f.repository, realm, policy.clone(), 0)
+            .await
+            .expect("save policy");
+        PolicyRepository::save(&f.repository, realm, static_policy("by-hand"), 1)
+            .await
+            .expect("save policy");
+
+        let mut stored = PolicyRepository::list(&f.repository, realm)
+            .await
+            .expect("list");
+        stored.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+
+        assert_eq!(stored[0].name.as_str(), "agents-read-only");
+        assert_eq!(stored[0].managed_by, policy.managed_by);
+        assert_eq!(stored[1].managed_by, None);
     }
 
     #[tokio::test]

@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
 use super::evaluation::{RuleSet, load_rule_set};
+use super::names::ManagedBy;
 use super::ports::{
     AuthzManagementService, AuthzSchemaRepository, AuthzStateRepository, PolicyCompiler,
     PolicyRepository, PolicyTemplateRepository, TenantAuthorizationPolicy,
@@ -100,6 +101,10 @@ where
             .validate_policies(schema, &enabled, templates)
             .map_err(CoreError::InvalidAuthorizationPolicy)
     }
+}
+
+fn owned_by(policy: &Policy, manager: Option<&ManagedBy>) -> bool {
+    manager.is_none_or(|manager| policy.managed_by.as_ref() == Some(manager))
 }
 
 fn unknown_template(policy: &Policy) -> CoreError {
@@ -218,6 +223,7 @@ where
         &self,
         identity: Identity,
         realm_name: String,
+        managed_by: Option<ManagedBy>,
     ) -> Result<Vec<Policy>, CoreError> {
         let scope = self.resolve(&realm_name).await?;
 
@@ -228,7 +234,9 @@ where
             FORBIDDEN,
         )?;
 
-        self.policy_repository.list(&scope).await
+        let mut policies = self.policy_repository.list(&scope).await?;
+        policies.retain(|policy| owned_by(policy, managed_by.as_ref()));
+        Ok(policies)
     }
 
     async fn get_policy(
@@ -236,6 +244,7 @@ where
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> Result<Policy, CoreError> {
         let scope = self.resolve(&realm_name).await?;
 
@@ -250,7 +259,7 @@ where
             .list(&scope)
             .await?
             .into_iter()
-            .find(|p| p.id == id)
+            .find(|p| p.id == id && owned_by(p, managed_by.as_ref()))
             .ok_or(CoreError::NotFound)
     }
 
@@ -279,6 +288,7 @@ where
             description: input.description,
             origin: input.body.origin(),
             enabled: input.enabled,
+            managed_by: input.managed_by,
             body: input.body,
         };
         ensure_template_exists(&policy, &rules.templates)?;
@@ -311,6 +321,9 @@ where
             .iter()
             .position(|p| p.id == input.id)
             .ok_or(CoreError::NotFound)?;
+        if !owned_by(&rules.policies[index], input.managed_by.as_ref()) {
+            return Err(CoreError::NotFound);
+        }
         if rules
             .policies
             .iter()
@@ -325,6 +338,9 @@ where
             description: input.description,
             origin: input.body.origin(),
             enabled: input.enabled,
+            managed_by: input
+                .managed_by
+                .or_else(|| rules.policies[index].managed_by.clone()),
             body: input.body,
         };
         ensure_template_exists(&policy, &rules.templates)?;
@@ -342,6 +358,7 @@ where
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> Result<(), CoreError> {
         let scope = self.resolve(&realm_name).await?;
 
@@ -353,7 +370,11 @@ where
         )?;
 
         let rules = self.load(&scope).await?;
-        if !rules.policies.iter().any(|p| p.id == id) {
+        if !rules
+            .policies
+            .iter()
+            .any(|p| p.id == id && owned_by(p, managed_by.as_ref()))
+        {
             return Err(CoreError::NotFound);
         }
 
@@ -649,6 +670,7 @@ mod tests {
             description: None,
             origin: crate::entities::PolicyOrigin::Custom,
             enabled,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: "permit(principal, action, resource);".to_string(),
             },
@@ -671,6 +693,7 @@ mod tests {
             description: None,
             origin: crate::entities::PolicyOrigin::Generated,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Linked {
                 template_id: template.id,
                 links: BTreeMap::from([(
@@ -705,6 +728,7 @@ mod tests {
             name: name(policy_name),
             description: None,
             enabled,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: "permit(principal, action, resource);".to_string(),
             },
@@ -790,6 +814,7 @@ mod tests {
                     name: name("draft"),
                     description: None,
                     enabled: true,
+                    managed_by: None,
                     body: PolicyBody::Static {
                         source: "permit(principal, action, resource);".to_string(),
                     },
@@ -921,7 +946,9 @@ mod tests {
         let service = f.build();
 
         assert!(matches!(
-            service.list_policies(identity(), "acme".to_string()).await,
+            service
+                .list_policies(identity(), "acme".to_string(), None)
+                .await,
             Err(CoreError::Forbidden(_))
         ));
         assert!(matches!(
@@ -968,6 +995,7 @@ mod tests {
                     name: name("dangling"),
                     description: None,
                     enabled: true,
+                    managed_by: None,
                     body: linked_to(&missing, "dangling").body,
                 },
             )
@@ -997,9 +1025,162 @@ mod tests {
     async fn a_policy_of_another_realm_is_not_found() {
         let result = Fixture::new()
             .build()
-            .get_policy(identity(), "acme".to_string(), generate_uuid_v7())
+            .get_policy(identity(), "acme".to_string(), generate_uuid_v7(), None)
             .await;
 
         assert!(matches!(result, Err(CoreError::NotFound)));
+    }
+
+    fn manager(value: &str) -> ManagedBy {
+        ManagedBy::try_from(value.to_string()).expect("manager")
+    }
+
+    fn managed(policy_name: &str, owner: &str) -> Policy {
+        Policy {
+            managed_by: Some(manager(owner)),
+            ..static_policy(policy_name, true)
+        }
+    }
+
+    #[tokio::test]
+    async fn a_manager_lists_only_its_own_policies() {
+        let mut f = Fixture::new();
+        f.policies = vec![
+            managed("mine", "autharie"),
+            managed("theirs", "other"),
+            static_policy("by-hand", true),
+        ];
+        let service = f.build();
+
+        let scoped = service
+            .list_policies(identity(), "acme".to_string(), Some(manager("autharie")))
+            .await
+            .expect("list");
+        let everything = service
+            .list_policies(identity(), "acme".to_string(), None)
+            .await
+            .expect("list");
+
+        assert_eq!(
+            scoped.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
+            ["mine"]
+        );
+        assert_eq!(everything.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_manager_cannot_read_change_or_delete_a_policy_it_does_not_own() {
+        let theirs = managed("theirs", "other");
+        let by_hand = static_policy("by-hand", true);
+        let (theirs_id, by_hand_id) = (theirs.id, by_hand.id);
+
+        let mut f = Fixture::new();
+        f.policies = vec![theirs, by_hand];
+        f.policy_repo.expect_save().never();
+        f.policy_repo.expect_delete().never();
+        let service = f.build();
+
+        for id in [theirs_id, by_hand_id] {
+            assert!(matches!(
+                service
+                    .get_policy(
+                        identity(),
+                        "acme".to_string(),
+                        id,
+                        Some(manager("autharie"))
+                    )
+                    .await,
+                Err(CoreError::NotFound)
+            ));
+            assert!(matches!(
+                service
+                    .delete_policy(
+                        identity(),
+                        "acme".to_string(),
+                        id,
+                        Some(manager("autharie"))
+                    )
+                    .await,
+                Err(CoreError::NotFound)
+            ));
+            let result = service
+                .update_policy(
+                    identity(),
+                    UpdatePolicyInput {
+                        realm_name: "acme".to_string(),
+                        id,
+                        name: name("renamed"),
+                        description: None,
+                        enabled: true,
+                        managed_by: Some(manager("autharie")),
+                        body: PolicyBody::Static {
+                            source: "permit(principal, action, resource);".to_string(),
+                        },
+                    },
+                )
+                .await;
+            assert!(matches!(result, Err(CoreError::NotFound)), "{result:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_policy_created_by_a_manager_carries_its_label() {
+        let mut f = Fixture::new();
+        f.compiler
+            .expect_validate_policies()
+            .returning(|_, _, _| Ok(()));
+        f.policy_repo
+            .expect_save()
+            .withf(|_, policy, _| policy.managed_by == Some(manager("autharie")))
+            .times(1)
+            .returning(|_, policy, _| Box::pin(async move { Ok(policy) }));
+
+        let mut input = create_input("agents-read-only", true);
+        input.managed_by = Some(manager("autharie"));
+        let stored = f
+            .build()
+            .create_policy(identity(), input)
+            .await
+            .expect("stored");
+
+        assert_eq!(stored.managed_by, Some(manager("autharie")));
+    }
+
+    #[tokio::test]
+    async fn an_update_without_a_manager_keeps_the_label() {
+        let mine = managed("mine", "autharie");
+        let id = mine.id;
+
+        let mut f = Fixture::new();
+        f.policies = vec![mine];
+        f.compiler
+            .expect_validate_policies()
+            .returning(|_, _, _| Ok(()));
+        f.policy_repo
+            .expect_save()
+            .withf(|_, policy, _| policy.managed_by == Some(manager("autharie")))
+            .times(1)
+            .returning(|_, policy, _| Box::pin(async move { Ok(policy) }));
+
+        let updated = f
+            .build()
+            .update_policy(
+                identity(),
+                UpdatePolicyInput {
+                    realm_name: "acme".to_string(),
+                    id,
+                    name: name("mine"),
+                    description: None,
+                    enabled: false,
+                    managed_by: None,
+                    body: PolicyBody::Static {
+                        source: "permit(principal, action, resource);".to_string(),
+                    },
+                },
+            )
+            .await
+            .expect("updated");
+
+        assert_eq!(updated.managed_by, Some(manager("autharie")));
     }
 }

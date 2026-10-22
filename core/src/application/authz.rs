@@ -1,5 +1,6 @@
 use ferriskey_authz::tenant::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
 use ferriskey_authz::tenant::evaluation::EvaluationRequest;
+use ferriskey_authz::tenant::names::ManagedBy;
 use ferriskey_authz::tenant::ports::{
     AuthzManagementService, EvaluationOutcome, EvaluationService,
 };
@@ -59,9 +60,10 @@ impl AuthzManagementService for ApplicationService {
         &self,
         identity: Identity,
         realm_name: String,
+        managed_by: Option<ManagedBy>,
     ) -> Result<Vec<Policy>, CoreError> {
         self.authz_management_service
-            .list_policies(identity, realm_name)
+            .list_policies(identity, realm_name, managed_by)
             .await
     }
 
@@ -70,9 +72,10 @@ impl AuthzManagementService for ApplicationService {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> Result<Policy, CoreError> {
         self.authz_management_service
-            .get_policy(identity, realm_name, id)
+            .get_policy(identity, realm_name, id, managed_by)
             .await
     }
 
@@ -101,9 +104,10 @@ impl AuthzManagementService for ApplicationService {
         identity: Identity,
         realm_name: String,
         id: Uuid,
+        managed_by: Option<ManagedBy>,
     ) -> Result<(), CoreError> {
         self.authz_management_service
-            .delete_policy(identity, realm_name, id)
+            .delete_policy(identity, realm_name, id, managed_by)
             .await
     }
 

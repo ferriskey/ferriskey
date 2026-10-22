@@ -241,6 +241,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Custom,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Static {
                 source: source.to_string(),
             },
@@ -267,6 +268,7 @@ mod tests {
             description: None,
             origin: PolicyOrigin::Generated,
             enabled: true,
+            managed_by: None,
             body: PolicyBody::Linked {
                 template_id: template.id,
                 links: links
