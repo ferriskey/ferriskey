@@ -2,7 +2,7 @@ use ferriskey_api_abyss::AbyssApiDoc;
 use ferriskey_api_account::router::AccountApiDoc;
 use ferriskey_api_aegis::router::AegisApiDoc;
 use ferriskey_api_authentication::router::AuthenticationApiDoc;
-use ferriskey_api_authz::router::{AuthzApiDoc, AuthzMetadataApiDoc};
+use ferriskey_api_authz::router::{AuthzApiDoc, AuthzManagementApiDoc, AuthzMetadataApiDoc};
 use ferriskey_api_broker::BrokerApiDoc;
 use ferriskey_api_client::router::ClientApiDoc;
 use ferriskey_api_compass::router::CompassApiDoc;
@@ -40,6 +40,7 @@ use utoipa::OpenApi;
         (path = "/realms/{realm_name}", api = SeawatchApiDoc),
         (path = "/realms/{realm_name}", api = ConsentApiDoc),
         (path = "/realms/{realm_name}", api = AuthzApiDoc),
+        (path = "/realms/{realm_name}", api = AuthzManagementApiDoc),
         (path = "/.well-known/authzen-configuration/realms/{realm_name}/authzen", api = AuthzMetadataApiDoc),
         (path = "/realms/{realm_name}", api = AbyssApiDoc),
         (path = "/realms/{realm_name}", api = BrokerApiDoc),
