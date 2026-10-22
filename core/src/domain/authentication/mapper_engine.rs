@@ -289,7 +289,22 @@ pub fn should_apply_to_token(config: &Value, token_type: TokenType) -> bool {
 
 /// Set a claim value at a dot-notation path, creating intermediate objects as needed.
 /// e.g., "realm_access.roles" with value ["admin"] produces {"realm_access": {"roles": ["admin"]}}
+pub const MAX_CLAIM_PATH_SEGMENTS: usize = 8;
+pub const MAX_CLAIM_NAME_CHARS: usize = 255;
+
+pub fn claim_name_is_acceptable(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().count() <= MAX_CLAIM_NAME_CHARS
+        && name.split('.').count() <= MAX_CLAIM_PATH_SEGMENTS
+        && name.split('.').all(|segment| !segment.is_empty())
+}
+
 pub fn set_claim_at_path(claims: &mut HashMap<String, Value>, path: &str, value: Value) {
+    if !claim_name_is_acceptable(path) {
+        tracing::warn!("A mapper claim name outside the accepted shape was not emitted");
+        return;
+    }
+
     let parts: Vec<&str> = path.split('.').collect();
 
     if parts.len() == 1 {
@@ -420,6 +435,42 @@ mod tests {
         let mut claims = HashMap::new();
         set_claim_at_path(&mut claims, "preferred_username", json!("john"));
         assert_eq!(claims.get("preferred_username"), Some(&json!("john")));
+    }
+
+    #[test]
+    fn a_path_deeper_than_the_limit_leaves_the_claims_untouched() {
+        let mut claims = HashMap::new();
+        let path = ["a"; 200_000].join(".");
+
+        set_claim_at_path(&mut claims, &path, json!("deep"));
+
+        assert!(claims.is_empty());
+    }
+
+    #[test]
+    fn a_path_at_the_limit_is_still_written() {
+        let mut claims = HashMap::new();
+        let path = ["a"; MAX_CLAIM_PATH_SEGMENTS].join(".");
+
+        set_claim_at_path(&mut claims, &path, json!("deep"));
+
+        assert_eq!(claims.len(), 1);
+    }
+
+    #[test]
+    fn claim_names_are_checked_for_length_and_depth() {
+        assert!(claim_name_is_acceptable("realm_access.roles"));
+        assert!(claim_name_is_acceptable(
+            &["a"; MAX_CLAIM_PATH_SEGMENTS].join(".")
+        ));
+        assert!(!claim_name_is_acceptable(
+            &["a"; MAX_CLAIM_PATH_SEGMENTS + 1].join(".")
+        ));
+        assert!(!claim_name_is_acceptable(
+            &"a".repeat(MAX_CLAIM_NAME_CHARS + 1)
+        ));
+        assert!(!claim_name_is_acceptable(""));
+        assert!(!claim_name_is_acceptable("a..b"));
     }
 
     #[test]
