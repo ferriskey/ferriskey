@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use axum::extract::{ConnectInfo, FromRequestParts};
 use axum::http::HeaderMap;
@@ -6,6 +6,13 @@ use axum::http::HeaderMap;
 use crate::app_state::AppState;
 
 const MAX_USER_AGENT_BYTES: usize = 512;
+
+fn forwarded_address(value: &str) -> Option<IpAddr> {
+    value
+        .parse::<IpAddr>()
+        .ok()
+        .or_else(|| value.parse::<SocketAddr>().ok().map(|addr| addr.ip()))
+}
 
 pub fn client_ip(
     headers: &HeaderMap,
@@ -18,7 +25,7 @@ pub fn client_ip(
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.split(',').next())
             .map(str::trim)
-            .filter(|value| !value.is_empty());
+            .and_then(forwarded_address);
 
         if let Some(forwarded) = forwarded {
             return Some(forwarded.to_string());
@@ -115,6 +122,49 @@ mod tests {
         let result = client_ip(&headers, Some(peer([198, 51, 100, 9], 443)), true);
 
         assert_eq!(result, Some("198.51.100.9".to_string()));
+    }
+
+    #[test]
+    fn a_forwarded_value_that_is_not_an_address_falls_back_to_the_peer() {
+        for forwarded in [
+            "unknown",
+            "not-an-ip, 203.0.113.5",
+            "999.1.1.1",
+            "203.0.113.5 evil",
+        ] {
+            let headers = headers_with("x-forwarded-for", forwarded);
+
+            let result = client_ip(&headers, Some(peer([198, 51, 100, 7], 51820)), true);
+
+            assert_eq!(result, Some("198.51.100.7".to_string()), "{forwarded}");
+        }
+    }
+
+    #[test]
+    fn an_invalid_forwarded_value_without_a_peer_yields_none() {
+        let headers = headers_with("x-forwarded-for", "unknown");
+
+        assert_eq!(client_ip(&headers, None, true), None);
+    }
+
+    #[test]
+    fn a_forwarded_address_carrying_a_port_keeps_only_the_address() {
+        let headers = headers_with("x-forwarded-for", "203.0.113.5:4711, 70.41.3.18");
+        let result = client_ip(&headers, Some(peer([10, 0, 0, 1], 8080)), true);
+        assert_eq!(result, Some("203.0.113.5".to_string()));
+
+        let headers = headers_with("x-forwarded-for", "[2001:db8::1]:443");
+        let result = client_ip(&headers, Some(peer([10, 0, 0, 1], 8080)), true);
+        assert_eq!(result, Some("2001:db8::1".to_string()));
+    }
+
+    #[test]
+    fn an_ipv6_forwarded_address_is_accepted() {
+        let headers = headers_with("x-forwarded-for", "2001:db8::1");
+
+        let result = client_ip(&headers, Some(peer([10, 0, 0, 1], 8080)), true);
+
+        assert_eq!(result, Some("2001:db8::1".to_string()));
     }
 
     #[test]
