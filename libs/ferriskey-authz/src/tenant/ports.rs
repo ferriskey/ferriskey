@@ -7,7 +7,7 @@ use ferriskey_domain::realm::scope::RealmScope;
 use uuid::Uuid;
 
 use super::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate, RelationTuple};
-use super::evaluation::{EvaluationRequest, PrincipalSlice, RuleSet};
+use super::evaluation::{EvaluationRequest, EvaluationsSemantic, PrincipalSlice, RuleSet};
 use super::names::ManagedBy;
 use super::value_objects::{
     CreatePolicyInput, CreateTemplateInput, ReplaceSchemaInput, SimulateInput, SimulationOutcome,
@@ -205,6 +205,14 @@ pub trait EvaluationService: Send + Sync {
         realm_name: String,
         request: EvaluationRequest,
     ) -> impl Future<Output = Result<EvaluationOutcome, CoreError>> + Send;
+
+    fn evaluate_many(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        requests: Vec<EvaluationRequest>,
+        semantic: EvaluationsSemantic,
+    ) -> impl Future<Output = Result<Vec<Result<EvaluationOutcome, CoreError>>, CoreError>> + Send;
 }
 
 pub trait AuthzManagementService: Send + Sync {

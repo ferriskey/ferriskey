@@ -1,4 +1,5 @@
 use super::handlers::evaluate::{__path_evaluate, evaluate};
+use super::handlers::evaluations::{__path_evaluations, evaluations};
 use super::handlers::metadata::{__path_get_authzen_configuration, get_authzen_configuration};
 use super::handlers::policies::{
     __path_create_policy, __path_delete_policy, __path_get_policy, __path_list_policies,
@@ -30,7 +31,7 @@ const MANAGEMENT_BODY_LIMIT: usize = 1024 * 1024;
 const REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 
 #[derive(OpenApi)]
-#[openapi(paths(evaluate))]
+#[openapi(paths(evaluate, evaluations))]
 pub struct AuthzApiDoc;
 
 #[derive(OpenApi)]
@@ -79,6 +80,15 @@ pub fn authz_routes(state: AppState) -> Router<AppState> {
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn(echo_request_id));
 
+    let batch = Router::new()
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}/authzen/access/v1/evaluations"),
+            post(evaluations),
+        )
+        .layer(middleware::from_fn_with_state(state.clone(), auth))
+        .layer(DefaultBodyLimit::max(MANAGEMENT_BODY_LIMIT))
+        .layer(middleware::from_fn(echo_request_id));
+
     let metadata = Router::new().route(
         &format!("/.well-known/authzen-configuration{root_path}/realms/{{realm_name}}/authzen"),
         get(get_authzen_configuration),
@@ -114,5 +124,5 @@ pub fn authz_routes(state: AppState) -> Router<AppState> {
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .layer(DefaultBodyLimit::max(MANAGEMENT_BODY_LIMIT));
 
-    evaluation.merge(management).merge(metadata)
+    evaluation.merge(batch).merge(management).merge(metadata)
 }

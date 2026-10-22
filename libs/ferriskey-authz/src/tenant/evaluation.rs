@@ -64,6 +64,24 @@ pub struct EvaluationRequest {
     pub context: Map<String, Value>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum EvaluationsSemantic {
+    #[default]
+    ExecuteAll,
+    DenyOnFirstDeny,
+    PermitOnFirstPermit,
+}
+
+impl EvaluationsSemantic {
+    pub fn stops_after(self, allowed: bool) -> bool {
+        match self {
+            Self::ExecuteAll => false,
+            Self::DenyOnFirstDeny => !allowed,
+            Self::PermitOnFirstPermit => allowed,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct UserFacts {
     pub id: Uuid,

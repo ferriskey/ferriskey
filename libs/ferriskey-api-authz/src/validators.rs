@@ -1,6 +1,9 @@
 use ferriskey_authz::entities::{EntityRef, EntityType};
 use ferriskey_authz::tenant::FERRISKEY_NAMESPACE;
-use ferriskey_authz::tenant::evaluation::{EvaluationRequest, Subject, TenantEntity};
+use ferriskey_authz::tenant::evaluation::{
+    EvaluationRequest, EvaluationsSemantic, Subject, TenantEntity,
+};
+use ferriskey_authz::tenant::ports::EvaluationOutcome;
 use ferriskey_domain::common::app_errors::CoreError;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -86,6 +89,171 @@ impl TryFrom<EvaluationValidator> for EvaluationRequest {
     }
 }
 
+pub const MAX_BATCH: usize = 100;
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum EvaluationsSemanticBody {
+    #[default]
+    ExecuteAll,
+    DenyOnFirstDeny,
+    PermitOnFirstPermit,
+}
+
+impl From<EvaluationsSemanticBody> for EvaluationsSemantic {
+    fn from(value: EvaluationsSemanticBody) -> Self {
+        match value {
+            EvaluationsSemanticBody::ExecuteAll => Self::ExecuteAll,
+            EvaluationsSemanticBody::DenyOnFirstDeny => Self::DenyOnFirstDeny,
+            EvaluationsSemanticBody::PermitOnFirstPermit => Self::PermitOnFirstPermit,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+pub struct EvaluationsOptions {
+    #[serde(default)]
+    pub evaluations_semantic: Option<EvaluationsSemanticBody>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema)]
+pub struct EvaluationItem {
+    #[serde(default)]
+    pub subject: Option<AuthzenEntity>,
+    #[serde(default)]
+    pub action: Option<AuthzenAction>,
+    #[serde(default)]
+    pub resource: Option<AuthzenEntity>,
+    #[serde(default)]
+    pub context: Option<Map<String, Value>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+pub struct EvaluationsValidator {
+    #[serde(flatten)]
+    pub defaults: EvaluationItem,
+    #[serde(default)]
+    pub evaluations: Option<Vec<EvaluationItem>>,
+    #[serde(default)]
+    pub options: Option<EvaluationsOptions>,
+}
+
+fn present<T>(field: &str, value: Option<T>) -> Result<T, CoreError> {
+    value.ok_or_else(|| {
+        CoreError::InvalidAuthorizationRequest(format!(
+            "{field} is required, at the top level or on every evaluation"
+        ))
+    })
+}
+
+impl EvaluationsValidator {
+    pub fn semantic(&self) -> EvaluationsSemantic {
+        self.options
+            .as_ref()
+            .and_then(|options| options.evaluations_semantic)
+            .unwrap_or_default()
+            .into()
+    }
+
+    pub fn requests(&self) -> Result<Option<Vec<EvaluationRequest>>, CoreError> {
+        let Some(items) = &self.evaluations else {
+            return Ok(None);
+        };
+        if items.is_empty() || items.len() > MAX_BATCH {
+            return Err(CoreError::InvalidAuthorizationRequest(format!(
+                "evaluations must hold between 1 and {MAX_BATCH} items"
+            )));
+        }
+        items
+            .iter()
+            .map(|item| {
+                EvaluationRequest::try_from(EvaluationValidator {
+                    subject: present(
+                        "subject",
+                        item.subject
+                            .clone()
+                            .or_else(|| self.defaults.subject.clone()),
+                    )?,
+                    action: present(
+                        "action",
+                        item.action.clone().or_else(|| self.defaults.action.clone()),
+                    )?,
+                    resource: present(
+                        "resource",
+                        item.resource
+                            .clone()
+                            .or_else(|| self.defaults.resource.clone()),
+                    )?,
+                    context: item
+                        .context
+                        .clone()
+                        .or_else(|| self.defaults.context.clone()),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some)
+    }
+
+    pub fn single(&self) -> Result<EvaluationRequest, CoreError> {
+        EvaluationRequest::try_from(EvaluationValidator {
+            subject: present("subject", self.defaults.subject.clone())?,
+            action: present("action", self.defaults.action.clone())?,
+            resource: present("resource", self.defaults.resource.clone())?,
+            context: self.defaults.context.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct EvaluationError {
+    pub status: u16,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BatchDecisionContext {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason_admin: Option<ReasonAdmin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<EvaluationError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BatchDecision {
+    pub decision: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<BatchDecisionContext>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct EvaluationsResponse {
+    pub evaluations: Vec<BatchDecision>,
+}
+
+impl From<Result<EvaluationOutcome, CoreError>> for BatchDecision {
+    fn from(value: Result<EvaluationOutcome, CoreError>) -> Self {
+        match value {
+            Ok(outcome) => Self {
+                decision: outcome.allowed,
+                context: outcome.reason_admin.map(|policies| BatchDecisionContext {
+                    reason_admin: Some(ReasonAdmin { policies }),
+                    error: None,
+                }),
+            },
+            Err(error) => Self {
+                decision: false,
+                context: Some(BatchDecisionContext {
+                    reason_admin: None,
+                    error: Some(EvaluationError {
+                        status: 400,
+                        message: error.to_string(),
+                    }),
+                }),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ReasonAdmin {
     pub policies: Vec<String>,
@@ -119,6 +287,97 @@ mod tests {
         let validator: EvaluationValidator = serde_json::from_value(value)
             .map_err(|e| CoreError::InvalidAuthorizationRequest(e.to_string()))?;
         EvaluationRequest::try_from(validator)
+    }
+
+    fn batch(value: Value) -> EvaluationsValidator {
+        serde_json::from_value(value).expect("batch")
+    }
+
+    #[test]
+    fn top_level_fields_are_defaults_an_item_may_override() {
+        let validator = batch(json!({
+            "subject": {"type": "FerrisKey::User", "id": "u"},
+            "action": {"name": "read"},
+            "context": {"ip": "10.0.0.1"},
+            "evaluations": [
+                {"resource": {"type": "App::Document", "id": "1"}},
+                {
+                    "resource": {"type": "App::Document", "id": "2"},
+                    "action": {"name": "write"},
+                    "context": {"ip": "10.0.0.2"},
+                },
+            ],
+            "options": {"evaluations_semantic": "deny_on_first_deny"},
+        }));
+
+        let requests = validator.requests().expect("requests").expect("batch");
+
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[0].action, "read");
+        assert_eq!(requests[1].action, "write");
+        assert_eq!(requests[0].context["ip"], json!("10.0.0.1"));
+        assert_eq!(requests[1].context["ip"], json!("10.0.0.2"));
+        assert_eq!(validator.semantic(), EvaluationsSemantic::DenyOnFirstDeny);
+    }
+
+    #[test]
+    fn a_batch_missing_a_required_field_is_refused() {
+        let validator = batch(json!({
+            "subject": {"type": "FerrisKey::User", "id": "u"},
+            "evaluations": [{"resource": {"type": "App::Document", "id": "1"}}],
+        }));
+        assert!(validator.requests().is_err());
+    }
+
+    #[test]
+    fn a_batch_has_between_one_and_the_maximum_items() {
+        let empty = batch(json!({"evaluations": []}));
+        assert!(empty.requests().is_err());
+
+        let item = json!({
+            "subject": {"type": "FerrisKey::User", "id": "u"},
+            "action": {"name": "read"},
+            "resource": {"type": "App::Document", "id": "1"},
+        });
+        let too_many = batch(json!({"evaluations": vec![item.clone(); MAX_BATCH + 1]}));
+        assert!(too_many.requests().is_err());
+        let enough = batch(json!({"evaluations": vec![item; MAX_BATCH]}));
+        assert_eq!(
+            enough.requests().expect("ok").map(|r| r.len()),
+            Some(MAX_BATCH)
+        );
+    }
+
+    #[test]
+    fn without_evaluations_the_request_is_a_single_evaluation() {
+        let validator = batch(json!({
+            "subject": {"type": "FerrisKey::User", "id": "u"},
+            "action": {"name": "read"},
+            "resource": {"type": "App::Document", "id": "1"},
+        }));
+        assert!(validator.requests().expect("ok").is_none());
+        assert_eq!(validator.single().expect("single").action, "read");
+        assert_eq!(validator.semantic(), EvaluationsSemantic::ExecuteAll);
+    }
+
+    #[test]
+    fn an_unknown_semantic_is_refused() {
+        assert!(
+            serde_json::from_value::<EvaluationsValidator>(
+                json!({"options": {"evaluations_semantic": "first_wins"}})
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn a_failed_item_is_a_deny_that_says_why() {
+        let decision = BatchDecision::from(Err(CoreError::InvalidAuthorizationRequest(
+            "unknown action".to_string(),
+        )));
+        assert!(!decision.decision);
+        let error = decision.context.and_then(|c| c.error).expect("error");
+        assert_eq!(error.status, 400);
     }
 
     #[test]

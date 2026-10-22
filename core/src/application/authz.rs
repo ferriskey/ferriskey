@@ -1,5 +1,5 @@
 use ferriskey_authz::tenant::entities::{AuthzSchema, AuthzState, Policy, PolicyTemplate};
-use ferriskey_authz::tenant::evaluation::EvaluationRequest;
+use ferriskey_authz::tenant::evaluation::{EvaluationRequest, EvaluationsSemantic};
 use ferriskey_authz::tenant::names::ManagedBy;
 use ferriskey_authz::tenant::ports::{
     AuthzManagementService, EvaluationOutcome, EvaluationService,
@@ -183,6 +183,18 @@ impl EvaluationService for ApplicationService {
     ) -> Result<EvaluationOutcome, CoreError> {
         self.authz_evaluation_service
             .evaluate(identity, realm_name, request)
+            .await
+    }
+
+    async fn evaluate_many(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        requests: Vec<EvaluationRequest>,
+        semantic: EvaluationsSemantic,
+    ) -> Result<Vec<Result<EvaluationOutcome, CoreError>>, CoreError> {
+        self.authz_evaluation_service
+            .evaluate_many(identity, realm_name, requests, semantic)
             .await
     }
 }
