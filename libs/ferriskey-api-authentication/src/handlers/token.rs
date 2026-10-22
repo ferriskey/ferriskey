@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use super::auth::root_scoped_base_url;
 use crate::basic_auth::try_parse_basic_client_credentials;
@@ -22,6 +22,7 @@ use ferriskey_core::domain::authentication::token_exchange::{
 };
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
+use ferriskey_core::domain::common::rate_limit::ThrottleKey;
 use serde::Serialize;
 use tracing::{instrument, warn};
 use utoipa::ToSchema;
@@ -196,17 +197,15 @@ async fn token_response(
         ),
     };
 
-    let client_ip = context
+    let throttle_ip = context
         .ip_address
         .as_deref()
-        .and_then(|ip| ip.parse::<IpAddr>().ok());
-    let attempt = match client_ip {
-        Some(ip) => match state.client_auth_throttle.reserve(ip) {
-            Some(attempt) => Some(attempt),
-            None => return Err(throttled()),
-        },
-        None => None,
-    };
+        .and_then(|ip| ip.parse::<IpAddr>().ok())
+        .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+    let attempt = state
+        .client_auth_throttle
+        .reserve(ThrottleKey::new(throttle_ip, &realm_name, &client_id))
+        .ok_or_else(throttled)?;
 
     // RFC 8693 has its own service and error codes; it never goes through
     // `exchange_token`, which would also open a second Compass flow.
@@ -221,8 +220,7 @@ async fn token_response(
             context.user_agent,
         )
         .await;
-        if let Some(attempt) = attempt
-            && matches!(&response, Err(ApiError::OAuthUnauthorized { error, .. }) if error == "invalid_client")
+        if matches!(&response, Err(ApiError::OAuthUnauthorized { error, .. }) if error == "invalid_client")
         {
             attempt.failed();
         }
@@ -273,9 +271,7 @@ async fn token_response(
         match state.service.poll_device_token(exchange_input).await {
             Ok(token) => token,
             Err(error) => {
-                if let Some(attempt) = attempt
-                    && matches!(error, DeviceFlowError::InvalidClient)
-                {
+                if matches!(error, DeviceFlowError::InvalidClient) {
                     attempt.failed();
                 }
                 warn!(client_id = %client_id, error = ?error, "Device token poll failed");
@@ -286,12 +282,10 @@ async fn token_response(
         match state.service.exchange_token(exchange_input).await {
             Ok(token) => token,
             Err(error) => {
-                if let Some(attempt) = attempt
-                    && matches!(
-                        error,
-                        CoreError::ClientAuthenticationFailed | CoreError::InvalidClientSecret
-                    )
-                {
+                if matches!(
+                    error,
+                    CoreError::ClientAuthenticationFailed | CoreError::InvalidClientSecret
+                ) {
                     attempt.failed();
                 }
                 warn!(

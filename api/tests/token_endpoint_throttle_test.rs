@@ -175,3 +175,57 @@ fn device_code_polls_with_a_wrong_secret_count_as_failures() {
         assert_throttled(&client_credentials(&server, app, address, &client, &secret).await);
     });
 }
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test token_endpoint_throttle_test -- --ignored"]
+fn failures_against_one_client_do_not_throttle_another_client_behind_the_same_address() {
+    let app = forwarded_app();
+    rt().block_on(async {
+        let server = app.server();
+        let address = "203.0.113.40";
+        let (guessed, _) = service_client(&server, app).await;
+        let (other, other_secret) = service_client(&server, app).await;
+
+        for _ in 1..=FAILURES_BEFORE_THROTTLE {
+            client_credentials(&server, app, address, &guessed, "not-the-secret").await;
+        }
+        assert_throttled(
+            &client_credentials(&server, app, address, &guessed, "not-the-secret").await,
+        );
+
+        let granted = client_credentials(&server, app, address, &other, &other_secret).await;
+        assert_eq!(granted.status_code(), 200, "{}", granted.text());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test token_endpoint_throttle_test -- --ignored"]
+fn concurrent_successful_requests_are_never_throttled() {
+    let app = forwarded_app();
+    rt().block_on(async {
+        let server = app.server();
+        let address = "203.0.113.50";
+        let (client, secret) = service_client(&server, app).await;
+
+        let call = || client_credentials(&server, app, address, &client, &secret);
+        let (a, b, c, d, e, f, g, h, i, j, k, l) = tokio::join!(
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+            call(),
+        );
+        let responses = [a, b, c, d, e, f, g, h, i, j, k, l];
+
+        for response in responses {
+            assert_eq!(response.status_code(), 200, "{}", response.text());
+        }
+    });
+}

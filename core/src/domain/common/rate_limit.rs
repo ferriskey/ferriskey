@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -31,18 +32,14 @@ struct Bucket {
 }
 
 #[derive(Debug)]
-pub struct IpRateLimiter {
+pub struct KeyedRateLimiter<K> {
     capacity: f64,
     refill_per_second: f64,
     max_tracked: usize,
-    buckets: Mutex<HashMap<IpAddr, Bucket>>,
+    buckets: Mutex<HashMap<K, Bucket>>,
 }
 
-impl IpRateLimiter {
-    pub fn per_minute(requests: u32) -> Self {
-        Self::with_limits(requests, MAX_TRACKED_ADDRESSES)
-    }
-
+impl<K: Eq + Hash + Clone> KeyedRateLimiter<K> {
     pub fn with_limits(requests_per_minute: u32, max_tracked: usize) -> Self {
         let capacity = f64::from(requests_per_minute.max(1));
         Self {
@@ -53,25 +50,16 @@ impl IpRateLimiter {
         }
     }
 
-    pub fn allow(&self, ip: IpAddr) -> bool {
-        self.allow_at(ip, Instant::now())
-    }
-
-    pub fn refund(&self, ip: IpAddr) {
-        self.refund_at(ip, Instant::now());
-    }
-
-    fn allow_at(&self, ip: IpAddr, now: Instant) -> bool {
-        let ip = rate_limit_key(ip);
+    pub fn spend_at(&self, key: K, now: Instant) -> bool {
         let Ok(mut buckets) = self.buckets.lock() else {
             return false;
         };
 
-        if !buckets.contains_key(&ip) && buckets.len() >= self.max_tracked {
+        if !buckets.contains_key(&key) && buckets.len() >= self.max_tracked {
             self.make_room(&mut buckets, now);
         }
 
-        let bucket = buckets.entry(ip).or_insert(Bucket {
+        let bucket = buckets.entry(key).or_insert(Bucket {
             tokens: self.capacity,
             refilled_at: now,
         });
@@ -85,20 +73,17 @@ impl IpRateLimiter {
         true
     }
 
-    fn refund_at(&self, ip: IpAddr, now: Instant) {
-        let ip = rate_limit_key(ip);
-        let Ok(mut buckets) = self.buckets.lock() else {
-            return;
+    pub fn has_budget_at(&self, key: &K, now: Instant) -> bool {
+        let Ok(buckets) = self.buckets.lock() else {
+            return false;
         };
-        let Some(bucket) = buckets.get_mut(&ip) else {
-            return;
+        let Some(bucket) = buckets.get(key) else {
+            return true;
         };
 
-        self.refill(bucket, now);
-        bucket.tokens = (bucket.tokens + 1.0).min(self.capacity);
-        if bucket.tokens >= self.capacity {
-            buckets.remove(&ip);
-        }
+        let mut bucket = *bucket;
+        self.refill(&mut bucket, now);
+        bucket.tokens >= 1.0
     }
 
     fn refill(&self, bucket: &mut Bucket, now: Instant) {
@@ -108,7 +93,7 @@ impl IpRateLimiter {
         bucket.refilled_at = now;
     }
 
-    fn make_room(&self, buckets: &mut HashMap<IpAddr, Bucket>, now: Instant) {
+    fn make_room(&self, buckets: &mut HashMap<K, Bucket>, now: Instant) {
         let full_again = Duration::from_secs_f64(self.capacity / self.refill_per_second);
         buckets.retain(|_, bucket| now.saturating_duration_since(bucket.refilled_at) < full_again);
 
@@ -119,9 +104,9 @@ impl IpRateLimiter {
         let stalest = buckets
             .iter()
             .min_by_key(|(_, bucket)| bucket.refilled_at)
-            .map(|(ip, _)| *ip);
-        if let Some(ip) = stalest {
-            buckets.remove(&ip);
+            .map(|(key, _)| key.clone());
+        if let Some(key) = stalest {
+            buckets.remove(&key);
         }
     }
 
@@ -132,27 +117,77 @@ impl IpRateLimiter {
 }
 
 #[derive(Debug)]
+pub struct IpRateLimiter {
+    inner: KeyedRateLimiter<IpAddr>,
+}
+
+impl IpRateLimiter {
+    pub fn per_minute(requests: u32) -> Self {
+        Self::with_limits(requests, MAX_TRACKED_ADDRESSES)
+    }
+
+    pub fn with_limits(requests_per_minute: u32, max_tracked: usize) -> Self {
+        Self {
+            inner: KeyedRateLimiter::with_limits(requests_per_minute, max_tracked),
+        }
+    }
+
+    pub fn allow(&self, ip: IpAddr) -> bool {
+        self.allow_at(ip, Instant::now())
+    }
+
+    fn allow_at(&self, ip: IpAddr, now: Instant) -> bool {
+        self.inner.spend_at(rate_limit_key(ip), now)
+    }
+
+    #[cfg(test)]
+    fn tracked(&self) -> usize {
+        self.inner.tracked()
+    }
+}
+
+pub const MAX_KEY_PART_CHARS: usize = 128;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ThrottleKey {
+    ip: IpAddr,
+    realm: String,
+    client_id: String,
+}
+
+impl ThrottleKey {
+    pub fn new(ip: IpAddr, realm: &str, client_id: &str) -> Self {
+        Self {
+            ip: rate_limit_key(ip),
+            realm: realm.chars().take(MAX_KEY_PART_CHARS).collect(),
+            client_id: client_id.chars().take(MAX_KEY_PART_CHARS).collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ClientAuthThrottle {
-    failures: IpRateLimiter,
+    failures: KeyedRateLimiter<ThrottleKey>,
 }
 
 impl ClientAuthThrottle {
     pub fn per_minute(failures: u32) -> Self {
         Self {
-            failures: IpRateLimiter::per_minute(failures),
+            failures: KeyedRateLimiter::with_limits(failures, MAX_TRACKED_ADDRESSES),
         }
     }
 
-    pub fn reserve(&self, ip: IpAddr) -> Option<ClientAuthAttempt<'_>> {
-        self.reserve_at(ip, Instant::now())
+    pub fn reserve(&self, key: ThrottleKey) -> Option<ClientAuthAttempt<'_>> {
+        self.reserve_at(key, Instant::now())
     }
 
-    fn reserve_at(&self, ip: IpAddr, now: Instant) -> Option<ClientAuthAttempt<'_>> {
-        self.failures.allow_at(ip, now).then(|| ClientAuthAttempt {
-            throttle: self,
-            ip,
-            failed: false,
-        })
+    fn reserve_at(&self, key: ThrottleKey, now: Instant) -> Option<ClientAuthAttempt<'_>> {
+        self.failures
+            .has_budget_at(&key, now)
+            .then_some(ClientAuthAttempt {
+                throttle: self,
+                key,
+            })
     }
 
     #[cfg(test)]
@@ -165,21 +200,16 @@ impl ClientAuthThrottle {
 #[derive(Debug)]
 pub struct ClientAuthAttempt<'a> {
     throttle: &'a ClientAuthThrottle,
-    ip: IpAddr,
-    failed: bool,
+    key: ThrottleKey,
 }
 
 impl ClientAuthAttempt<'_> {
-    pub fn failed(mut self) {
-        self.failed = true;
+    pub fn failed(self) {
+        self.failed_at(Instant::now());
     }
-}
 
-impl Drop for ClientAuthAttempt<'_> {
-    fn drop(&mut self) {
-        if !self.failed {
-            self.throttle.failures.refund(self.ip);
-        }
+    fn failed_at(self, now: Instant) {
+        self.throttle.failures.spend_at(self.key, now);
     }
 }
 
@@ -349,35 +379,18 @@ mod tests {
         assert!(budget.allow_at(Uuid::new_v4(), now + Duration::from_secs(61)));
     }
 
-    #[test]
-    fn a_refunded_token_goes_back_and_a_full_bucket_is_forgotten() {
-        let limiter = IpRateLimiter::per_minute(2);
-        let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
-        let now = Instant::now();
-
-        assert!(limiter.allow_at(ip, now));
-        assert!(limiter.allow_at(ip, now));
-        assert!(!limiter.allow_at(ip, now));
-        limiter.refund_at(ip, now);
-        assert_eq!(limiter.tracked(), 1);
-        limiter.refund_at(ip, now);
-        assert_eq!(
-            limiter.tracked(),
-            0,
-            "a bucket back to capacity carries no information"
-        );
-        assert!(limiter.allow_at(ip, now));
+    fn key(ip: IpAddr, realm: &str, client_id: &str) -> ThrottleKey {
+        ThrottleKey::new(ip, realm, client_id)
     }
 
     #[test]
-    fn an_attempt_that_did_not_fail_leaves_no_trace() {
+    fn requests_that_do_not_fail_leave_no_trace() {
         let throttle = ClientAuthThrottle::per_minute(3);
         let now = Instant::now();
 
         for host in 1..=50u8 {
-            let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, host));
             let attempt = throttle
-                .reserve_at(ip, now)
+                .reserve_at(key(ip(host), "master", "console"), now)
                 .expect("a fresh address may try");
             drop(attempt);
         }
@@ -386,51 +399,89 @@ mod tests {
     }
 
     #[test]
-    fn failed_attempts_block_the_address_until_the_window_refills() {
+    fn requests_in_flight_never_exhaust_the_budget() {
         let throttle = ClientAuthThrottle::per_minute(3);
-        let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 8));
-        let other = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 9));
         let now = Instant::now();
+
+        let in_flight: Vec<_> = (0..50)
+            .map(|_| {
+                throttle
+                    .reserve_at(key(ip(10), "master", "console"), now)
+                    .expect("requests that have not failed are not throttled")
+            })
+            .collect();
+
+        assert_eq!(in_flight.len(), 50);
+        assert_eq!(throttle.tracked(), 0);
+    }
+
+    #[test]
+    fn failed_attempts_block_the_client_until_the_window_refills() {
+        let throttle = ClientAuthThrottle::per_minute(3);
+        let now = Instant::now();
+        let blocked = key(ip(8), "master", "console");
 
         for _ in 0..3 {
             throttle
-                .reserve_at(ip, now)
+                .reserve_at(blocked.clone(), now)
                 .expect("under the budget")
-                .failed();
+                .failed_at(now);
         }
-        assert!(throttle.reserve_at(ip, now).is_none());
-        assert!(throttle.reserve_at(other, now).is_some());
+
+        assert!(throttle.reserve_at(blocked.clone(), now).is_none());
         assert!(
             throttle
-                .reserve_at(ip, now + Duration::from_secs(10))
+                .reserve_at(blocked.clone(), now + Duration::from_secs(10))
                 .is_none()
         );
         assert!(
             throttle
-                .reserve_at(ip, now + Duration::from_secs(21))
+                .reserve_at(blocked, now + Duration::from_secs(21))
                 .is_some()
         );
-        assert_eq!(
-            throttle.tracked(),
-            1,
-            "only addresses with failures are tracked"
+        assert_eq!(throttle.tracked(), 1, "only keys with failures are tracked");
+    }
+
+    #[test]
+    fn failures_of_one_client_do_not_throttle_another_client_behind_the_same_address() {
+        let throttle = ClientAuthThrottle::per_minute(2);
+        let now = Instant::now();
+        let shared = ip(20);
+
+        for _ in 0..2 {
+            throttle
+                .reserve_at(key(shared, "master", "guessed"), now)
+                .expect("under the budget")
+                .failed_at(now);
+        }
+
+        assert!(
+            throttle
+                .reserve_at(key(shared, "master", "guessed"), now)
+                .is_none()
+        );
+        assert!(
+            throttle
+                .reserve_at(key(shared, "master", "console"), now)
+                .is_some()
+        );
+        assert!(
+            throttle
+                .reserve_at(key(shared, "other", "guessed"), now)
+                .is_some()
+        );
+        assert!(
+            throttle
+                .reserve_at(key(ip(21), "master", "guessed"), now)
+                .is_some()
         );
     }
 
     #[test]
-    fn attempts_in_flight_count_against_the_budget() {
-        let throttle = ClientAuthThrottle::per_minute(3);
-        let ip = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 10));
-        let now = Instant::now();
+    fn keys_cannot_grow_without_bound_from_long_identifiers() {
+        let long = "a".repeat(10_000);
+        let short = ThrottleKey::new(ip(1), "master", &"a".repeat(MAX_KEY_PART_CHARS));
 
-        let in_flight: Vec<_> = (0..3)
-            .map(|_| throttle.reserve_at(ip, now).expect("under the budget"))
-            .collect();
-        assert!(
-            throttle.reserve_at(ip, now).is_none(),
-            "a burst cannot exceed the budget before any attempt is settled"
-        );
-        drop(in_flight);
-        assert!(throttle.reserve_at(ip, now).is_some());
+        assert_eq!(ThrottleKey::new(ip(1), "master", &long), short);
     }
 }
