@@ -13,7 +13,7 @@ hex = "0.4.3"
 hmac = "0.12.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
-sha2 = "0.10.9"
+sha2 = "0.11.1"
 utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
 uuid = { version = "1.16.0", features = ["serde", "v4", "v7"] }
 mockall = { version = "0.14.0", optional = true }
