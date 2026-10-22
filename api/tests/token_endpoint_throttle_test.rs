@@ -1,12 +1,13 @@
 mod common;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use common::{ClientSpec, SeededClient, TestApp, forwarded_app, rt};
 use serde_json::Value;
 use uuid::Uuid;
 
 const FAILURES_BEFORE_THROTTLE: usize = 10;
+const FLOW_WRITE_DEADLINE: Duration = Duration::from_secs(10);
 const DEVICE_CODE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 
 async fn token(
@@ -62,6 +63,17 @@ async fn flows_of(app: &TestApp, client: &SeededClient) -> i64 {
         .expect("count the flows of the client")
 }
 
+async fn flows_once_written(app: &TestApp, client: &SeededClient, expected: i64) -> i64 {
+    let deadline = Instant::now() + FLOW_WRITE_DEADLINE;
+    loop {
+        let count = flows_of(app, client).await;
+        if count >= expected || Instant::now() >= deadline {
+            return count;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
 fn assert_throttled(response: &axum_test::TestResponse) {
     assert_eq!(response.status_code(), 429, "{}", response.text());
     assert_eq!(response.header("retry-after"), "60");
@@ -79,8 +91,7 @@ fn failed_client_authentications_write_no_flow_and_are_throttled_per_address() {
 
         let accepted = client_credentials(&server, app, address, &client, &secret).await;
         assert_eq!(accepted.status_code(), 200, "{}", accepted.text());
-        tokio::time::sleep(Duration::from_millis(300)).await;
-        let flows_after_one_grant = flows_of(app, &client).await;
+        let flows_after_one_grant = flows_once_written(app, &client, 1).await;
         assert_eq!(
             flows_after_one_grant, 1,
             "an authenticated grant opens one flow"
@@ -111,6 +122,7 @@ fn failed_client_authentications_write_no_flow_and_are_throttled_per_address() {
             elsewhere.text()
         );
 
+        flows_once_written(app, &client, flows_after_one_grant + 1).await;
         tokio::time::sleep(Duration::from_millis(300)).await;
         assert_eq!(
             flows_of(app, &client).await,
