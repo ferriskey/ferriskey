@@ -105,6 +105,21 @@ fn is_background(statement: &str) -> bool {
         .any(|pattern| statement.contains(pattern))
 }
 
+const COMPASS_FLUSH: &str = "WITH steps AS (";
+
+fn collapse_compass_flushes(statements: Vec<String>) -> Vec<String> {
+    let mut seen_flush = false;
+    statements
+        .into_iter()
+        .filter(|statement| {
+            if !statement.starts_with(COMPASS_FLUSH) {
+                return true;
+            }
+            !std::mem::replace(&mut seen_flush, true)
+        })
+        .collect()
+}
+
 fn recorded() -> usize {
     STATEMENTS.lock().expect("statement log poisoned").len()
 }
@@ -132,7 +147,7 @@ async fn capture<T>(work: impl Future<Output = T>) -> (T, Vec<String>) {
         .drain(..)
         .filter(|statement| !is_background(statement))
         .collect();
-    (output, statements)
+    (output, collapse_compass_flushes(statements))
 }
 
 fn assert_within(step: &str, budget: usize, statements: &[String]) {
@@ -301,4 +316,35 @@ fn a_login_stays_within_its_statement_budget() {
         assert_eq!(granted.status_code(), 200, "{}", granted.text());
         assert_within("client credentials", CLIENT_CREDENTIALS_BUDGET, &statements);
     });
+}
+
+#[test]
+fn compass_flushes_split_by_timing_count_as_one_statement() {
+    let statements = vec![
+        "SELECT 1".to_string(),
+        "WITH steps AS (".to_string(),
+        "UPDATE auth_sessions".to_string(),
+        "WITH steps AS (".to_string(),
+    ];
+
+    assert_eq!(
+        collapse_compass_flushes(statements),
+        vec![
+            "SELECT 1".to_string(),
+            "WITH steps AS (".to_string(),
+            "UPDATE auth_sessions".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn statements_other_than_compass_flushes_are_never_collapsed() {
+    let statements = vec![
+        "SELECT 1".to_string(),
+        "SELECT 1".to_string(),
+        "WITH locked AS (".to_string(),
+        "WITH locked AS (".to_string(),
+    ];
+
+    assert_eq!(collapse_compass_flushes(statements.clone()), statements);
 }
