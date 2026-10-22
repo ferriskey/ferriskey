@@ -958,6 +958,22 @@ impl ApplicationService {
             .await
     }
 
+    pub async fn client_is_known(&self, realm_name: &str, client_id: &str) -> bool {
+        let Ok(scope) =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), realm_name).await
+        else {
+            return false;
+        };
+
+        !matches!(
+            self.client_service
+                .client_repository
+                .get_by_client_id(client_id.to_string(), scope.id())
+                .await,
+            Err(CoreError::NotFound)
+        )
+    }
+
     /// Verification page: bind the authenticated user to the device session
     /// identified by `user_code` and mark it approved (RFC 8628 §3.3).
     pub async fn consume_login_action_token(&self, jti: uuid::Uuid) -> bool {

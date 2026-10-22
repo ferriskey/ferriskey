@@ -22,7 +22,7 @@ use ferriskey_core::domain::authentication::token_exchange::{
 };
 use ferriskey_core::domain::authentication::{entities::ExchangeTokenInput, ports::AuthService};
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
-use ferriskey_core::domain::common::rate_limit::ThrottleKey;
+use ferriskey_core::domain::common::rate_limit::{ClientAuthAttempt, ThrottleKey};
 use serde::Serialize;
 use tracing::{instrument, warn};
 use utoipa::ToSchema;
@@ -98,6 +98,17 @@ pub async fn exchange_token(
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     headers.insert(header::PRAGMA, HeaderValue::from_static("no-cache"));
     response
+}
+
+async fn record_failure(
+    state: &AppState,
+    attempt: ClientAuthAttempt<'_>,
+    realm_name: &str,
+    client_id: &str,
+) {
+    if state.service.client_is_known(realm_name, client_id).await {
+        attempt.failed();
+    }
 }
 
 fn malformed_token_request(reason: &str) -> ApiError {
@@ -212,8 +223,8 @@ async fn token_response(
     if payload.grant_type == GrantType::TokenExchange {
         let response = exchange_subject_token(
             &state,
-            realm_name,
-            client_id,
+            realm_name.clone(),
+            client_id.clone(),
             client_secret,
             payload,
             context.ip_address,
@@ -222,7 +233,7 @@ async fn token_response(
         .await;
         if matches!(&response, Err(ApiError::OAuthUnauthorized { error, .. }) if error == "invalid_client")
         {
-            attempt.failed();
+            record_failure(&state, attempt, &realm_name, &client_id).await;
         }
         return response.map(IntoResponse::into_response);
     }
@@ -247,7 +258,7 @@ async fn token_response(
     let base_url = root_scoped_base_url(&base_url, &state.args.server.root_path);
 
     let exchange_input = ExchangeTokenInput {
-        realm_name,
+        realm_name: realm_name.clone(),
         client_id: client_id.clone(),
         client_secret,
         code: payload.code,
@@ -272,7 +283,7 @@ async fn token_response(
             Ok(token) => token,
             Err(error) => {
                 if matches!(error, DeviceFlowError::InvalidClient) {
-                    attempt.failed();
+                    record_failure(&state, attempt, &realm_name, &client_id).await;
                 }
                 warn!(client_id = %client_id, error = ?error, "Device token poll failed");
                 return Err(error.into());
@@ -286,7 +297,7 @@ async fn token_response(
                     error,
                     CoreError::ClientAuthenticationFailed | CoreError::InvalidClientSecret
                 ) {
-                    attempt.failed();
+                    record_failure(&state, attempt, &realm_name, &client_id).await;
                 }
                 warn!(
                     client_id = %client_id,
