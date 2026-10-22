@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 ferriskey-authz = { path = "../ferriskey-authz" }
 ferriskey-domain = { path = "../ferriskey-domain" }
-cedar-policy = "=4.13.0"
+cedar-policy = "=4.14.0"
 miette = "7"
 uuid = { workspace = true }
 serde_json = { workspace = true }
