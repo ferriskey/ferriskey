@@ -484,7 +484,7 @@ mod tests {
     fn call_tool(parents: &[(&str, &str)]) -> SimulationRequest {
         SimulationRequest {
             principal: tenant("FerrisKey::User", "u1", parents),
-            action: "call_tool".to_string(),
+            action: "tool:use".to_string(),
             resource: tenant("App::Tool", "files/read", &[]),
             context: serde_json::Map::new(),
             entities: Vec::new(),
@@ -495,7 +495,7 @@ mod tests {
     fn a_simulation_uses_the_supplied_entities_and_the_given_policies() {
         let policy = static_policy(
             "support-reads",
-            r#"permit (principal in FerrisKey::Group::"support", action == App::Action::"call_tool", resource);"#,
+            r#"permit (principal in FerrisKey::Group::"support", action == App::Action::"tool:use", resource);"#,
         );
 
         let member = compiler()
