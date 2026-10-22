@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::{
         entities::JwtToken, ports::AuthService, value_objects::GenerateTokensForUserInput,
@@ -104,6 +105,7 @@ pub async fn reset_password_with_token(
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
+    cookie: CookieManager,
     ValidateJson(payload): ValidateJson<ResetPasswordRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     state
@@ -118,6 +120,9 @@ pub async fn reset_password_with_token(
             token: payload.token,
             new_password: payload.new_password,
             webapp_base_url: webapp_url,
+            browser_session: cookie
+                .get("FERRISKEY_SESSION")
+                .and_then(|cookie| Uuid::parse_str(cookie.value()).ok()),
         })
         .await?;
 

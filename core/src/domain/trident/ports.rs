@@ -173,6 +173,7 @@ pub struct VerifyMagicLinkInput {
     pub magic_token_id: Uuid,
     pub magic_token: String,
     pub webapp_base_url: String,
+    pub browser_session: Option<Uuid>,
 }
 
 pub struct RequestPasswordResetInput {
@@ -190,6 +191,7 @@ pub struct CompletePasswordResetInput {
     pub token: String,
     pub new_password: String,
     pub webapp_base_url: String,
+    pub browser_session: Option<Uuid>,
 }
 
 pub struct CompletePasswordResetOutput {

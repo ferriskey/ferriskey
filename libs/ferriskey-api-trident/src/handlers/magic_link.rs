@@ -122,6 +122,7 @@ pub async fn verify_magic_link(
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
+    cookie: CookieManager,
     Query(query): Query<VerifyMagicLinkQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     debug!("Verifying magic link for token_id: {}", query.token_id);
@@ -132,6 +133,9 @@ pub async fn verify_magic_link(
             magic_token_id: query.token_id,
             magic_token: query.magic_token,
             webapp_base_url: webapp_url,
+            browser_session: cookie
+                .get("FERRISKEY_SESSION")
+                .and_then(|cookie| Uuid::parse_str(cookie.value()).ok()),
         })
         .await?;
 

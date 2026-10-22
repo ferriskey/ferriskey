@@ -2047,6 +2047,13 @@ where
             CoreError::SessionNotFound
         })?;
 
+        if input.browser_session != Some(session_code) {
+            warn!(
+                "Magic link opened by a browser that does not hold the session it was requested from"
+            );
+            return Err(CoreError::InvalidMagicLink);
+        }
+
         // Fetch the auth session
         let auth_session = self
             .auth_session_repository
@@ -2503,7 +2510,9 @@ where
             .await
             .inspect_err(|e| warn!("Failed to emit password reset webhook: {}", e));
 
-        let login_url = if let Some(session_code) = auth_session_code {
+        let login_url = if let Some(session_code) =
+            auth_session_code.filter(|code| input.browser_session == Some(*code))
+        {
             match self
                 .auth_session_repository
                 .get_by_session_code(session_code)
@@ -3727,6 +3736,7 @@ mod tests {
         let result = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session: None,
                 token_id,
                 token: "raw_token".to_string(),
                 new_password: "Str0ng!P@ssword#2024".to_string(),
@@ -3771,6 +3781,7 @@ mod tests {
         let result = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session: None,
                 token_id,
                 token: "raw_token".to_string(),
                 new_password: "newpassword123".to_string(),
@@ -3821,6 +3832,7 @@ mod tests {
         let result = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session: None,
                 token_id,
                 token: "wrong_token".to_string(),
                 new_password: "newpassword123".to_string(),
@@ -3844,6 +3856,7 @@ mod tests {
         let result = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session: None,
                 token_id,
                 token: "raw_token".to_string(),
                 new_password: "newpassword123".to_string(),
@@ -4749,8 +4762,9 @@ mod tests {
         let MagicLinkFixture {
             mut builder,
             token_id,
-            ..
+            session,
         } = magic_link_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         expect_pending_step_lookups(
             &mut builder,
@@ -4764,6 +4778,7 @@ mod tests {
         let result = service
             .verify_magic_link(VerifyMagicLinkInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 magic_token_id: token_id,
                 magic_token: "raw_token".to_string(),
             })
@@ -4783,8 +4798,9 @@ mod tests {
         let MagicLinkFixture {
             mut builder,
             token_id,
-            ..
+            session,
         } = magic_link_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         let credentials = vec![otp_credential(user.id)];
         expect_pending_step_lookups(
@@ -4799,6 +4815,7 @@ mod tests {
         let result = service
             .verify_magic_link(VerifyMagicLinkInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 magic_token_id: token_id,
                 magic_token: "raw_token".to_string(),
             })
@@ -4821,6 +4838,7 @@ mod tests {
             token_id,
             session,
         } = magic_link_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         expect_pending_step_lookups(
             &mut builder,
@@ -4839,6 +4857,7 @@ mod tests {
         let result = service
             .verify_magic_link(VerifyMagicLinkInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 magic_token_id: token_id,
                 magic_token: "raw_token".to_string(),
             })
@@ -4870,6 +4889,7 @@ mod tests {
             token_id,
             session,
         } = magic_link_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         expect_pending_step_lookups(
             &mut builder,
@@ -4888,6 +4908,7 @@ mod tests {
         let result = service
             .verify_magic_link(VerifyMagicLinkInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 magic_token_id: token_id,
                 magic_token: "raw_token".to_string(),
             })
@@ -5040,6 +5061,7 @@ mod tests {
         let output = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session: None,
                 token_id,
                 token: "raw_token".to_string(),
                 new_password: "Str0ng!P@ssword#2024".to_string(),
@@ -5063,6 +5085,7 @@ mod tests {
             token_id,
             session,
         } = password_reset_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         expect_pending_step_lookups(
             &mut builder,
@@ -5076,6 +5099,7 @@ mod tests {
         let output = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 token_id,
                 token: "raw_token".to_string(),
                 new_password: "Str0ng!P@ssword#2024".to_string(),
@@ -6122,8 +6146,9 @@ mod tests {
         let MagicLinkFixture {
             mut builder,
             token_id,
-            ..
+            session,
         } = magic_link_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         expect_pending_step_lookups(
             &mut builder,
@@ -6143,6 +6168,7 @@ mod tests {
         let output = service
             .verify_magic_link(VerifyMagicLinkInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 magic_token_id: token_id,
                 magic_token: "raw_token".to_string(),
             })
@@ -6161,8 +6187,9 @@ mod tests {
         let PasswordResetFixture {
             mut builder,
             token_id,
-            ..
+            session,
         } = password_reset_fixture(&realm, &user);
+        let browser_session = Some(session.id);
 
         expect_pending_step_lookups(
             &mut builder,
@@ -6179,6 +6206,7 @@ mod tests {
         let output = service
             .complete_password_reset(CompletePasswordResetInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                browser_session,
                 token_id,
                 token: "raw_token".to_string(),
                 new_password: "Str0ng!P@ssword#2024".to_string(),
@@ -6188,5 +6216,82 @@ mod tests {
 
         assert_eq!(output.login_url.as_deref(), Some(CONSENT_URL));
         assert!(output.sso_session.is_none());
+    }
+
+    #[tokio::test]
+    async fn verify_magic_link_refuses_a_browser_that_does_not_hold_the_stored_session() {
+        for browser_session in [None, Some(Uuid::new_v4())] {
+            let realm = create_test_realm_with_name("test-realm");
+            let user = create_test_user_with_email(&realm, "user@example.com");
+
+            let MagicLinkFixture {
+                mut builder,
+                token_id,
+                ..
+            } = magic_link_fixture(&realm, &user);
+
+            expect_pending_step_lookups(
+                &mut builder,
+                user,
+                Vec::new(),
+                create_test_realm_setting(realm.id, false),
+            );
+            expect_no_authorization_code(&mut builder);
+
+            let service = builder.build();
+            let result = service
+                .verify_magic_link(VerifyMagicLinkInput {
+                    webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                    browser_session,
+                    magic_token_id: token_id,
+                    magic_token: "raw_token".to_string(),
+                })
+                .await;
+
+            assert!(
+                matches!(result, Err(CoreError::InvalidMagicLink)),
+                "a link opened by a browser that did not request it must not log in: {result:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn complete_password_reset_mints_no_code_for_a_browser_that_did_not_request_it() {
+        for browser_session in [None, Some(Uuid::new_v4())] {
+            let realm = create_test_realm_with_name("test-realm");
+            let user = create_test_user_with_email(&realm, "user@example.com");
+
+            let PasswordResetFixture {
+                mut builder,
+                token_id,
+                ..
+            } = password_reset_fixture(&realm, &user);
+
+            expect_pending_step_lookups(
+                &mut builder,
+                user,
+                Vec::new(),
+                create_test_realm_setting(realm.id, false),
+            );
+            expect_no_authorization_code(&mut builder);
+
+            let service = builder.with_user_access_revoked(1).build();
+            let output = service
+                .complete_password_reset(CompletePasswordResetInput {
+                    webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                    browser_session,
+                    token_id,
+                    token: "raw_token".to_string(),
+                    new_password: "Str0ng!P@ssword#2024".to_string(),
+                })
+                .await
+                .expect("the password itself is still reset");
+
+            assert!(
+                output.login_url.is_none(),
+                "no code may be minted on a session this browser does not hold"
+            );
+            assert!(output.sso_session.is_none());
+        }
     }
 }
