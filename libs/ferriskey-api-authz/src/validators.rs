@@ -459,6 +459,7 @@ pub struct EvaluationResponse {
 pub struct AuthzenConfiguration {
     pub policy_decision_point: String,
     pub access_evaluation_endpoint: String,
+    pub access_evaluations_endpoint: String,
 }
 
 #[cfg(test)]

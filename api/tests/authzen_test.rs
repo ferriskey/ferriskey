@@ -785,6 +785,10 @@ mod tests {
                 document["access_evaluation_endpoint"],
                 json!(format!("{pdp}/access/v1/evaluation"))
             );
+            assert_eq!(
+                document["access_evaluations_endpoint"],
+                json!(format!("{pdp}/access/v1/evaluations"))
+            );
 
             let unknown = server
                 .get("/.well-known/authzen-configuration/realms/no-such-realm/authzen")

@@ -12,7 +12,7 @@ use crate::validators::AuthzenConfiguration;
     path = "",
     tag = "authzen",
     summary = "Get AuthZEN PDP metadata",
-    description = "AuthZEN 1.0 policy decision point metadata for a realm.",
+    description = "AuthZEN 1.0 policy decision point metadata for a realm. The policy decision point identifier is {root}/realms/{realm}/authzen, so, as the specification requires for an identifier with a path, the well-known segment sits between the host and that path: /.well-known/authzen-configuration{root}/realms/{realm}/authzen.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
     ),
@@ -37,6 +37,7 @@ pub async fn get_authzen_configuration(
 
     Ok(Response::OK(AuthzenConfiguration {
         access_evaluation_endpoint: format!("{policy_decision_point}/access/v1/evaluation"),
+        access_evaluations_endpoint: format!("{policy_decision_point}/access/v1/evaluations"),
         policy_decision_point,
     }))
 }
