@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv6Addr};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub const DEFAULT_REQUESTS_PER_MINUTE: u32 = 10;
@@ -160,21 +161,23 @@ impl IpRateLimiter {
     }
 }
 
-pub const MAX_KEY_PART_CHARS: usize = 128;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ThrottleKey {
     ip: IpAddr,
-    realm: String,
-    client_id: String,
+    identity: [u8; 32],
 }
 
 impl ThrottleKey {
     pub fn new(ip: IpAddr, realm: &str, client_id: &str) -> Self {
+        let mut digest = Sha256::new();
+        for part in [realm, client_id] {
+            digest.update((part.len() as u64).to_be_bytes());
+            digest.update(part.as_bytes());
+        }
+
         Self {
             ip: rate_limit_key(ip),
-            realm: realm.chars().take(MAX_KEY_PART_CHARS).collect(),
-            client_id: client_id.chars().take(MAX_KEY_PART_CHARS).collect(),
+            identity: digest.finalize().into(),
         }
     }
 }
@@ -540,10 +543,35 @@ mod tests {
     }
 
     #[test]
-    fn keys_cannot_grow_without_bound_from_long_identifiers() {
-        let long = "a".repeat(10_000);
-        let short = ThrottleKey::new(ip(1), "master", &"a".repeat(MAX_KEY_PART_CHARS));
+    fn client_ids_sharing_a_long_prefix_keep_separate_budgets() {
+        let throttle = ClientAuthThrottle::per_minute(1);
+        let now = Instant::now();
+        let prefix = "a".repeat(200);
+        let guessed = key(ip(30), "master", &format!("{prefix}x"));
+        let other = key(ip(30), "master", &format!("{prefix}y"));
 
-        assert_eq!(ThrottleKey::new(ip(1), "master", &long), short);
+        assert_ne!(guessed, other);
+        throttle
+            .reserve_at(guessed.clone(), now)
+            .expect("under the budget")
+            .failed_at(now);
+
+        assert!(throttle.reserve_at(guessed, now).is_none());
+        assert!(throttle.reserve_at(other, now).is_some());
+    }
+
+    #[test]
+    fn the_same_identifiers_always_give_the_same_key() {
+        let long = "a".repeat(10_000);
+
+        assert_eq!(
+            key(ip(31), "master", &long),
+            key(ip(31), "master", &long.clone())
+        );
+    }
+
+    #[test]
+    fn the_boundary_between_realm_and_client_id_is_part_of_the_key() {
+        assert_ne!(key(ip(32), "ab", "c"), key(ip(32), "a", "bc"));
     }
 }
