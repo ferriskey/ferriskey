@@ -42,6 +42,8 @@ exceptions = [
     { crate = "webauthn-rs-proto", allow = ["MPL-2.0"] },
     { crate = "webauthn-attestation-ca", allow = ["MPL-2.0"] },
     { crate = "base64urlsafedata", allow = ["MPL-2.0"] },
+    { crate = "cssparser", allow = ["MPL-2.0"] },
+    { crate = "dtoa-short", allow = ["MPL-2.0"] },
     { crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
     { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
     { crate = "ar_archive_writer", allow = ["Apache-2.0 WITH LLVM-exception"] },

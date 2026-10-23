@@ -119,9 +119,10 @@ where
             "insufficient permissions",
         )?;
 
-        let mjml = self
+        let structure = self
             .template_renderer
-            .render_to_intermediate(&input.structure)?;
+            .sanitize_structure(&input.structure)?;
+        let mjml = self.template_renderer.render_to_intermediate(&structure)?;
 
         // Validate that the MJML can be converted to HTML
         self.template_renderer.render_to_html(&mjml)?;
@@ -131,7 +132,7 @@ where
                 scope.id().into(),
                 input.name,
                 input.email_type.to_string(),
-                input.structure,
+                structure,
                 mjml,
             )
             .await
@@ -158,15 +159,16 @@ where
             .in_realm(&scope)?
             .ok_or(CoreError::EmailTemplateNotFound)?;
 
-        let mjml = self
+        let structure = self
             .template_renderer
-            .render_to_intermediate(&input.structure)?;
+            .sanitize_structure(&input.structure)?;
+        let mjml = self.template_renderer.render_to_intermediate(&structure)?;
 
         // Validate that the MJML can be converted to HTML
         self.template_renderer.render_to_html(&mjml)?;
 
         self.email_template_repository
-            .update(&template, input.name, input.structure, mjml)
+            .update(&template, input.name, structure, mjml)
             .await
     }
 
@@ -215,7 +217,11 @@ where
             .in_realm(&scope)?
             .ok_or(CoreError::EmailTemplateNotFound)?;
 
-        self.template_renderer.render_to_html(&template.get().mjml)
+        let structure = self
+            .template_renderer
+            .sanitize_structure(&template.get().structure)?;
+        let mjml = self.template_renderer.render_to_intermediate(&structure)?;
+        self.template_renderer.render_to_html(&mjml)
     }
 
     async fn import_template(
@@ -239,6 +245,7 @@ where
             EmailTemplateSource::Mjml(mjml) => self.template_renderer.parse_intermediate(&mjml)?,
         };
 
+        let structure = self.template_renderer.sanitize_structure(&structure)?;
         let mjml = self.template_renderer.render_to_intermediate(&structure)?;
 
         // Validate that the MJML can be converted to HTML
@@ -282,6 +289,13 @@ mod tests {
             _structure: &serde_json::Value,
         ) -> Result<String, CoreError> {
             Ok("<mjml><mj-body><mj-section><mj-column><mj-text>Test</mj-text></mj-column></mj-section></mj-body></mjml>".to_string())
+        }
+
+        fn sanitize_structure(
+            &self,
+            structure: &serde_json::Value,
+        ) -> Result<serde_json::Value, CoreError> {
+            Ok(structure.clone())
         }
 
         fn render_to_html(&self, _intermediate: &str) -> Result<String, CoreError> {
@@ -818,5 +832,199 @@ mod tests {
             result.unwrap_err(),
             CoreError::EmailTemplateNotFound
         ));
+    }
+    struct MarkingRenderer;
+
+    fn sanitized_marker() -> serde_json::Value {
+        json!({"children": [{"type": "mj-text", "content": "clean"}]})
+    }
+
+    fn dirty_structure() -> serde_json::Value {
+        json!({"children": [{"type": "mj-text", "content": "<script>steal()</script>"}]})
+    }
+
+    impl TemplateRenderer for MarkingRenderer {
+        fn render_to_intermediate(
+            &self,
+            structure: &serde_json::Value,
+        ) -> Result<String, CoreError> {
+            assert_eq!(*structure, sanitized_marker(), "rendered before sanitizing");
+            Ok("<mjml><mj-body></mj-body></mjml>".to_string())
+        }
+
+        fn sanitize_structure(
+            &self,
+            _structure: &serde_json::Value,
+        ) -> Result<serde_json::Value, CoreError> {
+            Ok(sanitized_marker())
+        }
+
+        fn render_to_html(&self, intermediate: &str) -> Result<String, CoreError> {
+            if intermediate == "<mjml><mj-body></mj-body></mjml>" {
+                Ok("<html>clean</html>".to_string())
+            } else {
+                Ok("<html>raw</html>".to_string())
+            }
+        }
+
+        fn parse_intermediate(&self, _intermediate: &str) -> Result<serde_json::Value, CoreError> {
+            Ok(dirty_structure())
+        }
+    }
+
+    #[tokio::test]
+    async fn render_template_html_starts_from_the_sanitized_structure() {
+        let realm = named_realm("test-realm");
+        let user = test_user(&realm);
+        let mut template = test_template(&realm);
+        template.structure = dirty_structure();
+        template.mjml =
+            "<mjml><mj-body><mj-raw><script>steal()</script></mj-raw></mj-body></mjml>".to_string();
+        let template_id = template.id;
+
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo.expect_get_by_id().returning(move |_, _| {
+            let t = template.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
+        });
+
+        let service = EmailTemplateServiceImpl::new(
+            Arc::new(realm_repo_for(&realm)),
+            Arc::new(et_repo),
+            Arc::new(MarkingRenderer),
+            admin_policy_for(&realm, &user),
+        );
+
+        let html = service
+            .render_template_html(
+                Identity::User(user),
+                RenderEmailTemplateInput {
+                    realm_name: "test-realm".to_string(),
+                    template_id,
+                },
+            )
+            .await;
+
+        assert_eq!(html.expect("rendered"), "<html>clean</html>");
+    }
+
+    #[tokio::test]
+    async fn create_template_stores_the_sanitized_structure() {
+        let realm = named_realm("test-realm");
+        let user = test_user(&realm);
+        let template = test_template(&realm);
+
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo
+            .expect_create()
+            .withf(|_, _, _, structure, _| *structure == sanitized_marker())
+            .returning(move |_, _, _, _, _| {
+                let t = template.clone();
+                Box::pin(async move { Ok(t) })
+            });
+
+        let service = EmailTemplateServiceImpl::new(
+            Arc::new(realm_repo_for(&realm)),
+            Arc::new(et_repo),
+            Arc::new(MarkingRenderer),
+            admin_policy_for(&realm, &user),
+        );
+
+        let result = service
+            .create_template(
+                Identity::User(user),
+                CreateEmailTemplateInput {
+                    realm_name: "test-realm".to_string(),
+                    name: "Welcome".to_string(),
+                    email_type: EmailType::ResetPassword,
+                    structure: dirty_structure(),
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn update_template_stores_the_sanitized_structure() {
+        let realm = named_realm("test-realm");
+        let user = test_user(&realm);
+        let template = test_template(&realm);
+        let template_id = template.id;
+        let updated = template.clone();
+
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo.expect_get_by_id().returning(move |_, _| {
+            let t = template.clone();
+            Box::pin(async move { Ok(Some(Unscoped::new(t))) })
+        });
+        et_repo
+            .expect_update()
+            .withf(|_, _, structure, _| *structure == sanitized_marker())
+            .returning(move |_, _, _, _| {
+                let t = updated.clone();
+                Box::pin(async move { Ok(t) })
+            });
+
+        let service = EmailTemplateServiceImpl::new(
+            Arc::new(realm_repo_for(&realm)),
+            Arc::new(et_repo),
+            Arc::new(MarkingRenderer),
+            admin_policy_for(&realm, &user),
+        );
+
+        let result = service
+            .update_template(
+                Identity::User(user),
+                UpdateEmailTemplateInput {
+                    realm_name: "test-realm".to_string(),
+                    template_id,
+                    name: "Welcome".to_string(),
+                    structure: dirty_structure(),
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[tokio::test]
+    async fn import_template_sanitizes_the_parsed_markup() {
+        let realm = named_realm("test-realm");
+        let user = test_user(&realm);
+        let template = test_template(&realm);
+
+        let mut et_repo = MockEmailTemplateRepository::new();
+        et_repo
+            .expect_create()
+            .withf(|_, _, _, structure, _| *structure == sanitized_marker())
+            .returning(move |_, _, _, _, _| {
+                let t = template.clone();
+                Box::pin(async move { Ok(t) })
+            });
+
+        let service = EmailTemplateServiceImpl::new(
+            Arc::new(realm_repo_for(&realm)),
+            Arc::new(et_repo),
+            Arc::new(MarkingRenderer),
+            admin_policy_for(&realm, &user),
+        );
+
+        let result = service
+            .import_template(
+                Identity::User(user),
+                ImportEmailTemplateInput {
+                    realm_name: "test-realm".to_string(),
+                    name: "Imported".to_string(),
+                    email_type: EmailType::ResetPassword,
+                    source: EmailTemplateSource::Mjml(
+                        "<mjml><mj-body><mj-raw><script>steal()</script></mj-raw></mj-body></mjml>"
+                            .to_string(),
+                    ),
+                },
+            )
+            .await;
+
+        assert!(result.is_ok(), "{result:?}");
     }
 }
