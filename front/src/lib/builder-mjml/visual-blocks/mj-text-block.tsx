@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { BuilderNode } from '../../builder-core'
 import { useBuilderContext } from '../../builder-core'
+import { sanitizeEmailHtml } from '../sanitize-email-html'
 import { InlineTextEditor } from './inline-text-editor'
 
 interface Props {
@@ -30,7 +31,7 @@ export function MjTextBlock({ node, isSelected }: Props) {
   const lineHeight = (node.props['line-height'] as string) || undefined
 
   const sanitizedContent = useMemo(
-    () => stripConflictingInlineStyles(node.content || '<p>Text</p>'),
+    () => sanitizeEmailHtml(stripConflictingInlineStyles(node.content || '<p>Text</p>')),
     [node.content],
   )
 
