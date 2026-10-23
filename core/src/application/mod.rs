@@ -478,6 +478,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
         consent_service.clone(),
         client_metadata_resolver,
     );
+    let login_admission = Arc::new(auth_service.clone());
 
     // The auth service doubles as the device flow's token issuer.
     let device_flow_service = DeviceFlowServiceImpl::new(
@@ -641,6 +642,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             token_revocation.clone(),
             sso_session.clone(),
             elevation.clone(),
+            login_admission.clone(),
             flow_recorder.clone(),
         ),
         account_security_service:
@@ -731,6 +733,7 @@ pub async fn create_service(config: FerriskeyConfig) -> Result<ApplicationServic
             user.clone(),
             auth_session.clone(),
             oauth_client.clone(),
+            login_admission.clone(),
             flow_recorder.clone(),
         ),
         client_scope_service: ClientScopeServiceImpl::new(

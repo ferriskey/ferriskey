@@ -107,6 +107,7 @@ pub async fn passkey_authenticate(
         .passkey_authenticate(PasskeyAuthenticateInput {
             realm_name,
             session_code,
+            webapp_base_url: webapp_url.clone(),
             rp_info,
             credential: payload.0,
             remember_me: query.remember_me,
@@ -115,7 +116,7 @@ pub async fn passkey_authenticate(
         .map_err(ApiError::from)?;
 
     Ok((
-        sso_cookie::headers(Some(output.sso_session), base_url.starts_with("https"))?,
+        sso_cookie::headers(output.sso_session, base_url.starts_with("https"))?,
         Response::OK(PasskeyAuthenticateResponse {
             login_url: output.login_url,
             status: "Success".to_string(),

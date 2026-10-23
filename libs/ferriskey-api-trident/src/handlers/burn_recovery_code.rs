@@ -19,7 +19,7 @@ use ferriskey_api_core::{
     },
     app_state::AppState,
     sso_cookie,
-    url::FullUrl,
+    url::{FullUrl, WebappUrl},
 };
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Validate)]
@@ -59,6 +59,7 @@ pub async fn burn_recovery_code(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
     FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
     cookie: CookieManager,
     ValidateJson(payload): ValidateJson<BurnRecoveryCodeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -75,6 +76,7 @@ pub async fn burn_recovery_code(
             BurnRecoveryCodeInput {
                 realm_name,
                 session_code,
+                webapp_base_url: webapp_url,
                 format: payload.recovery_code_format,
                 code: payload.recovery_code,
             },
@@ -83,7 +85,7 @@ pub async fn burn_recovery_code(
         .map_err(ApiError::from)?;
 
     Ok((
-        sso_cookie::headers(Some(result.sso_session), base_url.starts_with("https"))?,
+        sso_cookie::headers(result.sso_session, base_url.starts_with("https"))?,
         Response::OK(BurnRecoveryCodeResponse {
             login_url: result.login_url,
         }),

@@ -99,6 +99,7 @@ pub async fn webauthn_public_key_authenticate(
             WebAuthnPublicKeyAuthenticateInput {
                 realm_name,
                 session_code,
+                webapp_base_url: webapp_url.clone(),
                 rp_info,
                 credential: payload.0,
             },
@@ -107,7 +108,7 @@ pub async fn webauthn_public_key_authenticate(
         .map_err(ApiError::from)?;
 
     Ok((
-        sso_cookie::headers(Some(output.sso_session), base_url.starts_with("https"))?,
+        sso_cookie::headers(output.sso_session, base_url.starts_with("https"))?,
         Response::OK(AuthenticationAttemptResponse {
             login_url: output.login_url,
         }),

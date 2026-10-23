@@ -355,6 +355,7 @@ type ApplicationTridentService = TridentServiceImpl<
     ApplicationTokenRevocation,
     ApplicationSsoSession,
     ElevationRepo,
+    ApplicationAuthService,
 >;
 
 type ApplicationSsoSession = crate::application::sso_session::SsoSessionAdapter<
@@ -613,6 +614,7 @@ pub struct ApplicationService {
         UserRepo,
         AuthSessionRepo,
         OAuthClientImpl,
+        ApplicationAuthService,
     >,
     pub(crate) client_scope_service: ClientScopeServiceImpl<
         RealmRepo,

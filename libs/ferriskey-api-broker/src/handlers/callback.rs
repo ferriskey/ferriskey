@@ -1,6 +1,9 @@
 use axum::{
     extract::{Path, Query, State},
-    http::{StatusCode, header::LOCATION},
+    http::{
+        HeaderValue, StatusCode,
+        header::{LOCATION, SET_COOKIE},
+    },
     response::IntoResponse,
 };
 
@@ -60,6 +63,7 @@ pub async fn broker_callback(
             error: params.error,
             error_description: params.error_description,
             base_url: root_scoped_base_url.clone(),
+            webapp_base_url: webapp_url.clone(),
             ip_address: context.ip_address,
             user_agent: context.user_agent,
         })
@@ -87,5 +91,20 @@ pub async fn broker_callback(
         Err(e) => return Err(e.into()),
     };
 
-    Ok((StatusCode::FOUND, [(LOCATION, result.redirect_url)]).into_response())
+    let mut response = (StatusCode::FOUND, [(LOCATION, result.redirect_url)]).into_response();
+
+    if let Some(session_id) = result.browser_session_id {
+        let secure = if base_url.starts_with("https://") {
+            "; Secure"
+        } else {
+            ""
+        };
+        let cookie =
+            format!("FERRISKEY_SESSION={session_id}; Path=/; HttpOnly; SameSite=Lax{secure}");
+        if let Ok(value) = HeaderValue::from_str(&cookie) {
+            response.headers_mut().append(SET_COOKIE, value);
+        }
+    }
+
+    Ok(response)
 }

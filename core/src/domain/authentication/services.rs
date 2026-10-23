@@ -52,8 +52,8 @@ use crate::domain::{
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{
-            AuthService, AuthSessionRepository, ConsentRedirect, LoginActionToken,
-            LoginActionTokenRepository,
+            AdmitLoginInput, AuthService, AuthSessionRepository, ConsentRedirect, LoginActionToken,
+            LoginActionTokenRepository, LoginAdmission, LoginAdmissionPort,
         },
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
@@ -4264,6 +4264,142 @@ where
                 )
             }
             _ => redirect_uri.to_string(),
+        }
+    }
+}
+
+impl<
+    R,
+    C,
+    RU,
+    PLRU,
+    U,
+    UR,
+    CR,
+    H,
+    AS,
+    KS,
+    RT,
+    AT,
+    F,
+    CSM,
+    PM,
+    OM,
+    OR,
+    OAR,
+    GT,
+    URA,
+    MW,
+    RMW,
+    UAR,
+    EV,
+    WR,
+    SER,
+    USR,
+    LAT,
+    CO,
+    CM,
+> LoginAdmissionPort
+    for AuthServiceImpl<
+        R,
+        C,
+        RU,
+        PLRU,
+        U,
+        UR,
+        CR,
+        H,
+        AS,
+        KS,
+        RT,
+        AT,
+        F,
+        CSM,
+        PM,
+        OM,
+        OR,
+        OAR,
+        GT,
+        URA,
+        MW,
+        RMW,
+        UAR,
+        EV,
+        WR,
+        SER,
+        USR,
+        LAT,
+        CO,
+        CM,
+    >
+where
+    R: RealmRepository,
+    C: ClientRepository,
+    RU: RedirectUriRepository,
+    PLRU: PostLogoutRedirectUriRepository,
+    U: UserRepository,
+    UR: UserRoleRepository,
+    CR: CredentialRepository,
+    H: HasherRepository,
+    AS: AuthSessionRepository,
+    KS: KeyStoreRepository,
+    RT: RefreshTokenRepository,
+    AT: AccessTokenRepository,
+    F: FederationRepository,
+    CSM: ClientScopeMappingRepository,
+    PM: ProtocolMapperRepository,
+    OM: OrganizationMemberRepository,
+    OR: OrganizationRepository,
+    OAR: OrganizationAttributeRepository,
+    GT: GroupTokenRepository,
+    URA: UserRequiredActionRepository,
+    MW: MaintenanceWhitelistRepository,
+    RMW: RealmMaintenanceWhitelistRepository,
+    UAR: UserAttributeRepository,
+    EV: EmailVerificationService,
+    WR: WebhookRepository,
+    SER: SecurityEventRepository,
+    USR: UserSessionRepository,
+    LAT: LoginActionTokenRepository,
+    CO: ConsentDecisionRepository,
+    CM: ClientMetadataResolver,
+{
+    async fn admit(&self, input: AdmitLoginInput) -> Result<LoginAdmission, CoreError> {
+        let client = self
+            .client_repository
+            .get_by_id(input.scope.id(), input.auth_session.client_id)
+            .await
+            .map_err(|_| CoreError::InvalidClient)?
+            .in_realm(&input.scope)
+            .map_err(|_| CoreError::InvalidClient)?
+            .into_inner();
+
+        let user = self
+            .user_repository
+            .get_by_id(input.user_id)
+            .await?
+            .in_realm(&input.scope)?
+            .into_inner();
+
+        self.enforce_maintenance_mode(input.scope.id(), &client, user.id, &user.username)
+            .await?;
+
+        let consent = self
+            .consent_gate(
+                input.user_id,
+                input.auth_session.id,
+                &input.auth_session,
+                &input.scope,
+                &input.webapp_base_url,
+                &client,
+            )
+            .await?;
+
+        match consent {
+            Some(output) => Ok(LoginAdmission::ConsentRequired {
+                redirect_url: output.redirect_url.ok_or(CoreError::InternalServerError)?,
+            }),
+            None => Ok(LoginAdmission::Proceed),
         }
     }
 }
