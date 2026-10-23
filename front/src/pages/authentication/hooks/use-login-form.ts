@@ -9,6 +9,7 @@ import { useAuthenticateMutation } from '@/api/auth.api'
 import { apiErrorMessage, apiErrorReason } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 import { AUTH_NAMESPACE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 const MAINTENANCE_REASON = 'client_under_maintenance'
 
@@ -61,7 +62,7 @@ export function useLoginForm({ realm_name, loginError, getAuthParamsFromUrl }: O
   useEffect(() => {
     if (!authenticateData) return
     if (authenticateData.url) {
-      window.location.href = authenticateData.url
+      followServerRedirect(authenticateData.url)
     }
 
     if (

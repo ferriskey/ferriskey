@@ -19,6 +19,7 @@ import {
 } from '@/lib/api-error'
 import { translate } from '@/lib/i18n'
 import { AUTH_NAMESPACE } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 function buildRegisterSchema(policy: typeof DEFAULT_PASSWORD_POLICY) {
   return z
@@ -154,7 +155,7 @@ export default function PageRegisterFeature() {
     if (!data) return
 
     if (data.status === 'redirect') {
-      window.location.href = data.data.url
+      followServerRedirect(data.data.url)
       return
     }
 

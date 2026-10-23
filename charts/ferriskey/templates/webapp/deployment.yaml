@@ -60,10 +60,12 @@ spec:
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with $env }}
           env:
+            - name: API_URL
+              value: {{ (.Values.webapp.api.url | default (and .Values.publicHost (printf "%s://%s%s" .Values.webapp.api.protocol .Values.publicHost .Values.api.server.rootPath)) | default "") | quote }}
+            {{- with $env }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           {{- with $envFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

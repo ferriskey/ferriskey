@@ -7,6 +7,7 @@ import ProviderIcon, {
 } from '@/components/provider-icon'
 import { AUTH_NAMESPACE } from '../constants'
 import { buildProviderLoginUrl } from './login-providers-helpers'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 type IdentityProviderPresentation = Schemas.IdentityProviderPresentation
 
@@ -51,7 +52,7 @@ export function LoginProviders({ providers }: LoginProvidersProps) {
                   pathname: window.location.pathname,
                 })
                   .then((loginUrl) => {
-                    window.location.href = loginUrl
+                    followServerRedirect(loginUrl)
                   })
                   .catch((error: unknown) => {
                     console.error(error)

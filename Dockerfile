@@ -75,7 +75,7 @@ RUN VITE_API_URL="" pnpm run build
 # ── Frontend runtime ──────────────────────────────────────────────────────────
 FROM nginxinc/nginx-unprivileged:1.31.2-alpine3.23-slim@sha256:eed3e4c2f3f9285e80610238e0b18fe1bf311c50559434db1969b1cfabd5518b AS webapp
 
-COPY front/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=101:101 front/nginx.conf /etc/nginx/conf.d/default.conf
 # Owned by the nginx user (101) so the entrypoint can write API_URL into config.json.
 COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/share/nginx/html
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh

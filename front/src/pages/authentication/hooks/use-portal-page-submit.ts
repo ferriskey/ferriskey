@@ -24,6 +24,7 @@ import {
 import { useOAuthParams } from './use-oauth-params'
 import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
 import { AUTH_NAMESPACE, DEVICE_ACTION, type DeviceAction } from '../constants'
+import { followServerRedirect } from '@/lib/follow-server-redirect'
 
 export type DeviceVerifyResult = 'approved' | 'denied' | null
 
@@ -94,7 +95,7 @@ export function usePortalPageSubmit(
   useEffect(() => {
     if (pageType !== 'login' || !authenticateData) return
     if (authenticateData.url) {
-      window.location.href = authenticateData.url
+      followServerRedirect(authenticateData.url)
       return
     }
     if (
@@ -192,7 +193,7 @@ export function usePortalPageSubmit(
   useEffect(() => {
     if (pageType !== 'register' || !registrationData) return
     if (registrationData.status === 'redirect') {
-      window.location.href = registrationData.data.url
+      followServerRedirect(registrationData.data.url)
       return
     }
     if (registrationData.status === 'authenticated') {
@@ -312,7 +313,7 @@ export function usePortalPageSubmit(
             const loginUrl = (response as { login_url?: string | null } | undefined)
               ?.login_url
             if (loginUrl) {
-              window.location.href = loginUrl
+              followServerRedirect(loginUrl)
               return
             }
             toast.success(t('form.reset_succeeded'))
@@ -454,7 +455,7 @@ export function usePortalPageSubmit(
   useEffect(() => {
     if (pageType !== 'totp_setup' || !authenticateAfterTotpData) return
     if (authenticateAfterTotpData.url) {
-      window.location.href = authenticateAfterTotpData.url
+      followServerRedirect(authenticateAfterTotpData.url)
       return
     }
     if (
@@ -510,7 +511,7 @@ export function usePortalPageSubmit(
         },
         {
           onSuccess: (response) => {
-            window.location.href = response.redirect_url
+            followServerRedirect(response.redirect_url)
           },
           onError: (error) =>
             onFormError?.(apiErrorMessage(error, t('form.consent_failed'))),

@@ -280,22 +280,6 @@ export function useAuth() {
   }, [])
 
   useEffect(() => {
-    if (!hasHydrated) return
-    const interval = setInterval(() => {
-      if (location.pathname.includes('authentication')) return
-      const authState = localStorage.getItem('auth')
-
-      if (!authState) {
-        setAuthenticated(false)
-        localStorage.removeItem('auth')
-        navigate(`/realms/${authRealm}/authentication/login`)
-      }
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [hasHydrated, navigate, authRealm, setAuthenticated])
-
-  useEffect(() => {
     const interval = setInterval(() => {
       if (!isAuthenticated || !accessToken) return
       const payload = decodeJwt(accessToken)

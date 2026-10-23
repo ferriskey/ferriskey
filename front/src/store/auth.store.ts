@@ -2,6 +2,18 @@ import type { AuthState } from '@/contracts/states.interface'
 import { create } from 'zustand'
 import { createJSONStorage, devtools, persist } from 'zustand/middleware'
 
+const AUTH_STORAGE_KEY = 'auth'
+
+export function removeLegacyPersistedTokens(legacyStorage: () => Storage) {
+  try {
+    legacyStorage().removeItem(AUTH_STORAGE_KEY)
+  } catch {
+    return
+  }
+}
+
+removeLegacyPersistedTokens(() => localStorage)
+
 export const authStore = create<AuthState>()(
   devtools(
     persist(
@@ -15,8 +27,8 @@ export const authStore = create<AuthState>()(
         setSessionRealm: (sessionRealm: string | null) => set({ sessionRealm }),
       }),
       {
-        name: 'auth',
-        storage: createJSONStorage(() => localStorage)
+        name: AUTH_STORAGE_KEY,
+        storage: createJSONStorage(() => sessionStorage)
       }
     )
   )
