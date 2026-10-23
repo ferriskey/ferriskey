@@ -19,8 +19,34 @@ const session = memoryStorage()
 const local = memoryStorage()
 globalThis.sessionStorage = session
 globalThis.localStorage = local
+local.setItem(
+  'auth',
+  JSON.stringify({
+    state: { accessToken: 'legacy-access', refreshToken: 'legacy-refresh', idToken: null },
+    version: 0,
+  })
+)
 
-const { authStore } = await import('./auth.store.ts')
+const { authStore, removeLegacyPersistedTokens } = await import('./auth.store.ts')
+
+test('the tokens a previous version left in local storage are removed on load', () => {
+  assert.equal(local.getItem('auth'), null)
+})
+
+test('an unreachable local storage does not break the removal of the legacy tokens', () => {
+  assert.doesNotThrow(() =>
+    removeLegacyPersistedTokens(() => {
+      throw new DOMException('storage access denied', 'SecurityError')
+    })
+  )
+  assert.doesNotThrow(() =>
+    removeLegacyPersistedTokens(() => ({
+      removeItem: () => {
+        throw new DOMException('storage access denied', 'SecurityError')
+      },
+    }) as unknown as Storage)
+  )
+})
 
 test('tokens are kept in the session storage of the tab, never in local storage', () => {
   authStore.getState().setTokens('access', 'refresh', 'id')
