@@ -12,7 +12,9 @@ use axum_extra::{
 };
 use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::{
-    entities::AuthorizeRequestInput, ports::AuthService, services::LOGIN_ACTION_SESSION_CLAIM,
+    entities::{AuthorizeRequestInput, TokenUsage},
+    ports::AuthService,
+    services::LOGIN_ACTION_SESSION_CLAIM,
 };
 use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
@@ -146,12 +148,12 @@ pub async fn extract_token_from_bearer(parts: &mut Parts) -> Result<String, Auth
     Ok(bearer.token().to_string())
 }
 
-#[tracing::instrument(skip(state, jwt, req, next), fields(claims.sub = %jwt.claims.sub))]
-pub async fn auth(
-    State(state): State<AppState>,
+async fn authorize(
+    state: AppState,
     jwt: Jwt,
     mut req: Request,
     next: Next,
+    usage: TokenUsage,
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
 
@@ -161,6 +163,7 @@ pub async fn auth(
             claims,
             token: jwt.token,
             realm_name: None,
+            usage,
         })
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
@@ -168,6 +171,26 @@ pub async fn auth(
     req.extensions_mut().insert(output.identity);
 
     Ok(next.run(req).await)
+}
+
+#[tracing::instrument(skip(state, jwt, req, next), fields(claims.sub = %jwt.claims.sub))]
+pub async fn auth(
+    State(state): State<AppState>,
+    jwt: Jwt,
+    req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    authorize(state, jwt, req, next, TokenUsage::ManagementApi).await
+}
+
+#[tracing::instrument(skip(state, jwt, req, next), fields(claims.sub = %jwt.claims.sub))]
+pub async fn auth_any_client(
+    State(state): State<AppState>,
+    jwt: Jwt,
+    req: Request,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    authorize(state, jwt, req, next, TokenUsage::AnyClient).await
 }
 
 const AUTH_SESSION_COOKIE: &str = "FERRISKEY_SESSION";
@@ -209,6 +232,7 @@ pub async fn auth_login_actions(
             claims,
             token: jwt.token,
             realm_name: Some(realm_name),
+            usage: TokenUsage::AnyClient,
         })
         .await
         .map_err(|_| StatusCode::UNAUTHORIZED)?;

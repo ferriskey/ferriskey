@@ -34,7 +34,7 @@ use super::handlers::{
 };
 use ferriskey_core::domain::authentication::value_objects::CodeChallengeMethod;
 
-use ferriskey_api_core::{app_state::AppState, auth::auth};
+use ferriskey_api_core::{app_state::AppState, auth::auth_any_client};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -79,7 +79,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/userinfo"),
             post(get_userinfo),
         )
-        .layer(middleware::from_fn_with_state(state.clone(), auth))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_any_client,
+        ))
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/token"),
             post(exchange_token),

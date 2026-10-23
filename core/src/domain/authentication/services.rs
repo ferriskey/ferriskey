@@ -49,6 +49,7 @@ use crate::domain::{
             AuthenticateOutput, AuthenticationMethod, AuthenticationStepStatus,
             AuthorizeRequestInput, AuthorizeRequestOutput, CredentialsAuthParams,
             ExchangeTokenInput, GrantType, JwtToken, SsoSessionBinding, TokenIntrospectionResponse,
+            TokenUsage,
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{
@@ -246,6 +247,30 @@ pub(crate) fn format_auth_completion(
         AuthProtocol::OpenIdConnect | AuthProtocol::Saml => Ok(AuthCompletion::Redirect {
             url: format_authorization_redirect_url(auth_session, authorization_code),
         }),
+    }
+}
+
+fn ensure_issued_for_management(
+    claims: &JwtClaim,
+    realm_name: &str,
+    authorized_party: Option<&Client>,
+) -> Result<(), CoreError> {
+    let audience = format!("{realm_name}-realm");
+    if !claims.aud.contains(&audience) {
+        return Err(CoreError::InvalidToken);
+    }
+
+    if claims.azp.is_empty() {
+        return Ok(());
+    }
+
+    match authorized_party {
+        Some(client)
+            if client.enabled && client.registration_source == ClientRegistrationSource::Admin =>
+        {
+            Ok(())
+        }
+        _ => Err(CoreError::InvalidToken),
     }
 }
 
@@ -4788,11 +4813,33 @@ where
             .await?
             .across_realms();
 
-        self.verify_token(input.token, user.realm_id).await?;
+        let verified = self.verify_token(input.token, user.realm_id).await?;
 
-        let identity: Identity = match input.claims.is_service_account() {
+        if input.usage == TokenUsage::ManagementApi {
+            let realm = self
+                .realm_repository
+                .get_by_id(user.realm_id)
+                .await?
+                .ok_or(CoreError::InvalidRealm)?;
+            let authorized_party = if verified.azp.is_empty() {
+                None
+            } else {
+                self.client_repository
+                    .get_by_client_id(verified.azp.clone(), user.realm_id)
+                    .await
+                    .ok()
+                    .map(|client| client.across_realms())
+            };
+            ensure_issued_for_management(
+                &verified,
+                realm.name.as_str(),
+                authorized_party.as_ref(),
+            )?;
+        }
+
+        let identity: Identity = match verified.is_service_account() {
             true => {
-                let client_id = input.claims.client_id.ok_or(CoreError::InvalidClient)?;
+                let client_id = verified.client_id.ok_or(CoreError::InvalidClient)?;
                 let client_id = Uuid::parse_str(&client_id).map_err(|e| {
                     tracing::error!("failed to parse client id: {:?}", e);
                     CoreError::InvalidClient
@@ -5757,17 +5804,21 @@ where
 mod tests {
     use super::{
         auth_session_can_resume, consent_error_redirect, effective_code_resource,
-        effective_refresh_resource, format_auth_completion, format_authorization_redirect_url,
-        narrow_scope_to_consented, validate_authorization_code_request,
+        effective_refresh_resource, ensure_issued_for_management, format_auth_completion,
+        format_authorization_redirect_url, narrow_scope_to_consented,
+        validate_authorization_code_request,
     };
     use chrono::{Duration, Utc};
     use std::collections::HashSet;
     use uuid::Uuid;
 
     use crate::domain::authentication::entities::{AuthCompletion, AuthProtocol, AuthSession};
-    use crate::domain::client::entities::{Client, ClientType, MaintenanceSessionStrategy};
+    use crate::domain::client::entities::{
+        Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+    };
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
+    use ferriskey_security::jwt::entities::{ClaimsTyp, JwtClaim};
 
     /// Build an [`AuthSession`] with only the fields these helpers read, so the
     /// tests stay focused on redirect formatting / resume eligibility.
@@ -7001,6 +7052,86 @@ mod tests {
             narrow_scope_to_consented("openid profile", &optional, &granted),
             "openid profile"
         );
+    }
+
+    fn claims_for(audience: &[&str], azp: &str) -> JwtClaim {
+        JwtClaim::new(
+            Uuid::new_v4(),
+            "user".to_string(),
+            "https://auth.example/realms/acme".to_string(),
+            audience.iter().map(|value| value.to_string()).collect(),
+            ClaimsTyp::Bearer,
+            azp.to_string(),
+            None,
+            None,
+            300,
+        )
+    }
+
+    fn client_from(source: ClientRegistrationSource, enabled: bool) -> Client {
+        let mut client = confidential_client(Uuid::new_v4(), RealmId::from(Uuid::new_v4()));
+        client.registration_source = source;
+        client.enabled = enabled;
+        client
+    }
+
+    #[test]
+    fn a_token_issued_for_the_realm_to_an_admin_client_may_call_the_management_api() {
+        let claims = claims_for(&["acme-realm", "account"], "console");
+        let client = client_from(ClientRegistrationSource::Admin, true);
+
+        assert!(ensure_issued_for_management(&claims, "acme", Some(&client)).is_ok());
+    }
+
+    #[test]
+    fn a_token_without_a_client_is_a_token_of_the_realm_itself() {
+        let claims = claims_for(&["acme-realm", "account"], "");
+
+        assert!(ensure_issued_for_management(&claims, "acme", None).is_ok());
+    }
+
+    #[test]
+    fn a_token_bound_to_a_resource_server_is_refused() {
+        let claims = claims_for(&["https://mcp.example/api"], "console");
+        let client = client_from(ClientRegistrationSource::Admin, true);
+
+        assert!(matches!(
+            ensure_issued_for_management(&claims, "acme", Some(&client)),
+            Err(CoreError::InvalidToken)
+        ));
+    }
+
+    #[test]
+    fn a_token_issued_for_another_realm_is_refused() {
+        let claims = claims_for(&["other-realm", "account"], "console");
+        let client = client_from(ClientRegistrationSource::Admin, true);
+
+        assert!(ensure_issued_for_management(&claims, "acme", Some(&client)).is_err());
+    }
+
+    #[test]
+    fn tokens_of_clients_that_registered_themselves_are_refused() {
+        let claims = claims_for(&["acme-realm", "account"], "dynamic");
+
+        for source in [
+            ClientRegistrationSource::Dynamic,
+            ClientRegistrationSource::MetadataDocument,
+        ] {
+            let client = client_from(source, true);
+            assert!(
+                ensure_issued_for_management(&claims, "acme", Some(&client)).is_err(),
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_token_of_a_disabled_or_unknown_client_is_refused() {
+        let claims = claims_for(&["acme-realm", "account"], "console");
+        let disabled = client_from(ClientRegistrationSource::Admin, false);
+
+        assert!(ensure_issued_for_management(&claims, "acme", Some(&disabled)).is_err());
+        assert!(ensure_issued_for_management(&claims, "acme", None).is_err());
     }
 }
 
