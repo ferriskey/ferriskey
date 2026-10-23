@@ -73,7 +73,7 @@ jsonwebtoken = { version = "11.1.0", features = ["aws_lc_rs"] }
 test-context = "*"
 axum-test = "*"
 bcrypt = "0.19.3"
-hmac = "0.12.1"
+hmac = "0.13.0"
 sha1 = "0.10.6"
 sha2 = "0.10.9"
 cucumber = "0.23.0"
