@@ -23,7 +23,7 @@ serde_urlencoded = "0.7"
 thiserror = "2.0.17"
 time = "0.3"
 tracing = "0.1.44"
-utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+utoipa = { version = "6.0.0", features = ["chrono", "uuid"] }
 uuid = { version = "1.19.0", features = ["serde", "v4", "v7"] }
 validator = { version = "0.21.0", features = ["derive"] }
 url = "2.5.4"
