@@ -38,7 +38,7 @@ use axum_prometheus::PrometheusMetricLayer;
 use axum_prometheus::metrics_exporter_prometheus::PrometheusHandle;
 use ferriskey_api_core::cors::CorsOriginResolver;
 use ferriskey_api_health::health_routes;
-use ferriskey_core::application::create_service;
+use ferriskey_core::application::create_service_with_secrets;
 use ferriskey_core::domain::common::FerriskeyConfig;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::{debug, info_span};
@@ -59,7 +59,8 @@ fn prometheus_pair() -> (PrometheusMetricLayer<'static>, PrometheusHandle) {
 
 pub async fn state(args: Arc<Args>) -> Result<AppState, anyhow::Error> {
     let ferriskey_config: FerriskeyConfig = FerriskeyConfig::from(args.as_ref().clone());
-    let service = create_service(ferriskey_config).await?;
+    let service =
+        create_service_with_secrets(ferriskey_config, &args.secrets_encryption_keys).await?;
 
     Ok(AppState::new(args, service))
 }

@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
     QueryOrder, sea_query::Expr,
@@ -11,24 +12,35 @@ use crate::domain::{
 };
 use crate::entity::otp_enrollments::{ActiveModel, Column, Entity as OtpEnrollmentEntity, Model};
 
+pub const ENROLLMENT_SECRET_PURPOSE: &str = "otp_enrollments.secret";
+
 #[derive(Debug, Clone)]
 pub struct PostgresOtpEnrollmentRepository {
     pub db: DatabaseConnection,
+    cipher: SecretCipher,
 }
 
 impl PostgresOtpEnrollmentRepository {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+    pub fn with_cipher(db: DatabaseConnection, cipher: SecretCipher) -> Self {
+        Self { db, cipher }
     }
-}
 
-fn model_to_domain(model: Model) -> OtpEnrollment {
-    OtpEnrollment {
-        id: model.id,
-        user_id: model.user_id,
-        secret: model.secret,
-        expires_at: model.expires_at.and_utc(),
-        created_at: model.created_at.and_utc(),
+    fn model_to_domain(&self, model: Model) -> Result<OtpEnrollment, CoreError> {
+        let secret = self
+            .cipher
+            .open(ENROLLMENT_SECRET_PURPOSE, &model.id.to_string(), &model.secret)
+            .map_err(|error| {
+                tracing::error!(enrollment_id = %model.id, %error, "an OTP enrollment secret could not be opened");
+                CoreError::InternalServerError
+            })?;
+
+        Ok(OtpEnrollment {
+            id: model.id,
+            user_id: model.user_id,
+            secret,
+            expires_at: model.expires_at.and_utc(),
+            created_at: model.created_at.and_utc(),
+        })
     }
 }
 
@@ -43,10 +55,19 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
         // candidate live would let an abandoned secret stay enrollable until its TTL.
         self.clear_enrollments(user_id).await?;
 
+        let id = generate_uuid_v7();
+        let sealed_secret = self
+            .cipher
+            .seal(ENROLLMENT_SECRET_PURPOSE, &id.to_string(), &secret)
+            .map_err(|error| {
+                tracing::error!(%error, "an OTP enrollment secret could not be sealed");
+                CoreError::InternalServerError
+            })?;
+
         let model = ActiveModel {
-            id: Set(generate_uuid_v7()),
+            id: Set(id),
             user_id: Set(user_id),
-            secret: Set(secret),
+            secret: Set(sealed_secret),
             expires_at: Set(expires_at.naive_utc()),
             consumed_at: Set(None),
             created_at: Set(Utc::now().naive_utc()),
@@ -57,7 +78,7 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
             CoreError::InternalServerError
         })?;
 
-        Ok(model_to_domain(model))
+        self.model_to_domain(model)
     }
 
     async fn consume_enrollment(
@@ -101,7 +122,7 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
             return Ok(None);
         }
 
-        Ok(Some(model_to_domain(candidate)))
+        self.model_to_domain(candidate).map(Some)
     }
 
     async fn clear_enrollments(&self, user_id: Uuid) -> Result<u64, CoreError> {
@@ -115,5 +136,158 @@ impl OtpEnrollmentRepository for PostgresOtpEnrollmentRepository {
             })?;
 
         Ok(deleted.rows_affected)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::Database as SeaOrmDatabase;
+    use sqlx::Executor as _;
+
+    const SEALING_KEY: &str = "kid-a:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+
+    async fn setup(prefix: &str) -> (sea_orm::DatabaseConnection, sqlx::PgPool) {
+        let base_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
+        let schema = format!("{prefix}_{}", Uuid::new_v4().simple());
+
+        let admin_pool = sqlx::PgPool::connect(&base_url)
+            .await
+            .expect("connect admin pool");
+        admin_pool
+            .execute(sqlx::query(&format!(r#"CREATE SCHEMA "{}""#, schema)))
+            .await
+            .expect("create test schema");
+
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let schema_url = format!("{base_url}{separator}options=-c search_path={schema}");
+        let pool = sqlx::PgPool::connect(&schema_url)
+            .await
+            .expect("connect schema pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run migrations");
+
+        let db = SeaOrmDatabase::connect(&schema_url)
+            .await
+            .expect("sea-orm connect");
+
+        (db, pool)
+    }
+
+    async fn insert_user(pool: &sqlx::PgPool) -> Uuid {
+        let realm_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(realm_id)
+        .bind(format!("realm-{}", realm_id.simple()))
+        .execute(pool)
+        .await
+        .expect("insert realm");
+
+        let user_id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO users (id, realm_id, username, firstname, lastname, email) \
+             VALUES ($1, $2, 'enrolling', '', '', 'enrolling@example.com')",
+        )
+        .bind(user_id)
+        .bind(realm_id)
+        .execute(pool)
+        .await
+        .expect("insert user");
+
+        user_id
+    }
+
+    fn sealing(db: DatabaseConnection) -> PostgresOtpEnrollmentRepository {
+        PostgresOtpEnrollmentRepository::with_cipher(
+            db,
+            SecretCipher::from_config(SEALING_KEY).expect("a valid key ring"),
+        )
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_pending_secret_is_sealed_at_rest_and_consumed_in_the_clear() {
+        let (db, pool) = setup("otp_enrollment_test").await;
+        let user_id = insert_user(&pool).await;
+        let repository = sealing(db);
+
+        let started = repository
+            .start_enrollment(
+                user_id,
+                "JBSWY3DPEHPK3PXP".to_string(),
+                Utc::now() + chrono::Duration::minutes(5),
+            )
+            .await
+            .expect("start the enrollment");
+        assert_eq!(started.secret, "JBSWY3DPEHPK3PXP");
+
+        let stored: String = sqlx::query_scalar("SELECT secret FROM otp_enrollments WHERE id = $1")
+            .bind(started.id)
+            .fetch_one(&pool)
+            .await
+            .expect("read the stored secret");
+        assert!(stored.starts_with("fk1:kid-a:"), "{stored}");
+        assert!(!stored.contains("JBSWY3DP"));
+
+        let consumed = repository
+            .consume_enrollment(user_id, Utc::now())
+            .await
+            .expect("consume the enrollment")
+            .expect("a pending enrollment");
+        assert_eq!(consumed.secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_plaintext_pending_secret_is_still_consumed_when_a_cipher_is_configured() {
+        let (db, pool) = setup("otp_enrollment_test").await;
+        let user_id = insert_user(&pool).await;
+        sqlx::query(
+            "INSERT INTO otp_enrollments (id, user_id, secret, expires_at) \
+             VALUES ($1, $2, 'JBSWY3DPEHPK3PXP', NOW() + interval '5 minutes')",
+        )
+        .bind(Uuid::new_v4())
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .expect("insert a legacy enrollment");
+
+        let consumed = sealing(db)
+            .consume_enrollment(user_id, Utc::now())
+            .await
+            .expect("consume the enrollment")
+            .expect("a pending enrollment");
+
+        assert_eq!(consumed.secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_pending_secret_is_not_consumable_without_the_key() {
+        let (db, pool) = setup("otp_enrollment_test").await;
+        let user_id = insert_user(&pool).await;
+        sealing(db.clone())
+            .start_enrollment(
+                user_id,
+                "JBSWY3DPEHPK3PXP".to_string(),
+                Utc::now() + chrono::Duration::minutes(5),
+            )
+            .await
+            .expect("start the enrollment");
+
+        let result = PostgresOtpEnrollmentRepository::with_cipher(db, SecretCipher::disabled())
+            .consume_enrollment(user_id, Utc::now())
+            .await;
+
+        assert!(
+            !matches!(&result, Ok(Some(enrollment)) if enrollment.secret == "JBSWY3DPEHPK3PXP"),
+            "{result:?}"
+        );
     }
 }

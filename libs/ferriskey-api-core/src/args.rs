@@ -139,6 +139,14 @@ pub struct Args {
     )]
     pub password_hash_memory_budget_mib: u32,
     #[arg(
+        long = "secrets-encryption-keys",
+        env = "SECRETS_ENCRYPTION_KEYS",
+        hide_env_values = true,
+        default_value = "",
+        long_help = "Keys that seal the secrets kept in the database (realm signing keys, TOTP seeds, SMTP passwords), written id:base64 and separated by commas. Each key is 32 random bytes in base64. The first key seals, every key opens, so a key is rotated by putting the new one first. Secrets already stored in clear are sealed at the next start. Leave it empty to keep them in clear."
+    )]
+    pub secrets_encryption_keys: String,
+    #[arg(
         long,
         env = "AUTHZ_ENABLED",
         default_value_t = false,
@@ -167,6 +175,7 @@ impl Default for Args {
             password_hash_parallelism: 1,
             password_hash_memory_budget_mib: 256,
             authz_enabled: false,
+            secrets_encryption_keys: String::new(),
             webapp_url: "http://localhost:5555".to_string(),
             webapp_url_from_request: false,
             webapp_allowed_hosts: vec![],
