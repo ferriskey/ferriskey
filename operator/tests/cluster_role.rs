@@ -149,3 +149,27 @@ fn cluster_wide_rbac_is_only_rendered_without_watched_namespaces() {
         );
     }
 }
+
+#[test]
+fn watched_namespaces_are_quoted_so_that_yaml_keeps_them_as_strings() {
+    for template in ["operator/role.yaml", "operator/role-binding.yaml"] {
+        let source = read_template(template);
+        assert!(
+            source.contains("namespace: {{ . | quote }}"),
+            "{template} quotes the watched namespace"
+        );
+    }
+}
+
+#[test]
+fn the_chart_refuses_an_environment_entry_that_redefines_the_watched_namespaces() {
+    let source = read_template("validate.yaml");
+    assert!(
+        source.contains("concat .Values.common.env .Values.operator.env"),
+        "both environment lists are checked"
+    );
+    assert!(
+        source.contains("\"WATCH_NAMESPACES\""),
+        "the watched namespaces variable is reserved"
+    );
+}

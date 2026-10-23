@@ -42,7 +42,7 @@ impl OperatorApp {
         let service = Arc::new(service);
         info!("service initialized");
 
-        let scope = WatchScope::from_env();
+        let scope = WatchScope::from_env()?;
         info!(?scope, "watch scope");
 
         let cluster_controller = run_cluster_controller(client.clone(), service.clone(), &scope);

@@ -12,4 +12,6 @@ pub enum OperatorError {
     DeleteApiError { message: String },
     #[error("Invalid specification: {message}")]
     InvalidSpec { message: String },
+    #[error("Invalid configuration: {message}")]
+    InvalidConfiguration { message: String },
 }
