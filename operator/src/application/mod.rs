@@ -4,7 +4,7 @@ use kube::Client;
 use tracing::{debug, error, info};
 
 use crate::{
-    application::cluster::controller::run_cluster_controller,
+    application::cluster::{controller::run_cluster_controller, scope::WatchScope},
     domain::{common::services::Service, error::OperatorError},
     infrastructure::cluster::repositories::k8s::K8sClusterRepository,
 };
@@ -42,7 +42,10 @@ impl OperatorApp {
         let service = Arc::new(service);
         info!("service initialized");
 
-        let cluster_controller = run_cluster_controller(client.clone(), service.clone());
+        let scope = WatchScope::from_env()?;
+        info!(?scope, "watch scope");
+
+        let cluster_controller = run_cluster_controller(client.clone(), service.clone(), &scope);
 
         info!("cluster controller started");
 

@@ -1,0 +1,14 @@
+{{- if and .Values.rbac.create .Values.operator.watchNamespaces }}
+{{- range .Values.operator.watchNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "ferriskey-operator.operator.roleName" $ }}
+  namespace: {{ . | quote }}
+  labels:
+    {{- include "ferriskey-operator.operator.labels" $ | nindent 4 }}
+rules:
+  {{- include "ferriskey-operator.operator.rbacRules" $ | nindent 2 }}
+{{- end }}
+{{- end }}

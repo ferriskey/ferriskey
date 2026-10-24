@@ -14,7 +14,7 @@ use kube::{
 use serde_json::json;
 
 use crate::{
-    application::OperatorService,
+    application::{OperatorService, cluster::scope::WatchScope},
     domain::{
         cluster::{
             entities::{ApiSpec, ClusterSpec, DatabaseConfig, SecretReference},
@@ -27,22 +27,39 @@ use crate::{
 
 const FINALIZER: &str = "ferriskey.rs/finalizer";
 
-pub async fn run_cluster_controller(client: Client, service: Arc<OperatorService>) {
-    let clusters: Api<FerrisKeyCluster> = Api::all(client.clone());
+pub async fn run_cluster_controller(
+    client: Client,
+    service: Arc<OperatorService>,
+    scope: &WatchScope,
+) {
+    let apis: Vec<Api<FerrisKeyCluster>> = match scope {
+        WatchScope::Cluster => vec![Api::all(client.clone())],
+        WatchScope::Namespaces(namespaces) => namespaces
+            .iter()
+            .map(|namespace| Api::namespaced(client.clone(), namespace))
+            .collect(),
+    };
 
-    Controller::new(clusters, Config::default())
-        .run(
-            move |obj, _| reconcile(obj, service.clone(), client.clone()),
-            error_policy,
-            Arc::new(()),
-        )
-        .for_each(|res| async move {
-            match res {
-                Ok((obj, _)) => tracing::info!("reconciled cluster: {:?}", obj.name),
-                Err(e) => tracing::warn!("reconciled failed cluster: {:?}", e),
-            }
-        })
-        .await;
+    futures::future::join_all(apis.into_iter().map(|clusters| {
+        let service = service.clone();
+        let client = client.clone();
+        async move {
+            Controller::new(clusters, Config::default())
+                .run(
+                    move |obj, _| reconcile(obj, service.clone(), client.clone()),
+                    error_policy,
+                    Arc::new(()),
+                )
+                .for_each(|res| async move {
+                    match res {
+                        Ok((obj, _)) => tracing::info!("reconciled cluster: {:?}", obj.name),
+                        Err(e) => tracing::warn!("reconciled failed cluster: {:?}", e),
+                    }
+                })
+                .await
+        }
+    }))
+    .await;
 }
 
 async fn reconcile(
