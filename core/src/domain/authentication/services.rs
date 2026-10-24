@@ -1409,8 +1409,9 @@ where
         client_scopes: &ClientScopeSet,
         user_roles: &[Role],
         input: &GenerateTokenInput,
+        membership: Option<&TokenGroupMembership>,
     ) -> Result<AssembledClaims, CoreError> {
-        self.assemble_token_claims_for(client_scopes, user_roles, input, false)
+        self.assemble_token_claims_for(client_scopes, user_roles, input, false, membership)
             .await
     }
 
@@ -1535,6 +1536,7 @@ where
         user_roles: &[Role],
         input: &GenerateTokenInput,
         only_token_scopes: bool,
+        prefetched_membership: Option<&TokenGroupMembership>,
     ) -> Result<AssembledClaims, CoreError> {
         let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
         let realm_audit = format!("{}-realm", input.realm.name());
@@ -1563,11 +1565,18 @@ where
             }
         }
 
-        let membership = self
-            .group_token_repository
-            .token_membership(input.user_id)
-            .await
-            .unwrap_or_default();
+        let fetched_membership;
+        let membership = match prefetched_membership {
+            Some(membership) => membership,
+            None => {
+                fetched_membership = self
+                    .group_token_repository
+                    .token_membership(input.user_id)
+                    .await
+                    .unwrap_or_default();
+                &fetched_membership
+            }
+        };
 
         // Roles inherited from the user's effective (recursive) group memberships, merged into
         // the role maps so they flow into tokens exactly like directly-assigned roles.
@@ -1598,7 +1607,7 @@ where
             build_context_groups(&membership.effective_groups, &membership.direct_group_ids);
 
         let organizations = if sources.organizations {
-            self.organizations_for_token(&membership, input).await
+            self.organizations_for_token(membership, input).await
         } else {
             Vec::new()
         };
@@ -1770,7 +1779,7 @@ where
             .unwrap_or_default();
 
         let assembled = self
-            .assemble_token_claims(&client_scopes, &user_roles, &gen_input)
+            .assemble_token_claims(&client_scopes, &user_roles, &gen_input, None)
             .await?;
 
         let group_role_ids = self
@@ -2081,6 +2090,7 @@ where
         user_roles: &[Role],
         input: &GenerateTokenInput,
         id_token: IdTokenIssuance,
+        membership: Option<&TokenGroupMembership>,
     ) -> Result<SignedAccessToken, CoreError> {
         let key = self
             .keystore_repository
@@ -2094,7 +2104,7 @@ where
             id_mapper_claims,
             ..
         } = self
-            .assemble_token_claims(client_scopes, user_roles, input)
+            .assemble_token_claims(client_scopes, user_roles, input, membership)
             .instrument(info_span!("auth.create_jwt.claims"))
             .await?;
 
@@ -2172,9 +2182,16 @@ where
         user_roles: &[Role],
         input: GenerateTokenInput,
         id_token: IdTokenIssuance,
+        membership: &TokenGroupMembership,
     ) -> Result<(Jwt, Option<Jwt>), CoreError> {
         let signed = self
-            .sign_access_token(client_scopes, user_roles, &input, id_token)
+            .sign_access_token(
+                client_scopes,
+                user_roles,
+                &input,
+                id_token,
+                Some(membership),
+            )
             .await?;
         self.persist_access_token(&signed, input.realm.id())
             .instrument(info_span!("auth.create_jwt.persist"))
@@ -2195,6 +2212,7 @@ where
                 user_roles,
                 &input,
                 IdTokenIssuance::FollowScope,
+                None,
             )
             .await?;
 
@@ -2309,7 +2327,7 @@ where
             .await
             .unwrap_or_default();
         let assembled = self
-            .assemble_token_claims_for(&client_scopes, &user_roles, &input, true)
+            .assemble_token_claims_for(&client_scopes, &user_roles, &input, true, None)
             .await?;
         Ok(assembled.access_claims.additional_claims)
     }
@@ -2889,12 +2907,16 @@ where
             ));
         }
 
-        let user_roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .instrument(info_span!("auth.client_credentials.roles"))
-            .await
-            .unwrap_or_default();
+        let (user_roles, membership) = tokio::join!(
+            self.user_role_repository
+                .get_user_roles(user.id)
+                .instrument(info_span!("auth.client_credentials.roles")),
+            self.group_token_repository
+                .token_membership(user.id)
+                .instrument(info_span!("auth.client_credentials.membership")),
+        );
+        let user_roles = user_roles.unwrap_or_default();
+        let membership = membership.unwrap_or_default();
 
         let (final_scope, client_scopes) = self
             .resolve_client_scopes(client.id, params.scope.as_deref())
@@ -2936,6 +2958,7 @@ where
                     resource,
                 },
                 id_token,
+                &membership,
             )
             .instrument(info_span!("auth.client_credentials.create_jwt"))
             .await?;
