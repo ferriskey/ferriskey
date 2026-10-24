@@ -1,6 +1,10 @@
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, DatabaseConnection, EntityTrait,
-    JoinType, QueryFilter, QuerySelect, RelationTrait, prelude::Expr, sea_query::IntoCondition,
+    ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QuerySelect,
+    RelationTrait,
+    prelude::Expr,
+    sea_query::{DynIden, IntoCondition, Query, SimpleExpr},
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
@@ -56,40 +60,21 @@ impl UserRoleRepository for PostgresUserRoleRepository {
 
     #[instrument]
     async fn get_user_roles(&self, user_id: Uuid) -> Result<Vec<Role>, CoreError> {
-        let roles = crate::entity::roles::Entity::find()
-            .join(
-                JoinType::InnerJoin,
-                crate::entity::user_role::Relation::Roles
-                    .def()
-                    .rev()
-                    .on_condition(move |_left, right| {
-                        Expr::col((right, crate::entity::user_role::Column::UserId))
-                            .eq(user_id)
-                            .into_condition()
-                    }),
-            )
-            .join(
-                JoinType::LeftJoin,
-                crate::entity::roles::Relation::Clients.def(),
-            )
-            .select_also(crate::entity::clients::Entity)
-            .all(&self.db)
+        self.roles_of_users(move |user_column| Expr::col(user_column).eq(user_id))
             .await
-            .map_err(|e| {
-                error!("error getting user roles: {:?}", e);
-                CoreError::InternalServerError
-            })?
-            .iter()
-            .map(|(model, client)| {
-                let mut role: Role = model.clone().into();
-                if let Some(client) = client {
-                    role.client = Some(client.clone().into());
-                }
-                role
-            })
-            .collect::<Vec<Role>>();
+    }
 
-        Ok(roles)
+    #[instrument]
+    async fn get_service_account_roles(&self, client_id: Uuid) -> Result<Vec<Role>, CoreError> {
+        self.roles_of_users(move |user_column| {
+            let service_account = Query::select()
+                .column(crate::entity::users::Column::Id)
+                .from(crate::entity::users::Entity)
+                .and_where(crate::entity::users::Column::ClientId.eq(client_id))
+                .to_owned();
+            Expr::col(user_column).in_subquery(service_account)
+        })
+        .await
     }
 
     async fn get_roles_by_ids(&self, role_ids: Vec<Uuid>) -> Result<Vec<Role>, CoreError> {
@@ -125,5 +110,46 @@ impl UserRoleRepository for PostgresUserRoleRepository {
 
     async fn has_role(&self, _user_id: Uuid, _role_id: Uuid) -> Result<bool, CoreError> {
         todo!("Implement has_role in PostgresUserRoleRepository");
+    }
+}
+
+impl PostgresUserRoleRepository {
+    async fn roles_of_users<F>(&self, user_matches: F) -> Result<Vec<Role>, CoreError>
+    where
+        F: Fn((DynIden, crate::entity::user_role::Column)) -> SimpleExpr + Send + Sync + 'static,
+    {
+        let roles = crate::entity::roles::Entity::find()
+            .join(
+                JoinType::InnerJoin,
+                crate::entity::user_role::Relation::Roles
+                    .def()
+                    .rev()
+                    .on_condition(move |_left, right| {
+                        user_matches((right, crate::entity::user_role::Column::UserId))
+                            .into_condition()
+                    }),
+            )
+            .join(
+                JoinType::LeftJoin,
+                crate::entity::roles::Relation::Clients.def(),
+            )
+            .select_also(crate::entity::clients::Entity)
+            .all(&self.db)
+            .await
+            .map_err(|e| {
+                error!("error getting user roles: {:?}", e);
+                CoreError::InternalServerError
+            })?
+            .iter()
+            .map(|(model, client)| {
+                let mut role: Role = model.clone().into();
+                if let Some(client) = client {
+                    role.client = Some(client.clone().into());
+                }
+                role
+            })
+            .collect::<Vec<Role>>();
+
+        Ok(roles)
     }
 }

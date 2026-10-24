@@ -2888,11 +2888,19 @@ where
             }
         }
 
-        let user = self
-            .user_repository
-            .get_by_client_id(client.id)
-            .instrument(info_span!("auth.client_credentials.service_account"))
-            .await
+        let (user, user_roles, membership) = tokio::join!(
+            self.user_repository
+                .get_by_client_id(client.id)
+                .instrument(info_span!("auth.client_credentials.service_account")),
+            self.user_role_repository
+                .get_service_account_roles(client.id)
+                .instrument(info_span!("auth.client_credentials.roles")),
+            self.group_token_repository
+                .token_membership_of_service_account(client.id)
+                .instrument(info_span!("auth.client_credentials.membership")),
+        );
+
+        let user = user
             .map_err(|e| match e {
                 CoreError::NotFound => CoreError::ServiceAccountNotFound,
                 _ => CoreError::InternalServerError,
@@ -2907,14 +2915,6 @@ where
             ));
         }
 
-        let (user_roles, membership) = tokio::join!(
-            self.user_role_repository
-                .get_user_roles(user.id)
-                .instrument(info_span!("auth.client_credentials.roles")),
-            self.group_token_repository
-                .token_membership(user.id)
-                .instrument(info_span!("auth.client_credentials.membership")),
-        );
         let user_roles = user_roles.unwrap_or_default();
         let membership = membership.unwrap_or_default();
 

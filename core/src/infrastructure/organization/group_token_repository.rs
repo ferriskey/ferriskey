@@ -9,14 +9,17 @@ use ferriskey_organization::{
 
 use crate::domain::common::entities::app_errors::CoreError;
 
-/// The user's direct groups plus every ancestor, resolved with a recursive CTE; `direct` marks
-/// the groups the user is a member of without ancestor expansion.
-const TOKEN_MEMBERSHIP_SQL: &str = r#"
+macro_rules! token_membership_sql {
+    ($user_id:literal) => {
+        concat!(
+            r#"
 WITH RECURSIVE user_groups AS (
     SELECT g.id, g.organization_id, g.parent_group_id, g.name, g.description, g.created_at, g.updated_at, TRUE AS direct
     FROM organization_groups g
     JOIN organization_group_members m ON m.group_id = g.id
-    WHERE m.user_id = $1
+    WHERE m.user_id = "#,
+            $user_id,
+            r#"
   UNION
     SELECT p.id, p.organization_id, p.parent_group_id, p.name, p.description, p.created_at, p.updated_at, FALSE
     FROM organization_groups p
@@ -35,7 +38,9 @@ role_ids AS (
     SELECT m.organization_id, mr.role_id, 'member' AS source
     FROM organization_member_roles mr
     JOIN organization_members m ON m.id = mr.organization_member_id
-    WHERE m.user_id = $1
+    WHERE m.user_id = "#,
+            $user_id,
+            r#"
 )
 SELECT 'group' AS kind, id, organization_id, parent_group_id, name, description, created_at, updated_at, direct,
        NULL::uuid AS role_id, NULL::text AS source
@@ -44,7 +49,17 @@ UNION ALL
 SELECT 'role' AS kind, NULL::uuid, organization_id, NULL::uuid, NULL::text, NULL::text, NULL::timestamptz, NULL::timestamptz, NULL::boolean,
        role_id, source
 FROM role_ids
-"#;
+"#
+        )
+    };
+}
+
+/// The user's direct groups plus every ancestor, resolved with a recursive CTE; `direct` marks
+/// the groups the user is a member of without ancestor expansion.
+const TOKEN_MEMBERSHIP_SQL: &str = token_membership_sql!("$1");
+
+const SERVICE_ACCOUNT_MEMBERSHIP_SQL: &str =
+    token_membership_sql!("(SELECT id FROM users WHERE client_id = $1)");
 
 const EFFECTIVE_ROLE_IDS_SQL: &str = r#"
 WITH RECURSIVE user_groups AS (
@@ -73,14 +88,18 @@ impl PostgresGroupTokenRepository {
     }
 }
 
-impl GroupTokenRepository for PostgresGroupTokenRepository {
-    async fn token_membership(&self, user_id: Uuid) -> Result<TokenGroupMembership, CoreError> {
+impl PostgresGroupTokenRepository {
+    async fn load_membership(
+        &self,
+        sql: &'static str,
+        key: Uuid,
+    ) -> Result<TokenGroupMembership, CoreError> {
         let rows = self
             .db
             .query_all(Statement::from_sql_and_values(
                 DbBackend::Postgres,
-                TOKEN_MEMBERSHIP_SQL,
-                [user_id.into()],
+                sql,
+                [key.into()],
             ))
             .await
             .map_err(|e| {
@@ -127,6 +146,20 @@ impl GroupTokenRepository for PostgresGroupTokenRepository {
         }
 
         Ok(membership)
+    }
+}
+
+impl GroupTokenRepository for PostgresGroupTokenRepository {
+    async fn token_membership(&self, user_id: Uuid) -> Result<TokenGroupMembership, CoreError> {
+        self.load_membership(TOKEN_MEMBERSHIP_SQL, user_id).await
+    }
+
+    async fn token_membership_of_service_account(
+        &self,
+        client_id: Uuid,
+    ) -> Result<TokenGroupMembership, CoreError> {
+        self.load_membership(SERVICE_ACCOUNT_MEMBERSHIP_SQL, client_id)
+            .await
     }
 
     async fn list_effective_role_ids_for_user(

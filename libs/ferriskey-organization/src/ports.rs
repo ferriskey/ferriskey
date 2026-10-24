@@ -373,6 +373,13 @@ pub trait GroupTokenRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> impl Future<Output = Result<TokenGroupMembership, CoreError>> + Send;
+
+    /// Same as `token_membership` for the service account of `client_id`, so it can run
+    /// before the service account user is known.
+    fn token_membership_of_service_account(
+        &self,
+        client_id: Uuid,
+    ) -> impl Future<Output = Result<TokenGroupMembership, CoreError>> + Send;
 }
 
 /// Service trait for member-scoped role business logic.
