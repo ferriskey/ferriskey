@@ -9,6 +9,10 @@ import type { IUser, OrganizationClaim } from '@/contracts/states.interface'
 import { translate } from '@/lib/i18n'
 import { realmFromIssuer } from '@/lib/session-realm'
 import { authRefreshController } from './auth-refresh-controller'
+import {
+  sessionRealmAfterSessionEnd,
+  type SessionEndReason,
+} from './session-end'
 
 type JwtPayload = {
   exp?: number
@@ -142,9 +146,14 @@ export function useAuth() {
   )
 
   const clearAuthState = useCallback(
-    (redirectToLogin: boolean, errorMessage?: string) => {
+    (
+      redirectToLogin: boolean,
+      errorMessage?: string,
+      reason: SessionEndReason = 'expired'
+    ) => {
       authRefreshController.reset(authRealm)
       authStore.persist?.clearStorage?.()
+      setSessionRealm(sessionRealmAfterSessionEnd(storedSessionRealm, reason))
       setTokens(null, null, null)
       setUser(null)
       setExpiration(null)
@@ -164,7 +173,17 @@ export function useAuth() {
         )
       }
     },
-    [navigate, authRealm, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
+    [
+      navigate,
+      authRealm,
+      setAuthenticated,
+      setExpiration,
+      setLoading,
+      setSessionRealm,
+      setTokens,
+      setUser,
+      storedSessionRealm,
+    ]
   )
 
   function isTokenExpired(): boolean {
@@ -222,7 +241,7 @@ export function useAuth() {
     } catch (error) {
       console.error('Failed to clear server-side session cookies during logout:', error)
     } finally {
-      clearAuthState(true)
+      clearAuthState(true, undefined, 'logout')
     }
   }
 
