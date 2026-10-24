@@ -1,4 +1,5 @@
 pub mod access_token_repository;
+pub mod access_token_writer;
 pub mod argon2_hasher;
 pub mod auth_session_repository;
 pub mod credential_repository;
