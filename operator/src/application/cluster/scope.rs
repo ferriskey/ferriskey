@@ -24,8 +24,19 @@ impl WatchScope {
     pub fn parse(value: Option<&str>) -> Result<Self, OperatorError> {
         let value = value.unwrap_or_default();
         let mut namespaces: Vec<String> = Vec::new();
-        for namespace in value.split(',').map(str::trim) {
-            if !namespace.is_empty() && !namespaces.iter().any(|known| known == namespace) {
+        for namespace in value
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+        {
+            if !is_dns_label(namespace) {
+                return Err(OperatorError::InvalidConfiguration {
+                    message: format!(
+                        "{WATCH_NAMESPACES} lists {namespace:?}, which is not a valid namespace name"
+                    ),
+                });
+            }
+            if !namespaces.iter().any(|known| known == namespace) {
                 namespaces.push(namespace.to_string());
             }
         }
@@ -41,6 +52,16 @@ impl WatchScope {
             })
         }
     }
+}
+
+fn is_dns_label(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    let is_edge = |byte: &u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
+    !bytes.is_empty()
+        && bytes.len() <= 63
+        && bytes.first().is_some_and(is_edge)
+        && bytes.last().is_some_and(is_edge)
+        && bytes.iter().all(|byte| is_edge(byte) || *byte == b'-')
 }
 
 #[cfg(test)]
@@ -66,6 +87,40 @@ mod tests {
                     Err(OperatorError::InvalidConfiguration { .. })
                 ),
                 "{value:?} must not widen the scope to the whole cluster"
+            );
+        }
+    }
+
+    #[test]
+    fn a_name_that_is_not_a_dns_label_is_refused() {
+        let too_long = "a".repeat(64);
+        for value in [
+            "Team_A",
+            "team-a,Team_B",
+            "-a",
+            "a-",
+            "a.b",
+            "a b",
+            "équipe",
+            too_long.as_str(),
+        ] {
+            assert!(
+                matches!(
+                    WatchScope::parse(Some(value)),
+                    Err(OperatorError::InvalidConfiguration { .. })
+                ),
+                "{value:?} must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn a_valid_dns_label_is_accepted() {
+        let longest = "a".repeat(63);
+        for value in ["a", "0a", "a-1", "tenant-a", longest.as_str()] {
+            assert_eq!(
+                parsed(Some(value)),
+                WatchScope::Namespaces(vec![value.to_string()])
             );
         }
     }

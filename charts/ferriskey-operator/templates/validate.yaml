@@ -8,6 +8,9 @@
 {{- end }}
 {{- end }}
 {{- if .Values.operator.watchNamespaces }}
+{{- if ne (len (uniq .Values.operator.watchNamespaces)) (len .Values.operator.watchNamespaces) }}
+{{- fail "operator.watchNamespaces must not contain duplicate namespaces" -}}
+{{- end }}
 {{- range concat .Values.common.env .Values.operator.env }}
 {{- if eq (.name | default "" | toString) "WATCH_NAMESPACES" }}
 {{- fail "common.env and operator.env must not define WATCH_NAMESPACES — operator.watchNamespaces already sets it" -}}

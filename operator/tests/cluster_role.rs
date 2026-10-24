@@ -173,3 +173,12 @@ fn the_chart_refuses_an_environment_entry_that_redefines_the_watched_namespaces(
         "the watched namespaces variable is reserved"
     );
 }
+
+#[test]
+fn the_chart_refuses_a_namespace_watched_twice() {
+    let source = read_template("validate.yaml");
+    assert!(
+        source.contains("uniq .Values.operator.watchNamespaces"),
+        "duplicate namespaces would render the same Role twice"
+    );
+}
