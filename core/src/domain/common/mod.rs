@@ -42,6 +42,8 @@ pub struct DatabaseConfig {
     pub password: String,
     pub name: String,
     pub schema: String,
+    pub max_connections: u32,
+    pub min_connections: u32,
 }
 
 /// The one redirect URI the admin console ever needs, for a given realm.

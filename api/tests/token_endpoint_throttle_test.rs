@@ -45,6 +45,17 @@ async fn client_credentials(
     .await
 }
 
+async fn unbound_service_client(app: &TestApp) -> (SeededClient, String) {
+    let client = app
+        .client(ClientSpec::confidential().with_service_account())
+        .await;
+    let secret = client
+        .secret
+        .clone()
+        .expect("a confidential client has a secret");
+    (client, secret)
+}
+
 async fn service_client(server: &axum_test::TestServer, app: &TestApp) -> (SeededClient, String) {
     let client = app
         .client(ClientSpec::confidential().with_service_account())
@@ -93,10 +104,15 @@ fn failed_client_authentications_write_no_flow_and_are_throttled_per_address() {
 
         let accepted = client_credentials(&server, app, address, &client, &secret).await;
         assert_eq!(accepted.status_code(), 200, "{}", accepted.text());
-        let flows_after_one_grant = flows_once_written(app, &client, 1).await;
+
+        let (unbound, unbound_secret) = unbound_service_client(app).await;
+        let failed_inside =
+            client_credentials(&server, app, "203.0.113.12", &unbound, &unbound_secret).await;
+        assert!(failed_inside.status_code().is_client_error());
         assert_eq!(
-            flows_after_one_grant, 1,
-            "an authenticated grant opens one flow"
+            flows_once_written(app, &unbound, 1).await,
+            1,
+            "a grant that fails once the client authenticated opens one flow"
         );
 
         for attempt in 1..=FAILURES_BEFORE_THROTTLE {
@@ -124,12 +140,11 @@ fn failed_client_authentications_write_no_flow_and_are_throttled_per_address() {
             elsewhere.text()
         );
 
-        flows_once_written(app, &client, flows_after_one_grant + 1).await;
         tokio::time::sleep(Duration::from_millis(300)).await;
         assert_eq!(
             flows_of(app, &client).await,
-            flows_after_one_grant + 1,
-            "a request refused on the client secret must not open a Compass flow"
+            0,
+            "neither a served grant nor a request refused on the client secret opens a Compass flow"
         );
     });
 }

@@ -1,0 +1,58 @@
+use std::sync::Arc;
+
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+
+const REQUESTS_PER_CPU: usize = 32;
+
+/// Caps the requests of one kind served at once, so a saturated server turns
+/// the surplus away at once instead of queuing it until every caller times out.
+#[derive(Debug, Clone)]
+pub struct Admission {
+    permits: Arc<Semaphore>,
+}
+
+impl Admission {
+    pub fn new(limit: usize) -> Self {
+        Self {
+            permits: Arc::new(Semaphore::new(limit)),
+        }
+    }
+
+    /// The configured limit, or a share of the CPUs the process may use: past
+    /// that, requests only wait for a core and add latency without any throughput.
+    pub fn sized(configured: Option<usize>) -> Self {
+        let cpus = std::thread::available_parallelism().map_or(1, usize::from);
+        Self::new(configured.unwrap_or(cpus * REQUESTS_PER_CPU))
+    }
+
+    pub fn try_enter(&self) -> Option<OwnedSemaphorePermit> {
+        Arc::clone(&self.permits).try_acquire_owned().ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Admission;
+
+    #[test]
+    fn requests_beyond_the_limit_are_refused_until_one_leaves() {
+        let admission = Admission::new(2);
+
+        let first = admission.try_enter();
+        let second = admission.try_enter();
+        assert!(first.is_some() && second.is_some());
+        assert!(admission.try_enter().is_none());
+
+        drop(first);
+        assert!(admission.try_enter().is_some());
+    }
+
+    #[test]
+    fn a_configured_limit_wins_over_the_cpu_count() {
+        let admission = Admission::sized(Some(1));
+
+        let held = admission.try_enter();
+        assert!(held.is_some());
+        assert!(admission.try_enter().is_none());
+    }
+}

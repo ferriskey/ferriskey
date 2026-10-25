@@ -1,8 +1,11 @@
 use std::sync::{Arc, OnceLock};
 
 use chrono::{DateTime, TimeZone, Utc};
-use sea_orm::sea_query::{Expr, Query};
-use sea_orm::{ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::sea_query::{Expr, OnConflict, Query};
+use sea_orm::{
+    ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
+    QueryFilter, Statement,
+};
 use uuid::Uuid;
 
 use crate::domain::{
@@ -181,17 +184,75 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
+        // Tokens that were never stored (client credentials) are caught by date instead.
+        self.db
+            .execute(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "INSERT INTO user_token_revocations (user_id, revoked_before) \
+                 VALUES ($1, date_trunc('second', now() AT TIME ZONE 'UTC')) \
+                 ON CONFLICT (user_id) DO UPDATE SET revoked_before = EXCLUDED.revoked_before",
+                [user_id.into()],
+            ))
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
         Ok(result.rows_affected)
     }
 
-    async fn revoke_by_token_hash(&self, token_hash: String) -> Result<(), JwtError> {
-        crate::entity::access_tokens::Entity::update_many()
-            .col_expr(
-                crate::entity::access_tokens::Column::Revoked,
-                Expr::value(true),
+    async fn is_revoked(
+        &self,
+        token_hash: String,
+        user_id: Uuid,
+        issued_at: i64,
+    ) -> Result<bool, JwtError> {
+        let row = self
+            .db
+            .query_one(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "SELECT EXISTS (SELECT 1 FROM access_tokens WHERE token_hash = $1 AND revoked) \
+                     OR EXISTS (SELECT 1 FROM user_token_revocations \
+                                WHERE user_id = $2 \
+                                  AND revoked_before > to_timestamp($3) AT TIME ZONE 'UTC') \
+                     AS revoked",
+                [token_hash.into(), user_id.into(), issued_at.into()],
+            ))
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        row.map_or(Ok(false), |row| {
+            row.try_get::<bool>("", "revoked")
+                .map_err(|e| JwtError::GenerationError(e.to_string()))
+        })
+    }
+
+    async fn revoke_by_token_hash(
+        &self,
+        token_hash: String,
+        jti: Option<Uuid>,
+        user_id: Uuid,
+        realm_id: ferriskey_domain::realm::RealmId,
+        expires_at: Option<DateTime<Utc>>,
+        claims: serde_json::Value,
+    ) -> Result<(), JwtError> {
+        let row = access_tokens::ActiveModel {
+            id: Set(generate_uuid_v7()),
+            token_hash: Set(token_hash),
+            jti: Set(jti),
+            user_id: Set(user_id),
+            realm_id: Set(Uuid::from(realm_id)),
+            revoked: Set(true),
+            expires_at: Set(expires_at.map(|dt| dt.naive_utc())),
+            claims: Set(claims),
+            created_at: Set(Utc::now().naive_utc()),
+        };
+
+        access_tokens::Entity::insert(row)
+            .on_conflict(
+                OnConflict::column(access_tokens::Column::TokenHash)
+                    .update_column(access_tokens::Column::Revoked)
+                    .to_owned(),
             )
-            .filter(crate::entity::access_tokens::Column::TokenHash.eq(token_hash))
-            .exec(&self.db)
+            .exec_without_returning(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
@@ -348,5 +409,71 @@ mod tests {
                 ("taken", false)
             ]
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_token_that_was_never_stored_is_caught_when_all_the_users_tokens_are_revoked() {
+        let fixture = setup().await;
+        let now = Utc::now().timestamp();
+
+        let before = fixture
+            .repository
+            .is_revoked("unstored".to_string(), fixture.user_id, now - 5)
+            .await
+            .expect("lookup");
+        assert!(!before);
+
+        fixture
+            .repository
+            .revoke_all_for_user(fixture.user_id)
+            .await
+            .expect("revoke all");
+
+        let older = fixture
+            .repository
+            .is_revoked("unstored".to_string(), fixture.user_id, now - 5)
+            .await
+            .expect("lookup");
+        let newer = fixture
+            .repository
+            .is_revoked("unstored".to_string(), fixture.user_id, now + 5)
+            .await
+            .expect("lookup");
+        assert!(older, "a token issued before the revocation is refused");
+        assert!(!newer, "a token issued after the revocation stays valid");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn revoking_a_token_that_was_never_stored_refuses_that_token_only() {
+        let fixture = setup().await;
+        let now = Utc::now().timestamp();
+
+        fixture
+            .repository
+            .revoke_by_token_hash(
+                "unstored".to_string(),
+                Some(Uuid::new_v4()),
+                fixture.user_id,
+                fixture.realm_id.into(),
+                None,
+                serde_json::json!({ "sub": fixture.user_id }),
+            )
+            .await
+            .expect("revoke");
+
+        let revoked = fixture
+            .repository
+            .is_revoked("unstored".to_string(), fixture.user_id, now)
+            .await
+            .expect("lookup");
+        let other = fixture
+            .repository
+            .is_revoked("another".to_string(), fixture.user_id, now)
+            .await
+            .expect("lookup");
+        assert!(revoked);
+        assert!(!other);
     }
 }

@@ -121,9 +121,25 @@ pub trait AccessTokenRepository: Send + Sync {
         token_hash: String,
     ) -> impl Future<Output = Result<Option<Unscoped<AccessToken>>, SecurityError>> + Send;
 
+    /// Marks the token revoked, recording it first when it was never persisted.
+    /// True when the token was revoked itself, or issued before the second all of
+    /// the user's tokens were revoked. `iat` has whole-second resolution, so a token
+    /// minted within that very second, before or after, is not caught.
+    fn is_revoked(
+        &self,
+        token_hash: String,
+        user_id: Uuid,
+        issued_at: i64,
+    ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
+
     fn revoke_by_token_hash(
         &self,
         token_hash: String,
+        jti: Option<Uuid>,
+        user_id: Uuid,
+        realm_id: RealmId,
+        expires_at: Option<DateTime<Utc>>,
+        claims: serde_json::Value,
     ) -> impl Future<Output = Result<(), SecurityError>> + Send;
 
     fn revoke_by_session_id(

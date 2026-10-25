@@ -8,6 +8,7 @@ pub mod mapper_engine;
 pub mod mappers;
 pub mod ports;
 pub mod scope;
+pub mod service_account_cache;
 pub mod services;
 pub mod token_exchange;
 pub mod value_objects;

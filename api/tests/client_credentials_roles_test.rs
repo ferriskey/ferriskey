@@ -1,7 +1,7 @@
 mod common;
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use common::{ClientSpec, SeededClient, TestApp, app, client_credentials, rt};
+use common::{ClientSpec, SeededClient, TestApp, app, cached_app, client_credentials, rt};
 use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -208,5 +208,39 @@ fn a_client_whose_service_account_is_missing_or_disabled_gets_no_token() {
             "a disabled service account got {}",
             disabled.status_code()
         );
+    });
+}
+
+#[test]
+fn a_cached_service_account_keeps_its_roles_until_the_ttl_expires() {
+    let app = cached_app();
+
+    rt().block_on(async {
+        let server = app.server();
+        let (client, user_id) = service_account(app).await;
+        let before = format!("before-{}", Uuid::new_v4().simple());
+        let after = format!("after-{}", Uuid::new_v4().simple());
+
+        let first = role(&app.pool, app.realm_id, None, &before).await;
+        assign(&app.pool, user_id, first).await;
+        let granted = client_credentials(&server, app, &client).await;
+        assert_eq!(granted.status_code(), 200, "{}", granted.text());
+        let token = claims(
+            granted.json::<Value>()["access_token"]
+                .as_str()
+                .expect("access_token"),
+        );
+        assert_eq!(names(&token["realm_access"]["roles"]), vec![before.clone()]);
+
+        let second = role(&app.pool, app.realm_id, None, &after).await;
+        assign(&app.pool, user_id, second).await;
+        let again = client_credentials(&server, app, &client).await;
+        assert_eq!(again.status_code(), 200, "{}", again.text());
+        let token = claims(
+            again.json::<Value>()["access_token"]
+                .as_str()
+                .expect("access_token"),
+        );
+        assert_eq!(names(&token["realm_access"]["roles"]), vec![before]);
     });
 }

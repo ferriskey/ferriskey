@@ -125,6 +125,12 @@ pub enum ApiError {
         error_description: Cow<'static, str>,
         retry_after_seconds: u32,
     },
+    /// RFC 6749 §5.2 `temporarily_unavailable`: HTTP 503 with a `Retry-After`.
+    OAuthUnavailable {
+        error: Cow<'static, str>,
+        error_description: Cow<'static, str>,
+        retry_after_seconds: u32,
+    },
 }
 
 impl ApiError {
@@ -173,6 +179,15 @@ impl ApiError {
                 error_description,
                 retry_after_seconds,
             } => Self::OAuthTooManyRequests {
+                error,
+                error_description,
+                retry_after_seconds,
+            },
+            Self::OAuthUnavailable {
+                error,
+                error_description,
+                retry_after_seconds,
+            } => Self::OAuthUnavailable {
                 error,
                 error_description,
                 retry_after_seconds,
@@ -398,6 +413,21 @@ impl IntoResponse for ApiError {
                 return (
                     StatusCode::UNAUTHORIZED,
                     [(header::WWW_AUTHENTICATE, "Basic")],
+                    Json(OAuth2ErrorResponse {
+                        error: error.into(),
+                        error_description: error_description.into(),
+                    }),
+                )
+                    .into_response();
+            }
+            ApiError::OAuthUnavailable {
+                error,
+                error_description,
+                retry_after_seconds,
+            } => {
+                return (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    [(header::RETRY_AFTER, retry_after_seconds.to_string())],
                     Json(OAuth2ErrorResponse {
                         error: error.into(),
                         error_description: error_description.into(),
