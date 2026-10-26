@@ -8,6 +8,7 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_compass::writer::{WriterConfig, compass_writer_task};
 use ferriskey_webhook::endpoint::PrivateEndpoints;
 
+use crate::domain::authentication::service_account_cache::ServiceAccountCache;
 use crate::infrastructure::aegis::cache::{
     AegisConfigCache, CachedClientScopeRepository, CachedProtocolMapperRepository,
     CachedScopeMappingRepository,
@@ -235,9 +236,22 @@ pub async fn create_service_with_secrets(
         urlencoding::encode(&config.database.schema)
     );
 
-    let postgres = Postgres::new(PostgresConfig { database_url })
-        .await
-        .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
+    if config.database.max_connections == 0
+        || config.database.min_connections > config.database.max_connections
+    {
+        return Err(CoreError::Configuration(format!(
+            "the database pool needs 1 <= min ({}) <= max ({}) connections",
+            config.database.min_connections, config.database.max_connections
+        )));
+    }
+
+    let postgres = Postgres::new(PostgresConfig {
+        database_url,
+        max_connections: config.database.max_connections,
+        min_connections: config.database.min_connections,
+    })
+    .await
+    .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
 
     if let Err(error) = seal_existing_secrets(&postgres.get_db(), &secret_cipher).await {
         tracing::error!(%error, "the stored secrets could not be sealed, they are sealed on the next start");
@@ -511,6 +525,7 @@ pub async fn create_service_with_secrets(
         flow_recorder.clone(),
         consent_service.clone(),
         client_metadata_resolver,
+        Arc::new(ServiceAccountCache::new(config_cache_ttl)),
     );
     let login_admission = Arc::new(auth_service.clone());
 
@@ -945,6 +960,8 @@ mod tests {
                 password: db_password,
                 name: db_name,
                 schema: schema.clone(),
+                max_connections: 100,
+                min_connections: 5,
             },
             webapp_url: "http://localhost:5555".to_string(),
         })
@@ -1152,6 +1169,8 @@ mod tests {
                 password: db_password,
                 name: db_name,
                 schema: schema.clone(),
+                max_connections: 100,
+                min_connections: 5,
             },
             webapp_url: "http://localhost:5555".to_string(),
         })

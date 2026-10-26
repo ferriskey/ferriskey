@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, num::NonZeroUsize, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig, PasswordHashingCost};
@@ -107,7 +107,7 @@ pub struct Args {
         long = "config-cache-ttl-seconds",
         env = "CONFIG_CACHE_TTL_SECONDS",
         default_value_t = 5,
-        long_help = "How long an instance keeps a realm, its settings and a client in memory before reading them again (seconds). Writes made through the API invalidate the entry immediately on the instance that handled them; other instances see them after this delay. 0 disables the cache."
+        long_help = "How long an instance keeps a realm, its settings and a client in memory before reading them again (seconds). Writes made through the API invalidate the entry immediately on the instance that handled them; other instances see them after this delay. It also bounds how long the client credentials grant keeps using a service account's state, roles and groups: a change to them, on any instance, reaches new tokens only after this delay. 0 disables the cache."
     )]
     pub config_cache_ttl_seconds: u64,
     #[arg(
@@ -273,6 +273,22 @@ pub struct DatabaseArgs {
         long_help = "The database schema to use"
     )]
     pub schema: String,
+    #[arg(
+        long = "database-max-connections",
+        env = "DATABASE_MAX_CONNECTIONS",
+        default_value_t = 100,
+        name = "DATABASE_MAX_CONNECTIONS",
+        long_help = "Maximum connections one instance opens to the database. The total across instances must stay under the server's max_connections. Each connection costs the database a few MiB, so a smaller pool is lighter on the database."
+    )]
+    pub max_connections: u32,
+    #[arg(
+        long = "database-min-connections",
+        env = "DATABASE_MIN_CONNECTIONS",
+        default_value_t = 5,
+        name = "DATABASE_MIN_CONNECTIONS",
+        long_help = "Connections one instance keeps open when idle. Must not exceed the maximum."
+    )]
+    pub min_connections: u32,
 }
 
 impl Default for DatabaseArgs {
@@ -284,6 +300,8 @@ impl Default for DatabaseArgs {
             port: 5432,
             user: "postgres".to_string(),
             schema: "public".to_string(),
+            max_connections: 100,
+            min_connections: 5,
         }
     }
 }
@@ -307,6 +325,8 @@ impl From<Url> for DatabaseArgs {
             port: value.port().unwrap_or(5432),
             user: value.username().to_string(),
             schema,
+            max_connections: 100,
+            min_connections: 5,
         }
     }
 }
@@ -392,6 +412,13 @@ pub struct ServerArgs {
         long_help = "Read the caller's address from the X-Forwarded-For header instead of the peer of the TCP connection. Leave it off unless a proxy you control is the only way in: when it is on, a client can put any address in that header and the recorded address is whatever it claims. With it off, a deployment behind a proxy records the proxy's address, which is honest but of little use."
     )]
     pub trust_forwarded_for: bool,
+    #[arg(
+        long = "server-token-max-in-flight",
+        env = "SERVER_TOKEN_MAX_IN_FLIGHT",
+        name = "SERVER_TOKEN_MAX_IN_FLIGHT",
+        long_help = "The most client_credentials token requests served at once. Past it, requests get 503 with a Retry-After header instead of queuing behind the ones in flight. Must be at least 1. Defaults to 32 per CPU the process may use."
+    )]
+    pub token_max_in_flight: Option<NonZeroUsize>,
     #[command(flatten)]
     pub tls: Option<ServerTlsArgs>,
 }
@@ -405,6 +432,7 @@ impl Default for ServerArgs {
             root_path: String::new(),
             public_url: None,
             trust_forwarded_for: false,
+            token_max_in_flight: None,
             tls: None,
         }
     }
@@ -491,6 +519,8 @@ impl From<Args> for FerriskeyConfig {
                 port: value.db.port,
                 username: value.db.user,
                 schema: value.db.schema,
+                max_connections: value.db.max_connections,
+                min_connections: value.db.min_connections,
             },
             webapp_url: value.webapp_url,
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,

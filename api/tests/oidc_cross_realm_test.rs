@@ -127,6 +127,8 @@ mod tests {
                 password: db_password,
                 name: db_name,
                 schema: schema.clone(),
+                max_connections: 100,
+                min_connections: 5,
             },
         })
         .await

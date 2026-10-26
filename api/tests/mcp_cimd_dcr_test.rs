@@ -182,6 +182,8 @@ mod tests {
                 password,
                 name,
                 schema,
+                max_connections: 100,
+                min_connections: 5,
             },
         })
         .await

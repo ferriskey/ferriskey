@@ -51,6 +51,16 @@ enum TokenUnauthorizedResponse {
 
 const CLIENT_AUTH_RETRY_AFTER_SECONDS: u32 = 60;
 
+const OVERLOAD_RETRY_AFTER_SECONDS: u32 = 1;
+
+fn overloaded() -> ApiError {
+    ApiError::OAuthUnavailable {
+        error: "temporarily_unavailable".into(),
+        error_description: "The server is at capacity; retry shortly.".into(),
+        retry_after_seconds: OVERLOAD_RETRY_AFTER_SECONDS,
+    }
+}
+
 fn throttled() -> ApiError {
     ApiError::OAuthTooManyRequests {
         error: "temporarily_unavailable".into(),
@@ -200,6 +210,17 @@ async fn token_response(
     headers: HeaderMap,
     payload: TokenRequestValidator,
 ) -> Result<Response, ApiError> {
+    let _admitted = if payload.grant_type == GrantType::Credentials {
+        Some(
+            state
+                .client_credentials_admission
+                .try_enter()
+                .ok_or_else(overloaded)?,
+        )
+    } else {
+        None
+    };
+
     let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
         Some((id, sec)) => (id, Some(sec)),
         None => (

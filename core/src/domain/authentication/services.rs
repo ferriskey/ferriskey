@@ -36,6 +36,7 @@ use crate::domain::authentication::mapper_engine::{
     ClaimSources, ContextGroup, ContextOrganization,
 };
 use crate::domain::authentication::scope::resolve_requested_scope;
+use crate::domain::authentication::service_account_cache::{ServiceAccount, ServiceAccountCache};
 use crate::domain::maintenance::ports::{
     MaintenanceWhitelistRepository, RealmMaintenanceWhitelistRepository,
 };
@@ -1053,6 +1054,7 @@ pub struct AuthServiceImpl<
     pub(crate) flow_recorder: FlowRecorder,
     pub(crate) consent_service: Arc<ConsentServiceImpl<CO>>,
     pub(crate) client_metadata_resolver: Arc<CM>,
+    pub(crate) service_account_cache: Arc<ServiceAccountCache>,
 }
 
 impl<
@@ -1185,6 +1187,7 @@ where
         flow_recorder: FlowRecorder,
         consent_service: Arc<ConsentServiceImpl<CO>>,
         client_metadata_resolver: Arc<CM>,
+        service_account_cache: Arc<ServiceAccountCache>,
     ) -> Self {
         Self {
             realm_repository,
@@ -1220,6 +1223,7 @@ where
             flow_recorder,
             consent_service,
             client_metadata_resolver,
+            service_account_cache,
         }
     }
 }
@@ -1368,36 +1372,7 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
-        header.kid = Some(jwt_key_pair.id.to_string());
-        let token =
-            jsonwebtoken::encode(&header, &claims, &jwt_key_pair.encoding_key).map_err(|e| {
-                tracing::error!("JWT generation error: {}", e);
-
-                CoreError::TokenGenerationError(e.to_string())
-            })?;
-
-        let exp = claims.exp.unwrap_or(0);
-
-        Ok(Jwt {
-            token,
-            expires_at: exp,
-        })
-    }
-
-    fn encode_token_with_key<T: Serialize>(
-        claims: &T,
-        expires_at: i64,
-        key_pair: &JwtKeyPair,
-    ) -> Result<Jwt, CoreError> {
-        let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
-        header.kid = Some(key_pair.id.to_string());
-        let token = jsonwebtoken::encode(&header, claims, &key_pair.encoding_key).map_err(|e| {
-            tracing::error!("JWT generation error: {}", e);
-            CoreError::TokenGenerationError(e.to_string())
-        })?;
-
-        Ok(Jwt { token, expires_at })
+        encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair).await
     }
 
     /// Assemble access-token claims (and the ID-token mapper claims) for `input`, applying the
@@ -1409,8 +1384,9 @@ where
         client_scopes: &ClientScopeSet,
         user_roles: &[Role],
         input: &GenerateTokenInput,
+        membership: Option<&TokenGroupMembership>,
     ) -> Result<AssembledClaims, CoreError> {
-        self.assemble_token_claims_for(client_scopes, user_roles, input, false)
+        self.assemble_token_claims_for(client_scopes, user_roles, input, false, membership)
             .await
     }
 
@@ -1535,6 +1511,7 @@ where
         user_roles: &[Role],
         input: &GenerateTokenInput,
         only_token_scopes: bool,
+        prefetched_membership: Option<&TokenGroupMembership>,
     ) -> Result<AssembledClaims, CoreError> {
         let iss = format!("{}/realms/{}", input.base_url, input.realm.name());
         let realm_audit = format!("{}-realm", input.realm.name());
@@ -1563,11 +1540,18 @@ where
             }
         }
 
-        let membership = self
-            .group_token_repository
-            .token_membership(input.user_id)
-            .await
-            .unwrap_or_default();
+        let fetched_membership;
+        let membership = match prefetched_membership {
+            Some(membership) => membership,
+            None => {
+                fetched_membership = self
+                    .group_token_repository
+                    .token_membership(input.user_id)
+                    .await
+                    .unwrap_or_default();
+                &fetched_membership
+            }
+        };
 
         // Roles inherited from the user's effective (recursive) group memberships, merged into
         // the role maps so they flow into tokens exactly like directly-assigned roles.
@@ -1598,7 +1582,7 @@ where
             build_context_groups(&membership.effective_groups, &membership.direct_group_ids);
 
         let organizations = if sources.organizations {
-            self.organizations_for_token(&membership, input).await
+            self.organizations_for_token(membership, input).await
         } else {
             Vec::new()
         };
@@ -1770,7 +1754,7 @@ where
             .unwrap_or_default();
 
         let assembled = self
-            .assemble_token_claims(&client_scopes, &user_roles, &gen_input)
+            .assemble_token_claims(&client_scopes, &user_roles, &gen_input, None)
             .await?;
 
         let group_role_ids = self
@@ -2081,6 +2065,7 @@ where
         user_roles: &[Role],
         input: &GenerateTokenInput,
         id_token: IdTokenIssuance,
+        membership: Option<&TokenGroupMembership>,
     ) -> Result<SignedAccessToken, CoreError> {
         let key = self
             .keystore_repository
@@ -2094,7 +2079,7 @@ where
             id_mapper_claims,
             ..
         } = self
-            .assemble_token_claims(client_scopes, user_roles, input)
+            .assemble_token_claims(client_scopes, user_roles, input, membership)
             .instrument(info_span!("auth.create_jwt.claims"))
             .await?;
 
@@ -2102,33 +2087,35 @@ where
         // check it is still alive. Absent for flows that establish no session.
         claims.sid = input.session_id;
 
-        let jwt = info_span!("auth.create_jwt.sign_access").in_scope(|| {
-            Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &key).map_err(|e| {
+        let jwt = encode_token_with_key(&claims, claims.exp.unwrap_or(0), &key)
+            .instrument(info_span!("auth.create_jwt.sign_access"))
+            .await
+            .map_err(|e| {
                 warn!("Failed to generate JWT: {:?}", e);
                 e
-            })
-        })?;
+            })?;
 
-        let id_token =
-            match (id_token, id_mapper_claims) {
-                (IdTokenIssuance::FollowScope, Some(id_mapper_claims)) => {
-                    // at_hash = base64url(left-half of SHA-256(access_token))
-                    let digest = Sha256::digest(jwt.token.as_bytes());
-                    let at_hash = Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]));
-                    let mut id_claims = Self::build_id_token_claims(
-                        &claims,
-                        id_mapper_claims,
-                        at_hash,
-                        input.nonce.clone(),
-                        input.id_token_lifetime,
-                    );
-                    id_claims.auth_time = input.auth_time;
-                    Some(info_span!("auth.create_jwt.sign_id").in_scope(|| {
-                        Self::encode_token_with_key(&id_claims, id_claims.exp, &key)
-                    })?)
-                }
-                _ => None,
-            };
+        let id_token = match (id_token, id_mapper_claims) {
+            (IdTokenIssuance::FollowScope, Some(id_mapper_claims)) => {
+                // at_hash = base64url(left-half of SHA-256(access_token))
+                let digest = Sha256::digest(jwt.token.as_bytes());
+                let at_hash = Some(BASE64_URL_SAFE_NO_PAD.encode(&digest[..digest.len() / 2]));
+                let mut id_claims = Self::build_id_token_claims(
+                    &claims,
+                    id_mapper_claims,
+                    at_hash,
+                    input.nonce.clone(),
+                    input.id_token_lifetime,
+                );
+                id_claims.auth_time = input.auth_time;
+                Some(
+                    encode_token_with_key(&id_claims, id_claims.exp, &key)
+                        .instrument(info_span!("auth.create_jwt.sign_id"))
+                        .await?,
+                )
+            }
+            _ => None,
+        };
 
         Ok(SignedAccessToken {
             key,
@@ -2172,14 +2159,19 @@ where
         user_roles: &[Role],
         input: GenerateTokenInput,
         id_token: IdTokenIssuance,
+        membership: &TokenGroupMembership,
     ) -> Result<(Jwt, Option<Jwt>), CoreError> {
         let signed = self
-            .sign_access_token(client_scopes, user_roles, &input, id_token)
+            .sign_access_token(
+                client_scopes,
+                user_roles,
+                &input,
+                id_token,
+                Some(membership),
+            )
             .await?;
-        self.persist_access_token(&signed, input.realm.id())
-            .instrument(info_span!("auth.create_jwt.persist"))
-            .await?;
-
+        // Not persisted: a client_credentials token has no session, so nothing could
+        // revoke it by session. Revoking one by hash records it on demand.
         Ok((signed.jwt, signed.id_token))
     }
 
@@ -2195,6 +2187,7 @@ where
                 user_roles,
                 &input,
                 IdTokenIssuance::FollowScope,
+                None,
             )
             .await?;
 
@@ -2214,13 +2207,13 @@ where
             refresh_claims.jti = override_jti;
         }
 
-        let refresh_token = info_span!("auth.create_jwt.sign_refresh").in_scope(|| {
-            Self::encode_token_with_key(
-                &refresh_claims,
-                refresh_claims.exp.unwrap_or(0),
-                &signed.key,
-            )
-        })?;
+        let refresh_token = encode_token_with_key(
+            &refresh_claims,
+            refresh_claims.exp.unwrap_or(0),
+            &signed.key,
+        )
+        .instrument(info_span!("auth.create_jwt.sign_refresh"))
+        .await?;
         let refresh_token_expires_at = Utc
             .timestamp_opt(refresh_token.expires_at, 0)
             .single()
@@ -2309,7 +2302,7 @@ where
             .await
             .unwrap_or_default();
         let assembled = self
-            .assemble_token_claims_for(&client_scopes, &user_roles, &input, true)
+            .assemble_token_claims_for(&client_scopes, &user_roles, &input, true, None)
             .await?;
         Ok(assembled.access_claims.additional_claims)
     }
@@ -2327,7 +2320,7 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let jwt = Self::encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair)?;
+        let jwt = encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair).await?;
 
         let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
         let access_token_claims =
@@ -2394,16 +2387,14 @@ where
             Utc::now(),
         )?;
 
-        // Enforce immediate access token revocation when a persisted token has been marked revoked.
+        // Enforce immediate revocation: of this token, or of all the user's tokens.
         if token_data.claims.typ == ClaimsTyp::Bearer {
             let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
-            if let Some(stored) = self
+            if self
                 .access_token_repository
-                .get_by_token_hash(token_hash)
+                .is_revoked(token_hash, token_data.claims.sub, token_data.claims.iat)
                 .await
                 .map_err(|_| CoreError::InternalServerError)?
-                .map(Unscoped::across_realms)
-                && stored.revoked
             {
                 return Err(CoreError::InvalidToken);
             }
@@ -2870,15 +2861,42 @@ where
             }
         }
 
-        let user = self
-            .user_repository
-            .get_by_client_id(client.id)
-            .instrument(info_span!("auth.client_credentials.service_account"))
-            .await
-            .map_err(|e| match e {
-                CoreError::NotFound => CoreError::ServiceAccountNotFound,
-                _ => CoreError::InternalServerError,
-            })?
+        let account = match self.service_account_cache.get(&client.id) {
+            Some(account) => account,
+            None => {
+                let (user, user_roles, membership) = tokio::join!(
+                    self.user_repository
+                        .get_by_client_id(client.id)
+                        .instrument(info_span!("auth.client_credentials.service_account")),
+                    self.user_role_repository
+                        .get_service_account_roles(client.id)
+                        .instrument(info_span!("auth.client_credentials.roles")),
+                    self.group_token_repository
+                        .token_membership_of_service_account(client.id)
+                        .instrument(info_span!("auth.client_credentials.membership")),
+                );
+
+                let user = user.map_err(|e| match e {
+                    CoreError::NotFound => CoreError::ServiceAccountNotFound,
+                    _ => CoreError::InternalServerError,
+                })?;
+                let complete = user_roles.is_ok() && membership.is_ok();
+                let account = Arc::new(ServiceAccount {
+                    user,
+                    roles: user_roles.unwrap_or_default(),
+                    membership: membership.unwrap_or_default(),
+                });
+                if complete {
+                    self.service_account_cache
+                        .insert(client.id, Arc::clone(&account));
+                }
+                account
+            }
+        };
+
+        let user = account
+            .user
+            .clone()
             .in_realm(&params.realm)
             .map_err(|_| CoreError::ServiceAccountNotFound)?
             .into_inner();
@@ -2888,13 +2906,6 @@ where
                 "The service account is disabled.".to_string(),
             ));
         }
-
-        let user_roles = self
-            .user_role_repository
-            .get_user_roles(user.id)
-            .instrument(info_span!("auth.client_credentials.roles"))
-            .await
-            .unwrap_or_default();
 
         let (final_scope, client_scopes) = self
             .resolve_client_scopes(client.id, params.scope.as_deref())
@@ -2912,7 +2923,7 @@ where
         let (jwt, id_token) = self
             .create_access_token(
                 &client_scopes,
-                &user_roles,
+                &account.roles,
                 GenerateTokenInput {
                     base_url: params.base_url,
                     client_id: params.client_id,
@@ -2936,6 +2947,7 @@ where
                     resource,
                 },
                 id_token,
+                &account.membership,
             )
             .instrument(info_span!("auth.client_credentials.create_jwt"))
             .await?;
@@ -2945,6 +2957,36 @@ where
             Self::expires_in_from(jwt.expires_at),
             id_token.map(|token| token.token),
         ))
+    }
+
+    async fn trace_failed_credentials_grant(
+        &self,
+        realm_name: &str,
+        client_id: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        duration: i64,
+        error: &CoreError,
+    ) {
+        let Ok(scope) = RealmScope::resolve(self.realm_repository.as_ref(), realm_name).await
+        else {
+            return;
+        };
+
+        let flow_id = self.flow_recorder.start_flow(
+            scope.realm(),
+            Some(client_id),
+            GrantType::Credentials.to_string(),
+            ip_address,
+            user_agent,
+        );
+        self.flow_recorder.record_step(
+            flow_id.clone(),
+            FlowStepName::TokenExchange,
+            StepOutcome::failure(format!("{:?}", error)).with_duration(duration),
+        );
+        self.flow_recorder
+            .complete_flow(flow_id, FlowStatus::Failure, duration, None);
     }
 
     async fn client_of_session(
@@ -4721,9 +4763,13 @@ where
 
         // The code grant continues the flow the authorize step already opened.
         // The refresh grant stays untraced for now: it fires on every token
-        // renewal and would dominate the table (see #1307).
+        // renewal and would dominate the table (see #1307). The client
+        // credentials grant is the same kind of machine traffic: only its
+        // failures are traced.
         let is_refresh_grant = grant_type == GrantType::RefreshToken;
-        let standalone_flow_id = if is_code_grant || is_refresh_grant {
+        let is_credentials_grant = grant_type == GrantType::Credentials;
+        let credentials_client_id = is_credentials_grant.then(|| input.client_id.clone());
+        let standalone_flow_id = if is_code_grant || is_refresh_grant || is_credentials_grant {
             None
         } else {
             self.flow_recorder.start_flow(
@@ -4786,6 +4832,18 @@ where
                     None,
                 );
             }
+        }
+
+        if let (Err(error), Some(client_id)) = (&result, credentials_client_id) {
+            self.trace_failed_credentials_grant(
+                &input.realm_name,
+                client_id,
+                input.ip_address.clone(),
+                input.user_agent.clone(),
+                duration,
+                error,
+            )
+            .await;
         }
 
         if let Err(error) = &result {
@@ -5410,8 +5468,20 @@ where
             }
             ClaimsTyp::Bearer => {
                 let token_hash = format!("{:x}", Sha256::digest(input.token.as_bytes()));
+                let expires_at = claims
+                    .exp
+                    .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+                let stored_claims =
+                    serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
                 self.access_token_repository
-                    .revoke_by_token_hash(token_hash)
+                    .revoke_by_token_hash(
+                        token_hash,
+                        Some(claims.jti),
+                        claims.sub,
+                        scope.id(),
+                        expires_at,
+                        stored_claims,
+                    )
                     .await
                     .map_err(|_| CoreError::InternalServerError)?;
             }
@@ -5800,8 +5870,86 @@ where
     }
 }
 
+async fn encode_token_with_key<T: Serialize>(
+    claims: &T,
+    expires_at: i64,
+    key_pair: &JwtKeyPair,
+) -> Result<Jwt, CoreError> {
+    let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
+    header.kid = Some(key_pair.id.to_string());
+    let signing_input = signing_input(&header, claims).map_err(token_generation_error)?;
+
+    let key = key_pair.encoding_key.clone();
+    let algorithm = header.alg;
+    let (signing_input, signature) = tokio::task::spawn_blocking(move || {
+        jsonwebtoken::crypto::sign(signing_input.as_bytes(), &key, algorithm)
+            .map(|signature| (signing_input, signature))
+    })
+    .await
+    .map_err(|e| token_generation_error(e.to_string()))?
+    .map_err(token_generation_error)?;
+
+    Ok(Jwt {
+        token: format!("{signing_input}.{signature}"),
+        expires_at,
+    })
+}
+
+fn signing_input<T: Serialize>(header: &Header, claims: &T) -> Result<String, String> {
+    let header = serde_json::to_vec(header).map_err(|e| e.to_string())?;
+    let claims = serde_json::to_vec(claims).map_err(|e| e.to_string())?;
+
+    Ok(format!(
+        "{}.{}",
+        BASE64_URL_SAFE_NO_PAD.encode(header),
+        BASE64_URL_SAFE_NO_PAD.encode(claims)
+    ))
+}
+
+fn token_generation_error(error: impl ToString) -> CoreError {
+    let message = error.to_string();
+    tracing::error!("JWT generation error: {}", message);
+
+    CoreError::TokenGenerationError(message)
+}
+
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn an_offloaded_signature_equals_the_library_encoding_and_verifies() {
+        use ferriskey_security::jwt::entities::JwtKeyPair;
+        use jsonwebtoken::{Algorithm, DecodingKey, Header, Validation};
+
+        let (private, public) = JwtKeyPair::generate().expect("generate a key");
+        let certificate =
+            JwtKeyPair::self_signed_certificate(&private, "test").expect("certificate");
+        let key = JwtKeyPair::from_pem(
+            &private,
+            &public,
+            &certificate,
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        )
+        .expect("key pair");
+        let claims = serde_json::json!({ "sub": "service-account", "exp": 4_102_444_800_i64 });
+
+        let jwt = super::encode_token_with_key(&claims, 4_102_444_800, &key)
+            .await
+            .expect("sign");
+
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(key.id.to_string());
+        let reference = jsonwebtoken::encode(&header, &claims, &key.encoding_key).expect("encode");
+        assert_eq!(jwt.token, reference);
+        assert_eq!(jwt.expires_at, 4_102_444_800);
+
+        let decoding = DecodingKey::from_rsa_pem(public.as_bytes()).expect("public key");
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_aud = false;
+        jsonwebtoken::decode::<serde_json::Value>(&jwt.token, &decoding, &validation)
+            .expect("the signature verifies");
+    }
+
     use super::{
         auth_session_can_resume, consent_error_redirect, effective_code_resource,
         effective_refresh_resource, ensure_issued_for_management, format_auth_completion,

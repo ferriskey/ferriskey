@@ -1,3 +1,4 @@
+pub mod admission;
 pub mod api_entities;
 pub mod app_state;
 pub mod args;
