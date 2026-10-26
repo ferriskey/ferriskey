@@ -36,13 +36,13 @@ jobs:
           cache: false
 
       - name: cache rust dependencies
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: codspeed
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: install cargo-codspeed
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91
         with:
           tool: cargo-codspeed
 
@@ -50,7 +50,7 @@ jobs:
         run: cargo codspeed build -p ferriskey-benchmarks
 
       - name: run the benchmarks
-        uses: CodSpeedHQ/action@821a40cd6c80e3cfe387caf55668287addd808da
+        uses: CodSpeedHQ/action@78102a468f96d8e0ccb92d0ec49425753fc42062
         with:
           mode: simulation
           run: cargo codspeed run -p ferriskey-benchmarks
