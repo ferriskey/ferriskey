@@ -7,7 +7,7 @@ use crate::{
                 AuthorizeRequestInput, AuthorizeRequestOutput, ExchangeTokenInput, JwtToken,
                 TokenIntrospectionResponse,
             },
-            ports::AuthService,
+            ports::{AuthService, LoginActionGrant},
             value_objects::{
                 EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput,
                 Identity, IntrospectTokenInput, RegisterUserInput, RegisterUserOutput,
@@ -15,7 +15,7 @@ use crate::{
             },
         },
         common::entities::app_errors::CoreError,
-        jwt::entities::JwkKey,
+        jwt::entities::{JwkKey, JwtClaim},
         user::entities::User,
     },
 };
@@ -42,9 +42,19 @@ impl AuthService for ApplicationService {
     async fn authorize_login_action_request(
         &self,
         input: AuthorizeRequestInput,
-    ) -> Result<AuthorizeRequestOutput, CoreError> {
+    ) -> Result<LoginActionGrant, CoreError> {
         self.auth_service
             .authorize_login_action_request(input)
+            .await
+    }
+
+    async fn issue_follow_up_login_action_token(
+        &self,
+        previous: JwtClaim,
+        second_factor_verified: bool,
+    ) -> Result<String, CoreError> {
+        self.auth_service
+            .issue_follow_up_login_action_token(previous, second_factor_verified)
             .await
     }
 

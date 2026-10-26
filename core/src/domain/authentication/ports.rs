@@ -18,7 +18,7 @@ use crate::domain::{
         },
     },
     common::entities::app_errors::CoreError,
-    jwt::entities::JwkKey,
+    jwt::entities::{JwkKey, JwtClaim},
     user::entities::User,
 };
 
@@ -165,7 +165,14 @@ pub trait AuthService: Send + Sync {
     fn authorize_login_action_request(
         &self,
         input: AuthorizeRequestInput,
-    ) -> impl Future<Output = Result<AuthorizeRequestOutput, CoreError>> + Send;
+    ) -> impl Future<Output = Result<LoginActionGrant, CoreError>> + Send;
+    /// Mint the step token for the next hop of a login whose current step token
+    /// was just consumed, carrying the second-factor mark forward or setting it.
+    fn issue_follow_up_login_action_token(
+        &self,
+        previous: JwtClaim,
+        second_factor_verified: bool,
+    ) -> impl Future<Output = Result<String, CoreError>> + Send;
     fn authenticate(
         &self,
         input: AuthenticateInput,
@@ -241,6 +248,15 @@ pub trait GrantTypeStrategy: Send + Sync {
         &self,
         params: GrantTypeParams,
     ) -> impl Future<Output = Result<JwtToken, CoreError>> + Send;
+}
+
+/// What a login step token lets its holder do. Until the second factor of a
+/// user who has one is answered, the token only reaches the second-factor
+/// routes, whatever required action the account also carries.
+pub struct LoginActionGrant {
+    pub identity: Identity,
+    pub auth_session_id: Uuid,
+    pub second_factor_pending: bool,
 }
 
 pub struct LoginActionToken {

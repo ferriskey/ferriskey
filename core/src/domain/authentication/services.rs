@@ -54,8 +54,8 @@ use crate::domain::{
         },
         mapper_engine::{MapperContext, MapperEngine, TokenType},
         ports::{
-            AdmitLoginInput, AuthService, AuthSessionRepository, ConsentRedirect, LoginActionToken,
-            LoginActionTokenRepository, LoginAdmission, LoginAdmissionPort,
+            AdmitLoginInput, AuthService, AuthSessionRepository, ConsentRedirect, LoginActionGrant,
+            LoginActionToken, LoginActionTokenRepository, LoginAdmission, LoginAdmissionPort,
         },
         value_objects::{
             AuthenticationResult, CodeChallengeMethod, EndSessionInput, EndSessionOutput,
@@ -738,10 +738,22 @@ fn refuse_token_issuance_when_actions_pending(
 /// `DEFAULT_TEMPORARY_TOKEN_LIFETIME` rather than to the access-token default.
 pub const LOGIN_ACTION_SESSION_CLAIM: &str = "afs";
 
+/// Set on a step token once the user answered their second factor during this
+/// login. Absent on the token handed out after the password alone.
+pub const LOGIN_ACTION_SECOND_FACTOR_CLAIM: &str = "asf";
+
 fn temporary_token_lifetime(realm_settings: Option<&RealmSetting>) -> i64 {
     realm_settings
         .map(|s| s.temporary_token_lifetime)
         .unwrap_or(DEFAULT_TEMPORARY_TOKEN_LIFETIME)
+}
+
+pub fn second_factor_verified(claims: &JwtClaim) -> bool {
+    claims
+        .additional_claims
+        .get(LOGIN_ACTION_SECOND_FACTOR_CLAIM)
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
 }
 
 /// Constant-time comparison of a configured client secret against the one
@@ -3588,11 +3600,8 @@ where
         }
 
         let has_otp_credentials = auth_result.credentials.iter().any(|cred| cred == "otp");
-        let needs_configure_otp = auth_result
-            .required_actions
-            .contains(&RequiredAction::ConfigureOtp);
 
-        if has_otp_credentials && !needs_configure_otp {
+        if has_otp_credentials {
             // No step here: the challenge is only being handed to the user. Whether
             // they pass it is decided in `challenge_otp`, which records the outcome.
             let token = auth_result.token.ok_or(CoreError::InternalServerError)?;
@@ -4920,7 +4929,7 @@ where
     async fn authorize_login_action_request(
         &self,
         input: AuthorizeRequestInput,
-    ) -> Result<AuthorizeRequestOutput, CoreError> {
+    ) -> Result<LoginActionGrant, CoreError> {
         if input.claims.typ != ClaimsTyp::Temporary {
             return Err(CoreError::InvalidToken);
         }
@@ -4996,9 +5005,83 @@ where
 
         self.verify_token(input.token, user.realm_id).await?;
 
-        Ok(AuthorizeRequestOutput {
+        let second_factor_pending = !second_factor_verified(&input.claims)
+            && self
+                .credential_repository
+                .get_credentials_by_user_id(user.id)
+                .await
+                .map_err(|_| CoreError::GetUserCredentialsError)?
+                .iter()
+                .any(|credential| credential.credential_type == CredentialType::Otp);
+
+        Ok(LoginActionGrant {
             identity: Identity::User(user),
+            auth_session_id: auth_session.id,
+            second_factor_pending,
         })
+    }
+
+    async fn issue_follow_up_login_action_token(
+        &self,
+        previous: JwtClaim,
+        second_factor_verified: bool,
+    ) -> Result<String, CoreError> {
+        let auth_session_id = previous
+            .additional_claims
+            .get(LOGIN_ACTION_SESSION_CLAIM)
+            .and_then(|value| value.as_str())
+            .and_then(|raw| Uuid::parse_str(raw).ok())
+            .ok_or(CoreError::InvalidToken)?;
+
+        let user = self
+            .user_repository
+            .get_by_id(previous.sub)
+            .await?
+            .across_realms();
+        let realm_id = user.realm_id;
+        let settings = self
+            .realm_repository
+            .get_realm_settings(realm_id)
+            .await
+            .ok()
+            .flatten();
+        let lifetime = temporary_token_lifetime(settings.as_ref());
+
+        let mut claims = JwtClaim::new(
+            previous.sub,
+            user.username,
+            previous.iss,
+            previous.aud,
+            ClaimsTyp::Temporary,
+            previous.azp,
+            previous.email,
+            previous.scope,
+            lifetime,
+        );
+        claims.additional_claims.insert(
+            LOGIN_ACTION_SESSION_CLAIM.to_string(),
+            serde_json::Value::String(auth_session_id.to_string()),
+        );
+        if second_factor_verified {
+            claims.additional_claims.insert(
+                LOGIN_ACTION_SECOND_FACTOR_CLAIM.to_string(),
+                serde_json::Value::Bool(true),
+            );
+        }
+
+        self.login_action_token_repository
+            .create(LoginActionToken {
+                jti: claims.jti,
+                user_id: user.id,
+                realm_id: realm_id.into(),
+                auth_session_id,
+                expires_at: Utc::now() + Duration::seconds(lifetime),
+                consumed_at: None,
+            })
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(self.generate_token(claims, realm_id).await?.token)
     }
 
     async fn authenticate(

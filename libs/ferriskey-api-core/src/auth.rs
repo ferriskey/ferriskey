@@ -1,7 +1,7 @@
 use axum::{
     RequestPartsExt,
     extract::{FromRef, FromRequestParts, Request, State},
-    http::{StatusCode, request::Parts},
+    http::{StatusCode, header::SET_COOKIE, request::Parts},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -14,7 +14,7 @@ use base64::{Engine, engine::general_purpose};
 use ferriskey_core::domain::authentication::{
     entities::{AuthorizeRequestInput, TokenUsage},
     ports::AuthService,
-    services::LOGIN_ACTION_SESSION_CLAIM,
+    services::{LOGIN_ACTION_SESSION_CLAIM, second_factor_verified},
 };
 use ferriskey_core::domain::jwt::entities::JwtClaim;
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,10 @@ use axum::extract::Path;
 
 use crate::api_entities::api_error::{ApiError, ApiErrorBody};
 use crate::app_state::AppState;
+use crate::login_step::{
+    LOGIN_ACTION_COOKIE, LoginActionStep, LoginContinues, login_action_cookie,
+};
+use crate::url::FullUrl;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Jwt {
@@ -72,8 +76,6 @@ where
         decode_jwt(token)
     }
 }
-
-pub const LOGIN_ACTION_COOKIE: &str = "FERRISKEY_LOGIN_ACTION";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoginActionJwt {
@@ -203,15 +205,34 @@ const STEP_COMPLETING_ACTIONS: [&str; 5] = [
     "/login-actions/burn-recovery-code",
 ];
 
+/// The only steps open to a user who has an OTP and has not answered it yet.
+const SECOND_FACTOR_ACTIONS: [&str; 2] = [
+    "/login-actions/challenge-otp",
+    "/login-actions/burn-recovery-code",
+];
+
+/// Steps whose success proves the second factor for the rest of the login.
+const SECOND_FACTOR_PROOFS: [&str; 3] = [
+    "/login-actions/challenge-otp",
+    "/login-actions/burn-recovery-code",
+    "/login-actions/verify-otp",
+];
+
+fn path_is_one_of(path: &str, suffixes: &[&str]) -> bool {
+    suffixes.iter().any(|suffix| path.ends_with(suffix))
+}
+
 pub async fn auth_login_actions(
     State(state): State<AppState>,
     Path(realm_name): Path<String>,
+    FullUrl(_, base_url): FullUrl,
     jwt: LoginActionJwt,
     mut req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let claims = jwt.claims;
     let jti = claims.jti;
+    let previous_claims = claims.clone();
     let token_session = claims
         .additional_claims
         .get(LOGIN_ACTION_SESSION_CLAIM)
@@ -223,30 +244,87 @@ pub async fn auth_login_actions(
         .map(|cookie| Uuid::parse_str(cookie.value()).ok());
 
     if cookie_session.is_some_and(|session| session != token_session) {
+        tracing::warn!(
+            "Refusing a login action: the session cookie belongs to another login than the step token"
+        );
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    let output = state
+    let grant = state
         .service
         .authorize_login_action_request(AuthorizeRequestInput {
             claims,
             token: jwt.token,
-            realm_name: Some(realm_name),
+            realm_name: Some(realm_name.clone()),
             usage: TokenUsage::AnyClient,
         })
         .await
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        .map_err(|error| {
+            tracing::warn!(%error, "Refusing a login action: the step token was not accepted");
+            StatusCode::UNAUTHORIZED
+        })?;
 
-    req.extensions_mut().insert(output.identity);
+    let path = req.uri().path().to_string();
 
-    let completes_step = STEP_COMPLETING_ACTIONS
-        .iter()
-        .any(|suffix| req.uri().path().ends_with(suffix));
+    if grant.second_factor_pending && !path_is_one_of(&path, &SECOND_FACTOR_ACTIONS) {
+        tracing::warn!(
+            %path,
+            "Refusing a login action: the second factor of this login is still due"
+        );
+        return Err(StatusCode::FORBIDDEN);
+    }
 
-    let response = next.run(req).await;
+    req.extensions_mut().insert(grant.identity);
+    req.extensions_mut().insert(LoginActionStep {
+        auth_session_id: grant.auth_session_id,
+        second_factor_verified: !grant.second_factor_pending,
+    });
 
-    if completes_step && response.status().is_success() {
-        state.service.consume_login_action_token(jti).await;
+    let mut response = next.run(req).await;
+
+    if !path_is_one_of(&path, &STEP_COMPLETING_ACTIONS) || !response.status().is_success() {
+        return Ok(response);
+    }
+
+    // Mint the next token before burning this one: if minting fails, the browser
+    // keeps a token it can still use instead of none at all.
+    let follow_up = match response.extensions().get::<LoginContinues>() {
+        Some(_) => {
+            let second_factor = second_factor_verified(&previous_claims)
+                || path_is_one_of(&path, &SECOND_FACTOR_PROOFS);
+
+            let token = state
+                .service
+                .issue_follow_up_login_action_token(previous_claims, second_factor)
+                .await
+                .map_err(|error| {
+                    tracing::error!(%error, "Failed to issue the step token for the next login step");
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
+
+            Some(
+                login_action_cookie(
+                    token,
+                    &state.args.server.root_path,
+                    &realm_name,
+                    base_url.starts_with("https"),
+                )
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+            )
+        }
+        None => None,
+    };
+
+    if !state.service.consume_login_action_token(jti).await {
+        tracing::warn!(
+            %path,
+            "Refusing a login action: its step token was spent by a concurrent request"
+        );
+        return Err(StatusCode::CONFLICT);
+    }
+
+    if let Some(cookie) = follow_up {
+        response.headers_mut().append(SET_COOKIE, cookie);
     }
 
     Ok(response)

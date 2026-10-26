@@ -2,6 +2,7 @@ use crate::validators::OtpVerifyRequest;
 use axum::{
     Extension,
     extract::{Path, State},
+    response::IntoResponse,
 };
 use ferriskey_api_core::{
     api_entities::{
@@ -9,10 +10,13 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
+    login_step::{LoginActionStep, LoginStepReply},
+    url::{FullUrl, WebappUrl},
 };
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     trident::ports::{TridentService, VerifyOtpInput},
+    user::entities::RequiredAction,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -20,6 +24,10 @@ use utoipa::ToSchema;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct VerifyOtpResponse {
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub required_actions: Vec<RequiredAction>,
 }
 
 #[utoipa::path(
@@ -44,14 +52,20 @@ pub async fn verify_otp(
     State(state): State<AppState>,
     Path(realm_name): Path<String>,
     Extension(identity): Extension<Identity>,
+    FullUrl(_, base_url): FullUrl,
+    WebappUrl(webapp_url): WebappUrl,
+    Extension(step): Extension<LoginActionStep>,
     ValidateJson(payload): ValidateJson<OtpVerifyRequest>,
-) -> Result<Response<VerifyOtpResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let result = state
         .service
         .verify_otp(
             identity,
             VerifyOtpInput {
                 realm_name,
+                session_code: step.auth_session_id.to_string(),
+                second_factor_verified: step.second_factor_verified,
+                webapp_base_url: webapp_url,
                 code: payload.code,
                 label: Some(payload.label),
             },
@@ -59,7 +73,15 @@ pub async fn verify_otp(
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(VerifyOtpResponse {
-        message: result.message,
-    }))
+    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+
+    Ok((
+        reply.headers,
+        reply.continues,
+        Response::OK(VerifyOtpResponse {
+            message: result.message,
+            url: reply.url,
+            required_actions: reply.required_actions,
+        }),
+    ))
 }

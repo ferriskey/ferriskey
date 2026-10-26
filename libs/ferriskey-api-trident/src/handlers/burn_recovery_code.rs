@@ -7,6 +7,7 @@ use axum_cookie::CookieManager;
 use ferriskey_core::domain::{
     authentication::value_objects::Identity,
     trident::ports::{BurnRecoveryCodeInput, TridentService},
+    user::entities::RequiredAction,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -18,7 +19,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
-    sso_cookie,
+    login_step::LoginStepReply,
     url::{FullUrl, WebappUrl},
 };
 
@@ -30,7 +31,10 @@ pub struct BurnRecoveryCodeRequest {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub struct BurnRecoveryCodeResponse {
-    login_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    login_url: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    required_actions: Vec<RequiredAction>,
 }
 
 #[utoipa::path(
@@ -84,10 +88,14 @@ pub async fn burn_recovery_code(
         .await
         .map_err(ApiError::from)?;
 
+    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+
     Ok((
-        sso_cookie::headers(result.sso_session, base_url.starts_with("https"))?,
+        reply.headers,
+        reply.continues,
         Response::OK(BurnRecoveryCodeResponse {
-            login_url: result.login_url,
+            login_url: reply.url,
+            required_actions: reply.required_actions,
         }),
     ))
 }

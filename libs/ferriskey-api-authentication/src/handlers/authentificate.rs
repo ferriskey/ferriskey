@@ -1,11 +1,11 @@
 use super::auth::root_scoped_base_url;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderMap, HeaderValue, StatusCode, header::SET_COOKIE};
+use axum::http::{HeaderMap, StatusCode, header::SET_COOKIE};
 use axum::response::IntoResponse;
 use axum_cookie::CookieManager;
-use axum_extra::extract::cookie::{Cookie, SameSite};
 use ferriskey_api_core::api_entities::api_error::{ApiError, ValidateJson};
 use ferriskey_api_core::app_state::AppState;
+use ferriskey_api_core::login_step::login_action_cookie;
 use ferriskey_api_core::request_context::RequestContext;
 use ferriskey_api_core::url::{FullUrl, WebappUrl};
 
@@ -21,8 +21,6 @@ use uuid::Uuid;
 use validator::Validate;
 
 pub use ferriskey_api_core::authentication::{AuthenticateResponse, AuthenticationStatus};
-
-pub const LOGIN_ACTION_COOKIE: &str = "FERRISKEY_LOGIN_ACTION";
 
 #[derive(Serialize, Deserialize)]
 pub struct AuthenticateQueryParams {
@@ -146,49 +144,16 @@ pub async fn authenticate(
         );
     }
     if let Some(token) = step_token {
-        let mut flow_cookie = Cookie::build((LOGIN_ACTION_COOKIE, token))
-            .path(login_action_cookie_path(
-                &state.args.server.root_path,
-                &realm_name,
-            ))
-            .http_only(true)
-            .same_site(SameSite::Lax);
-
-        if base_url.starts_with("https") {
-            flow_cookie = flow_cookie.secure(true)
-        }
-
         headers.insert(
             SET_COOKIE,
-            HeaderValue::from_str(&flow_cookie.to_string())
-                .map_err(|_| ApiError::InternalServerError("Invalid cookie header".into()))?,
+            login_action_cookie(
+                token,
+                &state.args.server.root_path,
+                &realm_name,
+                base_url.starts_with("https"),
+            )?,
         );
     }
 
     Ok((StatusCode::OK, headers, axum::Json(response)).into_response())
-}
-
-fn login_action_cookie_path(root_path: &str, realm_name: &str) -> String {
-    format!("{root_path}/realms/{realm_name}/login-actions")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::login_action_cookie_path;
-
-    #[test]
-    fn the_cookie_is_scoped_to_the_realm_login_actions_without_a_root_path() {
-        assert_eq!(
-            login_action_cookie_path("", "master"),
-            "/realms/master/login-actions"
-        );
-    }
-
-    #[test]
-    fn the_cookie_path_carries_the_root_path_the_routes_are_mounted_under() {
-        assert_eq!(
-            login_action_cookie_path("/api", "master"),
-            "/api/realms/master/login-actions"
-        );
-    }
 }
