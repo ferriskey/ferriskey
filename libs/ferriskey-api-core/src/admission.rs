@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
@@ -12,17 +13,18 @@ pub struct Admission {
 }
 
 impl Admission {
-    pub fn new(limit: usize) -> Self {
+    pub fn new(limit: NonZeroUsize) -> Self {
         Self {
-            permits: Arc::new(Semaphore::new(limit)),
+            permits: Arc::new(Semaphore::new(limit.get())),
         }
     }
 
     /// The configured limit, or a share of the CPUs the process may use: past
     /// that, requests only wait for a core and add latency without any throughput.
-    pub fn sized(configured: Option<usize>) -> Self {
+    pub fn sized(configured: Option<NonZeroUsize>) -> Self {
         let cpus = std::thread::available_parallelism().map_or(1, usize::from);
-        Self::new(configured.unwrap_or(cpus * REQUESTS_PER_CPU))
+        let per_cpu = NonZeroUsize::new(cpus * REQUESTS_PER_CPU).unwrap_or(NonZeroUsize::MIN);
+        Self::new(configured.unwrap_or(per_cpu))
     }
 
     pub fn try_enter(&self) -> Option<OwnedSemaphorePermit> {
@@ -32,11 +34,17 @@ impl Admission {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroUsize;
+
     use super::Admission;
+
+    fn limit(value: usize) -> NonZeroUsize {
+        NonZeroUsize::new(value).unwrap_or(NonZeroUsize::MIN)
+    }
 
     #[test]
     fn requests_beyond_the_limit_are_refused_until_one_leaves() {
-        let admission = Admission::new(2);
+        let admission = Admission::new(limit(2));
 
         let first = admission.try_enter();
         let second = admission.try_enter();
@@ -49,7 +57,7 @@ mod tests {
 
     #[test]
     fn a_configured_limit_wins_over_the_cpu_count() {
-        let admission = Admission::sized(Some(1));
+        let admission = Admission::sized(Some(limit(1)));
 
         let held = admission.try_enter();
         assert!(held.is_some());

@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, num::NonZeroUsize, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig, PasswordHashingCost};
@@ -416,9 +416,9 @@ pub struct ServerArgs {
         long = "server-token-max-in-flight",
         env = "SERVER_TOKEN_MAX_IN_FLIGHT",
         name = "SERVER_TOKEN_MAX_IN_FLIGHT",
-        long_help = "The most client_credentials token requests served at once. Past it, requests get 503 with a Retry-After header instead of queuing behind the ones in flight. Defaults to 32 per CPU the process may use."
+        long_help = "The most client_credentials token requests served at once. Past it, requests get 503 with a Retry-After header instead of queuing behind the ones in flight. Must be at least 1. Defaults to 32 per CPU the process may use."
     )]
-    pub token_max_in_flight: Option<usize>,
+    pub token_max_in_flight: Option<NonZeroUsize>,
     #[command(flatten)]
     pub tls: Option<ServerTlsArgs>,
 }

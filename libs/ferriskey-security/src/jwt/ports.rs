@@ -121,10 +121,14 @@ pub trait AccessTokenRepository: Send + Sync {
         token_hash: String,
     ) -> impl Future<Output = Result<Option<Unscoped<AccessToken>>, SecurityError>> + Send;
 
-    /// Marks the token revoked, recording it first when it was never persisted.
     /// True when the token was revoked itself, or issued before the second all of
     /// the user's tokens were revoked. `iat` has whole-second resolution, so a token
     /// minted within that very second, before or after, is not caught.
+    ///
+    /// The cutoff is read from the database clock while `iat` comes from the
+    /// issuer's, so a token never stored (client credentials) escapes the cutoff if
+    /// its issuer's clock runs ahead of the database's by more than the time between
+    /// issuance and revocation. Issuers must keep their clocks synchronised.
     fn is_revoked(
         &self,
         token_hash: String,
@@ -132,6 +136,7 @@ pub trait AccessTokenRepository: Send + Sync {
         issued_at: i64,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 
+    /// Marks the token revoked, recording it first when it was never persisted.
     fn revoke_by_token_hash(
         &self,
         token_hash: String,

@@ -167,6 +167,7 @@ async fn traced_flows(app: &TestApp, client: &SeededClient) -> Vec<String> {
 }
 
 #[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test client_credentials_test -- --ignored"]
 fn only_a_failed_client_credentials_grant_is_traced() {
     let app = app();
 
@@ -203,7 +204,7 @@ fn only_a_failed_client_credentials_grant_is_traced() {
         let mut failed = Vec::new();
         for _ in 0..40 {
             failed = traced_flows(app, &unbound).await;
-            if !failed.is_empty() {
+            if !failed.is_empty() && failed.iter().all(|status| status != "pending") {
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
