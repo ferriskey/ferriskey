@@ -10,7 +10,7 @@ aws-lc-rs = "1.18.1"
 base64 = "0.23.1"
 chrono = { workspace = true }
 flate2 = { version = "1.1.5", default-features = false, features = ["rust_backend"] }
-pem = "3.0.6"
+pem = "4.0.0"
 quick-xml = "0.42.0"
 sha2 = "0.10.9"
 thiserror = "2.0.19"
