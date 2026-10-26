@@ -11,7 +11,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AUTH_NAMESPACE } from '../constants'
-import { followServerRedirect } from '@/lib/follow-server-redirect'
+import { continueLogin } from '../utils/continue-login'
 
 export default function PageOtpChallengeFeature() {
   const { realm_name } = useParams<RouterParams>()
@@ -43,19 +43,7 @@ export default function PageOtpChallengeFeature() {
   }
 
   useEffect(() => {
-    if (!challengeOtpData) return
-
-    if (challengeOtpData.required_actions && challengeOtpData.required_actions.length > 0) {
-      const firstRequiredAction = challengeOtpData.required_actions[0]
-      navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
-      )
-      return
-    }
-
-    if (challengeOtpData.url) {
-      followServerRedirect(challengeOtpData.url)
-    }
+    continueLogin(challengeOtpData, navigate, realm_name)
   }, [challengeOtpData, navigate, realm_name])
 
   useEffect(() => {

@@ -130,7 +130,7 @@ export namespace Schemas {
   export type BulkDeleteUserResponse = { count: number; realm_name: string };
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>;
   export type BurnRecoveryCodeRequest = { recovery_code: string; recovery_code_format: string };
-  export type BurnRecoveryCodeResponse = { login_url: string };
+  export type BurnRecoveryCodeResponse = Partial<{ login_url: string | null; required_actions: Array<RequiredAction> }>;
   export type ChallengeOtpRequest = Partial<{ code: string }>;
   export type RequiredAction = "configure_otp" | "verify_email" | "update_password" | "configure_passkey";
   export type ChallengeOtpResponse = Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
@@ -1599,7 +1599,7 @@ export namespace Schemas {
     require_uppercase: boolean | null;
   }>;
   export type UpdatePasswordRequest = Partial<{ value: string }>;
-  export type UpdatePasswordResponse = { message: string };
+  export type UpdatePasswordResponse = { message: string } & Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
   export type UpdatePortalLayoutResponse = { data: PortalLayout };
   export type UpdatePortalLayoutValidator = { name: string; tree: unknown };
   export type UpdatePostLogoutRedirectUriResponse = { data: RedirectUri };
@@ -1729,11 +1729,11 @@ export namespace Schemas {
     user_agent?: (string | null) | undefined;
     user_id: string;
   };
-  export type ValidatePublicKeyResponse = Record<string, unknown>;
+  export type ValidatePublicKeyResponse = Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
   export type ValidationErrorResponse = { errors: Array<ValidationError> };
   export type VerifyEmailRequest = { token: string };
   export type VerifyEmailResult = { user_id: string; verified: boolean };
-  export type VerifyOtpResponse = { message: string };
+  export type VerifyOtpResponse = { message: string } & Partial<{ required_actions: Array<RequiredAction>; url: string | null }>;
   export type VerifyResetTokenRequest = { token_id: string };
   export type VerifyResetTokenResponse = { valid: boolean };
   export type WebOriginValue = string;

@@ -4934,11 +4934,15 @@ components:
           type: string
     BurnRecoveryCodeResponse:
       type: object
-      required:
-      - login_url
       properties:
         login_url:
-          type: string
+          type:
+          - string
+          - 'null'
+        required_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredAction'
     ChallengeOtpRequest:
       type: object
       properties:
@@ -6817,6 +6821,14 @@ components:
       properties:
         message:
           type: string
+        required_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredAction'
+        url:
+          type:
+          - string
+          - 'null'
     UpdatePostLogoutRedirectUriResponse:
       type: object
       required:
@@ -7185,6 +7197,15 @@ components:
             $ref: '#/components/schemas/User'
     ValidatePublicKeyResponse:
       type: object
+      properties:
+        required_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredAction'
+        url:
+          type:
+          - string
+          - 'null'
     ValidationError:
       type: object
       required:
@@ -7202,6 +7223,14 @@ components:
       properties:
         message:
           type: string
+        required_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredAction'
+        url:
+          type:
+          - string
+          - 'null'
     VerifyResetTokenRequest:
       type: object
       required:

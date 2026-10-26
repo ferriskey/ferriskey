@@ -25,6 +25,7 @@ import { useOAuthParams } from './use-oauth-params'
 import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
 import { AUTH_NAMESPACE, DEVICE_ACTION, type DeviceAction } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
+import { continueLogin } from '../utils/continue-login'
 
 export type DeviceVerifyResult = 'approved' | 'denied' | null
 
@@ -413,8 +414,8 @@ export function usePortalPageSubmit(
   // TOTP setup: submit reads the 6-digit code + optional device label from
   // the form, pulls the `secret` from the cached `useSetupOtp` query
   // (already prefetched by `PortalLayoutWrapper`), and posts to verify.
-  // On success the backend redirects via a chained `authenticate()`
-  // — same chained pattern as the React `ConfigureOtpFeature`.
+  // On success the response itself says what comes next (a redirect url or
+  // further required actions), same as the React `ConfigureOtpFeature`.
   //
   // All hooks for this branch run unconditionally (rules-of-hooks); the
   // query just sits idle when we're not on the totp_setup page.
@@ -434,41 +435,12 @@ export function usePortalPageSubmit(
   } = useVerifyOtp()
   // After a successful verify, hand control back to the auth flow so the
   // next required action (or final redirect) runs.
-  const { mutate: authenticateAfterTotp, data: authenticateAfterTotpData } =
-    useAuthenticateMutation()
   useEffect(() => {
     if (pageType !== 'totp_setup') return
     if (verifyOtpData && verifyOtpStatus === 'success') {
-      authenticateAfterTotp({
-        clientId: 'security-admin-console',
-        realm: realm_name ?? 'master',
-        data: {},
-      })
+      continueLogin(verifyOtpData, navigate, realm_name)
     }
-  }, [
-    pageType,
-    verifyOtpData,
-    verifyOtpStatus,
-    authenticateAfterTotp,
-    realm_name,
-  ])
-  useEffect(() => {
-    if (pageType !== 'totp_setup' || !authenticateAfterTotpData) return
-    if (authenticateAfterTotpData.url) {
-      followServerRedirect(authenticateAfterTotpData.url)
-      return
-    }
-    if (
-      authenticateAfterTotpData.status === AuthenticationStatus.RequiresActions &&
-      authenticateAfterTotpData.required_actions &&
-      authenticateAfterTotpData.required_actions.length > 0
-    ) {
-      const first = authenticateAfterTotpData.required_actions[0]
-      navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${first.toUpperCase()}`,
-      )
-    }
-  }, [pageType, authenticateAfterTotpData, navigate, realm_name])
+  }, [pageType, verifyOtpData, verifyOtpStatus, navigate, realm_name])
 
   const totpSetupSubmit = useCallback(
     (data: FormData) => {

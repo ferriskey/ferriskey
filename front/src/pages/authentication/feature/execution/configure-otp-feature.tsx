@@ -2,8 +2,7 @@ import { useSetupOtp, useVerifyOtp } from '@/api/trident.api'
 import ConfigureOtp from '../../ui/execution/configure-otp'
 import { useNavigate, useParams } from 'react-router'
 import type { RouterParams } from '@/routes/router'
-import { useAuthenticateMutation } from '@/api/auth.api'
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type { VerifyOtpSchema } from '../../schemas/verify-otp.schema'
 import { verifyOtpSchema } from '../../schemas/verify-otp.schema'
@@ -11,17 +10,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form } from '@/components/ui/form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { AuthenticationStatus } from '@/api/api.interface'
 import { AUTH_NAMESPACE } from '../../constants'
-import { followServerRedirect } from '@/lib/follow-server-redirect'
+import { continueLogin } from '../../utils/continue-login'
 
 export default function ConfigureOtpFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { t } = useTranslation(AUTH_NAMESPACE)
-  const {
-    mutate: authenticate,
-    data: authenticateData,
-  } = useAuthenticateMutation()
   const navigate = useNavigate()
   const { mutate: verifyOtp, data: verifyOtpData, status: verifyOtpStatus } = useVerifyOtp()
 
@@ -44,14 +38,6 @@ export default function ConfigureOtpFeature() {
     },
   })
 
-  const handle = useCallback(() => {
-    authenticate({
-      clientId: 'security-admin-console',
-      realm: realm_name ?? 'master',
-      data: {},
-    })
-  }, [authenticate, realm_name])
-
   const handleSubmit = (values: VerifyOtpSchema) => {
     if (!data) {
       toast.error(t('configure_otp.not_ready'))
@@ -71,28 +57,9 @@ export default function ConfigureOtpFeature() {
 
   useEffect(() => {
     if (verifyOtpData && verifyOtpStatus === 'success') {
-      handle()
+      continueLogin(verifyOtpData, navigate, realm_name)
     }
-  }, [verifyOtpData, handle, verifyOtpStatus])
-
-  useEffect(() => {
-    if (!authenticateData) return
-    if (authenticateData.url) {
-      followServerRedirect(authenticateData.url)
-    }
-
-    if (
-      authenticateData.status === AuthenticationStatus.RequiresActions &&
-      authenticateData.required_actions &&
-      authenticateData.required_actions.length > 0
-    ) {
-      const firstRequiredAction = authenticateData.required_actions[0]
-
-      navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
-      )
-    }
-  }, [authenticateData, navigate, realm_name])
+  }, [verifyOtpData, verifyOtpStatus, navigate, realm_name])
 
   return (
     <Form {...form}>
