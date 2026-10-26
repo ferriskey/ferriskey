@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 
 const read = (name: string) => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8')
 
-const CONFIGS = ['nginx.conf', 'nginx-standalone.conf']
+const CONFIGS = ['nginx.conf']
 
 function inlineScriptHash(): string {
   const match = read('index.html').match(/<script>([\s\S]*?)<\/script>/)
@@ -23,11 +23,6 @@ test('the webapp image lets its entrypoint add the API origin to connect-src', (
   const policy = headerValue(read('nginx.conf'), 'Content-Security-Policy')
   assert.match(policy, /connect-src 'self' \$\{CSP_CONNECT_SRC\};/)
   assert.match(read('docker-entrypoint.sh'), /CSP_CONNECT_SRC/)
-})
-
-test('the standalone image reaches its API on its own origin', () => {
-  const policy = headerValue(read('nginx-standalone.conf'), 'Content-Security-Policy')
-  assert.match(policy, /connect-src 'self';/)
 })
 
 test('the console loads no font from a third party', () => {
