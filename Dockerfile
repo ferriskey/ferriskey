@@ -81,7 +81,7 @@ COPY --chown=101:101 --from=webapp-build /usr/local/src/ferriskey/dist /usr/shar
 COPY --chmod=0755 front/docker-entrypoint.sh /docker-entrypoint.d/docker-entrypoint.sh
 
 # ── Standalone image (API + Frontend, single container) ───────────────────────
-FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS standalone
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS standalone
 
 # hadolint ignore=DL3008
 RUN \
