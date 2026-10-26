@@ -27,7 +27,7 @@ RUN cargo build --release --bin ferriskey-api --bin ferriskey-operator
 # It has no shell and no package manager: every entrypoint used against these
 # images (`ferriskey-api`, `ferriskey-operator`, `sqlx migrate run`) is an exec
 # of a binary on PATH, so nothing depends on /bin/sh.
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:b7e81cb1af38d9345680e68bcf564d388f96304e25222030fc8c051faf8565b3 AS runtime
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e AS runtime
 
 # distroless defaults WORKDIR to /home/nonroot; keep / as before.
 WORKDIR /
