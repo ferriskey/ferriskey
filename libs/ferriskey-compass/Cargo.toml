@@ -18,5 +18,5 @@ uuid = { version = "1.21.0", features = ["serde"] }
 
 [dev-dependencies]
 ferriskey-domain = { path = "../ferriskey-domain", features = ["mock"] }
-mockall = "0.14.0"
+mockall = "0.15.0"
 tokio = { version = "1", features = ["sync", "macros", "rt", "time", "test-util"] }

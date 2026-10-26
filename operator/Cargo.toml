@@ -36,4 +36,4 @@ rand = "0.10.3"
 
 
 [dev-dependencies]
-mockall = "0.14.0"
+mockall = "0.15.0"

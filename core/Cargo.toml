@@ -68,7 +68,7 @@ subtle = "2.6.1"
 bcrypt = "0.19.3"
 
 [dev-dependencies]
-mockall = "0.14.0"
+mockall = "0.15.0"
 serde_plain = "1.0.2"
 x509-parser = "0.18.0"
 p256 = { version = "0.13.2", features = ["ecdsa"] }
