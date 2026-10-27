@@ -47,9 +47,37 @@ pub struct WebAuthnPublicKeyCreateOptionsOutput(pub CreationChallengeResponse);
 pub struct WebAuthnValidatePublicKeyInput {
     pub rp_info: WebAuthnRpInfo,
     pub session_code: String,
+    pub webapp_base_url: String,
+    pub second_factor_verified: bool,
     pub credential: RegisterPublicKeyCredential,
 }
-pub struct WebAuthnValidatePublicKeyOutput {}
+pub struct WebAuthnValidatePublicKeyOutput {
+    pub progress: LoginProgress,
+}
+
+/// Where a login stands once one of its steps succeeded: either more required
+/// actions are due, or the login is over and the browser goes back to the client.
+pub enum LoginProgress {
+    ActionsPending(Vec<RequiredAction>),
+    Completed {
+        login_url: String,
+        sso_session: Option<OpenedSsoSession>,
+    },
+}
+
+impl std::fmt::Debug for LoginProgress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ActionsPending(actions) => {
+                f.debug_tuple("ActionsPending").field(actions).finish()
+            }
+            Self::Completed { login_url, .. } => f
+                .debug_struct("Completed")
+                .field("login_url", login_url)
+                .finish_non_exhaustive(),
+        }
+    }
+}
 
 pub struct WebAuthnPublicKeyRequestOptionsInput {
     pub realm_name: String,
@@ -98,10 +126,7 @@ pub struct ChallengeOtpInput {
 }
 
 pub struct ChallengeOtpOutput {
-    pub login_url: Option<String>,
-    pub sso_session: Option<OpenedSsoSession>,
-    pub required_actions: Vec<RequiredAction>,
-    pub temporary_token: Option<String>,
+    pub progress: LoginProgress,
 }
 
 pub struct SetupOtpInput {
@@ -115,6 +140,9 @@ pub struct SetupOtpOutput {
 
 pub struct UpdatePasswordInput {
     pub realm_name: String,
+    pub session_code: String,
+    pub webapp_base_url: String,
+    pub second_factor_verified: bool,
     pub value: String,
 }
 
@@ -123,6 +151,9 @@ pub struct UpdatePasswordInput {
 /// verification a tautology and let a caller enrol a secret of their choosing (FK-003).
 pub struct VerifyOtpInput {
     pub realm_name: String,
+    pub session_code: String,
+    pub webapp_base_url: String,
+    pub second_factor_verified: bool,
     pub code: String,
     pub label: Option<String>,
 }
@@ -130,6 +161,7 @@ pub struct VerifyOtpInput {
 pub struct VerifyOtpOutput {
     pub message: String,
     pub user_id: Uuid,
+    pub progress: LoginProgress,
 }
 
 pub struct GenerateRecoveryCodeInput {
@@ -153,8 +185,7 @@ pub struct BurnRecoveryCodeInput {
 }
 
 pub struct BurnRecoveryCodeOutput {
-    pub login_url: String,
-    pub sso_session: Option<OpenedSsoSession>,
+    pub progress: LoginProgress,
 }
 
 pub struct MagicLinkInput {
@@ -346,7 +377,7 @@ pub trait TridentService: Send + Sync {
         &self,
         identity: Identity,
         input: UpdatePasswordInput,
-    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+    ) -> impl Future<Output = Result<LoginProgress, CoreError>> + Send;
     fn verify_otp(
         &self,
         identity: Identity,

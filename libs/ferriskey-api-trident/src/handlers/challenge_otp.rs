@@ -6,7 +6,7 @@ use ferriskey_api_core::{
         response::Response,
     },
     app_state::AppState,
-    sso_cookie,
+    login_step::LoginStepReply,
     url::{FullUrl, WebappUrl},
 };
 use ferriskey_core::domain::authentication::value_objects::Identity;
@@ -75,13 +75,14 @@ pub async fn challenge_otp(
         .await
         .map_err(|e| ApiError::InternalServerError(e.to_string().into()))?;
 
-    let response = ChallengeOtpResponse {
-        url: result.login_url,
-        required_actions: result.required_actions,
-    };
+    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
 
     Ok((
-        sso_cookie::headers(result.sso_session, base_url.starts_with("https"))?,
-        Response::OK(response),
+        reply.headers,
+        reply.continues,
+        Response::OK(ChallengeOtpResponse {
+            url: reply.url,
+            required_actions: reply.required_actions,
+        }),
     ))
 }

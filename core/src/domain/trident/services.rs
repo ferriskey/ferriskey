@@ -64,9 +64,9 @@ use crate::{
             ports::{
                 BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput,
                 ChallengeOtpOutput, CompletePasswordResetInput, CompletePasswordResetOutput,
-                GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, MagicLinkInput,
-                MagicLinkRepository, OtpEnrollmentRepository, PasskeyAuthenticateInput,
-                PasskeyAuthenticateOutput, PasskeyRequestOptionsInput,
+                GenerateRecoveryCodeInput, GenerateRecoveryCodeOutput, LoginProgress,
+                MagicLinkInput, MagicLinkRepository, OtpEnrollmentRepository,
+                PasskeyAuthenticateInput, PasskeyAuthenticateOutput, PasskeyRequestOptionsInput,
                 PasswordResetTokenRepository, RecoveryCodeFormatter, RecoveryCodeRepository,
                 RequestPasswordResetInput, SetupOtpInput, SetupOtpOutput, TridentService,
                 UpdatePasswordInput, VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput,
@@ -101,6 +101,13 @@ const OTP_ENROLLMENT_TTL_MINUTES: i64 = 5;
 /// How long a WebAuthn registration challenge stays usable. The challenge was already
 /// stamped with `webauthn_challenge_issued_at` but nothing ever read it back.
 const WEBAUTHN_CHALLENGE_TTL_MINUTES: i64 = 5;
+
+/// The login a step belongs to, and whether its second factor was answered.
+struct LoginStep<'a> {
+    session_code: &'a str,
+    webapp_base_url: &'a str,
+    second_factor_verified: bool,
+}
 
 #[derive(Debug)]
 pub(crate) enum LoginFinish {
@@ -499,6 +506,54 @@ where
             .await
     }
 
+    /// Move a login forward once one of its steps succeeded. `satisfied` is what
+    /// that step just completed, so a failed clean-up of its row cannot send the
+    /// user back to it.
+    async fn progress_login(
+        &self,
+        step: LoginStep<'_>,
+        user_id: Uuid,
+        scope: &RealmScope,
+        satisfied: &[RequiredAction],
+    ) -> Result<LoginProgress, CoreError> {
+        match self
+            .pending_auth_step_for(user_id, scope, satisfied)
+            .await?
+        {
+            Some(PendingAuthStep::RequiredActions(actions)) => {
+                return Ok(LoginProgress::ActionsPending(actions));
+            }
+            Some(PendingAuthStep::OtpChallenge) if !step.second_factor_verified => {
+                warn!(user_id = %user_id, "Refused to complete a login: the OTP was not answered");
+                return Err(CoreError::Forbidden(
+                    "the second factor of this login is still due".to_string(),
+                ));
+            }
+            _ => {}
+        }
+
+        let session_code =
+            Uuid::parse_str(step.session_code).map_err(|_| CoreError::SessionCreateError)?;
+        let auth_session = self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::SessionNotFound)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner();
+
+        let (login_url, sso_session) = self
+            .complete_login(&auth_session, user_id, scope, step.webapp_base_url)
+            .await?
+            .into_parts();
+
+        Ok(LoginProgress::Completed {
+            login_url,
+            sso_session,
+        })
+    }
+
     /// Record the "remember me" choice made alongside a first factor that
     /// completes the login on its own (passkey).
     async fn record_remember_me(
@@ -822,14 +877,12 @@ where
 
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let auth_session = self
-            .auth_session_repository
+        self.auth_session_repository
             .get_by_session_code(session_code)
             .await
             .map_err(|_| CoreError::SessionNotFound)?
             .in_realm(&scope)
-            .map_err(|_| CoreError::SessionNotFound)?
-            .into_inner();
+            .map_err(|_| CoreError::SessionNotFound)?;
 
         let user = self
             .user_repository
@@ -837,10 +890,15 @@ where
             .await?
             .in_realm(&scope)?;
 
-        if self
-            .pending_auth_step_for(user.get().id, &scope, &[])
-            .await?
-            != Some(PendingAuthStep::OtpChallenge)
+        let user_credentials = self
+            .credential_repository
+            .get_credentials_by_user_id(user.get().id)
+            .await
+            .map_err(|_| CoreError::GetUserCredentialsError)?;
+
+        if !user_credentials
+            .iter()
+            .any(|credential| credential.credential_type == CredentialType::Otp)
         {
             warn!(
                 user_id = %user.get().id,
@@ -850,12 +908,6 @@ where
                 "a recovery code only answers a pending OTP challenge".to_string(),
             ));
         }
-
-        let user_credentials = self
-            .credential_repository
-            .get_credentials_by_user_id(user.get().id)
-            .await
-            .map_err(|_| CoreError::GetUserCredentialsError)?;
 
         let recovery_code_creds = user_credentials
             .into_iter()
@@ -917,15 +969,20 @@ where
                 CoreError::InternalServerError
             })?;
 
-        let (login_url, sso_session) = self
-            .complete_login(&auth_session, user.get().id, &scope, &input.webapp_base_url)
-            .await?
-            .into_parts();
+        let progress = self
+            .progress_login(
+                LoginStep {
+                    session_code: &input.session_code,
+                    webapp_base_url: &input.webapp_base_url,
+                    second_factor_verified: true,
+                },
+                user.get().id,
+                &scope,
+                &[],
+            )
+            .await?;
 
-        Ok(BurnRecoveryCodeOutput {
-            login_url,
-            sso_session,
-        })
+        Ok(BurnRecoveryCodeOutput { progress })
     }
 
     async fn webauthn_public_key_create_options(
@@ -1092,7 +1149,20 @@ where
             );
         }
 
-        Ok(WebAuthnValidatePublicKeyOutput {})
+        let progress = self
+            .progress_login(
+                LoginStep {
+                    session_code: &input.session_code,
+                    webapp_base_url: &input.webapp_base_url,
+                    second_factor_verified: input.second_factor_verified,
+                },
+                user.id,
+                &scope,
+                &[RequiredAction::ConfigurePasskey],
+            )
+            .await?;
+
+        Ok(WebAuthnValidatePublicKeyOutput { progress })
     }
 
     async fn webauthn_public_key_request_options(
@@ -1533,18 +1603,11 @@ where
                 .await?;
         }
 
-        let required_actions = self
-            .user_required_action_repository
-            .get_required_actions(user.id)
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
-
-        if !required_actions.is_empty() {
+        if let Some(PendingAuthStep::RequiredActions(actions)) =
+            self.pending_auth_step_for(user.id, &scope, &[]).await?
+        {
             return Ok(ChallengeOtpOutput {
-                login_url: None,
-                sso_session: None,
-                required_actions,
-                temporary_token: None,
+                progress: LoginProgress::ActionsPending(actions),
             });
         }
 
@@ -1557,10 +1620,10 @@ where
             .record_step(flow_id, FlowStepName::Finalize, StepOutcome::success());
 
         Ok(ChallengeOtpOutput {
-            login_url: Some(login_url),
-            sso_session,
-            required_actions: Vec::new(),
-            temporary_token: None,
+            progress: LoginProgress::Completed {
+                login_url,
+                sso_session,
+            },
         })
     }
 
@@ -1600,7 +1663,7 @@ where
         &self,
         identity: Identity,
         input: UpdatePasswordInput,
-    ) -> Result<(), CoreError> {
+    ) -> Result<LoginProgress, CoreError> {
         if !matches!(identity, Identity::User(_)) {
             return Err(CoreError::Forbidden("is not user".to_string()));
         }
@@ -1681,7 +1744,17 @@ where
                 e
             })?;
 
-        Ok(())
+        self.progress_login(
+            LoginStep {
+                session_code: &input.session_code,
+                webapp_base_url: &input.webapp_base_url,
+                second_factor_verified: input.second_factor_verified,
+            },
+            user.id,
+            &scope,
+            &[RequiredAction::UpdatePassword],
+        )
+        .await
     }
 
     async fn verify_otp(
@@ -1766,6 +1839,8 @@ where
           "algorithm": "HmacSha256",
         });
 
+        let had_otp = !existing_otp_credentials.is_empty();
+
         for cred in existing_otp_credentials {
             self.credential_repository
                 .delete_by_id(&user, cred.id)
@@ -1802,9 +1877,23 @@ where
             );
         }
 
+        let progress = self
+            .progress_login(
+                LoginStep {
+                    session_code: &input.session_code,
+                    webapp_base_url: &input.webapp_base_url,
+                    second_factor_verified: input.second_factor_verified || !had_otp,
+                },
+                user.get().id,
+                &scope,
+                &[RequiredAction::ConfigureOtp],
+            )
+            .await?;
+
         Ok(VerifyOtpOutput {
             message: "OTP verified successfully".to_string(),
             user_id: user.get().id,
+            progress,
         })
     }
 
@@ -3196,6 +3285,9 @@ mod tests {
                 Identity::User(user),
                 UpdatePasswordInput {
                     realm_name: "test-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     value: "Str0ng!P@ssword#2024".to_string(),
                 },
             )
@@ -3278,6 +3370,9 @@ mod tests {
                 Identity::User(user),
                 UpdatePasswordInput {
                     realm_name: "test-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     value: "Str0ng!P@ssword#2024".to_string(),
                 },
             )
@@ -3286,6 +3381,70 @@ mod tests {
         assert!(
             result.is_ok(),
             "a password update owed by a temporary credential, with no persisted action row, succeeds: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn update_password_does_not_end_a_login_whose_otp_was_not_answered() {
+        let realm = create_test_realm_with_name("test-realm");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::UpdatePassword];
+        let user_id = user.id;
+        let mut builder = TridentTestBuilder::new()
+            .with_realm_and_user(&realm, &user)
+            .with_user_access_revoked(1);
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(move |_| {
+                let credentials = vec![password_credential(user_id), otp_credential(user_id)];
+                Box::pin(async move { Ok(credentials) })
+            });
+        expect_mfa_policy_lookups(&mut builder);
+        Arc::get_mut(&mut builder.password_policy_repo)
+            .unwrap()
+            .expect_find_by_realm_id()
+            .returning(|_| Box::pin(async { Ok(None) }));
+        Arc::get_mut(&mut builder.hasher_repo)
+            .unwrap()
+            .expect_hash_password()
+            .returning(|_| {
+                Box::pin(async {
+                    Ok(HashResult::new(
+                        "$argon2id$v=19$m=7168,t=5,p=1$new".to_string(),
+                        "salt".to_string(),
+                        5,
+                        "argon2id".to_string(),
+                    ))
+                })
+            });
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_set_password_credential()
+            .returning(|_, _, _| Box::pin(async { Ok(()) }));
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        expect_no_authorization_code(&mut builder);
+
+        let result = builder
+            .build()
+            .update_password(
+                Identity::User(user),
+                UpdatePasswordInput {
+                    realm_name: "test-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: false,
+                    value: "Str0ng!P@ssword#2024".to_string(),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "an OTP user must answer the OTP before the login ends: {result:?}"
         );
     }
 
@@ -3311,6 +3470,9 @@ mod tests {
                 Identity::User(user),
                 UpdatePasswordInput {
                     realm_name: "test-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     value: "Str0ng!P@ssword#2024".to_string(),
                 },
             )
@@ -3355,6 +3517,9 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -3372,7 +3537,10 @@ mod tests {
     async fn update_password_revokes_all_user_tokens() {
         let realm = create_test_realm_with_name("test-realm");
         let mut user = create_test_user_with_email(&realm, "user@example.com");
-        user.required_actions = vec![RequiredAction::UpdatePassword];
+        user.required_actions = vec![
+            RequiredAction::UpdatePassword,
+            RequiredAction::ConfigurePasskey,
+        ];
         let user_id = user.id;
 
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
@@ -3451,6 +3619,9 @@ mod tests {
                 Identity::User(user),
                 UpdatePasswordInput {
                     realm_name: "test-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     value: "Str0ng!P@ssword#2024".to_string(),
                 },
             )
@@ -3556,6 +3727,9 @@ mod tests {
                 Identity::User(user),
                 UpdatePasswordInput {
                     realm_name: "test-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     value: "Str0ng!P@ssword#2024".to_string(),
                 },
             )
@@ -3612,6 +3786,9 @@ mod tests {
                 Identity::User(user),
                 UpdatePasswordInput {
                     realm_name: "neighbour-realm".to_string(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     value: "Str0ng!P@ssword#2024".to_string(),
                 },
             )
@@ -3879,6 +4056,8 @@ mod tests {
 
     /// 20 raw bytes encoded as base32/RFC4648 without padding — the only shape
     /// `TotpSecret::to_bytes` accepts.
+    const TEST_SESSION_CODE: &str = "0192a6f0-0000-7000-8000-000000000001";
+
     const SERVER_SECRET: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     /// A second, different well-formed secret, standing in for one an attacker
     /// picked themselves instead of using the one the server issued.
@@ -4042,6 +4221,9 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(ATTACKER_SECRET),
                     label: Some("attacker device".to_string()),
                 },
@@ -4090,6 +4272,9 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -4212,6 +4397,9 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -4227,8 +4415,10 @@ mod tests {
     #[tokio::test]
     async fn verify_otp_rejects_second_use_of_same_enrollment() {
         let realm = create_test_realm_with_name("test-realm");
-        let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::ConfigurePasskey];
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+        expect_mfa_policy_lookups(&mut builder);
 
         Arc::get_mut(&mut builder.user_required_action_repo)
             .unwrap()
@@ -4287,6 +4477,9 @@ mod tests {
                 Identity::User(user.clone()),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -4299,6 +4492,9 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: None,
                 },
@@ -4362,6 +4558,9 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: Some("attacker device".to_string()),
                 },
@@ -4377,8 +4576,10 @@ mod tests {
     #[tokio::test]
     async fn verify_otp_allows_reenrollment_when_configure_otp_is_required() {
         let realm = create_test_realm_with_name("test-realm");
-        let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut user = create_test_user_with_email(&realm, "user@example.com");
+        user.required_actions = vec![RequiredAction::ConfigurePasskey];
         let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+        expect_mfa_policy_lookups(&mut builder);
 
         let stale_credential = otp_credential(user.id);
         let stale_credential_id = stale_credential.id;
@@ -4436,16 +4637,114 @@ mod tests {
                 Identity::User(user),
                 VerifyOtpInput {
                     realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: "http://localhost:5555".to_string(),
+                    second_factor_verified: true,
                     code: current_code_for(SERVER_SECRET),
                     label: Some("new phone".to_string()),
                 },
             )
             .await;
 
+        let output = result.expect("a user carrying ConfigureOtp must be able to re-enrol");
         assert!(
-            result.is_ok(),
-            "a user carrying ConfigureOtp must be able to re-enrol"
+            matches!(
+                output.progress,
+                LoginProgress::ActionsPending(ref actions)
+                    if actions == &vec![RequiredAction::ConfigurePasskey]
+            ),
+            "the next required action must follow the OTP enrolment: {:?}",
+            output.progress
         );
+    }
+
+    #[tokio::test]
+    async fn verify_otp_completes_the_login_when_nothing_else_is_due() {
+        let realm = create_test_realm_with_name("test-realm");
+        let user = create_test_user_with_email(&realm, "user@example.com");
+        let mut builder = TridentTestBuilder::new().with_realm_and_user(&realm, &user);
+        expect_mfa_policy_lookups(&mut builder);
+
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_get_credentials_by_user_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_get_required_actions()
+            .returning(|_| Box::pin(async { Ok(vec![RequiredAction::ConfigureOtp]) }));
+        Arc::get_mut(&mut builder.user_required_action_repo)
+            .unwrap()
+            .expect_remove_required_action()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+
+        let user_id = user.id;
+        Arc::get_mut(&mut builder.otp_enrollment_repo)
+            .unwrap()
+            .expect_consume_enrollment()
+            .returning(move |_, _| {
+                let enrollment = enrollment_for(
+                    user_id,
+                    SERVER_SECRET,
+                    Utc::now() + Duration::minutes(OTP_ENROLLMENT_TTL_MINUTES),
+                );
+                Box::pin(async move { Ok(Some(enrollment)) })
+            });
+        Arc::get_mut(&mut builder.credential_repo)
+            .unwrap()
+            .expect_create_custom_credential()
+            .times(1)
+            .returning(move |uid, _, secret, _, _| {
+                let cred = created_otp_credential(uid, secret);
+                Box::pin(async move { Ok(cred) })
+            });
+
+        let session_code = Uuid::parse_str(TEST_SESSION_CODE).expect("static fixture");
+        let session = auth_session_with_challenge_issued_at(&realm, session_code, None);
+        let session_clone = session.clone();
+        Arc::get_mut(&mut builder.auth_session_repo)
+            .unwrap()
+            .expect_get_by_session_code()
+            .returning(move |_| {
+                let s = session_clone.clone();
+                Box::pin(async move { Ok(Unscoped::new(s)) })
+            });
+        expect_authorization_code(&mut builder, session);
+
+        let output = builder
+            .build()
+            .verify_otp(
+                Identity::User(user),
+                VerifyOtpInput {
+                    realm_name: realm.name.clone(),
+                    session_code: TEST_SESSION_CODE.to_string(),
+                    webapp_base_url: TEST_WEBAPP_URL.to_string(),
+                    second_factor_verified: true,
+                    code: current_code_for(SERVER_SECRET),
+                    label: None,
+                },
+            )
+            .await
+            .expect("the enrolment must succeed");
+
+        match output.progress {
+            LoginProgress::Completed { login_url, .. } => assert!(
+                login_url.contains("code="),
+                "expected an authorization code in {login_url}"
+            ),
+            other => panic!("the login must end once nothing else is due: {other:?}"),
+        }
+    }
+
+    fn expect_mfa_policy_lookups(builder: &mut TridentTestBuilder) {
+        Arc::get_mut(&mut builder.user_role_repo)
+            .unwrap()
+            .expect_get_user_roles()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        Arc::get_mut(&mut builder.realm_repo)
+            .unwrap()
+            .expect_get_realm_settings()
+            .returning(|_| Box::pin(async { Ok(None) }));
     }
 
     // ── Passkey enrolment (FK-003, WebAuthn side) ───────────────────────
@@ -4515,6 +4814,8 @@ mod tests {
                 allowed_origin: "http://localhost:5555".to_string(),
             },
             session_code: session_code.to_string(),
+            webapp_base_url: "http://localhost:5555".to_string(),
+            second_factor_verified: true,
             credential: dummy_register_credential(),
         }
     }

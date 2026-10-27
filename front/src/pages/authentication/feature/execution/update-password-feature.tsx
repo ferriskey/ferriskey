@@ -10,16 +10,14 @@ import {
   buildUpdatePasswordSchema
 } from '../../schemas/update-password.schema'
 import { Form } from '@/components/ui/form'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useAuthenticateMutation } from '@/api/auth.api'
-import { AuthenticationStatus } from '@/api/api.interface'
 import { usePublicPasswordPolicy } from '@/api/password-policy.api'
 import { passwordPolicyRequirements } from '@/lib/password-policy'
 import { apiErrorMessage, partitionFieldErrors, validationErrorsFrom } from '@/lib/api-error'
 import { AUTH_NAMESPACE } from '../../constants'
-import { followServerRedirect } from '@/lib/follow-server-redirect'
+import { continueLogin } from '../../utils/continue-login'
 
 const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
   password: 'password',
@@ -29,8 +27,7 @@ const FIELD_BY_API_FIELD: Record<string, keyof UpdatePasswordSchema> = {
 export default function UpdatePasswordFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { t } = useTranslation(AUTH_NAMESPACE)
-  const { mutate: updatePassword, data: responseUpdatePassword } = useUpdatePassword()
-  const { mutate: authenticate, data: authenticateResponse } = useAuthenticateMutation()
+  const { mutate: updatePassword } = useUpdatePassword()
   const navigate = useNavigate()
 
   const { data: passwordPolicy } = usePublicPasswordPolicy(realm_name)
@@ -54,6 +51,7 @@ export default function UpdatePasswordFeature() {
         },
       },
       {
+        onSuccess: (response) => continueLogin(response, navigate, realm_name),
         onError: (error) => {
           const fieldErrors = validationErrorsFrom(error)
           const { byField, unattached } = partitionFieldErrors(
@@ -74,36 +72,6 @@ export default function UpdatePasswordFeature() {
       }
     )
   })
-
-  useEffect(() => {
-    if (responseUpdatePassword) {
-      authenticate({
-        clientId: 'security-admin-console',
-        realm: realm_name ?? 'master',
-        data: {},
-      })
-    }
-  }, [responseUpdatePassword, authenticate, realm_name])
-
-  useEffect(() => {
-    if (!authenticateResponse) return
-    if (authenticateResponse.url) {
-      followServerRedirect(authenticateResponse.url)
-    }
-
-    if (
-      authenticateResponse.status === AuthenticationStatus.RequiresActions &&
-      authenticateResponse.required_actions &&
-      authenticateResponse.required_actions.length > 0
-    ) {
-      const firstRequiredAction = authenticateResponse.required_actions[0]
-
-      navigate(
-        `/realms/${realm_name}/authentication/required-action?execution=${firstRequiredAction.toUpperCase()}`
-      )
-    }
-  }, [authenticateResponse, navigate, realm_name])
-
 
   return (
     <Form {...form}>

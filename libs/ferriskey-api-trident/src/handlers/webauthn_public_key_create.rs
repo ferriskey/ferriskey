@@ -1,7 +1,7 @@
 use crate::validators::webauthn_rp_info_from_webapp_url;
-use axum::{Extension, extract::State};
-use axum_cookie::CookieManager;
-use ferriskey_api_core::url::WebappUrl;
+use axum::{Extension, extract::State, response::IntoResponse};
+use ferriskey_api_core::login_step::{LoginActionStep, LoginStepReply};
+use ferriskey_api_core::url::{FullUrl, WebappUrl};
 use ferriskey_api_core::{
     api_entities::{
         api_error::{ApiError, ApiErrorResponse, ValidateJson},
@@ -13,6 +13,7 @@ use ferriskey_core::domain::authentication::value_objects::Identity;
 use ferriskey_core::domain::trident::ports::{
     RegisterPublicKeyCredential, TridentService, WebAuthnValidatePublicKeyInput,
 };
+use ferriskey_core::domain::user::entities::RequiredAction;
 use serde::{Deserialize, Serialize};
 use utoipa::{
     PartialSchema, ToSchema,
@@ -45,8 +46,13 @@ impl PartialSchema for ValidatePublicKeyRequest {
     }
 }
 
-#[derive(Debug, ToSchema, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ValidatePublicKeyResponse {}
+#[derive(Debug, ToSchema, Serialize, PartialEq, Eq)]
+pub struct ValidatePublicKeyResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub required_actions: Vec<RequiredAction>,
+}
 
 #[utoipa::path(
     post,
@@ -68,30 +74,36 @@ pub struct ValidatePublicKeyResponse {}
 )]
 pub async fn webauthn_public_key_create(
     State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
     WebappUrl(webapp_url): WebappUrl,
     Extension(identity): Extension<Identity>,
-    cookie: CookieManager,
+    Extension(step): Extension<LoginActionStep>,
     ValidateJson(payload): ValidateJson<ValidatePublicKeyRequest>,
-) -> Result<Response<ValidatePublicKeyResponse>, ApiError> {
-    let session_code = cookie
-        .get("FERRISKEY_SESSION")
-        .ok_or_else(|| ApiError::Unauthorized("Missing session cookie".into()))? // Ou un type d'erreur 401/403
-        .value()
-        .to_string();
-
+) -> Result<impl IntoResponse, ApiError> {
     let rp_info = webauthn_rp_info_from_webapp_url(&webapp_url);
 
     let input = WebAuthnValidatePublicKeyInput {
         rp_info,
-        session_code,
+        session_code: step.auth_session_id.to_string(),
+        webapp_base_url: webapp_url,
+        second_factor_verified: step.second_factor_verified,
         credential: payload.0,
     };
 
-    let _ = state
+    let result = state
         .service
         .webauthn_public_key_create(identity, input)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(ValidatePublicKeyResponse {}))
+    let reply = LoginStepReply::new(result.progress, base_url.starts_with("https"))?;
+
+    Ok((
+        reply.headers,
+        reply.continues,
+        Response::OK(ValidatePublicKeyResponse {
+            url: reply.url,
+            required_actions: reply.required_actions,
+        }),
+    ))
 }

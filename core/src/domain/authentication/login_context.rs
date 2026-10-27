@@ -54,16 +54,22 @@ impl LoginContext<'_> {
         local.collect()
     }
 
+    /// The step that follows the password. A user with an OTP answers it before
+    /// anything else: the required actions only come once the login has both factors.
     pub fn pending_step(
         &self,
         settings: Option<&RealmSetting>,
         roles: &[Role],
     ) -> Option<PendingAuthStep> {
+        if self.has_otp_credential() {
+            return Some(PendingAuthStep::OtpChallenge);
+        }
+
         mfa_policy::pending_auth_step(
             &self.user.required_actions,
             settings,
             roles,
-            self.has_otp_credential(),
+            false,
             self.has_temporary_password(),
         )
     }
@@ -221,9 +227,7 @@ mod tests {
         assert!(context.has_temporary_password());
         assert_eq!(
             context.pending_step(None, &[]),
-            Some(PendingAuthStep::RequiredActions(vec![
-                RequiredAction::UpdatePassword,
-            ]))
+            Some(PendingAuthStep::OtpChallenge)
         );
     }
 
@@ -289,10 +293,7 @@ mod tests {
             &client,
             user,
             None,
-            vec![
-                credential(user_id, CredentialType::Password, true),
-                credential(user_id, CredentialType::Otp, false),
-            ],
+            vec![credential(user_id, CredentialType::Password, true)],
         );
 
         assert!(context.has_temporary_password());
@@ -302,6 +303,28 @@ mod tests {
                 RequiredAction::VerifyEmail,
                 RequiredAction::UpdatePassword,
             ]))
+        );
+    }
+
+    #[test]
+    fn an_otp_credential_is_challenged_before_a_pending_required_action() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let client = client(realm_id);
+        let user = user(realm_id, vec![RequiredAction::ConfigurePasskey]);
+        let user_id = user.id;
+        let context = context(
+            &client,
+            user,
+            None,
+            vec![
+                credential(user_id, CredentialType::Password, false),
+                credential(user_id, CredentialType::Otp, false),
+            ],
+        );
+
+        assert_eq!(
+            context.pending_step(None, &[]),
+            Some(PendingAuthStep::OtpChallenge)
         );
     }
 

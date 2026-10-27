@@ -6,7 +6,7 @@ use crate::{
         trident::ports::{
             BurnRecoveryCodeInput, BurnRecoveryCodeOutput, ChallengeOtpInput, ChallengeOtpOutput,
             CompletePasswordResetInput, CompletePasswordResetOutput, GenerateRecoveryCodeInput,
-            GenerateRecoveryCodeOutput, MagicLinkInput, PasskeyAuthenticateInput,
+            GenerateRecoveryCodeOutput, LoginProgress, MagicLinkInput, PasskeyAuthenticateInput,
             PasskeyAuthenticateOutput, PasskeyRequestOptionsInput, RequestPasswordResetInput,
             SetupOtpInput, SetupOtpOutput, TridentService, UpdatePasswordInput,
             VerifyMagicLinkInput, VerifyMagicLinkOutput, VerifyOtpInput, VerifyOtpOutput,
@@ -60,7 +60,7 @@ impl TridentService for ApplicationService {
         &self,
         identity: Identity,
         input: UpdatePasswordInput,
-    ) -> Result<(), CoreError> {
+    ) -> Result<LoginProgress, CoreError> {
         self.trident_service.update_password(identity, input).await
     }
 
