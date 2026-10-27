@@ -105,6 +105,8 @@ spec:
               mountPath: /usr/share/nginx/html/config.json
               subPath: config.json
               readOnly: true
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
             {{- with $volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -139,10 +141,31 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with $initContainers }}
       initContainers:
+        # The image rewrites /etc/nginx/conf.d/default.conf at startup (the CSP
+        # takes the API origin) and the root filesystem is read-only, so the
+        # directory is seeded from the image into a writable volume first.
+        - name: seed-nginx
+          image: {{ .Values.webapp.image.repository }}:{{ .Values.webapp.image.tag | default .Values.common.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.webapp.image.pullPolicy | default .Values.common.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - cp -R /etc/nginx/conf.d/. /conf.d/
+          {{- with .Values.webapp.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.webapp.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /conf.d
+        {{- with $initContainers }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       {{- if .Values.webapp.nodeName }}
       nodeName: {{ .Values.webapp.nodeName }}
       {{- end }}
@@ -191,6 +214,9 @@ spec:
         - name: empty-dir
           emptyDir:
             sizeLimit: {{ .Values.webapp.emptyDirSize | default .Values.common.emptyDirSize }}
+        - name: nginx-conf
+          emptyDir:
+            sizeLimit: 1Mi
         - name: webapp-config
           configMap:
             name: {{ include "ferriskey.webapp.configJsonName" . }}
