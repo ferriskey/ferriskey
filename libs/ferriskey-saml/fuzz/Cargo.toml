@@ -8,7 +8,7 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
-ferriskey-saml = { path = "../libs/ferriskey-saml" }
+ferriskey-saml = { path = ".." }
 libfuzzer-sys = "0.4.13"
 
 [workspace]
