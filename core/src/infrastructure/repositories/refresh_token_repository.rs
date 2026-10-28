@@ -415,6 +415,45 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_token_tables_keep_no_index_on_a_flag_or_a_status() {
+        let seeded = seed().await;
+
+        let indexes: Vec<String> = sqlx::query_scalar(
+            "SELECT indexname FROM pg_indexes \
+             WHERE schemaname = current_schema() AND tablename IN ('access_tokens', 'refresh_tokens') \
+             ORDER BY indexname",
+        )
+        .fetch_all(&seeded.pool)
+        .await
+        .expect("list the token indexes");
+
+        assert!(
+            !indexes
+                .iter()
+                .any(|name| name == "idx_access_tokens_revoked"),
+            "{indexes:?}"
+        );
+        assert!(
+            !indexes
+                .iter()
+                .any(|name| name == "idx_refresh_tokens_status"),
+            "{indexes:?}"
+        );
+        for kept in [
+            "idx_access_tokens_claims_sid",
+            "idx_access_tokens_expires_at",
+            "idx_refresh_tokens_family_id",
+            "idx_refresh_tokens_session_id",
+        ] {
+            assert!(
+                indexes.iter().any(|name| name == kept),
+                "{kept} in {indexes:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn a_token_without_session_or_resource_rotates_into_one_without() {
         let seeded = seed().await;
         let old = issue(&seeded, None, None).await;
