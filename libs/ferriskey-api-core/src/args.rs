@@ -223,6 +223,9 @@ impl Default for AdminArgs {
     }
 }
 
+pub const DEFAULT_DATABASE_MAX_CONNECTIONS: u32 = 20;
+pub const DEFAULT_DATABASE_MIN_CONNECTIONS: u32 = 2;
+
 #[derive(clap::Args, Debug, Clone)]
 pub struct DatabaseArgs {
     #[arg(
@@ -276,19 +279,25 @@ pub struct DatabaseArgs {
     #[arg(
         long = "database-max-connections",
         env = "DATABASE_MAX_CONNECTIONS",
-        default_value_t = 100,
         name = "DATABASE_MAX_CONNECTIONS",
-        long_help = "Maximum connections one instance opens to the database. The total across instances must stay under the server's max_connections. Each connection costs the database a few MiB, so a smaller pool is lighter on the database."
+        long_help = "Maximum connections one instance opens to the database. Defaults to 20, or to the minimum when that is higher. The total across instances must stay under the server's max_connections. Each connection costs the database a few MiB, so a smaller pool is lighter on the database."
     )]
-    pub max_connections: u32,
+    pub max_connections: Option<u32>,
     #[arg(
         long = "database-min-connections",
         env = "DATABASE_MIN_CONNECTIONS",
-        default_value_t = 5,
+        default_value_t = DEFAULT_DATABASE_MIN_CONNECTIONS,
         name = "DATABASE_MIN_CONNECTIONS",
         long_help = "Connections one instance keeps open when idle. Must not exceed the maximum."
     )]
     pub min_connections: u32,
+}
+
+impl DatabaseArgs {
+    pub fn resolved_max_connections(&self) -> u32 {
+        self.max_connections
+            .unwrap_or_else(|| DEFAULT_DATABASE_MAX_CONNECTIONS.max(self.min_connections))
+    }
 }
 
 impl Default for DatabaseArgs {
@@ -300,8 +309,8 @@ impl Default for DatabaseArgs {
             port: 5432,
             user: "postgres".to_string(),
             schema: "public".to_string(),
-            max_connections: 100,
-            min_connections: 5,
+            max_connections: None,
+            min_connections: DEFAULT_DATABASE_MIN_CONNECTIONS,
         }
     }
 }
@@ -325,8 +334,8 @@ impl From<Url> for DatabaseArgs {
             port: value.port().unwrap_or(5432),
             user: value.username().to_string(),
             schema,
-            max_connections: 100,
-            min_connections: 5,
+            max_connections: None,
+            min_connections: DEFAULT_DATABASE_MIN_CONNECTIONS,
         }
     }
 }
@@ -511,6 +520,8 @@ fn parse_root_path(value: &str) -> Result<String, String> {
 
 impl From<Args> for FerriskeyConfig {
     fn from(value: Args) -> Self {
+        let max_connections = value.db.resolved_max_connections();
+
         FerriskeyConfig {
             database: DatabaseConfig {
                 host: value.db.host,
@@ -519,7 +530,7 @@ impl From<Args> for FerriskeyConfig {
                 port: value.db.port,
                 username: value.db.user,
                 schema: value.db.schema,
-                max_connections: value.db.max_connections,
+                max_connections,
                 min_connections: value.db.min_connections,
             },
             webapp_url: value.webapp_url,
@@ -539,6 +550,82 @@ impl From<Args> for FerriskeyConfig {
 #[cfg(test)]
 mod test {
     use super::*;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct DatabaseOnly {
+        #[command(flatten)]
+        db: DatabaseArgs,
+    }
+
+    mod database_pool {
+        use super::*;
+        use clap::{CommandFactory, FromArgMatches};
+
+        fn parse<const N: usize>(arguments: [&'static str; N]) -> DatabaseArgs {
+            let command = DatabaseOnly::command().mut_args(|argument| argument.env(None::<&str>));
+            let matches = command.try_get_matches_from(arguments).unwrap();
+
+            DatabaseOnly::from_arg_matches(&matches).unwrap().db
+        }
+
+        #[test]
+        fn a_replica_opens_a_small_pool_by_default() {
+            let parsed = parse(["ferriskey"]);
+
+            assert_eq!(parsed.resolved_max_connections(), 20);
+            assert_eq!(parsed.min_connections, 2);
+        }
+
+        #[test]
+        fn every_way_to_build_the_args_agrees_on_the_pool() {
+            let url = Url::parse("postgres://u:p@db:5432/ferriskey").unwrap();
+
+            for db in [DatabaseArgs::default(), DatabaseArgs::from(url)] {
+                assert_eq!(
+                    db.resolved_max_connections(),
+                    DEFAULT_DATABASE_MAX_CONNECTIONS
+                );
+                assert_eq!(db.min_connections, DEFAULT_DATABASE_MIN_CONNECTIONS);
+            }
+        }
+
+        #[test]
+        fn the_pool_size_stays_configurable() {
+            let parsed = parse([
+                "ferriskey",
+                "--database-max-connections",
+                "7",
+                "--database-min-connections",
+                "1",
+            ]);
+
+            assert_eq!(
+                (parsed.resolved_max_connections(), parsed.min_connections),
+                (7, 1)
+            );
+        }
+
+        #[test]
+        fn a_minimum_above_the_default_maximum_raises_the_maximum_with_it() {
+            let parsed = parse(["ferriskey", "--database-min-connections", "30"]);
+
+            assert_eq!(parsed.resolved_max_connections(), 30);
+        }
+
+        #[test]
+        fn an_explicit_maximum_below_the_minimum_is_left_for_the_startup_check() {
+            let parsed = parse([
+                "ferriskey",
+                "--database-max-connections",
+                "5",
+                "--database-min-connections",
+                "30",
+            ]);
+
+            assert_eq!(parsed.resolved_max_connections(), 5);
+        }
+    }
 
     mod parse_root_path {
         use super::*;
