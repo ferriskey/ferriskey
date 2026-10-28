@@ -9,14 +9,21 @@ use crate::domain::common::locale::SupportedLocales;
 use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{Realm, RealmFilter, RealmId, RealmSetting, RealmSortField};
 use crate::domain::realm::ports::RealmRepository;
-use crate::infrastructure::common::TtlCache;
+use crate::infrastructure::common::{Retention, TtlCache};
 
 #[derive(Debug, Clone)]
 pub struct CachedRealmRepository<R> {
     inner: R,
-    by_name: Arc<TtlCache<String, Realm>>,
-    by_id: Arc<TtlCache<Uuid, Realm>>,
-    settings: Arc<TtlCache<Uuid, RealmSetting>>,
+    by_name: Arc<TtlCache<String, Option<Realm>>>,
+    by_id: Arc<TtlCache<Uuid, Option<Realm>>>,
+    settings: Arc<TtlCache<Uuid, Option<RealmSetting>>>,
+}
+
+fn retention_of<T>(found: &Option<T>) -> Retention {
+    match found {
+        Some(_) => Retention::Keep,
+        None => Retention::Share,
+    }
 }
 
 impl<R> CachedRealmRepository<R> {
@@ -50,30 +57,26 @@ impl<R: RealmRepository> RealmRepository for CachedRealmRepository<R> {
     }
 
     async fn get_by_name(&self, name: &str) -> Result<Option<Realm>, CoreError> {
-        if let Some(realm) = self.by_name.get(name) {
-            return Ok(Some(realm));
-        }
+        self.by_name
+            .load(name, || async {
+                let realm = self.inner.get_by_name(name).await?;
+                let retention = retention_of(&realm);
 
-        let realm = self.inner.get_by_name(name).await?;
-        if let Some(realm) = &realm {
-            self.by_name.insert(name.to_string(), realm.clone());
-        }
-
-        Ok(realm)
+                Ok((realm, retention))
+            })
+            .await
     }
 
     async fn get_by_id(&self, realm_id: RealmId) -> Result<Option<Realm>, CoreError> {
         let key = Uuid::from(realm_id);
-        if let Some(realm) = self.by_id.get(&key) {
-            return Ok(Some(realm));
-        }
+        self.by_id
+            .load(&key, || async {
+                let realm = self.inner.get_by_id(realm_id).await?;
+                let retention = retention_of(&realm);
 
-        let realm = self.inner.get_by_id(realm_id).await?;
-        if let Some(realm) = &realm {
-            self.by_id.insert(key, realm.clone());
-        }
-
-        Ok(realm)
+                Ok((realm, retention))
+            })
+            .await
     }
 
     async fn create_realm(
@@ -202,16 +205,14 @@ impl<R: RealmRepository> RealmRepository for CachedRealmRepository<R> {
         realm_id: RealmId,
     ) -> Result<Option<RealmSetting>, CoreError> {
         let key = Uuid::from(realm_id);
-        if let Some(settings) = self.settings.get(&key) {
-            return Ok(Some(settings));
-        }
+        self.settings
+            .load(&key, || async {
+                let settings = self.inner.get_realm_settings(realm_id).await?;
+                let retention = retention_of(&settings);
 
-        let settings = self.inner.get_realm_settings(realm_id).await?;
-        if let Some(settings) = &settings {
-            self.settings.insert(key, settings.clone());
-        }
-
-        Ok(settings)
+                Ok((settings, retention))
+            })
+            .await
     }
 }
 
@@ -265,6 +266,60 @@ mod tests {
 
         assert!(cached.get_by_name("ghost").await.unwrap().is_none());
         assert!(cached.get_by_name("ghost").await.unwrap().is_none());
+    }
+
+    fn slow_inner_returning(realm: Option<Realm>) -> MockRealmRepository {
+        let mut inner = MockRealmRepository::new();
+        inner.expect_get_by_name().times(1).returning(move |_| {
+            let realm = realm.clone();
+            Box::pin(async move {
+                for _ in 0..64 {
+                    tokio::task::yield_now().await;
+                }
+                Ok(realm)
+            })
+        });
+        inner
+    }
+
+    async fn read_concurrently(
+        cached: CachedRealmRepository<MockRealmRepository>,
+        name: &'static str,
+    ) -> Vec<Option<Realm>> {
+        let cached = std::sync::Arc::new(cached);
+        let reads: Vec<_> = (0..16)
+            .map(|_| {
+                let cached = std::sync::Arc::clone(&cached);
+                tokio::spawn(async move { cached.get_by_name(name).await })
+            })
+            .collect();
+
+        let mut realms = Vec::new();
+        for read in reads {
+            realms.push(read.await.unwrap().unwrap());
+        }
+        realms
+    }
+
+    #[tokio::test]
+    async fn concurrent_reads_of_an_uncached_realm_hit_the_store_once() {
+        let cached = CachedRealmRepository::new(
+            slow_inner_returning(Some(realm("acme"))),
+            Duration::from_secs(5),
+        );
+
+        let realms = read_concurrently(cached, "acme").await;
+
+        assert!(realms.iter().all(|realm| realm.is_some()));
+    }
+
+    #[tokio::test]
+    async fn concurrent_reads_of_a_missing_realm_share_one_lookup() {
+        let cached = CachedRealmRepository::new(slow_inner_returning(None), Duration::from_secs(5));
+
+        let realms = read_concurrently(cached, "ghost").await;
+
+        assert!(realms.iter().all(|realm| realm.is_none()));
     }
 
     #[tokio::test]
