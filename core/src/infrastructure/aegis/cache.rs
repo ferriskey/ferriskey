@@ -21,7 +21,7 @@ use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 use uuid::Uuid;
 
-use crate::infrastructure::common::TtlCache;
+use crate::infrastructure::common::{Retention, TtlCache};
 
 #[derive(Debug)]
 pub struct AegisConfigCache {
@@ -49,22 +49,11 @@ impl AegisConfigCache {
         self.generation.load(Ordering::SeqCst)
     }
 
-    fn remember_scope_set(&self, read_at: u64, client_id: Uuid, set: &ClientScopeSet) {
-        self.scope_sets.insert(client_id, set.clone());
-        if self.generation() != read_at {
-            self.scope_sets.remove(&client_id);
-        }
-    }
-
-    fn remember_mappers(
-        &self,
-        read_at: u64,
-        key: Vec<Uuid>,
-        mappers: &HashMap<Uuid, Vec<ProtocolMapper>>,
-    ) {
-        self.mappers.insert(key.clone(), mappers.clone());
-        if self.generation() != read_at {
-            self.mappers.remove(&key);
+    fn retention_since(&self, read_at: u64) -> Retention {
+        if self.generation() == read_at {
+            Retention::Keep
+        } else {
+            Retention::Own
         }
     }
 }
@@ -135,15 +124,19 @@ impl<R: ClientScopeMappingRepository> ClientScopeMappingRepository
     }
 
     async fn get_scope_set(&self, client_id: Uuid) -> Result<ClientScopeSet, CoreError> {
-        if let Some(set) = self.cache.scope_sets.get(&client_id) {
-            return Ok(set);
-        }
-
         let read_at = self.cache.generation();
-        let set = self.inner.get_scope_set(client_id).await?;
-        self.cache.remember_scope_set(read_at, client_id, &set);
+        self.cache
+            .scope_sets
+            .load_while(
+                &client_id,
+                || self.cache.generation() == read_at,
+                || async {
+                    let set = self.inner.get_scope_set(client_id).await?;
 
-        Ok(set)
+                    Ok((set, self.cache.retention_since(read_at)))
+                },
+            )
+            .await
     }
 }
 
@@ -186,15 +179,19 @@ impl<R: ProtocolMapperRepository> ProtocolMapperRepository for CachedProtocolMap
         scope_ids: &[Uuid],
     ) -> Result<HashMap<Uuid, Vec<ProtocolMapper>>, CoreError> {
         let key = mapper_key(scope_ids);
-        if let Some(mappers) = self.cache.mappers.get(&key) {
-            return Ok(mappers);
-        }
-
         let read_at = self.cache.generation();
-        let mappers = self.inner.get_by_scope_ids(scope_ids).await?;
-        self.cache.remember_mappers(read_at, key, &mappers);
+        self.cache
+            .mappers
+            .load_while(
+                &key,
+                || self.cache.generation() == read_at,
+                || async {
+                    let mappers = self.inner.get_by_scope_ids(scope_ids).await?;
 
-        Ok(mappers)
+                    Ok((mappers, self.cache.retention_since(read_at)))
+                },
+            )
+            .await
     }
 
     async fn update_by_id(
