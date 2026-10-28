@@ -5372,13 +5372,13 @@ where
     ) -> Result<UserInfoResponse, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        let user = self
-            .user_repository
-            .get_by_id(identity.id())
-            .await?
-            .in_realm(&scope)
-            .map_err(|_| CoreError::InvalidToken)?
-            .into_inner();
+        let user = match identity {
+            Identity::User(user) => Unscoped::new(user),
+            Identity::Client(client) => self.user_repository.get_by_id(client.id).await?,
+        }
+        .in_realm(&scope)
+        .map_err(|_| CoreError::InvalidToken)?
+        .into_inner();
 
         let scopes = input
             .claims
