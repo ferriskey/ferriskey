@@ -12,7 +12,7 @@ use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::{RealmScope, Scoped, Unscoped};
 use uuid::Uuid;
 
-use crate::infrastructure::common::TtlCache;
+use crate::infrastructure::common::{Retention, TtlCache};
 
 #[derive(Debug, Clone)]
 pub struct CachedClientRepository<R> {
@@ -42,16 +42,18 @@ impl<R: ClientRepository> ClientRepository for CachedClientRepository<R> {
         realm_id: RealmId,
     ) -> Result<Unscoped<Client>, CoreError> {
         let key = (Uuid::from(realm_id), client_id);
-        if let Some(client) = self.by_client_id.get(&key) {
-            return Ok(Unscoped::new(client));
-        }
-
         let client = self
-            .inner
-            .get_by_client_id(key.1.clone(), realm_id)
-            .await?
-            .across_realms();
-        self.by_client_id.insert(key, client.clone());
+            .by_client_id
+            .load(&key, || async {
+                let client = self
+                    .inner
+                    .get_by_client_id(key.1.clone(), realm_id)
+                    .await?
+                    .across_realms();
+
+                Ok::<_, CoreError>((client, Retention::Keep))
+            })
+            .await?;
 
         Ok(Unscoped::new(client))
     }
@@ -180,6 +182,43 @@ mod tests {
             .into_inner();
 
         assert_eq!(first, second);
+    }
+
+    #[tokio::test]
+    async fn concurrent_reads_of_an_uncached_client_hit_the_store_once() {
+        let realm = realm();
+        let stored = client(realm.id);
+        let mut inner = MockClientRepository::new();
+        inner
+            .expect_get_by_client_id()
+            .times(1)
+            .returning(move |_, _| {
+                let stored = stored.clone();
+                Box::pin(async move {
+                    for _ in 0..64 {
+                        tokio::task::yield_now().await;
+                    }
+                    Ok(Unscoped::new(stored))
+                })
+            });
+        let cached =
+            std::sync::Arc::new(CachedClientRepository::new(inner, Duration::from_secs(5)));
+
+        let reads: Vec<_> = (0..16)
+            .map(|_| {
+                let cached = std::sync::Arc::clone(&cached);
+                let realm_id = realm.id;
+                tokio::spawn(async move {
+                    cached
+                        .get_by_client_id("console".to_string(), realm_id)
+                        .await
+                })
+            })
+            .collect();
+
+        for read in reads {
+            assert!(read.await.unwrap().is_ok());
+        }
     }
 
     #[tokio::test]

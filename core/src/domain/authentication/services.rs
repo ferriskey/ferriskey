@@ -105,6 +105,7 @@ use crate::domain::{
         ports::WebhookRepository,
     },
 };
+use crate::infrastructure::common::Retention;
 use ferriskey_domain::token_lifetime::TokenLifetimes;
 use ferriskey_security::jwt::entities::DEFAULT_TEMPORARY_TOKEN_LIFETIME;
 
@@ -2875,9 +2876,9 @@ where
             }
         }
 
-        let account = match self.service_account_cache.get(&client.id) {
-            Some(account) => account,
-            None => {
+        let account = self
+            .service_account_cache
+            .load(&client.id, || async {
                 let (user, user_roles, membership) = tokio::join!(
                     self.user_repository
                         .get_by_client_id(client.id)
@@ -2894,19 +2895,20 @@ where
                     CoreError::NotFound => CoreError::ServiceAccountNotFound,
                     _ => CoreError::InternalServerError,
                 })?;
-                let complete = user_roles.is_ok() && membership.is_ok();
+                let retention = if user_roles.is_ok() && membership.is_ok() {
+                    Retention::Keep
+                } else {
+                    Retention::Own
+                };
                 let account = Arc::new(ServiceAccount {
                     user,
                     roles: user_roles.unwrap_or_default(),
                     membership: membership.unwrap_or_default(),
                 });
-                if complete {
-                    self.service_account_cache
-                        .insert(client.id, Arc::clone(&account));
-                }
-                account
-            }
-        };
+
+                Ok::<_, CoreError>((account, retention))
+            })
+            .await?;
 
         let user = account
             .user
