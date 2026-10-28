@@ -122,6 +122,29 @@ mod tests {
 
     #[test]
     #[ignore = "requires PostgreSQL"]
+    fn both_key_endpoints_tell_readers_how_long_they_may_keep_the_keys() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+
+            for endpoint in ["certs", "jwks.json"] {
+                let response = server.get(&app.oidc(endpoint)).await;
+
+                assert_eq!(response.status_code(), 200, "{endpoint}");
+                assert_eq!(
+                    response
+                        .header("cache-control")
+                        .to_str()
+                        .expect("a readable header"),
+                    "public, max-age=300",
+                    "{endpoint}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL"]
     fn id_token_carries_the_oidc_core_claims() {
         rt().block_on(async {
             let app = app();

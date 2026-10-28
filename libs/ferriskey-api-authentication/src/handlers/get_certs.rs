@@ -1,4 +1,6 @@
 use axum::extract::{Path, State};
+use axum::http::{HeaderValue, header};
+use axum::response::IntoResponse;
 use ferriskey_api_core::api_entities::api_error::{ApiError, ApiErrorResponse};
 use ferriskey_api_core::api_entities::response::Response;
 use ferriskey_api_core::app_state::AppState;
@@ -11,17 +13,25 @@ pub struct GetCertsResponse {
     pub keys: Vec<JwkKey>,
 }
 
+const KEYS_CACHE_CONTROL: &str = "public, max-age=300";
+
 async fn fetch_realm_jwks(
     realm_name: String,
     state: AppState,
-) -> Result<Response<GetCertsResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     let jwk_keys = state
         .service
         .get_certs(realm_name)
         .await
         .map_err(ApiError::from)?;
 
-    Ok(Response::OK(GetCertsResponse { keys: jwk_keys }))
+    Ok((
+        [(
+            header::CACHE_CONTROL,
+            HeaderValue::from_static(KEYS_CACHE_CONTROL),
+        )],
+        Response::OK(GetCertsResponse { keys: jwk_keys }),
+    ))
 }
 
 #[utoipa::path(
@@ -43,7 +53,7 @@ async fn fetch_realm_jwks(
 pub async fn get_certs(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-) -> Result<Response<GetCertsResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     fetch_realm_jwks(realm_name, state).await
 }
 
@@ -66,6 +76,6 @@ pub async fn get_certs(
 pub async fn get_jwks_json(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
-) -> Result<Response<GetCertsResponse>, ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     fetch_realm_jwks(realm_name, state).await
 }

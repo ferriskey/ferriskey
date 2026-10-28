@@ -232,6 +232,7 @@ pub struct JwtKeyPair {
     pub public_key: String,
     pub certificate: String,
     signer: RsaSigner,
+    jwk: Arc<Result<JwkKey, SecurityError>>,
 }
 
 #[derive(Clone)]
@@ -416,6 +417,7 @@ impl JwtKeyPair {
             public_key: public_pem.to_string(),
             certificate: certificate_pem.to_string(),
             signer: RsaSigner(Arc::new(signing_key)),
+            jwk: Arc::new(jwk_of(id, public_pem)),
         })
     }
 
@@ -491,29 +493,30 @@ impl JwtKeyPair {
     }
 
     pub fn to_jwk_key(&self) -> Result<JwkKey, SecurityError> {
-        let armored =
-            pem::parse(&self.public_key).map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
-        let public_key = PublicKey::from_der(armored.contents())
-            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
-
-        let n =
-            BASE64_URL_SAFE_NO_PAD.encode(public_key.modulus().big_endian_without_leading_zero());
-        let e =
-            BASE64_URL_SAFE_NO_PAD.encode(public_key.exponent().big_endian_without_leading_zero());
-
-        Ok(JwkKey {
-            kid: self.id.to_string(),
-            kty: "RSA".to_string(),
-            r#use: "sig".to_string(),
-            alg: "RS256".to_string(),
-            n,
-            e,
-        })
+        (*self.jwk).clone()
     }
 
     pub fn to_jwt_key(&self) -> Result<JwkKey, SecurityError> {
         self.to_jwk_key()
     }
+}
+
+fn jwk_of(id: Uuid, public_pem: &str) -> Result<JwkKey, SecurityError> {
+    let armored = pem::parse(public_pem).map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
+    let public_key = PublicKey::from_der(armored.contents())
+        .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
+
+    let n = BASE64_URL_SAFE_NO_PAD.encode(public_key.modulus().big_endian_without_leading_zero());
+    let e = BASE64_URL_SAFE_NO_PAD.encode(public_key.exponent().big_endian_without_leading_zero());
+
+    Ok(JwkKey {
+        kid: id.to_string(),
+        kty: "RSA".to_string(),
+        r#use: "sig".to_string(),
+        alg: "RS256".to_string(),
+        n,
+        e,
+    })
 }
 
 #[cfg(test)]
