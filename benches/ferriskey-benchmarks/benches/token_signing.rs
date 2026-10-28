@@ -53,6 +53,10 @@ fn token_signing(c: &mut Criterion) {
         })
     });
 
+    c.bench_function("publish the realm key as a jwk", |b| {
+        b.iter(|| black_box(&key_pair).to_jwk_key().expect("publish the key"))
+    });
+
     c.bench_function("rs256 verify an access token", |b| {
         b.iter(|| {
             decode::<JwtClaim>(black_box(&token), &decoding_key, &validation)
