@@ -128,7 +128,7 @@ impl std::fmt::Display for SessionState {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum SessionError {
     #[error("Session not found")]
     NotFound,

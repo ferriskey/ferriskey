@@ -3,7 +3,7 @@ use thiserror::Error;
 pub mod crypto;
 pub mod jwt;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum SecurityError {
     #[error("Hashing error: {0}")]
     HashingError(String),

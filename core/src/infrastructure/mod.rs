@@ -24,6 +24,7 @@ pub mod retention;
 pub mod role;
 pub mod seawatch;
 pub mod secrets_backfill;
+pub mod token_state;
 pub mod trident;
 pub mod user;
 pub mod webhook;
