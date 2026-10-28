@@ -22,6 +22,7 @@ const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
+const USERINFO_BUDGET: usize = 4;
 const FORGED_BEARER_BUDGET: usize = 0;
 
 const BACKGROUND_WORK: &[&str] = &[
@@ -333,11 +334,22 @@ fn a_login_stays_within_its_statement_budget() {
             &user.password,
         )
         .await;
-        let forged = with_forged_signature(
-            issued.json::<Value>()["access_token"]
-                .as_str()
-                .expect("access token"),
-        );
+        let access_token = issued.json::<Value>()["access_token"]
+            .as_str()
+            .expect("access token")
+            .to_string();
+
+        let (info, statements) = capture(async {
+            server
+                .get(&app.oidc("userinfo"))
+                .authorization_bearer(&access_token)
+                .await
+        })
+        .await;
+        assert_eq!(info.status_code(), 200, "{}", info.text());
+        assert_within("userinfo", USERINFO_BUDGET, &statements);
+
+        let forged = with_forged_signature(&access_token);
 
         let (refused, statements) = capture(async {
             server
