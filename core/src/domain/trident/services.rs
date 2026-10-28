@@ -1484,14 +1484,24 @@ where
         self.record_remember_me(&mut auth_session, input.remember_me)
             .await?;
 
+        // A user-verified passkey is already a second factor, so it answers the
+        // OTP challenge. Required actions still block the login.
+        if let Some(PendingAuthStep::RequiredActions(actions)) = self
+            .pending_auth_step_for(user.get().id, &scope, &[])
+            .await?
+        {
+            warn!(
+                user_id = %user.get().id,
+                ?actions,
+                "refusing to complete a passkey login while a required action is due"
+            );
+            return Err(CoreError::Forbidden(
+                "an authentication step is still due for this user".to_string(),
+            ));
+        }
+
         let (login_url, sso_session) = self
-            .store_auth_code_and_generate_login_url(
-                &auth_session,
-                user.get().id,
-                &scope,
-                &[],
-                &input.webapp_base_url,
-            )
+            .complete_login(&auth_session, user.get().id, &scope, &input.webapp_base_url)
             .await?
             .into_parts();
 
@@ -5999,11 +6009,12 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn passkey_authenticate_issues_the_code_for_the_owner_of_the_signing_passkey() {
-        let realm = create_test_realm_with_name("passkey-realm");
-        let owner = create_test_user_with_email(&realm, "owner@example.com");
-
+    async fn passkey_login_of(
+        realm: &Realm,
+        owner: crate::domain::user::entities::User,
+        credentials: Vec<Credential>,
+        code_expected: bool,
+    ) -> Result<PasskeyAuthenticateOutput, CoreError> {
         let PasskeyAssertionFixture {
             mut builder,
             session_code,
@@ -6011,7 +6022,7 @@ mod tests {
             credential_id,
             credential,
             assertion,
-        } = passkey_assertion_fixture(&realm, owner.id);
+        } = passkey_assertion_fixture(realm, owner.id);
 
         let owner_id = owner.id;
         let expected_credential_id = credential_id.clone();
@@ -6029,15 +6040,18 @@ mod tests {
 
         expect_pending_step_lookups(
             &mut builder,
-            owner.clone(),
-            Vec::new(),
+            owner,
+            credentials,
             create_test_realm_setting(realm.id, false),
         );
-        expect_authorization_code(&mut builder, session.clone());
+        if code_expected {
+            expect_authorization_code(&mut builder, session.clone());
+        } else {
+            expect_no_authorization_code(&mut builder);
+        }
 
-        let service = builder.build();
-
-        let output = service
+        builder
+            .build()
             .passkey_authenticate(PasskeyAuthenticateInput {
                 webapp_base_url: TEST_WEBAPP_URL.to_string(),
                 realm_name: realm.name.clone(),
@@ -6047,6 +6061,15 @@ mod tests {
                 remember_me: false,
             })
             .await
+    }
+
+    #[tokio::test]
+    async fn passkey_authenticate_issues_the_code_for_the_owner_of_the_signing_passkey() {
+        let realm = create_test_realm_with_name("passkey-realm");
+        let owner = create_test_user_with_email(&realm, "owner@example.com");
+
+        let output = passkey_login_of(&realm, owner, Vec::new(), true)
+            .await
             .expect("the owner of the signing passkey must complete authentication");
 
         assert!(
@@ -6055,6 +6078,39 @@ mod tests {
                 .starts_with("https://app.example/callback?code="),
             "the owner must be redirected with an authorization code: {}",
             output.login_url
+        );
+    }
+
+    #[tokio::test]
+    async fn passkey_authenticate_answers_the_otp_challenge_of_an_account_with_totp() {
+        let realm = create_test_realm_with_name("passkey-realm");
+        let owner = create_test_user_with_email(&realm, "owner@example.com");
+        let credentials = vec![otp_credential(owner.id)];
+
+        let output = passkey_login_of(&realm, owner, credentials, true)
+            .await
+            .expect("a user-verified passkey must not be asked for the TOTP code on top");
+
+        assert!(
+            output
+                .login_url
+                .starts_with("https://app.example/callback?code="),
+            "the owner must be redirected with an authorization code: {}",
+            output.login_url
+        );
+    }
+
+    #[tokio::test]
+    async fn passkey_authenticate_refuses_a_login_that_still_owes_a_required_action() {
+        let realm = create_test_realm_with_name("passkey-realm");
+        let mut owner = create_test_user_with_email(&realm, "owner@example.com");
+        owner.required_actions = vec![RequiredAction::UpdatePassword];
+
+        let result = passkey_login_of(&realm, owner, Vec::new(), false).await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "a passkey must not skip a required action"
         );
     }
 
