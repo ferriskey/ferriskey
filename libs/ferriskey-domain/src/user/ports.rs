@@ -167,6 +167,11 @@ pub trait UserRepository: Send + Sync {
         user_id: Uuid,
     ) -> impl Future<Output = Result<Unscoped<User>, CoreError>> + Send;
 
+    fn get_by_id_without_relations(
+        &self,
+        user_id: Uuid,
+    ) -> impl Future<Output = Result<Unscoped<User>, CoreError>> + Send;
+
     fn list(
         &self,
         scope: &RealmScope,
