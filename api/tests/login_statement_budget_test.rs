@@ -7,7 +7,7 @@ use std::time::Duration;
 use base64::Engine as _;
 use common::{
     ADMIN_CLIENT_ID, ADMIN_PASSWORD, ADMIN_USERNAME, ClientSpec, TestApp, authorize, cached_app,
-    client_credentials, exchange_code, password_grant, query_param, rt,
+    client_credentials, exchange_code, password_grant, query_param, refresh, rt,
 };
 use serde_json::{Value, json};
 use tracing::field::{Field, Visit};
@@ -23,6 +23,7 @@ const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
 const USERINFO_BUDGET: usize = 4;
+const REFRESH_BUDGET: usize = 8;
 const FORGED_BEARER_BUDGET: usize = 0;
 
 const BACKGROUND_WORK: &[&str] = &[
@@ -338,6 +339,21 @@ fn a_login_stays_within_its_statement_budget() {
             .as_str()
             .expect("access token")
             .to_string();
+        let refresh_token = issued.json::<Value>()["refresh_token"]
+            .as_str()
+            .expect("refresh token")
+            .to_string();
+
+        let (refreshed, statements) = capture(refresh(
+            &server,
+            app,
+            &client.client_id,
+            None,
+            &refresh_token,
+        ))
+        .await;
+        assert_eq!(refreshed.status_code(), 200, "{}", refreshed.text());
+        assert_within("refresh", REFRESH_BUDGET, &statements);
 
         let (info, statements) = capture(async {
             server
