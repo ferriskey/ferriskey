@@ -4,6 +4,7 @@ use std::future::Future;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+use base64::Engine as _;
 use common::{
     ADMIN_CLIENT_ID, ADMIN_PASSWORD, ADMIN_USERNAME, ClientSpec, TestApp, authorize, cached_app,
     client_credentials, exchange_code, password_grant, query_param, rt,
@@ -21,6 +22,7 @@ const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
+const FORGED_BEARER_BUDGET: usize = 0;
 
 const BACKGROUND_WORK: &[&str] = &[
     "webhook_deliveries",
@@ -175,6 +177,12 @@ fn assert_within(step: &str, budget: usize, statements: &[String]) {
     );
 }
 
+fn with_forged_signature(token: &str) -> String {
+    let (signing_input, _) = token.rsplit_once('.').expect("a compact JWS");
+    let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode([7u8; 256]);
+    format!("{signing_input}.{signature}")
+}
+
 async fn browser_login(
     server: &axum_test::TestServer,
     app: &TestApp,
@@ -315,6 +323,49 @@ fn a_login_stays_within_its_statement_budget() {
         let (granted, statements) = capture(client_credentials(&server, app, &service)).await;
         assert_eq!(granted.status_code(), 200, "{}", granted.text());
         assert_within("client credentials", CLIENT_CREDENTIALS_BUDGET, &statements);
+
+        let issued = password_grant(
+            &server,
+            app,
+            &client.client_id,
+            None,
+            &user.username,
+            &user.password,
+        )
+        .await;
+        let forged = with_forged_signature(
+            issued.json::<Value>()["access_token"]
+                .as_str()
+                .expect("access token"),
+        );
+
+        let (refused, statements) = capture(async {
+            server
+                .get(&app.oidc("userinfo"))
+                .authorization_bearer(&forged)
+                .await
+        })
+        .await;
+        assert_eq!(refused.status_code(), 401, "{}", refused.text());
+        assert_within(
+            "forged bearer on userinfo",
+            FORGED_BEARER_BUDGET,
+            &statements,
+        );
+
+        let (refused, statements) = capture(async {
+            server
+                .get(&app.path("/users"))
+                .authorization_bearer(&forged)
+                .await
+        })
+        .await;
+        assert_eq!(refused.status_code(), 401, "{}", refused.text());
+        assert_within(
+            "forged bearer on the management api",
+            FORGED_BEARER_BUDGET,
+            &statements,
+        );
     });
 }
 
