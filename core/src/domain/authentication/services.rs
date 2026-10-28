@@ -3389,7 +3389,7 @@ where
 
         let user = self
             .user_repository
-            .get_by_id(claims.sub)
+            .get_by_id_without_relations(claims.sub)
             .await
             .map_err(|_| CoreError::InternalServerError)?
             .in_realm(&params.realm)
