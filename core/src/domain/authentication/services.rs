@@ -2359,6 +2359,27 @@ where
         Ok(jwt)
     }
 
+    async fn ensure_session_binding(
+        &self,
+        claimed_sid: Option<Uuid>,
+        realm_id: RealmId,
+    ) -> Result<(), CoreError> {
+        let session = match claimed_sid {
+            Some(sid) => self
+                .user_session_repository
+                .find_by_id(sid)
+                .await
+                .map_err(|e| {
+                    warn!(session_id = %sid, error = ?e, "Failed to load the session backing a token");
+                    CoreError::InternalServerError
+                })?
+                .map(Unscoped::across_realms),
+            None => None,
+        };
+
+        validate_session_binding(claimed_sid, session.as_ref(), realm_id, Utc::now())
+    }
+
     #[instrument(skip(self, token))]
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
@@ -2382,25 +2403,8 @@ where
             return Err(CoreError::ExpiredToken);
         }
 
-        let session = match token_data.claims.sid {
-            Some(sid) => self
-                .user_session_repository
-                .find_by_id(sid)
-                .await
-                .map_err(|e| {
-                    warn!(session_id = %sid, error = ?e, "Failed to load the session backing a token");
-                    CoreError::InternalServerError
-                })?
-                .map(Unscoped::across_realms),
-            None => None,
-        };
-
-        validate_session_binding(
-            token_data.claims.sid,
-            session.as_ref(),
-            realm_id,
-            Utc::now(),
-        )?;
+        self.ensure_session_binding(token_data.claims.sid, realm_id)
+            .await?;
 
         // Enforce immediate revocation: of this token, or of all the user's tokens.
         if token_data.claims.typ == ClaimsTyp::Bearer {
@@ -5473,6 +5477,12 @@ where
 
             let claims: JwtClaim = serde_json::from_value(stored.claims)
                 .map_err(|_| CoreError::InternalServerError)?;
+
+            match self.ensure_session_binding(claims.sid, scope.id()).await {
+                Ok(()) => {}
+                Err(CoreError::SessionRevoked) => return Ok(inactive),
+                Err(error) => return Err(error),
+            }
 
             return Ok(Self::claims_to_introspection_response(
                 claims,
