@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use std::thread;
 
 use base64::prelude::{BASE64_URL_SAFE_NO_PAD, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
@@ -11,6 +12,7 @@ use jsonwebtoken::{Header, Validation};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
+use tokio::sync::Semaphore;
 use tracing::{Instrument, error, info, info_span, instrument, warn};
 use uuid::Uuid;
 
@@ -5953,6 +5955,9 @@ where
     }
 }
 
+static SIGNING_PERMITS: LazyLock<Semaphore> =
+    LazyLock::new(|| Semaphore::new(thread::available_parallelism().map_or(1, usize::from)));
+
 async fn encode_token_with_key<T: Serialize>(
     claims: &T,
     expires_at: i64,
@@ -5962,18 +5967,26 @@ async fn encode_token_with_key<T: Serialize>(
     header.kid = Some(key_pair.id.to_string());
     let signing_input = signing_input(&header, claims).map_err(token_generation_error)?;
 
-    let key = key_pair.encoding_key.clone();
-    let algorithm = header.alg;
+    let permit = SIGNING_PERMITS
+        .acquire()
+        .await
+        .map_err(token_generation_error)?;
+    let signer = key_pair.signer();
     let (signing_input, signature) = tokio::task::spawn_blocking(move || {
-        jsonwebtoken::crypto::sign(signing_input.as_bytes(), &key, algorithm)
+        let _permit = permit;
+        signer
+            .sign_rs256(signing_input.as_bytes())
             .map(|signature| (signing_input, signature))
     })
     .await
-    .map_err(|e| token_generation_error(e.to_string()))?
+    .map_err(token_generation_error)?
     .map_err(token_generation_error)?;
 
     Ok(Jwt {
-        token: format!("{signing_input}.{signature}"),
+        token: format!(
+            "{signing_input}.{}",
+            BASE64_URL_SAFE_NO_PAD.encode(signature)
+        ),
         expires_at,
     })
 }
@@ -6031,6 +6044,43 @@ mod tests {
         validation.validate_aud = false;
         jsonwebtoken::decode::<serde_json::Value>(&jwt.token, &decoding, &validation)
             .expect("the signature verifies");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_signatures_all_verify_and_return_every_permit() {
+        use ferriskey_security::jwt::entities::JwtKeyPair;
+        use jsonwebtoken::{Algorithm, DecodingKey, Validation};
+
+        let (private, public) = JwtKeyPair::generate().expect("generate a key");
+        let certificate =
+            JwtKeyPair::self_signed_certificate(&private, "test").expect("certificate");
+        let key = JwtKeyPair::from_pem(
+            &private,
+            &public,
+            &certificate,
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        )
+        .expect("key pair");
+        let capacity = super::SIGNING_PERMITS.available_permits();
+        let signing = (0..capacity * 4).map(|n| {
+            let key = key.clone();
+            tokio::spawn(async move {
+                let claims = serde_json::json!({ "sub": n, "exp": 4_102_444_800_i64 });
+                super::encode_token_with_key(&claims, 4_102_444_800, &key).await
+            })
+        });
+
+        let decoding = DecodingKey::from_rsa_pem(public.as_bytes()).expect("public key");
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_aud = false;
+        for task in signing.collect::<Vec<_>>() {
+            let jwt = task.await.expect("join").expect("sign");
+            jsonwebtoken::decode::<serde_json::Value>(&jwt.token, &decoding, &validation)
+                .expect("the signature verifies");
+        }
+
+        assert_eq!(super::SIGNING_PERMITS.available_permits(), capacity);
     }
 
     use super::{
