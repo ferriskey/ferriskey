@@ -172,6 +172,9 @@ use crate::infrastructure::aegis::cache::{
 };
 use crate::infrastructure::client::cache::CachedClientRepository;
 use crate::infrastructure::realm::cache::CachedRealmRepository;
+use crate::infrastructure::token_state::{
+    CachedAccessTokenRepository, CachedUserSessionRepository,
+};
 
 type RealmRepo = CachedRealmRepository<PostgresRealmRepository>;
 type ClientRepo = CachedClientRepository<PostgresClientRepository>;
@@ -260,7 +263,7 @@ type ApplicationOtherSessionsRevocation =
 type UserAttributeRepo = PostgresUserAttributeRepository;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
-type AccessTokenRepo = PostgresAccessTokenRepository;
+type AccessTokenRepo = CachedAccessTokenRepository<PostgresAccessTokenRepository>;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
 type FederationRepo = FederationRepositoryImpl;
 type BrokerAuthSessionRepo = PostgresBrokerAuthSessionRepository;
@@ -293,10 +296,12 @@ type GroupRoleRepo = PostgresGroupRoleRepository;
 type GroupAttributeRepo = PostgresGroupAttributeRepository;
 type GroupTokenRepo = PostgresGroupTokenRepository;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
-type UserSessionRepo = crate::infrastructure::backchannel_logout::NotifyingUserSessionRepository<
-    PostgresUserSessionRepository,
-    crate::infrastructure::backchannel_logout::PostgresSessionParticipantRepository,
-    crate::infrastructure::backchannel_logout::BackchannelLogoutDispatcher,
+type UserSessionRepo = CachedUserSessionRepository<
+    crate::infrastructure::backchannel_logout::NotifyingUserSessionRepository<
+        PostgresUserSessionRepository,
+        crate::infrastructure::backchannel_logout::PostgresSessionParticipantRepository,
+        crate::infrastructure::backchannel_logout::BackchannelLogoutDispatcher,
+    >,
 >;
 
 type PolicyImpl =

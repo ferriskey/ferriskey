@@ -7,7 +7,7 @@ use std::time::Duration;
 use base64::Engine as _;
 use common::{
     ADMIN_CLIENT_ID, ADMIN_PASSWORD, ADMIN_USERNAME, ClientSpec, TestApp, authorize, cached_app,
-    client_credentials, exchange_code, password_grant, query_param, refresh, rt,
+    client_credentials, exchange_code, introspect, password_grant, query_param, refresh, rt,
 };
 use serde_json::{Value, json};
 use tracing::field::{Field, Visit};
@@ -22,11 +22,13 @@ const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
-const USERINFO_BUDGET: usize = 4;
+const USERINFO_BUDGET: usize = 2;
+const INTROSPECT_BUDGET: usize = 1;
 const REFRESH_BUDGET: usize = 8;
 const FORGED_BEARER_BUDGET: usize = 0;
 
 const BACKGROUND_WORK: &[&str] = &[
+    "pg_notify",
     "webhook_deliveries",
     "webhook_outbox",
     "device_auth_sessions",
@@ -355,6 +357,11 @@ fn a_login_stays_within_its_statement_budget() {
         assert_eq!(refreshed.status_code(), 200, "{}", refreshed.text());
         assert_within("refresh", REFRESH_BUDGET, &statements);
 
+        let warm = server
+            .get(&app.oidc("userinfo"))
+            .authorization_bearer(&access_token)
+            .await;
+        assert_eq!(warm.status_code(), 200, "{}", warm.text());
         let (info, statements) = capture(async {
             server
                 .get(&app.oidc("userinfo"))
@@ -364,6 +371,12 @@ fn a_login_stays_within_its_statement_budget() {
         .await;
         assert_eq!(info.status_code(), 200, "{}", info.text());
         assert_within("userinfo", USERINFO_BUDGET, &statements);
+
+        introspect(&server, app, &service, &access_token).await;
+        let (introspected, statements) =
+            capture(introspect(&server, app, &service, &access_token)).await;
+        assert_eq!(introspected["active"], json!(true), "{introspected}");
+        assert_within("introspect", INTROSPECT_BUDGET, &statements);
 
         let forged = with_forged_signature(&access_token);
 

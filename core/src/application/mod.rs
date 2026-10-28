@@ -36,6 +36,9 @@ use crate::infrastructure::backchannel_logout::{
     BackchannelLogoutDispatcher, HttpLogoutTokenSender, KeystoreLogoutTokenSigner,
     NotifyingUserSessionRepository, PostgresSessionParticipantRepository,
 };
+use crate::infrastructure::token_state::{
+    CachedAccessTokenRepository, CachedUserSessionRepository, TokenState, spawn_token_state_sync,
+};
 use crate::{
     domain::{
         abyss::{
@@ -311,7 +314,19 @@ pub async fn create_service_with_secrets(
     ));
     let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
     let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
-    let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
+    let (token_state, token_state_feed) = TokenState::new(config_cache_ttl);
+    if !config_cache_ttl.is_zero() {
+        spawn_token_state_sync(
+            postgres.get_db().get_postgres_connection_pool(),
+            token_state.clone(),
+            token_state_feed,
+        );
+    }
+    let stored_access_tokens = PostgresAccessTokenRepository::new(postgres.get_db());
+    let access_token = Arc::new(CachedAccessTokenRepository::new(
+        stored_access_tokens.clone(),
+        token_state.clone(),
+    ));
     // Every session deleted through this store sends a logout token to the
     // clients that took part in it (OIDC Back-Channel Logout).
     let backchannel_logout =
@@ -322,10 +337,13 @@ pub async fn create_service_with_secrets(
             Arc::new(HttpLogoutTokenSender::new(private_endpoints)),
             BackchannelLogoutConfig::default(),
         )));
-    let user_session = Arc::new(NotifyingUserSessionRepository::new(
-        Arc::new(PostgresUserSessionRepository::new(postgres.get_db())),
-        Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
-        backchannel_logout,
+    let user_session = Arc::new(CachedUserSessionRepository::new(
+        Arc::new(NotifyingUserSessionRepository::new(
+            Arc::new(PostgresUserSessionRepository::new(postgres.get_db())),
+            Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
+            backchannel_logout,
+        )),
+        token_state.clone(),
     ));
     let token_revocation = Arc::new(
         crate::application::token_revocation::TokenRevocationAdapter::new(
@@ -553,7 +571,7 @@ pub async fn create_service_with_secrets(
         DEVICE_SESSION_PURGE_PERIOD,
     ));
     tokio::spawn(expired_rows_retention_task(
-        access_token.as_ref().clone(),
+        stored_access_tokens,
         refresh_token.as_ref().clone(),
         PostgresUserSessionRepository::new(postgres.get_db()),
     ));
