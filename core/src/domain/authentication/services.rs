@@ -4876,34 +4876,33 @@ where
             return Err(CoreError::InvalidToken);
         }
 
+        let realm_name =
+            realm_name_from_issuer(&input.claims.iss).ok_or(CoreError::InvalidToken)?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), realm_name)
+            .await
+            .map_err(|_| CoreError::InvalidToken)?;
+
+        let verified = self.verify_token(input.token, scope.id()).await?;
+
         let user = self
             .user_repository
-            .get_by_id(input.claims.sub)
+            .get_by_id(verified.sub)
             .await?
-            .across_realms();
-
-        let verified = self.verify_token(input.token, user.realm_id).await?;
+            .in_realm(&scope)
+            .map_err(|_| CoreError::InvalidToken)?
+            .into_inner();
 
         if input.usage == TokenUsage::ManagementApi {
-            let realm = self
-                .realm_repository
-                .get_by_id(user.realm_id)
-                .await?
-                .ok_or(CoreError::InvalidRealm)?;
             let authorized_party = if verified.azp.is_empty() {
                 None
             } else {
                 self.client_repository
-                    .get_by_client_id(verified.azp.clone(), user.realm_id)
+                    .get_by_client_id(verified.azp.clone(), scope.id())
                     .await
                     .ok()
                     .map(|client| client.across_realms())
             };
-            ensure_issued_for_management(
-                &verified,
-                realm.name.as_str(),
-                authorized_party.as_ref(),
-            )?;
+            ensure_issued_for_management(&verified, scope.name(), authorized_party.as_ref())?;
         }
 
         let identity: Identity = match verified.is_service_account() {
@@ -6002,6 +6001,11 @@ fn signing_input<T: Serialize>(header: &Header, claims: &T) -> Result<String, St
     ))
 }
 
+fn realm_name_from_issuer(issuer: &str) -> Option<&str> {
+    let (_, name) = issuer.rsplit_once("/realms/")?;
+    (!name.is_empty() && !name.contains('/')).then_some(name)
+}
+
 fn token_generation_error(error: impl ToString) -> CoreError {
     let message = error.to_string();
     tracing::error!("JWT generation error: {}", message);
@@ -6081,6 +6085,33 @@ mod tests {
         }
 
         assert_eq!(super::SIGNING_PERMITS.available_permits(), capacity);
+    }
+
+    #[test]
+    fn the_realm_is_the_last_segment_of_the_issuer() {
+        use super::realm_name_from_issuer;
+
+        assert_eq!(
+            realm_name_from_issuer("https://auth.example/realms/master"),
+            Some("master")
+        );
+        assert_eq!(
+            realm_name_from_issuer("http://localhost:3333/root/realms/acme"),
+            Some("acme")
+        );
+    }
+
+    #[test]
+    fn an_issuer_without_a_realm_names_none() {
+        use super::realm_name_from_issuer;
+
+        assert_eq!(realm_name_from_issuer(""), None);
+        assert_eq!(realm_name_from_issuer("https://auth.example"), None);
+        assert_eq!(realm_name_from_issuer("https://auth.example/realms/"), None);
+        assert_eq!(
+            realm_name_from_issuer("https://auth.example/realms/master/extra"),
+            None
+        );
     }
 
     use super::{
