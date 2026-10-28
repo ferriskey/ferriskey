@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use aws_lc_rs::{
     encoding::{AsDer, Pkcs8V1Der, PublicKeyX509Der},
+    rand::SystemRandom,
     rsa::{KeyPair, KeySize, PublicKey},
-    signature::KeyPair as _,
+    signature::{KeyPair as _, RSA_PKCS1_SHA256},
 };
 use base64::{
     Engine,
@@ -230,6 +231,26 @@ pub struct JwtKeyPair {
     pub private_key: String,
     pub public_key: String,
     pub certificate: String,
+    signer: RsaSigner,
+}
+
+#[derive(Clone)]
+pub struct RsaSigner(Arc<KeyPair>);
+
+impl RsaSigner {
+    pub fn sign_rs256(&self, message: &[u8]) -> Result<Vec<u8>, SecurityError> {
+        let mut signature = vec![0; self.0.public_modulus_len()];
+        self.0
+            .sign(
+                &RSA_PKCS1_SHA256,
+                &SystemRandom::new(),
+                message,
+                &mut signature,
+            )
+            .map_err(|e| SecurityError::GenerationError(e.to_string()))?;
+
+        Ok(signature)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
@@ -383,6 +404,9 @@ impl JwtKeyPair {
         let decoding_key = DecodingKey::from_rsa_pem(public_pem.as_bytes())
             .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
 
+        let signing_key = KeyPair::from_der(encoding_key.as_bytes())
+            .map_err(|e| SecurityError::InvalidKey(e.to_string()))?;
+
         Ok(Self {
             id,
             realm_id,
@@ -391,7 +415,12 @@ impl JwtKeyPair {
             private_key: private_pem.to_string(),
             public_key: public_pem.to_string(),
             certificate: certificate_pem.to_string(),
+            signer: RsaSigner(Arc::new(signing_key)),
         })
+    }
+
+    pub fn signer(&self) -> RsaSigner {
+        self.signer.clone()
     }
 
     pub fn self_signed_certificate(
@@ -558,6 +587,55 @@ mod tests {
         assert_eq!(
             token,
             "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJleHAiOjQxMDI0NDQ4MDAsImlzcyI6Imh0dHBzOi8vYXV0aC5leGFtcGxlLmNvbS9yZWFsbXMvbWFzdGVyIiwic3ViIjoiYWxpY2UifQ.MTgaSkhCQu0LKzaR79uwNgROk4kMMYpyP4CxKQ0o3pr4qJTVjgu619TEvUJOuVKFyIZ47s787Zw7zgmYj_JVsemvlYg8hC82b5fLuBq45ZbZAhlIaLNQbBx7a1qBRVv2e1vV9q3qpGGcekVUO0Ut8YEwag2BnFZ7XbhjAAJBr8p4M9RyFxh6GOf9kjkFdp7GunVik4sELqB712eHisT1flditLsHe7GHORLZEGV2HN9xlAgA-NJMBLn0yAOX7A69AoMOjybrm0IDUNS69pZ64Tof-ndr7iKG6lSjIwDNlJEfcyOKeiWPUUHedRQHrWoK640Sy94wNxxoprPk6HDhVA"
+        );
+    }
+
+    #[test]
+    fn a_kept_key_pair_signs_the_same_bytes_as_the_library() {
+        let key_pair = stored_key_pair();
+        let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+        let claims = serde_json::json!({ "exp": 4102444800u64, "sub": "alice" });
+        let token = jsonwebtoken::encode(&header, &claims, &key_pair.encoding_key)
+            .expect("sign with the library");
+        let (signing_input, library_signature) = token.rsplit_once('.').expect("a compact JWS");
+
+        let signature = key_pair
+            .signer()
+            .sign_rs256(signing_input.as_bytes())
+            .expect("sign with the kept key");
+
+        assert_eq!(BASE64_URL_SAFE_NO_PAD.encode(signature), library_signature);
+    }
+
+    #[test]
+    fn a_signature_from_a_kept_key_pair_verifies_against_the_public_key() {
+        let key_pair = stored_key_pair();
+        let message = b"header.claims";
+
+        let signature = key_pair.signer().sign_rs256(message).expect("sign");
+
+        assert!(
+            jsonwebtoken::crypto::verify(
+                &BASE64_URL_SAFE_NO_PAD.encode(signature),
+                message,
+                &key_pair.decoding_key,
+                jsonwebtoken::Algorithm::RS256,
+            )
+            .expect("verify")
+        );
+    }
+
+    #[test]
+    fn a_kept_key_pair_clone_signs_like_the_original() {
+        let key_pair = stored_key_pair();
+        let clone = key_pair.clone();
+
+        assert_eq!(
+            key_pair.signer().sign_rs256(b"message").expect("sign"),
+            clone
+                .signer()
+                .sign_rs256(b"message")
+                .expect("sign with the clone")
         );
     }
 
