@@ -38,21 +38,30 @@ impl From<crate::entity::access_tokens::Model> for AccessToken {
 #[derive(Debug, Clone)]
 pub struct PostgresAccessTokenRepository {
     pub db: DatabaseConnection,
+    issued_db: DatabaseConnection,
     writer: Arc<OnceLock<CoalescingWriter<access_tokens::ActiveModel>>>,
 }
 
 impl PostgresAccessTokenRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self {
+            issued_db: db.clone(),
             db,
             writer: Arc::new(OnceLock::new()),
         }
     }
 
+    /// Issued tokens are written through `issued_db`. A row lost on a database crash only
+    /// sends introspection to the signature check; revocations keep using the durable pool.
+    pub fn with_issued_tokens_written_through(mut self, issued_db: DatabaseConnection) -> Self {
+        self.issued_db = issued_db;
+        self
+    }
+
     fn writer(&self) -> &CoalescingWriter<access_tokens::ActiveModel> {
         self.writer.get_or_init(|| {
             CoalescingWriter::spawn(Arc::new(AccessTokenSink {
-                db: self.db.clone(),
+                db: self.issued_db.clone(),
             }))
         })
     }

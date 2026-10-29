@@ -3,10 +3,12 @@ use std::time::Duration;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 pub const IDLE_CONNECTION_TIMEOUT: Duration = Duration::from_secs(60);
+pub const ASYNC_COMMIT_CONNECTIONS: u32 = 4;
 
 #[derive(Debug, Clone)]
 pub struct Postgres {
     db: DatabaseConnection,
+    async_commit_db: DatabaseConnection,
 }
 
 pub struct PostgresConfig {
@@ -18,12 +20,22 @@ pub struct PostgresConfig {
 impl Postgres {
     pub async fn new(config: PostgresConfig) -> Result<Self, anyhow::Error> {
         let db = Database::connect(connect_options(&config)).await?;
+        let async_commit_db = Database::connect(async_commit_options(&config)).await?;
 
-        Ok(Self { db })
+        Ok(Self {
+            db,
+            async_commit_db,
+        })
     }
 
     pub fn get_db(&self) -> DatabaseConnection {
         self.db.clone()
+    }
+
+    /// Commits on this pool return before the WAL reaches the disk. Only for rows whose loss
+    /// on a database crash is harmless, such as the access token index.
+    pub fn get_async_commit_db(&self) -> DatabaseConnection {
+        self.async_commit_db.clone()
     }
 }
 
@@ -38,6 +50,14 @@ fn connect_options_releasing_after(config: &PostgresConfig, idle: Duration) -> C
         .idle_timeout(idle);
     opt.sqlx_logging(true)
         .sqlx_logging_level(log::LevelFilter::Debug);
+    opt
+}
+
+fn async_commit_options(config: &PostgresConfig) -> ConnectOptions {
+    let mut opt = connect_options(config);
+    opt.max_connections(ASYNC_COMMIT_CONNECTIONS)
+        .min_connections(0)
+        .map_sqlx_postgres_opts(|options| options.options([("synchronous_commit", "off")]));
     opt
 }
 
@@ -106,5 +126,51 @@ mod tests {
             "the pool still holds {} connections",
             pool.size()
         );
+    }
+
+    #[test]
+    fn the_async_commit_pool_holds_one_connection_per_access_token_writer() {
+        let options = async_commit_options(&config(20, 2));
+
+        assert_eq!(
+            options.get_max_connections(),
+            Some(ASYNC_COMMIT_CONNECTIONS)
+        );
+        assert_eq!(options.get_min_connections(), Some(0));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn only_the_async_commit_pool_skips_waiting_for_the_disk() {
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://ferriskey:ferriskey@localhost:5432/ferriskey".to_string()
+        });
+        let postgres = Postgres::new(PostgresConfig {
+            database_url,
+            max_connections: 2,
+            min_connections: 1,
+        })
+        .await
+        .expect("connect");
+
+        assert_eq!(synchronous_commit(&postgres.get_db()).await, "on");
+        assert_eq!(
+            synchronous_commit(&postgres.get_async_commit_db()).await,
+            "off"
+        );
+    }
+
+    async fn synchronous_commit(db: &DatabaseConnection) -> String {
+        use sea_orm::{ConnectionTrait, Statement};
+
+        db.query_one(Statement::from_string(
+            db.get_database_backend(),
+            "SHOW synchronous_commit",
+        ))
+        .await
+        .expect("query")
+        .expect("a row")
+        .try_get_by_index::<String>(0)
+        .expect("a setting")
     }
 }
