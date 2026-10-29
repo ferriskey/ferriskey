@@ -155,6 +155,7 @@ impl TestApp {
                 client_metadata_allow_private_endpoints: false,
                 config_cache_ttl_seconds,
                 password_hashing: PasswordHashingCost::default(),
+                refresh_token_format: Default::default(),
                 webapp_url: "http://localhost:5555".to_string(),
                 database: DatabaseConfig {
                     host,

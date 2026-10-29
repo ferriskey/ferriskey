@@ -3,8 +3,26 @@
 use std::{fmt::Display, num::NonZeroUsize, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig, PasswordHashingCost};
+use ferriskey_core::domain::common::{
+    DatabaseConfig, FerriskeyConfig, PasswordHashingCost, RefreshTokenFormat,
+};
 use url::Url;
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default, PartialEq, Eq)]
+pub enum RefreshTokenFormatArg {
+    #[default]
+    Jwt,
+    Opaque,
+}
+
+impl From<RefreshTokenFormatArg> for RefreshTokenFormat {
+    fn from(value: RefreshTokenFormatArg) -> Self {
+        match value {
+            RefreshTokenFormatArg::Jwt => RefreshTokenFormat::Jwt,
+            RefreshTokenFormatArg::Opaque => RefreshTokenFormat::Opaque,
+        }
+    }
+}
 
 #[derive(Debug, Clone, ValueEnum, Default)]
 #[deprecated]
@@ -111,6 +129,14 @@ pub struct Args {
     )]
     pub config_cache_ttl_seconds: u64,
     #[arg(
+        long = "refresh-token-format",
+        env = "REFRESH_TOKEN_FORMAT",
+        value_enum,
+        default_value_t = RefreshTokenFormatArg::Jwt,
+        long_help = "Format of newly issued refresh tokens: `jwt` (RS256 JWT) or `opaque` (`fkr_` + 32 random bytes, only its SHA-256 is stored). Both formats are always accepted, so switching is safe during a rolling update or a rollback."
+    )]
+    pub refresh_token_format: RefreshTokenFormatArg,
+    #[arg(
         long = "password-hash-memory-kib",
         env = "PASSWORD_HASH_MEMORY_KIB",
         default_value_t = 7168,
@@ -170,6 +196,7 @@ impl Default for Args {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 5,
+            refresh_token_format: RefreshTokenFormatArg::Jwt,
             password_hash_memory_kib: 7168,
             password_hash_iterations: 5,
             password_hash_parallelism: 1,
@@ -537,6 +564,7 @@ impl From<Args> for FerriskeyConfig {
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
             client_metadata_allow_private_endpoints: value.client_metadata_allow_private_endpoints,
             config_cache_ttl_seconds: value.config_cache_ttl_seconds,
+            refresh_token_format: value.refresh_token_format.into(),
             password_hashing: PasswordHashingCost {
                 memory_kib: value.password_hash_memory_kib,
                 iterations: value.password_hash_iterations,

@@ -971,6 +971,7 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -1180,6 +1181,7 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
