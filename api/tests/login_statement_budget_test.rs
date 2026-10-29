@@ -23,9 +23,9 @@ const AUTHORIZE_BUDGET: usize = 4;
 const AUTHENTICATE_BUDGET: usize = 9;
 const CODE_EXCHANGE_BUDGET: usize = 12;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
-const USERINFO_BUDGET: usize = 2;
+const USERINFO_BUDGET: usize = 0;
 const INTROSPECT_BUDGET: usize = 1;
-const REFRESH_BUDGET: usize = 7;
+const REFRESH_BUDGET: usize = 6;
 const OPAQUE_REFRESH_BUDGET: usize = 2;
 const MALFORMED_REFRESH_BUDGET: usize = 0;
 const FORGED_BEARER_BUDGET: usize = 0;
@@ -46,6 +46,13 @@ const BACKGROUND_WORK: &[&str] = &[
 
 static STATEMENTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static RECORDER: OnceLock<()> = OnceLock::new();
+static SERIAL: Mutex<()> = Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 struct StatementRecorder;
 
@@ -247,6 +254,7 @@ async fn client_with_default_scopes(app: &TestApp) -> common::SeededClient {
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
 fn spec_rtp_13_an_opaque_refresh_stays_within_two_statements() {
+    let _serial = serial();
     record_statements();
     let app = cached_opaque_app();
 
@@ -288,6 +296,7 @@ fn spec_rtp_13_an_opaque_refresh_stays_within_two_statements() {
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
 fn spec_rtp_12_a_malformed_token_is_rejected_without_sql() {
+    let _serial = serial();
     record_statements();
     let app = cached_opaque_app();
 
@@ -313,6 +322,7 @@ fn spec_rtp_12_a_malformed_token_is_rejected_without_sql() {
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
 fn a_login_stays_within_its_statement_budget() {
+    let _serial = serial();
     record_statements();
     let app = cached_app();
 
