@@ -220,7 +220,16 @@ mod db_tests {
         let jti = Uuid::new_v4();
         fixture
             .refresh_tokens
-            .create(jti, fixture.user_id, Some(expires_at), None, None)
+            .create(
+                jti,
+                fixture.user_id,
+                Some(expires_at),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .expect("create refresh token");
         jti

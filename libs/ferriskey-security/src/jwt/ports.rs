@@ -4,15 +4,37 @@ use uuid::Uuid;
 
 use crate::{
     SecurityError,
-    jwt::entities::{AccessToken, Jwt, JwtClaim, JwtKeyPair, RefreshToken},
+    jwt::{
+        RefreshTokenHash,
+        entities::{AccessToken, Jwt, JwtClaim, JwtKeyPair, RefreshToken},
+    },
 };
 
 /// Result of an atomic rotate operation.
+#[allow(clippy::large_enum_variant)]
 pub enum RotateOutcome {
     /// The old token was atomically superseded; new token is returned.
     Rotated(RefreshToken),
     /// The conditional UPDATE matched 0 rows — a concurrent rotation already won.
     Conflict,
+}
+
+/// The refresh token that replaces a consumed one. User, family, client, scope,
+/// session and resource are inherited from the consumed row by the statement.
+pub struct RefreshTokenSuccessor {
+    pub id: Uuid,
+    pub jti: Uuid,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub token_hash: Option<RefreshTokenHash>,
+}
+
+#[allow(clippy::large_enum_variant)]
+pub enum ConsumeOutcome {
+    Rotated {
+        consumed: RefreshToken,
+        successor: RefreshToken,
+    },
+    NotConsumed,
 }
 
 pub trait JwtService: Send + Sync {
@@ -40,6 +62,7 @@ pub trait JwtService: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait RefreshTokenRepository: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     fn create(
         &self,
         jti: Uuid,
@@ -47,9 +70,13 @@ pub trait RefreshTokenRepository: Send + Sync {
         expires_at: Option<DateTime<Utc>>,
         session_id: Option<Uuid>,
         resource: Option<String>,
+        token_hash: Option<RefreshTokenHash>,
+        client_id: Option<String>,
+        scope: Option<String>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
 
     /// Create a new refresh token that belongs to an existing token family.
+    #[allow(clippy::too_many_arguments)]
     fn create_in_family(
         &self,
         jti: Uuid,
@@ -58,6 +85,9 @@ pub trait RefreshTokenRepository: Send + Sync {
         expires_at: Option<DateTime<Utc>>,
         session_id: Option<Uuid>,
         resource: Option<String>,
+        token_hash: Option<RefreshTokenHash>,
+        client_id: Option<String>,
+        scope: Option<String>,
     ) -> impl Future<Output = Result<RefreshToken, SecurityError>> + Send;
 
     fn get_by_jti(
@@ -72,6 +102,7 @@ pub trait RefreshTokenRepository: Send + Sync {
     ///
     /// Returns `RotateOutcome::Conflict` when 0 rows were updated, indicating a
     /// concurrent rotation already consumed this token.
+    #[allow(clippy::too_many_arguments)]
     fn rotate(
         &self,
         old_id: Uuid,
@@ -79,7 +110,31 @@ pub trait RefreshTokenRepository: Send + Sync {
         user_id: Uuid,
         family_id: Uuid,
         new_expires_at: Option<DateTime<Utc>>,
+        token_hash: Option<RefreshTokenHash>,
+        client_id: Option<String>,
+        scope: Option<String>,
     ) -> impl Future<Output = Result<RotateOutcome, SecurityError>> + Send;
+
+    /// Consume the active, unexpired token with this hash that belongs to
+    /// `client_id` and insert its successor, in one statement.
+    fn consume_and_rotate(
+        &self,
+        hash: RefreshTokenHash,
+        client_id: &str,
+        successor: RefreshTokenSuccessor,
+    ) -> impl Future<Output = Result<ConsumeOutcome, SecurityError>> + Send;
+
+    fn get_by_hash(
+        &self,
+        hash: RefreshTokenHash,
+    ) -> impl Future<Output = Result<Option<RefreshToken>, SecurityError>> + Send;
+
+    /// True when a token of `client_id` with this hash was revoked.
+    fn revoke_by_hash(
+        &self,
+        hash: RefreshTokenHash,
+        client_id: &str,
+    ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 
     /// Revoke every token that shares the given family_id.
     fn revoke_family(

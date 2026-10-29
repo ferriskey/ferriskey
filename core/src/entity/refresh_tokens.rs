@@ -3,6 +3,7 @@
 //! and session_id. Regenerate against a live DB after running migration 20260815120000.
 
 use sea_orm::entity::prelude::*;
+use sea_orm::sea_query::StringLen;
 
 #[derive(Copy, Clone, Default, Debug, DeriveEntity)]
 pub struct Entity;
@@ -31,6 +32,9 @@ pub struct Model {
     pub rotated_at: Option<DateTimeWithTimeZone>,
     pub session_id: Option<Uuid>,
     pub resource: Option<String>,
+    pub token_hash: Option<Vec<u8>>,
+    pub client_id: Option<String>,
+    pub scope: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -47,6 +51,9 @@ pub enum Column {
     RotatedAt,
     SessionId,
     Resource,
+    TokenHash,
+    ClientId,
+    Scope,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -82,6 +89,9 @@ impl ColumnTrait for Column {
             Self::RotatedAt => ColumnType::TimestampWithTimeZone.def().null(),
             Self::SessionId => ColumnType::Uuid.def().null(),
             Self::Resource => ColumnType::Text.def().null(),
+            Self::TokenHash => ColumnType::VarBinary(StringLen::None).def().null(),
+            Self::ClientId => ColumnType::Text.def().null(),
+            Self::Scope => ColumnType::Text.def().null(),
         }
     }
 }

@@ -314,6 +314,9 @@ pub struct RefreshToken {
     /// When this token was rotated (diagnostics).
     pub rotated_at: Option<DateTime<Utc>>,
     pub resource: Option<String>,
+    pub session_id: Option<Uuid>,
+    pub client_id: Option<String>,
+    pub scope: Option<String>,
 }
 
 impl RefreshToken {
@@ -342,6 +345,9 @@ impl RefreshToken {
             replaced_by: None,
             rotated_at: None,
             resource: None,
+            session_id: None,
+            client_id: None,
+            scope: None,
         }
     }
 }
