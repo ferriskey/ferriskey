@@ -219,11 +219,11 @@ export function usePortalPageSubmit(
       const password = String(data.get('password') ?? '')
       const passwordConfirm = String(data.get('password_confirm') ?? '')
       if (passwordConfirm && passwordConfirm !== password) {
-        toast.error(t('form.passwords_mismatch'))
+        onFormError?.(t('form.passwords_mismatch'))
         return
       }
       if (!email || !password) {
-        toast.error(t('form.register_fields_required'))
+        onFormError?.(t('form.register_fields_required'))
         return
       }
       onFormError?.(null)
