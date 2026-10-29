@@ -26,6 +26,7 @@ import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
 import { AUTH_NAMESPACE, DEVICE_ACTION, type DeviceAction } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
 import { continueLogin } from '../utils/continue-login'
+import { resolveRegisterUsername } from '../utils/register-username'
 
 export type DeviceVerifyResult = 'approved' | 'denied' | null
 
@@ -226,21 +227,25 @@ export function usePortalPageSubmit(
         toast.error(t('form.register_fields_required'))
         return
       }
-      registration({
-        path: { realm_name: realm_name ?? 'master' },
-        body: {
-          email,
-          password,
-          // Username defaults to the local-part of the email so a tree that
-          // omits the field still produces a valid record — admins who want
-          // explicit usernames just add a `username_input` block.
-          username: String(data.get('username') ?? '').trim() || email.split('@')[0],
-          first_name: String(data.get('first_name') ?? '').trim() || null,
-          last_name: String(data.get('last_name') ?? '').trim() || null,
+      onFormError?.(null)
+      registration(
+        {
+          path: { realm_name: realm_name ?? 'master' },
+          body: {
+            email,
+            password,
+            username: resolveRegisterUsername(String(data.get('username') ?? ''), email),
+            first_name: String(data.get('first_name') ?? '').trim() || null,
+            last_name: String(data.get('last_name') ?? '').trim() || null,
+          },
         },
-      })
+        {
+          onError: (error: Error) =>
+            onFormError?.(apiErrorMessage(error, t('form.register_failed'))),
+        },
+      )
     },
-    [realm_name, registration, t],
+    [onFormError, realm_name, registration, t],
   )
 
   // Verify-email: the only meaningful action from the user is "send me
