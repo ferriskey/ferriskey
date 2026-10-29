@@ -27,7 +27,7 @@ use ferriskey_api_core::{
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegistrationRequest {
     #[validate(length(min = 1, max = 255, message = "username is required"))]
-    pub username: String,
+    pub username: Option<String>,
     #[validate(
         email(message = "email must be a valid address"),
         length(max = 255, message = "email is too long")
@@ -118,7 +118,7 @@ pub async fn registration_handler(
         .validate_password_policy_for_identity(
             realm_name.clone(),
             &req.password,
-            Some(req.username.trim()),
+            req.username.as_deref().map(str::trim),
             Some(req.email.trim()),
         )
         .await?;
@@ -172,7 +172,7 @@ mod tests {
         }"#;
 
         let request: RegistrationRequest = serde_json::from_str(json).unwrap();
-        assert_eq!(request.username, "testuser");
+        assert_eq!(request.username.as_deref(), Some("testuser"));
         assert_eq!(request.email, "test@example.com");
         assert_eq!(request.password, "password123");
         assert_eq!(request.first_name, Some("John".to_string()));
@@ -185,8 +185,18 @@ mod tests {
 
         assert!(
             parsed.is_err(),
-            "username, email and password are required: a bare body must not deserialize into empty strings"
+            "email and password are required: a bare body must not deserialize into empty strings"
         );
+    }
+
+    #[test]
+    fn a_body_without_username_is_valid_and_leaves_the_choice_to_the_server() {
+        let request: RegistrationRequest =
+            serde_json::from_str(r#"{"email": "contact@a.fr", "password": "password123"}"#)
+                .expect("a username is optional");
+
+        assert_eq!(request.username, None);
+        assert!(request.validate().is_ok());
     }
 
     #[test]

@@ -26,7 +26,6 @@ import { POST_LOGIN_RETURN_KEY } from '../feature/page-device-verify-feature'
 import { AUTH_NAMESPACE, DEVICE_ACTION, type DeviceAction } from '../constants'
 import { followServerRedirect } from '@/lib/follow-server-redirect'
 import { continueLogin } from '../utils/continue-login'
-import { resolveRegisterUsername } from '../utils/register-username'
 
 export type DeviceVerifyResult = 'approved' | 'denied' | null
 
@@ -234,7 +233,7 @@ export function usePortalPageSubmit(
           body: {
             email,
             password,
-            username: resolveRegisterUsername(String(data.get('username') ?? ''), email),
+            username: String(data.get('username') ?? '').trim() || undefined,
             first_name: String(data.get('first_name') ?? '').trim() || null,
             last_name: String(data.get('last_name') ?? '').trim() || null,
           },

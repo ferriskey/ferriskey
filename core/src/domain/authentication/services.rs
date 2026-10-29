@@ -766,6 +766,17 @@ pub(crate) fn normalize_login_email(email: &str) -> String {
     email.trim().to_lowercase()
 }
 
+pub(crate) fn resolve_registration_username(
+    username: Option<&str>,
+    normalized_email: &str,
+) -> Result<String, CoreError> {
+    match username.map(str::trim) {
+        None => Ok(normalized_email.to_string()),
+        Some("") => Err(CoreError::InvalidRequest),
+        Some(name) => Ok(name.to_string()),
+    }
+}
+
 pub(crate) fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
     match (stored, provided) {
         (Some(s), Some(p)) => {
@@ -5170,11 +5181,12 @@ where
         let lastname = input.last_name;
 
         let email = normalize_login_email(&input.email);
-        let username = input.username.trim().to_string();
 
-        if email.is_empty() || username.is_empty() {
+        if email.is_empty() {
             return Err(CoreError::InvalidRequest);
         }
+
+        let username = resolve_registration_username(input.username.as_deref(), &email)?;
 
         let email_verification_enabled = realm
             .settings
@@ -8140,6 +8152,44 @@ mod direct_grant_resource_tests {
         assert!(matches!(
             effective_direct_grant_resource(Some("https://other.example"), &[]),
             Err(CoreError::InvalidTarget)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod registration_username_tests {
+    use super::resolve_registration_username;
+    use crate::domain::common::entities::app_errors::CoreError;
+
+    #[test]
+    fn a_registration_without_username_takes_the_normalized_email() {
+        assert_eq!(
+            resolve_registration_username(None, "contact@a.fr").expect("resolved"),
+            "contact@a.fr"
+        );
+    }
+
+    #[test]
+    fn two_emails_sharing_a_local_part_get_distinct_usernames() {
+        let first = resolve_registration_username(None, "contact@a.fr").expect("resolved");
+        let second = resolve_registration_username(None, "contact@b.fr").expect("resolved");
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn a_provided_username_is_kept_trimmed() {
+        assert_eq!(
+            resolve_registration_username(Some("  jdoe  "), "contact@a.fr").expect("resolved"),
+            "jdoe"
+        );
+    }
+
+    #[test]
+    fn a_provided_blank_username_is_refused_rather_than_replaced_by_the_email() {
+        assert!(matches!(
+            resolve_registration_username(Some("   "), "contact@a.fr"),
+            Err(CoreError::InvalidRequest)
         ));
     }
 }
