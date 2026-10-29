@@ -301,6 +301,24 @@ impl TestApp {
     }
 
     pub async fn client(&self, spec: ClientSpec) -> SeededClient {
+        self.client_in(self.realm_id, spec).await
+    }
+
+    pub async fn create_realm(&self) -> (String, Uuid) {
+        let id = Uuid::new_v4();
+        let name = format!("other-{}", Uuid::new_v4().simple());
+        sqlx::query(
+            "INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())",
+        )
+        .bind(id)
+        .bind(&name)
+        .execute(&self.pool)
+        .await
+        .expect("insert realm");
+        (name, id)
+    }
+
+    pub async fn client_in(&self, realm_id: Uuid, spec: ClientSpec) -> SeededClient {
         let id = Uuid::new_v4();
         let client_id = format!("{}-{}", spec.prefix, Uuid::new_v4().simple());
         let now = chrono::Utc::now().naive_utc();
@@ -318,7 +336,7 @@ impl TestApp {
                VALUES ($1,$2,$3,$3,$4,$5,'openid-connect',$6,$7,$8,$9,$10,$11,$11)"#,
         )
         .bind(id)
-        .bind(self.realm_id)
+        .bind(realm_id)
         .bind(&client_id)
         .bind(spec.secret.as_deref())
         .bind(spec.enabled)

@@ -448,3 +448,144 @@ fn spec_rtp_12_a_malformed_token_is_an_invalid_grant() {
         }
     });
 }
+
+#[test]
+#[ignore = "requires PostgreSQL"]
+fn a_disabled_user_gets_the_legacy_answer_and_loses_the_family() {
+    let opaque = opaque_app();
+    let jwt = jwt_view_of_opaque_app();
+    rt().block_on(async {
+        let server = opaque.server();
+        let jwt_server = jwt.server();
+        let login = login(opaque, &server).await;
+        let legacy = password_grant(
+            &jwt_server,
+            jwt,
+            &login.client.client_id,
+            None,
+            &login.user.username,
+            &login.user.password,
+        )
+        .await;
+        assert_eq!(legacy.status_code(), 200, "{}", legacy.text());
+        sqlx::query("UPDATE users SET enabled = false WHERE id = $1::uuid")
+            .bind(&login.user.id)
+            .execute(&opaque.pool)
+            .await
+            .expect("disable the user");
+
+        let legacy_answer =
+            refresh_as(jwt, &jwt_server, &login.client, &refresh_token_of(&legacy)).await;
+        let response = refresh_as(opaque, &server, &login.client, login.refresh_token()).await;
+
+        assert_eq!(response.status_code(), legacy_answer.status_code());
+        assert_eq!(response.text(), legacy_answer.text());
+        let live: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM refresh_tokens WHERE user_id = $1::uuid AND status = 'active'",
+        )
+        .bind(&login.user.id)
+        .fetch_one(&opaque.pool)
+        .await
+        .expect("count live tokens");
+        assert_eq!(live, 1, "only the legacy token, which was never refreshed");
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL"]
+fn an_invalid_resource_is_refused_without_consuming_the_token() {
+    let app = opaque_app();
+    rt().block_on(async {
+        let server = app.server();
+        let login = login(app, &server).await;
+
+        let refused = server
+            .post(&app.oidc("token"))
+            .form(&[
+                ("grant_type", "refresh_token"),
+                ("client_id", login.client.client_id.as_str()),
+                ("refresh_token", login.refresh_token()),
+                ("resource", "https://not-allowed.example"),
+            ])
+            .await;
+
+        assert_eq!(refused.status_code(), 400, "{}", refused.text());
+        assert_eq!(refused.json::<Value>()["error"], "invalid_target");
+        let usable = refresh_as(app, &server, &login.client, login.refresh_token()).await;
+        assert_eq!(usable.status_code(), 200, "{}", usable.text());
+    });
+}
+
+async fn client_of_another_realm_named_like(
+    app: &TestApp,
+    client: &SeededClient,
+) -> (String, SeededClient) {
+    let (realm, realm_id) = app.create_realm().await;
+    let foreign = app.client_in(realm_id, ClientSpec::confidential()).await;
+    sqlx::query("UPDATE clients SET client_id = $1 WHERE id = $2")
+        .bind(&client.client_id)
+        .bind(foreign.id)
+        .execute(&app.pool)
+        .await
+        .expect("name the foreign client like the owner");
+    let foreign = SeededClient {
+        client_id: client.client_id.clone(),
+        ..foreign
+    };
+    (realm, foreign)
+}
+
+#[test]
+#[ignore = "requires PostgreSQL"]
+fn a_client_of_another_realm_cannot_revoke_an_opaque_token() {
+    let app = opaque_app();
+    rt().block_on(async {
+        let server = app.server();
+        let login = login(app, &server).await;
+        let (realm, foreign) = client_of_another_realm_named_like(app, &login.client).await;
+
+        let revoked = server
+            .post(&format!("/realms/{realm}/protocol/openid-connect/revoke"))
+            .form(&[
+                ("client_id", foreign.client_id.as_str()),
+                (
+                    "client_secret",
+                    foreign.secret.as_deref().unwrap_or_default(),
+                ),
+                ("token", login.refresh_token()),
+            ])
+            .await;
+
+        assert_eq!(revoked.status_code(), 200, "{}", revoked.text());
+        let usable = refresh_as(app, &server, &login.client, login.refresh_token()).await;
+        assert_eq!(usable.status_code(), 200, "{}", usable.text());
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL"]
+fn a_client_of_another_realm_sees_an_opaque_token_as_inactive() {
+    let app = opaque_app();
+    rt().block_on(async {
+        let server = app.server();
+        let login = login(app, &server).await;
+        let (realm, foreign) = client_of_another_realm_named_like(app, &login.client).await;
+
+        let response = server
+            .post(&format!(
+                "/realms/{realm}/protocol/openid-connect/token/introspect"
+            ))
+            .form(&[
+                ("client_id", foreign.client_id.as_str()),
+                (
+                    "client_secret",
+                    foreign.secret.as_deref().unwrap_or_default(),
+                ),
+                ("token", login.refresh_token()),
+            ])
+            .await;
+
+        assert_eq!(response.status_code(), 200, "{}", response.text());
+        assert_eq!(response.json::<Value>()["active"], false);
+    });
+}

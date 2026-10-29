@@ -19,8 +19,6 @@ pub enum RotateOutcome {
     Conflict,
 }
 
-/// The refresh token that replaces a consumed one. User, family, client, scope,
-/// session and resource are inherited from the consumed row by the statement.
 pub struct RefreshTokenSuccessor {
     pub id: Uuid,
     pub jti: Uuid,
@@ -115,8 +113,6 @@ pub trait RefreshTokenRepository: Send + Sync {
         scope: Option<String>,
     ) -> impl Future<Output = Result<RotateOutcome, SecurityError>> + Send;
 
-    /// Consume the active, unexpired token with this hash that belongs to
-    /// `client_id` and insert its successor, in one statement.
     fn consume_and_rotate(
         &self,
         hash: RefreshTokenHash,
@@ -129,11 +125,11 @@ pub trait RefreshTokenRepository: Send + Sync {
         hash: RefreshTokenHash,
     ) -> impl Future<Output = Result<Option<RefreshToken>, SecurityError>> + Send;
 
-    /// True when a token of `client_id` with this hash was revoked.
     fn revoke_by_hash(
         &self,
         hash: RefreshTokenHash,
         client_id: &str,
+        realm_id: Uuid,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 
     /// Revoke every token that shares the given family_id.

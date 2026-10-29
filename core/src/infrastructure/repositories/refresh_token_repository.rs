@@ -320,7 +320,13 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         &self,
         hash: RefreshTokenHash,
         client_id: &str,
+        realm_id: Uuid,
     ) -> Result<bool, JwtError> {
+        let realm_users = Query::select()
+            .column(crate::entity::users::Column::Id)
+            .from(crate::entity::users::Entity)
+            .and_where(crate::entity::users::Column::RealmId.eq(realm_id))
+            .to_owned();
         let result = crate::entity::refresh_tokens::Entity::update_many()
             .col_expr(
                 crate::entity::refresh_tokens::Column::Revoked,
@@ -332,6 +338,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             )
             .filter(crate::entity::refresh_tokens::Column::TokenHash.eq(hash.0.to_vec()))
             .filter(crate::entity::refresh_tokens::Column::ClientId.eq(client_id))
+            .filter(crate::entity::refresh_tokens::Column::UserId.in_subquery(realm_users))
             .exec(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
@@ -424,6 +431,7 @@ mod tests {
         repository: PostgresRefreshTokenRepository,
         pool: sqlx::PgPool,
         user_id: Uuid,
+        realm_id: Uuid,
     }
 
     async fn seed() -> Seeded {
@@ -471,6 +479,7 @@ mod tests {
             repository: PostgresRefreshTokenRepository::new(db),
             pool,
             user_id,
+            realm_id,
         }
     }
 
@@ -843,7 +852,7 @@ mod tests {
 
         let by_other = seeded
             .repository
-            .revoke_by_hash(token.hash(), "other")
+            .revoke_by_hash(token.hash(), "other", seeded.realm_id)
             .await
             .expect("revoke");
         let still_active = seeded
@@ -853,9 +862,14 @@ mod tests {
             .expect("lookup")
             .expect("stored")
             .status;
+        let by_other_realm = seeded
+            .repository
+            .revoke_by_hash(token.hash(), "web", Uuid::new_v4())
+            .await
+            .expect("revoke");
         let by_owner = seeded
             .repository
-            .revoke_by_hash(token.hash(), "web")
+            .revoke_by_hash(token.hash(), "web", seeded.realm_id)
             .await
             .expect("revoke");
         let revoked = seeded
@@ -867,6 +881,7 @@ mod tests {
             .status;
 
         assert!(!by_other);
+        assert!(!by_other_realm);
         assert_eq!(still_active, RefreshTokenStatus::Active);
         assert!(by_owner);
         assert_eq!(revoked, RefreshTokenStatus::Revoked);

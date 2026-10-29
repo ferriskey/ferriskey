@@ -1831,7 +1831,6 @@ where
             refresh_token_lifetime: lifetimes.refresh_token,
             id_token_lifetime: lifetimes.id_token,
             nonce: None,
-            refresh_jti_override: None,
             // Preview only — nothing is signed or persisted, so there is no session.
             session_id: None,
             auth_time: None,
@@ -2383,7 +2382,6 @@ where
             refresh_token_lifetime: 0,
             id_token_lifetime: 0,
             nonce: None,
-            refresh_jti_override: None,
             session_id: None,
             auth_time: None,
             resource: None,
@@ -2858,7 +2856,6 @@ where
                     refresh_token_lifetime: lifetimes.refresh_token,
                     id_token_lifetime: lifetimes.id_token,
                     nonce: auth_session.nonce.clone(),
-                    refresh_jti_override: None,
                     session_id: Some(user_session.id),
                     auth_time: Some(user_session.authenticated_at.timestamp()),
                     resource,
@@ -3042,7 +3039,6 @@ where
                     refresh_token_lifetime: lifetimes.refresh_token,
                     id_token_lifetime: lifetimes.id_token,
                     nonce: None,
-                    refresh_jti_override: None,
                     // Machine-to-machine: no user is present, so no SSO session exists.
                     session_id: None,
                     auth_time: None,
@@ -3397,7 +3393,6 @@ where
                     refresh_token_lifetime: lifetimes.refresh_token,
                     id_token_lifetime: lifetimes.id_token,
                     nonce: None,
-                    refresh_jti_override: None,
                     session_id: Some(user_session.id),
                     auth_time: Some(user_session.authenticated_at.timestamp()),
                     resource,
@@ -3484,6 +3479,20 @@ where
         let plan = RefreshPlan::new(self.refresh_token_format, lifetimes.refresh_token)?;
         let hash = token.hash();
 
+        if params.resource.is_some()
+            && let Some(stored) = self
+                .refresh_token_repository
+                .get_by_hash(hash)
+                .await
+                .map_err(|_| CoreError::InternalServerError)?
+        {
+            effective_refresh_resource(
+                stored.resource.as_deref(),
+                params.resource.as_deref(),
+                &settings.allowed_resources,
+            )?;
+        }
+
         let outcome = self
             .refresh_token_repository
             .consume_and_rotate(
@@ -3549,10 +3558,7 @@ where
 
         if !user.enabled {
             return Err(self
-                .revoke_family_then(
-                    family_id,
-                    CoreError::InvalidGrant("The user account is disabled.".to_string()),
-                )
+                .revoke_family_then(family_id, CoreError::UserDisabled)
                 .await);
         }
 
@@ -3586,7 +3592,6 @@ where
                     refresh_token_lifetime: lifetimes.refresh_token,
                     id_token_lifetime: lifetimes.id_token,
                     nonce: None,
-                    refresh_jti_override: None,
                     session_id: consumed.session_id,
                     auth_time: None,
                     resource,
@@ -3615,9 +3620,6 @@ where
         let (claims, stored) = self
             .verify_refresh_token(token_str, params.realm.id())
             .await
-            // A refresh presented against a revoked or expired session is a
-            // grant failure, not an authentication failure: RFC 6749 §5.2 asks
-            // the token endpoint for `400 invalid_grant`.
             .map_err(revoked_session_is_an_invalid_grant)?;
 
         if claims.typ != ClaimsTyp::Refresh {
@@ -3637,7 +3639,6 @@ where
             ClientGrant::RefreshToken,
         )?;
 
-        // Reuse detection: rotated or revoked tokens trigger family revocation.
         if !stored.status.is_active() {
             warn!(
                 family_id = %stored.family_id,
@@ -3687,7 +3688,6 @@ where
 
         let plan = RefreshPlan::new(self.refresh_token_format, lifetimes.refresh_token)?;
 
-        // Atomic conditional rotate: marks old token as 'rotated' and mints successor.
         let outcome = self
             .refresh_token_repository
             .rotate(
@@ -3705,7 +3705,6 @@ where
 
         match outcome {
             RotateOutcome::Conflict => {
-                // A concurrent request already rotated this token — fail safe.
                 warn!(
                     family_id = %stored.family_id,
                     "concurrent refresh token rotation detected — revoking family"
@@ -3739,10 +3738,6 @@ where
                             refresh_token_lifetime: lifetimes.refresh_token,
                             id_token_lifetime: lifetimes.id_token,
                             nonce: None,
-                            refresh_jti_override: None,
-                            // Carry the session binding across rotation, otherwise a
-                            // single refresh would silently detach the token pair from
-                            // its session and make it immune to revocation.
                             session_id: claims.sid,
                             auth_time: None,
                             resource,
@@ -5876,7 +5871,7 @@ where
         match PresentedRefreshToken::parse(&input.token) {
             Ok(PresentedRefreshToken::Opaque(opaque)) => {
                 self.refresh_token_repository
-                    .revoke_by_hash(opaque.hash(), &input.client_id)
+                    .revoke_by_hash(opaque.hash(), &input.client_id, scope.id().into())
                     .await
                     .map_err(|_| CoreError::InternalServerError)?;
                 return Ok(());
@@ -6206,7 +6201,6 @@ where
                         refresh_token_lifetime: lifetimes.refresh_token,
                         id_token_lifetime: lifetimes.id_token,
                         nonce: None,
-                        refresh_jti_override: None,
                         session_id: Some(user_session.id),
                         auth_time: Some(user_session.authenticated_at.timestamp()),
                         resource: None,
