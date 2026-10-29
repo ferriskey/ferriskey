@@ -7,6 +7,7 @@ use ferriskey_domain::session::entities::UserSession;
 use tokio::sync::{mpsc, watch};
 use uuid::Uuid;
 
+use super::subject::SubjectCaches;
 use crate::infrastructure::common::TtlCache;
 
 pub const LONGEST_TOKEN_STATE_TTL: Duration = Duration::from_secs(30);
@@ -15,6 +16,7 @@ pub const LONGEST_TOKEN_STATE_TTL: Duration = Duration::from_secs(30);
 pub struct TokenState {
     sessions: TtlCache<Uuid, Option<Unscoped<UserSession>>>,
     unrevoked: TtlCache<String, bool>,
+    subject: SubjectCaches,
     generation: watch::Sender<u64>,
     outbox: mpsc::UnboundedSender<()>,
     synced: AtomicBool,
@@ -41,6 +43,7 @@ impl TokenState {
         let state = Self {
             sessions: TtlCache::new(ttl),
             unrevoked: TtlCache::new(ttl),
+            subject: SubjectCaches::new(ttl),
             generation: watch::channel(0).0,
             outbox,
             synced: AtomicBool::new(false),
@@ -55,6 +58,10 @@ impl TokenState {
 
     pub(super) fn unrevoked(&self) -> &TtlCache<String, bool> {
         &self.unrevoked
+    }
+
+    pub(super) fn subject(&self) -> &SubjectCaches {
+        &self.subject
     }
 
     pub fn generation(&self) -> u64 {
@@ -82,6 +89,7 @@ impl TokenState {
         self.generation.send_modify(|generation| *generation += 1);
         self.sessions.clear();
         self.unrevoked.clear();
+        self.subject.clear();
     }
 }
 
@@ -150,6 +158,36 @@ mod tests {
             .await
             .expect("load");
         assert_eq!(loads.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_change_empties_the_subject_caches() {
+        let (state, _feed) = TokenState::new(TTL);
+        state.set_synced(true);
+        let id = uuid::Uuid::nil();
+        let loads = AtomicUsize::new(0);
+        let read = || async {
+            state
+                .read_subject(
+                    &state.subject().user_roles,
+                    &id,
+                    |_| true,
+                    || async {
+                        loads.fetch_add(1, Ordering::SeqCst);
+                        Ok::<_, String>(Vec::new())
+                    },
+                )
+                .await
+                .expect("read")
+        };
+
+        read().await;
+        read().await;
+        assert_eq!(loads.load(Ordering::SeqCst), 1);
+
+        state.changed_elsewhere();
+        read().await;
+        assert_eq!(loads.load(Ordering::SeqCst), 2);
     }
 
     #[test]
