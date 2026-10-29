@@ -28,6 +28,18 @@ pub enum RefreshTokenFormat {
     Opaque,
 }
 
+/// Whether a refresh token rotation waits for its commit to reach the disk.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RefreshTokenCommit {
+    /// The rotation is on disk before the response is sent.
+    #[default]
+    Durable,
+    /// The rotation commits without waiting for the disk. A database crash can lose the last
+    /// rotations: each consumed token then works once more, and its successor no longer does.
+    /// Revocations stay durable.
+    Async,
+}
+
 #[derive(Clone, Debug)]
 pub struct FerriskeyConfig {
     pub database: DatabaseConfig,
@@ -42,6 +54,8 @@ pub struct FerriskeyConfig {
     pub password_hashing: PasswordHashingCost,
     /// Format of newly issued refresh tokens. Both formats are always accepted.
     pub refresh_token_format: RefreshTokenFormat,
+    /// Whether issuing and rotating a refresh token waits for the disk.
+    pub refresh_token_commit: RefreshTokenCommit,
     /// Test-only escape hatch: lets a client metadata document be fetched over http from a
     /// loopback or private address. Off unless explicitly enabled.
     pub client_metadata_allow_private_endpoints: bool,

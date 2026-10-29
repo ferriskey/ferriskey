@@ -94,11 +94,22 @@ fn hash_value(hash: Option<RefreshTokenHash>) -> Option<Vec<u8>> {
 #[derive(Debug, Clone)]
 pub struct PostgresRefreshTokenRepository {
     pub db: DatabaseConnection,
+    issued_db: DatabaseConnection,
 }
 
 impl PostgresRefreshTokenRepository {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self {
+            issued_db: db.clone(),
+            db,
+        }
+    }
+
+    /// Issued and rotated tokens are written through `issued_db`. Revocations, lookups and
+    /// cleanup keep `db`, so a revocation is never lost on a database crash.
+    pub fn with_issued_tokens_written_through(mut self, issued_db: DatabaseConnection) -> Self {
+        self.issued_db = issued_db;
+        self
     }
 }
 
@@ -134,7 +145,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         };
 
         let refresh_token = model
-            .insert(&self.db)
+            .insert(&self.issued_db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
@@ -172,7 +183,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         };
 
         let refresh_token = model
-            .insert(&self.db)
+            .insert(&self.issued_db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
@@ -233,7 +244,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         let now = Utc::now();
 
         let row = self
-            .db
+            .issued_db
             .query_one(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 ROTATE_SQL,
@@ -273,7 +284,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         let now = Utc::now();
 
         let row = self
-            .db
+            .issued_db
             .query_one(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 CONSUME_AND_ROTATE_SQL,

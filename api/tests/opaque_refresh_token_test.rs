@@ -2,8 +2,8 @@ mod common;
 
 use axum_test::{TestResponse, TestServer};
 use common::{
-    ClientSpec, SeededClient, SeededUser, TestApp, decode_unverified, introspect,
-    jwt_view_of_opaque_app, opaque_app, password_grant, refresh, rt,
+    ClientSpec, SeededClient, SeededUser, TestApp, async_commit_opaque_app, decode_unverified,
+    introspect, jwt_view_of_opaque_app, opaque_app, password_grant, refresh, rt,
 };
 use regex::Regex;
 use serde_json::Value;
@@ -587,5 +587,66 @@ fn a_client_of_another_realm_sees_an_opaque_token_as_inactive() {
 
         assert_eq!(response.status_code(), 200, "{}", response.text());
         assert_eq!(response.json::<Value>()["active"], false);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL"]
+fn an_async_commit_instance_rotates_detects_reuse_and_revokes_like_a_durable_one() {
+    let app = async_commit_opaque_app();
+    rt().block_on(async {
+        let server = app.server();
+        let login = login(app, &server).await;
+        let first = refresh_as(app, &server, &login.client, login.refresh_token()).await;
+        assert_eq!(first.status_code(), 200, "{}", first.text());
+        let successor = refresh_token_of(&first);
+        assert!(is_opaque(&successor), "{successor}");
+
+        let replay = refresh_as(app, &server, &login.client, login.refresh_token()).await;
+        assert_invalid_grant(&replay);
+        let successor_try = refresh_as(app, &server, &login.client, &successor).await;
+        assert_invalid_grant(&successor_try);
+
+        let revoked_login =
+            login_with(app, &server, ClientSpec::public().with_direct_access()).await;
+        let revoked = revoke(
+            app,
+            &server,
+            &revoked_login.client,
+            revoked_login.refresh_token(),
+        )
+        .await;
+        assert_eq!(revoked.status_code(), 200, "{}", revoked.text());
+        let after_revoke = refresh_as(
+            app,
+            &server,
+            &revoked_login.client,
+            revoked_login.refresh_token(),
+        )
+        .await;
+        assert_invalid_grant(&after_revoke);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL"]
+fn a_token_rotated_by_an_async_commit_instance_is_refreshed_by_a_durable_one() {
+    let durable = opaque_app();
+    let fast = async_commit_opaque_app();
+    rt().block_on(async {
+        let fast_server = fast.server();
+        let login = login(fast, &fast_server).await;
+        let rotated = refresh_as(fast, &fast_server, &login.client, login.refresh_token()).await;
+        assert_eq!(rotated.status_code(), 200, "{}", rotated.text());
+
+        let durable_server = durable.server();
+        let next = refresh_as(
+            durable,
+            &durable_server,
+            &login.client,
+            &refresh_token_of(&rotated),
+        )
+        .await;
+        assert_eq!(next.status_code(), 200, "{}", next.text());
     });
 }

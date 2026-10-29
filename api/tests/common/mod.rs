@@ -15,8 +15,8 @@ use ferriskey_api::{
 use ferriskey_core::{
     application::create_service_with_secrets,
     domain::common::{
-        DatabaseConfig, FerriskeyConfig, RefreshTokenFormat, entities::StartupConfig,
-        ports::CoreService,
+        DatabaseConfig, FerriskeyConfig, RefreshTokenCommit, RefreshTokenFormat,
+        entities::StartupConfig, ports::CoreService,
     },
 };
 use serde_json::{Value, json};
@@ -45,6 +45,7 @@ static SEALED_APP: OnceLock<TestApp> = OnceLock::new();
 static OPAQUE_APP: OnceLock<TestApp> = OnceLock::new();
 static OPAQUE_APP_JWT_VIEW: OnceLock<TestApp> = OnceLock::new();
 static CACHED_OPAQUE_APP: OnceLock<TestApp> = OnceLock::new();
+static ASYNC_COMMIT_OPAQUE_APP: OnceLock<TestApp> = OnceLock::new();
 
 pub const SEALING_KEYS: &str = "kid-a:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
@@ -77,6 +78,19 @@ pub fn jwt_view_of_opaque_app() -> &'static TestApp {
     let opaque = opaque_app();
     OPAQUE_APP_JWT_VIEW.get_or_init(|| {
         let sibling = opaque.sibling(RefreshTokenFormat::Jwt);
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => tokio::task::block_in_place(|| handle.block_on(sibling)),
+            Err(_) => rt().block_on(sibling),
+        }
+    })
+}
+
+/// The realm of [`opaque_app`], served by an instance whose refresh tokens skip waiting for the
+/// disk.
+pub fn async_commit_opaque_app() -> &'static TestApp {
+    let opaque = opaque_app();
+    ASYNC_COMMIT_OPAQUE_APP.get_or_init(|| {
+        let sibling = opaque.sibling_with(RefreshTokenFormat::Opaque, RefreshTokenCommit::Async);
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => tokio::task::block_in_place(|| handle.block_on(sibling)),
             Err(_) => rt().block_on(sibling),
@@ -202,6 +216,7 @@ impl TestApp {
                 config_cache_ttl_seconds,
                 password_hashing: PasswordHashingCost::default(),
                 refresh_token_format,
+                refresh_token_commit: Default::default(),
                 webapp_url: "http://localhost:5555".to_string(),
                 database: database.clone(),
             },
@@ -257,6 +272,15 @@ impl TestApp {
     }
 
     pub async fn sibling(&self, refresh_token_format: RefreshTokenFormat) -> TestApp {
+        self.sibling_with(refresh_token_format, RefreshTokenCommit::default())
+            .await
+    }
+
+    pub async fn sibling_with(
+        &self,
+        refresh_token_format: RefreshTokenFormat,
+        refresh_token_commit: RefreshTokenCommit,
+    ) -> TestApp {
         let service = create_service_with_secrets(
             FerriskeyConfig {
                 webhook_allow_private_endpoints: false,
@@ -264,6 +288,7 @@ impl TestApp {
                 config_cache_ttl_seconds: self.config_cache_ttl_seconds,
                 password_hashing: PasswordHashingCost::default(),
                 refresh_token_format,
+                refresh_token_commit,
                 webapp_url: "http://localhost:5555".to_string(),
                 database: DatabaseConfig {
                     max_connections: 10,

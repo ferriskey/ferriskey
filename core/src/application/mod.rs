@@ -259,6 +259,8 @@ pub async fn create_service_with_secrets(
         database_url,
         max_connections: config.database.max_connections,
         min_connections: config.database.min_connections,
+        async_refresh_tokens: config.refresh_token_commit
+            == crate::domain::common::RefreshTokenCommit::Async,
     })
     .await
     .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
@@ -348,7 +350,12 @@ pub async fn create_service_with_secrets(
         private_endpoints,
     ));
     let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
-    let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
+    let mut stored_refresh_tokens = PostgresRefreshTokenRepository::new(postgres.get_db());
+    if config.refresh_token_commit == crate::domain::common::RefreshTokenCommit::Async {
+        stored_refresh_tokens = stored_refresh_tokens
+            .with_issued_tokens_written_through(postgres.get_async_commit_db());
+    }
+    let refresh_token = Arc::new(stored_refresh_tokens);
     let stored_access_tokens = PostgresAccessTokenRepository::new(postgres.get_db())
         .with_issued_tokens_written_through(postgres.get_async_commit_db());
     let access_token = Arc::new(CachedAccessTokenRepository::new(
@@ -1024,6 +1031,7 @@ mod tests {
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
             refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -1234,6 +1242,7 @@ mod tests {
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
             refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,

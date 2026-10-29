@@ -15,6 +15,9 @@ pub struct PostgresConfig {
     pub database_url: String,
     pub max_connections: u32,
     pub min_connections: u32,
+    /// Refresh token issuance and rotation also skip waiting for the disk. The async commit
+    /// pool then grows by `max_connections`, since every refresh writes through it.
+    pub async_refresh_tokens: bool,
 }
 
 impl Postgres {
@@ -33,7 +36,8 @@ impl Postgres {
     }
 
     /// Commits on this pool return before the WAL reaches the disk. Only for rows whose loss
-    /// on a database crash is harmless, such as the access token index.
+    /// on a database crash is acceptable: the access token index, and refresh token rotations
+    /// when `async_refresh_tokens` is on.
     pub fn get_async_commit_db(&self) -> DatabaseConnection {
         self.async_commit_db.clone()
     }
@@ -54,8 +58,13 @@ fn connect_options_releasing_after(config: &PostgresConfig, idle: Duration) -> C
 }
 
 fn async_commit_options(config: &PostgresConfig) -> ConnectOptions {
+    let refresh_connections = if config.async_refresh_tokens {
+        config.max_connections
+    } else {
+        0
+    };
     let mut opt = connect_options(config);
-    opt.max_connections(ASYNC_COMMIT_CONNECTIONS)
+    opt.max_connections(ASYNC_COMMIT_CONNECTIONS + refresh_connections)
         .min_connections(0)
         .map_sqlx_postgres_opts(|options| options.options([("synchronous_commit", "off")]));
     opt
@@ -70,6 +79,7 @@ mod tests {
             database_url: "postgres://u:p@localhost:5432/ferriskey".to_string(),
             max_connections,
             min_connections,
+            async_refresh_tokens: false,
         }
     }
 
@@ -98,6 +108,7 @@ mod tests {
             database_url,
             max_connections: 6,
             min_connections: 1,
+            async_refresh_tokens: false,
         };
         let db = Database::connect(connect_options_releasing_after(
             &config,
@@ -139,6 +150,19 @@ mod tests {
         assert_eq!(options.get_min_connections(), Some(0));
     }
 
+    #[test]
+    fn async_refresh_tokens_give_every_request_its_own_async_commit_connection() {
+        let options = async_commit_options(&PostgresConfig {
+            async_refresh_tokens: true,
+            ..config(20, 2)
+        });
+
+        assert_eq!(
+            options.get_max_connections(),
+            Some(ASYNC_COMMIT_CONNECTIONS + 20)
+        );
+    }
+
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
     async fn only_the_async_commit_pool_skips_waiting_for_the_disk() {
@@ -149,6 +173,7 @@ mod tests {
             database_url,
             max_connections: 2,
             min_connections: 1,
+            async_refresh_tokens: false,
         })
         .await
         .expect("connect");

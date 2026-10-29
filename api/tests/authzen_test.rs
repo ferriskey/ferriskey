@@ -111,6 +111,7 @@ mod tests {
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
             refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host,
