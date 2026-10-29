@@ -4,6 +4,7 @@ use ferriskey_core::domain::{
     authentication::{
         entities::JwtToken,
         ports::AuthService,
+        services::{normalize_login_email, resolve_registration_username},
         value_objects::{RegisterUserInput, RegisterUserOutput, RegisterUserUrlContext},
     },
     realm::ports::RealmService,
@@ -26,7 +27,7 @@ use ferriskey_api_core::{
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegistrationRequest {
-    #[validate(length(min = 1, max = 255, message = "username is required"))]
+    #[validate(length(max = 255, message = "username is too long"))]
     pub username: Option<String>,
     #[validate(
         email(message = "email must be a valid address"),
@@ -113,12 +114,15 @@ pub async fn registration_handler(
         .get("FERRISKEY_SESSION")
         .and_then(|c| Uuid::parse_str(c.value()).ok());
 
+    let username =
+        resolve_registration_username(req.username.as_deref(), &normalize_login_email(&req.email));
+
     state
         .service
         .validate_password_policy_for_identity(
             realm_name.clone(),
             &req.password,
-            req.username.as_deref().map(str::trim),
+            Some(&username),
             Some(req.email.trim()),
         )
         .await?;
@@ -200,10 +204,22 @@ mod tests {
     }
 
     #[test]
-    fn a_blank_username_or_malformed_email_is_refused() {
+    fn a_blank_username_is_valid_and_left_to_the_server_to_fill_from_the_email() {
+        let request: RegistrationRequest = serde_json::from_str(
+            r#"{"username": "", "email": "contact@a.fr", "password": "password123"}"#,
+        )
+        .expect("a blank username is accepted");
+
+        assert!(request.validate().is_ok());
+    }
+
+    #[test]
+    fn a_malformed_email_or_an_oversized_username_is_refused() {
+        let oversized = "u".repeat(256);
+        let body =
+            format!(r#"{{"username": "{oversized}", "email": "not-an-address", "password": "x"}}"#);
         let request: RegistrationRequest =
-            serde_json::from_str(r#"{"username": "", "email": "not-an-address", "password": "x"}"#)
-                .expect("the shape is valid, the values are not");
+            serde_json::from_str(&body).expect("the shape is valid, the values are not");
 
         let errors = request.validate().expect_err("validation must reject this");
         let fields = errors.field_errors();
