@@ -7,7 +7,8 @@ use std::time::Duration;
 use base64::Engine as _;
 use common::{
     ADMIN_CLIENT_ID, ADMIN_PASSWORD, ADMIN_USERNAME, ClientSpec, TestApp, authorize, cached_app,
-    client_credentials, exchange_code, introspect, password_grant, query_param, refresh, rt,
+    cached_opaque_app, client_credentials, exchange_code, introspect, password_grant, query_param,
+    refresh, rt,
 };
 use serde_json::{Value, json};
 use tracing::field::{Field, Visit};
@@ -24,7 +25,9 @@ const CODE_EXCHANGE_BUDGET: usize = 12;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
 const USERINFO_BUDGET: usize = 2;
 const INTROSPECT_BUDGET: usize = 1;
-const REFRESH_BUDGET: usize = 8;
+const REFRESH_BUDGET: usize = 7;
+const OPAQUE_REFRESH_BUDGET: usize = 2;
+const MALFORMED_REFRESH_BUDGET: usize = 0;
 const FORGED_BEARER_BUDGET: usize = 0;
 
 const BACKGROUND_WORK: &[&str] = &[
@@ -226,6 +229,87 @@ async fn browser_login(
     )
 }
 
+async fn client_with_default_scopes(app: &TestApp) -> common::SeededClient {
+    let client = app.client(ClientSpec::public().with_direct_access()).await;
+    sqlx::query(
+        "INSERT INTO client_scope_mappings (client_id, client_scope_id, default_scope_type) \
+         SELECT $1, id, 'DEFAULT' FROM client_scopes \
+         WHERE realm_id = $2 AND name IN ('openid', 'profile', 'email', 'roles')",
+    )
+    .bind(client.id)
+    .bind(app.realm_id)
+    .execute(&app.pool)
+    .await
+    .expect("attach the realm default scopes, as the client service does");
+    client
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
+fn spec_rtp_13_an_opaque_refresh_stays_within_two_statements() {
+    record_statements();
+    let app = cached_opaque_app();
+
+    rt().block_on(async {
+        let server = app.server();
+        let client = client_with_default_scopes(app).await;
+        let user = app.user(&server, "Correct-horse-battery-7").await;
+        let login = || {
+            password_grant(
+                &server,
+                app,
+                &client.client_id,
+                None,
+                &user.username,
+                &user.password,
+            )
+        };
+        let token_of = |response: &axum_test::TestResponse| {
+            response.json::<Value>()["refresh_token"]
+                .as_str()
+                .expect("refresh token")
+                .to_string()
+        };
+
+        let first = token_of(&login().await);
+        let warm = refresh(&server, app, &client.client_id, None, &first).await;
+        assert_eq!(warm.status_code(), 200, "{}", warm.text());
+        let again = refresh(&server, app, &client.client_id, None, &token_of(&warm)).await;
+        let opaque = token_of(&again);
+        assert!(opaque.starts_with("fkr_"), "{opaque}");
+
+        let (refreshed, statements) =
+            capture(refresh(&server, app, &client.client_id, None, &opaque)).await;
+        assert_eq!(refreshed.status_code(), 200, "{}", refreshed.text());
+        assert_within("opaque refresh", OPAQUE_REFRESH_BUDGET, &statements);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
+fn spec_rtp_12_a_malformed_token_is_rejected_without_sql() {
+    record_statements();
+    let app = cached_opaque_app();
+
+    rt().block_on(async {
+        let server = app.server();
+        let client = client_with_default_scopes(app).await;
+        let malformed = format!("fkr_{}", "A".repeat(42));
+        let warm = refresh(&server, app, &client.client_id, None, &malformed).await;
+        assert_eq!(warm.status_code(), 400, "{}", warm.text());
+
+        let (refused, statements) =
+            capture(refresh(&server, app, &client.client_id, None, &malformed)).await;
+
+        assert_eq!(refused.status_code(), 400, "{}", refused.text());
+        assert_within(
+            "malformed opaque refresh",
+            MALFORMED_REFRESH_BUDGET,
+            &statements,
+        );
+    });
+}
+
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
 fn a_login_stays_within_its_statement_budget() {
@@ -234,17 +318,7 @@ fn a_login_stays_within_its_statement_budget() {
 
     rt().block_on(async {
         let server = app.server();
-        let client = app.client(ClientSpec::public().with_direct_access()).await;
-        sqlx::query(
-            "INSERT INTO client_scope_mappings (client_id, client_scope_id, default_scope_type) \
-             SELECT $1, id, 'DEFAULT' FROM client_scopes \
-             WHERE realm_id = $2 AND name IN ('openid', 'profile', 'email', 'roles')",
-        )
-        .bind(client.id)
-        .bind(app.realm_id)
-        .execute(&app.pool)
-        .await
-        .expect("attach the realm default scopes, as the client service does");
+        let client = client_with_default_scopes(app).await;
         let user = app.user(&server, "Correct-horse-battery-7").await;
 
         let warm = password_grant(

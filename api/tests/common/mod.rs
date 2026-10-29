@@ -15,7 +15,8 @@ use ferriskey_api::{
 use ferriskey_core::{
     application::create_service_with_secrets,
     domain::common::{
-        DatabaseConfig, FerriskeyConfig, entities::StartupConfig, ports::CoreService,
+        DatabaseConfig, FerriskeyConfig, RefreshTokenFormat, entities::StartupConfig,
+        ports::CoreService,
     },
 };
 use serde_json::{Value, json};
@@ -32,6 +33,8 @@ pub struct TestApp {
     pub realm: String,
     pub realm_id: Uuid,
     pub pool: PgPool,
+    database: DatabaseConfig,
+    config_cache_ttl_seconds: u64,
 }
 
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
@@ -39,6 +42,9 @@ static APP: OnceLock<TestApp> = OnceLock::new();
 static CACHED_APP: OnceLock<TestApp> = OnceLock::new();
 static FORWARDED_APP: OnceLock<TestApp> = OnceLock::new();
 static SEALED_APP: OnceLock<TestApp> = OnceLock::new();
+static OPAQUE_APP: OnceLock<TestApp> = OnceLock::new();
+static OPAQUE_APP_JWT_VIEW: OnceLock<TestApp> = OnceLock::new();
+static CACHED_OPAQUE_APP: OnceLock<TestApp> = OnceLock::new();
 
 pub const SEALING_KEYS: &str = "kid-a:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
@@ -63,6 +69,25 @@ pub fn forwarded_app() -> &'static TestApp {
     FORWARDED_APP.get_or_init(|| boot_blocking(0, false, true))
 }
 
+pub fn opaque_app() -> &'static TestApp {
+    OPAQUE_APP.get_or_init(|| boot_with(0, false, false, "", RefreshTokenFormat::Opaque))
+}
+
+pub fn jwt_view_of_opaque_app() -> &'static TestApp {
+    let opaque = opaque_app();
+    OPAQUE_APP_JWT_VIEW.get_or_init(|| {
+        let sibling = opaque.sibling(RefreshTokenFormat::Jwt);
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => tokio::task::block_in_place(|| handle.block_on(sibling)),
+            Err(_) => rt().block_on(sibling),
+        }
+    })
+}
+
+pub fn cached_opaque_app() -> &'static TestApp {
+    CACHED_OPAQUE_APP.get_or_init(|| boot_with(60, true, false, "", RefreshTokenFormat::Opaque))
+}
+
 pub fn sealed_app() -> &'static TestApp {
     SEALED_APP.get_or_init(|| boot_sealed_blocking(SEALING_KEYS))
 }
@@ -77,11 +102,18 @@ fn boot_blocking(
         seed_default_scopes,
         trust_forwarded_for,
         "",
+        RefreshTokenFormat::default(),
     )
 }
 
 fn boot_sealed_blocking(secrets_encryption_keys: &str) -> TestApp {
-    boot_with(0, false, false, secrets_encryption_keys)
+    boot_with(
+        0,
+        false,
+        false,
+        secrets_encryption_keys,
+        RefreshTokenFormat::default(),
+    )
 }
 
 fn boot_with(
@@ -89,12 +121,14 @@ fn boot_with(
     seed_default_scopes: bool,
     trust_forwarded_for: bool,
     secrets_encryption_keys: &str,
+    refresh_token_format: RefreshTokenFormat,
 ) -> TestApp {
     let boot = TestApp::boot(
         config_cache_ttl_seconds,
         seed_default_scopes,
         trust_forwarded_for,
         secrets_encryption_keys,
+        refresh_token_format,
     );
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => tokio::task::block_in_place(|| handle.block_on(boot)),
@@ -119,6 +153,7 @@ impl TestApp {
         seed_default_scopes: bool,
         trust_forwarded_for: bool,
         secrets_encryption_keys: &str,
+        refresh_token_format: RefreshTokenFormat,
     ) -> TestApp {
         let host = env_or("DATABASE_HOST", "localhost");
         let port = env_u16_or("DATABASE_PORT", 5432);
@@ -149,24 +184,26 @@ impl TestApp {
             .await
             .expect("run migrations");
 
+        let database = DatabaseConfig {
+            host,
+            port,
+            username: user,
+            password,
+            name,
+            schema,
+            max_connections: 100,
+            min_connections: 5,
+        };
+
         let service = create_service_with_secrets(
             FerriskeyConfig {
                 webhook_allow_private_endpoints: false,
                 client_metadata_allow_private_endpoints: false,
                 config_cache_ttl_seconds,
                 password_hashing: PasswordHashingCost::default(),
-                refresh_token_format: Default::default(),
+                refresh_token_format,
                 webapp_url: "http://localhost:5555".to_string(),
-                database: DatabaseConfig {
-                    host,
-                    port,
-                    username: user,
-                    password,
-                    name,
-                    schema,
-                    max_connections: 100,
-                    min_connections: 5,
-                },
+                database: database.clone(),
             },
             secrets_encryption_keys,
         )
@@ -214,6 +251,39 @@ impl TestApp {
             realm,
             realm_id,
             pool,
+            database,
+            config_cache_ttl_seconds,
+        }
+    }
+
+    pub async fn sibling(&self, refresh_token_format: RefreshTokenFormat) -> TestApp {
+        let service = create_service_with_secrets(
+            FerriskeyConfig {
+                webhook_allow_private_endpoints: false,
+                client_metadata_allow_private_endpoints: false,
+                config_cache_ttl_seconds: self.config_cache_ttl_seconds,
+                password_hashing: PasswordHashingCost::default(),
+                refresh_token_format,
+                webapp_url: "http://localhost:5555".to_string(),
+                database: DatabaseConfig {
+                    max_connections: 10,
+                    min_connections: 1,
+                    ..self.database.clone()
+                },
+            },
+            "",
+        )
+        .await
+        .expect("create sibling service");
+
+        let state = AppState::new(Arc::new(Args::default()), service);
+        TestApp {
+            router: Mutex::new(router(state).expect("build router")),
+            realm: self.realm.clone(),
+            realm_id: self.realm_id,
+            pool: self.pool.clone(),
+            database: self.database.clone(),
+            config_cache_ttl_seconds: self.config_cache_ttl_seconds,
         }
     }
 
