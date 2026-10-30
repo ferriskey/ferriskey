@@ -157,24 +157,26 @@ pub trait RefreshTokenRepository: Send + Sync {
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 pub trait AccessTokenRepository: Send + Sync {
-    fn create(
+    /// Notes that `client_id` holds tokens issued under `issuer` in the session, which
+    /// is what back-channel logout notifies when the session ends. Recording the same
+    /// participant again, or one for a session that is gone, changes nothing.
+    fn record_session_participant(
         &self,
-        token_hash: String,
-        jti: Option<Uuid>,
-        user_id: Uuid,
         realm_id: RealmId,
-        expires_at: Option<DateTime<Utc>>,
-        claims: serde_json::Value,
-    ) -> impl Future<Output = Result<AccessToken, SecurityError>> + Send;
+        session_id: Uuid,
+        client_id: String,
+        issuer: String,
+    ) -> impl Future<Output = Result<(), SecurityError>> + Send;
 
     fn get_by_token_hash(
         &self,
         token_hash: String,
     ) -> impl Future<Output = Result<Option<Unscoped<AccessToken>>, SecurityError>> + Send;
 
-    /// True when the token was revoked itself, or issued before the second all of
-    /// the user's tokens were revoked. `iat` has whole-second resolution, so a token
-    /// minted within that very second, before or after, is not caught.
+    /// True when the token was revoked itself, issued before the second all of the
+    /// user's tokens were revoked, or issued at or before the second all of its
+    /// session's tokens were revoked. `iat` has whole-second resolution, so a token
+    /// minted within the user-wide revocation second, before or after, is not caught.
     ///
     /// The cutoff is read from the database clock while `iat` comes from the
     /// issuer's, so a token never stored (client credentials) escapes the cutoff if
@@ -184,6 +186,7 @@ pub trait AccessTokenRepository: Send + Sync {
         &self,
         token_hash: String,
         user_id: Uuid,
+        session_id: Option<Uuid>,
         issued_at: i64,
     ) -> impl Future<Output = Result<bool, SecurityError>> + Send;
 

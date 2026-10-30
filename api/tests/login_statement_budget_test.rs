@@ -16,17 +16,17 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
 use tracing_subscriber::util::SubscriberInitExt;
 
-const PASSWORD_GRANT_BUDGET: usize = 10;
+const PASSWORD_GRANT_BUDGET: usize = 8;
 const WRONG_PASSWORD_BUDGET: usize = 6;
 const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
-const AUTHENTICATE_BUDGET: usize = 9;
-const CODE_EXCHANGE_BUDGET: usize = 12;
+const AUTHENTICATE_BUDGET: usize = 8;
+const CODE_EXCHANGE_BUDGET: usize = 7;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
 const USERINFO_BUDGET: usize = 0;
 const INTROSPECT_BUDGET: usize = 1;
-const REFRESH_BUDGET: usize = 6;
-const OPAQUE_REFRESH_BUDGET: usize = 2;
+const REFRESH_BUDGET: usize = 4;
+const OPAQUE_REFRESH_BUDGET: usize = 1;
 const MALFORMED_REFRESH_BUDGET: usize = 0;
 const FORGED_BEARER_BUDGET: usize = 0;
 
@@ -253,7 +253,7 @@ async fn client_with_default_scopes(app: &TestApp) -> common::SeededClient {
 
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
-fn spec_rtp_13_an_opaque_refresh_stays_within_two_statements() {
+fn spec_rtp_13_an_opaque_refresh_stays_within_one_statement() {
     let _serial = serial();
     record_statements();
     let app = cached_opaque_app();

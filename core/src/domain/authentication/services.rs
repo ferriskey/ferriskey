@@ -2217,31 +2217,23 @@ where
         })
     }
 
-    // Persist access tokens so backend services can introspect/revoke them immediately.
-    async fn persist_access_token(
+    async fn record_participant(
         &self,
-        signed: &SignedAccessToken,
+        claims: &JwtClaim,
         realm_id: RealmId,
     ) -> Result<(), CoreError> {
-        let token_hash = format!("{:x}", Sha256::digest(signed.jwt.token.as_bytes()));
-        let claims =
-            serde_json::to_value(&signed.claims).map_err(|_| CoreError::InternalServerError)?;
-        let expires_at = signed
-            .claims
-            .exp
-            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
+        let Some(session_id) = claims.sid else {
+            return Ok(());
+        };
 
         self.access_token_repository
-            .create(
-                token_hash,
-                Some(signed.claims.jti),
-                signed.claims.sub,
+            .record_session_participant(
                 realm_id,
-                expires_at,
-                claims,
+                session_id,
+                claims.azp.clone(),
+                claims.iss.clone(),
             )
             .await
-            .map(|_| ())
             .map_err(|_| CoreError::InternalServerError)
     }
 
@@ -2307,15 +2299,10 @@ where
             }
         };
 
-        let persist_access = self.persist_access_token(&signed, input.realm.id());
-
         match refresh_row {
-            RefreshRow::AlreadyStored => {
-                persist_access
-                    .instrument(info_span!("auth.create_jwt.persist"))
-                    .await?;
-            }
+            RefreshRow::AlreadyStored => {}
             RefreshRow::Insert => {
+                let persist_access = self.record_participant(&signed.claims, input.realm.id());
                 let refresh_token_expires_at = Utc
                     .timestamp_opt(refresh_token.expires_at, 0)
                     .single()
@@ -2402,8 +2389,9 @@ where
         Ok(assembled.access_claims.additional_claims)
     }
 
-    /// Sign `claims` as a lone access token (no refresh or ID token) and
-    /// persist it so it can be introspected and revoked like any other.
+    /// Sign `claims` as a lone access token (no refresh or ID token), recording
+    /// its client as a participant of the session it is bound to. The token itself
+    /// is not stored: revoking it by hash records it on demand.
     pub(crate) async fn issue_access_token(
         &self,
         realm_id: RealmId,
@@ -2417,24 +2405,7 @@ where
 
         let jwt = encode_token_with_key(&claims, claims.exp.unwrap_or(0), &jwt_key_pair).await?;
 
-        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
-        let access_token_claims =
-            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
-        let access_token_expires_at = claims
-            .exp
-            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
-
-        self.access_token_repository
-            .create(
-                access_token_hash,
-                Some(claims.jti),
-                claims.sub,
-                realm_id,
-                access_token_expires_at,
-                access_token_claims,
-            )
-            .await
-            .map_err(|_| CoreError::InternalServerError)?;
+        self.record_participant(&claims, realm_id).await?;
 
         Ok(jwt)
     }
@@ -2491,7 +2462,12 @@ where
             let token_hash = format!("{:x}", Sha256::digest(token.as_bytes()));
             if self
                 .access_token_repository
-                .is_revoked(token_hash, token_data.claims.sub, token_data.claims.iat)
+                .is_revoked(
+                    token_hash,
+                    token_data.claims.sub,
+                    token_data.claims.sid,
+                    token_data.claims.iat,
+                )
                 .await
                 .map_err(|_| CoreError::InternalServerError)?
             {
@@ -6253,37 +6229,26 @@ where
             }
         };
 
-        let access_token_hash = format!("{:x}", Sha256::digest(jwt.token.as_bytes()));
-        let access_token_claims =
-            serde_json::to_value(&claims).map_err(|_| CoreError::InternalServerError)?;
-        let access_token_expires_at = claims
-            .exp
-            .and_then(|exp| Utc.timestamp_opt(exp, 0).single());
         let refresh_token_expires_at = Utc
             .timestamp_opt(refresh_token.expires_at, 0)
             .single()
             .ok_or(CoreError::InternalServerError)?;
 
-        tokio::try_join!(
-            self.access_token_repository.create(
-                access_token_hash,
-                Some(claims.jti),
-                claims.sub,
-                realm_scope.id(),
-                access_token_expires_at,
-                access_token_claims,
-            ),
-            self.refresh_token_repository.create(
-                plan.jti,
-                user.id,
-                Some(refresh_token_expires_at),
-                Some(user_session.id),
-                None,
-                plan.hash(),
-                Some(String::new()),
-                claims.scope.clone(),
-            )
-        )
+        tokio::try_join!(self.record_participant(&claims, realm_scope.id()), async {
+            self.refresh_token_repository
+                .create(
+                    plan.jti,
+                    user.id,
+                    Some(refresh_token_expires_at),
+                    Some(user_session.id),
+                    None,
+                    plan.hash(),
+                    Some(String::new()),
+                    claims.scope.clone(),
+                )
+                .await
+                .map_err(|_| CoreError::InternalServerError)
+        })
         .map_err(|e| {
             warn!(
                 user_id = %user.id,

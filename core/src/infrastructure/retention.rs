@@ -203,7 +203,7 @@ mod db_tests {
         let hash = format!("hash-{}", Uuid::new_v4().simple());
         fixture
             .access_tokens
-            .create(
+            .revoke_by_token_hash(
                 hash.clone(),
                 Some(Uuid::new_v4()),
                 fixture.user_id,
@@ -212,7 +212,7 @@ mod db_tests {
                 serde_json::json!({}),
             )
             .await
-            .expect("create access token");
+            .expect("store access token");
         hash
     }
 

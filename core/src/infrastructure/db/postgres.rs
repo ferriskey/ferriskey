@@ -3,6 +3,7 @@ use std::time::Duration;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 
 pub const IDLE_CONNECTION_TIMEOUT: Duration = Duration::from_secs(60);
+/// Connections of the async-commit pool that serve session-participant writes.
 pub const ASYNC_COMMIT_CONNECTIONS: u32 = 4;
 
 #[derive(Debug, Clone)]
@@ -140,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn the_async_commit_pool_holds_one_connection_per_access_token_writer() {
+    fn the_async_commit_pool_holds_a_fixed_number_of_connections_for_session_participant_writes() {
         let options = async_commit_options(&config(20, 2));
 
         assert_eq!(

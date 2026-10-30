@@ -357,7 +357,7 @@ pub async fn create_service_with_secrets(
     }
     let refresh_token = Arc::new(stored_refresh_tokens);
     let stored_access_tokens = PostgresAccessTokenRepository::new(postgres.get_db())
-        .with_issued_tokens_written_through(postgres.get_async_commit_db());
+        .with_participants_written_through(postgres.get_async_commit_db());
     let access_token = Arc::new(CachedAccessTokenRepository::new(
         stored_access_tokens.clone(),
         token_state.clone(),
