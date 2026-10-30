@@ -219,28 +219,32 @@ export function usePortalPageSubmit(
       const password = String(data.get('password') ?? '')
       const passwordConfirm = String(data.get('password_confirm') ?? '')
       if (passwordConfirm && passwordConfirm !== password) {
-        toast.error(t('form.passwords_mismatch'))
+        onFormError?.(t('form.passwords_mismatch'))
         return
       }
       if (!email || !password) {
-        toast.error(t('form.register_fields_required'))
+        onFormError?.(t('form.register_fields_required'))
         return
       }
-      registration({
-        path: { realm_name: realm_name ?? 'master' },
-        body: {
-          email,
-          password,
-          // Username defaults to the local-part of the email so a tree that
-          // omits the field still produces a valid record — admins who want
-          // explicit usernames just add a `username_input` block.
-          username: String(data.get('username') ?? '').trim() || email.split('@')[0],
-          first_name: String(data.get('first_name') ?? '').trim() || null,
-          last_name: String(data.get('last_name') ?? '').trim() || null,
+      onFormError?.(null)
+      registration(
+        {
+          path: { realm_name: realm_name ?? 'master' },
+          body: {
+            email,
+            password,
+            username: String(data.get('username') ?? '').trim() || undefined,
+            first_name: String(data.get('first_name') ?? '').trim() || null,
+            last_name: String(data.get('last_name') ?? '').trim() || null,
+          },
         },
-      })
+        {
+          onError: (error: Error) =>
+            onFormError?.(apiErrorMessage(error, t('form.register_failed'))),
+        },
+      )
     },
-    [realm_name, registration, t],
+    [onFormError, realm_name, registration, t],
   )
 
   // Verify-email: the only meaningful action from the user is "send me

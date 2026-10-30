@@ -88,7 +88,7 @@ pub struct AuthenticationResult {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterUserInput {
     pub realm_name: String,
-    pub username: String,
+    pub username: Option<String>,
     pub password: String,
     pub email: String,
     pub first_name: Option<String>,

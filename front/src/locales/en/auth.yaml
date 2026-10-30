@@ -252,6 +252,7 @@ form:
   login_failed: Sign-in failed. Please try again.
   passwords_mismatch: Passwords do not match.
   register_fields_required: Email and password are required.
+  register_failed: Could not create your account. Please try again.
   forgot_email_required: Enter your email to receive a reset link.
   reset_password_required: Choose a new password.
   reset_link_missing: Reset link is missing or expired. Request a new one.

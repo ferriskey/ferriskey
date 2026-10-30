@@ -762,8 +762,16 @@ pub fn second_factor_verified(claims: &JwtClaim) -> bool {
 /// Constant-time comparison of a configured client secret against the one
 /// presented on the token endpoint. `(None, None)` means "no secret configured
 /// and none presented", which is only ever reached for public clients.
-pub(crate) fn normalize_login_email(email: &str) -> String {
+pub fn normalize_login_email(email: &str) -> String {
     email.trim().to_lowercase()
+}
+
+pub fn resolve_registration_username(username: Option<&str>, normalized_email: &str) -> String {
+    username
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .unwrap_or(normalized_email)
+        .to_string()
 }
 
 pub(crate) fn client_secret_matches(stored: Option<&str>, provided: Option<&str>) -> bool {
@@ -5170,11 +5178,12 @@ where
         let lastname = input.last_name;
 
         let email = normalize_login_email(&input.email);
-        let username = input.username.trim().to_string();
 
-        if email.is_empty() || username.is_empty() {
+        if email.is_empty() {
             return Err(CoreError::InvalidRequest);
         }
+
+        let username = resolve_registration_username(input.username.as_deref(), &email);
 
         let email_verification_enabled = realm
             .settings
@@ -8141,5 +8150,52 @@ mod direct_grant_resource_tests {
             effective_direct_grant_resource(Some("https://other.example"), &[]),
             Err(CoreError::InvalidTarget)
         ));
+    }
+}
+
+#[cfg(test)]
+mod registration_username_tests {
+    use super::resolve_registration_username;
+
+    #[test]
+    fn a_registration_without_username_takes_the_normalized_email() {
+        assert_eq!(
+            resolve_registration_username(None, "contact@a.fr"),
+            "contact@a.fr"
+        );
+    }
+
+    #[test]
+    fn two_emails_sharing_a_local_part_get_distinct_usernames() {
+        let first = resolve_registration_username(None, "contact@a.fr");
+        let second = resolve_registration_username(None, "contact@b.fr");
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn a_provided_username_is_kept_trimmed() {
+        assert_eq!(
+            resolve_registration_username(Some("  jdoe  "), "contact@a.fr"),
+            "jdoe"
+        );
+    }
+
+    #[test]
+    fn a_blank_username_takes_the_normalized_email_like_an_absent_one() {
+        for blank in ["", "   ", "\t\n"] {
+            assert_eq!(
+                resolve_registration_username(Some(blank), "contact@a.fr"),
+                "contact@a.fr",
+                "blank value {blank:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_resolved_username_is_never_empty_for_a_non_empty_email() {
+        for username in [None, Some(""), Some("  "), Some("jdoe")] {
+            assert!(!resolve_registration_username(username, "contact@a.fr").is_empty());
+        }
     }
 }
