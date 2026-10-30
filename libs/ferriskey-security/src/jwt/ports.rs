@@ -20,7 +20,6 @@ pub enum RotateOutcome {
 }
 
 pub struct RefreshTokenSuccessor {
-    pub id: Uuid,
     pub jti: Uuid,
     pub expires_at: Option<DateTime<Utc>>,
     pub token_hash: Option<RefreshTokenHash>,
@@ -96,7 +95,8 @@ pub trait RefreshTokenRepository: Send + Sync {
     fn revoke_by_jti(&self, jti: Uuid) -> impl Future<Output = Result<(), SecurityError>> + Send;
     fn delete(&self, jti: Uuid) -> impl Future<Output = Result<(), SecurityError>> + Send;
 
-    /// Atomically rotate `old_id` (WHERE status='active') and mint a successor.
+    /// Atomically rotate the row `old_id` in place (WHERE jti = `old_jti` AND status='active'),
+    /// keeping the superseded jti and hash as the row's previous token.
     ///
     /// Returns `RotateOutcome::Conflict` when 0 rows were updated, indicating a
     /// concurrent rotation already consumed this token.
@@ -104,6 +104,7 @@ pub trait RefreshTokenRepository: Send + Sync {
     fn rotate(
         &self,
         old_id: Uuid,
+        old_jti: Uuid,
         new_jti: Uuid,
         user_id: Uuid,
         family_id: Uuid,

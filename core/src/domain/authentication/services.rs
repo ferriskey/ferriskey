@@ -75,7 +75,7 @@ use crate::domain::{
     client_metadata::{ports::ClientMetadataResolver, validation::client_uri_host},
     common::{
         RefreshTokenFormat, entities::app_errors::CoreError, generate_random_string,
-        generate_random_token, generate_uuid_v7,
+        generate_random_token,
     },
     credential::{entities::CredentialType, ports::CredentialRepository},
     crypto::HasherRepository,
@@ -3475,7 +3475,6 @@ where
                 hash,
                 &params.client_id,
                 RefreshTokenSuccessor {
-                    id: generate_uuid_v7(),
                     jti: plan.jti,
                     expires_at: Some(plan.expires_at),
                     token_hash: plan.hash(),
@@ -3668,6 +3667,7 @@ where
             .refresh_token_repository
             .rotate(
                 stored.id,
+                stored.jti,
                 plan.jti,
                 user.id,
                 stored.family_id,

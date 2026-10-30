@@ -1,8 +1,8 @@
 use chrono::{DateTime, TimeZone, Utc};
 use sea_orm::sea_query::{Expr, Query};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseConnection,
-    DbBackend, EntityTrait, FromQueryResult, QueryFilter, Statement,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, Condition, ConnectionTrait,
+    DatabaseConnection, DbBackend, EntityTrait, FromQueryResult, QueryFilter, Statement,
 };
 use uuid::Uuid;
 
@@ -42,50 +42,59 @@ impl From<crate::entity::refresh_tokens::Model> for RefreshToken {
 }
 
 const ROTATE_SQL: &str = "\
-WITH superseded AS (
-    UPDATE refresh_tokens
-    SET status = 'rotated', replaced_by = $2, rotated_at = $3
-    WHERE id = $1 AND status = 'active'
-    RETURNING session_id, resource
-)
-INSERT INTO refresh_tokens
-    (id, jti, user_id, revoked, created_at, expires_at, family_id, status, session_id, resource,
-     token_hash, client_id, scope)
-SELECT $2, $4, $5, false, $6, $7, $8, 'active', session_id, resource, $9, $10, $11
-FROM superseded
-RETURNING id, jti, user_id, revoked, expires_at, created_at, family_id, status, replaced_by, rotated_at, session_id, resource, token_hash, client_id, scope";
+UPDATE refresh_tokens
+SET previous_jti = jti, previous_token_hash = token_hash, jti = $3, token_hash = $4,
+    expires_at = $5, created_at = $6, rotated_at = $7, replaced_by = NULL,
+    client_id = $8, scope = $9
+WHERE id = $1 AND jti = $2 AND status = 'active' AND user_id = $10 AND family_id = $11
+RETURNING
+        id, jti, user_id, revoked, expires_at, created_at, family_id, status, replaced_by,
+        rotated_at, session_id, resource, token_hash, client_id, scope, previous_jti,
+        previous_token_hash";
 
 const CONSUME_AND_ROTATE_SQL: &str = "\
-WITH consumed AS (
-    UPDATE refresh_tokens
-    SET status = 'rotated', replaced_by = $3, rotated_at = $4
+UPDATE refresh_tokens t
+SET previous_jti = o.jti, previous_token_hash = o.token_hash, jti = $5, token_hash = $7,
+    expires_at = $6, created_at = $4, rotated_at = $3, replaced_by = NULL
+FROM (
+    SELECT
+            id, jti, user_id, revoked, expires_at, created_at, family_id, status, replaced_by,
+            rotated_at, session_id, resource, token_hash, client_id, scope, previous_jti,
+            previous_token_hash
+    FROM refresh_tokens
     WHERE token_hash = $1 AND client_id = $2 AND status = 'active'
-      AND (expires_at IS NULL OR expires_at > $5)
-    RETURNING id, jti, user_id, revoked, expires_at, created_at, family_id, status, replaced_by,
-              rotated_at, session_id, resource, token_hash, client_id, scope
-), successor AS (
-    INSERT INTO refresh_tokens
-        (id, jti, user_id, revoked, created_at, expires_at, family_id, status, session_id,
-         resource, token_hash, client_id, scope)
-    SELECT $3, $6, user_id, false, $5, $7, family_id, 'active', session_id, resource, $8,
-           client_id, scope
-    FROM consumed
-    RETURNING id, jti, user_id, revoked, expires_at, created_at, family_id, status, replaced_by,
-              rotated_at, session_id, resource, token_hash, client_id, scope
-)
-SELECT
-    c.id AS c_id, c.jti AS c_jti, c.user_id AS c_user_id, c.revoked AS c_revoked,
-    c.expires_at AS c_expires_at, c.created_at AS c_created_at, c.family_id AS c_family_id,
-    c.status AS c_status, c.replaced_by AS c_replaced_by, c.rotated_at AS c_rotated_at,
-    c.session_id AS c_session_id, c.resource AS c_resource, c.token_hash AS c_token_hash,
-    c.client_id AS c_client_id, c.scope AS c_scope,
-    s.id AS s_id, s.jti AS s_jti, s.user_id AS s_user_id, s.revoked AS s_revoked,
-    s.expires_at AS s_expires_at, s.created_at AS s_created_at, s.family_id AS s_family_id,
-    s.status AS s_status, s.replaced_by AS s_replaced_by, s.rotated_at AS s_rotated_at,
-    s.session_id AS s_session_id, s.resource AS s_resource, s.token_hash AS s_token_hash,
-    s.client_id AS s_client_id, s.scope AS s_scope
-FROM consumed c
-CROSS JOIN successor s";
+      AND (expires_at IS NULL OR expires_at > $4)
+    FOR UPDATE
+) o
+WHERE t.id = o.id
+RETURNING
+    o.id AS c_id, o.jti AS c_jti, o.user_id AS c_user_id, o.revoked AS c_revoked,
+    o.expires_at AS c_expires_at, o.created_at AS c_created_at, o.family_id AS c_family_id,
+    o.status AS c_status, o.replaced_by AS c_replaced_by, o.rotated_at AS c_rotated_at,
+    o.session_id AS c_session_id, o.resource AS c_resource, o.token_hash AS c_token_hash,
+    o.client_id AS c_client_id, o.scope AS c_scope, o.previous_jti AS c_previous_jti,
+    o.previous_token_hash AS c_previous_token_hash,
+    t.id AS s_id, t.jti AS s_jti, t.user_id AS s_user_id, t.revoked AS s_revoked,
+    t.expires_at AS s_expires_at, t.created_at AS s_created_at, t.family_id AS s_family_id,
+    t.status AS s_status, t.replaced_by AS s_replaced_by, t.rotated_at AS s_rotated_at,
+    t.session_id AS s_session_id, t.resource AS s_resource, t.token_hash AS s_token_hash,
+    t.client_id AS s_client_id, t.scope AS s_scope, t.previous_jti AS s_previous_jti,
+    t.previous_token_hash AS s_previous_token_hash";
+
+/// A row holds its current token and the one before it. Presenting the previous one reads as the
+/// superseded token it is, whatever the row's own status says about the current one.
+fn as_presented(mut model: crate::entity::refresh_tokens::Model, current: bool) -> RefreshToken {
+    if !current {
+        if model.status != "revoked" {
+            model.status = "rotated".to_string();
+        }
+        if let Some(previous_jti) = model.previous_jti {
+            model.jti = previous_jti;
+        }
+        model.token_hash = model.previous_token_hash.take();
+    }
+    model.into()
+}
 
 fn hash_value(hash: Option<RefreshTokenHash>) -> Option<Vec<u8>> {
     hash.map(|hash| hash.0.to_vec())
@@ -142,6 +151,8 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             token_hash: Set(hash_value(token_hash)),
             client_id: Set(client_id),
             scope: Set(scope),
+            previous_jti: Set(None),
+            previous_token_hash: Set(None),
         };
 
         let refresh_token = model
@@ -180,6 +191,8 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
             token_hash: Set(hash_value(token_hash)),
             client_id: Set(client_id),
             scope: Set(scope),
+            previous_jti: Set(None),
+            previous_token_hash: Set(None),
         };
 
         let refresh_token = model
@@ -191,14 +204,19 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
     }
 
     async fn get_by_jti(&self, jti: Uuid) -> Result<RefreshToken, JwtError> {
-        let refresh_token = crate::entity::refresh_tokens::Entity::find()
-            .filter(crate::entity::refresh_tokens::Column::Jti.eq(jti))
+        let model = crate::entity::refresh_tokens::Entity::find()
+            .filter(
+                Condition::any()
+                    .add(crate::entity::refresh_tokens::Column::Jti.eq(jti))
+                    .add(crate::entity::refresh_tokens::Column::PreviousJti.eq(jti)),
+            )
             .one(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?
             .ok_or(JwtError::InvalidToken)?;
 
-        Ok(refresh_token.into())
+        let current = model.jti == jti;
+        Ok(as_presented(model, current))
     }
 
     async fn revoke_by_jti(&self, jti: Uuid) -> Result<(), JwtError> {
@@ -232,6 +250,7 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
     async fn rotate(
         &self,
         old_id: Uuid,
+        old_jti: Uuid,
         new_jti: Uuid,
         user_id: Uuid,
         family_id: Uuid,
@@ -240,7 +259,6 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
         client_id: Option<String>,
         scope: Option<String>,
     ) -> Result<RotateOutcome, JwtError> {
-        let new_id = generate_uuid_v7();
         let now = Utc::now();
 
         let row = self
@@ -250,16 +268,16 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
                 ROTATE_SQL,
                 [
                     old_id.into(),
-                    new_id.into(),
-                    now.fixed_offset().into(),
+                    old_jti.into(),
                     new_jti.into(),
-                    user_id.into(),
-                    now.naive_utc().into(),
-                    new_expires_at.map(|dt| dt.naive_utc()).into(),
-                    family_id.into(),
                     hash_value(token_hash).into(),
+                    new_expires_at.map(|dt| dt.naive_utc()).into(),
+                    now.naive_utc().into(),
+                    now.fixed_offset().into(),
                     client_id.into(),
                     scope.into(),
+                    user_id.into(),
+                    family_id.into(),
                 ],
             ))
             .await
@@ -291,7 +309,6 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
                 [
                     hash.0.to_vec().into(),
                     client_id.into(),
-                    successor.id.into(),
                     now.fixed_offset().into(),
                     now.naive_utc().into(),
                     successor.jti.into(),
@@ -318,13 +335,23 @@ impl RefreshTokenRepository for PostgresRefreshTokenRepository {
     }
 
     async fn get_by_hash(&self, hash: RefreshTokenHash) -> Result<Option<RefreshToken>, JwtError> {
-        let refresh_token = crate::entity::refresh_tokens::Entity::find()
-            .filter(crate::entity::refresh_tokens::Column::TokenHash.eq(hash.0.to_vec()))
+        let model = crate::entity::refresh_tokens::Entity::find()
+            .filter(
+                Condition::any()
+                    .add(crate::entity::refresh_tokens::Column::TokenHash.eq(hash.0.to_vec()))
+                    .add(
+                        crate::entity::refresh_tokens::Column::PreviousTokenHash
+                            .eq(hash.0.to_vec()),
+                    ),
+            )
             .one(&self.db)
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
-        Ok(refresh_token.map(Into::into))
+        Ok(model.map(|model| {
+            let current = model.token_hash.as_deref() == Some(hash.0.as_slice());
+            as_presented(model, current)
+        }))
     }
 
     async fn revoke_by_hash(
@@ -540,7 +567,6 @@ mod tests {
 
     fn successor() -> RefreshTokenSuccessor {
         RefreshTokenSuccessor {
-            id: Uuid::new_v4(),
             jti: Uuid::new_v4(),
             expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
             token_hash: Some(OpaqueRefreshToken::generate().hash()),
@@ -564,6 +590,7 @@ mod tests {
             .repository
             .rotate(
                 old.id,
+                old.jti,
                 Uuid::new_v4(),
                 seeded.user_id,
                 old.family_id,
@@ -595,17 +622,14 @@ mod tests {
             panic!("an active token must rotate");
         };
 
+        assert_eq!(successor.id, old.id);
         assert_eq!(successor.family_id, old.family_id);
         assert_eq!(successor.user_id, seeded.user_id);
         assert_eq!(successor.status, RefreshTokenStatus::Active);
         assert_eq!(successor.resource.as_deref(), Some("https://api.example"));
-        let successor_session: Option<Uuid> =
-            sqlx::query_scalar("SELECT session_id FROM refresh_tokens WHERE id = $1")
-                .bind(successor.id)
-                .fetch_one(&seeded.pool)
-                .await
-                .expect("read the successor session");
-        assert_eq!(successor_session, Some(session_id));
+        assert_eq!(successor.session_id, Some(session_id));
+        assert_ne!(successor.jti, old.jti);
+        assert_eq!(rows_of_family(&seeded, old.family_id).await, 1);
 
         let superseded = seeded
             .repository
@@ -613,8 +637,16 @@ mod tests {
             .await
             .expect("read the superseded token");
         assert_eq!(superseded.status, RefreshTokenStatus::Rotated);
-        assert_eq!(superseded.replaced_by, Some(successor.id));
-        assert!(superseded.rotated_at.is_some());
+        assert_eq!(superseded.jti, old.jti);
+        assert_eq!(superseded.id, old.id);
+        assert!(successor.rotated_at.is_some());
+        let previous: Option<Uuid> =
+            sqlx::query_scalar("SELECT previous_jti FROM refresh_tokens WHERE id = $1")
+                .bind(old.id)
+                .fetch_one(&seeded.pool)
+                .await
+                .expect("read the previous jti");
+        assert_eq!(previous, Some(old.jti));
     }
 
     #[tokio::test]
@@ -647,6 +679,8 @@ mod tests {
             "idx_access_tokens_claims_sid",
             "idx_access_tokens_expires_at",
             "idx_refresh_tokens_family_id",
+            "idx_refresh_tokens_previous_jti",
+            "idx_refresh_tokens_previous_token_hash",
             "idx_refresh_tokens_session_id",
         ] {
             assert!(
@@ -682,7 +716,7 @@ mod tests {
         let second = rotate(&seeded, &old).await;
 
         assert!(matches!(second, RotateOutcome::Conflict));
-        assert_eq!(rows_of_family(&seeded, old.family_id).await, 2);
+        assert_eq!(rows_of_family(&seeded, old.family_id).await, 1);
     }
 
     #[tokio::test]
@@ -721,7 +755,7 @@ mod tests {
         }
 
         assert_eq!(won, 1);
-        assert_eq!(rows_of_family(&seeded, old.family_id).await, 2);
+        assert_eq!(rows_of_family(&seeded, old.family_id).await, 1);
     }
 
     #[tokio::test]
@@ -739,7 +773,9 @@ mod tests {
         };
 
         assert_eq!(consumed.id, stored.id);
-        assert_eq!(consumed.status, RefreshTokenStatus::Rotated);
+        assert_eq!(consumed.jti, stored.jti);
+        assert_eq!(successor.id, stored.id);
+        assert_ne!(successor.jti, stored.jti);
         assert_eq!(consumed.session_id, stored.session_id);
         assert_eq!(consumed.scope.as_deref(), Some("openid profile"));
         assert_eq!(successor.status, RefreshTokenStatus::Active);
@@ -749,7 +785,6 @@ mod tests {
         assert_eq!(successor.resource.as_deref(), Some("https://api.example"));
         assert_eq!(successor.client_id.as_deref(), Some("web"));
         assert_eq!(successor.scope.as_deref(), Some("openid profile"));
-        assert_eq!(consumed.replaced_by, Some(successor.id));
     }
 
     #[tokio::test]
@@ -829,7 +864,7 @@ mod tests {
         let second = consume(&seeded, &token, "web").await;
 
         assert!(matches!(second, ConsumeOutcome::NotConsumed));
-        assert_eq!(rows_of_family(&seeded, stored.family_id).await, 2);
+        assert_eq!(rows_of_family(&seeded, stored.family_id).await, 1);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -852,7 +887,7 @@ mod tests {
         }
 
         assert_eq!(won, 1);
-        assert_eq!(rows_of_family(&seeded, stored.family_id).await, 2);
+        assert_eq!(rows_of_family(&seeded, stored.family_id).await, 1);
     }
 
     #[tokio::test]
@@ -909,6 +944,7 @@ mod tests {
             .repository
             .rotate(
                 old.id,
+                old.jti,
                 Uuid::new_v4(),
                 seeded.user_id,
                 old.family_id,
@@ -929,5 +965,210 @@ mod tests {
             .expect("stored under its hash");
         assert_eq!(found.client_id.as_deref(), Some("web"));
         assert_eq!(found.scope.as_deref(), Some("openid"));
+    }
+
+    async fn current_hash(seeded: &Seeded, id: Uuid) -> RefreshTokenHash {
+        let hash: Vec<u8> =
+            sqlx::query_scalar("SELECT token_hash FROM refresh_tokens WHERE id = $1")
+                .bind(id)
+                .fetch_one(&seeded.pool)
+                .await
+                .expect("read the current hash");
+        RefreshTokenHash(hash.try_into().expect("a sha256 hash"))
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_previous_opaque_token_reads_as_rotated_and_an_older_one_as_unknown() {
+        let seeded = seed().await;
+        let (first, stored) = issue_opaque(&seeded, "web", chrono::Duration::hours(1)).await;
+        assert!(matches!(
+            consume(&seeded, &first, "web").await,
+            ConsumeOutcome::Rotated { .. }
+        ));
+        let found = seeded
+            .repository
+            .get_by_hash(first.hash())
+            .await
+            .expect("lookup")
+            .expect("the previous token is still known");
+        assert_eq!(found.status, RefreshTokenStatus::Rotated);
+        assert_eq!(found.family_id, stored.family_id);
+        assert_eq!(found.jti, stored.jti);
+
+        let second = current_hash(&seeded, stored.id).await;
+        let third = OpaqueRefreshToken::generate();
+        let outcome = seeded
+            .repository
+            .consume_and_rotate(
+                second,
+                "web",
+                RefreshTokenSuccessor {
+                    jti: Uuid::new_v4(),
+                    expires_at: Some(Utc::now() + chrono::Duration::hours(1)),
+                    token_hash: Some(third.hash()),
+                },
+            )
+            .await
+            .expect("consume");
+        assert!(matches!(outcome, ConsumeOutcome::Rotated { .. }));
+
+        assert!(
+            seeded
+                .repository
+                .get_by_hash(first.hash())
+                .await
+                .expect("lookup")
+                .is_none()
+        );
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_hash(second)
+                .await
+                .expect("lookup")
+                .expect("the new previous token is known")
+                .status,
+            RefreshTokenStatus::Rotated
+        );
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_hash(third.hash())
+                .await
+                .expect("lookup")
+                .expect("the current token is known")
+                .status,
+            RefreshTokenStatus::Active
+        );
+        assert_eq!(rows_of_family(&seeded, stored.family_id).await, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_previous_legacy_jti_reads_as_rotated_and_an_older_one_as_unknown() {
+        let seeded = seed().await;
+        let first = issue(&seeded, None, None).await;
+        let RotateOutcome::Rotated(second) = rotate(&seeded, &first).await else {
+            panic!("an active token must rotate");
+        };
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_jti(first.jti)
+                .await
+                .expect("the previous jti is known")
+                .status,
+            RefreshTokenStatus::Rotated
+        );
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_jti(second.jti)
+                .await
+                .expect("the current jti is known")
+                .status,
+            RefreshTokenStatus::Active
+        );
+
+        assert!(matches!(
+            rotate(&seeded, &second).await,
+            RotateOutcome::Rotated(_)
+        ));
+
+        assert!(seeded.repository.get_by_jti(first.jti).await.is_err());
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_jti(second.jti)
+                .await
+                .expect("the new previous jti is known")
+                .status,
+            RefreshTokenStatus::Rotated
+        );
+        assert!(matches!(
+            rotate(&seeded, &first).await,
+            RotateOutcome::Conflict
+        ));
+        assert_eq!(rows_of_family(&seeded, first.family_id).await, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_previous_token_is_revoked_with_its_family_but_not_by_its_own_hash() {
+        let seeded = seed().await;
+        let (first, stored) = issue_opaque(&seeded, "web", chrono::Duration::hours(1)).await;
+        assert!(matches!(
+            consume(&seeded, &first, "web").await,
+            ConsumeOutcome::Rotated { .. }
+        ));
+
+        let revoked = seeded
+            .repository
+            .revoke_by_hash(first.hash(), "web", seeded.realm_id)
+            .await
+            .expect("revoke");
+        assert!(!revoked);
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_hash(first.hash())
+                .await
+                .expect("lookup")
+                .expect("known")
+                .status,
+            RefreshTokenStatus::Rotated
+        );
+
+        seeded
+            .repository
+            .revoke_family(stored.family_id)
+            .await
+            .expect("revoke the family");
+        assert_eq!(
+            seeded
+                .repository
+                .get_by_hash(first.hash())
+                .await
+                .expect("lookup")
+                .expect("known")
+                .status,
+            RefreshTokenStatus::Revoked
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn rows_rotated_by_the_former_model_still_report_rotated() {
+        let seeded = seed().await;
+        let (token, stored) = issue_opaque(&seeded, "web", chrono::Duration::hours(1)).await;
+        sqlx::query(
+            "UPDATE refresh_tokens SET status = 'rotated', replaced_by = $2, rotated_at = NOW() \
+             WHERE id = $1",
+        )
+        .bind(stored.id)
+        .bind(Uuid::new_v4())
+        .execute(&seeded.pool)
+        .await
+        .expect("age the row into the former model");
+
+        let by_hash = seeded
+            .repository
+            .get_by_hash(token.hash())
+            .await
+            .expect("lookup")
+            .expect("known");
+        let by_jti = seeded
+            .repository
+            .get_by_jti(stored.jti)
+            .await
+            .expect("known");
+
+        assert_eq!(by_hash.status, RefreshTokenStatus::Rotated);
+        assert_eq!(by_jti.status, RefreshTokenStatus::Rotated);
+        assert!(matches!(
+            consume(&seeded, &token, "web").await,
+            ConsumeOutcome::NotConsumed
+        ));
     }
 }
