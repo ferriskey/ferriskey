@@ -1,6 +1,7 @@
 import type { CSSProperties, FormEvent, MouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   useGetActivePortalTheme,
   useGetPortalPageRequirements,
@@ -24,6 +25,8 @@ import {
 
 // Builder-authored pages have no "remember me" control yet.
 const neverRemember = () => false
+
+const FORM_ERROR_BANNER = ['form_error_banner']
 
 function parseTree(tree: unknown): BuilderNode[] {
   if (Array.isArray(tree)) {
@@ -204,9 +207,19 @@ export function PortalLayoutWrapper({ children, pageType }: Props) {
   // block reads this through the render options and shows or hides
   // itself accordingly.
   const [formError, setFormError] = useState<string | null>(null)
+  const hasErrorBanner =
+    hasAllRequiredBlocks(pageTree, FORM_ERROR_BANNER) ||
+    hasAllRequiredBlocks(layoutTree, FORM_ERROR_BANNER)
+  const reportFormError = (message: string | null) => {
+    if (hasErrorBanner) {
+      setFormError(message)
+      return
+    }
+    if (message) toast.error(message)
+  }
   const { onSubmit, isSubmitting, onDeviceDeny, deviceResult, onDeviceReset, onConsentDeny } =
     usePortalPageSubmit(pageType, {
-      onFormError: setFormError,
+      onFormError: reportFormError,
       consentOptionalScopes: consent?.optionalScopes,
     })
 

@@ -279,6 +279,7 @@ form:
   login_failed: 登录失败。请重试。
   passwords_mismatch: 两次输入的密码不一致。
   register_fields_required: 邮箱和密码为必填项。
+  register_failed: 无法创建您的账户。请重试。
   forgot_email_required: 请输入您的邮箱以接收重置链接。
   reset_password_required: 请设置一个新密码。
   reset_link_missing: 重置链接缺失或已过期。请重新申请一个。
