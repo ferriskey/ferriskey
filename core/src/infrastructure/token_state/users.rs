@@ -144,7 +144,9 @@ impl<R: UserRepository> UserRepository for CachedUserRepository<R> {
     }
 
     async fn unlock_user(&self, user: &Scoped<User>) -> Result<(), CoreError> {
-        self.inner.unlock_user(user).await
+        let unlocked = self.inner.unlock_user(user).await;
+        self.state.changed();
+        unlocked
     }
 }
 
@@ -446,10 +448,6 @@ mod tests {
             .expect_reset_failed_login_attempts()
             .times(1)
             .returning(|_| Box::pin(async { Ok(()) }));
-        inner
-            .expect_unlock_user()
-            .times(1)
-            .returning(|_| Box::pin(async { Ok(()) }));
         let repository = CachedUserRepository::new(Arc::new(inner), synced_state());
         read_both(&repository, stored.id).await;
 
@@ -461,6 +459,21 @@ mod tests {
             .reset_failed_login_attempts(stored.id)
             .await
             .expect("reset");
+
+        read_both(&repository, stored.id).await;
+    }
+
+    #[tokio::test]
+    async fn unlocking_a_user_empties_the_cache() {
+        let stored = user();
+        let mut inner = finding_user(&stored, 2);
+        inner
+            .expect_unlock_user()
+            .times(1)
+            .returning(|_| Box::pin(async { Ok(()) }));
+        let repository = CachedUserRepository::new(Arc::new(inner), synced_state());
+        read_both(&repository, stored.id).await;
+
         repository
             .unlock_user(&scoped(stored.clone()))
             .await

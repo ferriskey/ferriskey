@@ -149,7 +149,7 @@ pub struct Args {
         env = "REFRESH_TOKEN_FORMAT",
         value_enum,
         default_value_t = RefreshTokenFormatArg::Jwt,
-        long_help = "Format of newly issued refresh tokens: `jwt` (RS256 JWT) or `opaque` (`fkr_` + 32 random bytes, only its SHA-256 is stored). Both formats are always accepted, so switching is safe during a rolling update or a rollback."
+        long_help = "Format of newly issued refresh tokens: `jwt` (RS256 JWT) or `opaque` (`fkr_` + 32 random bytes, only its SHA-256 is stored). Both formats are accepted from this version on. Enable `opaque` only once every replica runs a version that accepts it, and do not roll back below that version while opaque tokens are live: an older binary refuses them and their holders must sign in again."
     )]
     pub refresh_token_format: RefreshTokenFormatArg,
     #[arg(
