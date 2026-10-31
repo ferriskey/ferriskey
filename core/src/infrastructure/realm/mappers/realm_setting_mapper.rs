@@ -77,6 +77,7 @@ impl From<Model> for RealmSetting {
             dcr_enabled: value.dcr_enabled,
             cimd_allowed_hosts: value.cimd_allowed_hosts,
             allowed_resources: value.allowed_resources,
+            require_pushed_authorization_requests: value.require_pushed_authorization_requests,
         }
     }
 }
@@ -127,6 +128,7 @@ mod tests {
             dcr_enabled: false,
             cimd_allowed_hosts: vec![],
             allowed_resources: vec![],
+            require_pushed_authorization_requests: false,
         }
     }
 

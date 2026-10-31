@@ -194,6 +194,7 @@ impl ClientRepository for PostgresClientRepository {
             maintenance_reason: Set(None),
             maintenance_session_strategy: Set(None),
             require_pkce: Set(Some(data.require_pkce)),
+            require_pushed_authorization_requests: Set(false),
             token_exchange_enabled: Set(data.token_exchange_enabled),
             backchannel_logout_uri: Set(None),
             backchannel_logout_session_required: Set(true),
@@ -364,6 +365,10 @@ impl ClientRepository for PostgresClientRepository {
             Some(v) => Set(Some(v)),
             None => client.require_pkce,
         };
+
+        if let Some(required) = data.require_pushed_authorization_requests {
+            client.require_pushed_authorization_requests = Set(required);
+        }
 
         client.token_exchange_enabled = match data.token_exchange_enabled {
             Some(enabled) => Set(enabled),

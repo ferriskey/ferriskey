@@ -152,6 +152,9 @@ pub struct Client {
     /// this disabled; only browserless devices (CLI, IoT, TVs) need it.
     pub oauth_device_code_grant_enabled: bool,
     pub require_pkce: bool,
+    /// Whether `/auth` only accepts requests pushed first to the PAR endpoint
+    /// (RFC 9126 §6).
+    pub require_pushed_authorization_requests: bool,
     pub token_exchange_enabled: bool,
     /// Where FerrisKey POSTs a logout token when a session this client took
     /// part in ends (OIDC Back-Channel Logout 1.0). `None` opts out.
@@ -240,6 +243,7 @@ impl Client {
                 .oauth_device_code_grant_enabled
                 .unwrap_or_default(),
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             token_exchange_enabled: config.token_exchange_enabled.unwrap_or_default(),
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,
@@ -278,6 +282,7 @@ impl Client {
             direct_access_grants_enabled: false,
             oauth_device_code_grant_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             token_exchange_enabled: false,
             backchannel_logout_uri: None,
             backchannel_logout_session_required: true,

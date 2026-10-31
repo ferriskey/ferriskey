@@ -155,6 +155,7 @@ where
             oauth_device_code_grant_enabled: None,
             token_exchange_enabled: None,
             require_pkce: None,
+            require_pushed_authorization_requests: None,
             access_token_lifetime: None,
             refresh_token_lifetime: None,
             id_token_lifetime: None,

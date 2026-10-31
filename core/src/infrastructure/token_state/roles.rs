@@ -192,6 +192,7 @@ mod tests {
             oauth_device_code_grant_enabled: None,
             token_exchange_enabled: None,
             require_pkce: None,
+            require_pushed_authorization_requests: None,
             backchannel_logout_uri: None,
             backchannel_logout_session_required: None,
             access_token_lifetime: None,

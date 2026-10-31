@@ -51,6 +51,7 @@ pub mod password_reset_tokens;
 pub mod portal_layouts;
 pub mod portal_themes;
 pub mod post_logout_redirect_uris;
+pub mod pushed_authorization_requests;
 pub mod realm_maintenance_whitelist;
 pub mod realm_resource_owners;
 pub mod realm_settings;

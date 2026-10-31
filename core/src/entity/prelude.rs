@@ -43,6 +43,7 @@ pub use super::password_reset_tokens::Entity as PasswordResetTokens;
 pub use super::portal_layouts::Entity as PortalLayouts;
 pub use super::portal_themes::Entity as PortalThemes;
 pub use super::post_logout_redirect_uris::Entity as PostLogoutRedirectUris;
+pub use super::pushed_authorization_requests::Entity as PushedAuthorizationRequests;
 pub use super::realm_maintenance_whitelist::Entity as RealmMaintenanceWhitelist;
 pub use super::realm_resource_owners::Entity as RealmResourceOwners;
 pub use super::realm_settings::Entity as RealmSettings;
