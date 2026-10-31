@@ -7,6 +7,7 @@ use ferriskey_api_core::{
     app_state::AppState,
     url::FullUrl,
 };
+use ferriskey_core::domain::authentication::client_assertion::entities::assertion_signing_algorithms;
 use ferriskey_core::domain::realm::ports::RealmService;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -27,6 +28,7 @@ pub struct GetOpenIdConfigurationResponse {
     pub subject_types_supported: Vec<String>,
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
+    pub token_endpoint_auth_signing_alg_values_supported: Vec<String>,
     pub code_challenge_methods_supported: Vec<String>,
     /// OIDC Back-Channel Logout 1.0: clients may register a
     /// `backchannel_logout_uri` to be told when a session ends.
@@ -89,6 +91,7 @@ pub async fn get_openid_configuration(
         subject_types_supported: vec!["public".to_string()],
         id_token_signing_alg_values_supported: vec!["RS256".to_string()],
         token_endpoint_auth_methods_supported: supported_token_endpoint_auth_methods(),
+        token_endpoint_auth_signing_alg_values_supported: assertion_signing_algorithms(),
         code_challenge_methods_supported: vec!["S256".to_string()],
         backchannel_logout_supported: true,
         backchannel_logout_session_supported: true,

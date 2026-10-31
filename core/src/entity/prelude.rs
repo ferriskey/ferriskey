@@ -9,6 +9,7 @@ pub use super::authz_realm_states::Entity as AuthzRealmStates;
 pub use super::authz_relation_tuples::Entity as AuthzRelationTuples;
 pub use super::authz_schemas::Entity as AuthzSchemas;
 pub use super::broker_auth_sessions::Entity as BrokerAuthSessions;
+pub use super::client_assertion_jtis::Entity as ClientAssertionJtis;
 pub use super::client_maintenance_whitelist::Entity as ClientMaintenanceWhitelist;
 pub use super::client_saml_attribute_mappers::Entity as ClientSamlAttributeMappers;
 pub use super::client_saml_configs::Entity as ClientSamlConfigs;

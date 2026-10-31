@@ -329,6 +329,28 @@ credentials:
     forbidden: 显示该密钥需要 manage-clients 权限。请向域管理员申请权限。
     failed: 无法显示该密钥。请重试。
     rotation_hint: 管理 API 尚未提供轮换密钥的功能。
+  authentication:
+    title: 客户端认证
+    description: 该客户端在令牌、内省和撤销端点证明自身身份的方式。
+    method:
+      label: 方式
+      options:
+        client_secret_basic: 客户端密钥（HTTP Basic）
+        client_secret_post: 客户端密钥（表单正文）
+        client_secret_jwt: 使用客户端密钥签名的 JWT
+        private_key_jwt: 使用私钥签名的 JWT
+      hint:
+        client_secret_basic: 客户端发送其密钥。HTTP Basic 与表单正文均被接受。
+        client_secret_post: 客户端发送其密钥。HTTP Basic 与表单正文均被接受。
+        client_secret_jwt: 客户端使用其密钥对短期 JWT 签名（HS256、HS384 或 HS512），密钥本身不会被传输。
+        private_key_jwt: 客户端使用其私钥对短期 JWT 签名。FerrisKey 只保存公钥。
+    keys:
+      label: 公钥
+      description: JWKS URL 会被获取并缓存，当断言引用未知密钥时会重新获取。内联密钥集只能包含公钥。
+      uri: JWKS URL
+      inline: 内联 JWKS
+      uri_required: 请输入客户端发布其密钥的 URL。
+      invalid_json: '密钥集必须是 JSON 对象，例如 { "keys": [ … ] }。'
 
 roles:
   title: 客户端角色

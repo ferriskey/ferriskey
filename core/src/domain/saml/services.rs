@@ -693,6 +693,10 @@ pub(crate) mod tests {
             backchannel_logout_session_required: true,
             consent_required: false,
             registration_source: crate::domain::client::entities::ClientRegistrationSource::Admin,
+            token_endpoint_auth_method:
+                crate::domain::client::entities::auth_method::TokenEndpointAuthMethod::None,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 

@@ -5,7 +5,9 @@ use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
-use crate::domain::authentication::client_authentication::{ClientGrant, authenticate_client};
+use crate::domain::authentication::client_authentication::{
+    ClientCredential, ClientGrant, authenticate_client,
+};
 use crate::domain::client::entities::Client;
 use crate::domain::jwt::entities::{Jwt, JwtClaim};
 use crate::domain::realm::entities::{RealmId, RealmScope};
@@ -421,6 +423,12 @@ type ApplicationMaintenanceService = MaintenanceServiceImpl<
     RealmMaintenanceWhitelistRepo,
 >;
 
+pub(crate) type ApplicationClientAssertionVerifier =
+    crate::domain::authentication::client_assertion::services::ClientAssertionVerifierImpl<
+        crate::infrastructure::client_assertion::CachedClientJwksFetcher,
+        crate::infrastructure::client_assertion::PostgresClientAssertionReplayStore,
+    >;
+
 type ApplicationClientMetadataFetcher =
     crate::infrastructure::client_metadata::CachedClientMetadataFetcher<
         crate::infrastructure::client_metadata::ReqwestClientMetadataFetcher,
@@ -475,6 +483,7 @@ type ApplicationAuthService = AuthServiceImpl<
     LoginActionTokenRepo,
     ConsentDecisionRepo,
     ApplicationClientMetadataResolver,
+    ApplicationClientAssertionVerifier,
 >;
 
 type LoginActionTokenRepo = PostgresLoginActionTokenRepository;
@@ -534,6 +543,7 @@ type ApplicationTokenExchangeService = TokenExchangeServiceImpl<
     ApplicationAuthService,
     RealmRepo,
     ResourceOwnerRepo,
+    ApplicationClientAssertionVerifier,
 >;
 
 #[derive(Clone, Debug)]
@@ -592,6 +602,7 @@ pub struct ApplicationService {
     pub(crate) auth_service: ApplicationAuthService,
     pub(crate) device_flow_service: ApplicationDeviceFlowService,
     pub(crate) token_exchange_service: ApplicationTokenExchangeService,
+    pub(crate) client_assertion_verifier: std::sync::Arc<ApplicationClientAssertionVerifier>,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
@@ -857,24 +868,14 @@ impl ApplicationService {
         .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let client = self
-            .client_service
-            .client_repository
-            .get_by_client_id(input.client_id, realm_scope.id())
+            .authenticate_client(
+                &realm_scope,
+                &input.client_id,
+                &input.client_credential,
+                ClientGrant::DeviceCode,
+            )
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .in_realm(&realm_scope)
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .into_inner();
-
-        authenticate_client(
-            &client,
-            input.client_secret.as_deref(),
-            ClientGrant::DeviceCode,
-        )
-        .map_err(|error| match error {
-            CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
-            _ => DeviceFlowError::InvalidClient,
-        })?;
+            .map_err(device_flow_client_error)?;
 
         let scope = self
             .auth_service
@@ -920,24 +921,14 @@ impl ApplicationService {
         .map_err(|_| DeviceFlowError::InvalidClient)?;
 
         let client = self
-            .client_service
-            .client_repository
-            .get_by_client_id(input.client_id, realm_scope.id())
+            .authenticate_client(
+                &realm_scope,
+                &input.client_id,
+                &input.client_credential,
+                ClientGrant::DeviceCode,
+            )
             .await
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .in_realm(&realm_scope)
-            .map_err(|_| DeviceFlowError::InvalidClient)?
-            .into_inner();
-
-        authenticate_client(
-            &client,
-            input.client_secret.as_deref(),
-            ClientGrant::DeviceCode,
-        )
-        .map_err(|error| match error {
-            CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
-            _ => DeviceFlowError::InvalidClient,
-        })?;
+            .map_err(device_flow_client_error)?;
 
         self.device_flow_service
             .poll(PollDeviceTokenParams {
@@ -957,7 +948,7 @@ impl ApplicationService {
         &self,
         realm_name: String,
         client_id: String,
-        client_secret: Option<String>,
+        client_credential: ClientCredential,
         input: TokenExchangeInput,
     ) -> Result<TokenExchangeOutput, TokenExchangeError> {
         // An unresolvable realm at the token endpoint is `invalid_client`.
@@ -969,10 +960,40 @@ impl ApplicationService {
             .exchange(TokenExchangeParams {
                 realm,
                 client_id,
-                client_secret,
+                client_credential,
                 input,
             })
             .await
+    }
+
+    /// Authenticates the client `client_id` of `realm` with what it presented,
+    /// whatever its registered method, and checks it may use `grant`.
+    pub async fn authenticate_client(
+        &self,
+        realm: &RealmScope,
+        client_id: &str,
+        credential: &ClientCredential,
+        grant: ClientGrant,
+    ) -> Result<Client, CoreError> {
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(client_id.to_string(), realm.id())
+            .await
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .in_realm(realm)
+            .map_err(|_| CoreError::ClientAuthenticationFailed)?
+            .into_inner();
+
+        authenticate_client(
+            self.client_assertion_verifier.as_ref(),
+            &client,
+            credential,
+            grant,
+        )
+        .await?;
+
+        Ok(client)
     }
 
     pub async fn client_is_known(&self, realm_name: &str, client_id: &str) -> bool {
@@ -1146,5 +1167,12 @@ impl ApplicationService {
         build_runner(PostgresMigrationRepository::new(self.db.clone()))
             .run(&ctx)
             .await
+    }
+}
+
+fn device_flow_client_error(error: CoreError) -> DeviceFlowError {
+    match error {
+        CoreError::UnauthorizedClient(_) => DeviceFlowError::UnauthorizedClient,
+        _ => DeviceFlowError::InvalidClient,
     }
 }

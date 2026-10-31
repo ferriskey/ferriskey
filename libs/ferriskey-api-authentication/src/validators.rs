@@ -16,6 +16,13 @@ pub struct TokenRequestValidator {
     #[serde(default)]
     pub client_secret: Option<String>,
 
+    // `client_secret_jwt` / `private_key_jwt` (RFC 7523 §2.2)
+    #[serde(default)]
+    pub client_assertion_type: Option<String>,
+
+    #[serde(default)]
+    pub client_assertion: Option<String>,
+
     #[serde(default)]
     pub code: Option<String>,
 
@@ -94,6 +101,13 @@ pub struct IntrospectRequestValidator {
     // Used by `client_secret_post`
     #[serde(default)]
     pub client_secret: Option<String>,
+
+    // `client_secret_jwt` / `private_key_jwt` (RFC 7523 §2.2)
+    #[serde(default)]
+    pub client_assertion_type: Option<String>,
+
+    #[serde(default)]
+    pub client_assertion: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]
@@ -107,6 +121,13 @@ pub struct RevokeTokenRequestValidator {
 
     #[serde(default)]
     pub client_secret: Option<String>,
+
+    // `client_secret_jwt` / `private_key_jwt` (RFC 7523 §2.2)
+    #[serde(default)]
+    pub client_assertion_type: Option<String>,
+
+    #[serde(default)]
+    pub client_assertion: Option<String>,
 
     #[serde(default)]
     pub token_type_hint: Option<String>,

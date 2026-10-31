@@ -5,6 +5,9 @@ import { Button } from '@/components/kit/button'
 import { FieldRow, Section } from '@/components/kit'
 import { cn } from '@/lib/utils'
 import type { Schemas } from '@/api/api.client'
+import ClientAuthenticationSection, {
+  type ClientAuthenticationSectionProps,
+} from './client-authentication-section'
 
 type Client = Schemas.Client
 
@@ -16,6 +19,8 @@ export interface ClientCredentialsTabProps {
   forbidden: boolean
   failed: boolean
   onToggleReveal: () => void
+  showSecret: boolean
+  authentication?: ClientAuthenticationSectionProps
 }
 
 const MASKED_SECRET = '••••••••••••••••••••••••'
@@ -65,65 +70,73 @@ export default function ClientCredentialsTab({
   forbidden,
   failed,
   onToggleReveal,
+  showSecret,
+  authentication,
 }: ClientCredentialsTabProps) {
   const { t } = useTranslation('client')
 
   return (
-    <Section title={t('credentials.title')} description={t('credentials.description')}>
-      <FieldRow
-        label={t('credentials.client_id.label')}
-        description={t('credentials.client_id.description')}
-      >
-        <div className='flex max-w-lg items-center gap-2'>
-          <Fingerprint value={client.client_id} />
-          <CopyButton value={client.client_id} />
-        </div>
-      </FieldRow>
-
-      <FieldRow
-        label={t('credentials.secret.label')}
-        description={t('credentials.secret.description')}
-      >
-        <div className='max-w-lg space-y-2'>
-          <div className='flex items-center gap-2'>
-            <Fingerprint value={secret ?? MASKED_SECRET} muted={!secret} />
-            <Button
-              type='button'
-              variant='outline'
-              size='sm'
-              disabled={isFetching}
-              aria-label={revealed ? t('credentials.secret.hide_label') : t('credentials.secret.reveal_label')}
-              onClick={onToggleReveal}
-            >
-              {isFetching ? (
-                <Loader2 className='size-4 animate-spin' />
-              ) : revealed ? (
-                <EyeOff className='size-4' />
-              ) : (
-                <Eye className='size-4' />
-              )}
-              {revealed ? t('credentials.secret.hide') : t('credentials.secret.reveal')}
-            </Button>
-            <CopyButton value={secret ?? ''} disabled={!secret} />
+    <>
+      <Section title={t('credentials.title')} description={t('credentials.description')}>
+        <FieldRow
+          label={t('credentials.client_id.label')}
+          description={t('credentials.client_id.description')}
+        >
+          <div className='flex max-w-lg items-center gap-2'>
+            <Fingerprint value={client.client_id} />
+            <CopyButton value={client.client_id} />
           </div>
+        </FieldRow>
 
-          {forbidden && (
-            <p className='flex items-start gap-1.5 text-xs text-fk-amber'>
-              <ShieldAlert className='mt-0.5 size-3.5 shrink-0' />
-              {t('credentials.secret.forbidden')}
-            </p>
-          )}
-          {failed && (
-            <p className='flex items-start gap-1.5 text-xs text-fk-danger'>
-              <ShieldAlert className='mt-0.5 size-3.5 shrink-0' />
-              {t('credentials.secret.failed')}
-            </p>
-          )}
-          <p className='text-xs text-neutral-400 dark:text-neutral-500'>
-            {t('credentials.secret.rotation_hint')}
-          </p>
-        </div>
-      </FieldRow>
-    </Section>
+        {showSecret && (
+          <FieldRow
+            label={t('credentials.secret.label')}
+            description={t('credentials.secret.description')}
+          >
+            <div className='max-w-lg space-y-2'>
+              <div className='flex items-center gap-2'>
+                <Fingerprint value={secret ?? MASKED_SECRET} muted={!secret} />
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  disabled={isFetching}
+                  aria-label={revealed ? t('credentials.secret.hide_label') : t('credentials.secret.reveal_label')}
+                  onClick={onToggleReveal}
+                >
+                  {isFetching ? (
+                    <Loader2 className='size-4 animate-spin' />
+                  ) : revealed ? (
+                    <EyeOff className='size-4' />
+                  ) : (
+                    <Eye className='size-4' />
+                  )}
+                  {revealed ? t('credentials.secret.hide') : t('credentials.secret.reveal')}
+                </Button>
+                <CopyButton value={secret ?? ''} disabled={!secret} />
+              </div>
+
+              {forbidden && (
+                <p className='flex items-start gap-1.5 text-xs text-fk-amber'>
+                  <ShieldAlert className='mt-0.5 size-3.5 shrink-0' />
+                  {t('credentials.secret.forbidden')}
+                </p>
+              )}
+              {failed && (
+                <p className='flex items-start gap-1.5 text-xs text-fk-danger'>
+                  <ShieldAlert className='mt-0.5 size-3.5 shrink-0' />
+                  {t('credentials.secret.failed')}
+                </p>
+              )}
+              <p className='text-xs text-neutral-400 dark:text-neutral-500'>
+                {t('credentials.secret.rotation_hint')}
+              </p>
+            </div>
+          </FieldRow>
+        )}
+      </Section>
+
+      {authentication && <ClientAuthenticationSection {...authentication} />}
+    </>
   )
 }

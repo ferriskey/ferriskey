@@ -2,11 +2,13 @@ use std::collections::HashSet;
 
 use url::{Host, Url};
 
+use crate::domain::client::entities::auth_method::{
+    ClientAuthSettings, InvalidClientAuth, TokenEndpointAuthMethod,
+};
 use crate::domain::client_registration::entities::{
-    AUTH_METHOD_BASIC, AUTH_METHOD_NONE, AUTH_METHOD_POST, ClientRegistrationRequest,
-    DEFAULT_CLIENT_NAME, GRANT_AUTHORIZATION_CODE, GRANT_REFRESH_TOKEN, MAX_CLIENT_NAME_CHARS,
-    MAX_REDIRECT_URI_BYTES, MAX_REDIRECT_URIS, RESPONSE_TYPE_CODE, RegistrationError,
-    ValidatedRegistration,
+    ClientRegistrationRequest, DEFAULT_CLIENT_NAME, GRANT_AUTHORIZATION_CODE, GRANT_REFRESH_TOKEN,
+    MAX_CLIENT_NAME_CHARS, MAX_REDIRECT_URI_BYTES, MAX_REDIRECT_URIS, RESPONSE_TYPE_CODE,
+    RegistrationError, ValidatedRegistration,
 };
 use crate::domain::client_registration::provision::STANDARD_SCOPES;
 
@@ -57,17 +59,20 @@ pub fn validate_registration(
         validate_redirect_uri(uri)?;
     }
 
-    let token_endpoint_auth_method = request
-        .token_endpoint_auth_method
-        .unwrap_or_else(|| AUTH_METHOD_BASIC.to_string());
-
-    if ![AUTH_METHOD_NONE, AUTH_METHOD_BASIC, AUTH_METHOD_POST]
-        .contains(&token_endpoint_auth_method.as_str())
-    {
-        return Err(RegistrationError::InvalidClientMetadata(
-            "unsupported token_endpoint_auth_method",
-        ));
-    }
+    let method = match request.token_endpoint_auth_method.as_deref() {
+        None => TokenEndpointAuthMethod::ClientSecretBasic,
+        Some(raw) => raw.parse().map_err(|_| {
+            RegistrationError::InvalidClientMetadata("unsupported token_endpoint_auth_method")
+        })?,
+    };
+    let public_client = method.is_public();
+    let auth = ClientAuthSettings {
+        method,
+        jwks: request.jwks,
+        jwks_uri: request.jwks_uri,
+    };
+    auth.validate(public_client)
+        .map_err(|error| RegistrationError::InvalidClientMetadata(describe(error)))?;
 
     let grant_types = request
         .grant_types
@@ -124,12 +129,23 @@ pub fn validate_registration(
     Ok(ValidatedRegistration {
         client_name,
         redirect_uris: request.redirect_uris,
-        public_client: token_endpoint_auth_method == AUTH_METHOD_NONE,
-        token_endpoint_auth_method,
+        public_client,
+        auth,
         grant_types,
         response_types,
         scopes,
     })
+}
+
+fn describe(error: InvalidClientAuth) -> &'static str {
+    match error {
+        InvalidClientAuth::MethodMismatch => "unsupported token_endpoint_auth_method",
+        InvalidClientAuth::BothKeySources => "jwks and jwks_uri cannot both be set",
+        InvalidClientAuth::MissingKeys => "private_key_jwt needs jwks or jwks_uri",
+        InvalidClientAuth::MalformedKeySet(_) => "jwks is not a valid JWK set",
+        InvalidClientAuth::SecretKeyMaterial => "jwks must only hold public keys",
+        InvalidClientAuth::InvalidJwksUri => "jwks_uri is not a valid url",
+    }
 }
 
 pub fn effective_scope(requested: &[String]) -> String {
@@ -145,6 +161,7 @@ pub fn effective_scope(requested: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::client::entities::auth_method::ClientJwks;
 
     fn scopes() -> HashSet<String> {
         STANDARD_SCOPES.iter().map(|s| s.to_string()).collect()
@@ -212,7 +229,10 @@ mod tests {
         let validated = validate_registration(req, &scopes()).expect("valid");
 
         assert!(!validated.public_client);
-        assert_eq!(validated.token_endpoint_auth_method, "client_secret_basic");
+        assert_eq!(
+            validated.auth.method,
+            TokenEndpointAuthMethod::ClientSecretBasic
+        );
     }
 
     #[test]
@@ -229,7 +249,21 @@ mod tests {
     #[test]
     fn unsupported_metadata_is_refused() {
         let cases: Vec<fn(&mut ClientRegistrationRequest)> = vec![
+            |r| r.token_endpoint_auth_method = Some("tls_client_auth".to_string()),
             |r| r.token_endpoint_auth_method = Some("private_key_jwt".to_string()),
+            |r| {
+                r.token_endpoint_auth_method = Some("private_key_jwt".to_string());
+                r.jwks_uri = Some("https://app.example/jwks.json".to_string());
+                r.jwks = Some(ClientJwks(
+                    serde_json::json!({ "keys": [{ "kty": "RSA", "n": "a", "e": "AQAB" }] }),
+                ));
+            },
+            |r| {
+                r.token_endpoint_auth_method = Some("private_key_jwt".to_string());
+                r.jwks = Some(ClientJwks(
+                    serde_json::json!({ "keys": [{ "kty": "oct", "k": "c2VjcmV0" }] }),
+                ));
+            },
             |r| r.grant_types = Some(vec!["password".to_string()]),
             |r| r.grant_types = Some(vec!["refresh_token".to_string()]),
             |r| r.grant_types = Some(vec!["client_credentials".to_string()]),
@@ -247,6 +281,36 @@ mod tests {
                 Err(RegistrationError::InvalidClientMetadata(_))
             ));
         }
+    }
+
+    #[test]
+    fn a_private_key_jwt_client_registers_with_its_keys() {
+        let mut req = request();
+        req.token_endpoint_auth_method = Some("private_key_jwt".to_string());
+        req.jwks_uri = Some("https://app.example/jwks.json".to_string());
+
+        let validated = validate_registration(req, &scopes()).expect("valid");
+
+        assert_eq!(
+            validated.auth.method,
+            TokenEndpointAuthMethod::PrivateKeyJwt
+        );
+        assert!(!validated.public_client);
+        assert_eq!(
+            validated.auth.jwks_uri.as_deref(),
+            Some("https://app.example/jwks.json")
+        );
+    }
+
+    #[test]
+    fn client_secret_jwt_is_a_confidential_method() {
+        let mut req = request();
+        req.token_endpoint_auth_method = Some("client_secret_jwt".to_string());
+
+        let validated = validate_registration(req, &scopes()).expect("valid");
+
+        assert!(!validated.public_client);
+        assert!(validated.auth.method.needs_secret());
     }
 
     #[test]
