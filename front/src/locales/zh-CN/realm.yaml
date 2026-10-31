@@ -152,6 +152,13 @@ mcp:
       aria: '{{entry}} 的所有者'
   add: 添加
   remove: 移除 {{entry}}
+  authorization:
+    title: 授权请求
+    description: 此域的客户端如何发送授权请求。
+  par:
+    # PAR is the RFC 9126 endpoint name, kept as-is.
+    label: 要求推送授权请求
+    description: 拒绝未先推送到 PAR 端点的授权请求（RFC 9126）。对此域的所有客户端生效，无论客户端自身如何设置。
 
 policy:
   title: 密码策略
