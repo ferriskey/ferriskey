@@ -4,10 +4,14 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::common::entities::app_errors::CoreError;
+use crate::infrastructure::abyss::federation::repository::BIND_PASSWORD_PURPOSE;
+use crate::infrastructure::client::repositories::client_postgres_repository::CLIENT_SECRET_PURPOSE;
+use crate::infrastructure::identity_provider::repositories::identity_provider_postgres_repository::IDENTITY_PROVIDER_SECRET_PURPOSE;
 use crate::infrastructure::realm::repositories::smtp_config_postgres_repository::SMTP_PASSWORD_PURPOSE;
 use crate::infrastructure::repositories::credential_repository::OTP_SECRET_PURPOSE;
 use crate::infrastructure::repositories::keystore_repository::PRIVATE_KEY_PURPOSE;
 use crate::infrastructure::trident::repositories::otp_enrollment_repository::ENROLLMENT_SECRET_PURPOSE;
+use crate::infrastructure::webhook::repositories::webhook_repository::WEBHOOK_SECRET_PURPOSE;
 
 const BATCH_SIZE: i64 = 200;
 
@@ -17,39 +21,76 @@ pub struct SealedCounts {
     pub otp_credentials: u64,
     pub otp_enrollments: u64,
     pub smtp_passwords: u64,
+    pub client_secrets: u64,
+    pub identity_provider_secrets: u64,
+    pub ldap_bind_passwords: u64,
+    pub webhook_secrets: u64,
 }
 
 struct SecretColumn {
     table: &'static str,
-    column: &'static str,
+    value: &'static str,
+    assign: &'static str,
     filter: &'static str,
     purpose: &'static str,
 }
 
-const SECRET_COLUMNS: [SecretColumn; 4] = [
+const SECRET_COLUMNS: [SecretColumn; 8] = [
     SecretColumn {
         table: "jwt_keys",
-        column: "private_key",
+        value: "private_key",
+        assign: "private_key = $1",
         filter: "TRUE",
         purpose: PRIVATE_KEY_PURPOSE,
     },
     SecretColumn {
         table: "credentials",
-        column: "secret_data",
+        value: "secret_data",
+        assign: "secret_data = $1",
         filter: "credential_type = 'otp'",
         purpose: OTP_SECRET_PURPOSE,
     },
     SecretColumn {
         table: "otp_enrollments",
-        column: "secret",
+        value: "secret",
+        assign: "secret = $1",
         filter: "TRUE",
         purpose: ENROLLMENT_SECRET_PURPOSE,
     },
     SecretColumn {
         table: "smtp_configs",
-        column: "password",
+        value: "password",
+        assign: "password = $1",
         filter: "TRUE",
         purpose: SMTP_PASSWORD_PURPOSE,
+    },
+    SecretColumn {
+        table: "clients",
+        value: "secret",
+        assign: "secret = $1",
+        filter: "secret IS NOT NULL",
+        purpose: CLIENT_SECRET_PURPOSE,
+    },
+    SecretColumn {
+        table: "identity_providers",
+        value: "config #>> '{client_secret}'",
+        assign: "config = jsonb_set(config, '{client_secret}', to_jsonb($1::text))",
+        filter: "jsonb_typeof(config #> '{client_secret}') = 'string'",
+        purpose: IDENTITY_PROVIDER_SECRET_PURPOSE,
+    },
+    SecretColumn {
+        table: "user_federation_providers",
+        value: "config #>> '{bind,bind_password_encrypted}'",
+        assign: "config = jsonb_set(config, '{bind,bind_password_encrypted}', to_jsonb($1::text))",
+        filter: "jsonb_typeof(config #> '{bind,bind_password_encrypted}') = 'string'",
+        purpose: BIND_PASSWORD_PURPOSE,
+    },
+    SecretColumn {
+        table: "webhooks",
+        value: "secret",
+        assign: "secret = $1",
+        filter: "TRUE",
+        purpose: WEBHOOK_SECRET_PURPOSE,
     },
 ];
 
@@ -65,15 +106,16 @@ async fn seal_column(
 ) -> Result<u64, CoreError> {
     let pattern = format!("fk1:{}:%", active.replace('_', "\\_"));
     let select = format!(
-        "SELECT id, {column} AS value FROM {table} \
-         WHERE {filter} AND {column} NOT LIKE $1 AND id > $2 ORDER BY id LIMIT {BATCH_SIZE}",
-        column = spec.column,
+        "SELECT id, {value} AS value FROM {table} \
+         WHERE {filter} AND {value} NOT LIKE $1 AND id > $2 ORDER BY id LIMIT {BATCH_SIZE}",
+        value = spec.value,
         table = spec.table,
         filter = spec.filter,
     );
     let update = format!(
-        "UPDATE {table} SET {column} = $1 WHERE id = $2 AND {column} = $3",
-        column = spec.column,
+        "UPDATE {table} SET {assign} WHERE id = $2 AND {value} = $3",
+        assign = spec.assign,
+        value = spec.value,
         table = spec.table,
     );
 
@@ -138,6 +180,10 @@ pub async fn seal_existing_secrets(
         otp_credentials: seal_column(db, cipher, active, &SECRET_COLUMNS[1]).await?,
         otp_enrollments: seal_column(db, cipher, active, &SECRET_COLUMNS[2]).await?,
         smtp_passwords: seal_column(db, cipher, active, &SECRET_COLUMNS[3]).await?,
+        client_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[4]).await?,
+        identity_provider_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[5]).await?,
+        ldap_bind_passwords: seal_column(db, cipher, active, &SECRET_COLUMNS[6]).await?,
+        webhook_secrets: seal_column(db, cipher, active, &SECRET_COLUMNS[7]).await?,
     };
 
     info!(
@@ -169,6 +215,11 @@ mod tests {
         credential_id: Uuid,
         enrollment_id: Uuid,
         smtp_id: Uuid,
+        client_id: Uuid,
+        public_client_id: Uuid,
+        identity_provider_id: Uuid,
+        federation_id: Uuid,
+        webhook_id: Uuid,
     }
 
     async fn seed() -> Seeded {
@@ -206,6 +257,13 @@ mod tests {
             Uuid::new_v4(),
             Uuid::new_v4(),
         );
+        let (client_id, public_client_id, identity_provider_id, federation_id, webhook_id) = (
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+            Uuid::new_v4(),
+        );
 
         for statement in [
             sqlx::query("INSERT INTO realms (id, name, created_at, updated_at) VALUES ($1, 'sweep', NOW(), NOW())")
@@ -228,6 +286,21 @@ mod tests {
             sqlx::query("INSERT INTO smtp_configs (id, realm_id, host, port, username, password, from_email, from_name, encryption, created_at, updated_at) VALUES ($1, $2, 'smtp.example.com', 587, 'm', 'smtp-secret', 'a@example.com', 'A', 'starttls', NOW(), NOW())")
                 .bind(smtp_id)
                 .bind(realm_id),
+            sqlx::query("INSERT INTO clients (id, realm_id, name, client_id, secret, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at) VALUES ($1, $2, 'c', 'confidential', 'client-secret', TRUE, 'openid-connect', FALSE, TRUE, 'confidential', NOW(), NOW())")
+                .bind(client_id)
+                .bind(realm_id),
+            sqlx::query("INSERT INTO clients (id, realm_id, name, client_id, enabled, protocol, public_client, service_account_enabled, client_type, created_at, updated_at) VALUES ($1, $2, 'p', 'public', TRUE, 'openid-connect', TRUE, FALSE, 'public', NOW(), NOW())")
+                .bind(public_client_id)
+                .bind(realm_id),
+            sqlx::query("INSERT INTO identity_providers (id, realm_id, alias, provider_id, enabled, config, created_at, updated_at) VALUES ($1, $2, 'google', 'oidc', TRUE, '{\"client_id\": \"broker\", \"client_secret\": \"idp-secret\"}'::jsonb, NOW(), NOW())")
+                .bind(identity_provider_id)
+                .bind(realm_id),
+            sqlx::query("INSERT INTO user_federation_providers (id, realm_id, name, provider_type, config) VALUES ($1, $2, 'corp', 'Ldap', '{\"bind\": {\"bind_dn\": \"cn=admin\", \"bind_password_encrypted\": \"ldap-secret\"}}'::jsonb)")
+                .bind(federation_id)
+                .bind(realm_id),
+            sqlx::query("INSERT INTO webhooks (id, realm_id, endpoint, headers, secret, created_at, updated_at) VALUES ($1, $2, 'https://example.test/hook', '{}'::jsonb, 'webhook-secret', NOW(), NOW())")
+                .bind(webhook_id)
+                .bind(realm_id),
         ] {
             statement.execute(&pool).await.expect("seed a legacy row");
         }
@@ -239,6 +312,11 @@ mod tests {
             credential_id,
             enrollment_id,
             smtp_id,
+            client_id,
+            public_client_id,
+            identity_provider_id,
+            federation_id,
+            webhook_id,
         }
     }
 
@@ -267,6 +345,10 @@ mod tests {
                 otp_credentials: 1,
                 otp_enrollments: 1,
                 smtp_passwords: 1,
+                client_secrets: 1,
+                identity_provider_secrets: 1,
+                ldap_bind_passwords: 1,
+                webhook_secrets: 1,
             }
         );
         for (table, column, id, plain, purpose) in [
@@ -298,6 +380,34 @@ mod tests {
                 "smtp-secret",
                 SMTP_PASSWORD_PURPOSE,
             ),
+            (
+                "clients",
+                "secret",
+                seeded.client_id,
+                "client-secret",
+                CLIENT_SECRET_PURPOSE,
+            ),
+            (
+                "identity_providers",
+                "config #>> '{client_secret}'",
+                seeded.identity_provider_id,
+                "idp-secret",
+                IDENTITY_PROVIDER_SECRET_PURPOSE,
+            ),
+            (
+                "user_federation_providers",
+                "config #>> '{bind,bind_password_encrypted}'",
+                seeded.federation_id,
+                "ldap-secret",
+                BIND_PASSWORD_PURPOSE,
+            ),
+            (
+                "webhooks",
+                "secret",
+                seeded.webhook_id,
+                "webhook-secret",
+                WEBHOOK_SECRET_PURPOSE,
+            ),
         ] {
             let value = stored(&seeded.pool, table, column, id).await;
             assert!(value.starts_with("fk1:kid-a:"), "{table}: {value}");
@@ -324,6 +434,44 @@ mod tests {
         .await
         .expect("count the password hashes");
         assert_eq!(hashes, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn only_the_secret_inside_a_json_config_is_rewritten() {
+        let seeded = seed().await;
+
+        seal_existing_secrets(&seeded.db, &cipher(KEY_A))
+            .await
+            .expect("seal the legacy secrets");
+
+        let public_secret: Option<String> =
+            sqlx::query_scalar("SELECT secret FROM clients WHERE id = $1")
+                .bind(seeded.public_client_id)
+                .fetch_one(&seeded.pool)
+                .await
+                .expect("read the public client");
+        assert_eq!(public_secret, None);
+        assert_eq!(
+            stored(
+                &seeded.pool,
+                "identity_providers",
+                "config ->> 'client_id'",
+                seeded.identity_provider_id
+            )
+            .await,
+            "broker"
+        );
+        assert_eq!(
+            stored(
+                &seeded.pool,
+                "user_federation_providers",
+                "config #>> '{bind,bind_dn}'",
+                seeded.federation_id
+            )
+            .await,
+            "cn=admin"
+        );
     }
 
     #[tokio::test]
@@ -355,7 +503,19 @@ mod tests {
             .await
             .expect("reseal with the new key");
 
-        assert_eq!(resealed.private_keys + resealed.otp_credentials, 2);
+        assert_eq!(
+            resealed,
+            SealedCounts {
+                private_keys: 1,
+                otp_credentials: 1,
+                otp_enrollments: 1,
+                smtp_passwords: 1,
+                client_secrets: 1,
+                identity_provider_secrets: 1,
+                ldap_bind_passwords: 1,
+                webhook_secrets: 1,
+            }
+        );
         let value = stored(&seeded.pool, "jwt_keys", "private_key", seeded.key_id).await;
         assert!(value.starts_with("fk1:kid-b:"), "{value}");
         assert_eq!(
