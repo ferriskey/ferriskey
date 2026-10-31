@@ -1,5 +1,7 @@
 use uuid::Uuid;
 
+use crate::domain::authentication::assurance::{FactorUse, VerifiedFactor};
+
 use crate::domain::authentication::value_objects::{
     EndSessionInput, EndSessionOutput, GenerateTokensForUserInput, GetUserInfoInput, Identity,
     IntrospectTokenInput, RevokeTokenInput, UserInfoResponse,
@@ -121,6 +123,13 @@ pub trait AuthSessionRepository: Send + Sync {
         &self,
         session_code: Uuid,
         user_session_id: Uuid,
+    ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
+
+    /// Append a factor the user just answered to the login.
+    fn record_verified_factor(
+        &self,
+        session_code: Uuid,
+        factor: VerifiedFactor,
     ) -> impl Future<Output = Result<(), AuthenticationError>> + Send;
 
     /// Record the "remember me" choice made at the first step of a login.
@@ -316,7 +325,8 @@ pub trait SsoSessionPort: Send + Sync {
     /// Open a session for `user_id`, with the lifetime `client_id` grants,
     /// persistent when the user asked to be remembered and the realm allows it.
     /// With `reauth_session_id`, re-authenticate into that session instead
-    /// when it is still live and belongs to the same user.
+    /// when it is still live and belongs to the same user. `factors` are the
+    /// ones the login answered; the session keeps them.
     fn open_for_login(
         &self,
         scope: &RealmScope,
@@ -324,6 +334,7 @@ pub trait SsoSessionPort: Send + Sync {
         client_id: Uuid,
         remember_me: bool,
         reauth_session_id: Option<Uuid>,
+        factors: Vec<FactorUse>,
     ) -> impl Future<Output = Result<OpenedSsoSession, CoreError>> + Send;
 }
 

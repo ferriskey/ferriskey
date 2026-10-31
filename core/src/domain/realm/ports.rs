@@ -16,6 +16,7 @@ use crate::domain::{
     },
     user::entities::User,
 };
+use ferriskey_domain::authentication::assurance::AcrLoaMap;
 use ferriskey_domain::realm::LoginAliases;
 
 pub trait RealmService: Send + Sync {
@@ -195,6 +196,7 @@ pub struct UpdateRealmSettingInput {
     pub dcr_enabled: Option<bool>,
     pub cimd_allowed_hosts: Option<Vec<String>>,
     pub allowed_resources: Option<Vec<String>>,
+    pub acr_loa_map: Option<AcrLoaMap>,
 }
 
 pub struct DeleteRealmInput {

@@ -8,6 +8,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::assurance::AcrLoaMap;
 use crate::common::locale::Locale;
 use crate::{generate_timestamp, generate_uuid_v7};
 
@@ -250,6 +251,7 @@ pub struct RealmSetting {
     pub allowed_resources: Vec<String>,
     pub account_chooser_enabled: bool,
     pub account_chooser_show_email: bool,
+    pub acr_loa_map: AcrLoaMap,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -302,6 +304,7 @@ impl RealmSetting {
             allowed_resources: Vec::new(),
             account_chooser_enabled: false,
             account_chooser_show_email: false,
+            acr_loa_map: AcrLoaMap::default(),
         }
     }
 }

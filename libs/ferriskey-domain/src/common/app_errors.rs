@@ -378,6 +378,9 @@ pub enum CoreError {
     #[error("Invalid target resource")]
     InvalidTarget,
 
+    #[error("The essential authentication context requested cannot be met")]
+    UnmetAuthenticationRequirements,
+
     #[error("User account is disabled")]
     UserDisabled,
 
@@ -584,6 +587,7 @@ impl CoreError {
             CoreError::HintsNotFound => "hints_not_found",
             CoreError::InvalidScope(_) => "invalid_scope",
             CoreError::InvalidTarget => "invalid_target",
+            CoreError::UnmetAuthenticationRequirements => "unmet_authentication_requirements",
             CoreError::UserDisabled => "user_disabled",
             CoreError::AccountLocked => "account_locked",
             CoreError::ClientUnderMaintenance(_) => "client_under_maintenance",
@@ -903,6 +907,10 @@ mod tests {
             (CoreError::HintsNotFound, "hints_not_found"),
             (CoreError::InvalidScope(payload.clone()), "invalid_scope"),
             (CoreError::InvalidTarget, "invalid_target"),
+            (
+                CoreError::UnmetAuthenticationRequirements,
+                "unmet_authentication_requirements",
+            ),
             (CoreError::UserDisabled, "user_disabled"),
             (CoreError::AccountLocked, "account_locked"),
             (
@@ -1002,7 +1010,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 136);
+        assert_eq!(every_variant_with_expected_reason().len(), 137);
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use crate::domain::authentication::assurance::LevelOfAssurance;
 use crate::domain::client::entities::Client;
 use crate::domain::credential::entities::{Credential, CredentialType};
 use crate::domain::realm::entities::RealmSetting;
@@ -60,6 +61,7 @@ impl LoginContext<'_> {
         &self,
         settings: Option<&RealmSetting>,
         roles: &[Role],
+        requested_level: Option<LevelOfAssurance>,
     ) -> Option<PendingAuthStep> {
         if self.has_otp_credential() {
             return Some(PendingAuthStep::OtpChallenge);
@@ -71,6 +73,7 @@ impl LoginContext<'_> {
             roles,
             false,
             self.has_temporary_password(),
+            requested_level,
         )
     }
 }
@@ -180,7 +183,7 @@ mod tests {
         assert_eq!(context.credential_names(), vec![FEDERATED_CREDENTIAL]);
         assert!(context.password_credential().is_none());
         assert!(!context.has_otp_credential());
-        assert!(context.pending_step(None, &[]).is_none());
+        assert!(context.pending_step(None, &[], None).is_none());
     }
 
     #[test]
@@ -203,7 +206,7 @@ mod tests {
         assert!(context.has_otp_credential());
         assert!(!context.has_temporary_password());
         assert_eq!(
-            context.pending_step(None, &[]),
+            context.pending_step(None, &[], None),
             Some(PendingAuthStep::OtpChallenge)
         );
     }
@@ -226,7 +229,7 @@ mod tests {
 
         assert!(context.has_temporary_password());
         assert_eq!(
-            context.pending_step(None, &[]),
+            context.pending_step(None, &[], None),
             Some(PendingAuthStep::OtpChallenge)
         );
     }
@@ -274,7 +277,7 @@ mod tests {
         );
 
         let verified = VerifiedLogin {
-            pending_step: context.pending_step(Some(&RealmSetting::new(realm_id, None)), &[]),
+            pending_step: context.pending_step(Some(&RealmSetting::new(realm_id, None)), &[], None),
             context,
             roles: Vec::new(),
         };
@@ -298,7 +301,7 @@ mod tests {
 
         assert!(context.has_temporary_password());
         assert_eq!(
-            context.pending_step(None, &[]),
+            context.pending_step(None, &[], None),
             Some(PendingAuthStep::RequiredActions(vec![
                 RequiredAction::VerifyEmail,
                 RequiredAction::UpdatePassword,
@@ -323,7 +326,7 @@ mod tests {
         );
 
         assert_eq!(
-            context.pending_step(None, &[]),
+            context.pending_step(None, &[], None),
             Some(PendingAuthStep::OtpChallenge)
         );
     }
@@ -342,7 +345,7 @@ mod tests {
         );
 
         let verified = VerifiedLogin {
-            pending_step: context.pending_step(Some(&RealmSetting::new(realm_id, None)), &[]),
+            pending_step: context.pending_step(Some(&RealmSetting::new(realm_id, None)), &[], None),
             context,
             roles: Vec::new(),
         };

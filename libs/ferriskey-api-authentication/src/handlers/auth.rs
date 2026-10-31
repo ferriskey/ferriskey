@@ -159,6 +159,44 @@ pub struct AuthRequest {
     /// Must be one of the realm's allowed resources.
     #[serde(default)]
     pub resource: Option<String>,
+    /// OIDC `acr_values`: space-separated, in order of preference. A level the
+    /// session has not reached makes the user authenticate again.
+    #[serde(default)]
+    pub acr_values: Option<String>,
+    /// OIDC `claims`, as JSON. Only `id_token.acr` is read: its values replace
+    /// `acr_values`, and `essential` refuses values the realm does not know.
+    #[serde(default)]
+    pub claims: Option<String>,
+}
+
+/// The `acr` request of an authorization request: `claims.id_token.acr` when
+/// it names values, `acr_values` otherwise. `None` when `claims` is not JSON.
+fn requested_acr(acr_values: Option<&str>, claims: Option<&str>) -> Option<(Option<String>, bool)> {
+    let voluntary = (acr_values.map(str::to_string), false);
+
+    let Some(claims) = claims else {
+        return Some(voluntary);
+    };
+    let claims: serde_json::Value = serde_json::from_str(claims).ok()?;
+    let acr = &claims["id_token"]["acr"];
+
+    let values: Vec<&str> = match (&acr["values"], &acr["value"]) {
+        (serde_json::Value::Array(values), _) => values
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect(),
+        (_, serde_json::Value::String(value)) => vec![value.as_str()],
+        _ => return Some(voluntary),
+    };
+
+    if values.is_empty() {
+        return Some(voluntary);
+    }
+
+    Some((
+        Some(values.join(" ")),
+        acr["essential"].as_bool().unwrap_or(false),
+    ))
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -263,6 +301,8 @@ pub async fn auth_handler(
 ) -> Result<axum::response::Response, ApiError> {
     let prompt = Prompt::parse(params.prompt.as_deref());
     let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
+    let acr = requested_acr(params.acr_values.as_deref(), params.claims.as_deref());
+    let (acr_values, acr_essential) = acr.clone().unwrap_or_default();
 
     let result = match state
         .service
@@ -281,6 +321,8 @@ pub async fn auth_handler(
             prompt_consent: prompt.as_ref().is_some_and(|prompt| prompt.consent),
             issuer: Some(issuer.clone()),
             resource: params.resource.clone(),
+            acr_values,
+            acr_essential,
         })
         .await
     {
@@ -315,10 +357,18 @@ pub async fn auth_handler(
                 &issuer,
             ));
         }
+        Err(CoreError::UnmetAuthenticationRequirements) => {
+            return Ok(authorization_error_response(
+                &params.redirect_uri,
+                "unmet_authentication_requirements",
+                params.state.as_deref(),
+                &issuer,
+            ));
+        }
         Err(e) => return Err(ApiError::from(e)),
     };
 
-    let Some(prompt) = prompt else {
+    let (Some(prompt), Some(_)) = (prompt, acr) else {
         return Ok(authorization_error_response(
             &params.redirect_uri,
             "invalid_request",
@@ -475,7 +525,7 @@ pub async fn auth_handler(
 mod tests {
     use super::{
         EntryPage, Prompt, SsoFastPathOutcome, authorization_error_response, mark_session_expired,
-        sso_fast_path_outcome, webapp_entry_url,
+        requested_acr, sso_fast_path_outcome, webapp_entry_url,
     };
     use axum::http::{StatusCode, header::LOCATION};
     use ferriskey_core::domain::authentication::entities::{
@@ -599,6 +649,46 @@ mod tests {
                 create: true,
             })
         );
+    }
+
+    #[test]
+    fn acr_values_are_a_voluntary_request() {
+        assert_eq!(
+            requested_acr(Some("gold 2"), None),
+            Some((Some("gold 2".to_string()), false))
+        );
+        assert_eq!(requested_acr(None, None), Some((None, false)));
+    }
+
+    #[test]
+    fn an_essential_acr_claim_replaces_acr_values() {
+        assert_eq!(
+            requested_acr(
+                Some("1"),
+                Some(r#"{"id_token":{"acr":{"essential":true,"values":["gold","2"]}}}"#)
+            ),
+            Some((Some("gold 2".to_string()), true))
+        );
+        assert_eq!(
+            requested_acr(None, Some(r#"{"id_token":{"acr":{"value":"2"}}}"#)),
+            Some((Some("2".to_string()), false))
+        );
+    }
+
+    #[test]
+    fn claims_without_acr_values_leave_acr_values_in_charge() {
+        assert_eq!(
+            requested_acr(
+                Some("2"),
+                Some(r#"{"id_token":{"acr":{"essential":true}},"userinfo":{"email":null}}"#)
+            ),
+            Some((Some("2".to_string()), false))
+        );
+    }
+
+    #[test]
+    fn claims_that_are_not_json_are_refused() {
+        assert_eq!(requested_acr(None, Some("{not json")), None);
     }
 
     #[test]

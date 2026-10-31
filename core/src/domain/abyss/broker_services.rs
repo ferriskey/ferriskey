@@ -19,6 +19,7 @@ use crate::domain::abyss::identity_provider::broker::{
     OAuthClient, OAuthProviderConfig, OAuthTokenResponse,
 };
 use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProviderRepository};
+use crate::domain::authentication::assurance::{AuthenticationFactor, VerifiedFactor};
 use crate::domain::authentication::entities::{
     AuthProtocol, AuthSession, AuthSessionParams, AuthenticationError,
 };
@@ -521,9 +522,10 @@ where
     ASR: AuthSessionRepository,
     ADM: LoginAdmissionPort,
 {
+    let brokered = VerifiedFactor::now(user_id, AuthenticationFactor::IdentityProvider);
     let (auth_session, opened_here) = match target {
         CodeTarget::Existing(auth_session_id) => {
-            let auth_session = sessions
+            let mut auth_session = sessions
                 .get_by_session_code(auth_session_id)
                 .await?
                 .in_realm(scope)
@@ -532,9 +534,14 @@ where
             if auth_session.expires_at <= Utc::now() {
                 return Err(CoreError::SessionExpired);
             }
+            sessions
+                .record_verified_factor(auth_session_id, brokered)
+                .await?;
+            auth_session.verified_factors.push(brokered);
             (auth_session, false)
         }
-        CodeTarget::New(auth_session) => {
+        CodeTarget::New(mut auth_session) => {
+            auth_session.verified_factors.push(brokered);
             sessions.create(&auth_session).await?;
             (*auth_session, true)
         }
@@ -931,6 +938,7 @@ where
                     prompt_consent: false,
                     issuer: None,
                     resource: None,
+                    acr_values: None,
                 })))
             }
         };
@@ -1383,6 +1391,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            acr_values: None,
         });
         (RealmScope::from_realm(realm), session)
     }
@@ -1418,6 +1427,9 @@ mod tests {
             let found = found.clone();
             Box::pin(async move { Ok(Unscoped::new(found)) })
         });
+        sessions
+            .expect_record_verified_factor()
+            .returning(|_, _| Box::pin(async { Ok(()) }));
         sessions.expect_update_code().never();
         sessions.expect_update_user_id().never();
 
@@ -1455,6 +1467,15 @@ mod tests {
             let found = found.clone();
             Box::pin(async move { Ok(Unscoped::new(found)) })
         });
+        sessions
+            .expect_record_verified_factor()
+            .withf(move |id, verified| {
+                *id == session_id
+                    && verified.user_id == user_id
+                    && verified.factor.factor == AuthenticationFactor::IdentityProvider
+            })
+            .times(1)
+            .returning(|_, _| Box::pin(async { Ok(()) }));
         sessions
             .expect_update_user_id()
             .withf(move |id, user| *id == session_id && *user == user_id)
