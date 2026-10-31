@@ -193,7 +193,7 @@ pub struct Args {
         env = "SECRETS_ENCRYPTION_KEYS",
         hide_env_values = true,
         default_value = "",
-        long_help = "Keys that seal the secrets kept in the database (realm signing keys, TOTP seeds, SMTP passwords), written id:base64 and separated by commas. Each key is 32 random bytes in base64. The first key seals, every key opens, so a key is rotated by putting the new one first. Secrets already stored in clear are sealed at the next start. Leave it empty to keep them in clear."
+        long_help = "Keys that seal the secrets kept in the database (realm signing keys, TOTP seeds, SMTP passwords, client secrets, identity provider secrets, LDAP bind passwords, webhook secrets), written id:base64 and separated by commas. Each key is 32 random bytes in base64. The first key seals, every key opens, so a key is rotated by putting the new one first. Secrets already stored in clear are sealed at the next start. Leave it empty to keep them in clear."
     )]
     pub secrets_encryption_keys: String,
     #[arg(

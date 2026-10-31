@@ -6,6 +6,7 @@ use crate::{
     infrastructure::common::is_unique_violation,
 };
 use chrono::Utc;
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
@@ -157,14 +158,43 @@ fn listing_select(realm_id: Uuid, filter: &ClientFilter) -> Select<clients::Enti
         })
 }
 
+pub const CLIENT_SECRET_PURPOSE: &str = "clients.secret";
+
 #[derive(Debug, Clone)]
 pub struct PostgresClientRepository {
     pub db: DatabaseConnection,
+    cipher: SecretCipher,
 }
 
 impl PostgresClientRepository {
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self::with_cipher(db, SecretCipher::disabled())
+    }
+
+    pub fn with_cipher(db: DatabaseConnection, cipher: SecretCipher) -> Self {
+        Self { db, cipher }
+    }
+
+    fn seal_secret(&self, id: Uuid, secret: Option<String>) -> Result<Option<String>, CoreError> {
+        secret
+            .map(|secret| {
+                self.cipher
+                    .seal(CLIENT_SECRET_PURPOSE, &id.to_string(), &secret)
+                    .map_err(|error| CoreError::Configuration(error.to_string()))
+            })
+            .transpose()
+    }
+
+    fn client_of(&self, mut model: clients::Model) -> Result<Client, CoreError> {
+        if let Some(stored) = model.secret.as_deref() {
+            model.secret = Some(
+                self.cipher
+                    .open(CLIENT_SECRET_PURPOSE, &model.id.to_string(), stored)
+                    .map_err(|error| CoreError::Configuration(error.to_string()))?,
+            );
+        }
+
+        Ok(Client::from(model))
     }
 }
 
@@ -173,12 +203,13 @@ impl ClientRepository for PostgresClientRepository {
         let (now, _) = generate_timestamp();
         let client_id_for_error = data.client_id.clone();
 
+        let id = generate_uuid_v7();
         let payload = ActiveModel {
-            id: Set(generate_uuid_v7()),
+            id: Set(id),
             realm_id: Set(data.realm_id.into()),
             name: Set(data.name),
             client_id: Set(data.client_id),
-            secret: Set(data.secret),
+            secret: Set(self.seal_secret(id, data.secret)?),
             enabled: Set(data.enabled),
             protocol: Set(data.protocol.to_string()),
             public_client: Set(data.public_client),
@@ -211,9 +242,7 @@ impl ClientRepository for PostgresClientRepository {
             CoreError::InternalServerError
         })?;
 
-        let client = client.into();
-
-        Ok(client)
+        self.client_of(client)
     }
 
     #[instrument]
@@ -228,10 +257,9 @@ impl ClientRepository for PostgresClientRepository {
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .map(Client::from)
             .ok_or(CoreError::NotFound)?;
 
-        Ok(Unscoped::new(client))
+        Ok(Unscoped::new(self.client_of(client)?))
     }
 
     async fn get_by_id(
@@ -253,7 +281,7 @@ impl ClientRepository for PostgresClientRepository {
 
         let (client_model, uri_models) = &clients_model[0];
 
-        let mut client: Client = client_model.clone().into();
+        let mut client = self.client_of(client_model.clone())?;
 
         let redirect_uris: Vec<RedirectUri> = uri_models
             .iter()
@@ -272,9 +300,10 @@ impl ClientRepository for PostgresClientRepository {
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        let clients: Vec<Client> = clients.into_iter().map(|c| c.into()).collect();
-
-        Ok(clients)
+        clients
+            .into_iter()
+            .map(|model| self.client_of(model))
+            .collect()
     }
 
     async fn list(
@@ -309,11 +338,11 @@ impl ClientRepository for PostgresClientRepository {
             .into_iter()
             .map(|model| {
                 let redirect_uris = uris.remove(&model.id).unwrap_or_default();
-                let mut client = Client::from(model);
+                let mut client = self.client_of(model)?;
                 client.redirect_uris = Some(redirect_uris);
-                client
+                Ok(client)
             })
-            .collect();
+            .collect::<Result<_, CoreError>>()?;
 
         Ok(Page::new(clients, total, request.page, request.limit))
     }
@@ -408,7 +437,7 @@ impl ClientRepository for PostgresClientRepository {
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
-        Ok(client.into())
+        self.client_of(client)
     }
 
     async fn delete_by_id(&self, client: &Scoped<Client>) -> Result<(), CoreError> {
@@ -701,5 +730,107 @@ mod tests {
             )),
             "{sql}"
         );
+    }
+}
+
+#[cfg(test)]
+mod sealed_secret_tests {
+    use super::*;
+    use crate::domain::authentication::entities::AuthProtocol;
+    use crate::domain::client::entities::ClientType;
+    use crate::infrastructure::sealed_secrets_testing::{migrated_schema, sealing_cipher, stored};
+
+    fn confidential(realm_id: RealmId, client_id: &str, secret: &str) -> CreateClientRequest {
+        CreateClientRequest {
+            realm_id,
+            name: client_id.to_string(),
+            client_id: client_id.to_string(),
+            secret: Some(secret.to_string()),
+            enabled: true,
+            protocol: AuthProtocol::OpenIdConnect,
+            public_client: false,
+            service_account_enabled: true,
+            direct_access_grants_enabled: false,
+            oauth_device_code_grant_enabled: false,
+            token_exchange_enabled: false,
+            client_type: ClientType::Confidential,
+            require_pkce: false,
+            consent_required: false,
+            registration_source: ClientRegistrationSource::Admin,
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_secret_is_sealed_at_rest_and_read_back_in_clear() {
+        let schema = migrated_schema("client_secret_test").await;
+        let realm_id = schema.realm.id();
+        let repository = PostgresClientRepository::with_cipher(schema.db, sealing_cipher());
+
+        let created = repository
+            .create_client(confidential(realm_id, "backend", "client-secret"))
+            .await
+            .expect("create the client");
+        assert_eq!(created.secret_str(), Some("client-secret"));
+
+        let at_rest = stored(&schema.pool, "clients", "secret", created.id)
+            .await
+            .expect("a stored secret");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+        assert!(!at_rest.contains("client-secret"));
+
+        let by_client_id = repository
+            .get_by_client_id("backend".to_string(), realm_id)
+            .await
+            .expect("read by client id")
+            .across_realms();
+        let by_id = repository
+            .get_by_id(realm_id, created.id)
+            .await
+            .expect("read by id")
+            .across_realms();
+        let in_realm = repository
+            .get_by_realm_id(realm_id)
+            .await
+            .expect("read the realm clients");
+        assert_eq!(by_client_id.secret_str(), Some("client-secret"));
+        assert_eq!(by_id.secret_str(), Some("client-secret"));
+        assert_eq!(in_realm[0].secret_str(), Some("client-secret"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_clear_secret_is_still_read_when_a_cipher_is_configured() {
+        let schema = migrated_schema("client_secret_test").await;
+        let realm_id = schema.realm.id();
+        PostgresClientRepository::new(schema.db.clone())
+            .create_client(confidential(realm_id, "legacy", "legacy-secret"))
+            .await
+            .expect("create a legacy client");
+
+        let read = PostgresClientRepository::with_cipher(schema.db, sealing_cipher())
+            .get_by_client_id("legacy".to_string(), realm_id)
+            .await
+            .expect("read the legacy client")
+            .across_realms();
+
+        assert_eq!(read.secret_str(), Some("legacy-secret"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_secret_is_refused_by_an_instance_without_the_key() {
+        let schema = migrated_schema("client_secret_test").await;
+        let realm_id = schema.realm.id();
+        PostgresClientRepository::with_cipher(schema.db.clone(), sealing_cipher())
+            .create_client(confidential(realm_id, "sealed", "client-secret"))
+            .await
+            .expect("create the client");
+
+        let result = PostgresClientRepository::new(schema.db)
+            .get_by_client_id("sealed".to_string(), realm_id)
+            .await;
+
+        assert!(result.is_err(), "{result:?}");
     }
 }
