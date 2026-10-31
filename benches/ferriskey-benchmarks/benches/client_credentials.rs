@@ -1,9 +1,11 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use ferriskey_core::domain::authentication::client_assertion::ports::ClientAssertionVerifier;
 use ferriskey_core::domain::authentication::client_authentication::{
-    ClientGrant, authenticate_client,
+    ClientAssertion, ClientCredential, ClientGrant, ClientProof, authenticate_client,
 };
 use ferriskey_core::domain::authentication::entities::AuthProtocol;
 use ferriskey_core::domain::client::entities::{Client, ClientConfig, ClientType};
+use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_domain::realm::RealmId;
 use uuid::Uuid;
 
@@ -30,31 +32,52 @@ fn confidential_client() -> Client {
     })
 }
 
+struct SecretsOnly;
+
+impl ClientAssertionVerifier for SecretsOnly {
+    async fn verify(
+        &self,
+        _client: &Client,
+        _assertion: &ClientAssertion,
+    ) -> Result<ClientProof, CoreError> {
+        Err(CoreError::ClientAuthenticationFailed)
+    }
+}
+
 fn client_credentials(c: &mut Criterion) {
     let client = confidential_client();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .expect("runtime");
+    let secret = ClientCredential::secret(SECRET);
+    let wrong = ClientCredential::secret("not-the-secret");
 
     c.bench_function(
         "client_credentials: authenticate a confidential client",
         |b| {
             b.iter(|| {
-                authenticate_client(
-                    black_box(&client),
-                    Some(black_box(SECRET)),
-                    ClientGrant::ClientCredentials,
-                )
-                .expect("the secret matches")
+                runtime
+                    .block_on(authenticate_client(
+                        &SecretsOnly,
+                        black_box(&client),
+                        black_box(&secret),
+                        ClientGrant::ClientCredentials,
+                    ))
+                    .expect("the secret matches")
             })
         },
     );
 
     c.bench_function("client_credentials: refuse a wrong client secret", |b| {
         b.iter(|| {
-            authenticate_client(
-                black_box(&client),
-                Some(black_box("not-the-secret")),
-                ClientGrant::ClientCredentials,
-            )
-            .is_err()
+            runtime
+                .block_on(authenticate_client(
+                    &SecretsOnly,
+                    black_box(&client),
+                    black_box(&wrong),
+                    ClientGrant::ClientCredentials,
+                ))
+                .is_err()
         })
     });
 }

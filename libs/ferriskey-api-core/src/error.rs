@@ -87,6 +87,11 @@ impl From<CoreError> for ApiError {
             CoreError::InvalidSamlConfig(detail) => {
                 Self::BadRequest(CoreError::InvalidSamlConfig(detail).to_string().into())
             }
+            CoreError::InvalidClientAuthentication(detail) => Self::BadRequest(
+                CoreError::InvalidClientAuthentication(detail)
+                    .to_string()
+                    .into(),
+            ),
             CoreError::SamlAttributeMapperNotFound => Self::NotFound(
                 "No SAML attribute mapper is registered under this identifier".into(),
             ),

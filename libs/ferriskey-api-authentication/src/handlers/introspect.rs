@@ -8,20 +8,23 @@ use ferriskey_core::domain::authentication::{
 };
 use validator::Validate;
 
-use crate::basic_auth::try_parse_basic_client_credentials;
+use super::authorization_server_metadata::realm_issuer;
+use crate::client_credentials::{ClientAuthParams, assertion_audiences, presented_client};
 use crate::validators::IntrospectRequestValidator;
 use ferriskey_api_core::api_entities::api_error::ApiErrorResponse;
+use ferriskey_api_core::url::FullUrl;
 use ferriskey_api_core::{
     api_entities::{api_error::ApiError, response::Response},
     app_state::AppState,
 };
+use ferriskey_core::domain::authentication::client_authentication::ClientCredential;
 
 #[utoipa::path(
     post,
     path = "/protocol/openid-connect/token/introspect",
     tag = "auth",
     summary = "Token introspection",
-    description = "OAuth2/OIDC Token Introspection (RFC 7662). Only confidential clients may call this endpoint using client_secret_basic or client_secret_post. Authorization requires the caller's service account to have the role `introspect` (treated as the `introspect` scope).",
+    description = "OAuth2/OIDC Token Introspection (RFC 7662). Only confidential clients may call this endpoint, authenticated with their registered method: client_secret_basic, client_secret_post, client_secret_jwt or private_key_jwt. Authorization requires the caller's service account to have the role `introspect` (treated as the `introspect` scope).",
     request_body = IntrospectRequestValidator,
     params(
       ("realm_name" = String, Path, description = "Realm name")
@@ -36,31 +39,36 @@ use ferriskey_api_core::{
 pub async fn introspect_token(
     Path(realm_name): Path<String>,
     State(state): State<AppState>,
+    FullUrl(_, base_url): FullUrl,
     headers: HeaderMap,
     Form(payload): Form<IntrospectRequestValidator>,
 ) -> Result<Response<TokenIntrospectionResponse>, ApiError> {
     payload.validate()?;
 
-    let (client_id, client_secret) = match try_parse_basic_client_credentials(&headers) {
-        Some(creds) => creds,
-        None => {
-            let client_id = payload
-                .client_id
-                .ok_or_else(|| ApiError::Unauthorized("Missing client authentication".into()))?;
-            let client_secret = payload
-                .client_secret
-                .ok_or_else(|| ApiError::Unauthorized("Missing client authentication".into()))?;
+    let issuer = realm_issuer(&base_url, &state.args.server.root_path, &realm_name);
+    let presented = presented_client(
+        &headers,
+        ClientAuthParams {
+            client_id: payload.client_id.as_deref(),
+            client_secret: payload.client_secret.as_deref(),
+            client_assertion_type: payload.client_assertion_type.as_deref(),
+            client_assertion: payload.client_assertion.as_deref(),
+        },
+        || assertion_audiences(&issuer, "/protocol/openid-connect/token/introspect"),
+    )?;
 
-            (client_id, client_secret)
-        }
-    };
+    if presented.client_id.is_empty() || matches!(presented.credential, ClientCredential::None) {
+        return Err(ApiError::Unauthorized(
+            "Missing client authentication".into(),
+        ));
+    }
 
     let response = state
         .service
         .introspect_token(IntrospectTokenInput {
             realm_name,
-            client_id,
-            client_secret,
+            client_id: presented.client_id,
+            client_credential: presented.credential,
             token: payload.token,
             token_type_hint: payload.token_type_hint,
         })
