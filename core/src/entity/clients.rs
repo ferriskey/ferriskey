@@ -40,6 +40,9 @@ pub struct Model {
     pub backchannel_logout_session_required: bool,
     pub consent_required: bool,
     pub registration_source: String,
+    pub token_endpoint_auth_method: String,
+    pub jwks: Option<Json>,
+    pub jwks_uri: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -71,6 +74,9 @@ pub enum Column {
     BackchannelLogoutSessionRequired,
     ConsentRequired,
     RegistrationSource,
+    TokenEndpointAuthMethod,
+    Jwks,
+    JwksUri,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -135,6 +141,9 @@ impl ColumnTrait for Column {
             Self::BackchannelLogoutSessionRequired => ColumnType::Boolean.def(),
             Self::ConsentRequired => ColumnType::Boolean.def(),
             Self::RegistrationSource => ColumnType::String(StringLen::N(32u32)).def(),
+            Self::TokenEndpointAuthMethod => ColumnType::Text.def(),
+            Self::Jwks => ColumnType::JsonBinary.def().null(),
+            Self::JwksUri => ColumnType::Text.def().null(),
         }
     }
 }

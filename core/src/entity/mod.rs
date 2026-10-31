@@ -11,6 +11,7 @@ pub mod authz_realm_states;
 pub mod authz_relation_tuples;
 pub mod authz_schemas;
 pub mod broker_auth_sessions;
+pub mod client_assertion_jtis;
 pub mod client_maintenance_whitelist;
 pub mod client_saml_attribute_mappers;
 pub mod client_saml_configs;

@@ -5,6 +5,7 @@ use tracing::warn;
 
 use crate::domain::aegis::ports::{ClientScopeMappingRepository, ClientScopeRepository};
 use crate::domain::authentication::entities::AuthProtocol;
+use crate::domain::client::entities::auth_method::ClientAuthSettings;
 use crate::domain::client::entities::{
     Client, ClientRegistrationSource, ClientType, redirect_uri::RedirectUri,
 };
@@ -18,7 +19,8 @@ use crate::domain::client_metadata::ports::{
     ClientMetadataDocumentFetcher, ClientMetadataResolver,
 };
 use crate::domain::client_metadata::validation::{
-    ensure_host_allowed, is_metadata_client_id, parse_client_id_url, validate_document,
+    document_auth, ensure_host_allowed, is_metadata_client_id, parse_client_id_url,
+    validate_document,
 };
 use crate::domain::client_registration::provision::assign_scopes;
 use crate::domain::common::entities::app_errors::CoreError;
@@ -113,13 +115,17 @@ where
         scope: &RealmScope,
         host: &str,
         document: &ClientMetadataDocument,
+        auth: ClientAuthSettings,
         existing: Option<Client>,
     ) -> Result<(), CoreError> {
         let name = display_name(document, host);
 
         let client = match existing {
             Some(client) => client,
-            None => match self.create(scope, &document.client_id, name.clone()).await {
+            None => match self
+                .create(scope, &document.client_id, name.clone(), auth.clone())
+                .await
+            {
                 Ok(client) => client,
                 Err(CoreError::ClientIdAlreadyExists(_)) => self
                     .find_existing(scope, &document.client_id)
@@ -133,14 +139,15 @@ where
             return Err(ClientMetadataError::ClientIdTaken.into());
         }
 
-        if client.name != name {
+        let keys_changed = client.jwks != auth.jwks || client.jwks_uri != auth.jwks_uri;
+        if client.name != name || keys_changed {
             let scoped = self
                 .client_repository
                 .get_by_id(scope.id(), client.id)
                 .await?
                 .in_realm(scope)?;
             self.client_repository
-                .update_client(&scoped, rename(name))
+                .update_client(&scoped, refresh(name, auth))
                 .await?;
         }
 
@@ -153,7 +160,9 @@ where
         scope: &RealmScope,
         client_id: &str,
         name: String,
+        auth: ClientAuthSettings,
     ) -> Result<Client, CoreError> {
+        let public_client = auth.method.is_public();
         let client = self
             .client_repository
             .create_client(CreateClientRequest {
@@ -163,15 +172,20 @@ where
                 secret: None,
                 enabled: true,
                 protocol: AuthProtocol::OpenIdConnect,
-                public_client: true,
+                public_client,
                 service_account_enabled: false,
                 direct_access_grants_enabled: false,
                 oauth_device_code_grant_enabled: false,
                 token_exchange_enabled: false,
-                client_type: ClientType::Public,
+                client_type: if public_client {
+                    ClientType::Public
+                } else {
+                    ClientType::Confidential
+                },
                 require_pkce: true,
                 consent_required: true,
                 registration_source: ClientRegistrationSource::MetadataDocument,
+                auth,
             })
             .await?;
 
@@ -249,8 +263,16 @@ where
 
         let fetched = self.fetcher.fetch(client_id).await?;
         validate_document(client_id, &fetched.document, redirect_uri)?;
+        let auth = document_auth(&fetched.document)?;
 
-        self.upsert(scope, host, &fetched.document, existing)
+        if existing
+            .as_ref()
+            .is_some_and(|client| client.token_endpoint_auth_method != auth.method)
+        {
+            return Err(ClientMetadataError::UnsupportedAuthMethod);
+        }
+
+        self.upsert(scope, host, &fetched.document, auth, existing)
             .await
             .map_err(|error| match error {
                 CoreError::InvalidClient => ClientMetadataError::ClientIdTaken,
@@ -309,7 +331,7 @@ fn display_name(document: &ClientMetadataDocument, host: &str) -> String {
         .collect()
 }
 
-fn rename(name: String) -> UpdateClientRequest {
+fn refresh(name: String, auth: ClientAuthSettings) -> UpdateClientRequest {
     UpdateClientRequest {
         name: Some(name),
         client_id: None,
@@ -328,6 +350,9 @@ fn rename(name: String) -> UpdateClientRequest {
         maintenance_reason: None,
         maintenance_session_strategy: None,
         consent_required: None,
+        token_endpoint_auth_method: None,
+        jwks: Some(auth.jwks),
+        jwks_uri: Some(auth.jwks_uri),
     }
 }
 
@@ -377,6 +402,7 @@ mod tests {
     use crate::domain::aegis::mocks::{
         MockClientScopeMappingRepository, MockClientScopeRepository,
     };
+    use crate::domain::client::entities::auth_method::TokenEndpointAuthMethod;
     use crate::domain::client::ports::{MockClientRepository, MockRedirectUriRepository};
     use crate::domain::client_metadata::entities::FetchedClientMetadata;
     use crate::domain::client_metadata::ports::MockClientMetadataDocumentFetcher;
@@ -423,6 +449,8 @@ mod tests {
                 client_name: Some("App".to_string()),
                 redirect_uris: redirect_uris.iter().map(|uri| uri.to_string()).collect(),
                 token_endpoint_auth_method: Some("none".to_string()),
+                jwks: None,
+                jwks_uri: None,
             },
             max_age: Duration::from_secs(60),
         }
@@ -466,6 +494,29 @@ mod tests {
             false,
         )
     }
+
+    fn metadata_client(
+        realm_id: crate::domain::realm::entities::RealmId,
+        client_id: String,
+    ) -> Client {
+        let mut client = Client::from_realm_and_client_id(realm_id, client_id);
+        client.registration_source = ClientRegistrationSource::MetadataDocument;
+        client.name = "App".to_string();
+        client.public_client = true;
+        client.secret = None;
+        client.client_type = ClientType::Public;
+        client.token_endpoint_auth_method = TokenEndpointAuthMethod::None;
+        client
+    }
+
+    fn signed_document(client_id: &str) -> FetchedClientMetadata {
+        let mut fetched = document(client_id, &[CALLBACK]);
+        fetched.document.token_endpoint_auth_method = Some("private_key_jwt".to_string());
+        fetched.document.jwks_uri = Some(JWKS_URI.to_string());
+        fetched
+    }
+
+    const JWKS_URI: &str = "https://app.example/jwks.json";
 
     fn missing_client() -> MockClientRepository {
         let mut clients = MockClientRepository::new();
@@ -690,12 +741,7 @@ mod tests {
         clients
             .expect_get_by_client_id()
             .returning(|client_id, realm_id| {
-                Box::pin(async move {
-                    let mut client = Client::from_realm_and_client_id(realm_id, client_id);
-                    client.registration_source = ClientRegistrationSource::MetadataDocument;
-                    client.name = "App".to_string();
-                    Ok(Unscoped::new(client))
-                })
+                Box::pin(async move { Ok(Unscoped::new(metadata_client(realm_id, client_id))) })
             });
         let mut redirects = MockRedirectUriRepository::new();
         redirects
@@ -727,6 +773,80 @@ mod tests {
         assert_eq!(
             code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
             "ok"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_private_key_jwt_document_creates_a_confidential_client_with_its_keys() {
+        let mut clients = missing_client();
+        clients
+            .expect_create_client()
+            .times(1)
+            .withf(|request| {
+                !request.public_client
+                    && request.client_type == ClientType::Confidential
+                    && request.secret.is_none()
+                    && request.auth.method == TokenEndpointAuthMethod::PrivateKeyJwt
+                    && request.auth.jwks_uri.as_deref() == Some(JWKS_URI)
+            })
+            .returning(|request| {
+                Box::pin(async move {
+                    let mut client =
+                        Client::from_realm_and_client_id(request.realm_id, request.client_id);
+                    client.name = request.name;
+                    client.registration_source = request.registration_source;
+                    client.secret = None;
+                    client.token_endpoint_auth_method = request.auth.method;
+                    client.jwks_uri = request.auth.jwks_uri;
+                    Ok(client)
+                })
+            });
+        let mut redirects = MockRedirectUriRepository::new();
+        redirects
+            .expect_get_by_client_id()
+            .returning(|_| Box::pin(async { Ok(Vec::new()) }));
+        redirects
+            .expect_create_redirect_uri()
+            .returning(|client_id, value, enabled| {
+                Box::pin(async move {
+                    Ok(RedirectUri {
+                        id: uuid::Uuid::new_v4(),
+                        client_id,
+                        value,
+                        enabled,
+                        created_at: chrono::Utc::now(),
+                        updated_at: chrono::Utc::now(),
+                    })
+                })
+            });
+
+        let resolver = resolver(fetcher_returning(signed_document(URL)), clients, redirects);
+
+        assert_eq!(
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
+            "ok"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_document_cannot_switch_its_client_to_another_auth_method() {
+        let mut clients = MockClientRepository::new();
+        clients
+            .expect_get_by_client_id()
+            .returning(|client_id, realm_id| {
+                Box::pin(async move { Ok(Unscoped::new(metadata_client(realm_id, client_id))) })
+            });
+        clients.expect_update_client().never();
+
+        let resolver = resolver(
+            fetcher_returning(signed_document(URL)),
+            clients,
+            MockRedirectUriRepository::new(),
+        );
+
+        assert_eq!(
+            code(resolver.resolve(&enabled(), URL, CALLBACK, IP).await),
+            "invalid_client"
         );
     }
 }
