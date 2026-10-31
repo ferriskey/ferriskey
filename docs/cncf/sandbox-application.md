@@ -80,7 +80,7 @@ N/A. FerrisKey implements existing standards (OpenID Connect Core and Discovery,
 
 FerrisKey is not the upstream of any product. No company owns the code, the trademark, the domain or the accounts; the assets are held by the founder personally and will be transferred to the Linux Foundation under the Contribution Agreement.
 
-The relationship with companies is the following. Cloud IAM, a managed Keycloak hosting company, is the first and largest sponsor: it funds the time the founder, Nathaël Bonnal, spends on the project, and its CTO, Luis Rubiera, is one of the five maintainers. Cloud IAM may offer a managed FerrisKey service in the future; that service would run the same public releases as everyone else, and only its internal infrastructure and control plane tooling would stay outside the project. Sponsorship buys visibility in the README and nothing else: no say in the roadmap, no priority in reviews, no seat among the maintainers. France Nuage, a French open source cloud provider, sponsors the project and runs it in production. Hardis Group employs one maintainer and has no product relationship with the project. The three other maintainers are independent.
+The relationship with companies is the following. Cloud IAM, a managed Keycloak hosting company, is the first and largest sponsor, and its CTO, Luis Rubiera, is one of the five maintainers. Cloud IAM may offer a managed FerrisKey service in the future; that service would run the same public releases as everyone else, and only its internal infrastructure and control plane tooling would stay outside the project. Sponsorship buys visibility in the README and nothing else: no say in the roadmap, no priority in reviews, no seat among the maintainers. France Nuage, a French open source cloud provider, sponsors the project and runs it in production. Hardis Group employs one maintainer and has no product relationship with the project. The three other maintainers are independent.
 
 These commitments are written in the [Sponsors and open source commitments](https://github.com/ferriskey/ferriskey/blob/main/GOVERNANCE.md#sponsors-and-open-source-commitments) section of GOVERNANCE.md and were first stated publicly in [#1186](https://github.com/ferriskey/ferriskey/issues/1186): Apache-2.0 only, no CLA, no dual licensing, no open-core model, no enterprise edition, no feature held back for a paid product, and maintainers acting as individuals with affiliations kept current in MAINTAINERS.md. Joining the CNCF is the way the project anchors this independence in a neutral foundation.
 
@@ -152,7 +152,7 @@ Elsewhere, self-hosted identity providers with a comparable scope: Zitadel, Ory 
 
 ### Landscape
 
-A pull request adding FerrisKey under Provisioning / Security and Compliance is open: [cncf/landscape#5206](https://github.com/cncf/landscape/pull/5206) (validation passing, awaiting merge). [to confirm on submission day: merged or still open]
+Yes. FerrisKey is listed under Provisioning / Security and Compliance since [cncf/landscape#5206](https://github.com/cncf/landscape/pull/5206) merged on 2026-10-19.
 
 ### Insights
 
@@ -212,7 +212,7 @@ None yet. No member of the TOC or of a TAG has reviewed the project. [to confirm
 
 ### Additional information
 
-- Age and activity: first commit on 2025-03-19; 961 commits on `main`, 52 contributors in total and 19 in the last six months as of 2026-10-17; 725 stars and 98 forks. Releases are tagged with release candidates first; the last three minor releases were 0.7.0 (2026-06-30), 0.8.0 (2026-09-15) and 0.9.0 (2026-10-03).
+- Age and activity: first commit on 2025-03-19; 1,057 commits on `main`, 57 contributors in total and 21 in the last six months as of 2026-10-31; 742 stars and 103 forks. Releases are tagged with release candidates first; the last three minor releases were 0.8.0 (2026-09-15), 0.9.0 (2026-10-03) and 0.10.0 (2026-10-27), followed by 0.10.1 on 2026-10-31.
 - Maintainers: five, from four affiliations (three independent, Cloud IAM, Hardis Group), listed with affiliations in MAINTAINERS.md; the maintainer ladder and the lazy-consensus process are in GOVERNANCE.md.
 - Adopters: France Nuage (service provider, production), Natalia (production), Gilded Health (replaced Kanidm), Nudibranches Technologies (consultancy). Sponsors: Cloud IAM, France Nuage, Gilded Health, Nudibranches.
 - Security: OpenSSF Best Practices passing badge ([bestpractices.dev/projects/11019](https://www.bestpractices.dev/projects/11019)), OpenSSF Scorecard 6.6 on 2026-10-17, SECURITY.md with response targets, a published critical advisory (GHSA-v2hq-9v44-43ff, fixed in 0.8.0, CVE requested) followed by a cross-realm regression suite, a threat model, distroless non-root images, `cargo-deny` on advisories and licenses, image signing in progress.
