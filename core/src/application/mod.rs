@@ -17,6 +17,7 @@ use crate::infrastructure::client::cache::CachedClientRepository;
 use crate::infrastructure::realm::cache::CachedRealmRepository;
 use crate::infrastructure::retention::expired_rows_retention_task;
 
+use crate::domain::authentication::client_assertion::services::ClientAssertionVerifierImpl;
 use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
 use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
 use crate::domain::common::rate_limit::{
@@ -25,6 +26,10 @@ use crate::domain::common::rate_limit::{
 };
 use crate::infrastructure::authz::principal_slice::PostgresPrincipalSliceRepository;
 use crate::infrastructure::authz::repository::PostgresAuthzRepository;
+use crate::infrastructure::client_assertion::{
+    CachedClientJwksFetcher, PostgresClientAssertionReplayStore, ReqwestClientJwksFetcher,
+    client_assertion_jti_retention_task,
+};
 use crate::infrastructure::client_metadata::{
     CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
 };
@@ -573,6 +578,17 @@ pub async fn create_service_with_secrets(
         client_metadata_cleartext,
     ));
 
+    let client_assertion_replay_store = PostgresClientAssertionReplayStore::new(postgres.get_db());
+    tokio::spawn(client_assertion_jti_retention_task(
+        client_assertion_replay_store.clone(),
+    ));
+    let client_assertion_verifier = Arc::new(ClientAssertionVerifierImpl::new(
+        Arc::new(CachedClientJwksFetcher::new(ReqwestClientJwksFetcher::new(
+            PrivateEndpoints::from_allowed(client_metadata_cleartext),
+        ))),
+        Arc::new(client_assertion_replay_store),
+    ));
+
     let auth_service = AuthServiceImpl::new(
         realm.clone(),
         client.clone(),
@@ -607,6 +623,7 @@ pub async fn create_service_with_secrets(
         consent_service.clone(),
         client_metadata_resolver,
         Arc::new(ServiceAccountCache::new(config_cache_ttl)),
+        client_assertion_verifier.clone(),
     )
     .with_refresh_token_format(config.refresh_token_format);
     let login_admission = Arc::new(auth_service.clone());
@@ -638,6 +655,7 @@ pub async fn create_service_with_secrets(
         realm.clone(),
         resource_owner.clone(),
         flow_recorder.clone(),
+        client_assertion_verifier.clone(),
     );
 
     tokio::spawn(purge_expired_device_sessions_task(
@@ -663,6 +681,7 @@ pub async fn create_service_with_secrets(
         auth_service,
         device_flow_service,
         token_exchange_service,
+        client_assertion_verifier,
         saml_service: SamlServiceImpl::new(
             realm.clone(),
             client.clone(),
@@ -1100,6 +1119,7 @@ mod tests {
                     consent_required: false,
                     registration_source:
                         ferriskey_domain::client::entities::ClientRegistrationSource::Admin,
+                    auth: ferriskey_domain::client::entities::auth_method::ClientAuthSettings::default_for(true),
                 },
             )
             .await
@@ -1174,6 +1194,9 @@ mod tests {
                     token_exchange_enabled: false,
                     consent_required: false,
                     require_pkce: false,
+                    token_endpoint_auth_method: None,
+                    jwks: None,
+                    jwks_uri: None,
                 },
             )
             .await

@@ -1,6 +1,7 @@
 use url::Url;
 
 use crate::domain::client::entities::ClientRegistrationSource;
+use crate::domain::client::entities::auth_method::{ClientAuthSettings, TokenEndpointAuthMethod};
 use crate::domain::client_metadata::entities::{
     ClientMetadataDocument, ClientMetadataError, MAX_CLIENT_ID_URL_LEN,
 };
@@ -58,10 +59,7 @@ pub fn validate_document(
         return Err(ClientMetadataError::ClientIdMismatch);
     }
 
-    match document.token_endpoint_auth_method.as_deref() {
-        None | Some("none") => {}
-        Some(_) => return Err(ClientMetadataError::UnsupportedAuthMethod),
-    }
+    document_auth(document)?;
 
     if document.redirect_uris.is_empty() {
         return Err(ClientMetadataError::InvalidDocument(
@@ -90,6 +88,28 @@ pub fn validate_document(
     }
 
     Ok(())
+}
+
+/// The authentication a metadata document asks for. A document is public, so
+/// it can never carry a shared secret: its client is either public or
+/// authenticates with keys it publishes (`private_key_jwt`).
+pub fn document_auth(
+    document: &ClientMetadataDocument,
+) -> Result<ClientAuthSettings, ClientMetadataError> {
+    let auth = match document.token_endpoint_auth_method.as_deref() {
+        None | Some("none") => ClientAuthSettings::default_for(true),
+        Some("private_key_jwt") => ClientAuthSettings {
+            method: TokenEndpointAuthMethod::PrivateKeyJwt,
+            jwks: document.jwks.clone(),
+            jwks_uri: document.jwks_uri.clone(),
+        },
+        Some(_) => return Err(ClientMetadataError::UnsupportedAuthMethod),
+    };
+
+    auth.validate(auth.method.is_public())
+        .map_err(|_| ClientMetadataError::InvalidDocument("the client keys are not usable"))?;
+
+    Ok(auth)
 }
 
 pub fn client_uri_host(
@@ -121,6 +141,8 @@ mod tests {
             client_name: Some("App".to_string()),
             redirect_uris: vec![CALLBACK.to_string()],
             token_endpoint_auth_method: Some("none".to_string()),
+            jwks: None,
+            jwks_uri: None,
         }
     }
 
@@ -211,11 +233,12 @@ mod tests {
     }
 
     #[test]
-    fn private_key_jwt_and_secret_methods_are_refused() {
+    fn secret_methods_are_refused() {
         for method in [
-            "private_key_jwt",
             "client_secret_basic",
             "client_secret_post",
+            "client_secret_jwt",
+            "tls_client_auth",
         ] {
             let mut doc = document();
             doc.token_endpoint_auth_method = Some(method.to_string());
@@ -224,6 +247,43 @@ mod tests {
                 Err(ClientMetadataError::UnsupportedAuthMethod)
             );
         }
+    }
+
+    #[test]
+    fn private_key_jwt_is_accepted_with_published_keys() {
+        let mut doc = document();
+        doc.token_endpoint_auth_method = Some("private_key_jwt".to_string());
+        doc.jwks_uri = Some("https://app.example/jwks.json".to_string());
+
+        assert!(validate_document(URL, &doc, CALLBACK).is_ok());
+        let auth = document_auth(&doc).expect("auth");
+        assert_eq!(auth.method, TokenEndpointAuthMethod::PrivateKeyJwt);
+        assert_eq!(
+            auth.jwks_uri.as_deref(),
+            Some("https://app.example/jwks.json")
+        );
+    }
+
+    #[test]
+    fn private_key_jwt_without_keys_is_refused() {
+        let mut doc = document();
+        doc.token_endpoint_auth_method = Some("private_key_jwt".to_string());
+
+        assert!(matches!(
+            validate_document(URL, &doc, CALLBACK),
+            Err(ClientMetadataError::InvalidDocument(_))
+        ));
+    }
+
+    #[test]
+    fn a_public_document_ignores_published_keys() {
+        let mut doc = document();
+        doc.jwks_uri = Some("https://app.example/jwks.json".to_string());
+
+        assert_eq!(
+            document_auth(&doc).expect("auth"),
+            ClientAuthSettings::default_for(true)
+        );
     }
 
     #[test]

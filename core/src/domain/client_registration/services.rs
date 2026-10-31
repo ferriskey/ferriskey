@@ -91,7 +91,11 @@ where
         }
 
         let client_id = Uuid::new_v4().to_string();
-        let secret = (!validated.public_client).then(generate_random_token);
+        let secret = validated
+            .auth
+            .method
+            .needs_secret()
+            .then(generate_random_token);
 
         let client = self
             .client_repository
@@ -115,6 +119,7 @@ where
                 require_pkce: validated.public_client,
                 consent_required: true,
                 registration_source: ClientRegistrationSource::Dynamic,
+                auth: validated.auth.clone(),
             })
             .await
             .map_err(internal)?;
@@ -143,10 +148,12 @@ where
             client_secret: secret,
             client_name: validated.client_name,
             redirect_uris: validated.redirect_uris,
-            token_endpoint_auth_method: validated.token_endpoint_auth_method,
+            token_endpoint_auth_method: validated.auth.method.to_string(),
             grant_types: validated.grant_types,
             response_types: validated.response_types,
             scope: effective_scope(validated.scopes.as_deref().unwrap_or_default()),
+            jwks: validated.auth.jwks,
+            jwks_uri: validated.auth.jwks_uri,
         })
     }
 }

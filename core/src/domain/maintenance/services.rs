@@ -165,6 +165,9 @@ where
             backchannel_logout_uri: None,
             backchannel_logout_session_required: None,
             consent_required: None,
+            token_endpoint_auth_method: None,
+            jwks: None,
+            jwks_uri: None,
         };
 
         self.client_repository

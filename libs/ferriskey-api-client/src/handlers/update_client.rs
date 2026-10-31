@@ -83,6 +83,9 @@ pub async fn update_client(
                     maintenance_reason: None,
                     maintenance_session_strategy: None,
                     consent_required: payload.consent_required,
+                    token_endpoint_auth_method: payload.token_endpoint_auth_method,
+                    jwks: payload.jwks,
+                    jwks_uri: payload.jwks_uri,
                 },
             },
         )
