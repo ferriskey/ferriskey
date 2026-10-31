@@ -35,8 +35,9 @@ pub trait SamlService: Send + Sync {
         input: FinishSsoInput,
     ) -> impl Future<Output = Result<SamlAssertionDelivery, CoreError>> + Send;
 
-    fn idp_signing_certificate(
+    /// The certificate of the active key first, then those of the passive keys.
+    fn idp_signing_certificates(
         &self,
         realm_name: String,
-    ) -> impl Future<Output = Result<String, CoreError>> + Send;
+    ) -> impl Future<Output = Result<Vec<String>, CoreError>> + Send;
 }
