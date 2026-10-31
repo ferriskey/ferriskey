@@ -1134,6 +1134,73 @@ impl ApplicationService {
         Ok(())
     }
 
+    /// The caller's own live sessions. The user is the caller's, never an
+    /// argument, so no permission is involved and none can widen the answer.
+    pub async fn list_own_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        mut request: PageRequest<SessionFilter, SessionSortField>,
+    ) -> Result<Page<UserSession>, CoreError> {
+        let user_id = Self::own_session_owner(&identity)?;
+        request.filter.active_only = true;
+
+        self.list_user_sessions(identity, realm_name, user_id, request)
+            .await
+    }
+
+    pub async fn revoke_own_session(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        session_id: uuid::Uuid,
+    ) -> Result<(), CoreError> {
+        let user_id = Self::own_session_owner(&identity)?;
+
+        self.revoke_user_session(identity, realm_name, user_id, session_id)
+            .await
+    }
+
+    /// Revokes every live session of the caller except `keep_session_id`, each
+    /// one through `revoke_user_session` so tokens, back-channel logout and the
+    /// audit trail behave as for a single revocation. Returns how many went.
+    pub async fn revoke_other_own_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        keep_session_id: uuid::Uuid,
+    ) -> Result<u64, CoreError> {
+        let user_id = Self::own_session_owner(&identity)?;
+
+        let sessions = self
+            .user_session_management_service
+            .list_other_sessions(identity.clone(), realm_name.clone(), keep_session_id)
+            .await?;
+
+        let mut revoked = 0;
+        for session in sessions {
+            match self
+                .revoke_user_session(identity.clone(), realm_name.clone(), user_id, session.id)
+                .await
+            {
+                Ok(()) => revoked += 1,
+                // Ended on its own between the listing and the revocation.
+                Err(CoreError::SessionNotFound) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
+        Ok(revoked)
+    }
+
+    fn own_session_owner(identity: &Identity) -> Result<uuid::Uuid, CoreError> {
+        if !identity.is_regular_user() {
+            return Err(CoreError::Forbidden("is not user".to_string()));
+        }
+
+        Ok(identity.id())
+    }
+
     pub async fn run_data_migrations(&self) -> Result<MigrationReport, MigrationError> {
         let ctx = MigrationContext::new(
             self.realm_service.realm_repository.clone(),

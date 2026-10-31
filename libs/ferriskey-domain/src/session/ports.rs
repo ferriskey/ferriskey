@@ -43,6 +43,16 @@ pub trait UserSessionManagementService: Send + Sync {
         request: PageRequest<SessionFilter, SessionSortField>,
     ) -> impl Future<Output = Result<Page<UserSession>, CoreError>> + Send;
 
+    /// The live sessions of the caller other than `keep_session_id`, every
+    /// one of them its own, for a sweep that revokes them one by one through
+    /// `revoke_session`.
+    fn list_other_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        keep_session_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<UserSession>, CoreError>> + Send;
+
     /// Revoke a session by hard-deleting its row. Returns the session as it was
     /// just before deletion so callers can emit an audit event for it — the row
     /// is gone afterwards and cannot be read back.

@@ -1,4 +1,4 @@
-import { LogOut, Monitor, UserRound } from 'lucide-react'
+import { LogOut, Monitor, ShieldOff, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAccountTabs } from './use-account-tabs'
 import { ConfirmDeleteAlert } from '@/components/confirm-delete-alert'
@@ -8,7 +8,6 @@ import {
   DataView,
   DetailHeader,
   IconTile,
-  ListingToolbar,
   PageShell,
   PageTabs,
   PaginationBar,
@@ -25,7 +24,7 @@ import { formatDate, formatDateTime } from '@/utils/format-date'
 import type { Schemas } from '@/api/api.client'
 
 type User = Schemas.User
-type UserSessionDto = Schemas.UserSessionDto
+type OwnSessionDto = Schemas.Paginated_OwnSessionDto['data'][number]
 
 const SESSION_VIEW: ViewMode = 'list'
 
@@ -33,11 +32,11 @@ export interface PageAccountSessionsProps {
   profile?: User
   isLoading: boolean
   isSessionsLoading: boolean
-  sessions: UserSessionDto[]
+  sessions: OwnSessionDto[]
   pagination?: PaginationMetadata
   listing: PagedListing
-  currentSessionId: string | null
   onRevoke: (sessionId: string) => void
+  onRevokeOthers: () => void
 }
 
 export default function PageAccountSessions({
@@ -47,17 +46,17 @@ export default function PageAccountSessions({
   sessions,
   pagination,
   listing,
-  currentSessionId,
   onRevoke,
+  onRevokeOthers,
 }: PageAccountSessionsProps) {
   const { t } = useTranslation('account')
   const { confirm, ask, close } = useConfirmDeleteAlert()
 
   const { tabs, tab } = useAccountTabs()
 
-  const deviceName = (session: UserSessionDto) => session.user_agent ?? t('sessions.this_device')
+  const deviceName = (session: OwnSessionDto) => session.user_agent ?? t('sessions.this_device')
 
-  const askRevoke = (session: UserSessionDto) =>
+  const askRevoke = (session: OwnSessionDto) =>
     ask({
       title: t('sessions.confirm.title'),
       description: t('sessions.confirm.description', { device: deviceName(session) }),
@@ -67,10 +66,20 @@ export default function PageAccountSessions({
       },
     })
 
-  const narrowed = Object.values(listing.state.filters).some(Boolean)
-  const total = pagination?.total ?? sessions.length
+  const askRevokeOthers = () =>
+    ask({
+      title: t('sessions.confirm_others.title'),
+      description: t('sessions.confirm_others.description'),
+      onConfirm: () => {
+        onRevokeOthers()
+        close()
+      },
+    })
 
-  const columns: Column<UserSessionDto>[] = [
+  const total = pagination?.total ?? sessions.length
+  const hasOtherSessions = sessions.some((session) => !session.current)
+
+  const columns: Column<OwnSessionDto>[] = [
     {
       key: 'device',
       header: t('sessions.columns.device'),
@@ -81,7 +90,7 @@ export default function PageAccountSessions({
           </IconTile>
           <p className='flex min-w-0 items-center gap-1.5 truncate font-medium text-neutral-900 dark:text-neutral-100'>
             <span className='truncate'>{session.user_agent ?? t('sessions.unknown_device')}</span>
-            {session.id === currentSessionId && (
+            {session.current && (
               <Pill tone='success' mono>
                 {t('sessions.current')}
               </Pill>
@@ -107,9 +116,6 @@ export default function PageAccountSessions({
           {session.persistent ? t('sessions.persistent_state.remembered') : t('sessions.persistent_state.browser')}
         </Pill>
       ),
-      filters: [
-        { kind: 'boolean', key: 'persistent', label: t('sessions.filter_fields.persistent') },
-      ],
     },
     {
       key: 'last_seen_at',
@@ -139,21 +145,13 @@ export default function PageAccountSessions({
         <span className='tnum whitespace-nowrap'>{formatDateTime(session.created_at)}</span>
       ),
       sortKey: 'created_at',
-      filters: [
-        {
-          kind: 'date-range',
-          fromKey: 'created_from',
-          toKey: 'created_to',
-          label: t('sessions.filter_fields.created'),
-        },
-      ],
     },
     {
       key: 'actions',
       header: '',
       align: 'right',
       render: (session) =>
-        session.id === currentSessionId ? null : (
+        session.current ? null : (
           <Button
             variant='ghost'
             size='sm'
@@ -226,13 +224,19 @@ export default function PageAccountSessions({
       <PageTabs tabs={tabs} value={tab} className='mt-5' />
 
       <div className={cn('mt-5', tokens.page.blockGap)}>
-        <Section title={t('sessions.title', { total })} contained={false}>
-          <ListingToolbar
-            listing={listing}
-            columns={columns}
-            search={{ placeholder: t('sessions.search_placeholder') }}
-            className='mb-3'
-          />
+        <Section
+          title={t('sessions.title', { total })}
+          description={t('sessions.description')}
+          contained={false}
+          action={
+            hasOtherSessions && (
+              <Button variant='outline' size='sm' onClick={askRevokeOthers}>
+                <ShieldOff className='size-3.5' />
+                {t('sessions.revoke_others')}
+              </Button>
+            )
+          }
+        >
           <DataView
             listing={listing}
             rows={sessions}
@@ -247,14 +251,7 @@ export default function PageAccountSessions({
             loading={isSessionsLoading}
             sort={listing.state.sort}
             onSortChange={listing.setSort}
-            emptyLabel={narrowed ? t('sessions.empty_filtered') : t('sessions.empty')}
-            emptyAction={
-              narrowed ? (
-                <Button variant='outline' onClick={listing.clearFilters}>
-                  {t('sessions.show_all')}
-                </Button>
-              ) : undefined
-            }
+            emptyLabel={t('sessions.empty')}
           />
           {pagination && (
             <div className='mt-3 px-1'>

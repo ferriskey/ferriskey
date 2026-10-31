@@ -158,6 +158,29 @@ where
             .map_err(|_| CoreError::InternalServerError)
     }
 
+    async fn list_other_sessions(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        keep_session_id: Uuid,
+    ) -> Result<Vec<UserSession>, CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
+
+        let actor = self.policy.get_user_from_identity(&identity).await?;
+        let user = Unscoped::new(actor).in_realm(&scope)?;
+
+        let sessions = self
+            .session_repository
+            .find_all_by_user_and_realm(user.get().id, Uuid::from(scope.id()))
+            .await
+            .map_err(|_| CoreError::InternalServerError)?;
+
+        Ok(sessions
+            .into_iter()
+            .filter(|session| session.id != keep_session_id && !session.is_expired())
+            .collect())
+    }
+
     async fn revoke_session(
         &self,
         identity: Identity,
@@ -706,6 +729,170 @@ mod tests {
         assert!(
             matches!(result, Err(CoreError::NotFound)),
             "a session of another realm must be refused as absent"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_other_sessions_exclude_the_current_one_and_the_expired_ones() {
+        let realm = make_realm("test-realm");
+        let realm_uuid: Uuid = realm.id.into();
+        let actor = make_user(&realm);
+        let actor_id = actor.id;
+        let current = make_session(actor_id, realm_uuid);
+        let current_id = current.id;
+        let other = make_session(actor_id, realm_uuid);
+        let other_id = other.id;
+        let mut expired = make_session(actor_id, realm_uuid);
+        expired.expires_at = chrono::Utc::now() - Duration::minutes(1);
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_find_all_by_user_and_realm()
+            .withf(move |user, realm| *user == actor_id && *realm == realm_uuid)
+            .times(1)
+            .return_once(move |_, _| Box::pin(async move { Ok(vec![current, other, expired]) }));
+
+        let svc = build_listing_service(&realm, MockUserRepository::new(), session_repo, &[]);
+
+        let listed = svc
+            .list_other_sessions(Identity::User(actor), "test-realm".to_string(), current_id)
+            .await
+            .expect("listing succeeds");
+
+        assert_eq!(listed.iter().map(|s| s.id).collect::<Vec<_>>(), [other_id]);
+    }
+
+    #[tokio::test]
+    async fn the_other_sessions_are_those_of_the_caller_even_with_admin_rights() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&realm);
+        let actor_id = actor.id;
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_find_all_by_user_and_realm()
+            .withf(move |user, _| *user == actor_id)
+            .times(1)
+            .return_once(move |_, _| Box::pin(async { Ok(vec![]) }));
+
+        let svc = build_listing_service(
+            &realm,
+            MockUserRepository::new(),
+            session_repo,
+            &[Permissions::ManageUsers, Permissions::ManageRealm],
+        );
+
+        let listed = svc
+            .list_other_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                Uuid::new_v4(),
+            )
+            .await
+            .expect("listing succeeds");
+
+        assert!(listed.is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_other_sessions_of_a_user_of_another_realm_are_refused() {
+        let realm = make_realm("test-realm");
+        let actor = make_user(&make_realm("home-realm"));
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo.expect_find_all_by_user_and_realm().never();
+
+        let svc = build_listing_service(&realm, MockUserRepository::new(), session_repo, &[]);
+
+        let result = svc
+            .list_other_sessions(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                Uuid::new_v4(),
+            )
+            .await;
+
+        assert!(matches!(result, Err(CoreError::NotFound)), "got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn a_user_cannot_revoke_a_session_of_someone_else_through_its_own_id() {
+        let realm = make_realm("test-realm");
+        let realm_uuid: Uuid = realm.id.into();
+        let actor = make_user(&realm);
+        let actor_id = actor.id;
+        let victim_session = make_session(Uuid::new_v4(), realm_uuid);
+        let victim_session_id = victim_session.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo
+            .expect_get_by_name()
+            .return_once(move |_| Box::pin(async move { Ok(Some(realm_clone)) }));
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo
+            .expect_find_by_id()
+            .return_once(move |_| Box::pin(async move { Ok(Some(Unscoped::new(victim_session))) }));
+        session_repo.expect_clear_sso_token_hash().never();
+        session_repo.expect_delete().never();
+
+        let mut revoker = MockTokenRevocationPort::new();
+        revoker.expect_revoke_session_tokens().never();
+
+        let svc = build_service(realm_repo, session_repo, revoker);
+
+        let result = svc
+            .revoke_session(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                actor_id,
+                victim_session_id,
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::SessionNotFound)),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_user_without_rights_cannot_revoke_a_session_through_another_users_id() {
+        let realm = make_realm("test-realm");
+        let realm_uuid: Uuid = realm.id.into();
+        let actor = make_user(&realm);
+        let victim_id = Uuid::new_v4();
+        let victim_session = make_session(victim_id, realm_uuid);
+        let victim_session_id = victim_session.id;
+
+        let mut realm_repo = MockRealmRepository::new();
+        let realm_clone = realm.clone();
+        realm_repo
+            .expect_get_by_name()
+            .return_once(move |_| Box::pin(async move { Ok(Some(realm_clone)) }));
+
+        let mut session_repo = MockUserSessionRepository::new();
+        session_repo.expect_find_by_id().never();
+        session_repo.expect_delete().never();
+
+        let mut revoker = MockTokenRevocationPort::new();
+        revoker.expect_revoke_session_tokens().never();
+
+        let svc = build_service(realm_repo, session_repo, revoker);
+
+        let result = svc
+            .revoke_session(
+                Identity::User(actor),
+                "test-realm".to_string(),
+                victim_id,
+                victim_session_id,
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(CoreError::Forbidden(_))),
+            "got {result:?}"
         );
     }
 
