@@ -79,6 +79,7 @@ impl From<Model> for RealmSetting {
             allowed_resources: value.allowed_resources,
             account_chooser_enabled: value.account_chooser_enabled,
             account_chooser_show_email: value.account_chooser_show_email,
+            require_pushed_authorization_requests: value.require_pushed_authorization_requests,
         }
     }
 }
@@ -131,6 +132,7 @@ mod tests {
             allowed_resources: vec![],
             account_chooser_enabled: false,
             account_chooser_show_email: false,
+            require_pushed_authorization_requests: false,
         }
     }
 

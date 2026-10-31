@@ -14,6 +14,7 @@ use crate::domain::abyss::identity_provider::entities::IdentityProviderPresentat
 pub struct AuthorizationServerSettings {
     pub cimd_enabled: bool,
     pub dcr_enabled: bool,
+    pub require_pushed_authorization_requests: bool,
     pub scopes_supported: Vec<String>,
 }
 

@@ -1,12 +1,18 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use chrono::Utc;
+
 use ferriskey_compass::recorder::FlowRecorder;
 use ferriskey_migrate::{entities::MigrationReport, error::MigrationError};
 use sea_orm::DatabaseConnection;
 
 use crate::domain::authentication::client_authentication::{
     ClientCredential, ClientGrant, authenticate_client,
+};
+use crate::domain::authentication::entities::AuthInput;
+use crate::domain::authentication::pushed_authorization::entities::{
+    AuthorizationParameters, PushAuthorizationRequestInput, PushedAuthorizationResponse,
 };
 use crate::domain::client::entities::Client;
 use crate::domain::jwt::entities::{Jwt, JwtClaim};
@@ -435,6 +441,11 @@ type ApplicationMaintenanceService = MaintenanceServiceImpl<
     RealmMaintenanceWhitelistRepo,
 >;
 
+pub(crate) type ApplicationPushedAuthorizationService =
+    crate::domain::authentication::pushed_authorization::services::PushedAuthorizationServiceImpl<
+        crate::infrastructure::pushed_authorization::PostgresPushedAuthorizationRequestRepository,
+    >;
+
 pub(crate) type ApplicationClientAssertionVerifier =
     crate::domain::authentication::client_assertion::services::ClientAssertionVerifierImpl<
         crate::infrastructure::client_assertion::CachedClientJwksFetcher,
@@ -615,6 +626,7 @@ pub struct ApplicationService {
     pub(crate) device_flow_service: ApplicationDeviceFlowService,
     pub(crate) token_exchange_service: ApplicationTokenExchangeService,
     pub(crate) client_assertion_verifier: std::sync::Arc<ApplicationClientAssertionVerifier>,
+    pub(crate) pushed_authorization_service: ApplicationPushedAuthorizationService,
     pub(crate) core_service: CoreServiceImpl<
         RealmRepo,
         KeystoreRepo,
@@ -1073,6 +1085,82 @@ impl ApplicationService {
         .await?;
 
         Ok(client)
+    }
+
+    /// PAR endpoint (RFC 9126 §2): authenticates the client like the token
+    /// endpoint, checks the parameters like `/auth`, then stores them.
+    pub async fn push_authorization_request(
+        &self,
+        input: PushAuthorizationRequestInput,
+    ) -> Result<PushedAuthorizationResponse, CoreError> {
+        let scope = RealmScope::resolve(
+            self.realm_service.realm_repository.as_ref(),
+            &input.realm_name,
+        )
+        .await
+        .map_err(|_| CoreError::ClientAuthenticationFailed)?;
+
+        let client = self
+            .authenticate_client(
+                &scope,
+                &input.client_id,
+                &input.client_credential,
+                ClientGrant::PushedAuthorization,
+            )
+            .await?;
+
+        let parameters = input.parameters;
+        let auth_input = AuthInput {
+            client_id: client.client_id.clone(),
+            realm_name: input.realm_name,
+            redirect_uri: parameters.redirect_uri.clone(),
+            response_type: parameters.response_type.clone(),
+            scope: parameters.scope.clone(),
+            state: parameters.state.clone(),
+            nonce: parameters.nonce.clone(),
+            code_challenge: parameters.code_challenge.clone(),
+            code_challenge_method: parameters.code_challenge_method.clone(),
+            ip_address: input.ip_address,
+            user_agent: input.user_agent,
+            prompt_consent: false,
+            issuer: input.issuer,
+            resource: parameters.resource.clone(),
+            max_age: None,
+            pushed: true,
+        };
+        self.auth_service
+            .validate_authorization_request(&scope, &auth_input)
+            .await?;
+
+        self.pushed_authorization_service
+            .push(scope.id(), client.id, parameters, Utc::now())
+            .await
+    }
+
+    /// Consumes the pushed request `client_id` sent to `/auth` as
+    /// `request_uri`.
+    pub async fn take_pushed_authorization_request(
+        &self,
+        realm_name: &str,
+        client_id: &str,
+        request_uri: &str,
+    ) -> Result<AuthorizationParameters, CoreError> {
+        let scope =
+            RealmScope::resolve(self.realm_service.realm_repository.as_ref(), realm_name).await?;
+
+        let client = self
+            .client_service
+            .client_repository
+            .get_by_client_id(client_id.to_string(), scope.id())
+            .await
+            .map_err(|_| CoreError::ClientNotFound)?
+            .in_realm(&scope)
+            .map_err(|_| CoreError::ClientNotFound)?
+            .into_inner();
+
+        self.pushed_authorization_service
+            .take(scope.id(), client.id, request_uri, Utc::now())
+            .await
     }
 
     pub async fn client_is_known(&self, realm_name: &str, client_id: &str) -> bool {

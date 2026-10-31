@@ -111,6 +111,7 @@ pub trait RealmRepository: Send + Sync {
         allowed_resources: Option<Vec<String>>,
         account_chooser_enabled: Option<bool>,
         account_chooser_show_email: Option<bool>,
+        require_pushed_authorization_requests: Option<bool>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(

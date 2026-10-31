@@ -250,6 +250,9 @@ pub struct RealmSetting {
     pub allowed_resources: Vec<String>,
     pub account_chooser_enabled: bool,
     pub account_chooser_show_email: bool,
+    /// Whether every client of the realm must push its authorization
+    /// requests (RFC 9126 §5).
+    pub require_pushed_authorization_requests: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -302,6 +305,7 @@ impl RealmSetting {
             allowed_resources: Vec::new(),
             account_chooser_enabled: false,
             account_chooser_show_email: false,
+            require_pushed_authorization_requests: false,
         }
     }
 }
