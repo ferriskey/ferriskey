@@ -130,7 +130,7 @@ export type RequiredAction = ("configure_otp" | "verify_email" | "update_passwor
 export type AuthenticationStatus = ("Success" | "RequiresActions" | "RequiresOtpChallenge" | "Failed")
 export type AuthenticateResponse = { email?: (string | null), message?: (string | null), required_actions?: (Array<RequiredAction> | null), status: AuthenticationStatus, url?: (string | null) }
 export type AuthenticationAttemptResponse = { login_url: string }
-export type AuthorizationServerMetadata = { authorization_endpoint: string, authorization_response_iss_parameter_supported: boolean, client_id_metadata_document_supported?: (boolean | null), code_challenge_methods_supported: Array<string>, grant_types_supported: Array<string>, introspection_endpoint: string, issuer: string, jwks_uri: string, pushed_authorization_request_endpoint: string, registration_endpoint?: (string | null), require_pushed_authorization_requests: boolean, response_types_supported: Array<string>, revocation_endpoint: string, scopes_supported: Array<string>, token_endpoint: string, token_endpoint_auth_methods_supported: Array<string>, token_endpoint_auth_signing_alg_values_supported: Array<string> }
+export type AuthorizationServerMetadata = { acr_values_supported: Array<string>, authorization_endpoint: string, authorization_response_iss_parameter_supported: boolean, client_id_metadata_document_supported?: (boolean | null), code_challenge_methods_supported: Array<string>, grant_types_supported: Array<string>, introspection_endpoint: string, issuer: string, jwks_uri: string, pushed_authorization_request_endpoint: string, registration_endpoint?: (string | null), require_pushed_authorization_requests: boolean, response_types_supported: Array<string>, revocation_endpoint: string, scopes_supported: Array<string>, token_endpoint: string, token_endpoint_auth_methods_supported: Array<string>, token_endpoint_auth_signing_alg_values_supported: Array<string> }
 export type AuthzStateBody = { enabled: boolean, version: number }
 export type AuthzenAction = { name: string, properties?: (Record<string, unknown> | null) }
 export type AuthzenConfiguration = { access_evaluation_endpoint: string, access_evaluations_endpoint: string, policy_decision_point: string }
@@ -284,6 +284,7 @@ export type LoginAlias = ("username" | "email")
 export type LoginAliases = Array<LoginAlias>
 export type RealmSetting = {
   access_token_lifetime: number;
+  acr_loa_map: Record<string, number>;
   account_chooser_enabled: boolean;
   account_chooser_show_email: boolean;
   allowed_resources: Array<string>;
@@ -485,6 +486,7 @@ export type GetDeliveryResponse = { data: DeliveryDetail }
 export type GetEmailTemplateResponse = { data: EmailTemplate }
 export type GetFlowResponse = { data: CompassFlow }
 export type GetOpenIdConfigurationResponse = {
+  acr_values_supported: Array<string>;
   authorization_endpoint: string;
   authorization_response_iss_parameter_supported: boolean;
   /**
@@ -496,6 +498,7 @@ export type GetOpenIdConfigurationResponse = {
    * `backchannel_logout_uri` to be told when a session ends.
    */
   backchannel_logout_supported: boolean;
+  claims_parameter_supported: boolean;
   client_id_metadata_document_supported?: (boolean | null);
   code_challenge_methods_supported: Array<string>;
   device_authorization_endpoint: string;
@@ -1052,7 +1055,7 @@ export type UpdateProviderRequest = Partial<{ config: unknown, enabled: (boolean
 export type UpdateProviderResponse = { data: ProviderResponse }
 export type UpdateRealmResponse = { data: Realm }
 export type UpdateRealmSettingResponse = { data: Realm }
-export type UpdateRealmSettingValidator = Partial<{ access_token_lifetime: (number | null), account_chooser_enabled: (boolean | null), account_chooser_show_email: (boolean | null), allowed_resources: (Array<string> | null), cimd_allowed_hosts: (Array<string> | null), cimd_enabled: (boolean | null), compass_enabled: (boolean | null), dcr_enabled: (boolean | null), default_locale: (string | null), default_signing_algorithm: (string | null), edit_username_enabled: (boolean | null), email_verification_enabled: (boolean | null), email_verification_template_id: (string | null), email_verification_ttl_hours: (number | null), forgot_password_enabled: (boolean | null), id_token_lifetime: (number | null), lockout_duration_seconds: (number | null), lockout_threshold: (number | null), login_aliases: (Array<string> | null), magic_link_enabled: (boolean | null), magic_link_template_id: (string | null), magic_link_ttl: (number | null), passkey_enabled: (boolean | null), refresh_token_lifetime: (number | null), remember_me_enabled: (boolean | null), require_mfa: (boolean | null), require_pushed_authorization_requests: (boolean | null), reset_password_template_id: (string | null), seawatch_pii_mode: (string | null), seawatch_pseudo_key: (string | null), supported_locales: (Array<string> | null), temporary_token_lifetime: (number | null), user_registration_enabled: (boolean | null), webhook_retry_base_delay_ms: (number | null), webhook_retry_max_attempts: (number | null), webhook_retry_max_delay_ms: (number | null), webhook_retry_max_total_delay_ms: (number | null) }>
+export type UpdateRealmSettingValidator = Partial<{ access_token_lifetime: (number | null), acr_loa_map: (Record<string, number> | null), account_chooser_enabled: (boolean | null), account_chooser_show_email: (boolean | null), allowed_resources: (Array<string> | null), cimd_allowed_hosts: (Array<string> | null), cimd_enabled: (boolean | null), compass_enabled: (boolean | null), dcr_enabled: (boolean | null), default_locale: (string | null), default_signing_algorithm: (string | null), edit_username_enabled: (boolean | null), email_verification_enabled: (boolean | null), email_verification_template_id: (string | null), email_verification_ttl_hours: (number | null), forgot_password_enabled: (boolean | null), id_token_lifetime: (number | null), lockout_duration_seconds: (number | null), lockout_threshold: (number | null), login_aliases: (Array<string> | null), magic_link_enabled: (boolean | null), magic_link_template_id: (string | null), magic_link_ttl: (number | null), passkey_enabled: (boolean | null), refresh_token_lifetime: (number | null), remember_me_enabled: (boolean | null), require_mfa: (boolean | null), require_pushed_authorization_requests: (boolean | null), reset_password_template_id: (string | null), seawatch_pii_mode: (string | null), seawatch_pseudo_key: (string | null), supported_locales: (Array<string> | null), temporary_token_lifetime: (number | null), user_registration_enabled: (boolean | null), webhook_retry_base_delay_ms: (number | null), webhook_retry_max_attempts: (number | null), webhook_retry_max_delay_ms: (number | null), webhook_retry_max_total_delay_ms: (number | null) }>
 export type UpdateRealmValidator = { display_name?: (string | null), name: string }
 export type UpdateRedirectUriResponse = { data: RedirectUri }
 export type UpdateRedirectUriValidator = Partial<{ enabled: boolean }>
