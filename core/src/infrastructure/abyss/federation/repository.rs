@@ -1,4 +1,5 @@
 use chrono::Utc;
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use sea_orm::*;
 use serde::Deserialize;
 use tracing::error;
@@ -17,6 +18,11 @@ use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{RealmScope, Scoped, Unscoped};
 use crate::entity::{user_federation_mappings, user_federation_providers};
 use crate::infrastructure::pagination::{SortColumn, contains, paginate, within};
+use crate::infrastructure::sealed_json::{open_field, seal_field};
+
+pub const BIND_PASSWORD_PURPOSE: &str =
+    "user_federation_providers.config.bind.bind_password_encrypted";
+const BIND_PASSWORD_POINTER: &str = "/bind/bind_password_encrypted";
 
 impl SortColumn<user_federation_providers::Entity> for FederationProviderSortField {
     fn column(&self) -> user_federation_providers::Column {
@@ -83,6 +89,7 @@ fn listing_select(
 #[allow(dead_code)]
 pub struct FederationRepositoryImpl {
     db: DatabaseConnection,
+    cipher: SecretCipher,
 }
 
 #[derive(Deserialize)]
@@ -95,7 +102,44 @@ struct SyncSettings {
 impl FederationRepositoryImpl {
     #[allow(dead_code)]
     pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+        Self::with_cipher(db, SecretCipher::disabled())
+    }
+
+    pub fn with_cipher(db: DatabaseConnection, cipher: SecretCipher) -> Self {
+        Self { db, cipher }
+    }
+
+    fn sealed_config(
+        &self,
+        id: Uuid,
+        mut config: serde_json::Value,
+    ) -> Result<serde_json::Value, CoreError> {
+        seal_field(
+            &self.cipher,
+            BIND_PASSWORD_PURPOSE,
+            id,
+            &mut config,
+            BIND_PASSWORD_POINTER,
+        )
+        .map_err(|error| CoreError::Configuration(error.to_string()))?;
+
+        Ok(config)
+    }
+
+    fn provider_of(
+        &self,
+        mut model: user_federation_providers::Model,
+    ) -> Result<FederationProvider, CoreError> {
+        open_field(
+            &self.cipher,
+            BIND_PASSWORD_PURPOSE,
+            model.id,
+            &mut model.config,
+            BIND_PASSWORD_POINTER,
+        )
+        .map_err(|error| CoreError::Configuration(error.to_string()))?;
+
+        model.try_into()
     }
 }
 
@@ -200,13 +244,21 @@ impl FederationRepository for FederationRepositoryImpl {
         &self,
         request: CreateProviderRequest,
     ) -> Result<FederationProvider, CoreError> {
-        let active_model: user_federation_providers::ActiveModel = request.try_into()?;
+        let mut active_model: user_federation_providers::ActiveModel = request.try_into()?;
+        let id = active_model
+            .id
+            .try_as_ref()
+            .copied()
+            .ok_or(CoreError::InternalServerError)?;
+        if let Some(config) = active_model.config.take() {
+            active_model.config = Set(self.sealed_config(id, config)?);
+        }
 
         let model = active_model.insert(&self.db).await.map_err(|e| {
             CoreError::Database(format!("Failed to create federation provider: {}", e))
         })?;
 
-        model.try_into()
+        self.provider_of(model)
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<Option<Unscoped<FederationProvider>>, CoreError> {
@@ -218,7 +270,7 @@ impl FederationRepository for FederationRepositoryImpl {
             })?;
 
         match model {
-            Some(m) => Ok(Some(Unscoped::new(m.try_into()?))),
+            Some(m) => Ok(Some(Unscoped::new(self.provider_of(m)?))),
             None => Ok(None),
         }
     }
@@ -234,6 +286,7 @@ impl FederationRepository for FederationRepositoryImpl {
             .map_err(|e| CoreError::Database(format!("Failed to find federation provider: {}", e)))?
             .ok_or(CoreError::NotFound)?;
 
+        let id = model.id;
         let mut active_model: user_federation_providers::ActiveModel = model.into();
         let now = Utc::now();
 
@@ -250,7 +303,7 @@ impl FederationRepository for FederationRepositoryImpl {
             active_model.priority = Set(priority);
         }
         if let Some(config) = request.config {
-            active_model.config = Set(config);
+            active_model.config = Set(self.sealed_config(id, config)?);
         }
 
         if let Some(sync_settings_json) = request.sync_settings {
@@ -268,7 +321,7 @@ impl FederationRepository for FederationRepositoryImpl {
             CoreError::Database(format!("Failed to update federation provider: {}", e))
         })?;
 
-        updated_model.try_into()
+        self.provider_of(updated_model)
     }
 
     async fn delete(&self, provider: &Scoped<FederationProvider>) -> Result<(), CoreError> {
@@ -294,7 +347,7 @@ impl FederationRepository for FederationRepositoryImpl {
 
         let providers = models
             .into_iter()
-            .map(FederationProvider::try_from)
+            .map(|model| self.provider_of(model))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Page::new(providers, total, request.page, request.limit))
@@ -832,5 +885,123 @@ mod db_tests {
             marker_of(&fixture.pool, fixture.user_id).await,
             Some(other_provider_id)
         );
+    }
+}
+
+#[cfg(test)]
+mod sealed_secret_tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::infrastructure::sealed_secrets_testing::{migrated_schema, sealing_cipher, stored};
+
+    const PASSWORD_AT_REST: &str = "config #>> '{bind,bind_password_encrypted}'";
+
+    fn ldap(realm_id: Uuid, password: &str) -> CreateProviderRequest {
+        CreateProviderRequest {
+            realm_id,
+            name: "corporate ldap".to_string(),
+            provider_type: FederationType::Ldap,
+            enabled: true,
+            priority: 0,
+            config: json!({"bind": {"bind_dn": "cn=admin", "bind_password_encrypted": password}}),
+            sync_settings: json!({"enabled": false, "mode": "Import", "interval_minutes": null}),
+        }
+    }
+
+    fn password_of(provider: &FederationProvider) -> Option<&str> {
+        provider.config["bind"]["bind_password_encrypted"].as_str()
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_bind_password_is_sealed_at_rest_on_create_and_on_update() {
+        let schema = migrated_schema("federation_secret_test").await;
+        let repository = FederationRepositoryImpl::with_cipher(schema.db, sealing_cipher());
+
+        let created = repository
+            .create(ldap(schema.realm.id().into(), "ldap-secret"))
+            .await
+            .expect("create the provider");
+        assert_eq!(password_of(&created), Some("ldap-secret"));
+        let at_rest = stored(
+            &schema.pool,
+            "user_federation_providers",
+            PASSWORD_AT_REST,
+            created.id,
+        )
+        .await
+        .expect("a stored password");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+
+        let scoped = repository
+            .get_by_id(created.id)
+            .await
+            .expect("read the provider")
+            .expect("a provider")
+            .in_realm(&schema.realm)
+            .expect("the provider of the realm");
+        assert_eq!(password_of(scoped.get()), Some("ldap-secret"));
+
+        let updated = repository
+            .update(
+                &scoped,
+                UpdateProviderRequest {
+                    name: None,
+                    provider_type: None,
+                    enabled: None,
+                    priority: None,
+                    config: Some(json!({"bind": {"bind_dn": "cn=admin", "bind_password_encrypted": "rotated"}})),
+                    sync_settings: None,
+                },
+            )
+            .await
+            .expect("update the provider");
+        assert_eq!(password_of(&updated), Some("rotated"));
+        let at_rest = stored(
+            &schema.pool,
+            "user_federation_providers",
+            PASSWORD_AT_REST,
+            created.id,
+        )
+        .await
+        .expect("a stored password");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+        assert!(!at_rest.contains("rotated"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_clear_bind_password_is_still_read_when_a_cipher_is_configured() {
+        let schema = migrated_schema("federation_secret_test").await;
+        let created = FederationRepositoryImpl::new(schema.db.clone())
+            .create(ldap(schema.realm.id().into(), "legacy-secret"))
+            .await
+            .expect("create a legacy provider");
+
+        let read = FederationRepositoryImpl::with_cipher(schema.db, sealing_cipher())
+            .get_by_id(created.id)
+            .await
+            .expect("read the provider")
+            .expect("a provider")
+            .across_realms();
+
+        assert_eq!(password_of(&read), Some("legacy-secret"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_bind_password_is_refused_by_an_instance_without_the_key() {
+        let schema = migrated_schema("federation_secret_test").await;
+        let created = FederationRepositoryImpl::with_cipher(schema.db.clone(), sealing_cipher())
+            .create(ldap(schema.realm.id().into(), "ldap-secret"))
+            .await
+            .expect("create the provider");
+
+        let result = FederationRepositoryImpl::new(schema.db)
+            .get_by_id(created.id)
+            .await;
+
+        assert!(result.is_err(), "{result:?}");
     }
 }
