@@ -89,6 +89,7 @@ pub(crate) fn make_client(id: Uuid, realm_id: RealmId) -> Client {
         enabled: true,
         client_id: "app".to_string(),
         secret: None,
+        previous_secret: None,
         realm_id,
         protocol: AuthProtocol::OpenIdConnect,
         public_client: false,

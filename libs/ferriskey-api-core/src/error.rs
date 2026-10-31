@@ -422,6 +422,13 @@ impl From<CoreError> for ApiError {
                 "Authorization is not enabled for this realm",
                 reason,
             )),
+            CoreError::InvalidSecretGracePeriod(message) => {
+                Self::BadRequest(ApiErrorBody::new(message, reason))
+            }
+            CoreError::ClientHasNoSecret => Self::BadRequest(ApiErrorBody::new(
+                "This client has no secret to rotate",
+                reason,
+            )),
             CoreError::PasswordCredentialAlreadyExists => {
                 Self::Conflict("User already has a password credential".into())
             }
