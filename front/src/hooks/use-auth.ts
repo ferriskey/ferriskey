@@ -27,10 +27,7 @@ function decodeJwt(token: string): JwtPayload | null {
     if (!payload) return null
 
     const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const paddedPayload = normalizedPayload.padEnd(
-      Math.ceil(normalizedPayload.length / 4) * 4,
-      '='
-    )
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=')
     const decodedPayload = JSON.parse(atob(paddedPayload))
 
     if (typeof decodedPayload !== 'object' || !decodedPayload) {
@@ -45,9 +42,7 @@ function decodeJwt(token: string): JwtPayload | null {
       azp: typeof claims.azp === 'string' ? claims.azp : undefined,
       avatar: typeof claims.avatar === 'string' ? claims.avatar : undefined,
       preferred_username:
-        typeof claims.preferred_username === 'string'
-          ? claims.preferred_username
-          : undefined,
+        typeof claims.preferred_username === 'string' ? claims.preferred_username : undefined,
       email: typeof claims.email === 'string' ? claims.email : undefined,
       name: typeof claims.name === 'string' ? claims.name : undefined,
       organizations: (() => {
@@ -55,7 +50,11 @@ function decodeJwt(token: string): JwtPayload | null {
         if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
         const validated: Record<string, OrganizationClaim> = {}
         for (const [alias, entry] of Object.entries(raw as Record<string, unknown>)) {
-          if (typeof entry === 'object' && entry !== null && typeof (entry as OrganizationClaim).id === 'string') {
+          if (
+            typeof entry === 'object' &&
+            entry !== null &&
+            typeof (entry as OrganizationClaim).id === 'string'
+          ) {
             validated[alias] = entry as OrganizationClaim
           }
         }
@@ -68,20 +67,12 @@ function decodeJwt(token: string): JwtPayload | null {
 }
 
 /**
- * The realm that issued a session, from whichever of its tokens names one,
- * falling back to `fallback` when neither does (no session yet, or a malformed
- * token).
+ * The realm that issued a session, from its access token, falling back to
+ * `fallback` when there is none (no session yet, or a malformed token). The
+ * refresh token is opaque and carries no claims.
  */
-function sessionRealm(
-  accessToken: string | null,
-  refreshToken: string | null,
-  fallback: string
-): string {
-  return (
-    realmFromIssuer(accessToken ? decodeJwt(accessToken)?.iss : null) ??
-    realmFromIssuer(refreshToken ? decodeJwt(refreshToken)?.iss : null) ??
-    fallback
-  )
+function sessionRealm(accessToken: string | null, fallback: string): string {
+  return realmFromIssuer(accessToken ? decodeJwt(accessToken)?.iss : null) ?? fallback
 }
 
 export function useAuth() {
@@ -100,7 +91,7 @@ export function useAuth() {
   // admin signed in to one realm (usually master) browses another, and every
   // token-endpoint call and sign-in redirect belongs to it. The stored copy
   // answers once the tokens are gone.
-  const authRealm = sessionRealm(accessToken, refreshToken, storedSessionRealm ?? realm_name)
+  const authRealm = sessionRealm(accessToken, storedSessionRealm ?? realm_name)
   const {
     expiration,
     isAuthenticated,
@@ -128,7 +119,7 @@ export function useAuth() {
       const decoded = decodeJwt(access_token)
       const expiration = decoded?.exp ? decoded.exp * 1000 : null
 
-      const realm = sessionRealm(access_token, refresh_token, realm_name)
+      const realm = sessionRealm(access_token, realm_name)
       authRefreshController.reset(realm)
       setSessionRealm(realm)
       setTokens(access_token, refresh_token, id_token)
@@ -158,10 +149,9 @@ export function useAuth() {
         }
 
         const suffix = params.toString()
-        navigate(
-          `/realms/${authRealm}/authentication/login${suffix ? `?${suffix}` : ''}`,
-          { replace: true }
-        )
+        navigate(`/realms/${authRealm}/authentication/login${suffix ? `?${suffix}` : ''}`, {
+          replace: true,
+        })
       }
     },
     [navigate, authRealm, setAuthenticated, setExpiration, setLoading, setTokens, setUser]
@@ -176,11 +166,8 @@ export function useAuth() {
     try {
       const revokeRequests: Promise<unknown>[] = []
       const accessTokenClaims = accessToken ? decodeJwt(accessToken) : null
-      const refreshTokenClaims = refreshToken ? decodeJwt(refreshToken) : null
       const clientIdFromToken =
-        (accessTokenClaims?.azp as string | undefined) ||
-        (refreshTokenClaims?.azp as string | undefined) ||
-        'security-admin-console'
+        (accessTokenClaims?.azp as string | undefined) || 'security-admin-console'
 
       if (accessToken) {
         revokeRequests.push(
@@ -232,28 +219,31 @@ export function useAuth() {
       return Promise.resolve()
     }
 
-    return authRefreshController.run(authRealm, async () => {
-      const response = await exchangeToken({
-        realm: authRealm,
-        data: {
-          grant_type: GrantType.RefreshToken,
-          client_id: 'security-admin-console',
-          refresh_token: refreshToken,
-        },
+    return authRefreshController
+      .run(authRealm, async () => {
+        const response = await exchangeToken({
+          realm: authRealm,
+          data: {
+            grant_type: GrantType.RefreshToken,
+            client_id: 'security-admin-console',
+            refresh_token: refreshToken,
+          },
+        })
+
+        setAuthTokensWrapper(
+          response.access_token,
+          response.refresh_token ?? null,
+          response.id_token ?? idToken
+        )
       })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error && error.message !== 'refresh temporarily blocked'
+            ? translate('common:session.expired')
+            : undefined
 
-      setAuthTokensWrapper(
-        response.access_token,
-        response.refresh_token ?? null,
-        response.id_token ?? idToken
-      )
-    }).catch((error: unknown) => {
-      const message = error instanceof Error && error.message !== 'refresh temporarily blocked'
-        ? translate('common:session.expired')
-        : undefined
-
-      clearAuthState(Boolean(message), message)
-    })
+        clearAuthState(Boolean(message), message)
+      })
   }, [
     clearAuthState,
     exchangeToken,

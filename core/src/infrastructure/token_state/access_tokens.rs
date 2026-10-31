@@ -24,17 +24,15 @@ impl<R> CachedAccessTokenRepository<R> {
 }
 
 impl<R: AccessTokenRepository> AccessTokenRepository for CachedAccessTokenRepository<R> {
-    async fn create(
+    async fn record_session_participant(
         &self,
-        token_hash: String,
-        jti: Option<Uuid>,
-        user_id: Uuid,
         realm_id: RealmId,
-        expires_at: Option<DateTime<Utc>>,
-        claims: serde_json::Value,
-    ) -> Result<AccessToken, SecurityError> {
+        session_id: Uuid,
+        client_id: String,
+        issuer: String,
+    ) -> Result<(), SecurityError> {
         self.inner
-            .create(token_hash, jti, user_id, realm_id, expires_at, claims)
+            .record_session_participant(realm_id, session_id, client_id, issuer)
             .await
     }
 
@@ -49,10 +47,14 @@ impl<R: AccessTokenRepository> AccessTokenRepository for CachedAccessTokenReposi
         &self,
         token_hash: String,
         user_id: Uuid,
+        session_id: Option<Uuid>,
         issued_at: i64,
     ) -> Result<bool, SecurityError> {
         if !self.state.synced() {
-            return self.inner.is_revoked(token_hash, user_id, issued_at).await;
+            return self
+                .inner
+                .is_revoked(token_hash, user_id, session_id, issued_at)
+                .await;
         }
 
         let read_at = self.state.generation();
@@ -64,7 +66,7 @@ impl<R: AccessTokenRepository> AccessTokenRepository for CachedAccessTokenReposi
                 || async {
                     let revoked = self
                         .inner
-                        .is_revoked(token_hash.clone(), user_id, issued_at)
+                        .is_revoked(token_hash.clone(), user_id, session_id, issued_at)
                         .await?;
                     let retention = match (revoked, self.state.generation() == read_at) {
                         (true, _) => Retention::Share,
@@ -143,7 +145,7 @@ mod tests {
         inner
             .expect_is_revoked()
             .times(calls)
-            .returning(move |_, _, _| Box::pin(async move { Ok(revoked) }));
+            .returning(move |_, _, _, _| Box::pin(async move { Ok(revoked) }));
         inner
     }
 
@@ -152,8 +154,12 @@ mod tests {
         let repository = cached(answering(false, 1));
         let user = Uuid::new_v4();
 
-        let first = repository.is_revoked("hash".to_string(), user, 10).await;
-        let second = repository.is_revoked("hash".to_string(), user, 10).await;
+        let first = repository
+            .is_revoked("hash".to_string(), user, None, 10)
+            .await;
+        let second = repository
+            .is_revoked("hash".to_string(), user, None, 10)
+            .await;
 
         assert_eq!((first.ok(), second.ok()), (Some(false), Some(false)));
     }
@@ -163,8 +169,12 @@ mod tests {
         let repository = cached(answering(true, 2));
         let user = Uuid::new_v4();
 
-        let first = repository.is_revoked("hash".to_string(), user, 10).await;
-        let second = repository.is_revoked("hash".to_string(), user, 10).await;
+        let first = repository
+            .is_revoked("hash".to_string(), user, None, 10)
+            .await;
+        let second = repository
+            .is_revoked("hash".to_string(), user, None, 10)
+            .await;
 
         assert_eq!((first.ok(), second.ok()), (Some(true), Some(true)));
     }
@@ -179,7 +189,7 @@ mod tests {
         let repository = cached(inner);
         let user = Uuid::new_v4();
         repository
-            .is_revoked("hash".to_string(), user, 10)
+            .is_revoked("hash".to_string(), user, None, 10)
             .await
             .expect("check");
 
@@ -196,7 +206,7 @@ mod tests {
             .expect("revoke");
 
         repository
-            .is_revoked("hash".to_string(), user, 10)
+            .is_revoked("hash".to_string(), user, None, 10)
             .await
             .expect("check again");
     }
@@ -214,14 +224,14 @@ mod tests {
         let repository = cached(inner);
         let user = Uuid::new_v4();
         repository
-            .is_revoked("hash".to_string(), user, 10)
+            .is_revoked("hash".to_string(), user, None, 10)
             .await
             .expect("check");
 
         assert!(repository.revoke_all_for_user(user).await.is_err());
 
         repository
-            .is_revoked("hash".to_string(), user, 10)
+            .is_revoked("hash".to_string(), user, None, 10)
             .await
             .expect("check again");
     }
@@ -235,7 +245,7 @@ mod tests {
         inner
             .expect_is_revoked()
             .times(2)
-            .returning(move |_, _, _| {
+            .returning(move |_, _, _, _| {
                 racing.changed();
                 Box::pin(async { Ok(false) })
             });
@@ -243,11 +253,11 @@ mod tests {
         let user = Uuid::new_v4();
 
         repository
-            .is_revoked("hash".to_string(), user, 10)
+            .is_revoked("hash".to_string(), user, None, 10)
             .await
             .expect("first");
         repository
-            .is_revoked("hash".to_string(), user, 10)
+            .is_revoked("hash".to_string(), user, None, 10)
             .await
             .expect("second");
     }
@@ -260,7 +270,7 @@ mod tests {
 
         for _ in 0..3 {
             repository
-                .is_revoked("hash".to_string(), user, 10)
+                .is_revoked("hash".to_string(), user, None, 10)
                 .await
                 .expect("check");
         }
