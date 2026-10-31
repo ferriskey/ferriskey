@@ -669,6 +669,7 @@ pub(crate) mod tests {
             enabled: true,
             client_id: "chatwoot".to_string(),
             secret: None,
+            previous_secret: None,
             realm_id,
             protocol: AuthProtocol::Saml,
             public_client: true,

@@ -328,7 +328,33 @@ credentials:
     # manage-clients is a permission name — never translated.
     forbidden: 显示该密钥需要 manage-clients 权限。请向域管理员申请权限。
     failed: 无法显示该密钥。请重试。
-    rotation_hint: 管理 API 尚未提供轮换密钥的功能。
+    rotation_hint: 轮换会替换该密钥。请选择当前密钥继续有效的时长，以便所有部署完成切换。
+  rotate:
+    action: 轮换密钥
+    title: 轮换客户端密钥？
+    description: 将生成新的密钥。仍在使用当前密钥的应用在您选择的宽限期内可继续使用，之后将失效。
+    grace:
+      label: 当前密钥继续有效的时长
+      none: 不保留，立即替换
+      one_hour: 1 小时
+      one_day: 24 小时
+      one_week: 7 天
+      thirty_days: 30 天
+    confirm: 轮换
+    cancel: 取消
+    toast:
+      rotated: 客户端密钥已轮换。
+  previous:
+    label: 旧密钥
+    description: 在过期前仍然有效，也可以提前撤销。
+    expires: 于 {{date}} 过期
+    revoke:
+      action: 立即撤销
+      title: 撤销旧密钥？
+      description: 仍在使用它的应用将立即被拒绝。
+      confirm: 撤销
+    toast:
+      revoked: 旧客户端密钥已撤销。
 
 roles:
   title: 客户端角色

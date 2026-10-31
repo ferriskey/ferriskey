@@ -15,6 +15,7 @@ use crate::{
                 DeleteSamlAttributeMapperInput, DeleteWebOriginInput, GetClientInput,
                 GetClientRolesInput, GetClientSamlConfigInput, GetPostLogoutRedirectUrisInput,
                 GetRedirectUrisInput, GetSamlAttributeMappersInput, GetWebOriginsInput,
+                RevealedClientSecret, RotateClientSecretInput, RotatedClientSecret,
                 SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
                 UpdateRedirectUriInput,
                 redirect_uri::RedirectUri,
@@ -182,10 +183,34 @@ impl ClientService for ApplicationService {
         &self,
         identity: Identity,
         input: GetClientInput,
-    ) -> Result<Option<String>, CoreError> {
+    ) -> Result<RevealedClientSecret, CoreError> {
         self.client_service
             .reveal_client_secret(identity, input)
             .await
+    }
+
+    async fn rotate_client_secret(
+        &self,
+        identity: Identity,
+        input: RotateClientSecretInput,
+    ) -> Result<RotatedClientSecret, CoreError> {
+        self.client_service
+            .rotate_client_secret(identity, input)
+            .await
+    }
+
+    async fn revoke_previous_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<(), CoreError> {
+        self.client_service
+            .revoke_previous_client_secret(identity, input)
+            .await
+    }
+
+    async fn expire_previous_client_secrets(&self) -> Result<usize, CoreError> {
+        self.client_service.expire_previous_client_secrets().await
     }
 
     async fn get_client_roles(

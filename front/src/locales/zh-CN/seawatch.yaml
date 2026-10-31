@@ -37,6 +37,8 @@ event:
   client_deleted: 客户端已删除
   client_secret_rotated: 客户端密钥已轮换
   client_secret_viewed: 客户端密钥已被查看
+  client_secret_revoked: 旧客户端密钥已被撤销
+  client_secret_expired: 旧客户端密钥已过期
   realm_config_changed: 域配置已更改
   email_not_sent: 邮件投递失败
   email_sent: 邮件已投递

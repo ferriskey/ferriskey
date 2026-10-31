@@ -5,18 +5,20 @@ use crate::{
     entity::clients::{ActiveModel, Entity as ClientEntity},
     infrastructure::common::is_unique_violation,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
-    ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, QueryTrait, Select,
+    ColumnTrait, Condition, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
+    IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, Select,
+    Statement, TransactionTrait,
     sea_query::{Expr, Func},
 };
 use tracing::{error, instrument};
 use uuid::Uuid;
 
+use crate::domain::client::entities::ExpiredClientSecret;
 use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
 use crate::domain::{
     client::{
@@ -159,6 +161,7 @@ fn listing_select(realm_id: Uuid, filter: &ClientFilter) -> Select<clients::Enti
 }
 
 pub const CLIENT_SECRET_PURPOSE: &str = "clients.secret";
+pub const CLIENT_PREVIOUS_SECRET_PURPOSE: &str = "clients.previous_secret";
 
 #[derive(Debug, Clone)]
 pub struct PostgresClientRepository {
@@ -185,13 +188,25 @@ impl PostgresClientRepository {
             .transpose()
     }
 
+    fn seal_previous_secret(&self, id: Uuid, secret: &str) -> Result<String, CoreError> {
+        self.cipher
+            .seal(CLIENT_PREVIOUS_SECRET_PURPOSE, &id.to_string(), secret)
+            .map_err(|error| CoreError::Configuration(error.to_string()))
+    }
+
+    fn open_secret(&self, purpose: &str, id: Uuid, stored: &str) -> Result<String, CoreError> {
+        self.cipher
+            .open(purpose, &id.to_string(), stored)
+            .map_err(|error| CoreError::Configuration(error.to_string()))
+    }
+
     fn client_of(&self, mut model: clients::Model) -> Result<Client, CoreError> {
         if let Some(stored) = model.secret.as_deref() {
-            model.secret = Some(
-                self.cipher
-                    .open(CLIENT_SECRET_PURPOSE, &model.id.to_string(), stored)
-                    .map_err(|error| CoreError::Configuration(error.to_string()))?,
-            );
+            model.secret = Some(self.open_secret(CLIENT_SECRET_PURPOSE, model.id, stored)?);
+        }
+        if let Some(stored) = model.previous_secret.as_deref() {
+            model.previous_secret =
+                Some(self.open_secret(CLIENT_PREVIOUS_SECRET_PURPOSE, model.id, stored)?);
         }
 
         Ok(Client::from(model))
@@ -230,6 +245,8 @@ impl ClientRepository for PostgresClientRepository {
             backchannel_logout_session_required: Set(true),
             consent_required: Set(data.consent_required),
             registration_source: Set(data.registration_source.to_string()),
+            previous_secret: Set(None),
+            previous_secret_expires_at: Set(None),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -456,6 +473,119 @@ impl ClientRepository for PostgresClientRepository {
         }
 
         Ok(())
+    }
+
+    async fn rotate_secret(
+        &self,
+        client: &Scoped<Client>,
+        new_secret: String,
+        previous_expires_at: Option<DateTime<Utc>>,
+    ) -> Result<Client, CoreError> {
+        let id = client.get().id;
+        let transaction = self.db.begin().await.map_err(|e| {
+            error!("failed to begin a client secret rotation: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        let row = ClientEntity::find()
+            .filter(clients::Column::Id.eq(id))
+            .filter(clients::Column::RealmId.eq(Uuid::from(client.get().realm_id)))
+            .lock_exclusive()
+            .one(&transaction)
+            .await
+            .map_err(|_| CoreError::InternalServerError)?
+            .ok_or(CoreError::NotFound)?;
+
+        let current = row
+            .secret
+            .as_deref()
+            .map(|stored| self.open_secret(CLIENT_SECRET_PURPOSE, id, stored))
+            .transpose()?;
+        let previous = match (current, previous_expires_at) {
+            (Some(secret), Some(expires_at)) => {
+                Some((self.seal_previous_secret(id, &secret)?, expires_at))
+            }
+            _ => None,
+        };
+
+        let mut active = row.into_active_model();
+        active.secret = Set(self.seal_secret(id, Some(new_secret))?);
+        active.previous_secret = Set(previous.as_ref().map(|(secret, _)| secret.clone()));
+        active.previous_secret_expires_at =
+            Set(previous.map(|(_, expires_at)| expires_at.naive_utc()));
+        active.updated_at = Set(Utc::now().naive_utc());
+
+        let updated = active.update(&transaction).await.map_err(|e| {
+            error!("failed to rotate a client secret: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+        transaction.commit().await.map_err(|e| {
+            error!("failed to commit a client secret rotation: {:?}", e);
+            CoreError::InternalServerError
+        })?;
+
+        self.client_of(updated)
+    }
+
+    async fn revoke_previous_secret(&self, client: &Scoped<Client>) -> Result<bool, CoreError> {
+        let result = ClientEntity::update_many()
+            .col_expr(
+                clients::Column::PreviousSecret,
+                Expr::value(Option::<String>::None),
+            )
+            .col_expr(
+                clients::Column::PreviousSecretExpiresAt,
+                Expr::value(Option::<chrono::NaiveDateTime>::None),
+            )
+            .filter(clients::Column::Id.eq(client.get().id))
+            .filter(clients::Column::RealmId.eq(Uuid::from(client.get().realm_id)))
+            .filter(clients::Column::PreviousSecret.is_not_null())
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!("failed to revoke a previous client secret: {:?}", e);
+                CoreError::InternalServerError
+            })?;
+
+        Ok(result.rows_affected > 0)
+    }
+
+    async fn expire_previous_secrets(
+        &self,
+        now: DateTime<Utc>,
+    ) -> Result<Vec<ExpiredClientSecret>, CoreError> {
+        let rows = self
+            .db
+            .query_all(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "WITH due AS (\
+                     SELECT id, realm_id, previous_secret_expires_at AS expired_at FROM clients \
+                     WHERE previous_secret_expires_at IS NOT NULL AND previous_secret_expires_at <= $1 \
+                     FOR UPDATE), \
+                 cleared AS (\
+                     UPDATE clients SET previous_secret = NULL, previous_secret_expires_at = NULL \
+                     FROM due WHERE clients.id = due.id RETURNING clients.id) \
+                 SELECT due.id, due.realm_id, due.expired_at FROM due JOIN cleared ON cleared.id = due.id",
+                [now.naive_utc().into()],
+            ))
+            .await
+            .map_err(|e| {
+                error!("failed to expire previous client secrets: {:?}", e);
+                CoreError::InternalServerError
+            })?;
+
+        rows.into_iter()
+            .map(|row| {
+                let read = |e: sea_orm::DbErr| CoreError::Database(e.to_string());
+                let expired_at: chrono::NaiveDateTime =
+                    row.try_get("", "expired_at").map_err(read)?;
+                Ok(ExpiredClientSecret {
+                    client_id: row.try_get("", "id").map_err(read)?,
+                    realm_id: RealmId::from(row.try_get::<Uuid>("", "realm_id").map_err(read)?),
+                    expired_at: expired_at.and_utc(),
+                })
+            })
+            .collect()
     }
 
     async fn count_by_source(
@@ -829,6 +959,251 @@ mod sealed_secret_tests {
 
         let result = PostgresClientRepository::new(schema.db)
             .get_by_client_id("sealed".to_string(), realm_id)
+            .await;
+
+        assert!(result.is_err(), "{result:?}");
+    }
+}
+
+#[cfg(test)]
+mod secret_rotation_tests {
+    use chrono::Duration;
+
+    use super::*;
+    use crate::domain::authentication::entities::AuthProtocol;
+    use crate::domain::client::entities::ClientType;
+    use crate::infrastructure::sealed_secrets_testing::{
+        TestSchema, migrated_schema, sealing_cipher, stored,
+    };
+
+    fn confidential(realm_id: RealmId, client_id: &str) -> CreateClientRequest {
+        CreateClientRequest {
+            realm_id,
+            name: client_id.to_string(),
+            client_id: client_id.to_string(),
+            secret: Some("first-secret".to_string()),
+            enabled: true,
+            protocol: AuthProtocol::OpenIdConnect,
+            public_client: false,
+            service_account_enabled: true,
+            direct_access_grants_enabled: false,
+            oauth_device_code_grant_enabled: false,
+            token_exchange_enabled: false,
+            client_type: ClientType::Confidential,
+            require_pkce: false,
+            consent_required: false,
+            registration_source: ClientRegistrationSource::Admin,
+        }
+    }
+
+    async fn seeded(client_id: &str) -> (PostgresClientRepository, TestSchema, Scoped<Client>) {
+        let schema = migrated_schema("client_rotation_test").await;
+        let repository = PostgresClientRepository::with_cipher(schema.db.clone(), sealing_cipher());
+        let created = repository
+            .create_client(confidential(schema.realm.id(), client_id))
+            .await
+            .expect("create the client");
+        let client = repository
+            .get_by_id(schema.realm.id(), created.id)
+            .await
+            .expect("read the client")
+            .in_realm(&schema.realm)
+            .expect("the client belongs to the realm");
+        (repository, schema, client)
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn rotating_keeps_the_old_secret_as_previous_until_its_expiry_and_seals_both() {
+        let (repository, schema, client) = seeded("backend").await;
+        let expires_at = Utc::now() + Duration::hours(1);
+
+        let rotated = repository
+            .rotate_secret(&client, "second-secret".to_string(), Some(expires_at))
+            .await
+            .expect("rotate");
+
+        assert_eq!(rotated.secret_str(), Some("second-secret"));
+        let previous = rotated.previous_secret.as_ref().expect("a previous secret");
+        assert_eq!(previous.secret.expose(), "first-secret");
+        assert_eq!(previous.expires_at.timestamp(), expires_at.timestamp());
+
+        let current_at_rest = stored(&schema.pool, "clients", "secret", client.get().id)
+            .await
+            .expect("a stored secret");
+        let previous_at_rest = stored(&schema.pool, "clients", "previous_secret", client.get().id)
+            .await
+            .expect("a stored previous secret");
+        for value in [&current_at_rest, &previous_at_rest] {
+            assert!(value.starts_with("fk1:kid-a:"), "{value}");
+            assert!(!value.contains("-secret"));
+        }
+        assert_ne!(current_at_rest, previous_at_rest);
+
+        let read = repository
+            .get_by_client_id("backend".to_string(), schema.realm.id())
+            .await
+            .expect("read back")
+            .across_realms();
+        assert_eq!(read.secret_str(), Some("second-secret"));
+        assert_eq!(
+            read.previous_secret
+                .expect("a previous secret")
+                .secret
+                .expose(),
+            "first-secret"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn rotating_without_a_grace_period_keeps_no_previous_secret() {
+        let (repository, schema, client) = seeded("backend").await;
+
+        let rotated = repository
+            .rotate_secret(&client, "second-secret".to_string(), None)
+            .await
+            .expect("rotate");
+
+        assert_eq!(rotated.secret_str(), Some("second-secret"));
+        assert!(rotated.previous_secret.is_none());
+        assert_eq!(
+            stored(&schema.pool, "clients", "previous_secret", client.get().id).await,
+            None
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn rotating_again_replaces_the_previous_secret_and_drops_the_older_one() {
+        let (repository, _schema, client) = seeded("backend").await;
+        let expires_at = Utc::now() + Duration::hours(1);
+        repository
+            .rotate_secret(&client, "second-secret".to_string(), Some(expires_at))
+            .await
+            .expect("first rotation");
+
+        let rotated = repository
+            .rotate_secret(&client, "third-secret".to_string(), Some(expires_at))
+            .await
+            .expect("second rotation");
+
+        assert_eq!(rotated.secret_str(), Some("third-secret"));
+        assert_eq!(
+            rotated
+                .previous_secret
+                .expect("a previous secret")
+                .secret
+                .expose(),
+            "second-secret"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn revoking_drops_the_previous_secret_once() {
+        let (repository, schema, client) = seeded("backend").await;
+        repository
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Utc::now() + Duration::hours(1)),
+            )
+            .await
+            .expect("rotate");
+
+        assert!(
+            repository
+                .revoke_previous_secret(&client)
+                .await
+                .expect("revoke")
+        );
+        assert!(
+            !repository
+                .revoke_previous_secret(&client)
+                .await
+                .expect("revoke again")
+        );
+
+        let read = repository
+            .get_by_id(schema.realm.id(), client.get().id)
+            .await
+            .expect("read back")
+            .across_realms();
+        assert!(read.previous_secret.is_none());
+        assert_eq!(read.secret_str(), Some("second-secret"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn expiring_reports_each_ended_grace_period_once_and_spares_the_others() {
+        let (repository, schema, ended) = seeded("ended").await;
+        let running = repository
+            .create_client(confidential(schema.realm.id(), "running"))
+            .await
+            .expect("create the second client");
+        let running = repository
+            .get_by_id(schema.realm.id(), running.id)
+            .await
+            .expect("read the second client")
+            .in_realm(&schema.realm)
+            .expect("in realm");
+        let now = Utc::now();
+        repository
+            .rotate_secret(&ended, "next".to_string(), Some(now + Duration::minutes(1)))
+            .await
+            .expect("rotate the first");
+        repository
+            .rotate_secret(&running, "next".to_string(), Some(now + Duration::hours(2)))
+            .await
+            .expect("rotate the second");
+
+        assert!(
+            repository
+                .expire_previous_secrets(now)
+                .await
+                .expect("nothing is due yet")
+                .is_empty()
+        );
+
+        let expired = repository
+            .expire_previous_secrets(now + Duration::minutes(2))
+            .await
+            .expect("expire");
+        assert_eq!(expired.len(), 1);
+        assert_eq!(expired[0].client_id, ended.get().id);
+        assert_eq!(expired[0].realm_id, schema.realm.id());
+        assert!(
+            repository
+                .expire_previous_secrets(now + Duration::minutes(2))
+                .await
+                .expect("expire again")
+                .is_empty()
+        );
+
+        let still_running = repository
+            .get_by_id(schema.realm.id(), running.get().id)
+            .await
+            .expect("read back")
+            .across_realms();
+        assert!(still_running.previous_secret.is_some());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_current_secret_and_the_previous_one_need_the_key_to_be_read() {
+        let (_, schema, client) = seeded("backend").await;
+        PostgresClientRepository::with_cipher(schema.db.clone(), sealing_cipher())
+            .rotate_secret(
+                &client,
+                "second-secret".to_string(),
+                Some(Utc::now() + Duration::hours(1)),
+            )
+            .await
+            .expect("rotate");
+
+        let result = PostgresClientRepository::new(schema.db)
+            .get_by_client_id("backend".to_string(), schema.realm.id())
             .await;
 
         assert!(result.is_err(), "{result:?}");

@@ -16,8 +16,8 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::domain::authentication::OidcScope;
+use crate::domain::authentication::client_authentication::secret_is_accepted;
 use crate::domain::authentication::entities::GrantType;
-use crate::domain::authentication::services::client_secret_matches;
 use crate::domain::authentication::token_exchange::entities::{TokenExchangeError, TokenType};
 use crate::domain::authentication::token_exchange::ports::{
     SubjectTokenIssuer, TokenExchangeService,
@@ -117,7 +117,7 @@ where
             .into_inner();
 
         if client.public_client
-            || !client_secret_matches(client.secret_str(), params.client_secret.as_deref())
+            || !secret_is_accepted(&client, params.client_secret.as_deref(), Utc::now())
         {
             return Err(TokenExchangeError::InvalidClient);
         }

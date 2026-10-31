@@ -161,6 +161,7 @@ export namespace Schemas {
     maintenance_session_strategy: MaintenanceSessionStrategy;
     name: string;
     oauth_device_code_grant_enabled: boolean;
+    previous_secret?: (null | PreviousClientSecret) | undefined;
     protocol: AuthProtocol;
     public_client: boolean;
     realm_id: RealmId;
@@ -233,7 +234,18 @@ export namespace Schemas {
     value?: (string | null) | undefined;
   };
   export type ClientScopeMapping = { client_id: string; default_scope_type: ScopeType; scope_id: string };
-  export type ClientSecretResponse = Partial<{ client_secret: string | null }>;
+  export type PreviousClientSecret = { expires_at: string; secret: Masked_String };
+  export type PreviousClientSecretResponse = { client_secret: string; expires_at: string };
+  export type ClientSecretResponse = Partial<{
+    client_secret: string | null;
+    previous_secret: null | PreviousClientSecretResponse;
+  }>;
+  export type RevokePreviousClientSecretResponse = { message: string };
+  export type RotateClientSecretRequest = Partial<{ grace_period_secs: number | null }>;
+  export type RotateClientSecretResponse = {
+    client_secret: string;
+    previous_secret_expires_at?: (string | null) | undefined;
+  };
   export type CodeChallengeMethod = "S256" | "PLAIN";
   export type FlowId = string;
   export type FlowStatus = "pending" | "success" | "failure" | "expired";
@@ -1136,6 +1148,8 @@ export namespace Schemas {
     | "client_deleted"
     | "client_secret_rotated"
     | "client_secret_viewed"
+    | "client_secret_revoked"
+    | "client_secret_expired"
     | "realm_config_changed"
     | "email_not_sent"
     | "email_sent"
@@ -2174,6 +2188,35 @@ export namespace Endpoints {
       path: { realm_name: string; client_id: string };
     };
     responses: { 200: Schemas.ClientSecretResponse; 403: unknown; 404: unknown };
+  };
+  export type post_Rotate_client_secret = {
+    method: "POST";
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret/rotate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+
+      body: Schemas.RotateClientSecretRequest;
+    };
+    responses: {
+      200: Schemas.RotateClientSecretResponse;
+      400: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Revoke_previous_client_secret = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret/previous";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; client_id: string };
+    };
+    responses: {
+      200: Schemas.RevokePreviousClientSecretResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+    };
   };
   export type put_Assign_default_scope = {
     method: "PUT";
@@ -5585,6 +5628,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper;
     "/realms/{realm_name}/clients": Endpoints.post_Create_client;
     "/realms/{realm_name}/clients/register": Endpoints.post_Register_client;
+    "/realms/{realm_name}/clients/{client_id}/client-secret/rotate": Endpoints.post_Rotate_client_secret;
     "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri;
@@ -5689,6 +5733,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope;
     "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper;
     "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client;
+    "/realms/{realm_name}/clients/{client_id}/client-secret/previous": Endpoints.delete_Revoke_previous_client_secret;
     "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.delete_Unassign_default_scope;
     "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_client_whitelist_entry;
     "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope;

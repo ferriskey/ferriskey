@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
+
+use chrono::Utc;
 
 use crate::domain::{
     authentication::value_objects::Identity,
@@ -13,8 +16,9 @@ use crate::domain::{
             DeleteSamlAttributeMapperInput, DeleteWebOriginInput, GetClientInput,
             GetClientRolesInput, GetClientSamlConfigInput, GetPostLogoutRedirectUrisInput,
             GetRedirectUrisInput, GetSamlAttributeMappersInput, GetWebOriginsInput,
-            SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
-            UpdateRedirectUriInput,
+            RevealedClientSecret, RevealedPreviousSecret, RotateClientSecretInput,
+            RotatedClientSecret, SetClientSamlConfigInput, UpdateClientInput,
+            UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
             redirect_uri::RedirectUri,
             saml::{
                 AcsUrl, ClientSamlConfig, NameIdFormat, SamlAttributeMapper,
@@ -46,7 +50,7 @@ use crate::domain::{
         ports::{RolePolicy, RoleRepository},
         value_objects::CreateRoleRequest,
     },
-    seawatch::{EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
+    seawatch::{ActorType, EventStatus, SecurityEvent, SecurityEventRepository, SecurityEventType},
     user::{
         ports::{UserRepository, UserRoleRepository},
         value_objects::CreateUserRequest,
@@ -864,7 +868,7 @@ where
         &self,
         identity: Identity,
         input: GetClientInput,
-    ) -> Result<Option<String>, CoreError> {
+    ) -> Result<RevealedClientSecret, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
         let realm = scope.realm().clone();
 
@@ -892,7 +896,145 @@ where
             )
             .await?;
 
-        Ok(client.get().secret_str().map(str::to_string))
+        let now = Utc::now();
+        let previous = client
+            .get()
+            .previous_secret
+            .as_ref()
+            .filter(|previous| previous.is_valid_at(now))
+            .map(|previous| RevealedPreviousSecret {
+                client_secret: previous.secret.expose().clone(),
+                expires_at: previous.expires_at,
+            });
+
+        Ok(RevealedClientSecret {
+            client_secret: client.get().secret_str().map(str::to_string),
+            previous,
+        })
+    }
+
+    async fn rotate_client_secret(
+        &self,
+        identity: Identity,
+        input: RotateClientSecretInput,
+    ) -> Result<RotatedClientSecret, CoreError> {
+        let grace_period = input.grace_period()?;
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
+
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let client = self
+            .client_repository
+            .get_by_id(scope.id(), input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)?
+            .in_realm(&scope)?;
+
+        if client.get().public_client || client.get().secret.is_none() {
+            return Err(CoreError::ClientHasNoSecret);
+        }
+
+        let new_secret = generate_random_string();
+        let previous_expires_at = grace_period.map(|grace| Utc::now() + grace);
+
+        self.client_repository
+            .rotate_secret(&client, new_secret.clone(), previous_expires_at)
+            .await?;
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::ClientSecretRotated,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("client".to_string(), client.get().id, None)
+                .with_details(serde_json::json!({
+                    "previous_secret_expires_at": previous_expires_at,
+                })),
+            )
+            .await?;
+
+        Ok(RotatedClientSecret {
+            client_secret: new_secret,
+            previous_secret_expires_at: previous_expires_at,
+        })
+    }
+
+    async fn revoke_previous_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> Result<(), CoreError> {
+        let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
+        let realm = scope.realm().clone();
+
+        ensure_policy(
+            self.policy.can_update_client(&identity, &realm).await,
+            "insufficient permissions",
+        )?;
+
+        let client = self
+            .client_repository
+            .get_by_id(scope.id(), input.client_id)
+            .await
+            .map_err(|_| CoreError::NotFound)?
+            .in_realm(&scope)?;
+
+        if !self
+            .client_repository
+            .revoke_previous_secret(&client)
+            .await?
+        {
+            return Err(CoreError::NotFound);
+        }
+
+        self.security_event_repository
+            .store_event(
+                SecurityEvent::new(
+                    realm.id,
+                    SecurityEventType::ClientSecretRevoked,
+                    EventStatus::Success,
+                    identity.id(),
+                )
+                .with_target("client".to_string(), client.get().id, None),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn expire_previous_client_secrets(&self) -> Result<usize, CoreError> {
+        let expired = self
+            .client_repository
+            .expire_previous_secrets(Utc::now())
+            .await?;
+
+        for secret in &expired {
+            let mut event = SecurityEvent::without_actor(
+                secret.realm_id,
+                SecurityEventType::ClientSecretExpired,
+                EventStatus::Success,
+            )
+            .with_target("client".to_string(), secret.client_id, None)
+            .with_details(serde_json::json!({ "expired_at": secret.expired_at }));
+            event.actor_type = Some(ActorType::System);
+
+            if let Err(error) = self.security_event_repository.store_event(event).await {
+                tracing::error!(
+                    client = %secret.client_id,
+                    ?error,
+                    "failed to record the expiry of a previous client secret"
+                );
+            }
+        }
+
+        Ok(expired.len())
     }
 
     async fn get_client_roles(
@@ -1132,6 +1274,25 @@ where
             .await?;
 
         Ok(resolve_allowed_origins(&sources))
+    }
+}
+
+pub async fn expire_previous_client_secrets_task<S>(service: S, period: Duration)
+where
+    S: ClientService,
+{
+    let mut ticker = tokio::time::interval(period);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    loop {
+        ticker.tick().await;
+        match service.expire_previous_client_secrets().await {
+            Ok(0) => {}
+            Ok(expired) => tracing::info!(expired, "Expired previous client secrets"),
+            Err(error) => {
+                tracing::warn!(error = ?error, "Failed to expire previous client secrets")
+            }
+        }
     }
 }
 
@@ -1557,5 +1718,337 @@ mod tests {
 
         assert_eq!(page.metadata().total, 1);
         assert_eq!(page.data()[0].id, expected_id);
+    }
+
+    mod secret_rotation {
+        use super::*;
+        use crate::domain::client::entities::ExpiredClientSecret;
+        use crate::domain::client::entities::{PreviousClientSecret, RotateClientSecretInput};
+        use crate::domain::seawatch::{ActorType, SecurityEvent};
+        use chrono::Duration;
+        use mockall::predicate::always;
+
+        fn confidential(realm: &Realm) -> Client {
+            let mut client = stored_client(realm, false);
+            client.secret = Some(maskass::Masked::new("first-secret".to_string()));
+            client
+        }
+
+        fn serving(mocks: &mut Mocks, client: Client) {
+            mocks.client.expect_get_by_id().returning(move |_, _| {
+                let client = client.clone();
+                Box::pin(async move { Ok(Unscoped::new(client)) })
+            });
+        }
+
+        fn recording(mocks: &mut Mocks, expected: SecurityEventType) {
+            mocks
+                .security_event
+                .expect_store_event()
+                .withf(move |event: &SecurityEvent| event.event_type == expected)
+                .times(1)
+                .returning(|_| Box::pin(async { Ok(()) }));
+        }
+
+        fn rotation(client_id: Uuid, grace_period_secs: Option<i64>) -> RotateClientSecretInput {
+            RotateClientSecretInput {
+                client_id,
+                realm_name: "acme".to_string(),
+                grace_period_secs,
+            }
+        }
+
+        #[tokio::test]
+        async fn rotating_hands_back_a_new_secret_and_when_the_old_one_stops() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            serving(&mut mocks, client.clone());
+            let rotated = client.clone();
+            mocks
+                .client
+                .expect_rotate_secret()
+                .withf(|_, new_secret, expires_at| {
+                    !new_secret.is_empty()
+                        && new_secret != "first-secret"
+                        && expires_at.is_some_and(|at| {
+                            let wait = at - Utc::now();
+                            wait > Duration::seconds(3_500) && wait <= Duration::seconds(3_600)
+                        })
+                })
+                .times(1)
+                .returning(move |_, _, _| {
+                    let rotated = rotated.clone();
+                    Box::pin(async move { Ok(rotated) })
+                });
+            recording(&mut mocks, SecurityEventType::ClientSecretRotated);
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(client_id, Some(3_600)))
+                .await
+                .expect("the secret is rotated");
+
+            assert!(!result.client_secret.is_empty());
+            assert_ne!(result.client_secret, "first-secret");
+            assert!(result.previous_secret_expires_at.is_some());
+        }
+
+        #[tokio::test]
+        async fn rotating_without_a_grace_period_keeps_no_previous_secret() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            serving(&mut mocks, client.clone());
+            mocks
+                .client
+                .expect_rotate_secret()
+                .withf(|_, _, expires_at| expires_at.is_none())
+                .times(1)
+                .returning(move |_, _, _| {
+                    let client = client.clone();
+                    Box::pin(async move { Ok(client) })
+                });
+            recording(&mut mocks, SecurityEventType::ClientSecretRotated);
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(client_id, None))
+                .await
+                .expect("the secret is rotated");
+
+            assert!(result.previous_secret_expires_at.is_none());
+        }
+
+        #[tokio::test]
+        async fn a_grace_period_out_of_range_is_refused_before_anything_changes() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mocks = Mocks::for_admin_of(&realm, &identity);
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(Uuid::new_v4(), Some(-5)))
+                .await;
+
+            assert!(matches!(
+                result,
+                Err(CoreError::InvalidSecretGracePeriod(_))
+            ));
+        }
+
+        #[tokio::test]
+        async fn a_public_client_has_no_secret_to_rotate() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let mut public = stored_client(&realm, false);
+            public.public_client = true;
+            let client_id = public.id;
+            serving(&mut mocks, public);
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(client_id, Some(60)))
+                .await;
+
+            assert!(matches!(result, Err(CoreError::ClientHasNoSecret)));
+        }
+
+        #[tokio::test]
+        async fn rotating_needs_the_right_to_update_clients() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            mocks.user_role = MockUserRoleRepository::new();
+            mocks
+                .user_role
+                .expect_get_user_roles()
+                .returning(|_| Box::pin(async { Ok(vec![]) }));
+
+            let result = mocks
+                .build()
+                .rotate_client_secret(identity, rotation(Uuid::new_v4(), Some(60)))
+                .await;
+
+            assert!(matches!(result, Err(CoreError::Forbidden(_))));
+        }
+
+        #[tokio::test]
+        async fn revoking_records_the_event_only_when_a_previous_secret_existed() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            serving(&mut mocks, client);
+            mocks
+                .client
+                .expect_revoke_previous_secret()
+                .times(1)
+                .returning(|_| Box::pin(async { Ok(true) }));
+            recording(&mut mocks, SecurityEventType::ClientSecretRevoked);
+
+            mocks
+                .build()
+                .revoke_previous_client_secret(
+                    identity,
+                    GetClientInput {
+                        client_id,
+                        realm_name: "acme".to_string(),
+                    },
+                )
+                .await
+                .expect("the previous secret is revoked");
+        }
+
+        #[tokio::test]
+        async fn revoking_when_there_is_no_previous_secret_is_not_found_and_silent() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client = confidential(&realm);
+            let client_id = client.id;
+            serving(&mut mocks, client);
+            mocks
+                .client
+                .expect_revoke_previous_secret()
+                .returning(|_| Box::pin(async { Ok(false) }));
+            mocks.security_event.expect_store_event().never();
+
+            let result = mocks
+                .build()
+                .revoke_previous_client_secret(
+                    identity,
+                    GetClientInput {
+                        client_id,
+                        realm_name: "acme".to_string(),
+                    },
+                )
+                .await;
+
+            assert!(matches!(result, Err(CoreError::NotFound)));
+        }
+
+        #[tokio::test]
+        async fn revealing_shows_the_previous_secret_only_while_it_still_works() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+
+            for (offset, shown) in [(Duration::minutes(5), true), (-Duration::minutes(5), false)] {
+                let mut mocks = Mocks::for_admin_of(&realm, &identity);
+                let mut client = confidential(&realm);
+                client.previous_secret = Some(PreviousClientSecret {
+                    secret: maskass::Masked::new("old-secret".to_string()),
+                    expires_at: Utc::now() + offset,
+                });
+                let client_id = client.id;
+                serving(&mut mocks, client);
+                recording(&mut mocks, SecurityEventType::ClientSecretViewed);
+
+                let revealed = mocks
+                    .build()
+                    .reveal_client_secret(
+                        identity.clone(),
+                        GetClientInput {
+                            client_id,
+                            realm_name: "acme".to_string(),
+                        },
+                    )
+                    .await
+                    .expect("the secrets are revealed");
+
+                assert_eq!(revealed.client_secret.as_deref(), Some("first-secret"));
+                assert_eq!(
+                    revealed
+                        .previous
+                        .as_ref()
+                        .map(|previous| previous.client_secret.as_str()),
+                    shown.then_some("old-secret")
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn each_expired_previous_secret_is_recorded_as_a_system_event() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let client_id = Uuid::new_v4();
+            let realm_id = realm.id;
+            let expired_at = Utc::now() - Duration::minutes(1);
+            mocks
+                .client
+                .expect_expire_previous_secrets()
+                .with(always())
+                .times(1)
+                .returning(move |_| {
+                    Box::pin(async move {
+                        Ok(vec![ExpiredClientSecret {
+                            client_id,
+                            realm_id,
+                            expired_at,
+                        }])
+                    })
+                });
+            mocks
+                .security_event
+                .expect_store_event()
+                .withf(move |event: &SecurityEvent| {
+                    event.event_type == SecurityEventType::ClientSecretExpired
+                        && event.realm_id == realm_id
+                        && event.target_id == Some(client_id)
+                        && event.actor_type == Some(ActorType::System)
+                })
+                .times(1)
+                .returning(|_| Box::pin(async { Ok(()) }));
+
+            let expired = mocks
+                .build()
+                .expire_previous_client_secrets()
+                .await
+                .expect("the sweep succeeds");
+
+            assert_eq!(expired, 1);
+        }
+
+        #[tokio::test]
+        async fn a_failing_event_store_does_not_stop_the_sweep() {
+            let realm = create_test_realm_with_name("acme");
+            let identity = create_test_user_identity_with_realm(&realm);
+            let mut mocks = Mocks::for_admin_of(&realm, &identity);
+            let realm_id = realm.id;
+            mocks
+                .client
+                .expect_expire_previous_secrets()
+                .returning(move |_| {
+                    Box::pin(async move {
+                        Ok(["a", "b"]
+                            .map(|_| ExpiredClientSecret {
+                                client_id: Uuid::new_v4(),
+                                realm_id,
+                                expired_at: Utc::now(),
+                            })
+                            .into())
+                    })
+                });
+            mocks
+                .security_event
+                .expect_store_event()
+                .times(2)
+                .returning(|_| Box::pin(async { Err(CoreError::InternalServerError) }));
+
+            let expired = mocks
+                .build()
+                .expire_previous_client_secrets()
+                .await
+                .expect("the sweep still reports what it dropped");
+
+            assert_eq!(expired, 2);
+        }
     }
 }
