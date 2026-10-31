@@ -106,6 +106,22 @@ where
             .await?
             .in_realm(&scope)?;
 
+        // Removing a second factor is the first step of taking the account
+        // over, so the same bound applies as for resetting its password.
+        if !self
+            .policy
+            .can_manage_user(&identity, &realm, user.get())
+            .await?
+        {
+            warn!(
+                user_id = %input.user_id,
+                "Refused deletion of a credential of a user holding permissions the subject does not hold"
+            );
+            return Err(CoreError::Forbidden(
+                "cannot change a user holding permissions you do not hold".to_string(),
+            ));
+        }
+
         let owns_credential = self
             .credential_repository
             .get_credentials_by_user_id(input.user_id)

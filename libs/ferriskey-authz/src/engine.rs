@@ -285,6 +285,25 @@ where
 
         Ok(has_permission)
     }
+
+    async fn can_manage_user(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+        target: &User,
+    ) -> Result<bool, CoreError> {
+        let user = self.get_user_from_identity(identity).await?;
+
+        let held = self
+            .get_permission_for_target_realm(&user, target_realm)
+            .await?;
+
+        // Every role counts, mirror-client ones included: a master account
+        // may hold authority over other realms through them.
+        let target_permissions = self.get_user_permissions(target).await?;
+
+        Ok(Permissions::covers(&held, &target_permissions))
+    }
 }
 
 impl<U, C, UR> RealmPolicy for FerriskeyPolicy<U, C, UR>

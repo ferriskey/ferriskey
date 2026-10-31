@@ -173,6 +173,15 @@ impl Permissions {
             .all(|name| Self::from_name(name).is_some_and(|permission| held.contains(&permission)))
     }
 
+    /// Whether a subject holding `held` may act on an account holding `target`.
+    ///
+    /// Same bound as [`Self::can_grant`], applied to accounts: taking over an
+    /// account through its credentials or profile hands over everything it
+    /// holds, so a subject acts only on accounts holding nothing it lacks.
+    pub fn covers(held: &HashSet<Permissions>, target: &HashSet<Permissions>) -> bool {
+        held.contains(&Self::ManageRealm) || target.is_subset(held)
+    }
+
     pub fn to_bitfield(permissions: &[Permissions]) -> u64 {
         permissions
             .iter()
@@ -282,6 +291,35 @@ mod tests {
         assert!(Permissions::can_grant(
             &held,
             &["manage_users".to_string(), "manage_realm".to_string()]
+        ));
+    }
+
+    #[test]
+    fn covers_only_accounts_holding_nothing_more() {
+        let held = HashSet::from([Permissions::ManageUsers, Permissions::ViewRoles]);
+
+        assert!(Permissions::covers(&held, &HashSet::new()));
+        assert!(Permissions::covers(
+            &held,
+            &HashSet::from([Permissions::ManageUsers])
+        ));
+        assert!(!Permissions::covers(
+            &held,
+            &HashSet::from([Permissions::ManageRealm])
+        ));
+        assert!(!Permissions::covers(
+            &held,
+            &HashSet::from([Permissions::ManageUsers, Permissions::ManageClients])
+        ));
+    }
+
+    #[test]
+    fn manage_realm_covers_any_account() {
+        let held = HashSet::from([Permissions::ManageRealm]);
+
+        assert!(Permissions::covers(
+            &held,
+            &HashSet::from([Permissions::ManageRealm, Permissions::ManageUsers])
         ));
     }
 
