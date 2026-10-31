@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { useGetClientSecret } from '@/api/client.api'
+import {
+  useGetClientSecret,
+  useRevokePreviousClientSecret,
+  useRotateClientSecret,
+} from '@/api/client.api'
 import type { Schemas } from '@/api/api.client'
 import ClientCredentialsTab from '../ui/client-credentials-tab'
 
@@ -22,6 +26,10 @@ export default function ClientCredentialsTabFeature({
     enabled: revealed,
   })
 
+  const { mutate: rotateSecret, isPending: rotating } = useRotateClientSecret()
+  const { mutate: revokePrevious, isPending: revoking } = useRevokePreviousClientSecret()
+  const path = { realm_name: realm, client_id: client.id }
+
   const status = (error as { status?: number } | null)?.status
   const forbidden = revealed && status === 403
   const failed = revealed && Boolean(error) && !forbidden
@@ -34,7 +42,17 @@ export default function ClientCredentialsTabFeature({
       isFetching={isFetching}
       forbidden={forbidden}
       failed={failed}
+      previousSecret={revealed ? (data?.previous_secret?.client_secret ?? null) : null}
+      rotating={rotating}
+      revoking={revoking}
       onToggleReveal={() => setRevealed((r) => !r)}
+      onRotate={(gracePeriodSecs) =>
+        rotateSecret(
+          { path, body: { grace_period_secs: gracePeriodSecs } },
+          { onSuccess: () => setRevealed(true) }
+        )
+      }
+      onRevokePrevious={() => revokePrevious({ path })}
     />
   )
 }
