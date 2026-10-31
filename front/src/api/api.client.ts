@@ -1054,6 +1054,19 @@ export namespace Schemas {
     data: Array<{ created_at: string; id: string; organization_id: OrganizationId; user_id: string }>;
     metadata: PageMetadata;
   };
+  export type Paginated_OwnSessionDto = {
+    data: Array<{
+      created_at: string;
+      current: boolean;
+      expires_at: string;
+      id: string;
+      ip_address?: (string | null) | undefined;
+      last_seen_at?: (string | null) | undefined;
+      persistent: boolean;
+      user_agent?: (string | null) | undefined;
+    }>;
+    metadata: PageMetadata;
+  };
   export type Paginated_PortalLayoutListItem = {
     data: Array<PortalLayout & { theme_count: number }>;
     metadata: PageMetadata;
@@ -1356,6 +1369,7 @@ export namespace Schemas {
   export type ResetPasswordValidator = Partial<{ credential_type: string; temporary: boolean; value: string }>;
   export type ResourceOwnersResponse = { data: Array<ResourceOwner> };
   export type RetryDeliveryResponse = { delivery_id: string; requeued: boolean };
+  export type RevokeOtherSessionsResponse = { revoked: number };
   export type RevokeTokenRequestValidator = Partial<{
     client_id: string | null;
     client_secret: string | null;
@@ -4989,6 +5003,58 @@ export namespace Endpoints {
       500: Schemas.ApiErrorResponse;
     };
   };
+  export type get_List_own_sessions = {
+    method: "GET";
+    path: "/realms/{realm_name}/users/me/sessions";
+    requestFormat: "json";
+    parameters: {
+      query?: Partial<{
+        page: number;
+        limit: number;
+        order: "asc" | "desc";
+        order_by: "last_seen_at" | "expires_at" | "created_at";
+      }>;
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.Paginated_OwnSessionDto;
+      400: Schemas.ApiErrorResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Revoke_other_own_sessions = {
+    method: "POST";
+    path: "/realms/{realm_name}/users/me/sessions/revoke-others";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.RevokeOtherSessionsResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type delete_Revoke_own_session = {
+    method: "DELETE";
+    path: "/realms/{realm_name}/users/me/sessions/{session_id}";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; session_id: string };
+    };
+    responses: {
+      204: unknown;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
   export type delete_Delete_user = {
     method: "DELETE";
     path: "/realms/{realm_name}/users/{user_id}";
@@ -5563,6 +5629,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users": Endpoints.get_Get_users;
     "/realms/{realm_name}/users/@me/realms": Endpoints.get_Get_user_realms;
     "/realms/{realm_name}/users/me": Endpoints.get_Get_own_profile;
+    "/realms/{realm_name}/users/me/sessions": Endpoints.get_List_own_sessions;
     "/realms/{realm_name}/users/me/credentials": Endpoints.get_List_own_credentials;
     "/realms/{realm_name}/users/{user_id}": Endpoints.get_Get_user;
     "/realms/{realm_name}/users/{user_id}/attributes": Endpoints.get_Get_user_attributes;
@@ -5643,6 +5710,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/me/passkeys": Endpoints.post_Confirm_own_passkey_registration;
     "/realms/{realm_name}/users/me/passkeys/options": Endpoints.post_Start_own_passkey_registration;
     "/realms/{realm_name}/users/me/reauthenticate": Endpoints.post_Request_elevation;
+    "/realms/{realm_name}/users/me/sessions/revoke-others": Endpoints.post_Revoke_other_own_sessions;
     "/realms/{realm_name}/users/{user_id}/credentials/import": Endpoints.post_Import_password_credential;
     "/realms/{realm_name}/users/{user_id}/roles/{role_id}": Endpoints.post_Assign_role;
     "/realms/{realm_name}/users/{user_id}/unlock": Endpoints.post_Unlock_user;
@@ -5716,6 +5784,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/users/bulk": Endpoints.delete_Bulk_delete_user;
     "/realms/{realm_name}/users/me/mfa/otp": Endpoints.delete_Disable_own_otp;
     "/realms/{realm_name}/users/me/passkeys/{credential_id}": Endpoints.delete_Delete_own_passkey;
+    "/realms/{realm_name}/users/me/sessions/{session_id}": Endpoints.delete_Revoke_own_session;
     "/realms/{realm_name}/users/{user_id}": Endpoints.delete_Delete_user;
     "/realms/{realm_name}/users/{user_id}/attributes/{key}": Endpoints.delete_Delete_user_attribute;
     "/realms/{realm_name}/users/{user_id}/credentials/{credential_id}": Endpoints.delete_Delete_user_credential;

@@ -42,6 +42,7 @@ profile:
 sessions:
   # Plain total in a heading, it never inflects.
   title: Active sessions ({{total}})
+  description: Where you are signed in. Sign out of any you do not recognise.
   empty: No active sessions.
   unknown_device: Unknown device
   # Stands in for the device name inside a sentence, as in "sign out the session on this device".
@@ -49,9 +50,6 @@ sessions:
   unknown_ip: Unknown IP
   never: never
   current: current
-  empty_filtered: No session matches these filters.
-  show_all: Show all sessions
-  search_placeholder: Search by IP address or device…
   columns:
     device: Device
     ip_address: IP address
@@ -59,19 +57,21 @@ sessions:
     last_seen_at: Last seen
     expires_at: Expires
     created_at: Signed in
-  filter_fields:
-    persistent: Remembered
-    created: Signed in
   persistent_state:
     remembered: remembered
     browser: browser session
   revoke: Revoke
   revoke_label: Revoke the session on {{device}}
+  revoke_others: Sign out other sessions
   confirm:
     title: Revoke session?
     description: This will immediately sign out the session on {{device}}.
+  confirm_others:
+    title: Sign out all other sessions?
+    description: Every session except this one is signed out immediately. This device stays signed in.
   toast:
     revoked: Session revoked
+    others_revoked: Other sessions signed out
 
 validation:
   username_required: Username is required

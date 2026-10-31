@@ -1,60 +1,49 @@
-import { useMemo } from 'react'
 import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { useGetOwnProfile } from '@/api/user.api.ts'
 import {
-  USER_SESSION_FILTER_KEYS,
-  useGetOwnProfile,
-  useGetUserSessions,
-  useRevokeUserSession,
-  type UserSessionsQuery,
-} from '@/api/user.api.ts'
+  useGetOwnSessions,
+  useRevokeOtherOwnSessions,
+  useRevokeOwnSession,
+  type OwnSessionsQuery,
+} from '@/api/account-security.api.ts'
 import { usePagedListing } from '@/components/kit'
-import { authStore } from '@/store/auth.store'
 import type { RouterParams } from '@/routes/router'
 import PageAccountSessions from '../ui/page-account-sessions'
 import { apiErrorMessage } from '@/lib/api-error'
 
-function decodeSid(token: string | null): string | null {
-  if (!token) return null
-  try {
-    const payload = token.split('.')[1]
-    if (!payload) return null
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
-    const claims = JSON.parse(atob(padded)) as Record<string, unknown>
-    return typeof claims.sid === 'string' ? claims.sid : null
-  } catch {
-    return null
-  }
-}
-
 export default function PageAccountSessionsFeature() {
   const { realm_name } = useParams<RouterParams>()
   const { t } = useTranslation('account')
-  const { accessToken } = authStore()
   const { data: profileResponse, isLoading: isProfileLoading } = useGetOwnProfile({ realm: realm_name })
-  const userId = profileResponse?.data.id
 
-  const listing = usePagedListing(USER_SESSION_FILTER_KEYS)
-  const { data: sessionsResponse, isLoading: isSessionsLoading } = useGetUserSessions({
+  const listing = usePagedListing([])
+  const { data: sessionsResponse, isLoading: isSessionsLoading } = useGetOwnSessions({
     realm: realm_name,
-    userId,
-    query: listing.apiQuery as UserSessionsQuery,
+    query: listing.apiQuery as OwnSessionsQuery,
     keepPrevious: true,
   })
-  const { mutate: revokeSession } = useRevokeUserSession()
-
-  const currentSessionId = useMemo(() => decodeSid(accessToken), [accessToken])
+  const { mutate: revokeSession } = useRevokeOwnSession()
+  const { mutate: revokeOtherSessions } = useRevokeOtherOwnSessions()
 
   function handleRevoke(sessionId: string) {
-    if (!realm_name || !userId) return
+    if (!realm_name) return
     revokeSession(
-      {
-        path: { realm_name, user_id: userId, session_id: sessionId },
-      },
+      { path: { realm_name, session_id: sessionId } },
       {
         onSuccess: () => toast.success(t('sessions.toast.revoked')),
+        onError: (error) => toast.error(apiErrorMessage(error)),
+      }
+    )
+  }
+
+  function handleRevokeOthers() {
+    if (!realm_name) return
+    revokeOtherSessions(
+      { path: { realm_name } },
+      {
+        onSuccess: () => toast.success(t('sessions.toast.others_revoked')),
         onError: (error) => toast.error(apiErrorMessage(error)),
       }
     )
@@ -68,8 +57,8 @@ export default function PageAccountSessionsFeature() {
       sessions={sessionsResponse?.data ?? []}
       pagination={sessionsResponse?.metadata}
       listing={listing}
-      currentSessionId={currentSessionId}
       onRevoke={handleRevoke}
+      onRevokeOthers={handleRevokeOthers}
     />
   )
 }
