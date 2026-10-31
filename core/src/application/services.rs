@@ -70,6 +70,7 @@ use crate::{
         realm::{
             resource_owner_services::ResourceOwnerServiceImpl,
             services::{MailServiceImpl, RealmServiceImpl},
+            signing_key_services::SigningKeyServiceImpl,
         },
         role::services::RoleServiceImpl,
         saml::services::SamlServiceImpl,
@@ -564,6 +565,14 @@ pub struct ApplicationService {
     >,
     pub(crate) resource_owner_service:
         ResourceOwnerServiceImpl<RealmRepo, ClientRepo, ResourceOwnerRepo, UserRepo, UserRoleRepo>,
+    pub(crate) signing_key_service: SigningKeyServiceImpl<
+        RealmRepo,
+        ClientRepo,
+        KeystoreRepo,
+        SecurityEventRepo,
+        UserRepo,
+        UserRoleRepo,
+    >,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<

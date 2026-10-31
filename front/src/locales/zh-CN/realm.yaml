@@ -26,6 +26,7 @@ settings:
     mcp: MCP
     password_policy: 密码策略
     maintenance: 维护
+    keys: 密钥
   save:
     title_other: '{{count}} 项未保存的更改'
     description: 应用更改前请先检查该域的配置。
@@ -37,6 +38,10 @@ settings:
     policy_updated: 密码策略更新成功
     policy_failed: 更新密码策略失败
     owners_failed: 更新资源所有者失败
+    key_rotated: 签名密钥已轮换。
+    key_rotate_failed: 轮换签名密钥失败
+    key_revoked: 签名密钥已撤销。
+    key_revoke_failed: 撤销签名密钥失败
 
 general:
   identity:
@@ -202,6 +207,54 @@ maintenance:
     search_placeholder: 搜索角色…
     empty_hint: 没有可用的角色。
     exhausted_hint: 此域中的每个角色都已被允许。
+
+keys:
+  title: 签名密钥
+  description: 此域用于签名令牌和 SAML 文档的密钥。轮换后的密钥在到期前仍会被发布，因此它已签发的令牌可继续通过验证。
+  error:
+    title: 加载签名密钥失败
+    description: 控制台无法读取此域的签名密钥。
+  empty:
+    title: 没有签名密钥
+    hint: 此域尚无签名密钥。
+  table:
+    kid: 密钥 ID
+    algorithm: 算法
+    status: 状态
+    created_at: 创建时间
+    retire_at: 到期时间
+    revoked_at: 撤销时间
+    actions: 操作
+    none: '-'
+    copy_kid: '复制密钥 ID {{kid}}'
+  status:
+    active:
+      label: 活跃
+      description: 为此域新签发的令牌签名。
+    passive:
+      label: 待退役
+      description: 已被轮换，但仍会被发布，因此它签发的令牌在到期前可继续通过验证。
+    retired:
+      label: 已退役
+      description: 不再被发布；它签发的令牌无法再通过验证。
+    revoked:
+      label: 已撤销
+      description: 立即撤回；它签发的令牌将被拒绝。
+  dialog:
+    cancel: 取消
+  rotate:
+    button: 轮换密钥
+    confirm_title: 轮换签名密钥？
+    confirm_description: 新密钥将成为活跃密钥，并为之后签发的所有令牌签名。上一个密钥在到期前仍会被发布，因此它已签发的令牌可继续通过验证。
+    confirm_action: 轮换
+  revoke:
+    button: 撤销
+    confirm_title: 撤销此签名密钥？
+    confirm_description_active: 这是当前活跃的密钥。撤销后将安装新的活跃密钥，被撤销密钥签发的令牌会立即失效。
+    confirm_description_passive: 此密钥签发的令牌会立即失效，即使它仍在被发布。
+    consequence_tokens: 此密钥签发的所有令牌将立即被拒绝。
+    consequence_irreversible: 已撤销的密钥无法恢复。
+    confirm_action: 撤销密钥
 
 validation:
   cimd_host_invalid: '请输入纯主机名，不含协议和路径'

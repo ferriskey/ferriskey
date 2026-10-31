@@ -42,6 +42,8 @@ event:
   email_sent: 邮件已投递
   client_maintenance_enabled: 客户端维护模式已启用
   client_maintenance_disabled: 客户端维护模式已禁用
+  signing_key_rotated: 签名密钥已轮换
+  signing_key_revoked: 签名密钥已撤销
   session_created: 会话已开启
   session_revoked: 会话已撤销
   webhook_delivery_exhausted: Webhook 投递已放弃

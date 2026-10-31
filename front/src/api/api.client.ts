@@ -1146,6 +1146,8 @@ export namespace Schemas {
     | "identity_provider_link_removed"
     | "webhook_delivery_exhausted"
     | "token_exchanged"
+    | "signing_key_rotated"
+    | "signing_key_revoked"
     | "unknown";
   export type SecurityEventId = string;
   export type Paginated_SecurityEvent = {
@@ -1420,6 +1422,19 @@ export namespace Schemas {
   export type SetUserAttributesResponse = { data: Array<UserAttribute> };
   export type SetUserAttributesValidator = { attributes: Record<string, string> };
   export type SetupOtpResponse = { issuer: string; otpauth_url: string; secret: string };
+  export type SigningKeyStatus = "active" | "passive" | "retired" | "revoked";
+  export type SigningKey = {
+    algorithm: string;
+    created_at: string;
+    kid: string;
+    realm_id: string;
+    retire_at?: (string | null) | undefined;
+    revoked_at?: (string | null) | undefined;
+    rotated_at?: (string | null) | undefined;
+    status: SigningKeyStatus;
+  };
+  export type SigningKeyResponse = { data: SigningKey };
+  export type SigningKeysResponse = { data: Array<SigningKey> };
   export type SmtpEncryption = "tls" | "starttls" | "none";
   export type SmtpConfig = {
     created_at: string;
@@ -3020,6 +3035,49 @@ export namespace Endpoints {
       path: { realm_name: string; alias: string };
     };
     responses: { 200: Schemas.DeleteIdentityProviderResponse; 401: unknown; 403: unknown; 404: unknown; 409: unknown };
+  };
+  export type get_List_signing_keys = {
+    method: "GET";
+    path: "/realms/{realm_name}/keys";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      200: Schemas.SigningKeysResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Rotate_signing_key = {
+    method: "POST";
+    path: "/realms/{realm_name}/keys/rotate";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string };
+    };
+    responses: {
+      201: Schemas.SigningKeyResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
+  };
+  export type post_Revoke_signing_key = {
+    method: "POST";
+    path: "/realms/{realm_name}/keys/{kid}/revoke";
+    requestFormat: "json";
+    parameters: {
+      path: { realm_name: string; kid: string };
+    };
+    responses: {
+      200: Schemas.SigningKeyResponse;
+      401: Schemas.ApiErrorResponse;
+      403: Schemas.ApiErrorResponse;
+      404: Schemas.ApiErrorResponse;
+      500: Schemas.ApiErrorResponse;
+    };
   };
   export type post_Authenticate = {
     method: "POST";
@@ -5521,6 +5579,7 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/federation/providers/{id}": Endpoints.get_Get_provider;
     "/realms/{realm_name}/identity-providers": Endpoints.get_List_identity_providers;
     "/realms/{realm_name}/identity-providers/{alias}": Endpoints.get_Get_identity_provider;
+    "/realms/{realm_name}/keys": Endpoints.get_List_signing_keys;
     "/realms/{realm_name}/login-actions/setup-otp": Endpoints.get_Setup_otp;
     "/realms/{realm_name}/login-actions/verify-magic-link": Endpoints.get_Verify_magic_link;
     "/realms/{realm_name}/organizations": Endpoints.get_List_organizations;
@@ -5600,6 +5659,8 @@ export type EndpointByMethod = {
     "/realms/{realm_name}/federation/providers/{id}/sync-users": Endpoints.post_Sync_users;
     "/realms/{realm_name}/federation/providers/{id}/test-connection": Endpoints.post_Test_connection;
     "/realms/{realm_name}/identity-providers": Endpoints.post_Create_identity_provider;
+    "/realms/{realm_name}/keys/rotate": Endpoints.post_Rotate_signing_key;
+    "/realms/{realm_name}/keys/{kid}/revoke": Endpoints.post_Revoke_signing_key;
     "/realms/{realm_name}/login-actions/authenticate": Endpoints.post_Authenticate;
     "/realms/{realm_name}/login-actions/burn-recovery-code": Endpoints.post_Burn_recovery_code;
     "/realms/{realm_name}/login-actions/challenge-otp": Endpoints.post_Challenge_otp;

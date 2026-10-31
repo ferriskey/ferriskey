@@ -2435,11 +2435,17 @@ where
     async fn verify_token(&self, token: String, realm_id: RealmId) -> Result<JwtClaim, CoreError> {
         let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
 
-        let jwt_key_pair = self
+        let kid = jsonwebtoken::decode_header(&token)
+            .map_err(|e| CoreError::TokenValidationError(format!("{:?}: {}", e.kind(), e)))?
+            .kid;
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(realm_id)
+            .get_key_set(realm_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+        let jwt_key_pair = key_set
+            .verification_key(kid.as_deref(), Utc::now())
+            .ok_or_else(|| CoreError::TokenValidationError("unknown signing key".to_string()))?;
 
         validation.validate_aud = false;
         let token_data =
@@ -4617,11 +4623,17 @@ where
         validation.validate_aud = false;
         validation.validate_exp = false;
 
-        let jwt_key_pair = self
+        let kid = jsonwebtoken::decode_header(id_token_hint)
+            .map_err(|_| CoreError::InvalidToken)?
+            .kid;
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(realm_id)
+            .get_key_set(realm_id)
             .await
             .map_err(|_| CoreError::InternalServerError)?;
+        let jwt_key_pair = key_set
+            .verification_key(kid.as_deref(), Utc::now())
+            .ok_or(CoreError::InvalidToken)?;
 
         let token_data = jsonwebtoken::decode::<IdTokenClaims>(
             id_token_hint,
@@ -5017,17 +5029,19 @@ where
     async fn get_certs(&self, realm_name: String) -> Result<Vec<JwkKey>, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &realm_name).await?;
 
-        let jwk_keypair = self
+        let key_set = self
             .keystore_repository
-            .get_or_generate_key(scope.id())
+            .get_key_set(scope.id())
             .await
             .map_err(|_| CoreError::RealmKeyNotFound)?;
 
-        let jwk_key = jwk_keypair
-            .to_jwk_key()
-            .map_err(|e| CoreError::InvalidKey(e.to_string()))?;
-
-        Ok(vec![jwk_key])
+        key_set
+            .published_at(Utc::now())
+            .map(|key| {
+                key.to_jwk_key()
+                    .map_err(|e| CoreError::InvalidKey(e.to_string()))
+            })
+            .collect()
     }
 
     #[instrument(
