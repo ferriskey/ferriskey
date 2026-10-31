@@ -2,7 +2,7 @@
 
 Draft of the answers to the [CNCF Sandbox application form](https://github.com/cncf/sandbox/blob/main/.github/ISSUE_TEMPLATE/application.yml). The application is filed as an issue in [cncf/sandbox](https://github.com/cncf/sandbox); this file is the reviewed source the issue is pasted from. Preparation is tracked in [#1623](https://github.com/ferriskey/ferriskey/issues/1623).
 
-Sections follow the form in order. Facts are as of 2026-10-17 and are refreshed on the day of submission. Items marked [to confirm] are open with the maintainers.
+Sections follow the form in order. Facts are as of 2026-10-31.
 
 ## Basic project information
 
@@ -14,7 +14,7 @@ FerrisKey is an open source, cloud native Identity and Access Management system 
 
 FerrisKey is an open source Identity and Access Management system written in Rust. It authenticates users and services for any application over OpenID Connect, OAuth 2.0 and SAML 2.0, with multi-factor authentication (TOTP, WebAuthn passkeys, magic links, recovery codes), identity brokering to upstream providers, organizations for B2B tenancy, security event auditing and webhooks. Every user, client, role, credential and setting belongs to a realm, so one deployment isolates many tenants. It ships as multi-architecture container images, two Helm charts and a Kubernetes operator with a `FerrisKeyCluster` custom resource. PostgreSQL is the only required dependency.
 
-Why it is needed: self-hosted identity today means either a large Java platform whose operational weight (JVM memory, startup time, clustering, caches) is out of proportion for most teams, or vendor-led projects whose hosted tiers and licensing shape the roadmap. FerrisKey is a complete IAM that a platform team can read, deploy and operate on any Kubernetes cluster: stateless API and console replicas with all state in PostgreSQL, a single API process measured between 37 and 69 MiB resident while creating 1,000 realms, secure defaults (PKCE required for new clients, outbound calls to private networks refused, Argon2 password hashing), and no outbound call needed to operate. Users can be imported from Keycloak, Zitadel or Supabase with their password hashes, so adopting FerrisKey does not require a password reset campaign.
+Why it is needed: self-hosted identity today means either a large Java platform whose operational weight (JVM memory, startup time, clustering, caches) is out of proportion for most teams, or vendor-led projects whose hosted tiers and licensing shape the roadmap. FerrisKey is a complete IAM that a platform team can read, deploy and operate on any Kubernetes cluster: stateless API and console replicas with all state in PostgreSQL, a single API process that, on the same Kubernetes bench as Keycloak 26.8.1, sustains the same rate on every endpoint measured with less CPU on five of six and 618 MiB of memory at peak against 823 MiB, secure defaults (PKCE required for new clients, outbound calls to private networks refused, Argon2 password hashing), and no outbound call needed to operate. Users can be imported from Keycloak, Zitadel or Supabase with their password hashes, so adopting FerrisKey does not require a password reset campaign.
 
 The project is Apache-2.0 only, with no CLA, no open-core tier and no enterprise edition. It is governed by five maintainers from four affiliations and runs in production at a French open source cloud provider and an AI SaaS.
 
@@ -50,7 +50,7 @@ https://ferriskey.rs/roadmap
 
 ### Roadmap context
 
-The public roadmap has three columns: what FerrisKey provides today, what is being built next, and longer-term explorations. [ROADMAP.md](https://github.com/ferriskey/ferriskey/blob/main/ROADMAP.md) is the entry point from the repository: every started item is an issue labelled `epic` and attached to a milestone. At the time of writing the v0.10 milestone holds server-side pagination on every listing (#1531), GDPR compliance and user self-service (#992) and a session-aware account chooser (#671); pooled realms for hosting many tenants on one instance (#1610) and the OAuth 2.0 Device Authorization Grant (#1020) follow. The maintainers review the roadmap at each minor release; items are proposed through GitHub Discussions under the RFC process in [GOVERNANCE.md](https://github.com/ferriskey/ferriskey/blob/main/GOVERNANCE.md), with lazy consensus (72 hours) and a maintainer vote when needed. The project is pre-1.0 and releases a minor version roughly monthly (0.7.0 on 2026-06-30, 0.8.0 on 2026-09-15, 0.9.0 on 2026-10-03).
+The public roadmap has three columns: what FerrisKey provides today, what is being built next, and longer-term explorations. [ROADMAP.md](https://github.com/ferriskey/ferriskey/blob/main/ROADMAP.md) is the entry point from the repository: every started item is an issue labelled `epic` and attached to a milestone. At the time of writing the v0.10 milestone holds server-side pagination on every listing (#1531), GDPR compliance and user self-service (#992) and a session-aware account chooser (#671); pooled realms for hosting many tenants on one instance (#1610) and the OAuth 2.0 Device Authorization Grant (#1020) follow. The maintainers review the roadmap at each minor release; items are proposed through GitHub Discussions under the RFC process in [GOVERNANCE.md](https://github.com/ferriskey/ferriskey/blob/main/GOVERNANCE.md), with lazy consensus (72 hours) and a maintainer vote when needed. The project is pre-1.0 and releases a minor version roughly monthly (0.7.0 on 2026-06-30, 0.8.0 on 2026-09-15, 0.9.0 on 2026-10-03, 0.10.0 on 2026-10-27). After 0.10.1 the token hot path for machine-to-machine traffic stays a focus (`perf/token-hot-path`, v0.11 milestone): the design target is thousands of service and agent authentications per second per replica, not hundreds of human logins.
 
 ### Contributing guide
 
@@ -78,21 +78,19 @@ N/A. FerrisKey implements existing standards (OpenID Connect Core and Discovery,
 
 ### Business product or service to project separation
 
-FerrisKey is not the upstream of any product. No company owns the code, the trademark, the domain or the accounts; the assets are held by the founder personally and will be transferred to the Linux Foundation under the Contribution Agreement.
+FerrisKey is not the upstream of any product. No company owns the code, the name, the domain or the accounts; the founder holds them personally and assigns them to the Linux Foundation under the Contribution Agreement.
 
-The relationship with companies is the following. Cloud IAM, a managed Keycloak hosting company, is the first and largest sponsor, and its CTO, Luis Rubiera, is one of the five maintainers. Cloud IAM may offer a managed FerrisKey service in the future; that service would run the same public releases as everyone else, and only its internal infrastructure and control plane tooling would stay outside the project. Sponsorship buys visibility in the README and nothing else: no say in the roadmap, no priority in reviews, no seat among the maintainers. France Nuage, a French open source cloud provider, sponsors the project and runs it in production. Hardis Group employs one maintainer and has no product relationship with the project. The three other maintainers are independent.
-
-These commitments are written in the [Sponsors and open source commitments](https://github.com/ferriskey/ferriskey/blob/main/GOVERNANCE.md#sponsors-and-open-source-commitments) section of GOVERNANCE.md and were first stated publicly in [#1186](https://github.com/ferriskey/ferriskey/issues/1186): Apache-2.0 only, no CLA, no dual licensing, no open-core model, no enterprise edition, no feature held back for a paid product, and maintainers acting as individuals with affiliations kept current in MAINTAINERS.md. Joining the CNCF is the way the project anchors this independence in a neutral foundation.
+Cloud IAM, a managed Keycloak hosting company, is the first and largest sponsor, and its CTO, Luis Rubiera (who submits this application), is one of the five maintainers. It may offer a managed FerrisKey service in the future; that service would run the same public releases as everyone else, with only its own infrastructure and control plane tooling outside the project. Sponsorship buys visibility in the README and nothing else: no say in the roadmap, no priority in reviews, no seat among the maintainers. France Nuage sponsors the project and runs it in production; Hardis Group employs one maintainer; the three other maintainers are independent. The commitments (Apache-2.0 only, no CLA, no open-core model, no enterprise edition) are written in [GOVERNANCE.md](https://github.com/ferriskey/ferriskey/blob/main/GOVERNANCE.md#sponsors-and-open-source-commitments) and were first stated publicly in [#1186](https://github.com/ferriskey/ferriskey/issues/1186).
 
 ### Dependency on paid cloud, community, and SaaS services or subscriptions
 
-The project runs on free tiers and a few small paid items, all paid personally by the founder [to confirm]:
+The project runs on free tiers and a few small paid items held personally by the founder, Nathaël Bonnal, who also holds the `ferriskey.rs` domain, the GitHub organization and the Discord server:
 
-- the `ferriskey.rs` domain (registrar fee, yearly) [to confirm amount]
-- hosting of ferriskey.rs and docs.ferriskey.rs on an OVH server [to confirm plan and monthly cost]
-- Proton Mail for the `@ferriskey.rs` addresses (security@, conduct@) [to confirm plan and monthly cost]
+- the `ferriskey.rs` domain (yearly registrar fee)
+- hosting of ferriskey.rs and docs.ferriskey.rs on an OVH server
+- Proton Mail Essentials, two seats, for the `@ferriskey.rs` addresses (security@, conduct@)
 
-Free of charge: GitHub (public organization, Actions, Packages for the container images and Helm charts on ghcr.io, Discussions, Sponsors), Discord, OpenSSF Scorecard and Best Practices. No cloud credits are consumed; CI runs on GitHub-hosted runners. Estimated total: under 50 USD per month [to confirm]. None of these services affects how the project is developed or used; an adopter needs nothing but the container images or the Helm charts.
+Free of charge: GitHub (public organization, Actions, Packages for the container images and Helm charts on ghcr.io, Discussions, Sponsors), Discord, OpenSSF Scorecard and Best Practices. No cloud credits are consumed; CI runs on GitHub-hosted runners. None of these services affects how the project is developed or used; an adopter needs nothing but the container images or the Helm charts.
 
 ## Cloud native context
 
@@ -108,6 +106,7 @@ Three reasons, in the order the maintainers rank them.
 
 The landscape has one complete self-hosted identity provider, Keycloak, and specialized pieces around it. FerrisKey adds a second complete option with a different set of trade-offs: a Rust service with a small footprint, stateless replicas with all state in PostgreSQL, secure defaults enforced in code, a Kubernetes operator with a custom resource, and no SPI or plugin model that fragments deployments. It gives the landscape:
 
+- a measured alternative rather than a claimed one: on the same cluster, database and load, FerrisKey 0.10.1 holds the same highest step as Keycloak 26.8.1 on six endpoints with less CPU on five of them and a peak memory of 618 MiB against 823 MiB, Keycloak keeping the lower p99 in places ([benchmarks page](https://docs.ferriskey.rs/en/kubernetes/benchmarks), [report](https://github.com/ferriskey/IAM-performance-tester/blob/main/reports/2026-10-31-ferriskey-vs-keycloak.md));
 - a migration path: `ferris-ctl realm import` moves realms and users with their password hashes from Keycloak, Zitadel and Supabase, so teams can change identity provider without a reset campaign;
 - a standards-only integration surface: any OpenID Connect, OAuth 2.0 or SAML 2.0 library works, and the console itself is a public OpenID Connect client, so the project exercises its own protocol endpoints;
 - an IAM designed for multi-tenancy from the start, with realm isolation tested in CI against cross-realm access, and pooled realms for providers hosting many tenants on the roadmap;
@@ -115,15 +114,9 @@ The landscape has one complete self-hosted identity provider, Keycloak, and spec
 
 ### Cloud native 'fit'
 
-FerrisKey is built to run on Kubernetes as a set of stateless, horizontally scalable services with an external PostgreSQL:
+FerrisKey runs on Kubernetes as stateless API and console replicas with all state in PostgreSQL: multi-architecture images on ghcr.io, two Helm charts published as OCI artifacts, an operator reconciling a `FerrisKeyCluster` resource, Prometheus metrics and OpenTelemetry tracing, distroless non-root images, `cargo-deny`, Dependabot and Scorecard in CI. The [General Technical Review](https://github.com/ferriskey/ferriskey/blob/main/docs/cncf/general-technical-review.md) details packaging, runtime, observability and supply chain.
 
-- Packaging: multi-architecture images on ghcr.io with semver and sha tags, two Helm charts published as OCI artifacts, a Kubernetes operator reconciling a `FerrisKeyCluster` custom resource (`ferriskey.rs/v1alpha1`) into Deployments, Services, Secrets and a migration Job.
-- Runtime: API and console are stateless; sessions and tokens live in PostgreSQL, so replicas scale without sticky sessions and roll without downtime. Images are distroless, non-root, read-only root filesystem, all capabilities dropped.
-- Observability: Prometheus metrics on `/metrics` with a `ServiceMonitor` option, OpenTelemetry tracing over OTLP, structured JSON logs, liveness and readiness probes.
-- Exposure and secrets: Ingress or Gateway API `HTTPRoute` rendered by the chart, cert-manager annotations in the documented example, admin and database credentials from Secrets or an external secret manager, an Argo CD installation guide.
-- Supply chain: pinned toolchains, `cargo-deny` on licenses and advisories in CI, Dependabot, OpenSSF Scorecard and Best Practices badge, container image signing with cosign in progress ([#1728](https://github.com/ferriskey/ferriskey/pull/1728)).
-
-The Day 0 General Technical Review in [docs/cncf/general-technical-review.md](https://github.com/ferriskey/ferriskey/blob/main/docs/cncf/general-technical-review.md) details the design, installation and security answers.
+The workload it is designed for is the one identity is moving to: not a few hundred human logins per second, but thousands of machine identities, services and agents authenticating, exchanging and introspecting short-lived tokens continuously. Hence the small footprint per replica, secure defaults that need no tuning, and load shedding instead of queuing: `SERVER_TOKEN_MAX_IN_FLIGHT` bounds the concurrent token requests per CPU, and the excess gets a 503 `temporarily_unavailable` with `Retry-After` (RFC 6749 section 5.2), so latency stays bounded and callers retry instead of waiting seconds for an answer. The [bench against Keycloak 26.8.1](https://docs.ferriskey.rs/en/kubernetes/benchmarks) reflects this: on `client_credentials`, `refresh`, `introspect` and `jwks` FerrisKey holds the same rate, thousands of requests per second, with about half the CPU and a fraction of the memory, while Keycloak keeps the better tail latency on human password login. Token exchange (RFC 8693) is shipped for delegation between services and agents, the roadmap lists an MCP server for agent workflows, and the token hot path keeps being optimised after 0.10.1.
 
 ### Cloud native 'integration'
 
@@ -140,7 +133,7 @@ The Day 0 General Technical Review in [docs/cncf/general-technical-review.md](ht
 
 ### Cloud native overlap
 
-- Keycloak (CNCF incubating): the largest overlap. Both are complete identity providers with realms, OpenID Connect, OAuth 2.0, SAML 2.0, MFA, brokering and an admin console. FerrisKey differs in implementation language and footprint (Rust, tens of MiB per process, no JVM, no distributed cache), in architecture (hexagonal domain tested at the HTTP boundary, no SPI), in its secure-by-default posture, and in being younger with a smaller feature surface (no LDAP or Kerberos federation, no authorization services module). FerrisKey ships a migration from Keycloak, so the two coexist in the landscape the way several ingress controllers or several databases do.
+- Keycloak (CNCF incubating): the largest overlap. Both are complete identity providers with realms, OpenID Connect, OAuth 2.0, SAML 2.0, MFA, brokering and an admin console. FerrisKey differs in implementation language and footprint (Rust, no JVM, no distributed cache; on a shared bench against Keycloak 26.8.1 it holds the same sustained rate on six endpoints with less CPU on five of them and 618 MiB peak memory against 823 MiB, while Keycloak keeps the lower p99 on `password` and above 3,200 req/s on `introspect` and `userinfo`: [benchmarks page](https://docs.ferriskey.rs/en/kubernetes/benchmarks), [report](https://github.com/ferriskey/IAM-performance-tester/blob/main/reports/2026-10-31-ferriskey-vs-keycloak.md)), in architecture (hexagonal domain tested at the HTTP boundary, no SPI), in its secure-by-default posture, and in being younger with a smaller feature surface (no authorization services module, no configurable authentication flows, no SPI for custom code). FerrisKey ships a migration from Keycloak, so the two coexist in the landscape the way several ingress controllers or several databases do.
 - Dex (CNCF sandbox): partial overlap on the OpenID Connect issuer and federation. Dex is a connector-based identity broker without a user store, MFA, SAML identity provider or console; FerrisKey covers those.
 - OpenFGA (CNCF): no functional overlap. FerrisKey authorizes its own admin API with a Cedar-based policy crate; it does not aim to be a general-purpose authorization service.
 
@@ -168,24 +161,33 @@ No. FerrisKey is not yet listed on LFX Insights.
 
 - [x] If the project is accepted, I agree the project will follow the CNCF IP Policy
 
+### Project naming
+
+- [x] I have reviewed the Linux Foundation Trademark Usage Policies and confirm the project name does not use an existing trademark
+
+### Does the project name use "kube", "k8s", or another existing project's prefix/suffix?
+
+N/A. "FerrisKey" is a coined name after Ferris, the Rust mascot; it carries no prefix or suffix of an existing project.
+
 ### Will the project require a license exception?
 
 N/A. The project uses the Apache 2.0 license. All contributions are made under the Developer Certificate of Origin, and no CLA is used.
 
 ### Does the project utilize any dependencies with licenses not on the allowlist or an approved exception?
 
-Licenses are enforced by `cargo-deny` in CI with the CNCF allowlist as the allowed set ([deny.toml](https://github.com/ferriskey/ferriskey/blob/main/deny.toml)). The resolved dependency graph of the Rust workspace (607 third-party crates, normal dependencies only) and of the console (244 production packages) was checked on 2026-10-17 against the allowlist and the exception list. Four groups need attention:
+`cargo-deny` enforces the CNCF allowlist in CI ([deny.toml](https://github.com/ferriskey/ferriskey/blob/main/deny.toml)). Checked on 2026-10-31 over the Rust workspace (runtime dependencies), the console's production packages and the Terraform provider, these are outside the allowlist with no approved exception yet:
 
-1. `webauthn-rs`, `webauthn-rs-core`, `webauthn-rs-proto`, `webauthn-attestation-ca`, `base64urlsafedata` (0.5.5), MPL-2.0. Unmodified crates fetched from crates.io at build time; they implement the WebAuthn relying party for passkeys. No exception exists yet; the project will file a license exception request under the standard "unmodified, retrieved at build time" scope used for the existing MPL-2.0 exceptions.
-2. The ICU4X crates (`icu_collections`, `icu_locale_core`, `icu_normalizer`, `icu_normalizer_data`, `icu_properties`, `icu_properties_data`, `icu_provider`, `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `yoke-derive`, `zerofrom`, `zerofrom-derive`, `zerotrie`, `zerovec`, `zerovec-derive`), Unicode-3.0. Pulled transitively through the `url` and `idna` crates for internationalized domain names, unmodified from crates.io. No exception exists yet; the project will file a request, on the model of the blanket exception for Unicode-DFS-2016 ([cncf/foundation#1242](https://github.com/cncf/foundation/issues/1242)).
-3. `webpki-roots` (0.26.11 and 1.0.4), CDLA-Permissive-2.0 (Mozilla CA certificate data). A blanket exception for `webpki-roots` exists for all CNCF projects ([cncf/foundation#172](https://github.com/cncf/foundation/issues/172)); it was recorded under the crate's earlier MPL-2.0 license, and the project will ask the Legal Committee to confirm it covers the current one.
-4. `@fontsource-variable/geist` in the console, OFL-1.1. Font files only, no code. A precedent exists for OFL-1.1 fonts (font-awesome, all CNCF projects); the project will either file a request or replace the font before onboarding.
+- MPL-2.0: `webauthn-rs`, `webauthn-rs-core`, `webauthn-rs-proto`, `webauthn-attestation-ca`, `base64urlsafedata` 0.5.5 (the WebAuthn relying party for passkeys), and `cssparser` 0.38 with `dtoa-short` 0.3 (pulled by the `ammonia` HTML sanitizer); all unmodified, fetched from crates.io at build time.
+- Unicode-3.0: the ICU4X crates (`icu_*`, `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `zerofrom`, `zerotrie`, `zerovec` and their derive crates), transitively through `url` and `idna`.
+- CDLA-Permissive-2.0: `webpki-roots` 0.26.11 and 1.0.10 (Mozilla CA data); the blanket exception in [cncf/foundation#172](https://github.com/cncf/foundation/issues/172) was recorded under the crate's earlier MPL-2.0 license.
+- OFL-1.1: `@fontsource-variable/geist` and `@fontsource/ibm-plex-sans`, font files in the console.
+- MPL-2.0, in terraform-provider-ferriskey: the HashiCorp Go modules every Terraform provider builds against (`terraform-plugin-framework`, `terraform-plugin-framework-validators`, `terraform-plugin-go`, `terraform-plugin-log`, `terraform-plugin-docs`, `terraform-plugin-testing`), unmodified, fetched at build time. Other HashiCorp MPL-2.0 modules already hold blanket exceptions for all CNCF projects.
 
-Everything else is Apache-2.0, MIT, BSD, ISC, Zlib or 0BSD, or a combination of those. The build-only dependency `ar_archive_writer` (Apache-2.0 WITH LLVM-exception) is not shipped in any artifact.
+Everything else is Apache-2.0, MIT, BSD, ISC, Zlib or 0BSD. Exception requests for these groups are filed at onboarding, or the dependency is replaced (the fonts).
 
 ### Project "Domain Technical Review"
 
-The Day 0 General Technical Review is answered in [docs/cncf/general-technical-review.md](https://github.com/ferriskey/ferriskey/blob/main/docs/cncf/general-technical-review.md) (template v1.0.1, updated at each minor release), together with a threat model in [docs/cncf/threat-model.md](https://github.com/ferriskey/ferriskey/blob/main/docs/cncf/threat-model.md). The project has not yet presented to TAG Security and Compliance; the maintainers will request a slot before the TOC session. [to confirm: replace the links with the v0.10 tag and add the TAG meeting notes if the presentation happens before submission]
+The Day 0 General Technical Review is answered in [docs/cncf/general-technical-review.md](https://github.com/ferriskey/ferriskey/blob/main/docs/cncf/general-technical-review.md) (template v1.0.1, updated at each minor release), together with a threat model in [docs/cncf/threat-model.md](https://github.com/ferriskey/ferriskey/blob/ace8c1ac/docs/cncf/threat-model.md). The project has not yet presented to TAG Security and Compliance; the maintainers will request a slot before the TOC session.
 
 ## Contact information
 
@@ -202,19 +204,18 @@ Or, if an individual or individual(s):
 | Nathaël Bonnal | France | pro.nathaelbonnal@gmail.com |
 | Baptiste Parmantier | France | baptiste.parmantier.pro@gmail.com |
 
-No company or legal entity owns project assets. The ferriskey.rs domain, the GitHub organization, the Discord server and the GitHub Sponsors account are held by Nathaël Bonnal personally and will be transferred under the [Contribution Agreement](https://github.com/cncf/foundation/blob/main/agreements/Sample%20Contribution%20Agreement%20(2025).pdf). No trademark has been filed for the FerrisKey name or logo in any jurisdiction; both are assigned as unregistered marks.
+No company or legal entity owns project assets. The ferriskey.rs domain, the GitHub organization, the Discord server and the GitHub Sponsors account are held by Nathaël Bonnal personally, and the FerrisKey name and logo are unregistered marks; all are assigned under the [Contribution Agreement](https://github.com/cncf/foundation/blob/main/agreements/Sample%20Contribution%20Agreement%20(2025).pdf).
 
 ## Additional information
 
 ### CNCF contacts
 
-None yet. No member of the TOC or of a TAG has reviewed the project. [to confirm: add any contact made through TAG Security and Compliance before submission]
+None yet. No member of the TOC or of a TAG has reviewed the project.
 
 ### Additional information
 
-- Age and activity: first commit on 2025-03-19; 1,057 commits on `main`, 57 contributors in total and 21 in the last six months as of 2026-10-31; 742 stars and 103 forks. Releases are tagged with release candidates first; the last three minor releases were 0.8.0 (2026-09-15), 0.9.0 (2026-10-03) and 0.10.0 (2026-10-27), followed by 0.10.1 on 2026-10-31.
-- Maintainers: five, from four affiliations (three independent, Cloud IAM, Hardis Group), listed with affiliations in MAINTAINERS.md; the maintainer ladder and the lazy-consensus process are in GOVERNANCE.md.
-- Adopters: France Nuage (service provider, production), Natalia (production), Gilded Health (replaced Kanidm), Nudibranches Technologies (consultancy). Sponsors: Cloud IAM, France Nuage, Gilded Health, Nudibranches.
-- Security: OpenSSF Best Practices passing badge ([bestpractices.dev/projects/11019](https://www.bestpractices.dev/projects/11019)), OpenSSF Scorecard 6.6 on 2026-10-17, SECURITY.md with response targets, a published critical advisory (GHSA-v2hq-9v44-43ff, fixed in 0.8.0, CVE requested) followed by a cross-realm regression suite, a threat model, distroless non-root images, `cargo-deny` on advisories and licenses, image signing in progress.
-- Known gaps the maintainers are working on: the maintainer base is concentrated in France and partly in one sponsor's orbit; the chart has no PodDisruptionBudget template yet; no external security audit has been done; no TAG presentation yet.
+- Age and activity: first commit on 2025-03-19; 1,057 commits on `main`, 57 contributors (21 in the last six months) as of 2026-10-31; 742 stars, 103 forks. Minor releases roughly monthly, with release candidates first: 0.8.0 (2026-09-15), 0.9.0 (2026-10-03), 0.10.0 (2026-10-27), 0.10.1 (2026-10-31).
+- Performance: the bench against Keycloak 26.8.1 run on 2026-10-26 found FerrisKey behind on `refresh` and `userinfo`; the fixes shipped in 0.10.1 five days later (#1863, #1870, #1875) and the 2026-10-31 run shows the gap closed ([benchmarks page](https://docs.ferriskey.rs/en/kubernetes/benchmarks), [report](https://github.com/ferriskey/IAM-performance-tester/blob/main/reports/2026-10-31-ferriskey-vs-keycloak.md)).
+- Security: OpenSSF Best Practices passing badge ([bestpractices.dev/projects/11019](https://www.bestpractices.dev/projects/11019)), Scorecard 8.7 on 2026-10-31, a published critical advisory (GHSA-v2hq-9v44-43ff, fixed in 0.8.0, CVE requested) followed by a cross-realm regression suite and a threat model.
+- Known gaps: the maintainer base is concentrated in France and partly in one sponsor's orbit; no external security audit yet; no TAG presentation yet.
 - The maintainers understand that the TOC vote and the signed Contribution Agreement both precede any claim of being a CNCF project.
