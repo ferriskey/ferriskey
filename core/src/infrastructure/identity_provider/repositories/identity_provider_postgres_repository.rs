@@ -1,3 +1,4 @@
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use sea_orm::{
     ActiveModelTrait,
     ActiveValue::Set,
@@ -17,8 +18,14 @@ use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_uuid_v7;
 use crate::domain::common::pagination::{Page, PageRequest};
 use crate::domain::realm::entities::{RealmId, RealmScope, Scoped, Unscoped};
-use crate::entity::identity_providers::{ActiveModel, Column, Entity as IdentityProviderEntity};
+use crate::entity::identity_providers::{
+    ActiveModel, Column, Entity as IdentityProviderEntity, Model,
+};
 use crate::infrastructure::pagination::{SortColumn, contains, paginate, within};
+use crate::infrastructure::sealed_json::{open_field, seal_field};
+
+pub const IDENTITY_PROVIDER_SECRET_PURPOSE: &str = "identity_providers.config.client_secret";
+const CLIENT_SECRET_POINTER: &str = "/client_secret";
 
 impl SortColumn<IdentityProviderEntity> for IdentityProviderSortField {
     fn column(&self) -> Column {
@@ -100,15 +107,52 @@ fn listing_select(
 #[derive(Debug, Clone)]
 pub struct PostgresIdentityProviderRepository {
     db: DatabaseConnection,
+    cipher: SecretCipher,
 }
 
 impl PostgresIdentityProviderRepository {
-    /// Creates a new PostgresIdentityProviderRepository
-    ///
-    /// # Arguments
-    /// * `db` - The database connection
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+    pub fn with_cipher(db: DatabaseConnection, cipher: SecretCipher) -> Self {
+        Self { db, cipher }
+    }
+
+    fn sealed_config(
+        &self,
+        id: Uuid,
+        mut config: serde_json::Value,
+    ) -> Result<serde_json::Value, CoreError> {
+        seal_field(
+            &self.cipher,
+            IDENTITY_PROVIDER_SECRET_PURPOSE,
+            id,
+            &mut config,
+            CLIENT_SECRET_POINTER,
+        )
+        .map_err(|error| CoreError::Configuration(error.to_string()))?;
+
+        Ok(config)
+    }
+
+    fn opened_config(
+        &self,
+        id: Uuid,
+        mut config: serde_json::Value,
+    ) -> Result<serde_json::Value, CoreError> {
+        open_field(
+            &self.cipher,
+            IDENTITY_PROVIDER_SECRET_PURPOSE,
+            id,
+            &mut config,
+            CLIENT_SECRET_POINTER,
+        )
+        .map_err(|error| CoreError::Configuration(error.to_string()))?;
+
+        Ok(config)
+    }
+
+    fn provider_of(&self, mut model: Model) -> Result<IdentityProvider, CoreError> {
+        model.config = self.opened_config(model.id, model.config)?;
+
+        Ok(IdentityProvider::from(model))
     }
 }
 
@@ -120,8 +164,9 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
     ) -> Result<IdentityProvider, CoreError> {
         let now = chrono::Utc::now().fixed_offset();
 
+        let id = generate_uuid_v7();
         let payload = ActiveModel {
-            id: Set(generate_uuid_v7()),
+            id: Set(id),
             realm_id: Set(request.realm_id.into()),
             alias: Set(request.alias),
             provider_id: Set(request.provider_id),
@@ -133,7 +178,7 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             add_read_token_role_on_create: Set(request.add_read_token_role_on_create),
             trust_email: Set(request.trust_email),
             link_only: Set(request.link_only),
-            config: Set(request.config),
+            config: Set(self.sealed_config(id, request.config)?),
             created_at: Set(now),
             updated_at: Set(now),
         };
@@ -143,7 +188,7 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             CoreError::InternalServerError
         })?;
 
-        Ok(identity_provider.into())
+        self.provider_of(identity_provider)
     }
 
     #[instrument(skip(self), fields(identity_provider_id = %id))]
@@ -159,7 +204,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
                 tracing::error!("Failed to get identity provider by id: {}", e);
                 CoreError::InternalServerError
             })?
-            .map(IdentityProvider::from)
+            .map(|model| self.provider_of(model))
+            .transpose()?
             .map(Unscoped::new);
 
         Ok(identity_provider)
@@ -180,7 +226,8 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
                 tracing::error!("Failed to get identity provider by realm and alias: {}", e);
                 CoreError::InternalServerError
             })?
-            .map(IdentityProvider::from);
+            .map(|model| self.provider_of(model))
+            .transpose()?;
 
         Ok(identity_provider)
     }
@@ -207,12 +254,10 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
                 CoreError::InternalServerError
             })?;
 
-        let identity_providers: Vec<IdentityProvider> = identity_providers
+        identity_providers
             .into_iter()
-            .map(IdentityProvider::from)
-            .collect();
-
-        Ok(identity_providers)
+            .map(|model| self.provider_of(model))
+            .collect()
     }
 
     #[instrument(skip(self, scope, request), fields(realm_id = ?scope.id()))]
@@ -228,7 +273,10 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
         })?;
 
         Ok(Page::new(
-            models.into_iter().map(IdentityProvider::from).collect(),
+            models
+                .into_iter()
+                .map(|model| self.provider_of(model))
+                .collect::<Result<_, _>>()?,
             total,
             request.page,
             request.limit,
@@ -251,7 +299,11 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             })?
             .ok_or(CoreError::ProviderNotFound)?;
 
-        let resolved_config = request.resolve_config(&existing.config)?;
+        let stored_config = self.opened_config(existing.id, existing.config.clone())?;
+        let resolved_config = request
+            .resolve_config(&stored_config)?
+            .map(|config| self.sealed_config(existing.id, config))
+            .transpose()?;
 
         let mut identity_provider: ActiveModel = existing.into();
 
@@ -292,7 +344,7 @@ impl IdentityProviderRepository for PostgresIdentityProviderRepository {
             CoreError::InternalServerError
         })?;
 
-        Ok(updated.into())
+        self.provider_of(updated)
     }
 
     #[instrument(skip(self), fields(identity_provider_id = %provider.get().id))]
@@ -489,5 +541,171 @@ mod tests {
             healthy.contains(&format!(")))) AND (NOT ({MISSING_SCOPES}))")),
             "{healthy}"
         );
+    }
+}
+
+#[cfg(test)]
+mod sealed_secret_tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::domain::abyss::identity_provider::IdentityProviderConfigPatch;
+    use crate::infrastructure::sealed_secrets_testing::{migrated_schema, sealing_cipher, stored};
+
+    const SECRET_AT_REST: &str = "config #>> '{client_secret}'";
+
+    fn provider(realm_id: RealmId, alias: &str, secret: &str) -> CreateIdentityProviderRequest {
+        CreateIdentityProviderRequest {
+            realm_id,
+            alias: alias.to_string(),
+            provider_id: "oidc".to_string(),
+            enabled: true,
+            display_name: None,
+            first_broker_login_flow_alias: None,
+            post_broker_login_flow_alias: None,
+            store_token: false,
+            add_read_token_role_on_create: false,
+            trust_email: false,
+            link_only: false,
+            config: json!({"client_id": "broker", "client_secret": secret, "scopes": "openid"}),
+        }
+    }
+
+    fn secret_of(provider: &IdentityProvider) -> Option<&str> {
+        provider
+            .config
+            .client_secret
+            .as_ref()
+            .map(|secret| secret.expose().as_str())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_client_secret_is_sealed_at_rest_and_survives_an_update() {
+        let schema = migrated_schema("identity_provider_secret_test").await;
+        let realm_id = schema.realm.id();
+        let repository =
+            PostgresIdentityProviderRepository::with_cipher(schema.db, sealing_cipher());
+
+        let created = repository
+            .create_identity_provider(provider(realm_id, "google", "idp-secret"))
+            .await
+            .expect("create the provider");
+        let id: Uuid = created.id.into();
+        assert_eq!(secret_of(&created), Some("idp-secret"));
+        let at_rest = stored(&schema.pool, "identity_providers", SECRET_AT_REST, id)
+            .await
+            .expect("a stored secret");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+
+        let scoped = Unscoped::new(created)
+            .in_realm(&schema.realm)
+            .expect("the provider of the realm");
+        let updated = repository
+            .update_identity_provider(
+                &scoped,
+                UpdateIdentityProviderRequest {
+                    patch: IdentityProviderConfigPatch {
+                        scopes: Some("openid email".to_string()),
+                        ..IdentityProviderConfigPatch::default()
+                    },
+                    ..UpdateIdentityProviderRequest::default()
+                },
+            )
+            .await
+            .expect("update the scopes");
+        assert_eq!(secret_of(&updated), Some("idp-secret"));
+
+        let read = repository
+            .get_identity_provider_by_realm_and_alias(realm_id, "google")
+            .await
+            .expect("read the provider")
+            .expect("a provider");
+        assert_eq!(secret_of(&read), Some("idp-secret"));
+        assert_eq!(read.config.extra["scopes"], "openid email");
+        assert!(
+            stored(&schema.pool, "identity_providers", SECRET_AT_REST, id)
+                .await
+                .expect("a stored secret")
+                .starts_with("fk1:kid-a:")
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_new_client_secret_is_sealed_on_update() {
+        let schema = migrated_schema("identity_provider_secret_test").await;
+        let realm_id = schema.realm.id();
+        let repository =
+            PostgresIdentityProviderRepository::with_cipher(schema.db, sealing_cipher());
+        let created = repository
+            .create_identity_provider(provider(realm_id, "google", "idp-secret"))
+            .await
+            .expect("create the provider");
+        let id: Uuid = created.id.into();
+        let scoped = Unscoped::new(created)
+            .in_realm(&schema.realm)
+            .expect("the provider of the realm");
+
+        let updated = repository
+            .update_identity_provider(
+                &scoped,
+                UpdateIdentityProviderRequest {
+                    patch: IdentityProviderConfigPatch {
+                        client_secret: Some("rotated".to_string()),
+                        ..IdentityProviderConfigPatch::default()
+                    },
+                    ..UpdateIdentityProviderRequest::default()
+                },
+            )
+            .await
+            .expect("rotate the secret");
+
+        assert_eq!(secret_of(&updated), Some("rotated"));
+        let at_rest = stored(&schema.pool, "identity_providers", SECRET_AT_REST, id)
+            .await
+            .expect("a stored secret");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+        assert!(!at_rest.contains("rotated"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_clear_client_secret_is_still_read_when_a_cipher_is_configured() {
+        let schema = migrated_schema("identity_provider_secret_test").await;
+        let realm_id = schema.realm.id();
+        PostgresIdentityProviderRepository::with_cipher(
+            schema.db.clone(),
+            SecretCipher::disabled(),
+        )
+        .create_identity_provider(provider(realm_id, "legacy", "legacy-secret"))
+        .await
+        .expect("create a legacy provider");
+
+        let read = PostgresIdentityProviderRepository::with_cipher(schema.db, sealing_cipher())
+            .get_identity_provider_by_realm_and_alias(realm_id, "legacy")
+            .await
+            .expect("read the provider")
+            .expect("a provider");
+
+        assert_eq!(secret_of(&read), Some("legacy-secret"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_client_secret_is_refused_by_an_instance_without_the_key() {
+        let schema = migrated_schema("identity_provider_secret_test").await;
+        let realm_id = schema.realm.id();
+        PostgresIdentityProviderRepository::with_cipher(schema.db.clone(), sealing_cipher())
+            .create_identity_provider(provider(realm_id, "google", "idp-secret"))
+            .await
+            .expect("create the provider");
+
+        let result =
+            PostgresIdentityProviderRepository::with_cipher(schema.db, SecretCipher::disabled())
+                .get_identity_provider_by_realm_and_alias(realm_id, "google")
+                .await;
+
+        assert!(result.is_err(), "{result:?}");
     }
 }

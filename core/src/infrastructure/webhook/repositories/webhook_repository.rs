@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use ferriskey_domain::realm::RealmId;
 use ferriskey_domain::realm::scope::RealmScope;
+use ferriskey_security::crypto::secret_cipher::SecretCipher;
 use ferriskey_webhook::signing::generate_secret;
 use serde::Serialize;
 use serde_json::to_value;
@@ -41,7 +42,7 @@ use crate::entity::webhook_subscribers::{
 };
 use crate::entity::webhooks::{
     ActiveModel as WebhookActiveModel, Column as WebhookColumn, Entity as WebhookEntity,
-    Relation as WebhookRelation,
+    Model as WebhookModel, Relation as WebhookRelation,
 };
 use crate::infrastructure::seawatch::repositories::security_event_postgres_repository::PostgresSecurityEventRepository;
 use crate::infrastructure::webhook::repositories::webhook_delivery_repository::PostgresWebhookDeliveryRepository;
@@ -64,16 +65,27 @@ fn column_update(
     }
 }
 
+pub const WEBHOOK_SECRET_PURPOSE: &str = "webhooks.secret";
+
 #[derive(Debug, Clone)]
 pub struct PostgresWebhookRepository {
     pub db: DatabaseConnection,
     deliveries: PostgresWebhookDeliveryRepository,
     delivery_sender: mpsc::Sender<DeliveryJob>,
     private_endpoints: PrivateEndpoints,
+    cipher: SecretCipher,
 }
 
 impl PostgresWebhookRepository {
     pub fn new(db: DatabaseConnection, private_endpoints: PrivateEndpoints) -> Self {
+        Self::with_cipher(db, private_endpoints, SecretCipher::disabled())
+    }
+
+    pub fn with_cipher(
+        db: DatabaseConnection,
+        private_endpoints: PrivateEndpoints,
+        cipher: SecretCipher,
+    ) -> Self {
         let deliveries = PostgresWebhookDeliveryRepository::new(db.clone());
         let security_events = PostgresSecurityEventRepository::new(db.clone());
         let delivery_sender = delivery::spawn_dispatcher(deliveries.clone(), security_events);
@@ -83,7 +95,23 @@ impl PostgresWebhookRepository {
             deliveries,
             delivery_sender,
             private_endpoints,
+            cipher,
         }
+    }
+
+    fn seal_secret(&self, id: Uuid, secret: &str) -> Result<String, CoreError> {
+        self.cipher
+            .seal(WEBHOOK_SECRET_PURPOSE, &id.to_string(), secret)
+            .map_err(|error| CoreError::Configuration(error.to_string()))
+    }
+
+    fn webhook_of(&self, mut model: WebhookModel) -> Result<Webhook, CoreError> {
+        model.secret = self
+            .cipher
+            .open(WEBHOOK_SECRET_PURPOSE, &model.id.to_string(), &model.secret)
+            .map_err(|error| CoreError::Configuration(error.to_string()))?;
+
+        Ok(Webhook::from(model))
     }
 }
 
@@ -187,11 +215,11 @@ impl WebhookRepository for PostgresWebhookRepository {
             .into_iter()
             .map(|model| {
                 let id = model.id;
-                let mut webhook = Webhook::from(model);
+                let mut webhook = self.webhook_of(model)?;
                 webhook.subscribers = subscribers.remove(&id).unwrap_or_default();
-                webhook
+                Ok(webhook)
             })
-            .collect();
+            .collect::<Result<_, CoreError>>()?;
 
         Ok(Page::new(webhooks, total, request.page, request.limit))
     }
@@ -213,12 +241,12 @@ impl WebhookRepository for PostgresWebhookRepository {
             .map_err(|e| {
                 error!("Failed to fetch webhooks by subscriber: {}", e);
                 CoreError::InternalServerError
-            })?
-            .into_iter()
-            .map(Webhook::from)
-            .collect();
+            })?;
 
-        Ok(webhooks)
+        webhooks
+            .into_iter()
+            .map(|model| self.webhook_of(model))
+            .collect()
     }
 
     async fn get_webhook_by_id(
@@ -232,7 +260,8 @@ impl WebhookRepository for PostgresWebhookRepository {
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .map(Webhook::from);
+            .map(|model| self.webhook_of(model))
+            .transpose()?;
 
         if let Some(ref mut webhook) = webhook {
             let subscribers = WebhookSubscriberEntity::find()
@@ -269,7 +298,7 @@ impl WebhookRepository for PostgresWebhookRepository {
             id: Set(subscription_id),
             endpoint: Set(endpoint),
             headers: Set(headers_json),
-            secret: Set(generate_secret()),
+            secret: Set(self.seal_secret(subscription_id, &generate_secret())?),
             name: Set(name),
             description: Set(description),
             realm_id: Set(realm_id.into()),
@@ -285,11 +314,11 @@ impl WebhookRepository for PostgresWebhookRepository {
         })
         .exec_with_returning(&self.db)
         .await
-        .map(Webhook::from)
         .map_err(|e| {
             error!("Failed to create webhook: {}", e);
             CoreError::InternalServerError
-        })?;
+        })
+        .and_then(|model| self.webhook_of(model))?;
 
         let subscribers: Vec<WebhookSubscriber> = if subscribers.is_empty() {
             Vec::new()
@@ -395,8 +424,8 @@ impl WebhookRepository for PostgresWebhookRepository {
             .one(&self.db)
             .await
             .map_err(|_| CoreError::InternalServerError)?
-            .map(Webhook::from)
-            .ok_or(CoreError::WebhookNotFound)?;
+            .ok_or(CoreError::WebhookNotFound)
+            .and_then(|model| self.webhook_of(model))?;
 
         webhook.subscribers = subscribers;
 
@@ -423,7 +452,7 @@ impl WebhookRepository for PostgresWebhookRepository {
 
         let result = WebhookEntity::update_many()
             .set(WebhookActiveModel {
-                secret: Set(secret.clone()),
+                secret: Set(self.seal_secret(id, &secret)?),
                 updated_at: Set(Utc::now().naive_utc()),
                 ..Default::default()
             })
@@ -874,5 +903,113 @@ mod listing_tests {
             insecure.contains(r#""webhooks"."endpoint" NOT LIKE 'https://%'"#),
             "{insecure}"
         );
+    }
+}
+
+#[cfg(test)]
+mod sealed_secret_tests {
+    use super::*;
+    use crate::infrastructure::sealed_secrets_testing::{migrated_schema, sealing_cipher, stored};
+
+    async fn create(repository: &PostgresWebhookRepository, realm_id: RealmId) -> Webhook {
+        repository
+            .create_webhook(
+                realm_id,
+                None,
+                None,
+                "https://example.com/hook".to_string(),
+                HashMap::new(),
+                vec![WebhookTrigger::UserCreated],
+                RetryPolicyOverride::default(),
+            )
+            .await
+            .expect("create the webhook")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn the_signing_secret_is_sealed_at_rest_on_create_and_on_rotation() {
+        let schema = migrated_schema("webhook_secret_test").await;
+        let realm_id = schema.realm.id();
+        let repository = PostgresWebhookRepository::with_cipher(
+            schema.db,
+            PrivateEndpoints::Forbidden,
+            sealing_cipher(),
+        );
+
+        let created = create(&repository, realm_id).await;
+        let at_rest = stored(&schema.pool, "webhooks", "secret", created.id)
+            .await
+            .expect("a stored secret");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+        assert!(!at_rest.contains(&created.secret));
+
+        let rotated = repository
+            .rotate_secret(realm_id, created.id)
+            .await
+            .expect("rotate the secret");
+        let at_rest = stored(&schema.pool, "webhooks", "secret", created.id)
+            .await
+            .expect("a stored secret");
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+        assert!(!at_rest.contains(&rotated));
+
+        let by_id = repository
+            .get_webhook_by_id(created.id, realm_id)
+            .await
+            .expect("read the webhook")
+            .expect("a webhook");
+        let subscribed = repository
+            .fetch_webhooks_by_subscriber(realm_id, WebhookTrigger::UserCreated)
+            .await
+            .expect("read the subscribed webhooks");
+        assert_eq!(by_id.secret, rotated);
+        assert_eq!(subscribed[0].secret, rotated);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_clear_signing_secret_is_still_read_when_a_cipher_is_configured() {
+        let schema = migrated_schema("webhook_secret_test").await;
+        let realm_id = schema.realm.id();
+        let legacy = create(
+            &PostgresWebhookRepository::new(schema.db.clone(), PrivateEndpoints::Forbidden),
+            realm_id,
+        )
+        .await;
+
+        let read = PostgresWebhookRepository::with_cipher(
+            schema.db,
+            PrivateEndpoints::Forbidden,
+            sealing_cipher(),
+        )
+        .get_webhook_by_id(legacy.id, realm_id)
+        .await
+        .expect("read the webhook")
+        .expect("a webhook");
+
+        assert_eq!(read.secret, legacy.secret);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn a_sealed_signing_secret_is_refused_by_an_instance_without_the_key() {
+        let schema = migrated_schema("webhook_secret_test").await;
+        let realm_id = schema.realm.id();
+        let sealed = create(
+            &PostgresWebhookRepository::with_cipher(
+                schema.db.clone(),
+                PrivateEndpoints::Forbidden,
+                sealing_cipher(),
+            ),
+            realm_id,
+        )
+        .await;
+
+        let result = PostgresWebhookRepository::new(schema.db, PrivateEndpoints::Forbidden)
+            .get_webhook_by_id(sealed.id, realm_id)
+            .await;
+
+        assert!(result.is_err(), "{result:?}");
     }
 }
