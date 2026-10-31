@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::auth::Identity;
@@ -9,10 +10,12 @@ use crate::client::{
         CreateRoleInput, CreateSamlAttributeMapperInput, CreateTokenExchangePolicyInput,
         CreateWebOriginInput, DeleteClientInput, DeletePostLogoutRedirectUriInput,
         DeleteRedirectUriInput, DeleteSamlAttributeMapperInput, DeleteTokenExchangePolicyInput,
-        DeleteWebOriginInput, GetClientInput, GetClientRolesInput, GetClientSamlConfigInput,
-        GetPostLogoutRedirectUrisInput, GetRedirectUrisInput, GetSamlAttributeMappersInput,
-        GetTokenExchangePoliciesInput, GetWebOriginsInput, SetClientSamlConfigInput,
-        UpdateClientInput, UpdatePostLogoutRedirectUriInput, UpdateRedirectUriInput,
+        DeleteWebOriginInput, ExpiredClientSecret, GetClientInput, GetClientRolesInput,
+        GetClientSamlConfigInput, GetPostLogoutRedirectUrisInput, GetRedirectUrisInput,
+        GetSamlAttributeMappersInput, GetTokenExchangePoliciesInput, GetWebOriginsInput,
+        RevealedClientSecret, RotateClientSecretInput, RotatedClientSecret,
+        SetClientSamlConfigInput, UpdateClientInput, UpdatePostLogoutRedirectUriInput,
+        UpdateRedirectUriInput,
     },
     entities::{
         Client, ClientFilter, ClientRegistrationSource, ClientSortField,
@@ -130,7 +133,23 @@ pub trait ClientService: Send + Sync {
         &self,
         identity: Identity,
         input: GetClientInput,
-    ) -> impl Future<Output = Result<Option<String>, CoreError>> + Send;
+    ) -> impl Future<Output = Result<RevealedClientSecret, CoreError>> + Send;
+
+    fn rotate_client_secret(
+        &self,
+        identity: Identity,
+        input: RotateClientSecretInput,
+    ) -> impl Future<Output = Result<RotatedClientSecret, CoreError>> + Send;
+
+    fn revoke_previous_client_secret(
+        &self,
+        identity: Identity,
+        input: GetClientInput,
+    ) -> impl Future<Output = Result<(), CoreError>> + Send;
+
+    fn expire_previous_client_secrets(
+        &self,
+    ) -> impl Future<Output = Result<usize, CoreError>> + Send;
 
     fn get_redirect_uris(
         &self,
@@ -228,6 +247,30 @@ pub trait ClientRepository: Send + Sync {
         realm_id: RealmId,
         source: ClientRegistrationSource,
     ) -> impl Future<Output = Result<u64, CoreError>> + Send;
+
+    /// Replaces the secret of `client` with `new_secret`. The secret it had
+    /// becomes the previous one until `previous_expires_at`, or is dropped when
+    /// that is `None`. The old value is read under a row lock, not taken from
+    /// `client`, so two concurrent rotations never both keep the same one.
+    fn rotate_secret(
+        &self,
+        client: &Scoped<Client>,
+        new_secret: String,
+        previous_expires_at: Option<DateTime<Utc>>,
+    ) -> impl Future<Output = Result<Client, CoreError>> + Send;
+
+    /// Drops the previous secret of `client`. Returns whether there was one.
+    fn revoke_previous_secret(
+        &self,
+        client: &Scoped<Client>,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+
+    /// Drops every previous secret whose grace period ended at or before `now`
+    /// and returns what was dropped, so a given expiry is reported once.
+    fn expire_previous_secrets(
+        &self,
+        now: DateTime<Utc>,
+    ) -> impl Future<Output = Result<Vec<ExpiredClientSecret>, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]

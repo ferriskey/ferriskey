@@ -4,6 +4,7 @@ use crate::{
     domain::authentication::entities::AuthProtocol,
     domain::client::entities::{
         Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+        PreviousClientSecret,
         auth_method::{ClientJwks, TokenEndpointAuthMethod},
     },
     entity::clients::Model,
@@ -46,6 +47,13 @@ impl From<Model> for Client {
             name: model.name,
             client_id: model.client_id,
             secret: model.secret.map(maskass::Masked::new),
+            previous_secret: model
+                .previous_secret
+                .zip(model.previous_secret_expires_at)
+                .map(|(secret, expires_at)| PreviousClientSecret {
+                    secret: maskass::Masked::new(secret),
+                    expires_at: Utc.from_utc_datetime(&expires_at),
+                }),
             enabled: model.enabled,
             protocol,
             public_client: model.public_client,
