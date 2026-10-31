@@ -186,6 +186,7 @@ export type Client = {
    * this disabled; only browserless devices (CLI, IoT, TVs) need it.
    */
   oauth_device_code_grant_enabled: boolean;
+  previous_secret?: (PreviousClientSecret | null);
   protocol: AuthProtocol;
   public_client: boolean;
   realm_id: RealmId;
@@ -209,7 +210,12 @@ export type ScopeType = ("NONE" | "OPTIONAL" | "DEFAULT")
 export type ProtocolMapper = { client_scope_id: string, config: unknown, created_at: string, id: string, mapper_type: string, name: string }
 export type ClientScope = { attributes?: (Array<ClientScopeAttribute> | null), created_at: string, default_scope_type: ScopeType, description?: (string | null), dynamic_registration_allowed: boolean, id: string, name: string, protocol: string, protocol_mappers?: (Array<ProtocolMapper> | null), realm_id: RealmId, updated_at: string }
 export type ClientScopeMapping = { client_id: string, default_scope_type: ScopeType, scope_id: string }
-export type ClientSecretResponse = Partial<{ client_secret: (string | null) }>
+export type PreviousClientSecret = { expires_at: string, secret: Masked_String }
+export type PreviousClientSecretResponse = { client_secret: string, expires_at: string }
+export type ClientSecretResponse = Partial<{ client_secret: (string | null), previous_secret: (PreviousClientSecretResponse | null) }>
+export type RevokePreviousClientSecretResponse = { message: string }
+export type RotateClientSecretRequest = Partial<{ grace_period_secs: (number | null) }>
+export type RotateClientSecretResponse = { client_secret: string, previous_secret_expires_at?: (string | null) }
 export type CodeChallengeMethod = ("S256" | "PLAIN")
 export type FlowId = string
 export type FlowStatus = ("pending" | "success" | "failure" | "expired")
@@ -703,6 +709,7 @@ export type Paginated_Client = {
      * this disabled; only browserless devices (CLI, IoT, TVs) need it.
      */
     oauth_device_code_grant_enabled: boolean;
+    previous_secret?: (PreviousClientSecret | null);
     protocol: AuthProtocol;
     public_client: boolean;
     realm_id: RealmId;
@@ -749,7 +756,7 @@ export type Paginated_Realm = {
   metadata: PageMetadata;
 }
 export type Paginated_Role = { data: Array<{ client?: (Client | null), client_id?: (string | null), created_at: string, description?: (string | null), id: string, name: string, permissions: Array<string>, realm_id: RealmId, require_mfa: boolean, updated_at: string }>, metadata: PageMetadata }
-export type SecurityEventType = ("login_success" | "login_failure" | "password_reset" | "password_reset_requested" | "password_reset_completed" | "password_imported" | "user_created" | "user_email_verified" | "user_deleted" | "role_assigned" | "role_unassigned" | "role_created" | "role_removed" | "role_updated" | "role_permission_updated" | "client_created" | "client_deleted" | "client_secret_rotated" | "client_secret_viewed" | "realm_config_changed" | "email_not_sent" | "email_sent" | "client_maintenance_enabled" | "client_maintenance_disabled" | "session_created" | "session_revoked" | "identity_provider_link_removed" | "webhook_delivery_exhausted" | "token_exchanged" | "account_selected" | "account_selection_denied" | "device_session_created" | "unknown")
+export type SecurityEventType = ("login_success" | "login_failure" | "password_reset" | "password_reset_requested" | "password_reset_completed" | "password_imported" | "user_created" | "user_email_verified" | "user_deleted" | "role_assigned" | "role_unassigned" | "role_created" | "role_removed" | "role_updated" | "role_permission_updated" | "client_created" | "client_deleted" | "client_secret_rotated" | "client_secret_viewed" | "client_secret_revoked" | "client_secret_expired" | "realm_config_changed" | "email_not_sent" | "email_sent" | "client_maintenance_enabled" | "client_maintenance_disabled" | "session_created" | "session_revoked" | "identity_provider_link_removed" | "webhook_delivery_exhausted" | "token_exchanged" | "account_selected" | "account_selection_denied" | "device_session_created" | "unknown")
 export type SecurityEventId = string
 export type Paginated_SecurityEvent = {
   data: Array<{
@@ -2149,6 +2156,32 @@ export type get_Get_client_secret = {
 },
 
     }
+export type post_Rotate_client_secret = {
+    method: "POST",
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret/rotate",
+    requestFormat: "json",
+    parameters: {
+        path: {realm_name: string, client_id: string},
+        body: Schemas.RotateClientSecretRequest,
+    },
+    responses: {200: Schemas.RotateClientSecretResponse,
+400: Schemas.ApiErrorResponse,
+403: Schemas.ApiErrorResponse,
+404: Schemas.ApiErrorResponse,
+},
+}
+export type delete_Revoke_previous_client_secret = {
+    method: "DELETE",
+    path: "/realms/{realm_name}/clients/{client_id}/client-secret/previous",
+    requestFormat: "json",
+    parameters: {
+        path: {realm_name: string, client_id: string},
+    },
+    responses: {200: Schemas.RevokePreviousClientSecretResponse,
+403: Schemas.ApiErrorResponse,
+404: Schemas.ApiErrorResponse,
+},
+}
 /**
  * Assigns a client scope as a default scope to the specified client. Default scopes are always included in tokens.
  */
@@ -6881,6 +6914,7 @@ post: {
 "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers": Endpoints.post_Create_protocol_mapper,
 "/realms/{realm_name}/clients": Endpoints.post_Create_client,
 "/realms/{realm_name}/clients/register": Endpoints.post_Register_client,
+"/realms/{realm_name}/clients/{client_id}/client-secret/rotate": Endpoints.post_Rotate_client_secret,
 "/realms/{realm_name}/clients/{client_id}/evaluate-scopes": Endpoints.post_Evaluate_client_scopes,
 "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist": Endpoints.post_Add_client_whitelist_entry,
 "/realms/{realm_name}/clients/{client_id}/post-logout-redirects": Endpoints.post_Create_post_logout_redirect_uri,
@@ -6993,6 +7027,7 @@ delete: {
 "/realms/{realm_name}/client-scopes/{scope_id}": Endpoints.delete_Delete_client_scope,
 "/realms/{realm_name}/client-scopes/{scope_id}/protocol-mappers/{mapper_id}": Endpoints.delete_Delete_protocol_mapper,
 "/realms/{realm_name}/clients/{client_id}": Endpoints.delete_Delete_client,
+"/realms/{realm_name}/clients/{client_id}/client-secret/previous": Endpoints.delete_Revoke_previous_client_secret,
 "/realms/{realm_name}/clients/{client_id}/default-client-scopes/{scope_id}": Endpoints.delete_Unassign_default_scope,
 "/realms/{realm_name}/clients/{client_id}/maintenance/whitelist/{entry_id}": Endpoints.delete_Remove_client_whitelist_entry,
 "/realms/{realm_name}/clients/{client_id}/optional-client-scopes/{scope_id}": Endpoints.delete_Unassign_optional_scope,
