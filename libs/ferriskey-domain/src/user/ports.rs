@@ -277,6 +277,18 @@ pub trait UserPolicy: Send + Sync {
         target_realm: &Realm,
         target_user_id: Uuid,
     ) -> impl Future<Output = Result<bool, CoreError>> + Send;
+    /// Whether the subject may change `target`'s account in `target_realm`.
+    ///
+    /// Separate from `can_update_user` / `can_delete_user`: those decide
+    /// whether accounts may be changed at all, this one bounds *which*.
+    /// Without it, `ManageUsers` alone escalates to `ManageRealm` by
+    /// resetting the password of an account that holds it.
+    fn can_manage_user(
+        &self,
+        identity: &Identity,
+        target_realm: &Realm,
+        target: &User,
+    ) -> impl Future<Output = Result<bool, CoreError>> + Send;
 }
 
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]

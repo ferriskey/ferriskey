@@ -19,7 +19,7 @@ use crate::domain::{
         service::violations_to_core_error, validator,
     },
     realm::{
-        entities::{RealmScope, Scoped},
+        entities::{Realm, RealmScope, Scoped},
         ports::RealmRepository,
     },
     role::{
@@ -158,6 +158,27 @@ where
             .in_realm(scope)
             .map(Scoped::into_inner)
     }
+
+    /// Changing an account hands over what it holds, so the subject must
+    /// hold it too: the account-side twin of the bound on `assign_role`.
+    async fn ensure_can_manage_user(
+        &self,
+        identity: &Identity,
+        realm: &Realm,
+        target: &User,
+    ) -> Result<(), CoreError> {
+        if !self.policy.can_manage_user(identity, realm, target).await? {
+            warn!(
+                user_id = %target.id,
+                "Refused a change to a user holding permissions the subject does not hold"
+            );
+            return Err(CoreError::Forbidden(
+                "cannot change a user holding permissions you do not hold".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl<R, U, C, UR, CR, H, RO, URA, W, SE, UAR, PPR, TRV> UserService
@@ -197,6 +218,8 @@ where
             .get_by_id(user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, user.get())
+            .await?;
 
         // Deleting the row cascades to the user's sessions without going
         // through the session store; end them first so their clients are told.
@@ -268,6 +291,8 @@ where
             .await?
             .in_realm(&scope)?
             .into_inner();
+        self.ensure_can_manage_user(&identity, &realm, &target_user)
+            .await?;
 
         let username = target_user.username.clone();
         let email_local_buf = target_user
@@ -351,10 +376,13 @@ where
             "insufficient permissions",
         )?;
 
-        self.user_repository
+        let target = self
+            .user_repository
             .get_by_id(input.user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, target.get())
+            .await?;
 
         self.hasher_repository
             .validate_hash(&input.algorithm, &input.secret_data, input.hash_iterations)
@@ -447,6 +475,8 @@ where
             .get_by_id(input.user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, existing.get())
+            .await?;
         let is_being_disabled = existing.get().enabled && !input.enabled;
 
         if let Some(ref required_actions) = input.required_actions {
@@ -627,6 +657,8 @@ where
                 continue;
             };
             if user.get().client_id.is_none() {
+                self.ensure_can_manage_user(&identity, &realm, user.get())
+                    .await?;
                 ids.push(*user_id);
             }
         }
@@ -863,10 +895,13 @@ where
             "insufficient permissions",
         )?;
 
-        self.user_repository
+        let target = self
+            .user_repository
             .get_by_id(input.user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, target.get())
+            .await?;
         let role = self.load_role_in_realm(input.role_id, &scope).await?;
 
         self.user_role_repository
@@ -997,10 +1032,13 @@ where
             "insufficient permissions",
         )?;
 
-        self.user_repository
+        let target = self
+            .user_repository
             .get_by_id(input.user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, target.get())
+            .await?;
 
         self.user_attribute_repository
             .upsert_many(input.user_id, scope.id(), input.attributes)
@@ -1020,10 +1058,13 @@ where
             "insufficient permissions",
         )?;
 
-        self.user_repository
+        let target = self
+            .user_repository
             .get_by_id(input.user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, target.get())
+            .await?;
 
         self.user_attribute_repository
             .delete_by_key(input.user_id, input.key)
@@ -1049,6 +1090,8 @@ where
             .get_by_id(user_id)
             .await?
             .in_realm(&scope)?;
+        self.ensure_can_manage_user(&identity, &realm, user.get())
+            .await?;
 
         self.user_repository.unlock_user(&user).await
     }
@@ -1302,6 +1345,13 @@ mod tests {
                 .times(1)
                 .return_once(move |_| Box::pin(async move { Ok(Unscoped::new(user)) }));
             self
+        }
+
+        /// A target holding no role, so any admin may change its account.
+        fn with_unprivileged_target(self, user: User) -> Self {
+            let user_id = user.id;
+            self.with_target_user(user)
+                .with_user_permissions(user_id, Vec::new())
         }
 
         fn with_role_assignment_success(
@@ -1594,7 +1644,7 @@ mod tests {
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(user_id, vec![admin_role])
-            .with_target_user(user_to_update.clone())
+            .with_unprivileged_target(user_to_update.clone())
             .with_update_user_email_exists(user_to_update.id)
             .build();
 
@@ -1640,7 +1690,7 @@ mod tests {
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(user_id, vec![admin_role])
-            .with_target_user(user_to_update.clone())
+            .with_unprivileged_target(user_to_update.clone())
             .with_update_user_success(update_user_id, user_to_update.clone())
             .with_webhook_notify()
             .build();
@@ -1688,7 +1738,7 @@ mod tests {
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(user_id, vec![admin_role])
-            .with_target_user(user_to_update.clone())
+            .with_unprivileged_target(user_to_update.clone())
             .with_update_user_success(update_user_id, user_to_update.clone())
             .with_webhook_notify()
             .build();
@@ -1783,7 +1833,7 @@ mod tests {
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![admin_role])
-            .with_target_user(target.clone())
+            .with_unprivileged_target(target.clone())
             .with_update_user_success(target.id, disabled)
             .with_webhook_notify()
             .with_user_access_revoked(target.id, 1)
@@ -1830,7 +1880,7 @@ mod tests {
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![admin_role])
-            .with_target_user(target.clone())
+            .with_unprivileged_target(target.clone())
             .with_update_user_success(target.id, renamed)
             .with_webhook_notify()
             .with_user_access_revoked(target.id, 0)
@@ -1875,7 +1925,7 @@ mod tests {
         let service = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![admin_role])
-            .with_target_user(target.clone())
+            .with_unprivileged_target(target.clone())
             .with_update_user_success(target.id, target.clone())
             .with_webhook_notify()
             .with_user_access_revoked(target.id, 0)
@@ -1923,7 +1973,7 @@ mod tests {
         let mut builder = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![admin_role])
-            .with_target_user(target.clone())
+            .with_unprivileged_target(target.clone())
             .with_user_access_revoked(target_id, 1);
 
         Arc::get_mut(&mut builder.password_policy_repo)
@@ -2284,7 +2334,7 @@ mod tests {
         let builder = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
-            .with_target_user(target);
+            .with_unprivileged_target(target);
         let builder = with_hash_validation(builder, Ok(()));
         let mut builder = with_existing_password(builder, false);
 
@@ -2347,7 +2397,7 @@ mod tests {
         let builder = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
-            .with_target_user(target);
+            .with_unprivileged_target(target);
         let builder = with_hash_validation(builder, Ok(()));
         let mut builder = with_existing_password(builder, true);
         Arc::get_mut(&mut builder.credential_repo)
@@ -2378,7 +2428,7 @@ mod tests {
         let builder = UserServiceTestBuilder::new()
             .with_realm("test-realm".to_string(), realm.clone())
             .with_user_permissions(admin_id, vec![create_admin_role(&realm)])
-            .with_target_user(target);
+            .with_unprivileged_target(target);
         let mut builder = with_hash_validation(
             builder,
             Err(ferriskey_security::SecurityError::UnsupportedHash(
