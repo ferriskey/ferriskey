@@ -126,6 +126,7 @@ export namespace Schemas {
     scopes_supported: Array<string>;
     token_endpoint: string;
     token_endpoint_auth_methods_supported: Array<string>;
+    token_endpoint_auth_signing_alg_values_supported: Array<string>;
   };
   export type BulkDeleteUserResponse = { count: number; realm_name: string };
   export type BulkDeleteUserValidator = Partial<{ ids: Array<string> }>;
@@ -144,6 +145,13 @@ export namespace Schemas {
   export type MaintenanceSessionStrategy = "terminate" | "expire";
   export type ClientRegistrationSource = "admin" | "dynamic" | "metadata_document";
   export type Masked_String = string;
+  export type ClientJwks = Record<string, unknown>;
+  export type TokenEndpointAuthMethod =
+    | "none"
+    | "client_secret_basic"
+    | "client_secret_post"
+    | "client_secret_jwt"
+    | "private_key_jwt";
   export type Client = {
     access_token_lifetime?: (number | null) | undefined;
     backchannel_logout_session_required: boolean;
@@ -156,6 +164,8 @@ export namespace Schemas {
     enabled: boolean;
     id: string;
     id_token_lifetime?: (number | null) | undefined;
+    jwks?: (null | ClientJwks) | undefined;
+    jwks_uri?: (string | null) | undefined;
     maintenance_enabled: boolean;
     maintenance_reason?: (string | null) | undefined;
     maintenance_session_strategy: MaintenanceSessionStrategy;
@@ -171,12 +181,15 @@ export namespace Schemas {
     secret?: (null | Masked_String) | undefined;
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null) | undefined;
+    token_endpoint_auth_method: TokenEndpointAuthMethod;
     token_exchange_enabled: boolean;
     updated_at: string;
   };
   export type ClientRegistrationRequest = Partial<{
     client_name: string | null;
     grant_types: Array<string> | null;
+    jwks: null | ClientJwks;
+    jwks_uri: string | null;
     redirect_uris: Array<string>;
     response_types: Array<string> | null;
     scope: string | null;
@@ -189,6 +202,8 @@ export namespace Schemas {
     client_secret?: (string | null) | undefined;
     client_secret_expires_at?: (number | null) | undefined;
     grant_types: Array<string>;
+    jwks?: (null | ClientJwks) | undefined;
+    jwks_uri?: (string | null) | undefined;
     redirect_uris: Array<string>;
     response_types: Array<string>;
     scope: string;
@@ -306,12 +321,15 @@ export namespace Schemas {
     consent_required?: boolean | undefined;
     direct_access_grants_enabled?: boolean | undefined;
     enabled?: boolean | undefined;
+    jwks?: (null | ClientJwks) | undefined;
+    jwks_uri?: (string | null) | undefined;
     name?: string | undefined;
     oauth_device_code_grant_enabled?: boolean | undefined;
     protocol?: AuthProtocol | undefined;
     public_client?: boolean | undefined;
     require_pkce?: boolean | undefined;
     service_account_enabled?: boolean | undefined;
+    token_endpoint_auth_method?: (null | TokenEndpointAuthMethod) | undefined;
     token_exchange_enabled?: boolean | undefined;
   };
   export type EmailType = "reset_password" | "magic_link" | "email_verification";
@@ -714,6 +732,7 @@ export namespace Schemas {
     subject_types_supported: Array<string>;
     token_endpoint: string;
     token_endpoint_auth_methods_supported: Array<string>;
+    token_endpoint_auth_signing_alg_values_supported: Array<string>;
     userinfo_endpoint: string;
   };
   export type GetPortalLayoutResponse = { data: PortalLayout };
@@ -917,6 +936,8 @@ export namespace Schemas {
       enabled: boolean;
       id: string;
       id_token_lifetime?: (number | null) | undefined;
+      jwks?: (null | ClientJwks) | undefined;
+      jwks_uri?: (string | null) | undefined;
       maintenance_enabled: boolean;
       maintenance_reason?: (string | null) | undefined;
       maintenance_session_strategy: MaintenanceSessionStrategy;
@@ -932,6 +953,7 @@ export namespace Schemas {
       secret?: (null | Masked_String) | undefined;
       service_account_enabled: boolean;
       temporary_token_lifetime?: (number | null) | undefined;
+      token_endpoint_auth_method: TokenEndpointAuthMethod;
       token_exchange_enabled: boolean;
       updated_at: string;
     }>;
@@ -1537,11 +1559,14 @@ export namespace Schemas {
     direct_access_grants_enabled: boolean | null;
     enabled: boolean | null;
     id_token_lifetime: number | null;
+    jwks: null | ClientJwks;
+    jwks_uri: string | null;
     name: string | null;
     oauth_device_code_grant_enabled: boolean | null;
     refresh_token_lifetime: number | null;
     require_pkce: boolean | null;
     temporary_token_lifetime: number | null;
+    token_endpoint_auth_method: null | TokenEndpointAuthMethod;
     token_exchange_enabled: boolean | null;
   }>;
   export type UpdateEmailTemplateResponse = { data: EmailTemplate };
