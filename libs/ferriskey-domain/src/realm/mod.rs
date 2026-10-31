@@ -8,6 +8,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::assurance::AcrLoaMap;
 use crate::common::locale::Locale;
 use crate::{generate_timestamp, generate_uuid_v7};
 
@@ -248,6 +249,7 @@ pub struct RealmSetting {
     pub dcr_enabled: bool,
     pub cimd_allowed_hosts: Vec<String>,
     pub allowed_resources: Vec<String>,
+    pub acr_loa_map: AcrLoaMap,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -298,6 +300,7 @@ impl RealmSetting {
             dcr_enabled: false,
             cimd_allowed_hosts: Vec::new(),
             allowed_resources: Vec::new(),
+            acr_loa_map: AcrLoaMap::default(),
         }
     }
 }

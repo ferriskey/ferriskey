@@ -52,6 +52,7 @@ pub struct Model {
     pub dcr_enabled: bool,
     pub cimd_allowed_hosts: Vec<String>,
     pub allowed_resources: Vec<String>,
+    pub acr_loa_map: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -95,6 +96,7 @@ pub enum Column {
     DcrEnabled,
     CimdAllowedHosts,
     AllowedResources,
+    AcrLoaMap,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -161,6 +163,7 @@ impl ColumnTrait for Column {
             Self::DcrEnabled => ColumnType::Boolean.def(),
             Self::CimdAllowedHosts => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
             Self::AllowedResources => ColumnType::Array(RcOrArc::new(ColumnType::Text)).def(),
+            Self::AcrLoaMap => ColumnType::JsonBinary.def(),
         }
     }
 }

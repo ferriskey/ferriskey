@@ -24,6 +24,7 @@ pub struct Model {
     pub sso_token_hash: Option<String>,
     pub persistent: bool,
     pub authenticated_at: DateTimeWithTimeZone,
+    pub authentication_factors: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -39,6 +40,7 @@ pub enum Column {
     SsoTokenHash,
     Persistent,
     AuthenticatedAt,
+    AuthenticationFactors,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -77,6 +79,7 @@ impl ColumnTrait for Column {
                 .unique(),
             Self::Persistent => ColumnType::Boolean.def(),
             Self::AuthenticatedAt => ColumnType::TimestampWithTimeZone.def(),
+            Self::AuthenticationFactors => ColumnType::JsonBinary.def(),
         }
     }
 }

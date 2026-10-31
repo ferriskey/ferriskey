@@ -1,3 +1,4 @@
+use ferriskey_core::domain::authentication::assurance::AcrLoaMap;
 use ferriskey_core::domain::realm::entities::{LoginAliases, ResourceOwner};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -103,6 +104,10 @@ pub struct UpdateRealmSettingValidator {
     pub cimd_allowed_hosts: Option<Vec<String>>,
     #[validate(custom(function = "validate_allowed_resources"))]
     pub allowed_resources: Option<Vec<String>>,
+    /// The realm's own `acr` values, each mapped to a level of assurance
+    /// (1: one factor, 2: multi-factor). Replaces the whole map.
+    #[schema(value_type = Option<std::collections::BTreeMap<String, u8>>)]
+    pub acr_loa_map: Option<AcrLoaMap>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate, ToSchema)]

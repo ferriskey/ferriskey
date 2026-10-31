@@ -142,6 +142,7 @@ mod tests {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            authentication_factors: Vec::new(),
         }
     }
 

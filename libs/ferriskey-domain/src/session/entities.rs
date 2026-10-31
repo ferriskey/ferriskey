@@ -4,6 +4,7 @@ use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::assurance::FactorUse;
 use crate::common::pagination::DateRange;
 use crate::realm::RealmId;
 use crate::realm::scope::RealmOwned;
@@ -31,6 +32,8 @@ pub struct UserSession {
     pub persistent: bool,
     /// When the user last authenticated interactively in this session.
     pub authenticated_at: DateTime<Utc>,
+    /// The factors that interactive authentication answered.
+    pub authentication_factors: Vec<FactorUse>,
 }
 
 impl UserSession {
@@ -56,6 +59,7 @@ impl UserSession {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: now,
+            authentication_factors: Vec::new(),
         }
     }
 

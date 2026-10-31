@@ -35,6 +35,11 @@ pub struct GetOpenIdConfigurationResponse {
     pub backchannel_logout_session_supported: bool,
     pub scopes_supported: Vec<String>,
     pub authorization_response_iss_parameter_supported: bool,
+    /// The `acr` values a client may request: "1" (one factor), "2"
+    /// (multi-factor), and the realm's own names for them.
+    pub acr_values_supported: Vec<String>,
+    /// `claims` is read for `id_token.acr` only.
+    pub claims_parameter_supported: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_endpoint: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -94,6 +99,8 @@ pub async fn get_openid_configuration(
         backchannel_logout_session_supported: true,
         scopes_supported: settings.scopes_supported,
         authorization_response_iss_parameter_supported: true,
+        acr_values_supported: settings.acr_values_supported,
+        claims_parameter_supported: true,
         registration_endpoint: settings
             .dcr_enabled
             .then(|| format!("{issuer}/clients/register")),

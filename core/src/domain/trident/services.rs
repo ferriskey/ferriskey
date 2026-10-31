@@ -24,6 +24,7 @@ use webauthn_rs::prelude::*;
 use crate::{
     domain::{
         authentication::{
+            assurance::{AcrLoaMap, AuthenticationFactor, VerifiedFactor},
             entities::{AuthCompletion, AuthSession, AuthenticationError, WebAuthnChallenge},
             ports::{
                 AdmitLoginInput, AuthSessionRepository, LoginAdmission, LoginAdmissionPort,
@@ -421,11 +422,14 @@ where
         }
     }
 
+    /// `login` is the login the step belongs to: a level its client asked
+    /// for and its factors do not reach yet holds the user to MFA.
     async fn pending_auth_step_for(
         &self,
         user_id: Uuid,
         scope: &RealmScope,
         actions_satisfied_by_path: &[RequiredAction],
+        login: Option<&AuthSession>,
     ) -> Result<Option<PendingAuthStep>, CoreError> {
         let user = self
             .user_repository
@@ -458,12 +462,18 @@ where
             .filter(|action| !actions_satisfied_by_path.contains(action))
             .collect::<Vec<RequiredAction>>();
 
+        let default_acr_loa_map = AcrLoaMap::default();
+        let acr_loa_map = settings
+            .as_ref()
+            .map_or(&default_acr_loa_map, |settings| &settings.acr_loa_map);
+
         Ok(pending_auth_step(
             &persisted_actions,
             settings.as_ref(),
             &roles,
             has_otp_credential,
             has_temporary_password,
+            login.and_then(|login| login.level_still_owed(user_id, acr_loa_map)),
         ))
     }
 
@@ -472,9 +482,10 @@ where
         user_id: Uuid,
         scope: &RealmScope,
         action: RequiredAction,
+        login: Option<&AuthSession>,
     ) -> Result<bool, CoreError> {
         Ok(matches!(
-            self.pending_auth_step_for(user_id, scope, &[]).await?,
+            self.pending_auth_step_for(user_id, scope, &[], login).await?,
             Some(PendingAuthStep::RequiredActions(actions)) if actions.contains(&action)
         ))
     }
@@ -488,7 +499,12 @@ where
         webapp_base_url: &str,
     ) -> Result<LoginFinish, CoreError> {
         if let Some(step) = self
-            .pending_auth_step_for(user_id, scope, actions_satisfied_by_path)
+            .pending_auth_step_for(
+                user_id,
+                scope,
+                actions_satisfied_by_path,
+                Some(auth_session),
+            )
             .await?
         {
             warn!(
@@ -516,8 +532,12 @@ where
         scope: &RealmScope,
         satisfied: &[RequiredAction],
     ) -> Result<LoginProgress, CoreError> {
+        let session_code =
+            Uuid::parse_str(step.session_code).map_err(|_| CoreError::SessionCreateError)?;
+        let auth_session = self.login_of(session_code, scope).await?;
+
         match self
-            .pending_auth_step_for(user_id, scope, satisfied)
+            .pending_auth_step_for(user_id, scope, satisfied, Some(&auth_session))
             .await?
         {
             Some(PendingAuthStep::RequiredActions(actions)) => {
@@ -532,17 +552,6 @@ where
             _ => {}
         }
 
-        let session_code =
-            Uuid::parse_str(step.session_code).map_err(|_| CoreError::SessionCreateError)?;
-        let auth_session = self
-            .auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .map_err(|_| CoreError::SessionNotFound)?
-            .in_realm(scope)
-            .map_err(|_| CoreError::SessionNotFound)?
-            .into_inner();
-
         let (login_url, sso_session) = self
             .complete_login(&auth_session, user_id, scope, step.webapp_base_url)
             .await?
@@ -552,6 +561,42 @@ where
             login_url,
             sso_session,
         })
+    }
+
+    async fn login_of(
+        &self,
+        session_code: Uuid,
+        scope: &RealmScope,
+    ) -> Result<AuthSession, CoreError> {
+        Ok(self
+            .auth_session_repository
+            .get_by_session_code(session_code)
+            .await
+            .map_err(|_| CoreError::SessionNotFound)?
+            .in_realm(scope)
+            .map_err(|_| CoreError::SessionNotFound)?
+            .into_inner())
+    }
+
+    /// Record on the login a factor `user_id` just answered.
+    async fn record_factor(
+        &self,
+        auth_session: &mut AuthSession,
+        user_id: Uuid,
+        factor: AuthenticationFactor,
+    ) -> Result<(), CoreError> {
+        let verified = VerifiedFactor::now(user_id, factor);
+
+        self.auth_session_repository
+            .record_verified_factor(auth_session.id, verified)
+            .await
+            .map_err(|e| {
+                warn!(error = ?e, ?factor, "Failed to record a factor on the login");
+                CoreError::InternalServerError
+            })?;
+        auth_session.verified_factors.push(verified);
+
+        Ok(())
     }
 
     /// Record the "remember me" choice made alongside a first factor that
@@ -626,6 +671,7 @@ where
                 auth_session.client_id,
                 auth_session.remember_me,
                 auth_session.reauth_session_id,
+                auth_session.factors_of(user_id),
             )
             .await?;
 
@@ -877,12 +923,7 @@ where
 
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
 
-        self.auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .map_err(|_| CoreError::SessionNotFound)?
-            .in_realm(&scope)
-            .map_err(|_| CoreError::SessionNotFound)?;
+        let mut auth_session = self.login_of(session_code, &scope).await?;
 
         let user = self
             .user_repository
@@ -968,6 +1009,13 @@ where
                 error!("Failed to delete a credential even though it was just fetched with the same repository: {e}");
                 CoreError::InternalServerError
             })?;
+
+        self.record_factor(
+            &mut auth_session,
+            user.get().id,
+            AuthenticationFactor::RecoveryCode,
+        )
+        .await?;
 
         let progress = self
             .progress_login(
@@ -1101,7 +1149,7 @@ where
                 .ok_or(CoreError::InvalidRealm)?,
         );
 
-        let auth_session = self
+        let mut auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
@@ -1130,6 +1178,9 @@ where
                 }),
             _ => Err(CoreError::Invalid),
         }?;
+        let key = AuthenticationFactor::webauthn(
+            webauthn_rs::prelude::Credential::from(passkey.clone()).backup_eligible,
+        );
 
         self.credential_repository
             .create_webauthn_credential(user.id, passkey)
@@ -1148,6 +1199,8 @@ where
                 "Failed to remove ConfigurePasskey required action after passkey enrolment: {e:?}"
             );
         }
+
+        self.record_factor(&mut auth_session, user.id, key).await?;
 
         let progress = self
             .progress_login(
@@ -1251,7 +1304,7 @@ where
         let session_code =
             Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
 
-        let auth_session = self
+        let mut auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
@@ -1286,6 +1339,13 @@ where
         if !auth_result.user_verified() {
             return Err(CoreError::WebAuthnChallengeFailed);
         }
+
+        self.record_factor(
+            &mut auth_session,
+            user.get().id,
+            AuthenticationFactor::webauthn(auth_result.backup_eligible()),
+        )
+        .await?;
 
         let (login_url, sso_session) = self
             .store_auth_code_and_generate_login_url(
@@ -1483,11 +1543,17 @@ where
 
         self.record_remember_me(&mut auth_session, input.remember_me)
             .await?;
+        self.record_factor(
+            &mut auth_session,
+            user.get().id,
+            AuthenticationFactor::webauthn(auth_result.backup_eligible()),
+        )
+        .await?;
 
         // A user-verified passkey is already a second factor, so it answers the
         // OTP challenge. Required actions still block the login.
         if let Some(PendingAuthStep::RequiredActions(actions)) = self
-            .pending_auth_step_for(user.get().id, &scope, &[])
+            .pending_auth_step_for(user.get().id, &scope, &[], Some(&auth_session))
             .await?
         {
             warn!(
@@ -1531,14 +1597,7 @@ where
                 .ok_or(CoreError::InvalidRealm)?,
         );
 
-        let auth_session = self
-            .auth_session_repository
-            .get_by_session_code(session_code)
-            .await
-            .map_err(|_| CoreError::SessionNotFound)?
-            .in_realm(&scope)
-            .map_err(|_| CoreError::SessionNotFound)?
-            .into_inner();
+        let mut auth_session = self.login_of(session_code, &scope).await?;
 
         let user_credentials = self
             .credential_repository
@@ -1613,8 +1672,12 @@ where
                 .await?;
         }
 
-        if let Some(PendingAuthStep::RequiredActions(actions)) =
-            self.pending_auth_step_for(user.id, &scope, &[]).await?
+        self.record_factor(&mut auth_session, user.id, AuthenticationFactor::Otp)
+            .await?;
+
+        if let Some(PendingAuthStep::RequiredActions(actions)) = self
+            .pending_auth_step_for(user.id, &scope, &[], Some(&auth_session))
+            .await?
         {
             return Ok(ChallengeOtpOutput {
                 progress: LoginProgress::ActionsPending(actions),
@@ -1688,7 +1751,7 @@ where
         let user = scoped_user.get();
 
         if !self
-            .step_requires(user.id, &scope, RequiredAction::UpdatePassword)
+            .step_requires(user.id, &scope, RequiredAction::UpdatePassword, None)
             .await?
         {
             warn!(user_id = %user.id, "Refused a password update: no password update is due");
@@ -1801,10 +1864,19 @@ where
             .await
             .map_err(|_| CoreError::InternalServerError)?;
 
+        let session_code =
+            Uuid::parse_str(&input.session_code).map_err(|_| CoreError::SessionCreateError)?;
+        let mut login = self.login_of(session_code, &scope).await?;
+
         let configuration_asked = persisted_actions.contains(&RequiredAction::ConfigureOtp)
             || (existing_otp_credentials.is_empty()
                 && self
-                    .step_requires(user.get().id, &scope, RequiredAction::ConfigureOtp)
+                    .step_requires(
+                        user.get().id,
+                        &scope,
+                        RequiredAction::ConfigureOtp,
+                        Some(&login),
+                    )
                     .await?);
 
         if !configuration_asked {
@@ -1886,6 +1958,9 @@ where
                 "Failed to remove ConfigureOtp required action after OTP setup: {e:?}"
             );
         }
+
+        self.record_factor(&mut login, user.get().id, AuthenticationFactor::Otp)
+            .await?;
 
         let progress = self
             .progress_login(
@@ -2156,7 +2231,7 @@ where
         }
 
         // Fetch the auth session
-        let auth_session = self
+        let mut auth_session = self
             .auth_session_repository
             .get_by_session_code(session_code)
             .await
@@ -2207,6 +2282,13 @@ where
                 });
             return Err(CoreError::InvalidMagicLink);
         }
+
+        self.record_factor(
+            &mut auth_session,
+            magic_link.user_id,
+            AuthenticationFactor::MagicLink,
+        )
+        .await?;
 
         // Generate authorization code and login URL
         let (login_url, sso_session) = self
@@ -2800,6 +2882,7 @@ mod tests {
         sso_session: Arc<MockSsoSessionPort>,
         elevation_repo: Arc<MockElevationRepository>,
         admission: Option<MockLoginAdmissionPort>,
+        login_realm: Option<Realm>,
     }
 
     fn proceeding_admission() -> MockLoginAdmissionPort {
@@ -2835,6 +2918,7 @@ mod tests {
                 sso_session: Arc::new(MockSsoSessionPort::new()),
                 elevation_repo: Arc::new(MockElevationRepository::new()),
                 admission: None,
+                login_realm: None,
             }
         }
 
@@ -2844,6 +2928,7 @@ mod tests {
         }
 
         fn with_realm_and_user(mut self, realm: &Realm, user: &User) -> Self {
+            self.login_realm = Some(realm.clone());
             let resolved = realm.clone();
             Arc::get_mut(&mut self.realm_repo)
                 .unwrap()
@@ -2874,30 +2959,48 @@ mod tests {
             self
         }
 
+        /// Fallbacks for the login lookups and factor writes most steps make;
+        /// a test's own expectations, set earlier, are matched first.
+        fn with_login_fallbacks(mut self) -> Self {
+            let Some(repo) = Arc::get_mut(&mut self.auth_session_repo) else {
+                return self;
+            };
+            if let Some(realm) = self.login_realm.clone() {
+                repo.expect_get_by_session_code().returning(move |code| {
+                    let session = auth_session_without_state(&realm, code);
+                    Box::pin(async move { Ok(Unscoped::new(session)) })
+                });
+            }
+            repo.expect_record_verified_factor()
+                .returning(|_, _| Box::pin(async { Ok(()) }));
+            self
+        }
+
         fn build(self) -> TestTridentService {
+            let builder = self.with_login_fallbacks();
             TridentServiceImpl::new(
-                self.credential_repo,
-                self.recovery_code_repo,
-                self.auth_session_repo,
-                self.hasher_repo,
-                self.user_required_action_repo,
-                self.magic_link_repo,
-                self.user_repo,
-                self.realm_repo,
-                self.email_port,
-                self.smtp_config_repo,
-                self.prt_repo,
-                self.security_event_repo,
-                self.webhook_repo,
-                self.email_template_repo,
-                self.template_renderer,
-                self.password_policy_repo,
-                self.otp_enrollment_repo,
-                self.user_role_repo,
-                self.token_revocation,
-                self.sso_session,
-                self.elevation_repo,
-                Arc::new(self.admission.unwrap_or_else(proceeding_admission)),
+                builder.credential_repo,
+                builder.recovery_code_repo,
+                builder.auth_session_repo,
+                builder.hasher_repo,
+                builder.user_required_action_repo,
+                builder.magic_link_repo,
+                builder.user_repo,
+                builder.realm_repo,
+                builder.email_port,
+                builder.smtp_config_repo,
+                builder.prt_repo,
+                builder.security_event_repo,
+                builder.webhook_repo,
+                builder.email_template_repo,
+                builder.template_renderer,
+                builder.password_policy_repo,
+                builder.otp_enrollment_repo,
+                builder.user_role_repo,
+                builder.token_revocation,
+                builder.sso_session,
+                builder.elevation_repo,
+                Arc::new(builder.admission.unwrap_or_else(proceeding_admission)),
                 FlowRecorder::disabled(),
             )
         }
@@ -4804,6 +4907,8 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            acr_values: None,
+            verified_factors: Vec::new(),
         }
     }
 
@@ -4999,9 +5104,9 @@ mod tests {
         Arc::get_mut(&mut builder.sso_session)
             .unwrap()
             .expect_open_for_login()
-            .withf(move |_, _, client, _, _| *client == client_id)
+            .withf(move |_, _, client, _, _, _| *client == client_id)
             .times(1)
-            .returning(move |_, _, _, _, _| {
+            .returning(move |_, _, _, _, _, _| {
                 Box::pin(async move {
                     Ok(OpenedSsoSession {
                         session_id: sso_session_id,
@@ -5522,7 +5627,7 @@ mod tests {
             .unwrap()
             .expect_open_for_login()
             .times(1)
-            .returning(|_, _, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
+            .returning(|_, _, _, _, _, _| Box::pin(async { Err(CoreError::SessionCreateError) }));
         Arc::get_mut(&mut builder.auth_session_repo)
             .unwrap()
             .expect_complete_login()
