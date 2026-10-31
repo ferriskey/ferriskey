@@ -2,6 +2,7 @@ use axum::{
     Extension,
     extract::{Path, State},
 };
+use chrono::{DateTime, Utc};
 use ferriskey_api_core::api_entities::{api_error::ApiError, response::Response};
 use ferriskey_api_core::app_state::AppState;
 use ferriskey_core::domain::authentication::value_objects::Identity;
@@ -12,8 +13,16 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct PreviousClientSecretResponse {
+    pub client_secret: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ClientSecretResponse {
     pub client_secret: Option<String>,
+    /// The secret replaced by the last rotation, while its grace period lasts.
+    pub previous_secret: Option<PreviousClientSecretResponse>,
 }
 
 #[utoipa::path(
@@ -21,7 +30,7 @@ pub struct ClientSecretResponse {
     path = "/{client_id}/client-secret",
     tag = "client",
     summary = "Reveal a confidential client's secret",
-    description = "Returns the plaintext secret of a confidential client. Requires ManageClients (or ManageRealm) — strictly more than the ViewClients needed to read the client itself — and records a `client_secret_viewed` security event.",
+    description = "Returns the plaintext secret of a confidential client, and the one it had before its last rotation while that one still works. Requires ManageClients (or ManageRealm) — strictly more than the ViewClients needed to read the client itself — and records a `client_secret_viewed` security event.",
     params(
         ("realm_name" = String, Path, description = "Realm name"),
         ("client_id" = Uuid, Path, description = "Client ID"),
@@ -37,7 +46,7 @@ pub async fn get_client_secret(
     State(state): State<AppState>,
     Extension(identity): Extension<Identity>,
 ) -> Result<Response<ClientSecretResponse>, ApiError> {
-    let client_secret = state
+    let revealed = state
         .service
         .reveal_client_secret(
             identity,
@@ -48,5 +57,13 @@ pub async fn get_client_secret(
         )
         .await?;
 
-    Ok(Response::OK(ClientSecretResponse { client_secret }))
+    Ok(Response::OK(ClientSecretResponse {
+        client_secret: revealed.client_secret,
+        previous_secret: revealed
+            .previous
+            .map(|previous| PreviousClientSecretResponse {
+                client_secret: previous.client_secret,
+                expires_at: previous.expires_at,
+            }),
+    }))
 }
