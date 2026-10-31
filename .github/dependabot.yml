@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: cargo
     directories:
       - /
-      - /fuzz
+      - /libs/ferriskey-saml/fuzz
     schedule:
       interval: weekly
       day: monday

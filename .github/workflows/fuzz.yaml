@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/fuzz.yaml
-      - fuzz/**
+      - libs/ferriskey-saml/fuzz/**
       - libs/ferriskey-saml/**
   schedule:
     - cron: "29 4 * * *"
@@ -52,14 +52,14 @@ jobs:
       - name: cache rust dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
         with:
-          workspaces: fuzz
+          workspaces: libs/ferriskey-saml/fuzz
           shared-key: fuzz
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: restore the corpus
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: fuzz/corpus/${{ matrix.target }}
+          path: libs/ferriskey-saml/fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
           restore-keys: |
             fuzz-corpus-${{ matrix.target }}-
@@ -68,6 +68,7 @@ jobs:
         run: cargo install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked
 
       - name: fuzz the target
+        working-directory: libs/ferriskey-saml
         run: |
           mkdir -p "fuzz/corpus/$TARGET"
           cargo "+$FUZZ_TOOLCHAIN" fuzz run "$TARGET" "fuzz/corpus/$TARGET" "fuzz/seeds/$TARGET" -- -max_total_time="$MAX_TOTAL_TIME"
@@ -77,4 +78,4 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: fuzz-${{ matrix.target }}
-          path: fuzz/artifacts/${{ matrix.target }}
+          path: libs/ferriskey-saml/fuzz/artifacts/${{ matrix.target }}
