@@ -10,7 +10,7 @@ ferriskey-authz = { path = "../ferriskey-authz" }
 ferriskey-domain = { path = "../ferriskey-domain" }
 chrono = { version = "0.4.41", features = ["serde"] }
 hex = "0.4.3"
-hmac = "0.12.1"
+hmac = "0.13.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 sha2 = "0.10.9"
