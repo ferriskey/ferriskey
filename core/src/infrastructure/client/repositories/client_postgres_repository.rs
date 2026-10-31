@@ -199,6 +199,9 @@ impl ClientRepository for PostgresClientRepository {
             backchannel_logout_session_required: Set(true),
             consent_required: Set(data.consent_required),
             registration_source: Set(data.registration_source.to_string()),
+            token_endpoint_auth_method: Set(data.auth.method.to_string()),
+            jwks: Set(data.auth.jwks.map(|jwks| jwks.0)),
+            jwks_uri: Set(data.auth.jwks_uri),
             created_at: Set(now.naive_utc()),
             updated_at: Set(now.naive_local()),
         };
@@ -382,6 +385,18 @@ impl ClientRepository for PostgresClientRepository {
             Some(required) => Set(required),
             None => client.consent_required,
         };
+
+        if let Some(method) = data.token_endpoint_auth_method {
+            client.token_endpoint_auth_method = Set(method.to_string());
+        }
+
+        if let Some(jwks) = data.jwks {
+            client.jwks = Set(jwks.map(|jwks| jwks.0));
+        }
+
+        if let Some(jwks_uri) = data.jwks_uri {
+            client.jwks_uri = Set(jwks_uri);
+        }
 
         client.access_token_lifetime_secs = Set(data.access_token_lifetime.map(|v| v as i32));
         client.refresh_token_lifetime_secs = Set(data.refresh_token_lifetime.map(|v| v as i32));

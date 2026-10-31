@@ -3,6 +3,7 @@ use std::time::Duration;
 use serde::Deserialize;
 use thiserror::Error;
 
+use crate::domain::client::entities::auth_method::ClientJwks;
 use crate::domain::common::entities::app_errors::CoreError;
 
 pub const MAX_CLIENT_ID_URL_LEN: usize = 255;
@@ -24,6 +25,10 @@ pub struct ClientMetadataDocument {
     pub redirect_uris: Vec<String>,
     #[serde(default)]
     pub token_endpoint_auth_method: Option<String>,
+    #[serde(default)]
+    pub jwks: Option<ClientJwks>,
+    #[serde(default)]
+    pub jwks_uri: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

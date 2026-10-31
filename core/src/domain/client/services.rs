@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::domain::client::entities::auth_method::{ClientAuthSettings, TokenEndpointAuthMethod};
 use crate::domain::{
     authentication::value_objects::Identity,
     client::{
@@ -209,6 +210,15 @@ where
             "insufficient permissions",
         )?;
 
+        let auth = ClientAuthSettings {
+            method: input
+                .token_endpoint_auth_method
+                .unwrap_or(TokenEndpointAuthMethod::default_for(input.public_client)),
+            jwks: input.jwks,
+            jwks_uri: input.jwks_uri,
+        };
+        auth.validate(input.public_client)?;
+
         let secret = (!input.public_client).then(generate_random_string);
 
         let client = self
@@ -230,6 +240,7 @@ where
                 consent_required: input.consent_required,
                 registration_source:
                     crate::domain::client::entities::ClientRegistrationSource::Admin,
+                auth,
             })
             .await?;
 
@@ -1006,6 +1017,13 @@ where
 
         ensure_update_allowed_for_source(target.get(), &input.payload)?;
 
+        if input.payload.touches_authentication() {
+            input
+                .payload
+                .merged_auth(target.get())
+                .validate(target.get().public_client)?;
+        }
+
         let client = self
             .client_repository
             .update_client(&target, input.payload)
@@ -1160,6 +1178,9 @@ mod tests {
                 backchannel_logout_uri: None,
                 backchannel_logout_session_required: None,
                 consent_required: None,
+                token_endpoint_auth_method: None,
+                jwks: None,
+                jwks_uri: None,
             }
         }
 
@@ -1430,6 +1451,9 @@ mod tests {
                     token_exchange_enabled: false,
                     consent_required: false,
                     require_pkce: true,
+                    token_endpoint_auth_method: None,
+                    jwks: None,
+                    jwks_uri: None,
                 },
             )
             .await
@@ -1487,6 +1511,9 @@ mod tests {
                         backchannel_logout_uri: None,
                         backchannel_logout_session_required: None,
                         consent_required: None,
+                        token_endpoint_auth_method: None,
+                        jwks: None,
+                        jwks_uri: None,
                     },
                 },
             )

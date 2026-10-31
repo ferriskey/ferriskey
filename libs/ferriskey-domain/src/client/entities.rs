@@ -8,11 +8,13 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::authentication::entities::AuthProtocol;
+use crate::client::entities::auth_method::{ClientJwks, ClientKeySource, TokenEndpointAuthMethod};
 use crate::client::entities::saml::InvalidSamlConfig;
 use crate::common::pagination::DateRange;
 use crate::realm::scope::RealmOwned;
 use crate::{generate_random_string, generate_timestamp, realm::RealmId};
 
+pub mod auth_method;
 pub mod redirect_uri;
 pub mod saml;
 pub mod token_exchange_policy;
@@ -171,6 +173,12 @@ pub struct Client {
     pub updated_at: DateTime<Utc>,
     pub consent_required: bool,
     pub registration_source: ClientRegistrationSource,
+    /// `None` exactly when `public_client` is true.
+    pub token_endpoint_auth_method: TokenEndpointAuthMethod,
+    /// Inline public keys of a `private_key_jwt` client (RFC 7591 §2).
+    pub jwks: Option<ClientJwks>,
+    /// Where the public keys of a `private_key_jwt` client are published.
+    pub jwks_uri: Option<String>,
 }
 
 pub struct ClientConfig {
@@ -202,6 +210,14 @@ impl Client {
 
     pub fn secret_str(&self) -> Option<&str> {
         self.secret.as_ref().map(|secret| secret.expose().as_str())
+    }
+
+    pub fn key_source(&self) -> Option<ClientKeySource<'_>> {
+        match (&self.jwks, &self.jwks_uri) {
+            (Some(jwks), _) => Some(ClientKeySource::Inline(jwks)),
+            (None, Some(uri)) => Some(ClientKeySource::Uri(uri)),
+            (None, None) => None,
+        }
     }
 
     pub fn consent_is_required(&self) -> bool {
@@ -241,6 +257,9 @@ impl Client {
             updated_at: now,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: TokenEndpointAuthMethod::default_for(config.public_client),
+            jwks: None,
+            jwks_uri: None,
         }
     }
 
@@ -276,6 +295,9 @@ impl Client {
             updated_at: now,
             consent_required: false,
             registration_source: ClientRegistrationSource::Admin,
+            token_endpoint_auth_method: TokenEndpointAuthMethod::ClientSecretBasic,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 }

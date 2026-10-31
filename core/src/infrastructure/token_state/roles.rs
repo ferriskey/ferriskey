@@ -202,6 +202,9 @@ mod tests {
             maintenance_reason: None,
             maintenance_session_strategy: None,
             consent_required: None,
+            token_endpoint_auth_method: None,
+            jwks: None,
+            jwks_uri: None,
         }
     }
 

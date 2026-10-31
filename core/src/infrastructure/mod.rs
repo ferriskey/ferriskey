@@ -4,6 +4,7 @@ pub mod aegis;
 pub mod authz;
 pub mod backchannel_logout;
 pub mod client;
+pub mod client_assertion;
 pub mod client_metadata;
 pub mod common;
 pub mod compass;

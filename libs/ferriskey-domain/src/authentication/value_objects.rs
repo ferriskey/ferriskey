@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::client_credential::{ClientCredential, ClientProof};
 use crate::authentication::entities::{GrantType, JwtToken};
 use crate::client::entities::Client;
 use crate::realm::scope::RealmScope;
@@ -65,7 +66,7 @@ pub struct GrantTypeParams {
     pub client: Client,
     pub base_url: String,
     pub client_id: String,
-    pub client_secret: Option<String>,
+    pub client_proof: ClientProof,
     pub code: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,
@@ -258,7 +259,7 @@ pub struct EvaluateClientScopesResult {
 pub struct IntrospectTokenInput {
     pub realm_name: String,
     pub client_id: String,
-    pub client_secret: String,
+    pub client_credential: ClientCredential,
     pub token: String,
     pub token_type_hint: Option<String>,
 }
@@ -266,7 +267,7 @@ pub struct IntrospectTokenInput {
 pub struct RevokeTokenInput {
     pub realm_name: String,
     pub client_id: String,
-    pub client_secret: Option<String>,
+    pub client_credential: ClientCredential,
     pub token: String,
     pub token_type_hint: Option<String>,
 }
