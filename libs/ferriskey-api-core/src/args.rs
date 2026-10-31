@@ -3,8 +3,42 @@
 use std::{fmt::Display, num::NonZeroUsize, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig, PasswordHashingCost};
+use ferriskey_core::domain::common::{
+    DatabaseConfig, FerriskeyConfig, PasswordHashingCost, RefreshTokenCommit, RefreshTokenFormat,
+};
 use url::Url;
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default, PartialEq, Eq)]
+pub enum RefreshTokenFormatArg {
+    #[default]
+    Jwt,
+    Opaque,
+}
+
+impl From<RefreshTokenFormatArg> for RefreshTokenFormat {
+    fn from(value: RefreshTokenFormatArg) -> Self {
+        match value {
+            RefreshTokenFormatArg::Jwt => RefreshTokenFormat::Jwt,
+            RefreshTokenFormatArg::Opaque => RefreshTokenFormat::Opaque,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default, PartialEq, Eq)]
+pub enum RefreshTokenCommitArg {
+    #[default]
+    Durable,
+    Async,
+}
+
+impl From<RefreshTokenCommitArg> for RefreshTokenCommit {
+    fn from(value: RefreshTokenCommitArg) -> Self {
+        match value {
+            RefreshTokenCommitArg::Durable => RefreshTokenCommit::Durable,
+            RefreshTokenCommitArg::Async => RefreshTokenCommit::Async,
+        }
+    }
+}
 
 #[derive(Debug, Clone, ValueEnum, Default)]
 #[deprecated]
@@ -111,6 +145,22 @@ pub struct Args {
     )]
     pub config_cache_ttl_seconds: u64,
     #[arg(
+        long = "refresh-token-format",
+        env = "REFRESH_TOKEN_FORMAT",
+        value_enum,
+        default_value_t = RefreshTokenFormatArg::Jwt,
+        long_help = "Format of newly issued refresh tokens: `jwt` (RS256 JWT) or `opaque` (`fkr_` + 32 random bytes, only its SHA-256 is stored). Both formats are accepted from this version on. Enable `opaque` only once every replica runs a version that accepts it, and do not roll back below that version while opaque tokens are live: an older binary refuses them and their holders must sign in again."
+    )]
+    pub refresh_token_format: RefreshTokenFormatArg,
+    #[arg(
+        long = "refresh-token-commit",
+        env = "REFRESH_TOKEN_COMMIT",
+        value_enum,
+        default_value_t = RefreshTokenCommitArg::Durable,
+        long_help = "Whether issuing and rotating a refresh token waits for the database to write its commit to disk: `durable` (default) or `async`. `async` removes a disk flush from every refresh, which cuts its tail latency. Its cost: a database crash can lose the last rotations, so each token consumed by a lost rotation works once more and its successor no longer does. Revocations always wait for the disk. `async` opens up to DATABASE_MAX_CONNECTIONS more connections to the database."
+    )]
+    pub refresh_token_commit: RefreshTokenCommitArg,
+    #[arg(
         long = "password-hash-memory-kib",
         env = "PASSWORD_HASH_MEMORY_KIB",
         default_value_t = 7168,
@@ -170,6 +220,8 @@ impl Default for Args {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 5,
+            refresh_token_format: RefreshTokenFormatArg::Jwt,
+            refresh_token_commit: RefreshTokenCommitArg::Durable,
             password_hash_memory_kib: 7168,
             password_hash_iterations: 5,
             password_hash_parallelism: 1,
@@ -537,6 +589,8 @@ impl From<Args> for FerriskeyConfig {
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
             client_metadata_allow_private_endpoints: value.client_metadata_allow_private_endpoints,
             config_cache_ttl_seconds: value.config_cache_ttl_seconds,
+            refresh_token_format: value.refresh_token_format.into(),
+            refresh_token_commit: value.refresh_token_commit.into(),
             password_hashing: PasswordHashingCost {
                 memory_kib: value.password_hash_memory_kib,
                 iterations: value.password_hash_iterations,

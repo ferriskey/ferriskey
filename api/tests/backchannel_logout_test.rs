@@ -52,6 +52,7 @@ mod tests {
 
     struct SharedContext {
         app: std::sync::Mutex<Router>,
+        pool: sqlx::PgPool,
     }
 
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
@@ -121,6 +122,8 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             webapp_url: WEBAPP_URL.to_string(),
             database: DatabaseConfig {
                 host: db_host,
@@ -152,6 +155,7 @@ mod tests {
         let app = router(state).expect("build router");
         let ctx = SharedContext {
             app: std::sync::Mutex::new(app),
+            pool: pool.clone(),
         };
 
         let server = TestServer::new(ctx.app.lock().expect("router mutex").clone())
@@ -464,6 +468,56 @@ mod tests {
                 .as_str()
                 .expect("sid")
                 .to_string();
+
+            let master = master_token(&server).await;
+            let response = server
+                .delete(&format!("/realms/{REALM}/users/{}/sessions/{sid}", user.id))
+                .add_header("Authorization", auth_header(&master))
+                .await;
+            assert!(response.status_code().is_success(), "{}", response.text());
+
+            let received = rp.wait_for(1).await;
+            assert_eq!(received.len(), 1, "{received:?}");
+            assert_eq!(payload(&received[0])["sid"], json!(sid));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test backchannel_logout_test -- --ignored"]
+    fn a_session_known_only_from_a_legacy_access_token_row_still_notifies_its_client() {
+        rt().block_on(async {
+            let server = make_server();
+            let rp = fake_relying_party().await;
+            let client = create_client(&server, Some(&rp.endpoint)).await;
+            let user = create_user(&server).await;
+            let tokens = sign_in(&server, &client, &user).await;
+            let access = payload(tokens["access_token"].as_str().expect("access_token"));
+            let sid = access["sid"].as_str().expect("sid").to_string();
+            let pool = &shared_ctx().pool;
+            for _ in 0..50 {
+                let deleted = sqlx::query("DELETE FROM session_participants WHERE session_id = $1")
+                    .bind(Uuid::parse_str(&sid).expect("sid"))
+                    .execute(pool)
+                    .await
+                    .expect("forget the participant")
+                    .rows_affected();
+                if deleted > 0 {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            sqlx::query(
+                "INSERT INTO access_tokens (id, token_hash, jti, user_id, realm_id, claims) \
+                 SELECT $1, $2, $1, $3, realm_id, $4 FROM user_sessions WHERE id = $5",
+            )
+            .bind(Uuid::new_v4())
+            .bind(Uuid::new_v4().to_string())
+            .bind(Uuid::parse_str(&user.id).expect("user id"))
+            .bind(json!({ "sid": sid, "azp": access["azp"], "iss": access["iss"] }))
+            .bind(Uuid::parse_str(&sid).expect("sid"))
+            .execute(pool)
+            .await
+            .expect("store a token the way an older replica did");
 
             let master = master_token(&server).await;
             let response = server

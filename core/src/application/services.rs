@@ -173,13 +173,19 @@ use crate::infrastructure::aegis::cache::{
 use crate::infrastructure::client::cache::CachedClientRepository;
 use crate::infrastructure::realm::cache::CachedRealmRepository;
 use crate::infrastructure::token_state::{
-    CachedAccessTokenRepository, CachedUserSessionRepository,
+    CachedAccessTokenRepository, CachedGroupTokenRepository, CachedOrganizationAttributeRepository,
+    CachedOrganizationMemberRepository, CachedOrganizationRepository,
+    CachedUserAttributeRepository, CachedUserRepository, CachedUserRoleRepository,
+    CachedUserSessionRepository, InvalidatingClientRepository, InvalidatingGroupMemberRepository,
+    InvalidatingGroupRepository, InvalidatingGroupRoleRepository,
+    InvalidatingOrganizationMemberRoleRepository, InvalidatingRealmRepository,
+    InvalidatingRoleRepository, InvalidatingUserRequiredActionRepository,
 };
 
-type RealmRepo = CachedRealmRepository<PostgresRealmRepository>;
-type ClientRepo = CachedClientRepository<PostgresClientRepository>;
-type UserRepo = PostgresUserRepository;
-type UserRoleRepo = PostgresUserRoleRepository;
+type RealmRepo = InvalidatingRealmRepository<CachedRealmRepository<PostgresRealmRepository>>;
+type ClientRepo = InvalidatingClientRepository<CachedClientRepository<PostgresClientRepository>>;
+type UserRepo = CachedUserRepository<PostgresUserRepository>;
+type UserRoleRepo = CachedUserRoleRepository<PostgresUserRoleRepository>;
 type SecurityEventRepo = PostgresSecurityEventRepository;
 type CredentialRepo = PostgresCredentialRepository;
 type WebhookRepo = PostgresWebhookRepository;
@@ -245,12 +251,13 @@ type ApplicationTokenExchangePolicyService = TokenExchangePolicyServiceImpl<
     UserRoleRepo,
     TokenExchangePolicyRepo,
 >;
-type RoleRepo = PostgresRoleRepository;
+type RoleRepo = InvalidatingRoleRepository<PostgresRoleRepository>;
 type HealthCheckRepo = PostgresHealthCheckRepository;
 type RecoveryCodeRepo = RandBytesRecoveryCodeRepository<10, PasswordHasherRepository>;
 type AuthSessionRepo = PostgresAuthSessionRepository;
 type HasherRepo = PasswordHasherRepository;
-type UserRequiredActionRepo = PostgresUserRequiredActionRepository;
+type UserRequiredActionRepo =
+    InvalidatingUserRequiredActionRepository<PostgresUserRequiredActionRepository>;
 type OtpEnrollmentRepo = PostgresOtpEnrollmentRepository;
 type ElevationRepo = PostgresElevationRepository;
 type PasskeyRegistrationRepo = PostgresPasskeyRegistrationRepository;
@@ -260,7 +267,7 @@ type ApplicationOtherSessionsRevocation =
         RefreshTokenRepo,
         UserSessionRepo,
     >;
-type UserAttributeRepo = PostgresUserAttributeRepository;
+type UserAttributeRepo = CachedUserAttributeRepository<PostgresUserAttributeRepository>;
 type KeystoreRepo = PostgresKeyStoreRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 type AccessTokenRepo = CachedAccessTokenRepository<PostgresAccessTokenRepository>;
@@ -286,15 +293,18 @@ type EmailTemplateRepo = PostgresEmailTemplateRepository;
 type MjmlRenderer = MjmlTemplateRenderer;
 type PortalThemeRepo = PostgresPortalThemeRepository;
 type PortalLayoutsRepo = PostgresPortalLayoutsRepository;
-type OrganizationRepo = PostgresOrganizationRepository;
-type OrganizationAttributeRepo = PostgresOrganizationAttributeRepository;
-type OrganizationMemberRepo = PostgresOrganizationMemberRepository;
-type OrganizationMemberRoleRepo = PostgresOrganizationMemberRoleRepository;
-type GroupRepo = PostgresGroupRepository;
-type GroupMemberRepo = PostgresGroupMemberRepository;
-type GroupRoleRepo = PostgresGroupRoleRepository;
+type OrganizationRepo = CachedOrganizationRepository<PostgresOrganizationRepository>;
+type OrganizationAttributeRepo =
+    CachedOrganizationAttributeRepository<PostgresOrganizationAttributeRepository>;
+type OrganizationMemberRepo =
+    CachedOrganizationMemberRepository<PostgresOrganizationMemberRepository>;
+type OrganizationMemberRoleRepo =
+    InvalidatingOrganizationMemberRoleRepository<PostgresOrganizationMemberRoleRepository>;
+type GroupRepo = InvalidatingGroupRepository<PostgresGroupRepository>;
+type GroupMemberRepo = InvalidatingGroupMemberRepository<PostgresGroupMemberRepository>;
+type GroupRoleRepo = InvalidatingGroupRoleRepository<PostgresGroupRoleRepository>;
 type GroupAttributeRepo = PostgresGroupAttributeRepository;
-type GroupTokenRepo = PostgresGroupTokenRepository;
+type GroupTokenRepo = CachedGroupTokenRepository<PostgresGroupTokenRepository>;
 type EmailVerificationTokenRepo = PostgresEmailVerificationTokenRepository;
 type UserSessionRepo = CachedUserSessionRepository<
     crate::infrastructure::backchannel_logout::NotifyingUserSessionRepository<
