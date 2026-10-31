@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useGetClientSecret, useUpdateClient } from '@/api/client.api'
+import {
+  useGetClientSecret,
+  useRevokePreviousClientSecret,
+  useRotateClientSecret,
+  useUpdateClient,
+} from '@/api/client.api'
 import type { Schemas } from '@/api/api.client'
 import { apiErrorMessage } from '@/lib/api-error'
 import ClientCredentialsTab from '../ui/client-credentials-tab'
@@ -61,6 +66,10 @@ export default function ClientCredentialsTabFeature({
   if (draft.key !== pristine.key) setDraft(pristine)
   const current = draft.key === pristine.key ? draft : pristine
 
+  const { mutate: rotateSecret, isPending: rotating } = useRotateClientSecret()
+  const { mutate: revokePrevious, isPending: revoking } = useRevokePreviousClientSecret()
+  const path = { realm_name: realm, client_id: client.id }
+
   const status = (error as { status?: number } | null)?.status
   const forbidden = revealed && status === 403
   const failed = revealed && Boolean(error) && !forbidden
@@ -106,7 +115,17 @@ export default function ClientCredentialsTabFeature({
       isFetching={isFetching}
       forbidden={forbidden}
       failed={failed}
+      previousSecret={revealed ? (data?.previous_secret?.client_secret ?? null) : null}
+      rotating={rotating}
+      revoking={revoking}
       onToggleReveal={() => setRevealed((r) => !r)}
+      onRotate={(gracePeriodSecs) =>
+        rotateSecret(
+          { path, body: { grace_period_secs: gracePeriodSecs } },
+          { onSuccess: () => setRevealed(true) }
+        )
+      }
+      onRevokePrevious={() => revokePrevious({ path })}
       showSecret={client.public_client || usesSecret(client.token_endpoint_auth_method)}
       authentication={
         client.public_client || client.protocol !== 'openid-connect'
