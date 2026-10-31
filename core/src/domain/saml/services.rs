@@ -444,6 +444,7 @@ where
                 issuer: None,
                 resource: None,
                 max_age: None,
+                acr_values: None,
             }))
             .await;
 
@@ -772,6 +773,8 @@ pub(crate) mod tests {
             issuer: None,
             resource: None,
             max_age: None,
+            acr_values: None,
+            verified_factors: Vec::new(),
         }
     }
 

@@ -51,6 +51,8 @@ pub struct AuthorizationServerMetadata {
     pub token_endpoint_auth_methods_supported: Vec<String>,
     pub token_endpoint_auth_signing_alg_values_supported: Vec<String>,
     pub authorization_response_iss_parameter_supported: bool,
+    /// RFC 9470: the `acr` values a client may request.
+    pub acr_values_supported: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_endpoint: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -99,6 +101,7 @@ pub async fn get_authorization_server_metadata(
         token_endpoint_auth_methods_supported: supported_token_endpoint_auth_methods(),
         token_endpoint_auth_signing_alg_values_supported: assertion_signing_algorithms(),
         authorization_response_iss_parameter_supported: true,
+        acr_values_supported: settings.acr_values_supported,
         registration_endpoint: settings
             .dcr_enabled
             .then(|| format!("{issuer}/clients/register")),

@@ -888,6 +888,7 @@ where
                 input.account_chooser_enabled,
                 input.account_chooser_show_email,
                 input.require_pushed_authorization_requests,
+                input.acr_loa_map,
             )
             .await?;
 
@@ -965,6 +966,7 @@ where
             dcr_enabled: settings.dcr_enabled,
             require_pushed_authorization_requests: settings.require_pushed_authorization_requests,
             scopes_supported,
+            acr_values_supported: settings.acr_loa_map.supported_values(),
         })
     }
 }

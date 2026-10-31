@@ -1144,6 +1144,8 @@ impl ApplicationService {
             issuer: input.issuer,
             resource: parameters.resource.clone(),
             max_age: None,
+            acr_values: None,
+            acr_essential: false,
             pushed: true,
         };
         self.auth_service

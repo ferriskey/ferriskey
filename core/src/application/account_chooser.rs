@@ -3,6 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::application::services::ApplicationAuthService;
+use crate::domain::authentication::assurance::AcrRequest;
 use crate::domain::authentication::services::sso_token_hash;
 use crate::domain::common::entities::app_errors::CoreError;
 use crate::domain::common::generate_random_token;
@@ -47,7 +48,7 @@ impl SessionResumptionPort for SessionResumptionAdapter {
     ) -> Result<(Scoped<UserSession>, User), CoreError> {
         let (session, user, _) = self
             .auth_service
-            .resumable_session(session, scope, max_age, client_id)
+            .resumable_session(session, scope, max_age, &AcrRequest::default(), client_id)
             .await?;
 
         Ok((session, user))

@@ -40,6 +40,8 @@ pub struct Model {
     pub issuer: Option<String>,
     pub resource: Option<String>,
     pub max_age: Option<i64>,
+    pub verified_factors: Json,
+    pub acr_values: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -71,6 +73,8 @@ pub enum Column {
     Issuer,
     Resource,
     MaxAge,
+    VerifiedFactors,
+    AcrValues,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -128,6 +132,8 @@ impl ColumnTrait for Column {
             Self::Issuer => ColumnType::Text.def().null(),
             Self::Resource => ColumnType::Text.def().null(),
             Self::MaxAge => ColumnType::BigInteger.def().null(),
+            Self::VerifiedFactors => ColumnType::JsonBinary.def(),
+            Self::AcrValues => ColumnType::Text.def().null(),
         }
     }
 }

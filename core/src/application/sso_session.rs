@@ -3,6 +3,7 @@ use std::sync::Arc;
 use ferriskey_domain::token_lifetime::TokenLifetimes;
 use uuid::Uuid;
 
+use crate::domain::authentication::assurance::FactorUse;
 use crate::domain::authentication::ports::{OpenedSsoSession, SessionOrigin, SsoSessionPort};
 use crate::domain::authentication::services::{NewSession, open_or_reauthenticate_session};
 use crate::domain::client::ports::ClientRepository;
@@ -64,6 +65,7 @@ where
         client_id: Uuid,
         remember_me: bool,
         reauth_session_id: Option<Uuid>,
+        factors: Vec<FactorUse>,
     ) -> Result<OpenedSsoSession, CoreError> {
         let realm_settings = self
             .realm_repository
@@ -93,6 +95,7 @@ where
                 persistent: remember_me && realm_settings.remember_me_enabled,
                 origin: &SessionOrigin::default(),
             },
+            &factors,
         )
         .await?;
 
