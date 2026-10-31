@@ -175,15 +175,15 @@ N/A. The project uses the Apache 2.0 license. All contributions are made under t
 
 ### Does the project utilize any dependencies with licenses not on the allowlist or an approved exception?
 
-`cargo-deny` enforces the CNCF allowlist in CI ([deny.toml](https://github.com/ferriskey/ferriskey/blob/main/deny.toml)). Checked on 2026-10-17 over the Rust workspace and the console's production packages, and on 2026-10-31 over the Terraform provider, these are outside the allowlist with no approved exception yet:
+`cargo-deny` enforces the CNCF allowlist in CI ([deny.toml](https://github.com/ferriskey/ferriskey/blob/main/deny.toml)). Checked on 2026-10-31 over the Rust workspace (runtime dependencies), the console's production packages and the Terraform provider, these are outside the allowlist with no approved exception yet:
 
-- MPL-2.0: `webauthn-rs`, `webauthn-rs-core`, `webauthn-rs-proto`, `webauthn-attestation-ca`, `base64urlsafedata` 0.5.5 (the WebAuthn relying party for passkeys), unmodified, fetched from crates.io at build time.
+- MPL-2.0: `webauthn-rs`, `webauthn-rs-core`, `webauthn-rs-proto`, `webauthn-attestation-ca`, `base64urlsafedata` 0.5.5 (the WebAuthn relying party for passkeys), and `cssparser` 0.38 with `dtoa-short` 0.3 (pulled by the `ammonia` HTML sanitizer); all unmodified, fetched from crates.io at build time.
 - Unicode-3.0: the ICU4X crates (`icu_*`, `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `zerofrom`, `zerotrie`, `zerovec` and their derive crates), transitively through `url` and `idna`.
-- CDLA-Permissive-2.0: `webpki-roots` 0.26.11 and 1.0.4 (Mozilla CA data); the blanket exception in [cncf/foundation#172](https://github.com/cncf/foundation/issues/172) was recorded under the crate's earlier MPL-2.0 license.
-- OFL-1.1: `@fontsource-variable/geist`, font files in the console.
+- CDLA-Permissive-2.0: `webpki-roots` 0.26.11 and 1.0.10 (Mozilla CA data); the blanket exception in [cncf/foundation#172](https://github.com/cncf/foundation/issues/172) was recorded under the crate's earlier MPL-2.0 license.
+- OFL-1.1: `@fontsource-variable/geist` and `@fontsource/ibm-plex-sans`, font files in the console.
 - MPL-2.0, in terraform-provider-ferriskey: the HashiCorp Go modules every Terraform provider builds against (`terraform-plugin-framework`, `terraform-plugin-framework-validators`, `terraform-plugin-go`, `terraform-plugin-log`, `terraform-plugin-docs`, `terraform-plugin-testing`), unmodified, fetched at build time. Other HashiCorp MPL-2.0 modules already hold blanket exceptions for all CNCF projects.
 
-Everything else is Apache-2.0, MIT, BSD, ISC, Zlib or 0BSD. Exception requests for these groups are filed at onboarding, or the dependency is replaced (the font).
+Everything else is Apache-2.0, MIT, BSD, ISC, Zlib or 0BSD. Exception requests for these groups are filed at onboarding, or the dependency is replaced (the fonts).
 
 ### Project "Domain Technical Review"
 
