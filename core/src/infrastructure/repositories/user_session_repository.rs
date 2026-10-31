@@ -53,6 +53,9 @@ fn listing_select(
         .apply_if(filter.persistent, |select, value| {
             select.filter(Column::Persistent.eq(value))
         })
+        .apply_if(filter.active_only.then(Utc::now), |select, now| {
+            select.filter(Column::ExpiresAt.gt(now.naive_utc()))
+        })
 }
 
 impl From<crate::entity::user_sessions::Model> for UserSession {
@@ -426,6 +429,21 @@ mod tests {
             sql.contains(r#""user_sessions"."created_at" < '2026-02-01 00:00:00.000000'"#),
             "{sql}"
         );
+    }
+
+    #[test]
+    fn active_only_leaves_out_the_expired_sessions() {
+        let active = sql(&SessionFilter {
+            active_only: true,
+            ..SessionFilter::default()
+        });
+        assert!(
+            active.contains(r#""user_sessions"."expires_at" > '"#),
+            "{active}"
+        );
+
+        let all = sql(&SessionFilter::default());
+        assert!(!all.contains(r#""expires_at" >"#), "{all}");
     }
 
     #[test]
