@@ -7,6 +7,8 @@ use ferriskey_core::domain::authentication::entities::AuthProtocol;
 use ferriskey_core::domain::client::entities::{Client, ClientConfig, ClientType};
 use ferriskey_core::domain::common::entities::app_errors::CoreError;
 use ferriskey_domain::realm::RealmId;
+use std::pin::pin;
+use std::task::{Context, Poll, Waker};
 use uuid::Uuid;
 
 const SECRET: &str = "4c1f2d8e9b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b";
@@ -44,11 +46,15 @@ impl ClientAssertionVerifier for SecretsOnly {
     }
 }
 
+fn ready<F: Future>(future: F) -> F::Output {
+    match pin!(future).poll(&mut Context::from_waker(Waker::noop())) {
+        Poll::Ready(output) => output,
+        Poll::Pending => unreachable!("the secret path never waits"),
+    }
+}
+
 fn client_credentials(c: &mut Criterion) {
     let client = confidential_client();
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .expect("runtime");
     let secret = ClientCredential::secret(SECRET);
     let wrong = ClientCredential::secret("not-the-secret");
 
@@ -56,28 +62,26 @@ fn client_credentials(c: &mut Criterion) {
         "client_credentials: authenticate a confidential client",
         |b| {
             b.iter(|| {
-                runtime
-                    .block_on(authenticate_client(
-                        &SecretsOnly,
-                        black_box(&client),
-                        black_box(&secret),
-                        ClientGrant::ClientCredentials,
-                    ))
-                    .expect("the secret matches")
+                ready(authenticate_client(
+                    &SecretsOnly,
+                    black_box(&client),
+                    black_box(&secret),
+                    ClientGrant::ClientCredentials,
+                ))
+                .expect("the secret matches")
             })
         },
     );
 
     c.bench_function("client_credentials: refuse a wrong client secret", |b| {
         b.iter(|| {
-            runtime
-                .block_on(authenticate_client(
-                    &SecretsOnly,
-                    black_box(&client),
-                    black_box(&wrong),
-                    ClientGrant::ClientCredentials,
-                ))
-                .is_err()
+            ready(authenticate_client(
+                &SecretsOnly,
+                black_box(&client),
+                black_box(&wrong),
+                ClientGrant::ClientCredentials,
+            ))
+            .is_err()
         })
     });
 }
