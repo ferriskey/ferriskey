@@ -130,6 +130,12 @@ mcp:
       aria: Owner of {{entry}}
   add: Add
   remove: Remove {{entry}}
+  authorization:
+    title: Authorization requests
+    description: How clients of this realm send their authorization requests.
+  par:
+    label: Require pushed authorization requests
+    description: Refuse authorization requests that were not pushed to the PAR endpoint first (RFC 9126). Applies to every client of the realm, whatever its own setting.
 
 policy:
   title: Password Policy

@@ -24,6 +24,7 @@ export interface ClientSettingsDraft {
   deviceCodeGrant: boolean
   tokenExchange: boolean
   requirePkce: boolean
+  requirePushedAuthorizationRequests: boolean
   accessTokenLifetime: number | null
   refreshTokenLifetime: number | null
   idTokenLifetime: number | null
@@ -183,6 +184,18 @@ export default function ClientSettingsTab({
           <SwitchField
             checked={draft.requirePkce}
             onCheckedChange={(v) => onDraftChange({ requirePkce: v })}
+            onLabel={t('settings.capability.pkce.required')}
+            offLabel={t('settings.capability.pkce.optional')}
+          />
+        </FieldRow>
+
+        <FieldRow
+          label={t('settings.capability.par.label')}
+          description={t('settings.capability.par.description')}
+        >
+          <SwitchField
+            checked={draft.requirePushedAuthorizationRequests}
+            onCheckedChange={(v) => onDraftChange({ requirePushedAuthorizationRequests: v })}
             onLabel={t('settings.capability.pkce.required')}
             offLabel={t('settings.capability.pkce.optional')}
           />
