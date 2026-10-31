@@ -14,7 +14,7 @@ pub fn single_sign_on_url(public_base_url: &str, realm_name: &str) -> String {
 pub fn idp_metadata_document(
     public_base_url: &str,
     realm_name: &str,
-    signing_certificate_base64_der: String,
+    signing_certificates_base64_der: Vec<String>,
 ) -> Result<String, MetadataError> {
     render_idp_metadata(&IdpMetadataDescriptor {
         entity_id: idp_entity_id(public_base_url, realm_name),
@@ -26,7 +26,7 @@ pub fn idp_metadata_document(
             NameIdFormat::Unspecified,
         ],
         want_authn_requests_signed: false,
-        signing_certificate_base64_der,
+        signing_certificates_base64_der,
     })
 }
 
@@ -51,7 +51,7 @@ mod tests {
         let document = idp_metadata_document(
             "https://auth.example.com",
             "master",
-            CERTIFICATE.to_string(),
+            vec![CERTIFICATE.to_string()],
         )
         .expect("the descriptor is complete");
 
@@ -63,7 +63,7 @@ mod tests {
         let document = idp_metadata_document(
             "https://auth.example.com",
             "master",
-            CERTIFICATE.to_string(),
+            vec![CERTIFICATE.to_string()],
         )
         .expect("the descriptor is complete");
 
@@ -80,7 +80,7 @@ mod tests {
         let document = idp_metadata_document(
             "https://auth.example.com",
             "master",
-            CERTIFICATE.to_string(),
+            vec![CERTIFICATE.to_string()],
         )
         .expect("the descriptor is complete");
 
@@ -107,7 +107,7 @@ mod tests {
         let document = idp_metadata_document(
             "https://auth.example.com",
             "master",
-            CERTIFICATE.to_string(),
+            vec![CERTIFICATE.to_string()],
         )
         .expect("the descriptor is complete");
 
@@ -117,8 +117,8 @@ mod tests {
     #[test]
     fn a_realm_without_a_signing_certificate_yields_no_document_at_all() {
         assert_eq!(
-            idp_metadata_document("https://auth.example.com", "master", String::new()),
-            Err(MetadataError::EmptyValue("X509Certificate"))
+            idp_metadata_document("https://auth.example.com", "master", Vec::new()),
+            Err(MetadataError::NoSigningCertificates)
         );
     }
 }

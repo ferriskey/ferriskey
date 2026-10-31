@@ -23,7 +23,7 @@ const UNAVAILABLE: &str = "SAML metadata is not available for this realm.";
     path = "/protocol/saml/descriptor",
     tag = "saml",
     summary = "Publish the realm SAML metadata",
-    description = "Returns the IdP entity descriptor a service provider needs to trust this realm: its entity id, its single sign-on endpoints and the certificate that signs assertions.",
+    description = "Returns the IdP entity descriptor a service provider needs to trust this realm: its entity id, its single sign-on endpoints, the certificate that signs assertions and the rotated ones that still verify.",
     params(("realm_name" = String, Path, description = "Realm name")),
     responses(
         (status = 200, description = "The realm entity descriptor", content_type = "application/samlmetadata+xml"),
@@ -43,16 +43,16 @@ pub async fn saml_descriptor(
         return Ok(error_page(StatusCode::INTERNAL_SERVER_ERROR, MISCONFIGURED));
     };
 
-    let certificate = match state
+    let certificates = match state
         .service
-        .idp_signing_certificate(realm_name.clone())
+        .idp_signing_certificates(realm_name.clone())
         .await
     {
-        Ok(certificate) => certificate,
+        Ok(certificates) => certificates,
         Err(error) => return Ok(refusal(&realm_name, error)),
     };
 
-    let document = match idp_metadata_document(&public_base_url, &realm_name, certificate) {
+    let document = match idp_metadata_document(&public_base_url, &realm_name, certificates) {
         Ok(document) => document,
         Err(error) => {
             warn!(realm = %realm_name, %error, "the realm entity descriptor could not be rendered");
