@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -7,7 +8,7 @@ use uuid::Uuid;
 
 use crate::domain::role::entities::Role;
 use crate::domain::user::entities::User;
-use crate::infrastructure::common::TtlCache;
+use crate::infrastructure::common::{Retention, TtlCache};
 
 #[derive(Debug)]
 pub struct ServiceAccount {
@@ -28,11 +29,12 @@ impl ServiceAccountCache {
         }
     }
 
-    pub fn get(&self, client_id: &Uuid) -> Option<Arc<ServiceAccount>> {
-        self.entries.get(client_id)
-    }
-
-    pub fn insert(&self, client_id: Uuid, account: Arc<ServiceAccount>) {
-        self.entries.insert(client_id, account);
+    pub async fn load<E, F, Fut>(&self, client_id: &Uuid, load: F) -> Result<Arc<ServiceAccount>, E>
+    where
+        E: Clone + Send + Sync + 'static,
+        F: Fn() -> Fut,
+        Fut: Future<Output = Result<(Arc<ServiceAccount>, Retention), E>>,
+    {
+        self.entries.load(client_id, load).await
     }
 }

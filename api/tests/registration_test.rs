@@ -103,6 +103,8 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             webapp_url: "http://localhost:5555".to_string(),
             database: DatabaseConfig {
                 host: db_host,
@@ -351,6 +353,115 @@ mod tests {
                 "the same address in another case must be refused as a client error, neither created nor a server error: {} {}",
                 second.status_code(),
                 second.text()
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test registration_test -- --ignored"]
+    fn a_registration_without_a_usable_username_takes_the_normalized_email_as_username() {
+        let server = make_server();
+        let admin = rt().block_on(get_admin_token(&server));
+        enable_self_registration(&server, &admin);
+
+        rt().block_on(async {
+            let seed = Uuid::new_v4().simple().to_string();
+
+            for (index, username) in [None, Some(""), Some("   ")].into_iter().enumerate() {
+                let email = format!("Contact-{seed}-{index}@Example.com");
+                let mut payload = json!({ "email": email, "password": strong_password("Ij") });
+                if let Some(username) = username {
+                    payload["username"] = json!(username);
+                }
+
+                let response = register(&server, payload).await;
+                assert_eq!(
+                    response.status_code(),
+                    201,
+                    "username {username:?} is unusable, the email stands in for it: {}",
+                    response.text()
+                );
+
+                let listed = server
+                    .get(&format!("/realms/{}/users", realm()))
+                    .add_header("Authorization", auth_header(&admin))
+                    .await;
+                assert_eq!(
+                    listed.status_code(),
+                    200,
+                    "listing users: {}",
+                    listed.text()
+                );
+
+                let body: Value = listed.json();
+                let expected = email.to_lowercase();
+                let created = body["data"]
+                    .as_array()
+                    .expect("user list")
+                    .iter()
+                    .find(|u| u["username"] == expected.as_str());
+
+                assert!(
+                    created.is_some(),
+                    "username {username:?} must resolve to the normalized email {expected}: {body}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test registration_test -- --ignored"]
+    fn two_addresses_sharing_a_local_part_both_register_without_a_username() {
+        let server = make_server();
+        let admin = rt().block_on(get_admin_token(&server));
+        enable_self_registration(&server, &admin);
+
+        rt().block_on(async {
+            let seed = Uuid::new_v4().simple().to_string();
+
+            for (domain, password) in [("a", "Kl"), ("b", "Mn")] {
+                let response = register(
+                    &server,
+                    json!({
+                        "email": format!("contact@{domain}-{seed}.example.com"),
+                        "password": strong_password(password),
+                    }),
+                )
+                .await;
+
+                assert_eq!(
+                    response.status_code(),
+                    201,
+                    "contact@{domain}-{seed}.example.com must register even though another contact@ exists: {}",
+                    response.text()
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test registration_test -- --ignored"]
+    fn a_password_equal_to_the_email_is_refused_when_the_email_stands_in_for_the_username() {
+        let server = make_server();
+        let admin = rt().block_on(get_admin_token(&server));
+        enable_self_registration(&server, &admin);
+
+        rt().block_on(async {
+            let seed = Uuid::new_v4().simple().to_string();
+            let email = format!("{}@example.com", strong_password(&seed));
+
+            let response = register(&server, json!({ "email": email, "password": email })).await;
+
+            assert_ne!(
+                response.status_code(),
+                201,
+                "the password is the username that will be created: {}",
+                response.text()
+            );
+            assert!(
+                response.text().contains("common_password"),
+                "the refusal must come from the forbid_common rule: {}",
+                response.text()
             );
         });
     }

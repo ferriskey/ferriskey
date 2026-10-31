@@ -24,6 +24,18 @@ fn token_signing(c: &mut Criterion) {
     let header = Header::new(Algorithm::RS256);
     let claims = access_token_claims();
     let token = encode(&header, &claims, &encoding_key).expect("sign the access token");
+    let certificate =
+        JwtKeyPair::self_signed_certificate(&private_pem, "bench").expect("certificate");
+    let key_pair = JwtKeyPair::from_pem(
+        &private_pem,
+        &public_pem,
+        &certificate,
+        Uuid::nil(),
+        Uuid::nil(),
+    )
+    .expect("parse the key pair once");
+    let signer = key_pair.signer();
+    let (signing_input, _) = token.rsplit_once('.').expect("a compact JWS");
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_audience(&["master-realm", "account"]);
 
@@ -31,6 +43,18 @@ fn token_signing(c: &mut Criterion) {
         b.iter(|| {
             encode(&header, black_box(&claims), &encoding_key).expect("sign the access token")
         })
+    });
+
+    c.bench_function("rs256 sign an access token with a kept key", |b| {
+        b.iter(|| {
+            signer
+                .sign_rs256(black_box(signing_input.as_bytes()))
+                .expect("sign the access token")
+        })
+    });
+
+    c.bench_function("publish the realm key as a jwk", |b| {
+        b.iter(|| black_box(&key_pair).to_jwk_key().expect("publish the key"))
     });
 
     c.bench_function("rs256 verify an access token", |b| {

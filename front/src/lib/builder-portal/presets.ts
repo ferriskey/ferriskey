@@ -83,6 +83,7 @@ function registerCard(): BuilderNode[] {
         node('card-content', {
           props: { gap: '12px' },
           children: [
+            node('form_error_banner'),
             node('first_name_input'),
             node('last_name_input'),
             node('email_input'),

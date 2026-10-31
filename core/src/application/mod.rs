@@ -36,6 +36,16 @@ use crate::infrastructure::backchannel_logout::{
     BackchannelLogoutDispatcher, HttpLogoutTokenSender, KeystoreLogoutTokenSigner,
     NotifyingUserSessionRepository, PostgresSessionParticipantRepository,
 };
+use crate::infrastructure::token_state::{
+    CachedAccessTokenRepository, CachedGroupTokenRepository, CachedOrganizationAttributeRepository,
+    CachedOrganizationMemberRepository, CachedOrganizationRepository,
+    CachedUserAttributeRepository, CachedUserRepository, CachedUserRoleRepository,
+    CachedUserSessionRepository, InvalidatingClientRepository, InvalidatingGroupMemberRepository,
+    InvalidatingGroupRepository, InvalidatingGroupRoleRepository,
+    InvalidatingOrganizationMemberRoleRepository, InvalidatingRealmRepository,
+    InvalidatingRoleRepository, InvalidatingUserRequiredActionRepository, TokenState,
+    spawn_token_state_sync,
+};
 use crate::{
     domain::{
         abyss::{
@@ -249,6 +259,8 @@ pub async fn create_service_with_secrets(
         database_url,
         max_connections: config.database.max_connections,
         min_connections: config.database.min_connections,
+        async_refresh_tokens: config.refresh_token_commit
+            == crate::domain::common::RefreshTokenCommit::Async,
     })
     .await
     .map_err(|e| CoreError::ServiceUnavailable(e.to_string()))?;
@@ -258,16 +270,33 @@ pub async fn create_service_with_secrets(
     }
 
     let config_cache_ttl = Duration::from_secs(config.config_cache_ttl_seconds);
-    let realm = Arc::new(CachedRealmRepository::new(
-        PostgresRealmRepository::new(postgres.get_db()),
-        config_cache_ttl,
+    let (token_state, token_state_feed) = TokenState::new(config_cache_ttl);
+    if !config_cache_ttl.is_zero() {
+        spawn_token_state_sync(
+            postgres.get_db().get_postgres_connection_pool(),
+            token_state.clone(),
+            token_state_feed,
+        );
+    }
+    let realm = Arc::new(InvalidatingRealmRepository::new(
+        CachedRealmRepository::new(
+            PostgresRealmRepository::new(postgres.get_db()),
+            config_cache_ttl,
+        ),
+        token_state.clone(),
     ));
     let authz = Arc::new(PostgresAuthzRepository::new(postgres.get_db()));
-    let client = Arc::new(CachedClientRepository::new(
-        PostgresClientRepository::new(postgres.get_db()),
-        config_cache_ttl,
+    let client = Arc::new(InvalidatingClientRepository::new(
+        CachedClientRepository::new(
+            PostgresClientRepository::new(postgres.get_db()),
+            config_cache_ttl,
+        ),
+        token_state.clone(),
     ));
-    let user = Arc::new(PostgresUserRepository::new(postgres.get_db()));
+    let user = Arc::new(CachedUserRepository::new(
+        Arc::new(PostgresUserRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
     let credential = Arc::new(PostgresCredentialRepository::with_cipher(
         postgres.get_db(),
         secret_cipher.clone(),
@@ -289,15 +318,26 @@ pub async fn create_service_with_secrets(
         postgres.get_db(),
     ));
     let client_saml = Arc::new(PostgresClientSamlRepository::new(postgres.get_db()));
-    let role = Arc::new(PostgresRoleRepository::new(postgres.get_db()));
+    let role = Arc::new(InvalidatingRoleRepository::new(
+        Arc::new(PostgresRoleRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
     let keystore = Arc::new(PostgresKeyStoreRepository::with_cipher(
         postgres.get_db(),
         secret_cipher.clone(),
     ));
-    let user_role = Arc::new(PostgresUserRoleRepository::new(postgres.get_db()));
-    let user_required_action =
-        Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db()));
-    let user_attribute = Arc::new(PostgresUserAttributeRepository::new(postgres.get_db()));
+    let user_role = Arc::new(CachedUserRoleRepository::new(
+        Arc::new(PostgresUserRoleRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
+    let user_required_action = Arc::new(InvalidatingUserRequiredActionRepository::new(
+        Arc::new(PostgresUserRequiredActionRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
+    let user_attribute = Arc::new(CachedUserAttributeRepository::new(
+        Arc::new(PostgresUserAttributeRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
     let health_check = Arc::new(PostgresHealthCheckRepository::new(postgres.get_db()));
     let private_endpoints = PrivateEndpoints::from_allowed(config.webhook_allow_private_endpoints);
     if config.webhook_allow_private_endpoints {
@@ -310,8 +350,21 @@ pub async fn create_service_with_secrets(
         private_endpoints,
     ));
     let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
-    let refresh_token = Arc::new(PostgresRefreshTokenRepository::new(postgres.get_db()));
-    let access_token = Arc::new(PostgresAccessTokenRepository::new(postgres.get_db()));
+    let mut stored_refresh_tokens = PostgresRefreshTokenRepository::new(postgres.get_db());
+    if config.refresh_token_commit == crate::domain::common::RefreshTokenCommit::Async {
+        stored_refresh_tokens = stored_refresh_tokens
+            .with_issued_tokens_written_through(postgres.get_async_commit_db());
+    }
+    let refresh_token = Arc::new(stored_refresh_tokens);
+    let mut stored_access_tokens = PostgresAccessTokenRepository::new(postgres.get_db());
+    if config.refresh_token_commit == crate::domain::common::RefreshTokenCommit::Async {
+        stored_access_tokens =
+            stored_access_tokens.with_participants_written_through(postgres.get_async_commit_db());
+    }
+    let access_token = Arc::new(CachedAccessTokenRepository::new(
+        stored_access_tokens.clone(),
+        token_state.clone(),
+    ));
     // Every session deleted through this store sends a logout token to the
     // clients that took part in it (OIDC Back-Channel Logout).
     let backchannel_logout =
@@ -322,10 +375,13 @@ pub async fn create_service_with_secrets(
             Arc::new(HttpLogoutTokenSender::new(private_endpoints)),
             BackchannelLogoutConfig::default(),
         )));
-    let user_session = Arc::new(NotifyingUserSessionRepository::new(
-        Arc::new(PostgresUserSessionRepository::new(postgres.get_db())),
-        Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
-        backchannel_logout,
+    let user_session = Arc::new(CachedUserSessionRepository::new(
+        Arc::new(NotifyingUserSessionRepository::new(
+            Arc::new(PostgresUserSessionRepository::new(postgres.get_db())),
+            Arc::new(PostgresSessionParticipantRepository::new(postgres.get_db())),
+            backchannel_logout,
+        )),
+        token_state.clone(),
     ));
     let token_revocation = Arc::new(
         crate::application::token_revocation::TokenRevocationAdapter::new(
@@ -403,20 +459,43 @@ pub async fn create_service_with_secrets(
     let mjml_renderer = Arc::new(MjmlTemplateRenderer::new());
     let portal_theme = Arc::new(PostgresPortalThemeRepository::new(postgres.get_db()));
     let portal_layouts = Arc::new(PostgresPortalLayoutsRepository::new(postgres.get_db()));
-    let organization = Arc::new(PostgresOrganizationRepository::new(postgres.get_db()));
-    let organization_attribute = Arc::new(PostgresOrganizationAttributeRepository::new(
-        postgres.get_db(),
+    let organization = Arc::new(CachedOrganizationRepository::new(
+        Arc::new(PostgresOrganizationRepository::new(postgres.get_db())),
+        token_state.clone(),
     ));
-    let organization_member =
-        Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db()));
-    let organization_member_role = Arc::new(PostgresOrganizationMemberRoleRepository::new(
-        postgres.get_db(),
+    let organization_attribute = Arc::new(CachedOrganizationAttributeRepository::new(
+        Arc::new(PostgresOrganizationAttributeRepository::new(
+            postgres.get_db(),
+        )),
+        token_state.clone(),
     ));
-    let group = Arc::new(PostgresGroupRepository::new(postgres.get_db()));
-    let group_member = Arc::new(PostgresGroupMemberRepository::new(postgres.get_db()));
-    let group_role = Arc::new(PostgresGroupRoleRepository::new(postgres.get_db()));
+    let organization_member = Arc::new(CachedOrganizationMemberRepository::new(
+        Arc::new(PostgresOrganizationMemberRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
+    let organization_member_role = Arc::new(InvalidatingOrganizationMemberRoleRepository::new(
+        Arc::new(PostgresOrganizationMemberRoleRepository::new(
+            postgres.get_db(),
+        )),
+        token_state.clone(),
+    ));
+    let group = Arc::new(InvalidatingGroupRepository::new(
+        Arc::new(PostgresGroupRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
+    let group_member = Arc::new(InvalidatingGroupMemberRepository::new(
+        Arc::new(PostgresGroupMemberRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
+    let group_role = Arc::new(InvalidatingGroupRoleRepository::new(
+        Arc::new(PostgresGroupRoleRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
     let group_attribute = Arc::new(PostgresGroupAttributeRepository::new(postgres.get_db()));
-    let group_token = Arc::new(PostgresGroupTokenRepository::new(postgres.get_db()));
+    let group_token = Arc::new(CachedGroupTokenRepository::new(
+        Arc::new(PostgresGroupTokenRepository::new(postgres.get_db())),
+        token_state.clone(),
+    ));
     let email_verification_token_repo = Arc::new(PostgresEmailVerificationTokenRepository::new(
         postgres.get_db(),
     ));
@@ -526,7 +605,8 @@ pub async fn create_service_with_secrets(
         consent_service.clone(),
         client_metadata_resolver,
         Arc::new(ServiceAccountCache::new(config_cache_ttl)),
-    );
+    )
+    .with_refresh_token_format(config.refresh_token_format);
     let login_admission = Arc::new(auth_service.clone());
 
     // The auth service doubles as the device flow's token issuer.
@@ -553,7 +633,7 @@ pub async fn create_service_with_secrets(
         DEVICE_SESSION_PURGE_PERIOD,
     ));
     tokio::spawn(expired_rows_retention_task(
-        access_token.as_ref().clone(),
+        stored_access_tokens,
         refresh_token.as_ref().clone(),
         PostgresUserSessionRepository::new(postgres.get_db()),
     ));
@@ -953,6 +1033,8 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,
@@ -1162,6 +1244,8 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             database: crate::domain::common::DatabaseConfig {
                 host: db_host,
                 port: db_port,

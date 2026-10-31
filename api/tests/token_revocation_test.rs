@@ -113,6 +113,8 @@ mod tests {
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 0,
             password_hashing: PasswordHashingCost::default(),
+            refresh_token_format: Default::default(),
+            refresh_token_commit: Default::default(),
             webapp_url: WEBAPP_URL.to_string(),
             database: DatabaseConfig {
                 host: db_host,
@@ -578,6 +580,52 @@ mod tests {
             );
 
             assert_refresh_is_dead(&server, refresh_token).await;
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test token_revocation_test -- --ignored"]
+    fn an_expired_session_marks_its_token_inactive_on_introspection() {
+        rt().block_on(async {
+            let server = make_server();
+            let (client_id, client_secret) = create_service_client(&server).await;
+            let victim = create_victim(&server, "expired-session").await;
+
+            let tokens = login(&server, &victim.username, VICTIM_PASSWORD).await;
+            let access = tokens["access_token"].as_str().expect("access_token");
+            let session_id = sole_session_of(&server, access, &victim).await;
+
+            let before = introspect(&server, &client_id, &client_secret, access).await;
+            assert_eq!(
+                before.json::<Value>()["active"].as_bool(),
+                Some(true),
+                "a live token must introspect as active"
+            );
+
+            sqlx::query(
+                "UPDATE user_sessions \
+                 SET expires_at = (now() AT TIME ZONE 'utc') - interval '1 minute' \
+                 WHERE id = $1",
+            )
+            .bind(Uuid::parse_str(&session_id).expect("session id"))
+            .execute(&shared_ctx().pool)
+            .await
+            .expect("expire the session");
+
+            let userinfo = userinfo(&server, access).await;
+            assert_eq!(
+                userinfo.status_code(),
+                401,
+                "userinfo must refuse a token whose session expired"
+            );
+
+            let after = introspect(&server, &client_id, &client_secret, access).await;
+            let after_body = after.json::<Value>();
+            assert_eq!(
+                after_body["active"].as_bool(),
+                Some(false),
+                "the session expired but introspection still reports the token active: {after_body}"
+            );
         });
     }
 

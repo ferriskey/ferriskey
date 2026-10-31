@@ -4,9 +4,11 @@ use std::future::Future;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+use base64::Engine as _;
 use common::{
     ADMIN_CLIENT_ID, ADMIN_PASSWORD, ADMIN_USERNAME, ClientSpec, TestApp, authorize, cached_app,
-    client_credentials, exchange_code, password_grant, query_param, rt,
+    cached_opaque_app, client_credentials, exchange_code, introspect, password_grant, query_param,
+    refresh, rt,
 };
 use serde_json::{Value, json};
 use tracing::field::{Field, Visit};
@@ -14,15 +16,22 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::{Context, SubscriberExt};
 use tracing_subscriber::util::SubscriberInitExt;
 
-const PASSWORD_GRANT_BUDGET: usize = 10;
+const PASSWORD_GRANT_BUDGET: usize = 8;
 const WRONG_PASSWORD_BUDGET: usize = 6;
 const UNKNOWN_USER_BUDGET: usize = 4;
 const AUTHORIZE_BUDGET: usize = 4;
-const AUTHENTICATE_BUDGET: usize = 9;
-const CODE_EXCHANGE_BUDGET: usize = 12;
+const AUTHENTICATE_BUDGET: usize = 8;
+const CODE_EXCHANGE_BUDGET: usize = 7;
 const CLIENT_CREDENTIALS_BUDGET: usize = 0;
+const USERINFO_BUDGET: usize = 0;
+const INTROSPECT_BUDGET: usize = 1;
+const REFRESH_BUDGET: usize = 4;
+const OPAQUE_REFRESH_BUDGET: usize = 1;
+const MALFORMED_REFRESH_BUDGET: usize = 0;
+const FORGED_BEARER_BUDGET: usize = 0;
 
 const BACKGROUND_WORK: &[&str] = &[
+    "pg_notify",
     "webhook_deliveries",
     "webhook_outbox",
     "device_auth_sessions",
@@ -37,6 +46,13 @@ const BACKGROUND_WORK: &[&str] = &[
 
 static STATEMENTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static RECORDER: OnceLock<()> = OnceLock::new();
+static SERIAL: Mutex<()> = Mutex::new(());
+
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 struct StatementRecorder;
 
@@ -175,6 +191,12 @@ fn assert_within(step: &str, budget: usize, statements: &[String]) {
     );
 }
 
+fn with_forged_signature(token: &str) -> String {
+    let (signing_input, _) = token.rsplit_once('.').expect("a compact JWS");
+    let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode([7u8; 256]);
+    format!("{signing_input}.{signature}")
+}
+
 async fn browser_login(
     server: &axum_test::TestServer,
     app: &TestApp,
@@ -214,25 +236,99 @@ async fn browser_login(
     )
 }
 
+async fn client_with_default_scopes(app: &TestApp) -> common::SeededClient {
+    let client = app.client(ClientSpec::public().with_direct_access()).await;
+    sqlx::query(
+        "INSERT INTO client_scope_mappings (client_id, client_scope_id, default_scope_type) \
+         SELECT $1, id, 'DEFAULT' FROM client_scopes \
+         WHERE realm_id = $2 AND name IN ('openid', 'profile', 'email', 'roles')",
+    )
+    .bind(client.id)
+    .bind(app.realm_id)
+    .execute(&app.pool)
+    .await
+    .expect("attach the realm default scopes, as the client service does");
+    client
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
+fn spec_rtp_13_an_opaque_refresh_stays_within_one_statement() {
+    let _serial = serial();
+    record_statements();
+    let app = cached_opaque_app();
+
+    rt().block_on(async {
+        let server = app.server();
+        let client = client_with_default_scopes(app).await;
+        let user = app.user(&server, "Correct-horse-battery-7").await;
+        let login = || {
+            password_grant(
+                &server,
+                app,
+                &client.client_id,
+                None,
+                &user.username,
+                &user.password,
+            )
+        };
+        let token_of = |response: &axum_test::TestResponse| {
+            response.json::<Value>()["refresh_token"]
+                .as_str()
+                .expect("refresh token")
+                .to_string()
+        };
+
+        let first = token_of(&login().await);
+        let warm = refresh(&server, app, &client.client_id, None, &first).await;
+        assert_eq!(warm.status_code(), 200, "{}", warm.text());
+        let again = refresh(&server, app, &client.client_id, None, &token_of(&warm)).await;
+        let opaque = token_of(&again);
+        assert!(opaque.starts_with("fkr_"), "{opaque}");
+
+        let (refreshed, statements) =
+            capture(refresh(&server, app, &client.client_id, None, &opaque)).await;
+        assert_eq!(refreshed.status_code(), 200, "{}", refreshed.text());
+        assert_within("opaque refresh", OPAQUE_REFRESH_BUDGET, &statements);
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
+fn spec_rtp_12_a_malformed_token_is_rejected_without_sql() {
+    let _serial = serial();
+    record_statements();
+    let app = cached_opaque_app();
+
+    rt().block_on(async {
+        let server = app.server();
+        let client = client_with_default_scopes(app).await;
+        let malformed = format!("fkr_{}", "A".repeat(42));
+        let warm = refresh(&server, app, &client.client_id, None, &malformed).await;
+        assert_eq!(warm.status_code(), 400, "{}", warm.text());
+
+        let (refused, statements) =
+            capture(refresh(&server, app, &client.client_id, None, &malformed)).await;
+
+        assert_eq!(refused.status_code(), 400, "{}", refused.text());
+        assert_within(
+            "malformed opaque refresh",
+            MALFORMED_REFRESH_BUDGET,
+            &statements,
+        );
+    });
+}
+
 #[test]
 #[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test login_statement_budget_test -- --ignored"]
 fn a_login_stays_within_its_statement_budget() {
+    let _serial = serial();
     record_statements();
     let app = cached_app();
 
     rt().block_on(async {
         let server = app.server();
-        let client = app.client(ClientSpec::public().with_direct_access()).await;
-        sqlx::query(
-            "INSERT INTO client_scope_mappings (client_id, client_scope_id, default_scope_type) \
-             SELECT $1, id, 'DEFAULT' FROM client_scopes \
-             WHERE realm_id = $2 AND name IN ('openid', 'profile', 'email', 'roles')",
-        )
-        .bind(client.id)
-        .bind(app.realm_id)
-        .execute(&app.pool)
-        .await
-        .expect("attach the realm default scopes, as the client service does");
+        let client = client_with_default_scopes(app).await;
         let user = app.user(&server, "Correct-horse-battery-7").await;
 
         let warm = password_grant(
@@ -315,6 +411,86 @@ fn a_login_stays_within_its_statement_budget() {
         let (granted, statements) = capture(client_credentials(&server, app, &service)).await;
         assert_eq!(granted.status_code(), 200, "{}", granted.text());
         assert_within("client credentials", CLIENT_CREDENTIALS_BUDGET, &statements);
+
+        let issued = password_grant(
+            &server,
+            app,
+            &client.client_id,
+            None,
+            &user.username,
+            &user.password,
+        )
+        .await;
+        let access_token = issued.json::<Value>()["access_token"]
+            .as_str()
+            .expect("access token")
+            .to_string();
+        let refresh_token = issued.json::<Value>()["refresh_token"]
+            .as_str()
+            .expect("refresh token")
+            .to_string();
+
+        let (refreshed, statements) = capture(refresh(
+            &server,
+            app,
+            &client.client_id,
+            None,
+            &refresh_token,
+        ))
+        .await;
+        assert_eq!(refreshed.status_code(), 200, "{}", refreshed.text());
+        assert_within("refresh", REFRESH_BUDGET, &statements);
+
+        let warm = server
+            .get(&app.oidc("userinfo"))
+            .authorization_bearer(&access_token)
+            .await;
+        assert_eq!(warm.status_code(), 200, "{}", warm.text());
+        let (info, statements) = capture(async {
+            server
+                .get(&app.oidc("userinfo"))
+                .authorization_bearer(&access_token)
+                .await
+        })
+        .await;
+        assert_eq!(info.status_code(), 200, "{}", info.text());
+        assert_within("userinfo", USERINFO_BUDGET, &statements);
+
+        introspect(&server, app, &service, &access_token).await;
+        let (introspected, statements) =
+            capture(introspect(&server, app, &service, &access_token)).await;
+        assert_eq!(introspected["active"], json!(true), "{introspected}");
+        assert_within("introspect", INTROSPECT_BUDGET, &statements);
+
+        let forged = with_forged_signature(&access_token);
+
+        let (refused, statements) = capture(async {
+            server
+                .get(&app.oidc("userinfo"))
+                .authorization_bearer(&forged)
+                .await
+        })
+        .await;
+        assert_eq!(refused.status_code(), 401, "{}", refused.text());
+        assert_within(
+            "forged bearer on userinfo",
+            FORGED_BEARER_BUDGET,
+            &statements,
+        );
+
+        let (refused, statements) = capture(async {
+            server
+                .get(&app.path("/users"))
+                .authorization_bearer(&forged)
+                .await
+        })
+        .await;
+        assert_eq!(refused.status_code(), 401, "{}", refused.text());
+        assert_within(
+            "forged bearer on the management api",
+            FORGED_BEARER_BUDGET,
+            &statements,
+        );
     });
 }
 

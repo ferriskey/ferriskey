@@ -31,6 +31,12 @@ pub struct Model {
     pub rotated_at: Option<DateTimeWithTimeZone>,
     pub session_id: Option<Uuid>,
     pub resource: Option<String>,
+    pub token_hash: Option<Vec<u8>>,
+    pub client_id: Option<String>,
+    pub scope: Option<String>,
+    /// The token this row held before its last in-place rotation.
+    pub previous_jti: Option<Uuid>,
+    pub previous_token_hash: Option<Vec<u8>>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -47,6 +53,11 @@ pub enum Column {
     RotatedAt,
     SessionId,
     Resource,
+    TokenHash,
+    ClientId,
+    Scope,
+    PreviousJti,
+    PreviousTokenHash,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -82,6 +93,11 @@ impl ColumnTrait for Column {
             Self::RotatedAt => ColumnType::TimestampWithTimeZone.def().null(),
             Self::SessionId => ColumnType::Uuid.def().null(),
             Self::Resource => ColumnType::Text.def().null(),
+            Self::TokenHash => ColumnType::VarBinary(StringLen::None).def().null().unique(),
+            Self::ClientId => ColumnType::Text.def().null(),
+            Self::Scope => ColumnType::Text.def().null(),
+            Self::PreviousJti => ColumnType::Uuid.def().null(),
+            Self::PreviousTokenHash => ColumnType::VarBinary(StringLen::None).def().null(),
         }
     }
 }

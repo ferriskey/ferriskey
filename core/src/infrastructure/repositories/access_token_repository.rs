@@ -1,5 +1,3 @@
-use std::sync::{Arc, OnceLock};
-
 use chrono::{DateTime, TimeZone, Utc};
 use sea_orm::sea_query::{Expr, OnConflict, Query};
 use sea_orm::{
@@ -14,7 +12,6 @@ use crate::domain::{
     realm::entities::Unscoped,
 };
 use crate::entity::access_tokens;
-use crate::infrastructure::repositories::access_token_writer::{CoalescingWriter, RowSink};
 
 impl From<crate::entity::access_tokens::Model> for AccessToken {
     fn from(model: crate::entity::access_tokens::Model) -> Self {
@@ -38,93 +35,50 @@ impl From<crate::entity::access_tokens::Model> for AccessToken {
 #[derive(Debug, Clone)]
 pub struct PostgresAccessTokenRepository {
     pub db: DatabaseConnection,
-    writer: Arc<OnceLock<CoalescingWriter<access_tokens::ActiveModel>>>,
+    issued_db: DatabaseConnection,
 }
 
 impl PostgresAccessTokenRepository {
     pub fn new(db: DatabaseConnection) -> Self {
         Self {
+            issued_db: db.clone(),
             db,
-            writer: Arc::new(OnceLock::new()),
         }
     }
 
-    fn writer(&self) -> &CoalescingWriter<access_tokens::ActiveModel> {
-        self.writer.get_or_init(|| {
-            CoalescingWriter::spawn(Arc::new(AccessTokenSink {
-                db: self.db.clone(),
-            }))
-        })
-    }
-}
-
-struct AccessTokenSink {
-    db: DatabaseConnection,
-}
-
-impl RowSink for AccessTokenSink {
-    type Row = access_tokens::ActiveModel;
-
-    async fn insert_many(&self, rows: &[Self::Row]) -> Result<(), String> {
-        access_tokens::Entity::insert_many(rows.iter().cloned())
-            .exec_without_returning(&self.db)
-            .await
-            .map(|_| ())
-            .map_err(|e| e.to_string())
-    }
-
-    async fn insert_one(&self, row: &Self::Row) -> Result<(), String> {
-        access_tokens::Entity::insert(row.clone())
-            .exec_without_returning(&self.db)
-            .await
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+    /// Session participants are written through `issued_db`. One lost on a database crash
+    /// only costs a back-channel logout notification; revocations keep using the durable pool.
+    pub fn with_participants_written_through(mut self, issued_db: DatabaseConnection) -> Self {
+        self.issued_db = issued_db;
+        self
     }
 }
 
 impl AccessTokenRepository for PostgresAccessTokenRepository {
-    async fn create(
+    async fn record_session_participant(
         &self,
-        token_hash: String,
-        jti: Option<Uuid>,
-        user_id: Uuid,
         realm_id: ferriskey_domain::realm::RealmId,
-        expires_at: Option<DateTime<Utc>>,
-        claims: serde_json::Value,
-    ) -> Result<AccessToken, JwtError> {
-        let id = generate_uuid_v7();
-        let created_at = Utc::now();
-        let realm_id = Uuid::from(realm_id);
-        let access_token = AccessToken::new(
-            id,
-            token_hash.clone(),
-            jti,
-            user_id,
-            realm_id,
-            false,
-            expires_at,
-            claims.clone(),
-            created_at,
-        );
-
-        let row = access_tokens::ActiveModel {
-            id: Set(id),
-            token_hash: Set(token_hash),
-            jti: Set(jti),
-            user_id: Set(user_id),
-            realm_id: Set(realm_id),
-            revoked: Set(false),
-            expires_at: Set(expires_at.map(|dt| dt.naive_utc())),
-            claims: Set(claims),
-            created_at: Set(created_at.naive_utc()),
-        };
-
-        self.writer()
-            .write(row)
+        session_id: Uuid,
+        client_id: String,
+        issuer: String,
+    ) -> Result<(), JwtError> {
+        self.issued_db
+            .execute(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "INSERT INTO session_participants (session_id, realm_id, client_id, issuer) \
+                 SELECT $1, $2, $3, $4 WHERE EXISTS (SELECT 1 FROM user_sessions WHERE id = $1) \
+                 ON CONFLICT DO NOTHING",
+                [
+                    session_id.into(),
+                    Uuid::from(realm_id).into(),
+                    client_id.into(),
+                    issuer.into(),
+                ],
+            ))
             .await
-            .map_err(JwtError::GenerationError)?;
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
-        Ok(access_token)
+        Ok(())
     }
 
     async fn get_by_token_hash(
@@ -151,6 +105,18 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
                 [session_id.to_string()],
             ))
             .exec(&self.db)
+            .await
+            .map_err(|e| JwtError::GenerationError(e.to_string()))?;
+
+        self.db
+            .execute(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "INSERT INTO session_token_revocations (session_id, revoked_before) \
+                 SELECT $1, date_trunc('second', now() AT TIME ZONE 'UTC') + interval '1 second' \
+                 WHERE EXISTS (SELECT 1 FROM user_sessions WHERE id = $1) \
+                 ON CONFLICT (session_id) DO UPDATE SET revoked_before = EXCLUDED.revoked_before",
+                [session_id.into()],
+            ))
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
 
@@ -203,6 +169,7 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
         &self,
         token_hash: String,
         user_id: Uuid,
+        session_id: Option<Uuid>,
         issued_at: i64,
     ) -> Result<bool, JwtError> {
         let row = self
@@ -213,8 +180,16 @@ impl AccessTokenRepository for PostgresAccessTokenRepository {
                      OR EXISTS (SELECT 1 FROM user_token_revocations \
                                 WHERE user_id = $2 \
                                   AND revoked_before > to_timestamp($3) AT TIME ZONE 'UTC') \
+                     OR EXISTS (SELECT 1 FROM session_token_revocations \
+                                WHERE session_id = $4 \
+                                  AND revoked_before > to_timestamp($3) AT TIME ZONE 'UTC') \
                      AS revoked",
-                [token_hash.into(), user_id.into(), issued_at.into()],
+                [
+                    token_hash.into(),
+                    user_id.into(),
+                    issued_at.into(),
+                    session_id.into(),
+                ],
             ))
             .await
             .map_err(|e| JwtError::GenerationError(e.to_string()))?;
@@ -268,6 +243,7 @@ mod tests {
 
     struct Fixture {
         repository: PostgresAccessTokenRepository,
+        pool: sqlx::PgPool,
         realm_id: Uuid,
         user_id: Uuid,
     }
@@ -322,93 +298,118 @@ mod tests {
 
         Fixture {
             repository: PostgresAccessTokenRepository::new(db),
+            pool,
             realm_id,
             user_id,
         }
     }
 
-    async fn create(fixture: &Fixture, token_hash: &str) -> Result<AccessToken, JwtError> {
+    async fn session(fixture: &Fixture) -> Uuid {
+        let id = Uuid::new_v4();
+        sqlx::query(
+            "INSERT INTO user_sessions (id, user_id, realm_id, expires_at) \
+             VALUES ($1, $2, $3, NOW() + interval '1 hour')",
+        )
+        .bind(id)
+        .bind(fixture.user_id)
+        .bind(fixture.realm_id)
+        .execute(&fixture.pool)
+        .await
+        .expect("insert session");
+        id
+    }
+
+    async fn participant_count(fixture: &Fixture, session_id: Uuid) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*) FROM session_participants WHERE session_id = $1")
+            .bind(session_id)
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("count participants")
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn recording_the_same_participant_twice_stores_one_row() {
+        let fixture = setup().await;
+        let session_id = session(&fixture).await;
+
+        for _ in 0..2 {
+            fixture
+                .repository
+                .record_session_participant(
+                    fixture.realm_id.into(),
+                    session_id,
+                    "client".to_string(),
+                    "http://localhost/realms/perf".to_string(),
+                )
+                .await
+                .expect("record");
+        }
+
+        assert_eq!(participant_count(&fixture, session_id).await, 1);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn recording_a_participant_of_a_missing_session_stores_nothing() {
+        let fixture = setup().await;
+        let session_id = Uuid::new_v4();
+
         fixture
             .repository
-            .create(
-                token_hash.to_string(),
-                Some(Uuid::new_v4()),
-                fixture.user_id,
+            .record_session_participant(
                 fixture.realm_id.into(),
-                None,
-                serde_json::json!({ "sub": fixture.user_id }),
+                session_id,
+                "client".to_string(),
+                "http://localhost/realms/perf".to_string(),
             )
             .await
+            .expect("record");
+
+        assert_eq!(participant_count(&fixture, session_id).await, 0);
     }
 
     #[tokio::test]
     #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
-    async fn a_created_token_can_be_found_by_its_hash() {
+    async fn a_token_is_refused_when_its_session_was_revoked_at_or_after_its_issuance_second() {
+        let fixture = setup().await;
+        let session_id = session(&fixture).await;
+        let other_session = session(&fixture).await;
+        let now = Utc::now().timestamp();
+
+        fixture
+            .repository
+            .revoke_by_session_id(session_id)
+            .await
+            .expect("revoke");
+
+        let is_revoked = |session: Uuid, iat: i64| {
+            let repository = &fixture.repository;
+            let user_id = fixture.user_id;
+            async move {
+                repository
+                    .is_revoked("unstored".to_string(), user_id, Some(session), iat)
+                    .await
+                    .expect("lookup")
+            }
+        };
+        assert!(is_revoked(session_id, now - 5).await);
+        assert!(is_revoked(session_id, now).await);
+        assert!(!is_revoked(session_id, now + 5).await);
+        assert!(!is_revoked(other_session, now - 5).await);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
+    async fn revoking_the_tokens_of_a_missing_session_does_not_fail() {
         let fixture = setup().await;
 
-        let created = create(&fixture, "hash-1").await.expect("create");
-
-        let found = fixture
+        let revoked = fixture
             .repository
-            .get_by_token_hash("hash-1".to_string())
-            .await
-            .expect("lookup")
-            .expect("token stored")
-            .across_realms();
-        assert_eq!(found.id, created.id);
-        assert!(!found.revoked);
-    }
+            .revoke_by_session_id(Uuid::new_v4())
+            .await;
 
-    #[tokio::test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
-    async fn tokens_created_at_the_same_time_are_all_stored() {
-        let fixture = Arc::new(setup().await);
-        let mut creations = tokio::task::JoinSet::new();
-
-        for index in 0..200 {
-            let fixture = Arc::clone(&fixture);
-            creations.spawn(async move { create(&fixture, &format!("hash-{index}")).await });
-        }
-        while let Some(done) = creations.join_next().await {
-            done.expect("task").expect("create");
-        }
-
-        for index in 0..200 {
-            let found = fixture
-                .repository
-                .get_by_token_hash(format!("hash-{index}"))
-                .await
-                .expect("lookup");
-            assert!(found.is_some(), "hash-{index} was not stored");
-        }
-    }
-
-    #[tokio::test]
-    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-core -- --ignored"]
-    async fn a_duplicate_hash_fails_alone_and_does_not_lose_the_others() {
-        let fixture = Arc::new(setup().await);
-        create(&fixture, "taken").await.expect("first create");
-        let mut creations = tokio::task::JoinSet::new();
-
-        for hash in ["taken", "fresh-1", "fresh-2", "fresh-3"] {
-            let fixture = Arc::clone(&fixture);
-            creations.spawn(async move { (hash, create(&fixture, hash).await.is_ok()) });
-        }
-        let mut outcomes = Vec::new();
-        while let Some(done) = creations.join_next().await {
-            outcomes.push(done.expect("task"));
-        }
-        outcomes.sort_unstable();
-
-        assert_eq!(
-            outcomes,
-            vec![
-                ("fresh-1", true),
-                ("fresh-2", true),
-                ("fresh-3", true),
-                ("taken", false)
-            ]
-        );
+        assert!(revoked.is_ok());
     }
 
     #[tokio::test]
@@ -419,7 +420,7 @@ mod tests {
 
         let before = fixture
             .repository
-            .is_revoked("unstored".to_string(), fixture.user_id, now - 5)
+            .is_revoked("unstored".to_string(), fixture.user_id, None, now - 5)
             .await
             .expect("lookup");
         assert!(!before);
@@ -432,12 +433,12 @@ mod tests {
 
         let older = fixture
             .repository
-            .is_revoked("unstored".to_string(), fixture.user_id, now - 5)
+            .is_revoked("unstored".to_string(), fixture.user_id, None, now - 5)
             .await
             .expect("lookup");
         let newer = fixture
             .repository
-            .is_revoked("unstored".to_string(), fixture.user_id, now + 5)
+            .is_revoked("unstored".to_string(), fixture.user_id, None, now + 5)
             .await
             .expect("lookup");
         assert!(older, "a token issued before the revocation is refused");
@@ -465,12 +466,12 @@ mod tests {
 
         let revoked = fixture
             .repository
-            .is_revoked("unstored".to_string(), fixture.user_id, now)
+            .is_revoked("unstored".to_string(), fixture.user_id, None, now)
             .await
             .expect("lookup");
         let other = fixture
             .repository
-            .is_revoked("another".to_string(), fixture.user_id, now)
+            .is_revoked("another".to_string(), fixture.user_id, None, now)
             .await
             .expect("lookup");
         assert!(revoked);

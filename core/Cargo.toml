@@ -62,6 +62,7 @@ reqwest = { version = "0.12.23", features = ["json"] }
 mrml = "4"
 ammonia = "4.2.4"
 futures = "0.3.31"
+moka = { version = "0.12.16", default-features = false, features = ["future"] }
 webauthn-rs = { version = "0.5.2", features = ["danger-credential-internals", "danger-allow-state-serialisation", "conditional-ui"] }
 ldap3 = "0.12.1"
 subtle = "2.6.1"

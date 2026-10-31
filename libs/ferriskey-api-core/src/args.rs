@@ -3,8 +3,42 @@
 use std::{fmt::Display, num::NonZeroUsize, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ferriskey_core::domain::common::{DatabaseConfig, FerriskeyConfig, PasswordHashingCost};
+use ferriskey_core::domain::common::{
+    DatabaseConfig, FerriskeyConfig, PasswordHashingCost, RefreshTokenCommit, RefreshTokenFormat,
+};
 use url::Url;
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default, PartialEq, Eq)]
+pub enum RefreshTokenFormatArg {
+    #[default]
+    Jwt,
+    Opaque,
+}
+
+impl From<RefreshTokenFormatArg> for RefreshTokenFormat {
+    fn from(value: RefreshTokenFormatArg) -> Self {
+        match value {
+            RefreshTokenFormatArg::Jwt => RefreshTokenFormat::Jwt,
+            RefreshTokenFormatArg::Opaque => RefreshTokenFormat::Opaque,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default, PartialEq, Eq)]
+pub enum RefreshTokenCommitArg {
+    #[default]
+    Durable,
+    Async,
+}
+
+impl From<RefreshTokenCommitArg> for RefreshTokenCommit {
+    fn from(value: RefreshTokenCommitArg) -> Self {
+        match value {
+            RefreshTokenCommitArg::Durable => RefreshTokenCommit::Durable,
+            RefreshTokenCommitArg::Async => RefreshTokenCommit::Async,
+        }
+    }
+}
 
 #[derive(Debug, Clone, ValueEnum, Default)]
 #[deprecated]
@@ -111,6 +145,22 @@ pub struct Args {
     )]
     pub config_cache_ttl_seconds: u64,
     #[arg(
+        long = "refresh-token-format",
+        env = "REFRESH_TOKEN_FORMAT",
+        value_enum,
+        default_value_t = RefreshTokenFormatArg::Jwt,
+        long_help = "Format of newly issued refresh tokens: `jwt` (RS256 JWT) or `opaque` (`fkr_` + 32 random bytes, only its SHA-256 is stored). Both formats are accepted from this version on. Enable `opaque` only once every replica runs a version that accepts it, and do not roll back below that version while opaque tokens are live: an older binary refuses them and their holders must sign in again."
+    )]
+    pub refresh_token_format: RefreshTokenFormatArg,
+    #[arg(
+        long = "refresh-token-commit",
+        env = "REFRESH_TOKEN_COMMIT",
+        value_enum,
+        default_value_t = RefreshTokenCommitArg::Durable,
+        long_help = "Whether issuing and rotating a refresh token waits for the database to write its commit to disk: `durable` (default) or `async`. `async` removes a disk flush from every refresh, which cuts its tail latency. Its cost: a database crash can lose the last rotations, so each token consumed by a lost rotation works once more and its successor no longer does. Revocations always wait for the disk. `async` opens up to DATABASE_MAX_CONNECTIONS more connections to the database."
+    )]
+    pub refresh_token_commit: RefreshTokenCommitArg,
+    #[arg(
         long = "password-hash-memory-kib",
         env = "PASSWORD_HASH_MEMORY_KIB",
         default_value_t = 7168,
@@ -170,6 +220,8 @@ impl Default for Args {
             webhook_allow_private_endpoints: false,
             client_metadata_allow_private_endpoints: false,
             config_cache_ttl_seconds: 5,
+            refresh_token_format: RefreshTokenFormatArg::Jwt,
+            refresh_token_commit: RefreshTokenCommitArg::Durable,
             password_hash_memory_kib: 7168,
             password_hash_iterations: 5,
             password_hash_parallelism: 1,
@@ -222,6 +274,9 @@ impl Default for AdminArgs {
         }
     }
 }
+
+pub const DEFAULT_DATABASE_MAX_CONNECTIONS: u32 = 20;
+pub const DEFAULT_DATABASE_MIN_CONNECTIONS: u32 = 2;
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct DatabaseArgs {
@@ -276,19 +331,25 @@ pub struct DatabaseArgs {
     #[arg(
         long = "database-max-connections",
         env = "DATABASE_MAX_CONNECTIONS",
-        default_value_t = 100,
         name = "DATABASE_MAX_CONNECTIONS",
-        long_help = "Maximum connections one instance opens to the database. The total across instances must stay under the server's max_connections. Each connection costs the database a few MiB, so a smaller pool is lighter on the database."
+        long_help = "Maximum connections one instance opens to the database. Defaults to 20, or to the minimum when that is higher. The total across instances must stay under the server's max_connections. Each connection costs the database a few MiB, so a smaller pool is lighter on the database."
     )]
-    pub max_connections: u32,
+    pub max_connections: Option<u32>,
     #[arg(
         long = "database-min-connections",
         env = "DATABASE_MIN_CONNECTIONS",
-        default_value_t = 5,
+        default_value_t = DEFAULT_DATABASE_MIN_CONNECTIONS,
         name = "DATABASE_MIN_CONNECTIONS",
         long_help = "Connections one instance keeps open when idle. Must not exceed the maximum."
     )]
     pub min_connections: u32,
+}
+
+impl DatabaseArgs {
+    pub fn resolved_max_connections(&self) -> u32 {
+        self.max_connections
+            .unwrap_or_else(|| DEFAULT_DATABASE_MAX_CONNECTIONS.max(self.min_connections))
+    }
 }
 
 impl Default for DatabaseArgs {
@@ -300,8 +361,8 @@ impl Default for DatabaseArgs {
             port: 5432,
             user: "postgres".to_string(),
             schema: "public".to_string(),
-            max_connections: 100,
-            min_connections: 5,
+            max_connections: None,
+            min_connections: DEFAULT_DATABASE_MIN_CONNECTIONS,
         }
     }
 }
@@ -325,8 +386,8 @@ impl From<Url> for DatabaseArgs {
             port: value.port().unwrap_or(5432),
             user: value.username().to_string(),
             schema,
-            max_connections: 100,
-            min_connections: 5,
+            max_connections: None,
+            min_connections: DEFAULT_DATABASE_MIN_CONNECTIONS,
         }
     }
 }
@@ -511,6 +572,8 @@ fn parse_root_path(value: &str) -> Result<String, String> {
 
 impl From<Args> for FerriskeyConfig {
     fn from(value: Args) -> Self {
+        let max_connections = value.db.resolved_max_connections();
+
         FerriskeyConfig {
             database: DatabaseConfig {
                 host: value.db.host,
@@ -519,13 +582,15 @@ impl From<Args> for FerriskeyConfig {
                 port: value.db.port,
                 username: value.db.user,
                 schema: value.db.schema,
-                max_connections: value.db.max_connections,
+                max_connections,
                 min_connections: value.db.min_connections,
             },
             webapp_url: value.webapp_url,
             webhook_allow_private_endpoints: value.webhook_allow_private_endpoints,
             client_metadata_allow_private_endpoints: value.client_metadata_allow_private_endpoints,
             config_cache_ttl_seconds: value.config_cache_ttl_seconds,
+            refresh_token_format: value.refresh_token_format.into(),
+            refresh_token_commit: value.refresh_token_commit.into(),
             password_hashing: PasswordHashingCost {
                 memory_kib: value.password_hash_memory_kib,
                 iterations: value.password_hash_iterations,
@@ -539,6 +604,82 @@ impl From<Args> for FerriskeyConfig {
 #[cfg(test)]
 mod test {
     use super::*;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct DatabaseOnly {
+        #[command(flatten)]
+        db: DatabaseArgs,
+    }
+
+    mod database_pool {
+        use super::*;
+        use clap::{CommandFactory, FromArgMatches};
+
+        fn parse<const N: usize>(arguments: [&'static str; N]) -> DatabaseArgs {
+            let command = DatabaseOnly::command().mut_args(|argument| argument.env(None::<&str>));
+            let matches = command.try_get_matches_from(arguments).unwrap();
+
+            DatabaseOnly::from_arg_matches(&matches).unwrap().db
+        }
+
+        #[test]
+        fn a_replica_opens_a_small_pool_by_default() {
+            let parsed = parse(["ferriskey"]);
+
+            assert_eq!(parsed.resolved_max_connections(), 20);
+            assert_eq!(parsed.min_connections, 2);
+        }
+
+        #[test]
+        fn every_way_to_build_the_args_agrees_on_the_pool() {
+            let url = Url::parse("postgres://u:p@db:5432/ferriskey").unwrap();
+
+            for db in [DatabaseArgs::default(), DatabaseArgs::from(url)] {
+                assert_eq!(
+                    db.resolved_max_connections(),
+                    DEFAULT_DATABASE_MAX_CONNECTIONS
+                );
+                assert_eq!(db.min_connections, DEFAULT_DATABASE_MIN_CONNECTIONS);
+            }
+        }
+
+        #[test]
+        fn the_pool_size_stays_configurable() {
+            let parsed = parse([
+                "ferriskey",
+                "--database-max-connections",
+                "7",
+                "--database-min-connections",
+                "1",
+            ]);
+
+            assert_eq!(
+                (parsed.resolved_max_connections(), parsed.min_connections),
+                (7, 1)
+            );
+        }
+
+        #[test]
+        fn a_minimum_above_the_default_maximum_raises_the_maximum_with_it() {
+            let parsed = parse(["ferriskey", "--database-min-connections", "30"]);
+
+            assert_eq!(parsed.resolved_max_connections(), 30);
+        }
+
+        #[test]
+        fn an_explicit_maximum_below_the_minimum_is_left_for_the_startup_check() {
+            let parsed = parse([
+                "ferriskey",
+                "--database-max-connections",
+                "5",
+                "--database-min-connections",
+                "30",
+            ]);
+
+            assert_eq!(parsed.resolved_max_connections(), 5);
+        }
+    }
 
     mod parse_root_path {
         use super::*;

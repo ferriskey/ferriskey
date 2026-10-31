@@ -1339,7 +1339,7 @@ export namespace Schemas {
     first_name?: (string | null) | undefined;
     last_name?: (string | null) | undefined;
     password: string;
-    username: string;
+    username?: (string | null) | undefined;
   };
   export type RegistrationResponse =
     | { data: JwtToken; status: "authenticated" }

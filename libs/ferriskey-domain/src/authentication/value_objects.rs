@@ -88,7 +88,7 @@ pub struct AuthenticationResult {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterUserInput {
     pub realm_name: String,
-    pub username: String,
+    pub username: Option<String>,
     pub password: String,
     pub email: String,
     pub first_name: Option<String>,
@@ -188,9 +188,6 @@ pub struct GenerateTokenInput {
     pub refresh_token_lifetime: i64,
     pub id_token_lifetime: i64,
     pub nonce: Option<String>,
-    /// When `Some`, use this JTI for the refresh token claims and skip persisting the
-    /// refresh token row (the caller has already committed it via `rotate()`).
-    pub refresh_jti_override: Option<Uuid>,
     /// The `user_sessions` row this token pair is issued against, emitted as the
     /// `sid` claim. `None` for flows that establish no SSO session, such as
     /// `client_credentials`.
