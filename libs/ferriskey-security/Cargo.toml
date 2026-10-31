@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 tracing = "0.1"
 ferriskey-domain = { path = "../ferriskey-domain" }
-argon2 = "0.5.3"
+argon2 = "0.6.0"
 aws-lc-rs = "1.18.1"
 base64 = "0.23.1"
 chrono = "0.4.43"
