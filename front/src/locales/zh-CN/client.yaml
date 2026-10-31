@@ -244,6 +244,10 @@ settings:
       description_public: 拒绝不携带 S256 code challenge 的授权请求（RFC 7636）。开启后，plain 方法将被拒绝。强烈建议开启：该客户端无法安全地保管密钥。
       required: 必需
       optional: 可选
+    par:
+      # PAR is the RFC 9126 endpoint name, kept as-is.
+      label: 要求推送授权请求
+      description: 拒绝未先推送到 PAR 端点的授权请求（RFC 9126）。这样授权参数不会经过浏览器传递。
   access:
     title: 访问
     description: 该客户端可被重定向到的地址，以及它可以发起调用的来源。

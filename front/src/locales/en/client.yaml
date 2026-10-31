@@ -232,6 +232,9 @@ settings:
       description_public: 'Rejects authorization requests that carry no S256 code challenge (RFC 7636). The plain method is refused when this is on. Strongly recommended: this client cannot keep a secret safe.'
       required: Required
       optional: Optional
+    par:
+      label: Require pushed authorization requests
+      description: Refuses authorization requests that were not pushed to the PAR endpoint first (RFC 9126). The parameters then never travel through the browser.
   access:
     title: Access
     description: Addresses this client may be redirected to, and origins it may call from.
