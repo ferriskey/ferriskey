@@ -11,5 +11,5 @@ ferriskey-core = { path = "../../core" }
 axum = "0.8.8"
 chrono = { workspace = true }
 serde = "1.0.228"
-utoipa = { version = "5.4.0", features = ["chrono", "uuid"] }
+utoipa = { version = "6.0.0", features = ["chrono", "uuid"] }
 uuid = { workspace = true }
