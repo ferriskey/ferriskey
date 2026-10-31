@@ -81,6 +81,7 @@ mod tests {
             id: Uuid::new_v4(),
             client_id: client_id.to_string(),
             secret: None,
+            previous_secret: None,
             name: client_id.to_string(),
             realm_id,
             enabled: true,

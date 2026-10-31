@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 use crate::domain::authentication::entities::GrantType;
 use crate::domain::authentication::services::client_secret_matches;
 use crate::domain::client::entities::Client;
@@ -27,10 +29,42 @@ impl ClientGrant {
     }
 }
 
+/// Whether `presented` is the client's secret, or the one it had before its
+/// last rotation while that one's grace period lasts. Both comparisons always
+/// run, so the time taken does not tell which of them a guess came close to.
+pub(crate) fn secret_is_accepted(
+    client: &Client,
+    presented: Option<&str>,
+    now: DateTime<Utc>,
+) -> bool {
+    let current = matches!(
+        (client.secret_str(), presented),
+        (Some(stored), Some(presented)) if client_secret_matches(Some(stored), Some(presented))
+    );
+    let previous = match (&client.previous_secret, presented) {
+        (Some(previous), Some(presented)) => {
+            client_secret_matches(Some(previous.secret.expose()), Some(presented))
+                & previous.is_valid_at(now)
+        }
+        _ => false,
+    };
+
+    current | previous
+}
+
 pub fn authenticate_client(
     client: &Client,
     presented_secret: Option<&str>,
     grant: ClientGrant,
+) -> Result<(), CoreError> {
+    authenticate_client_at(client, presented_secret, grant, Utc::now())
+}
+
+fn authenticate_client_at(
+    client: &Client,
+    presented_secret: Option<&str>,
+    grant: ClientGrant,
+    now: DateTime<Utc>,
 ) -> Result<(), CoreError> {
     if !client.enabled {
         return Err(CoreError::ClientAuthenticationFailed);
@@ -47,11 +81,7 @@ pub fn authenticate_client(
             _ => {}
         }
     } else {
-        let authenticated = matches!(
-            (client.secret_str(), presented_secret),
-            (Some(stored), Some(presented)) if client_secret_matches(Some(stored), Some(presented))
-        );
-        if !authenticated {
+        if !secret_is_accepted(client, presented_secret, now) {
             return Err(CoreError::ClientAuthenticationFailed);
         }
     }
@@ -77,13 +107,14 @@ pub fn authenticate_client(
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
+    use chrono::{DateTime, Duration, Utc};
     use uuid::Uuid;
 
-    use super::{ClientGrant, authenticate_client};
+    use super::{ClientGrant, authenticate_client, authenticate_client_at};
     use crate::domain::authentication::entities::AuthProtocol;
     use crate::domain::client::entities::{
         Client, ClientRegistrationSource, ClientType, MaintenanceSessionStrategy,
+        PreviousClientSecret,
     };
     use crate::domain::common::entities::app_errors::CoreError;
     use crate::domain::realm::entities::RealmId;
@@ -106,6 +137,7 @@ mod tests {
             enabled: true,
             client_id: "app".to_string(),
             secret: (!public).then(|| maskass::Masked::new(SECRET.to_string())),
+            previous_secret: None,
             realm_id: RealmId::from(Uuid::new_v4()),
             protocol: AuthProtocol::OpenIdConnect,
             public_client: public,
@@ -194,6 +226,85 @@ mod tests {
                 ClientGrant::RefreshToken
             )));
         }
+    }
+
+    const PREVIOUS: &str = "0ld-s3cr3t";
+
+    fn rotated_client(expires_at: DateTime<Utc>) -> Client {
+        let mut rotated = client(false);
+        rotated.previous_secret = Some(PreviousClientSecret {
+            secret: maskass::Masked::new(PREVIOUS.to_string()),
+            expires_at,
+        });
+        rotated
+    }
+
+    #[test]
+    fn the_previous_secret_is_accepted_until_its_grace_period_ends() {
+        let now = Utc::now();
+        let rotated = rotated_client(now + Duration::minutes(5));
+        for grant in ALL_GRANTS {
+            assert!(
+                authenticate_client_at(&rotated, Some(PREVIOUS), grant, now).is_ok(),
+                "{grant:?}"
+            );
+            assert!(
+                authenticate_client_at(&rotated, Some(SECRET), grant, now).is_ok(),
+                "{grant:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_previous_secret_is_refused_once_its_grace_period_ended() {
+        let expiry = Utc::now();
+        let rotated = rotated_client(expiry);
+        for at in [
+            expiry,
+            expiry + Duration::seconds(1),
+            expiry + Duration::days(1),
+        ] {
+            assert!(
+                is_invalid_client(authenticate_client_at(
+                    &rotated,
+                    Some(PREVIOUS),
+                    ClientGrant::ClientCredentials,
+                    at
+                )),
+                "{at}"
+            );
+            assert!(
+                authenticate_client_at(&rotated, Some(SECRET), ClientGrant::ClientCredentials, at)
+                    .is_ok(),
+                "the current secret never expires: {at}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_secret_that_is_neither_current_nor_previous_is_refused_during_the_grace_period() {
+        let now = Utc::now();
+        let rotated = rotated_client(now + Duration::minutes(5));
+        for presented in [None, Some(""), Some("wrong"), Some("0ld-s3cr3T")] {
+            assert!(
+                is_invalid_client(authenticate_client_at(
+                    &rotated,
+                    presented,
+                    ClientGrant::ClientCredentials,
+                    now
+                )),
+                "{presented:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_client_that_was_never_rotated_refuses_what_would_have_been_its_previous_secret() {
+        assert!(is_invalid_client(authenticate_client(
+            &client(false),
+            Some(PREVIOUS),
+            ClientGrant::ClientCredentials
+        )));
     }
 
     #[test]
