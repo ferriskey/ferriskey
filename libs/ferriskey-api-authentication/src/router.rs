@@ -27,6 +27,10 @@ use super::handlers::{
     introspect::{__path_introspect_token, introspect_token},
     logout::{__path_logout_get, __path_logout_post, logout_get, logout_post},
     openid_configuration::{__path_get_openid_configuration, get_openid_configuration},
+    pushed_authorization::{
+        __path_push_authorization_request, PUSHED_AUTHORIZATION_REQUEST_PATH,
+        push_authorization_request,
+    },
     registration::{__path_registration_handler, registration_handler},
     resend_verification_email::{
         __path_resend_verification_email_handler, resend_verification_email_handler,
@@ -56,6 +60,7 @@ use ferriskey_api_core::{app_state::AppState, auth::auth_any_client};
         list_accounts,
         select_account,
         remove_account,
+        push_authorization_request,
         get_consent,
         post_consent,
         logout_get,
@@ -129,6 +134,10 @@ pub fn authentication_routes(state: AppState, root_path: &str) -> Router<AppStat
         .route(
             &format!("{root_path}/realms/{{realm_name}}/protocol/openid-connect/auth"),
             get(auth_handler),
+        )
+        .route(
+            &format!("{root_path}/realms/{{realm_name}}{PUSHED_AUTHORIZATION_REQUEST_PATH}"),
+            post(push_authorization_request),
         )
         .route(
             &format!("{root_path}/realms/{{realm_name}}/auth/consent"),
