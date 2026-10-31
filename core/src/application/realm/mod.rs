@@ -1,3 +1,6 @@
+use ferriskey_security::jwt::signing_keys::SigningKey;
+use uuid::Uuid;
+
 use crate::{
     ApplicationService,
     domain::{
@@ -15,8 +18,8 @@ use crate::{
             ports::{
                 CreateRealmInput, CreateRealmWithUserInput, DeleteRealmInput, GetRealmInput,
                 GetRealmSettingInput, ListResourceOwnersInput, RealmService,
-                ReplaceResourceOwnersInput, ResourceOwnerService, UpdateRealmInput,
-                UpdateRealmSettingInput,
+                ReplaceResourceOwnersInput, ResourceOwnerService, SigningKeyService,
+                UpdateRealmInput, UpdateRealmSettingInput,
             },
         },
     },
@@ -137,6 +140,39 @@ impl ResourceOwnerService for ApplicationService {
     ) -> Result<Vec<ResourceOwner>, CoreError> {
         self.resource_owner_service
             .replace_resource_owners(identity, input)
+            .await
+    }
+}
+
+impl SigningKeyService for ApplicationService {
+    async fn list_signing_keys(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<Vec<SigningKey>, CoreError> {
+        self.signing_key_service
+            .list_signing_keys(identity, realm_name)
+            .await
+    }
+
+    async fn rotate_signing_key(
+        &self,
+        identity: Identity,
+        realm_name: String,
+    ) -> Result<SigningKey, CoreError> {
+        self.signing_key_service
+            .rotate_signing_key(identity, realm_name)
+            .await
+    }
+
+    async fn revoke_signing_key(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        kid: Uuid,
+    ) -> Result<SigningKey, CoreError> {
+        self.signing_key_service
+            .revoke_signing_key(identity, realm_name, kid)
             .await
     }
 }

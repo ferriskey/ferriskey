@@ -14,6 +14,8 @@ pub enum MetadataError {
     EmptyValue(&'static str),
     #[error("at least one NameID format must be advertised")]
     NoNameIdFormats,
+    #[error("at least one signing certificate must be advertised")]
+    NoSigningCertificates,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,7 +24,8 @@ pub struct IdpMetadataDescriptor {
     pub single_sign_on_url: String,
     pub name_id_formats: Vec<NameIdFormat>,
     pub want_authn_requests_signed: bool,
-    pub signing_certificate_base64_der: String,
+    /// The certificate that signs first, then the ones that still verify.
+    pub signing_certificates_base64_der: Vec<String>,
 }
 
 pub fn render_idp_metadata(descriptor: &IdpMetadataDescriptor) -> Result<String, MetadataError> {
@@ -31,10 +34,14 @@ pub fn render_idp_metadata(descriptor: &IdpMetadataDescriptor) -> Result<String,
         &descriptor.single_sign_on_url,
         "SingleSignOnService/@Location",
     )?;
-    let certificate = non_empty(
-        &descriptor.signing_certificate_base64_der,
-        "X509Certificate",
-    )?;
+    if descriptor.signing_certificates_base64_der.is_empty() {
+        return Err(MetadataError::NoSigningCertificates);
+    }
+    let certificates = descriptor
+        .signing_certificates_base64_der
+        .iter()
+        .map(|certificate| non_empty(certificate, "X509Certificate"))
+        .collect::<Result<Vec<_>, _>>()?;
 
     if descriptor.name_id_formats.is_empty() {
         return Err(MetadataError::NoNameIdFormats);
@@ -67,13 +74,15 @@ pub fn render_idp_metadata(descriptor: &IdpMetadataDescriptor) -> Result<String,
         ],
     );
 
-    open_element(&mut xml, "md:KeyDescriptor", &[("use", SIGNING_KEY_USE)]);
-    open_element(&mut xml, "ds:KeyInfo", &[("xmlns:ds", XMLDSIG_NAMESPACE)]);
-    open_element(&mut xml, "ds:X509Data", &[]);
-    text_element(&mut xml, "ds:X509Certificate", certificate);
-    close_element(&mut xml, "ds:X509Data");
-    close_element(&mut xml, "ds:KeyInfo");
-    close_element(&mut xml, "md:KeyDescriptor");
+    for certificate in certificates {
+        open_element(&mut xml, "md:KeyDescriptor", &[("use", SIGNING_KEY_USE)]);
+        open_element(&mut xml, "ds:KeyInfo", &[("xmlns:ds", XMLDSIG_NAMESPACE)]);
+        open_element(&mut xml, "ds:X509Data", &[]);
+        text_element(&mut xml, "ds:X509Certificate", certificate);
+        close_element(&mut xml, "ds:X509Data");
+        close_element(&mut xml, "ds:KeyInfo");
+        close_element(&mut xml, "md:KeyDescriptor");
+    }
 
     for format in name_id_formats {
         text_element(&mut xml, "md:NameIDFormat", format);
@@ -169,7 +178,7 @@ mod tests {
             single_sign_on_url: "https://auth.example.com/realms/master/protocol/saml".to_owned(),
             name_id_formats: vec![NameIdFormat::EmailAddress, NameIdFormat::Persistent],
             want_authn_requests_signed: false,
-            signing_certificate_base64_der: CERTIFICATE.to_owned(),
+            signing_certificates_base64_der: vec![CERTIFICATE.to_owned()],
         }
     }
 
@@ -305,7 +314,7 @@ mod tests {
     #[test]
     fn rejects_an_empty_certificate() {
         let descriptor = IdpMetadataDescriptor {
-            signing_certificate_base64_der: String::new(),
+            signing_certificates_base64_der: vec![CERTIFICATE.to_owned(), String::new()],
             ..reference_descriptor()
         };
 
@@ -313,6 +322,39 @@ mod tests {
             render_idp_metadata(&descriptor),
             Err(MetadataError::EmptyValue("X509Certificate"))
         );
+    }
+
+    #[test]
+    fn rejects_a_descriptor_without_certificates() {
+        let descriptor = IdpMetadataDescriptor {
+            signing_certificates_base64_der: Vec::new(),
+            ..reference_descriptor()
+        };
+
+        assert_eq!(
+            render_idp_metadata(&descriptor),
+            Err(MetadataError::NoSigningCertificates)
+        );
+    }
+
+    #[test]
+    fn advertises_one_signing_key_descriptor_per_certificate_in_order() {
+        let descriptor = IdpMetadataDescriptor {
+            signing_certificates_base64_der: vec!["ACTIVE".to_owned(), "PASSIVE".to_owned()],
+            ..reference_descriptor()
+        };
+
+        let rendered = render_idp_metadata(&descriptor).expect("the descriptor should render");
+
+        assert_eq!(
+            rendered
+                .matches(r#"<md:KeyDescriptor use="signing">"#)
+                .count(),
+            2
+        );
+        let active = rendered.find(">ACTIVE<").expect("active certificate");
+        let passive = rendered.find(">PASSIVE<").expect("passive certificate");
+        assert!(active < passive, "{rendered}");
     }
 
     #[test]
