@@ -12,7 +12,7 @@ name = "ferriskey-operator"
 
 
 [dependencies]
-kube = { version = "2.0.1", features = ["derive", "runtime", "client"] }
+kube = { version = "4.2.0", features = ["derive", "runtime", "client"] }
 k8s-openapi = { version = "0.26.0", features = ["latest"] }
 # Explicit rustls dependency to select the aws-lc-rs crypto provider at startup.
 # Required because rustls 0.23 compiles both aws-lc-rs and ring backends via
