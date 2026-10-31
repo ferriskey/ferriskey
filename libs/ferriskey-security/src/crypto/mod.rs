@@ -1,3 +1,4 @@
+pub mod bundle_envelope;
 pub mod entities;
 pub mod hasher;
 pub mod password_check;
