@@ -18,6 +18,7 @@ pub enum ClientGrant {
     DeviceCode,
     Revocation,
     Introspection,
+    PushedAuthorization,
 }
 
 impl ClientGrant {
@@ -164,7 +165,7 @@ pub(crate) mod tests {
 
     const SECRET: &str = "s3cr3t";
 
-    const ALL_GRANTS: [ClientGrant; 7] = [
+    const ALL_GRANTS: [ClientGrant; 8] = [
         ClientGrant::AuthorizationCode,
         ClientGrant::RefreshToken,
         ClientGrant::Password,
@@ -172,6 +173,7 @@ pub(crate) mod tests {
         ClientGrant::DeviceCode,
         ClientGrant::Revocation,
         ClientGrant::Introspection,
+        ClientGrant::PushedAuthorization,
     ];
 
     pub(crate) fn client(public: bool) -> Client {
@@ -188,6 +190,7 @@ pub(crate) mod tests {
             oauth_device_code_grant_enabled: true,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             client_type: if public {
                 ClientType::Public
             } else {
@@ -425,6 +428,7 @@ pub(crate) mod tests {
             ClientGrant::Password,
             ClientGrant::DeviceCode,
             ClientGrant::Revocation,
+            ClientGrant::PushedAuthorization,
         ] {
             assert!(
                 authenticate(&public, None, grant).await.is_ok(),
