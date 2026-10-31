@@ -143,6 +143,7 @@ mod tests {
             persistent: false,
             authenticated_at: chrono::Utc::now(),
             device_session_id: None,
+            authentication_factors: Vec::new(),
         }
     }
 

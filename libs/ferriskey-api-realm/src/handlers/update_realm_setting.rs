@@ -200,6 +200,7 @@ pub async fn update_realm_setting(
                 account_chooser_show_email: payload.account_chooser_show_email,
                 require_pushed_authorization_requests: payload
                     .require_pushed_authorization_requests,
+                acr_loa_map: payload.acr_loa_map,
             },
         )
         .await

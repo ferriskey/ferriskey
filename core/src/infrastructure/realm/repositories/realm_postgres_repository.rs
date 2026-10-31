@@ -21,6 +21,7 @@ use crate::domain::realm::{
 };
 use crate::entity::realms;
 use crate::infrastructure::pagination::{SortColumn, contains, paginate};
+use ferriskey_domain::authentication::assurance::AcrLoaMap;
 use ferriskey_domain::realm::LoginAliases;
 use tracing::{error, info_span};
 
@@ -290,6 +291,7 @@ impl RealmRepository for PostgresRealmRepository {
         account_chooser_enabled: Option<bool>,
         account_chooser_show_email: Option<bool>,
         require_pushed_authorization_requests: Option<bool>,
+        acr_loa_map: Option<AcrLoaMap>,
     ) -> Result<RealmSetting, CoreError> {
         let realm_setting = crate::entity::realm_settings::Entity::find()
             .filter(crate::entity::realm_settings::Column::RealmId.eq::<Uuid>(realm_id.into()))
@@ -452,6 +454,11 @@ impl RealmRepository for PostgresRealmRepository {
 
         if let Some(required) = require_pushed_authorization_requests {
             realm_setting.require_pushed_authorization_requests = Set(required);
+        }
+        if let Some(acr_loa_map) = acr_loa_map {
+            realm_setting.acr_loa_map =
+                Set(serde_json::to_value(&acr_loa_map)
+                    .map_err(|_| CoreError::InternalServerError)?);
         }
 
         let txn = self

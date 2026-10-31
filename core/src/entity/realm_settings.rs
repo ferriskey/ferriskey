@@ -55,6 +55,7 @@ pub struct Model {
     pub account_chooser_enabled: bool,
     pub account_chooser_show_email: bool,
     pub require_pushed_authorization_requests: bool,
+    pub acr_loa_map: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -101,6 +102,7 @@ pub enum Column {
     AccountChooserEnabled,
     AccountChooserShowEmail,
     RequirePushedAuthorizationRequests,
+    AcrLoaMap,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -170,6 +172,7 @@ impl ColumnTrait for Column {
             Self::AccountChooserEnabled => ColumnType::Boolean.def(),
             Self::AccountChooserShowEmail => ColumnType::Boolean.def(),
             Self::RequirePushedAuthorizationRequests => ColumnType::Boolean.def(),
+            Self::AcrLoaMap => ColumnType::JsonBinary.def(),
         }
     }
 }

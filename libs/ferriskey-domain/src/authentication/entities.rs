@@ -300,6 +300,12 @@ pub struct AuthInput {
     /// Whether the parameters come from a pushed authorization request
     /// (RFC 9126) rather than from the query string.
     pub pushed: bool,
+    /// The `acr` values the client asked for, space-separated in its order
+    /// of preference.
+    pub acr_values: Option<String>,
+    /// The `acr` was requested as an essential claim: refuse the request
+    /// when the realm knows none of the values.
+    pub acr_essential: bool,
 }
 
 pub struct ExchangeTokenInput {

@@ -149,6 +149,8 @@ pub(crate) mod tests {
             prompt: Some("login".to_string()),
             max_age: Some(300),
             resource: None,
+            acr_values: None,
+            claims: None,
         }
     }
 
