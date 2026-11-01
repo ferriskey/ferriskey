@@ -37,6 +37,8 @@ event:
   client_maintenance_disabled: Client maintenance disabled
   signing_key_rotated: Signing key rotated
   signing_key_revoked: Signing key revoked
+  realm_exported: Realm exported
+  realm_imported: Realm imported
   session_created: Session opened
   session_revoked: Session revoked
   webhook_delivery_exhausted: Webhook delivery gave up

@@ -1148,6 +1148,8 @@ export namespace Schemas {
     | "token_exchanged"
     | "signing_key_rotated"
     | "signing_key_revoked"
+    | "realm_exported"
+    | "realm_imported"
     | "unknown";
   export type SecurityEventId = string;
   export type Paginated_SecurityEvent = {
