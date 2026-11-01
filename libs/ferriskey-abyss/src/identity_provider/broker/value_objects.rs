@@ -137,6 +137,8 @@ pub struct BrokerLoginInput {
 
     pub code_challenge_method: Option<String>,
 
+    pub cookie_session_id: Option<Uuid>,
+
     /// Base URL of the API server (e.g., "https://auth.example.com")
     pub base_url: String,
 }

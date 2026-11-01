@@ -2210,6 +2210,7 @@ name = "ferriskey-api-broker"
 version = "0.10.0"
 dependencies = [
  "axum",
+ "axum-cookie",
  "ferriskey-api-core",
  "ferriskey-core",
  "serde",
