@@ -96,6 +96,8 @@ pub const PROTOCOL_MAPPER_DELETE: ActionId = ActionId::new("protocol_mapper:dele
 pub const PROTOCOL_MAPPER_UPDATE: ActionId = ActionId::new("protocol_mapper:update");
 pub const REALM_CREATE: ActionId = ActionId::new("realm:create");
 pub const REALM_DELETE: ActionId = ActionId::new("realm:delete");
+pub const REALM_EXPORT: ActionId = ActionId::new("realm:export");
+pub const REALM_IMPORT: ActionId = ActionId::new("realm:import");
 pub const REALM_READ: ActionId = ActionId::new("realm:read");
 pub const REALM_UPDATE: ActionId = ActionId::new("realm:update");
 pub const ROLE_CREATE: ActionId = ActionId::new("role:create");
@@ -212,6 +214,8 @@ pub const ALL: &[ActionId] = &[
     PROTOCOL_MAPPER_UPDATE,
     REALM_CREATE,
     REALM_DELETE,
+    REALM_EXPORT,
+    REALM_IMPORT,
     REALM_READ,
     REALM_UPDATE,
     ROLE_CREATE,
