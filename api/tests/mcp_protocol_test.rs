@@ -128,7 +128,13 @@ mod tests {
             let methods = strings(&document, "token_endpoint_auth_methods_supported");
             assert_eq!(
                 methods,
-                ["none", "client_secret_basic", "client_secret_post"]
+                [
+                    "none",
+                    "client_secret_basic",
+                    "client_secret_post",
+                    "client_secret_jwt",
+                    "private_key_jwt",
+                ]
             );
 
             assert!(document.get("registration_endpoint").is_none());
