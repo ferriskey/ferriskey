@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
-use uuid::Uuid;
 use validator::Validate;
 
 /// Query parameters for broker login endpoint
@@ -32,10 +31,6 @@ pub struct BrokerLoginRequest {
     /// OIDC nonce for replay protection
     #[serde(default)]
     pub nonce: Option<String>,
-
-    /// Existing auth session ID (if initiated from login page)
-    #[serde(default)]
-    pub session_id: Option<Uuid>,
 
     #[serde(default)]
     pub code_challenge: Option<String>,

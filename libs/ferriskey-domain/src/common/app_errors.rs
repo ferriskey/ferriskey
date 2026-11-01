@@ -354,6 +354,9 @@ pub enum CoreError {
     #[error("code_verifier is required")]
     CodeVerifierMissing,
 
+    #[error("code_verifier sent for a code issued without code_challenge")]
+    CodeVerifierWithoutChallenge,
+
     #[error("User not found")]
     UserNotFound,
 
@@ -567,6 +570,7 @@ impl CoreError {
             CoreError::InvalidCodeVerifier => "invalid_code_verifier",
             CoreError::CodeChallengeMissing => "code_challenge_missing",
             CoreError::CodeVerifierMissing => "code_verifier_missing",
+            CoreError::CodeVerifierWithoutChallenge => "code_verifier_without_challenge",
             CoreError::UserNotFound => "user_not_found",
             CoreError::ClientNotFound => "client_not_found",
             CoreError::HintsNotFound => "hints_not_found",
@@ -877,6 +881,10 @@ mod tests {
             (CoreError::InvalidCodeVerifier, "invalid_code_verifier"),
             (CoreError::CodeChallengeMissing, "code_challenge_missing"),
             (CoreError::CodeVerifierMissing, "code_verifier_missing"),
+            (
+                CoreError::CodeVerifierWithoutChallenge,
+                "code_verifier_without_challenge",
+            ),
             (CoreError::UserNotFound, "user_not_found"),
             (CoreError::ClientNotFound, "client_not_found"),
             (CoreError::HintsNotFound, "hints_not_found"),
@@ -981,7 +989,7 @@ mod tests {
 
     #[test]
     fn reason_codes_cover_every_variant() {
-        assert_eq!(every_variant_with_expected_reason().len(), 133);
+        assert_eq!(every_variant_with_expected_reason().len(), 134);
     }
 
     #[test]

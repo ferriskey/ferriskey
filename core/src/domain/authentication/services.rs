@@ -2734,7 +2734,7 @@ where
             }
             (None, _) if params.code_verifier.is_some() => {
                 warn!(client_id = %params.client_id, "Refused a code_verifier for a code issued without PKCE");
-                return Err(CoreError::InvalidCodeVerifier);
+                return Err(CoreError::CodeVerifierWithoutChallenge);
             }
             (None, _) => {}
         }
@@ -5006,9 +5006,9 @@ where
 
         let login_url = format!(
             "?client_id={}&redirect_uri={}&state={}",
-            client.client_id,
-            input.redirect_uri,
-            input.state.unwrap_or_default()
+            urlencoding::encode(&client.client_id),
+            urlencoding::encode(&input.redirect_uri),
+            urlencoding::encode(&input.state.unwrap_or_default())
         );
 
         Ok(AuthOutput { login_url, session })
