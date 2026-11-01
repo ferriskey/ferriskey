@@ -16,7 +16,7 @@ node_modules
 
 # project
 /docs
-/fuzz
+/libs/ferriskey-saml/fuzz
 /infrastructure
 *.md
 LICENSE
