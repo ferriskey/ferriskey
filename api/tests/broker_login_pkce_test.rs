@@ -4,6 +4,7 @@ mod common;
 mod tests {
     use axum_extra::extract::cookie::Cookie;
     use axum_test::{TestResponse, TestServer};
+    use chrono::{DateTime, Duration, NaiveDateTime, SubsecRound, Utc};
     use serde_json::json;
     use uuid::Uuid;
 
@@ -104,7 +105,7 @@ mod tests {
         request.await
     }
 
-    async fn binding_of(app: &TestApp, response: &TestResponse) -> (Option<Uuid>, Option<String>) {
+    fn broker_state_of(response: &TestResponse) -> String {
         assert_eq!(
             response.status_code(),
             302,
@@ -118,13 +119,15 @@ mod tests {
             .to_str()
             .expect("Location is utf-8")
             .to_string();
-        let broker_state = query_param(&location, "state").expect("broker state in Location");
+        query_param(&location, "state").expect("broker state in Location")
+    }
 
+    async fn binding_of(app: &TestApp, response: &TestResponse) -> (Option<Uuid>, Option<String>) {
         sqlx::query_as(
             "SELECT auth_session_id, code_challenge FROM broker_auth_sessions \
              WHERE broker_state = $1",
         )
-        .bind(broker_state)
+        .bind(broker_state_of(response))
         .fetch_one(&app.pool)
         .await
         .expect("broker session")
@@ -381,6 +384,40 @@ mod tests {
 
             let (auth_session_id, _) = binding_of(app, &response).await;
             assert_eq!(auth_session_id, Some(session_id));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test broker_login_pkce_test -- --ignored"]
+    fn the_broker_session_expires_with_the_session_it_resumes() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let alias = identity_provider(app, &server).await;
+            let client = app.client(ClientSpec::public()).await;
+            let login = open_login(app, &server, &client, "state-9").await;
+            let soon: NaiveDateTime = (Utc::now() + Duration::minutes(2))
+                .naive_utc()
+                .trunc_subsecs(6);
+            sqlx::query("UPDATE auth_sessions SET expires_at = $1 WHERE id = $2")
+                .bind(soon)
+                .bind(login.session_id)
+                .execute(&app.pool)
+                .await
+                .expect("shorten the auth session");
+
+            let response =
+                press_provider_button(app, &server, &alias, &client, "state-9", Some(&login), &[])
+                    .await;
+
+            let broker_expiry: DateTime<Utc> = sqlx::query_scalar(
+                "SELECT expires_at FROM broker_auth_sessions WHERE broker_state = $1",
+            )
+            .bind(broker_state_of(&response))
+            .fetch_one(&app.pool)
+            .await
+            .expect("broker session");
+            assert_eq!(broker_expiry, soon.and_utc());
         });
     }
 }

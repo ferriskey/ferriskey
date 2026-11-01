@@ -1,4 +1,5 @@
 use crate::identity_provider::IdentityProviderConfig;
+use chrono::{DateTime, Utc};
 use ferriskey_domain::common::app_errors::CoreError;
 use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
@@ -288,6 +289,7 @@ pub struct CreateBrokerAuthSessionRequest {
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<String>,
     pub auth_session_id: Option<Uuid>,
+    pub expires_at: DateTime<Utc>,
 }
 
 #[cfg(test)]

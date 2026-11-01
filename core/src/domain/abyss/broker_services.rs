@@ -454,6 +454,12 @@ fn session_continues_login(
         && session.expires_at > now
 }
 
+fn broker_session_expiry(resumed: Option<&AuthSession>, now: DateTime<Utc>) -> DateTime<Utc> {
+    let own = now + chrono::Duration::minutes(10);
+
+    resumed.map_or(own, |session| session.expires_at.min(own))
+}
+
 async fn resumable_session<ASR>(
     sessions: &ASR,
     scope: &RealmScope,
@@ -523,6 +529,9 @@ where
                 .in_realm(scope)
                 .map_err(|_| CoreError::SessionNotFound)?
                 .into_inner();
+            if auth_session.expires_at <= Utc::now() {
+                return Err(CoreError::SessionExpired);
+            }
             (auth_session, false)
         }
         CodeTarget::New(auth_session) => {
@@ -677,7 +686,8 @@ where
             code_verifier,
             code_challenge: input.code_challenge.clone(),
             code_challenge_method: input.code_challenge_method.clone(),
-            auth_session_id: resumed.map(|session| session.id),
+            auth_session_id: resumed.as_ref().map(|session| session.id),
+            expires_at: broker_session_expiry(resumed.as_ref(), Utc::now()),
         };
 
         let broker_session = self.broker_session_repository.create(request).await?;
@@ -1810,5 +1820,65 @@ mod tests {
         let resumed = resumable_session(&sessions, &scope, session.client_id, &input).await;
 
         assert!(resumed.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_resumed_session_that_has_expired_gets_no_code() {
+        let (scope, mut session) = scope_and_session();
+        session.expires_at = Utc::now() - Duration::seconds(1);
+        let session_id = session.id;
+        let mut sessions = sessions_holding(&session);
+        sessions.expect_update_code().never();
+        sessions.expect_update_user_id().never();
+        let mut admission = MockLoginAdmissionPort::new();
+        admission.expect_admit().never();
+
+        let result = issue_login_code(
+            &sessions,
+            &admission,
+            &scope,
+            Uuid::new_v4(),
+            CodeTarget::Existing(session_id),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await;
+
+        assert!(matches!(result, Err(CoreError::SessionExpired)));
+    }
+
+    #[test]
+    fn a_broker_session_ends_with_the_session_it_resumes() {
+        let (_, mut session) = scope_and_session();
+        let now = Utc::now();
+        session.expires_at = now + Duration::minutes(1);
+
+        assert_eq!(
+            broker_session_expiry(Some(&session), now),
+            session.expires_at
+        );
+    }
+
+    #[test]
+    fn a_broker_session_keeps_its_own_lifetime_when_the_resumed_one_lasts_longer() {
+        let (_, mut session) = scope_and_session();
+        let now = Utc::now();
+        session.expires_at = now + Duration::hours(1);
+
+        assert_eq!(
+            broker_session_expiry(Some(&session), now),
+            now + Duration::minutes(10)
+        );
+    }
+
+    #[test]
+    fn a_broker_session_on_its_own_lives_ten_minutes() {
+        let now = Utc::now();
+
+        assert_eq!(
+            broker_session_expiry(None, now),
+            now + Duration::minutes(10)
+        );
     }
 }
