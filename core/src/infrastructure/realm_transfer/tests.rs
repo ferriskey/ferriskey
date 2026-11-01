@@ -542,3 +542,18 @@ async fn an_unknown_column_from_an_older_schema_is_ignored_and_reported() {
 
     assert_eq!(report.ignored_columns, vec!["users.nickname".to_string()]);
 }
+
+#[tokio::test]
+#[ignore = "requires PostgreSQL"]
+async fn a_realm_name_taken_by_another_realm_is_refused() {
+    let source = instance(RING_A).await;
+    let target = instance(RING_B).await;
+    let seeded = seed(&source, "acme").await;
+    seed(&target, "acme").await;
+    let rows = export(&source, &seeded.realm).await;
+
+    assert!(matches!(
+        import(&target, &seeded.realm, rows).await,
+        Err(CoreError::RealmBundleConflict(_))
+    ));
+}
