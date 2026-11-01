@@ -22,6 +22,7 @@ pub mod password_policy;
 pub mod portal_layouts;
 pub mod portal_theme;
 pub mod realm;
+pub mod realm_transfer;
 pub mod role;
 pub mod saml;
 pub mod seawatch;

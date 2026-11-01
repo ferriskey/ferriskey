@@ -270,6 +270,8 @@ type ApplicationOtherSessionsRevocation =
     >;
 type UserAttributeRepo = CachedUserAttributeRepository<PostgresUserAttributeRepository>;
 type KeystoreRepo = PostgresKeyStoreRepository;
+type RealmArchiveRepo =
+    crate::infrastructure::realm_transfer::postgres_archive::PostgresRealmArchiveRepository;
 type RefreshTokenRepo = PostgresRefreshTokenRepository;
 type AccessTokenRepo = CachedAccessTokenRepository<PostgresAccessTokenRepository>;
 type IdentityProviderRepo = PostgresIdentityProviderRepository;
@@ -585,6 +587,16 @@ pub struct ApplicationService {
         UserRepo,
         UserRoleRepo,
     >,
+    pub(crate) realm_transfer_service:
+        crate::domain::realm_transfer::services::RealmTransferServiceImpl<
+            RealmRepo,
+            ClientRepo,
+            RoleRepo,
+            UserRepo,
+            UserRoleRepo,
+            SecurityEventRepo,
+            RealmArchiveRepo,
+        >,
     pub(crate) mail_service:
         MailServiceImpl<RealmRepo, UserRepo, ClientRepo, UserRoleRepo, SmtpConfigRepo>,
     pub(crate) role_service: RoleServiceImpl<

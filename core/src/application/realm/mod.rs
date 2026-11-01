@@ -1,4 +1,7 @@
+use std::fmt::Display;
+
 use ferriskey_security::jwt::signing_keys::SigningKey;
+use futures::Stream;
 use uuid::Uuid;
 
 use crate::{
@@ -21,6 +24,11 @@ use crate::{
                 ReplaceResourceOwnersInput, ResourceOwnerService, SigningKeyService,
                 UpdateRealmInput, UpdateRealmSettingInput,
             },
+        },
+        realm_transfer::{
+            bundle::BundlePassphrase,
+            ports::RealmTransferService,
+            value_objects::{ImportReport, RealmBundleStream},
         },
     },
 };
@@ -173,6 +181,35 @@ impl SigningKeyService for ApplicationService {
     ) -> Result<SigningKey, CoreError> {
         self.signing_key_service
             .revoke_signing_key(identity, realm_name, kid)
+            .await
+    }
+}
+
+impl RealmTransferService for ApplicationService {
+    async fn export_realm(
+        &self,
+        identity: Identity,
+        realm_name: String,
+        passphrase: BundlePassphrase,
+    ) -> Result<RealmBundleStream, CoreError> {
+        self.realm_transfer_service
+            .export_realm(identity, realm_name, passphrase)
+            .await
+    }
+
+    async fn import_realm<S, B, E>(
+        &self,
+        identity: Identity,
+        passphrase: BundlePassphrase,
+        body: S,
+    ) -> Result<ImportReport, CoreError>
+    where
+        S: Stream<Item = Result<B, E>> + Send + Unpin,
+        B: AsRef<[u8]> + Send,
+        E: Display + Send,
+    {
+        self.realm_transfer_service
+            .import_realm(identity, passphrase, body)
             .await
     }
 }
