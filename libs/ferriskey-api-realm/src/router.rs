@@ -12,6 +12,9 @@ use super::handlers::get_realm::{__path_get_realm, get_realm};
 use super::handlers::get_smtp_config::{__path_get_smtp_config, get_smtp_config};
 use super::handlers::get_user_realm_settings::get_user_realm_settings;
 use super::handlers::get_user_realms::{__path_get_user_realms, get_user_realms};
+use super::handlers::realm_transfer::{
+    __path_export_realm, __path_import_realm, export_realm, import_realm,
+};
 use super::handlers::resource_owners::{
     __path_get_resource_owners, __path_replace_resource_owners, get_resource_owners,
     replace_resource_owners,
@@ -52,6 +55,8 @@ use utoipa::OpenApi;
     list_signing_keys,
     rotate_signing_key,
     revoke_signing_key,
+    export_realm,
+    import_realm,
 ))]
 pub struct RealmApiDoc;
 
@@ -134,6 +139,17 @@ pub fn realm_routes(state: AppState) -> Router<AppState> {
                 state.args.server.root_path
             ),
             post(revoke_signing_key),
+        )
+        .route(
+            &format!(
+                "{}/realms/{{realm_name}}/export",
+                state.args.server.root_path
+            ),
+            post(export_realm),
+        )
+        .route(
+            &format!("{}/realms/import", state.args.server.root_path),
+            post(import_realm),
         )
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .route(
