@@ -159,24 +159,19 @@ where
         header: &BundleHeader,
     ) -> Result<(), CoreError> {
         let realm = &header.realm;
-        let by_id = self.realm_repository.get_by_id(realm.id.into()).await?;
-        let by_name = self.realm_repository.get_by_name(&realm.name).await?;
-
-        match (by_id, by_name) {
-            (None, None) => Ok(()),
-            (Some(existing), Some(_)) if existing.name == realm.name => ensure_policy(
-                self.policy.can_update_realm(identity, &existing).await,
-                "insufficient permissions",
-            ),
-            (Some(existing), _) => Err(CoreError::RealmBundleConflict(format!(
+        let Some(existing) = self.realm_repository.get_by_id(realm.id.into()).await? else {
+            return Ok(());
+        };
+        if existing.name != realm.name {
+            return Err(CoreError::RealmBundleConflict(format!(
                 "the realm id {} belongs to the realm {:?} here",
                 realm.id, existing.name
-            ))),
-            (None, Some(_)) => Err(CoreError::RealmBundleConflict(format!(
-                "a realm named {:?} already exists here with another id",
-                realm.name
-            ))),
+            )));
         }
+        ensure_policy(
+            self.policy.can_update_realm(identity, &existing).await,
+            "insufficient permissions",
+        )
     }
 }
 
