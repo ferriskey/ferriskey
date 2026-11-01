@@ -248,6 +248,9 @@ pub struct RealmSetting {
     pub dcr_enabled: bool,
     pub cimd_allowed_hosts: Vec<String>,
     pub allowed_resources: Vec<String>,
+    /// Whether every client of the realm must push its authorization
+    /// requests (RFC 9126 §5).
+    pub require_pushed_authorization_requests: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -298,6 +301,7 @@ impl RealmSetting {
             dcr_enabled: false,
             cimd_allowed_hosts: Vec::new(),
             allowed_resources: Vec::new(),
+            require_pushed_authorization_requests: false,
         }
     }
 }

@@ -109,6 +109,7 @@ pub trait RealmRepository: Send + Sync {
         dcr_enabled: Option<bool>,
         cimd_allowed_hosts: Option<Vec<String>>,
         allowed_resources: Option<Vec<String>>,
+        require_pushed_authorization_requests: Option<bool>,
     ) -> impl Future<Output = Result<RealmSetting, CoreError>> + Send;
 
     fn get_realm_settings(

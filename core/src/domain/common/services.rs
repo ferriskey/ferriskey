@@ -760,6 +760,7 @@ pub mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             service_account_enabled: true,
             client_type: ClientType::Confidential,
             protocol: AuthProtocol::OpenIdConnect,

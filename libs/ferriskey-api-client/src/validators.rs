@@ -82,6 +82,10 @@ pub struct UpdateClientValidator {
     #[serde(default)]
     pub require_pkce: Option<bool>,
 
+    /// Refuse `/auth` requests that were not pushed first (RFC 9126 §6).
+    #[serde(default)]
+    pub require_pushed_authorization_requests: Option<bool>,
+
     #[serde(default)]
     pub access_token_lifetime: Option<i64>,
 

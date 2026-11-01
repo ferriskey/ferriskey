@@ -195,6 +195,7 @@ pub struct UpdateRealmSettingInput {
     pub dcr_enabled: Option<bool>,
     pub cimd_allowed_hosts: Option<Vec<String>>,
     pub allowed_resources: Option<Vec<String>>,
+    pub require_pushed_authorization_requests: Option<bool>,
 }
 
 pub struct DeleteRealmInput {

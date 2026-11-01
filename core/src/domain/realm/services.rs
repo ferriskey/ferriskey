@@ -885,6 +885,7 @@ where
                 input.dcr_enabled,
                 input.cimd_allowed_hosts,
                 input.allowed_resources,
+                input.require_pushed_authorization_requests,
             )
             .await?;
 
@@ -960,6 +961,7 @@ where
         Ok(AuthorizationServerSettings {
             cimd_enabled: settings.cimd_enabled,
             dcr_enabled: settings.dcr_enabled,
+            require_pushed_authorization_requests: settings.require_pushed_authorization_requests,
             scopes_supported,
         })
     }

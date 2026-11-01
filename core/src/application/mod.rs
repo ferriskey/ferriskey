@@ -18,6 +18,7 @@ use crate::infrastructure::realm::cache::CachedRealmRepository;
 use crate::infrastructure::retention::expired_rows_retention_task;
 
 use crate::domain::authentication::client_assertion::services::ClientAssertionVerifierImpl;
+use crate::domain::authentication::pushed_authorization::services::PushedAuthorizationServiceImpl;
 use crate::domain::client_metadata::services::ClientMetadataResolverImpl;
 use crate::domain::client_registration::services::ClientRegistrationServiceImpl;
 use crate::domain::common::rate_limit::{
@@ -32,6 +33,9 @@ use crate::infrastructure::client_assertion::{
 };
 use crate::infrastructure::client_metadata::{
     CachedClientMetadataFetcher, ReqwestClientMetadataFetcher,
+};
+use crate::infrastructure::pushed_authorization::{
+    PostgresPushedAuthorizationRequestRepository, pushed_authorization_request_retention_task,
 };
 
 use crate::domain::authentication::backchannel_logout::{
@@ -646,6 +650,12 @@ pub async fn create_service_with_secrets(
         client_assertion_verifier.clone(),
     );
 
+    let pushed_authorization_requests =
+        PostgresPushedAuthorizationRequestRepository::new(postgres.get_db());
+    tokio::spawn(pushed_authorization_request_retention_task(
+        pushed_authorization_requests.clone(),
+    ));
+
     tokio::spawn(purge_expired_device_sessions_task(
         device_flow_service.clone(),
         DEVICE_SESSION_PURGE_PERIOD,
@@ -670,6 +680,9 @@ pub async fn create_service_with_secrets(
         device_flow_service,
         token_exchange_service,
         client_assertion_verifier,
+        pushed_authorization_service: PushedAuthorizationServiceImpl::new(Arc::new(
+            pushed_authorization_requests,
+        )),
         saml_service: SamlServiceImpl::new(
             realm.clone(),
             client.clone(),

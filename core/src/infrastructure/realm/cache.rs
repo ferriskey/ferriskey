@@ -156,6 +156,7 @@ impl<R: RealmRepository> RealmRepository for CachedRealmRepository<R> {
         dcr_enabled: Option<bool>,
         cimd_allowed_hosts: Option<Vec<String>>,
         allowed_resources: Option<Vec<String>>,
+        require_pushed_authorization_requests: Option<bool>,
     ) -> Result<RealmSetting, CoreError> {
         let updated = self
             .inner
@@ -194,6 +195,7 @@ impl<R: RealmRepository> RealmRepository for CachedRealmRepository<R> {
                 dcr_enabled,
                 cimd_allowed_hosts,
                 allowed_resources,
+                require_pushed_authorization_requests,
             )
             .await;
         self.invalidate();

@@ -890,6 +890,15 @@ fn pkce_verify(code_verifier: &str, code_challenge: &str, method: &CodeChallenge
     }
 }
 
+/// A request sent straight to `/auth` is refused when the client or its
+/// realm requires pushed authorization requests (RFC 9126 §5, §6).
+fn unpushed_request_allowed(client: &Client, realm: &RealmSetting) -> Result<(), CoreError> {
+    if client.require_pushed_authorization_requests || realm.require_pushed_authorization_requests {
+        return Err(CoreError::PushedAuthorizationRequired);
+    }
+    Ok(())
+}
+
 /// Enforce the PKCE policy of an authorization request (RFC 7636 §4.3).
 ///
 /// A client that requires PKCE must send an S256 challenge. A public client
@@ -1427,6 +1436,99 @@ where
     CM: ClientMetadataResolver,
     CAV: ClientAssertionVerifier,
 {
+    /// Everything `/auth` checks before it opens a login session. The PAR
+    /// endpoint runs the same checks before it stores a request.
+    pub(crate) async fn validate_authorization_request(
+        &self,
+        scope: &RealmScope,
+        input: &AuthInput,
+    ) -> Result<Client, CoreError> {
+        let source_ip = input
+            .ip_address
+            .as_deref()
+            .and_then(|raw| raw.parse::<IpAddr>().ok());
+
+        self.client_metadata_resolver
+            .resolve(scope, &input.client_id, &input.redirect_uri, source_ip)
+            .await?;
+
+        let client = self
+            .client_repository
+            .get_by_client_id(input.client_id.clone(), scope.id())
+            .await?
+            .in_realm(scope)?
+            .into_inner();
+
+        let cimd_enabled = scope
+            .realm()
+            .settings
+            .as_ref()
+            .is_some_and(|settings| settings.cimd_enabled);
+        if client.registration_source == ClientRegistrationSource::MetadataDocument && !cimd_enabled
+        {
+            warn!(
+                client_id = %input.client_id,
+                "rejecting a metadata document client: the realm has turned the feature off"
+            );
+
+            return Err(CoreError::InvalidClient);
+        }
+
+        let protocol = client.protocol;
+
+        if protocol != AuthProtocol::OpenIdConnect {
+            warn!(
+                client_id = %input.client_id,
+                %protocol,
+                "rejecting an authorization request: this endpoint only serves openid-connect clients"
+            );
+
+            return Err(CoreError::InvalidClient);
+        }
+
+        let client_redirect_uris = self
+            .redirect_uri_repository
+            .get_enabled_by_client_id(client.id)
+            .await?;
+
+        if !redirect_uri_matches_any(
+            client_redirect_uris.iter().map(|uri| uri.value.as_str()),
+            &input.redirect_uri,
+        ) {
+            return Err(CoreError::InvalidRedirectUri);
+        }
+
+        if !client.enabled {
+            return Err(CoreError::InvalidClient);
+        }
+
+        if !input.pushed {
+            let realm_settings = self.realm_settings_of(scope).await?;
+            unpushed_request_allowed(&client, &realm_settings)?;
+        }
+
+        pkce_request_allowed(
+            &client,
+            input.code_challenge.as_deref(),
+            input.code_challenge_method.as_ref(),
+        )?;
+
+        if let Some(resource) = input.resource.as_deref() {
+            let allowed_resources = self
+                .realm_repository
+                .get_realm_settings(scope.id())
+                .await?
+                .map(|settings| settings.allowed_resources)
+                .unwrap_or_default();
+
+            if !resource_is_allowed(&allowed_resources, resource) {
+                return Err(CoreError::InvalidTarget);
+            }
+        }
+
+        Ok(client)
+    }
+
     fn expires_in_from(exp: i64) -> u32 {
         let now = Utc::now().timestamp();
         if exp <= now { 0 } else { (exp - now) as u32 }
@@ -4885,86 +4987,9 @@ where
 {
     async fn auth(&self, input: AuthInput) -> Result<AuthOutput, CoreError> {
         let scope = RealmScope::resolve(self.realm_repository.as_ref(), &input.realm_name).await?;
-
-        let source_ip = input
-            .ip_address
-            .as_deref()
-            .and_then(|raw| raw.parse::<IpAddr>().ok());
-
-        self.client_metadata_resolver
-            .resolve(&scope, &input.client_id, &input.redirect_uri, source_ip)
-            .await?;
-
-        let client = self
-            .client_repository
-            .get_by_client_id(input.client_id.clone(), scope.id())
-            .await?
-            .in_realm(&scope)?
-            .into_inner();
-
-        let cimd_enabled = scope
-            .realm()
-            .settings
-            .as_ref()
-            .is_some_and(|settings| settings.cimd_enabled);
-        if client.registration_source == ClientRegistrationSource::MetadataDocument && !cimd_enabled
-        {
-            warn!(
-                client_id = %input.client_id,
-                "rejecting a metadata document client: the realm has turned the feature off"
-            );
-
-            return Err(CoreError::InvalidClient);
-        }
-
+        let client = self.validate_authorization_request(&scope, &input).await?;
         let protocol = client.protocol;
-
-        if protocol != AuthProtocol::OpenIdConnect {
-            warn!(
-                client_id = %input.client_id,
-                %protocol,
-                "rejecting an authorization request: this endpoint only serves openid-connect clients"
-            );
-
-            return Err(CoreError::InvalidClient);
-        }
-
         let redirect_uri = input.redirect_uri.clone();
-
-        let client_redirect_uris = self
-            .redirect_uri_repository
-            .get_enabled_by_client_id(client.id)
-            .await?;
-
-        if !redirect_uri_matches_any(
-            client_redirect_uris.iter().map(|uri| uri.value.as_str()),
-            &redirect_uri,
-        ) {
-            return Err(CoreError::InvalidRedirectUri);
-        }
-
-        if !client.enabled {
-            return Err(CoreError::InvalidClient);
-        }
-
-        pkce_request_allowed(
-            &client,
-            input.code_challenge.as_deref(),
-            input.code_challenge_method.as_ref(),
-        )?;
-
-        if let Some(resource) = input.resource.as_deref() {
-            let allowed_resources = self
-                .realm_repository
-                .get_realm_settings(scope.id())
-                .await?
-                .map(|settings| settings.allowed_resources)
-                .unwrap_or_default();
-
-            if !resource_is_allowed(&allowed_resources, resource) {
-                return Err(CoreError::InvalidTarget);
-            }
-        }
 
         let flow_id = self.flow_recorder.start_flow(
             scope.realm(),
@@ -6858,7 +6883,9 @@ mod tests {
 
     // ---- PKCE (RFC 7636) unit tests --------------------------------------
 
-    use super::{pkce_request_allowed, pkce_validate_verifier, pkce_verify};
+    use super::{
+        pkce_request_allowed, pkce_validate_verifier, pkce_verify, unpushed_request_allowed,
+    };
     use crate::domain::authentication::client_authentication::ClientProof;
     use crate::domain::authentication::value_objects::CodeChallengeMethod;
 
@@ -6979,6 +7006,28 @@ mod tests {
         assert!(pkce_request_allowed(&strict, Some("c"), Some(&CodeChallengeMethod::S256)).is_ok());
     }
 
+    #[test]
+    fn an_unpushed_request_is_refused_when_the_client_or_the_realm_requires_par() {
+        let realm_id = RealmId::from(Uuid::new_v4());
+        let mut realm = RealmSetting::new(realm_id, None);
+        let mut client = confidential_client(Uuid::new_v4(), realm_id);
+
+        assert!(unpushed_request_allowed(&client, &realm).is_ok());
+
+        client.require_pushed_authorization_requests = true;
+        assert!(matches!(
+            unpushed_request_allowed(&client, &realm),
+            Err(CoreError::PushedAuthorizationRequired)
+        ));
+
+        client.require_pushed_authorization_requests = false;
+        realm.require_pushed_authorization_requests = true;
+        assert!(matches!(
+            unpushed_request_allowed(&client, &realm),
+            Err(CoreError::PushedAuthorizationRequired)
+        ));
+    }
+
     // ---- validate_authorization_code_request -----------------------------
 
     const REDIRECT_URI: &str = "https://client.example/callback";
@@ -6997,6 +7046,7 @@ mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             client_type: ClientType::Confidential,
             name: "app".to_string(),
             redirect_uris: None,

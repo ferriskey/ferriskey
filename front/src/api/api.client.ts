@@ -120,7 +120,9 @@ export namespace Schemas {
     introspection_endpoint: string;
     issuer: string;
     jwks_uri: string;
+    pushed_authorization_request_endpoint: string;
     registration_endpoint?: (string | null) | undefined;
+    require_pushed_authorization_requests: boolean;
     response_types_supported: Array<string>;
     revocation_endpoint: string;
     scopes_supported: Array<string>;
@@ -178,6 +180,7 @@ export namespace Schemas {
     refresh_token_lifetime?: (number | null) | undefined;
     registration_source: ClientRegistrationSource;
     require_pkce: boolean;
+    require_pushed_authorization_requests: boolean;
     secret?: (null | Masked_String) | undefined;
     service_account_enabled: boolean;
     temporary_token_lifetime?: (number | null) | undefined;
@@ -480,6 +483,7 @@ export namespace Schemas {
     refresh_token_lifetime: number;
     remember_me_enabled: boolean;
     require_mfa: boolean;
+    require_pushed_authorization_requests: boolean;
     reset_password_template_id?: (string | null) | undefined;
     seawatch_pii_mode: string;
     supported_locales: Array<string>;
@@ -725,7 +729,9 @@ export namespace Schemas {
     introspection_endpoint: string;
     issuer: string;
     jwks_uri: string;
+    pushed_authorization_request_endpoint: string;
     registration_endpoint?: (string | null) | undefined;
+    require_pushed_authorization_requests: boolean;
     response_types_supported: Array<string>;
     revocation_endpoint: string;
     scopes_supported: Array<string>;
@@ -950,6 +956,7 @@ export namespace Schemas {
       refresh_token_lifetime?: (number | null) | undefined;
       registration_source: ClientRegistrationSource;
       require_pkce: boolean;
+      require_pushed_authorization_requests: boolean;
       secret?: (null | Masked_String) | undefined;
       service_account_enabled: boolean;
       temporary_token_lifetime?: (number | null) | undefined;
@@ -1565,6 +1572,7 @@ export namespace Schemas {
     oauth_device_code_grant_enabled: boolean | null;
     refresh_token_lifetime: number | null;
     require_pkce: boolean | null;
+    require_pushed_authorization_requests: boolean | null;
     temporary_token_lifetime: number | null;
     token_endpoint_auth_method: null | TokenEndpointAuthMethod;
     token_exchange_enabled: boolean | null;
@@ -1671,6 +1679,7 @@ export namespace Schemas {
     refresh_token_lifetime: number | null;
     remember_me_enabled: boolean | null;
     require_mfa: boolean | null;
+    require_pushed_authorization_requests: boolean | null;
     reset_password_template_id: string | null;
     seawatch_pii_mode: string | null;
     seawatch_pseudo_key: string | null;

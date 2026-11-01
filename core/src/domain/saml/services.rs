@@ -677,6 +677,7 @@ pub(crate) mod tests {
             oauth_device_code_grant_enabled: false,
             token_exchange_enabled: false,
             require_pkce: false,
+            require_pushed_authorization_requests: false,
             client_type: ClientType::Public,
             name: "Chatwoot".to_string(),
             redirect_uris: None,

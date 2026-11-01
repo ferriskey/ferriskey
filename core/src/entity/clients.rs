@@ -43,6 +43,7 @@ pub struct Model {
     pub token_endpoint_auth_method: String,
     pub jwks: Option<Json>,
     pub jwks_uri: Option<String>,
+    pub require_pushed_authorization_requests: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -77,6 +78,7 @@ pub enum Column {
     TokenEndpointAuthMethod,
     Jwks,
     JwksUri,
+    RequirePushedAuthorizationRequests,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -144,6 +146,7 @@ impl ColumnTrait for Column {
             Self::TokenEndpointAuthMethod => ColumnType::Text.def(),
             Self::Jwks => ColumnType::JsonBinary.def().null(),
             Self::JwksUri => ColumnType::Text.def().null(),
+            Self::RequirePushedAuthorizationRequests => ColumnType::Boolean.def(),
         }
     }
 }
