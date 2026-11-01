@@ -467,7 +467,7 @@ where
         return Ok(None);
     };
 
-    if input.auth_session_id.is_some() || input.code_challenge.is_some() {
+    if input.code_challenge.is_some() {
         return Ok(None);
     }
 
@@ -677,7 +677,7 @@ where
             code_verifier,
             code_challenge: input.code_challenge.clone(),
             code_challenge_method: input.code_challenge_method.clone(),
-            auth_session_id: resumed.map(|session| session.id).or(input.auth_session_id),
+            auth_session_id: resumed.map(|session| session.id),
         };
 
         let broker_session = self.broker_session_repository.create(request).await?;
@@ -1609,7 +1609,6 @@ mod tests {
             scope: None,
             state: session.state.clone(),
             nonce: None,
-            auth_session_id: None,
             code_challenge: None,
             code_challenge_method: None,
             cookie_session_id: Some(session.id),
@@ -1761,19 +1760,6 @@ mod tests {
         let (scope, session) = scope_and_session();
         let mut input = login_input(&session);
         input.code_challenge = Some("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM".to_string());
-
-        let resumed = resumable_session(&sessions_never_read(), &scope, session.client_id, &input)
-            .await
-            .expect("lookup succeeds");
-
-        assert!(resumed.is_none());
-    }
-
-    #[tokio::test]
-    async fn the_cookie_is_ignored_when_the_request_names_a_session() {
-        let (scope, session) = scope_and_session();
-        let mut input = login_input(&session);
-        input.auth_session_id = Some(Uuid::new_v4());
 
         let resumed = resumable_session(&sessions_never_read(), &scope, session.client_id, &input)
             .await

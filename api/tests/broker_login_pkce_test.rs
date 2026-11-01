@@ -264,4 +264,123 @@ mod tests {
             assert_eq!(code_challenge.as_deref(), Some(OTHER_CHALLENGE));
         });
     }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test broker_login_pkce_test -- --ignored"]
+    fn a_session_named_in_the_query_is_not_resumed_without_its_cookie() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let alias = identity_provider(app, &server).await;
+            let client = app.client(ClientSpec::public()).await;
+            let planted = open_login(app, &server, &client, "state-7").await;
+            let planted_id = planted.session_id.to_string();
+
+            let response = press_provider_button(
+                app,
+                &server,
+                &alias,
+                &client,
+                "state-7",
+                None,
+                &[("session_id", planted_id.as_str())],
+            )
+            .await;
+
+            let (auth_session_id, _) = binding_of(app, &response).await;
+            assert_eq!(auth_session_id, None);
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test broker_login_pkce_test -- --ignored"]
+    fn a_session_named_in_the_query_does_not_replace_the_session_of_the_cookie() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let alias = identity_provider(app, &server).await;
+            let client = app.client(ClientSpec::public()).await;
+            let planted = open_login(app, &server, &client, "state-8").await;
+            let own = open_login(app, &server, &client, "state-8").await;
+            let planted_id = planted.session_id.to_string();
+
+            let response = press_provider_button(
+                app,
+                &server,
+                &alias,
+                &client,
+                "state-8",
+                Some(&own),
+                &[("session_id", planted_id.as_str())],
+            )
+            .await;
+
+            let (auth_session_id, _) = binding_of(app, &response).await;
+            assert_eq!(auth_session_id, Some(own.session_id));
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test broker_login_pkce_test -- --ignored"]
+    fn the_login_page_receives_the_redirect_uri_and_state_intact() {
+        rt().block_on(async {
+            let app = app();
+            let server = app.server();
+            let alias = identity_provider(app, &server).await;
+            let redirect_uri = "http://localhost/callback?tenant=a&lang=fr";
+            let state = "a+b/c=d&e";
+            let client = app
+                .client(ClientSpec {
+                    redirect_uris: vec![redirect_uri.to_string()],
+                    ..ClientSpec::public()
+                })
+                .await;
+
+            let authorized = server
+                .get(&app.oidc("auth"))
+                .add_query_param("response_type", "code")
+                .add_query_param("client_id", &client.client_id)
+                .add_query_param("redirect_uri", redirect_uri)
+                .add_query_param("scope", "openid")
+                .add_query_param("state", state)
+                .add_query_param("code_challenge", CHALLENGE)
+                .add_query_param("code_challenge_method", "S256")
+                .await;
+            assert_eq!(
+                authorized.status_code(),
+                302,
+                "authorize: {}",
+                authorized.text()
+            );
+            let cookie = authorized.cookie("FERRISKEY_SESSION");
+            let session_id = Uuid::parse_str(cookie.value()).expect("session cookie is a uuid");
+            let login_page = authorized
+                .headers()
+                .get("location")
+                .expect("Location header")
+                .to_str()
+                .expect("Location is utf-8")
+                .to_string();
+
+            let page_redirect_uri = query_param(&login_page, "redirect_uri");
+            let page_state = query_param(&login_page, "state");
+            assert_eq!(
+                page_redirect_uri.as_deref(),
+                Some(redirect_uri),
+                "{login_page}"
+            );
+            assert_eq!(page_state.as_deref(), Some(state), "{login_page}");
+
+            let response = server
+                .get(&app.path(&format!("/broker/{alias}/login")))
+                .add_query_param("client_id", &client.client_id)
+                .add_query_param("redirect_uri", redirect_uri)
+                .add_query_param("state", state)
+                .add_cookie(cookie)
+                .await;
+
+            let (auth_session_id, _) = binding_of(app, &response).await;
+            assert_eq!(auth_session_id, Some(session_id));
+        });
+    }
 }

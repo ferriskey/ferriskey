@@ -130,9 +130,6 @@ pub struct BrokerLoginInput {
     /// OIDC nonce parameter
     pub nonce: Option<String>,
 
-    /// Existing auth session ID (if initiated from login page)
-    pub auth_session_id: Option<Uuid>,
-
     pub code_challenge: Option<String>,
 
     pub code_challenge_method: Option<String>,
