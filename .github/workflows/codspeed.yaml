@@ -42,7 +42,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: install cargo-codspeed
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32
         with:
           tool: cargo-codspeed
 
