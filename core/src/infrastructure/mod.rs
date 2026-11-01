@@ -18,6 +18,7 @@ pub mod migrate;
 pub mod organization;
 pub mod pagination;
 pub mod realm;
+pub mod realm_transfer;
 pub mod recovery_code;
 pub mod repositories;
 pub mod retention;
