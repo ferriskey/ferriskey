@@ -327,7 +327,12 @@ mod tests {
             )
             .await;
             assert_eq!(response.status_code(), 400, "{}", response.text());
-            assert_eq!(response.json::<Value>()["error"], "invalid_grant");
+            let body = response.json::<Value>();
+            assert_eq!(body["error"], "invalid_grant");
+            assert_eq!(
+                body["error_description"],
+                "code_verifier was sent for an authorization code issued without code_challenge"
+            );
         });
     }
 

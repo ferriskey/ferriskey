@@ -2734,7 +2734,7 @@ where
             }
             (None, _) if params.code_verifier.is_some() => {
                 warn!(client_id = %params.client_id, "Refused a code_verifier for a code issued without PKCE");
-                return Err(CoreError::InvalidCodeVerifier);
+                return Err(CoreError::CodeVerifierWithoutChallenge);
             }
             (None, _) => {}
         }

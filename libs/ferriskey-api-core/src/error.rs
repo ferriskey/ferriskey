@@ -442,6 +442,10 @@ impl From<CoreError> for ApiError {
                 error: "invalid_grant".into(),
                 error_description: "code_verifier is required when code_challenge was used at authorization".into(),
             },
+            CoreError::CodeVerifierWithoutChallenge => Self::OAuthError {
+                error: "invalid_grant".into(),
+                error_description: "code_verifier was sent for an authorization code issued without code_challenge".into(),
+            },
         };
 
         api_error.with_default_reason(reason)
