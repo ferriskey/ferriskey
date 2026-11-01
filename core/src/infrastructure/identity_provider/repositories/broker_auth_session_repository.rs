@@ -32,7 +32,7 @@ impl BrokerAuthSessionRepository for PostgresBrokerAuthSessionRepository {
         request: CreateBrokerAuthSessionRequest,
     ) -> Result<BrokerAuthSession, CoreError> {
         let now = Utc::now().fixed_offset();
-        let expires_at = (Utc::now() + chrono::Duration::minutes(10)).fixed_offset();
+        let expires_at = request.expires_at.fixed_offset();
 
         let payload = ActiveModel {
             id: Set(generate_uuid_v7()),

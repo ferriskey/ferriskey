@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use ferriskey_compass::{
     entities::{FlowStatus, FlowStepName},
     recorder::FlowRecorder,
@@ -19,7 +19,9 @@ use crate::domain::abyss::identity_provider::broker::{
     OAuthClient, OAuthProviderConfig, OAuthTokenResponse,
 };
 use crate::domain::abyss::identity_provider::{IdentityProvider, IdentityProviderRepository};
-use crate::domain::authentication::entities::{AuthProtocol, AuthSession, AuthSessionParams};
+use crate::domain::authentication::entities::{
+    AuthProtocol, AuthSession, AuthSessionParams, AuthenticationError,
+};
 use crate::domain::authentication::ports::{
     AdmitLoginInput, AuthSessionRepository, LoginAdmission, LoginAdmissionPort,
 };
@@ -437,6 +439,59 @@ fn user_info_from_claims(claims: serde_json::Value) -> Result<BrokeredUserInfo, 
     })
 }
 
+fn session_continues_login(
+    session: &AuthSession,
+    client_id: Uuid,
+    input: &BrokerLoginInput,
+    now: DateTime<Utc>,
+) -> bool {
+    let state_of = |state: &Option<String>| state.clone().filter(|state| !state.is_empty());
+
+    session.client_id == client_id
+        && session.redirect_uri == input.redirect_uri
+        && state_of(&session.state) == state_of(&input.state)
+        && session.code.is_none()
+        && session.expires_at > now
+}
+
+fn broker_session_expiry(resumed: Option<&AuthSession>, now: DateTime<Utc>) -> DateTime<Utc> {
+    let own = now + chrono::Duration::minutes(10);
+
+    resumed.map_or(own, |session| session.expires_at.min(own))
+}
+
+async fn resumable_session<ASR>(
+    sessions: &ASR,
+    scope: &RealmScope,
+    client_id: Uuid,
+    input: &BrokerLoginInput,
+) -> Result<Option<AuthSession>, CoreError>
+where
+    ASR: AuthSessionRepository,
+{
+    let Some(session_id) = input.cookie_session_id else {
+        return Ok(None);
+    };
+
+    if input.code_challenge.is_some() {
+        return Ok(None);
+    }
+
+    let session = match sessions.get_by_session_code(session_id).await {
+        Ok(session) => session,
+        Err(AuthenticationError::NotFound) => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+
+    let Ok(session) = session.in_realm(scope) else {
+        return Ok(None);
+    };
+
+    let session = session.into_inner();
+
+    Ok(session_continues_login(&session, client_id, input, Utc::now()).then_some(session))
+}
+
 enum CodeTarget {
     Existing(Uuid),
     New(Box<AuthSession>),
@@ -474,6 +529,9 @@ where
                 .in_realm(scope)
                 .map_err(|_| CoreError::SessionNotFound)?
                 .into_inner();
+            if auth_session.expires_at <= Utc::now() {
+                return Err(CoreError::SessionExpired);
+            }
             (auth_session, false)
         }
         CodeTarget::New(auth_session) => {
@@ -574,9 +632,24 @@ where
             })
             .transpose()?;
 
+        let resumed = resumable_session(
+            self.auth_session_repository.as_ref(),
+            &scope,
+            client.id,
+            &input,
+        )
+        .await?;
+
+        let (has_challenge, effective_method) = match &resumed {
+            Some(session) => (
+                session.code_challenge.is_some(),
+                session.code_challenge_method.clone(),
+            ),
+            None => (input.code_challenge.is_some(), challenge_method),
+        };
+
         if client.require_pkce
-            && !(input.code_challenge.is_some()
-                && challenge_method == Some(CodeChallengeMethod::S256))
+            && !(has_challenge && effective_method == Some(CodeChallengeMethod::S256))
         {
             return Err(CoreError::PkceRequired);
         }
@@ -613,7 +686,8 @@ where
             code_verifier,
             code_challenge: input.code_challenge.clone(),
             code_challenge_method: input.code_challenge_method.clone(),
-            auth_session_id: input.auth_session_id,
+            auth_session_id: resumed.as_ref().map(|session| session.id),
+            expires_at: broker_session_expiry(resumed.as_ref(), Utc::now()),
         };
 
         let broker_session = self.broker_session_repository.create(request).await?;
@@ -1533,5 +1607,278 @@ mod tests {
         .await;
 
         assert!(matches!(result, Err(CoreError::Forbidden(_))));
+    }
+
+    fn login_input(session: &AuthSession) -> BrokerLoginInput {
+        BrokerLoginInput {
+            realm_name: "realm".to_string(),
+            alias: "google".to_string(),
+            client_id: "my-spa".to_string(),
+            redirect_uri: session.redirect_uri.clone(),
+            response_type: "code".to_string(),
+            scope: None,
+            state: session.state.clone(),
+            nonce: None,
+            code_challenge: None,
+            code_challenge_method: None,
+            cookie_session_id: Some(session.id),
+            base_url: "https://auth.example".to_string(),
+        }
+    }
+
+    fn sessions_holding(session: &AuthSession) -> MockAuthSessionRepository {
+        let mut sessions = MockAuthSessionRepository::new();
+        let found = session.clone();
+        sessions.expect_get_by_session_code().returning(move |_| {
+            let found = found.clone();
+            Box::pin(async move { Ok(Unscoped::new(found)) })
+        });
+        sessions
+    }
+
+    fn sessions_never_read() -> MockAuthSessionRepository {
+        let mut sessions = MockAuthSessionRepository::new();
+        sessions.expect_get_by_session_code().never();
+        sessions
+    }
+
+    #[test]
+    fn a_session_opened_for_the_same_login_is_continued() {
+        let (_, mut session) = scope_and_session();
+        session.state = Some("abc".to_string());
+        let input = login_input(&session);
+
+        assert!(session_continues_login(
+            &session,
+            session.client_id,
+            &input,
+            Utc::now()
+        ));
+    }
+
+    #[test]
+    fn a_session_opened_by_another_client_is_not_continued() {
+        let (_, session) = scope_and_session();
+        let input = login_input(&session);
+
+        assert!(!session_continues_login(
+            &session,
+            Uuid::new_v4(),
+            &input,
+            Utc::now()
+        ));
+    }
+
+    #[test]
+    fn a_session_opened_for_another_redirect_uri_is_not_continued() {
+        let (_, session) = scope_and_session();
+        let mut input = login_input(&session);
+        input.redirect_uri = "https://elsewhere.example/callback".to_string();
+
+        assert!(!session_continues_login(
+            &session,
+            session.client_id,
+            &input,
+            Utc::now()
+        ));
+    }
+
+    #[test]
+    fn a_session_opened_for_another_state_is_not_continued() {
+        let (_, mut session) = scope_and_session();
+        session.state = Some("abc".to_string());
+        let mut input = login_input(&session);
+        input.state = Some("xyz".to_string());
+
+        assert!(!session_continues_login(
+            &session,
+            session.client_id,
+            &input,
+            Utc::now()
+        ));
+    }
+
+    #[test]
+    fn an_empty_state_matches_a_session_opened_without_one() {
+        let (_, session) = scope_and_session();
+        let mut input = login_input(&session);
+        input.state = Some(String::new());
+
+        assert!(session_continues_login(
+            &session,
+            session.client_id,
+            &input,
+            Utc::now()
+        ));
+    }
+
+    #[test]
+    fn a_session_that_already_holds_a_code_is_not_continued() {
+        let (_, mut session) = scope_and_session();
+        session.code = Some("issued".to_string());
+        let input = login_input(&session);
+
+        assert!(!session_continues_login(
+            &session,
+            session.client_id,
+            &input,
+            Utc::now()
+        ));
+    }
+
+    #[test]
+    fn an_expired_session_is_not_continued() {
+        let (_, session) = scope_and_session();
+        let input = login_input(&session);
+
+        assert!(!session_continues_login(
+            &session,
+            session.client_id,
+            &input,
+            session.expires_at + Duration::seconds(1)
+        ));
+    }
+
+    #[tokio::test]
+    async fn the_session_of_the_cookie_is_resumed_when_it_continues_the_login() {
+        let (scope, session) = scope_and_session();
+        let input = login_input(&session);
+        let sessions = sessions_holding(&session);
+
+        let resumed = resumable_session(&sessions, &scope, session.client_id, &input)
+            .await
+            .expect("lookup succeeds");
+
+        assert_eq!(resumed.map(|resumed| resumed.id), Some(session.id));
+    }
+
+    #[tokio::test]
+    async fn no_session_is_looked_up_without_a_cookie() {
+        let (scope, session) = scope_and_session();
+        let mut input = login_input(&session);
+        input.cookie_session_id = None;
+
+        let resumed = resumable_session(&sessions_never_read(), &scope, session.client_id, &input)
+            .await
+            .expect("lookup succeeds");
+
+        assert!(resumed.is_none());
+    }
+
+    #[tokio::test]
+    async fn the_cookie_is_ignored_when_the_request_brings_its_own_challenge() {
+        let (scope, session) = scope_and_session();
+        let mut input = login_input(&session);
+        input.code_challenge = Some("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM".to_string());
+
+        let resumed = resumable_session(&sessions_never_read(), &scope, session.client_id, &input)
+            .await
+            .expect("lookup succeeds");
+
+        assert!(resumed.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_cookie_naming_no_session_resumes_nothing() {
+        let (scope, session) = scope_and_session();
+        let input = login_input(&session);
+        let mut sessions = MockAuthSessionRepository::new();
+        sessions
+            .expect_get_by_session_code()
+            .returning(|_| Box::pin(async { Err(AuthenticationError::NotFound) }));
+
+        let resumed = resumable_session(&sessions, &scope, session.client_id, &input)
+            .await
+            .expect("an unknown session is not an error");
+
+        assert!(resumed.is_none());
+    }
+
+    #[tokio::test]
+    async fn the_session_of_another_realm_is_not_resumed() {
+        let (scope, mut session) = scope_and_session();
+        session.realm_id = crate::domain::realm::entities::RealmId::new(Uuid::new_v4());
+        let input = login_input(&session);
+        let sessions = sessions_holding(&session);
+
+        let resumed = resumable_session(&sessions, &scope, session.client_id, &input)
+            .await
+            .expect("lookup succeeds");
+
+        assert!(resumed.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_failing_lookup_is_reported_not_swallowed() {
+        let (scope, session) = scope_and_session();
+        let input = login_input(&session);
+        let mut sessions = MockAuthSessionRepository::new();
+        sessions
+            .expect_get_by_session_code()
+            .returning(|_| Box::pin(async { Err(AuthenticationError::InternalServerError) }));
+
+        let resumed = resumable_session(&sessions, &scope, session.client_id, &input).await;
+
+        assert!(resumed.is_err());
+    }
+
+    #[tokio::test]
+    async fn a_resumed_session_that_has_expired_gets_no_code() {
+        let (scope, mut session) = scope_and_session();
+        session.expires_at = Utc::now() - Duration::seconds(1);
+        let session_id = session.id;
+        let mut sessions = sessions_holding(&session);
+        sessions.expect_update_code().never();
+        sessions.expect_update_user_id().never();
+        let mut admission = MockLoginAdmissionPort::new();
+        admission.expect_admit().never();
+
+        let result = issue_login_code(
+            &sessions,
+            &admission,
+            &scope,
+            Uuid::new_v4(),
+            CodeTarget::Existing(session_id),
+            "https://app.example",
+            "the-code",
+            None,
+        )
+        .await;
+
+        assert!(matches!(result, Err(CoreError::SessionExpired)));
+    }
+
+    #[test]
+    fn a_broker_session_ends_with_the_session_it_resumes() {
+        let (_, mut session) = scope_and_session();
+        let now = Utc::now();
+        session.expires_at = now + Duration::minutes(1);
+
+        assert_eq!(
+            broker_session_expiry(Some(&session), now),
+            session.expires_at
+        );
+    }
+
+    #[test]
+    fn a_broker_session_keeps_its_own_lifetime_when_the_resumed_one_lasts_longer() {
+        let (_, mut session) = scope_and_session();
+        let now = Utc::now();
+        session.expires_at = now + Duration::hours(1);
+
+        assert_eq!(
+            broker_session_expiry(Some(&session), now),
+            now + Duration::minutes(10)
+        );
+    }
+
+    #[test]
+    fn a_broker_session_on_its_own_lives_ten_minutes() {
+        let now = Utc::now();
+
+        assert_eq!(
+            broker_session_expiry(None, now),
+            now + Duration::minutes(10)
+        );
     }
 }

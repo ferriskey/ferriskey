@@ -4,6 +4,9 @@ use axum::{
     response::IntoResponse,
 };
 
+use axum_cookie::CookieManager;
+use uuid::Uuid;
+
 use ferriskey_core::domain::abyss::identity_provider::broker::{BrokerLoginInput, BrokerService};
 
 use ferriskey_api_core::url::FullUrl;
@@ -40,8 +43,12 @@ pub async fn broker_login(
     Path((realm_name, alias)): Path<(String, String)>,
     State(state): State<AppState>,
     FullUrl(_, base_url): FullUrl,
+    cookie: CookieManager,
     Query(params): Query<BrokerLoginRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let cookie_session_id = cookie
+        .get("FERRISKEY_SESSION")
+        .and_then(|cookie| Uuid::parse_str(cookie.value()).ok());
     let base_url = format!("{base_url}{}", state.args.server.root_path);
     let result = state
         .service
@@ -54,9 +61,9 @@ pub async fn broker_login(
             scope: params.scope,
             state: params.state,
             nonce: params.nonce,
-            auth_session_id: params.session_id,
             code_challenge: params.code_challenge,
             code_challenge_method: params.code_challenge_method,
+            cookie_session_id,
             base_url,
         })
         .await?;
