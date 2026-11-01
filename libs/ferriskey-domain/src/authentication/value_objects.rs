@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::authentication::assurance::AuthenticationContext;
 use crate::authentication::entities::{GrantType, JwtToken};
 use crate::client::entities::Client;
 use crate::realm::scope::RealmScope;
@@ -195,6 +196,8 @@ pub struct GenerateTokenInput {
     /// When the user last authenticated interactively, as a Unix timestamp:
     /// the ID token's `auth_time`, which OIDC `max_age` relies on.
     pub auth_time: Option<i64>,
+    /// The `acr` and `amr` claims; `None` when the session recorded no factor.
+    pub authentication: Option<AuthenticationContext>,
     pub resource: Option<String>,
 }
 

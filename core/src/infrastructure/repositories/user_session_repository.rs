@@ -55,6 +55,13 @@ fn listing_select(
         })
 }
 
+fn factors_json(session: &UserSession) -> Result<serde_json::Value, SessionError> {
+    serde_json::to_value(&session.authentication_factors).map_err(|e| {
+        error!("Error serializing authentication factors: {:?}", e);
+        SessionError::UpdateError
+    })
+}
+
 impl From<crate::entity::user_sessions::Model> for UserSession {
     fn from(model: crate::entity::user_sessions::Model) -> Self {
         let created_at = Utc.from_utc_datetime(&model.created_at);
@@ -74,6 +81,11 @@ impl From<crate::entity::user_sessions::Model> for UserSession {
             sso_token_hash: model.sso_token_hash,
             persistent: model.persistent,
             authenticated_at: model.authenticated_at.with_timezone(&Utc),
+            authentication_factors: serde_json::from_value(model.authentication_factors)
+                .unwrap_or_else(|e| {
+                    error!(session_id = %model.id, error = %e, "Ignoring unreadable authentication factors");
+                    Vec::new()
+                }),
         }
     }
 }
@@ -103,6 +115,7 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             sso_token_hash: Set(session.sso_token_hash.clone()),
             persistent: Set(session.persistent),
             authenticated_at: Set(session.authenticated_at.fixed_offset()),
+            authentication_factors: Set(factors_json(session)?),
         };
 
         model.insert(&self.db).await.map_err(|e| {
@@ -306,6 +319,10 @@ impl UserSessionRepository for PostgresUserSessionRepository {
             .col_expr(
                 crate::entity::user_sessions::Column::Persistent,
                 Expr::value(session.persistent),
+            )
+            .col_expr(
+                crate::entity::user_sessions::Column::AuthenticationFactors,
+                Expr::value(factors_json(session)?),
             )
             .filter(crate::entity::user_sessions::Column::Id.eq(session.id))
             .filter(crate::entity::user_sessions::Column::RealmId.eq(session.realm_id))

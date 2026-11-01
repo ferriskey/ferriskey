@@ -1329,4 +1329,273 @@ mod tests {
             );
         });
     }
+
+    fn jwt_claims(token: &str) -> serde_json::Value {
+        use base64::Engine as _;
+        let payload = token.split('.').nth(1).expect("a JWT payload");
+        serde_json::from_slice(
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .decode(payload)
+                .expect("base64url payload"),
+        )
+        .expect("JSON claims")
+    }
+
+    /// The claims of the id token and of the access token a code exchange hands out.
+    async fn exchanged_claims(
+        server: &TestServer,
+        code: &str,
+    ) -> (serde_json::Value, serde_json::Value) {
+        let token = exchange_survey_code(server, code).await;
+        assert_eq!(token.status_code(), 200, "{}", token.text());
+        let body = token.json::<serde_json::Value>();
+
+        (
+            jwt_claims(body["id_token"].as_str().expect("an id token")),
+            jwt_claims(body["access_token"].as_str().expect("an access token")),
+        )
+    }
+
+    /// Sign the OTP user in through the password and OTP steps, returning
+    /// the SSO cookie.
+    async fn sign_in_with_otp(server: &TestServer) -> String {
+        let authorize = start_console_authorization(server).await;
+        let session_code = authorize.cookie("FERRISKEY_SESSION").value().to_string();
+
+        let password_step = server
+            .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+            .add_cookie(authorize.cookie("FERRISKEY_SESSION"))
+            .add_query_param("client_id", SEEDED_CLIENT_ID)
+            .json(&json!({ "username": OTP_USERNAME, "password": "admin" }))
+            .await;
+        assert_eq!(password_step.status_code(), 200, "{}", password_step.text());
+        let step_token = password_step
+            .cookie("FERRISKEY_LOGIN_ACTION")
+            .value()
+            .to_string();
+
+        let otp_step = server
+            .post(&format!("/realms/{}/login-actions/challenge-otp", realm()))
+            .add_header(
+                "Cookie",
+                axum::http::HeaderValue::from_str(&format!(
+                    "FERRISKEY_SESSION={session_code}; FERRISKEY_LOGIN_ACTION={step_token}"
+                ))
+                .expect("cookie header"),
+            )
+            .json(&json!({ "code": totp_code_for(OTP_SECRET) }))
+            .await;
+        assert_eq!(otp_step.status_code(), 200, "{}", otp_step.text());
+
+        sso_cookie_of(&otp_step).expect("the OTP step must hand out the SSO cookie")
+    }
+
+    async fn set_acr_loa_map(map: serde_json::Value) {
+        sqlx::query(
+            "UPDATE realm_settings SET acr_loa_map = $1 \
+             WHERE realm_id = (SELECT id FROM realms WHERE name = $2)",
+        )
+        .bind(map)
+        .bind(realm())
+        .execute(&shared_ctx().pool)
+        .await
+        .expect("set the realm acr map");
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_password_login_is_asserted_as_one_factor() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+
+            let (id_claims, access_claims) = exchanged_claims(&server, &code).await;
+
+            for claims in [&id_claims, &access_claims] {
+                assert_eq!(claims["acr"], "1", "{claims}");
+                assert_eq!(claims["amr"], json!(["pwd"]), "{claims}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_refresh_keeps_asserting_how_the_session_authenticated() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let code = survey_code_from_sso(&server).await;
+            let token = exchange_survey_code(&server, &code).await;
+            assert_eq!(token.status_code(), 200, "{}", token.text());
+            let refresh_token = token.json::<serde_json::Value>()["refresh_token"]
+                .as_str()
+                .expect("a refresh token")
+                .to_string();
+
+            let refreshed = server
+                .post(&format!(
+                    "/realms/{}/protocol/openid-connect/token",
+                    realm()
+                ))
+                .form(&[
+                    ("grant_type", "refresh_token"),
+                    ("client_id", SURVEY_CLIENT_ID),
+                    ("client_secret", "survey-secret"),
+                    ("refresh_token", refresh_token.as_str()),
+                ])
+                .await;
+            assert_eq!(refreshed.status_code(), 200, "{}", refreshed.text());
+            let access_claims = jwt_claims(
+                refreshed.json::<serde_json::Value>()["access_token"]
+                    .as_str()
+                    .expect("an access token"),
+            );
+
+            assert_eq!(access_claims["acr"], "1", "{access_claims}");
+            assert_eq!(access_claims["amr"], json!(["pwd"]), "{access_claims}");
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn an_otp_login_is_asserted_as_multi_factor_under_the_requested_name() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_acr_loa_map(json!({ "gold": 2 })).await;
+            let server = make_server();
+            let sso = sign_in_with_otp(&server).await;
+
+            let survey =
+                survey_authorize_with(&server, Some(&sso), &[("acr_values", "gold 1")]).await;
+            let location = location_of(&survey);
+            assert!(
+                location.starts_with(SURVEY_REDIRECT_URI),
+                "a multi-factor session answers a multi-factor request: {location}"
+            );
+            let (id_claims, access_claims) = exchanged_claims(&server, &code_of(&location)).await;
+            set_acr_loa_map(json!({})).await;
+
+            for claims in [&id_claims, &access_claims] {
+                assert_eq!(claims["acr"], "gold", "{claims}");
+                assert_eq!(claims["amr"], json!(["pwd", "otp", "mfa"]), "{claims}");
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn a_session_below_the_requested_level_must_step_up() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let sso = sign_in(&server).await;
+
+            let enough = survey_authorize_with(&server, Some(&sso), &[("acr_values", "1")]).await;
+            assert!(
+                location_of(&enough).starts_with(SURVEY_REDIRECT_URI),
+                "a single-factor session answers a single-factor request"
+            );
+
+            let step_up = survey_authorize_with(&server, Some(&sso), &[("acr_values", "2")]).await;
+            let location = location_of(&step_up);
+            assert!(
+                location.starts_with(WEBAPP_URL),
+                "a single-factor session must authenticate again for a multi-factor request: {location}"
+            );
+            assert!(
+                !clears_the_sso_cookie(&step_up),
+                "the session is still live and must stay usable elsewhere"
+            );
+
+            let password_step = server
+                .post(&format!("/realms/{}/login-actions/authenticate", realm()))
+                .add_cookie(step_up.cookie("FERRISKEY_SESSION"))
+                .add_query_param("client_id", SURVEY_CLIENT_ID)
+                .json(&json!({ "username": "admin", "password": "admin" }))
+                .await;
+            assert_eq!(password_step.status_code(), 200, "{}", password_step.text());
+            let body = password_step.json::<serde_json::Value>();
+            assert!(
+                body["required_actions"].to_string().contains("configure_otp"),
+                "a user without a second factor must enrol one to reach the level: {body}"
+            );
+            assert_eq!(
+                sso_cookie_of(&password_step),
+                None,
+                "the password alone must not complete a multi-factor login"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn prompt_none_below_the_requested_level_needs_a_login() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_admin_enabled(true).await;
+            let server = make_server();
+            let sso = sign_in(&server).await;
+
+            let silent = survey_authorize_with(
+                &server,
+                Some(&sso),
+                &[("acr_values", "2"), ("prompt", "none")],
+            )
+            .await;
+            let location = location_of(&silent);
+
+            assert!(
+                location.starts_with(SURVEY_REDIRECT_URI)
+                    && location.contains("error=login_required"),
+                "prompt=none cannot step up and must say so: {location}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn an_essential_acr_the_realm_does_not_know_is_refused() {
+        let _serial = serial();
+        rt().block_on(async {
+            let server = make_server();
+            let claims =
+                r#"{"id_token":{"acr":{"essential":true,"values":["urn:example:unknown"]}}}"#;
+
+            let refused = survey_authorize_with(&server, None, &[("claims", claims)]).await;
+            let location = location_of(&refused);
+
+            assert!(
+                location.starts_with(SURVEY_REDIRECT_URI)
+                    && location.contains("error=unmet_authentication_requirements"),
+                "{location}"
+            );
+        });
+    }
+
+    #[test]
+    #[ignore = "requires PostgreSQL — run with: cargo test -p ferriskey-api --test sso_session_test -- --ignored"]
+    fn discovery_lists_the_acr_values_a_client_may_request() {
+        let _serial = serial();
+        rt().block_on(async {
+            set_acr_loa_map(json!({ "gold": 2 })).await;
+            let server = make_server();
+
+            let discovery = server
+                .get(&format!(
+                    "/realms/{}/.well-known/openid-configuration",
+                    realm()
+                ))
+                .await;
+            set_acr_loa_map(json!({})).await;
+
+            assert_eq!(discovery.status_code(), 200, "{}", discovery.text());
+            let body = discovery.json::<serde_json::Value>();
+            assert_eq!(body["acr_values_supported"], json!(["1", "2", "gold"]));
+            assert_eq!(body["claims_parameter_supported"], true);
+        });
+    }
 }

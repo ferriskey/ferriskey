@@ -881,6 +881,7 @@ where
                 input.dcr_enabled,
                 input.cimd_allowed_hosts,
                 input.allowed_resources,
+                input.acr_loa_map,
             )
             .await?;
 
@@ -957,6 +958,7 @@ where
             cimd_enabled: settings.cimd_enabled,
             dcr_enabled: settings.dcr_enabled,
             scopes_supported,
+            acr_values_supported: settings.acr_loa_map.supported_values(),
         })
     }
 }

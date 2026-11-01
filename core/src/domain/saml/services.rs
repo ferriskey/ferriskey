@@ -443,6 +443,7 @@ where
                 prompt_consent: false,
                 issuer: None,
                 resource: None,
+                acr_values: None,
             }))
             .await;
 
@@ -753,6 +754,8 @@ pub(crate) mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            acr_values: None,
+            verified_factors: Vec::new(),
         }
     }
 

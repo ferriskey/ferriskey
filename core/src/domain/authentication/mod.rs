@@ -13,4 +13,5 @@ pub mod services;
 pub mod token_exchange;
 pub mod value_objects;
 
+pub use ferriskey_domain::authentication::assurance;
 pub use scope::{OidcScope, SCOPE_EMAIL, SCOPE_OPENID, SCOPE_PROFILE, ScopeManager};

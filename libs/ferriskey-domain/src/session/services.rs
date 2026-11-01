@@ -723,6 +723,7 @@ mod tests {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: chrono::Utc::now(),
+            authentication_factors: Vec::new(),
         }
     }
 
@@ -806,6 +807,7 @@ mod tests {
             sso_token_hash: None,
             persistent: false,
             authenticated_at: chrono::Utc::now() - Duration::hours(2),
+            authentication_factors: Vec::new(),
         };
         assert!(session.is_expired());
         assert_eq!(

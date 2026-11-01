@@ -39,6 +39,8 @@ pub struct Model {
     pub prompt_consent: bool,
     pub issuer: Option<String>,
     pub resource: Option<String>,
+    pub verified_factors: Json,
+    pub acr_values: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -69,6 +71,8 @@ pub enum Column {
     PromptConsent,
     Issuer,
     Resource,
+    VerifiedFactors,
+    AcrValues,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -126,6 +130,8 @@ impl ColumnTrait for Column {
             Self::PromptConsent => ColumnType::Boolean.def(),
             Self::Issuer => ColumnType::Text.def().null(),
             Self::Resource => ColumnType::Text.def().null(),
+            Self::VerifiedFactors => ColumnType::JsonBinary.def(),
+            Self::AcrValues => ColumnType::Text.def().null(),
         }
     }
 }

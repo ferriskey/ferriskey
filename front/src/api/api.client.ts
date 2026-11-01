@@ -112,6 +112,7 @@ export namespace Schemas {
   };
   export type AuthenticationAttemptResponse = { login_url: string };
   export type AuthorizationServerMetadata = {
+    acr_values_supported: Array<string>;
     authorization_endpoint: string;
     authorization_response_iss_parameter_supported: boolean;
     client_id_metadata_document_supported?: (boolean | null) | undefined;
@@ -437,6 +438,7 @@ export namespace Schemas {
   export type LoginAliases = Array<LoginAlias>;
   export type RealmSetting = {
     access_token_lifetime: number;
+    acr_loa_map: Record<string, number>;
     allowed_resources: Array<string>;
     cimd_allowed_hosts: Array<string>;
     cimd_enabled: boolean;
@@ -694,10 +696,12 @@ export namespace Schemas {
   export type GetEmailTemplateResponse = { data: EmailTemplate };
   export type GetFlowResponse = { data: CompassFlow };
   export type GetOpenIdConfigurationResponse = {
+    acr_values_supported: Array<string>;
     authorization_endpoint: string;
     authorization_response_iss_parameter_supported: boolean;
     backchannel_logout_session_supported: boolean;
     backchannel_logout_supported: boolean;
+    claims_parameter_supported: boolean;
     client_id_metadata_document_supported?: (boolean | null) | undefined;
     code_challenge_methods_supported: Array<string>;
     device_authorization_endpoint: string;
@@ -1623,6 +1627,7 @@ export namespace Schemas {
   export type UpdateRealmSettingResponse = { data: Realm };
   export type UpdateRealmSettingValidator = Partial<{
     access_token_lifetime: number | null;
+    acr_loa_map: Record<string, number> | null;
     allowed_resources: Array<string> | null;
     cimd_allowed_hosts: Array<string> | null;
     cimd_enabled: boolean | null;

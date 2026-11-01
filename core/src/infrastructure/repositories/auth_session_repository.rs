@@ -7,6 +7,7 @@ use tracing::error;
 use uuid::Uuid;
 
 use crate::domain::authentication::{
+    assurance::VerifiedFactor,
     entities::{AuthProtocol, AuthSession, AuthenticationError, WebAuthnChallenge},
     ports::AuthSessionRepository,
     value_objects::CodeChallengeMethod,
@@ -70,6 +71,11 @@ impl TryFrom<crate::entity::auth_sessions::Model> for AuthSession {
             prompt_consent: model.prompt_consent,
             issuer: model.issuer,
             resource: model.resource,
+            acr_values: model.acr_values,
+            verified_factors: serde_json::from_value(model.verified_factors).unwrap_or_else(|e| {
+                error!(auth_session_id = %model.id, error = %e, "Ignoring unreadable verified factors");
+                Vec::new()
+            }),
         })
     }
 }
@@ -119,6 +125,13 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
             reauth_session_id: Set(session.reauth_session_id),
             issuer: Set(session.issuer.clone()),
             resource: Set(session.resource.clone()),
+            acr_values: Set(session.acr_values.clone()),
+            verified_factors: Set(serde_json::to_value(&session.verified_factors).map_err(
+                |e| {
+                    error!("Error serializing verified factors: {:?}", e);
+                    AuthenticationError::InternalServerError
+                },
+            )?),
         };
 
         let t = model
@@ -485,6 +498,39 @@ impl AuthSessionRepository for PostgresAuthSessionRepository {
         Ok(())
     }
 
+    async fn record_verified_factor(
+        &self,
+        session_code: Uuid,
+        factor: VerifiedFactor,
+    ) -> Result<(), AuthenticationError> {
+        let entry = serde_json::to_value([factor]).map_err(|e| {
+            error!("Error serializing a verified factor: {:?}", e);
+            AuthenticationError::InternalServerError
+        })?;
+
+        let result = crate::entity::auth_sessions::Entity::update_many()
+            .col_expr(
+                crate::entity::auth_sessions::Column::VerifiedFactors,
+                Expr::cust_with_values("verified_factors || $1::jsonb", [entry]),
+            )
+            .filter(crate::entity::auth_sessions::Column::Id.eq(session_code))
+            .exec(&self.db)
+            .await
+            .map_err(|e| {
+                error!(
+                    "Error recording a verified factor on an auth session: {:?}",
+                    e
+                );
+                AuthenticationError::Invalid
+            })?;
+
+        if result.rows_affected == 0 {
+            return Err(AuthenticationError::NotFound);
+        }
+
+        Ok(())
+    }
+
     async fn set_remember_me(
         &self,
         session_code: Uuid,
@@ -685,6 +731,7 @@ mod tests {
             prompt_consent: false,
             issuer: None,
             resource: None,
+            acr_values: None,
         })
     }
 
