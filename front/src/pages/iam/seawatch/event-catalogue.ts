@@ -35,6 +35,8 @@ export const catalogedEventTypes: Record<SecurityEventType, true> = {
   client_maintenance_disabled: true,
   signing_key_rotated: true,
   signing_key_revoked: true,
+  realm_exported: true,
+  realm_imported: true,
   session_created: true,
   session_revoked: true,
   webhook_delivery_exhausted: true,
@@ -91,6 +93,8 @@ const administrationEvents: SecurityEventType[] = [
   'client_maintenance_disabled',
   'signing_key_rotated',
   'signing_key_revoked',
+  'realm_exported',
+  'realm_imported',
 ]
 
 export const isAuthenticationEvent = (event: SecurityEvent) =>

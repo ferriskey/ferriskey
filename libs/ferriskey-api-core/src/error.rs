@@ -446,6 +446,15 @@ impl From<CoreError> for ApiError {
                 "This client has no secret to rotate",
                 reason,
             )),
+            CoreError::InvalidRealmBundle(_)
+            | CoreError::RealmBundleWithoutKeys
+            | CoreError::InvalidBundlePassphrase
+            | CoreError::MasterRealmNotTransferable => {
+                Self::BadRequest(ApiErrorBody::new(error.to_string(), reason))
+            }
+            CoreError::RealmBundleConflict(_) => {
+                Self::Conflict(ApiErrorBody::new(error.to_string(), reason))
+            }
             CoreError::PasswordCredentialAlreadyExists => {
                 Self::Conflict("User already has a password credential".into())
             }

@@ -122,6 +122,12 @@ pub enum SecurityEventType {
     #[serde(rename = "signing_key_revoked")]
     SigningKeyRevoked,
 
+    #[serde(rename = "realm_exported")]
+    RealmExported,
+
+    #[serde(rename = "realm_imported")]
+    RealmImported,
+
     /// A row whose persisted `event_type` does not match any known variant —
     /// a typo, a variant removed in a refactor, or a row written by a newer
     /// version. Never constructed by write-path code; the read path falls
@@ -173,6 +179,8 @@ impl SecurityEventType {
             "device_session_created" => Self::DeviceSessionCreated,
             "signing_key_rotated" => Self::SigningKeyRotated,
             "signing_key_revoked" => Self::SigningKeyRevoked,
+            "realm_exported" => Self::RealmExported,
+            "realm_imported" => Self::RealmImported,
             _ => Self::Unknown,
         }
     }
@@ -225,6 +233,8 @@ impl Display for SecurityEventType {
             SecurityEventType::DeviceSessionCreated => write!(f, "device_session_created"),
             SecurityEventType::SigningKeyRotated => write!(f, "signing_key_rotated"),
             SecurityEventType::SigningKeyRevoked => write!(f, "signing_key_revoked"),
+            SecurityEventType::RealmExported => write!(f, "realm_exported"),
+            SecurityEventType::RealmImported => write!(f, "realm_imported"),
             SecurityEventType::Unknown => write!(f, "unknown"),
         }
     }
