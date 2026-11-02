@@ -5722,7 +5722,7 @@ mod tests {
     }
 
     fn webauthn_credential_for(credential_id: &[u8], key: &SigningKey) -> WebAuthnCredential {
-        let point = key.verifying_key().to_encoded_point(false);
+        let point = key.verifying_key().to_sec1_point(false);
 
         WebAuthnCredential {
             cred_id: credential_id.to_vec().into(),
