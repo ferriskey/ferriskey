@@ -70,7 +70,7 @@
     "react-frame-component": "^5.3.2",
     "react-hook-form": "^7.91.0",
     "react-i18next": "^17.1.9",
-    "react-router": "^7.18.4",
+    "react-router": "^7.18.5",
     "react-router-dom": "^7.18.5",
     "recharts": "3.10.1",
     "sonner": "^2.0.8",
