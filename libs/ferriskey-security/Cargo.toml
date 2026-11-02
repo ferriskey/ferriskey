@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 tracing = "0.1"
 ferriskey-domain = { path = "../ferriskey-domain" }
-argon2 = "0.5.3"
+argon2 = "0.6.0"
 aws-lc-rs = "1.18.1"
 base64 = "0.23.1"
 chrono = "0.4.43"
@@ -21,7 +21,7 @@ rcgen = { version = "0.14.9", default-features = false, features = [
 pem = "4.0.0"
 serde = "1.0.228"
 serde_json = "1.0.149"
-sha1 = "0.10.6"
+sha1 = "0.11.0"
 thiserror = "2.0.18"
 utoipa = { version = "6.0.0", features = ["chrono", "uuid"] }
 uuid = "1.20.0"

@@ -1,4 +1,4 @@
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use utoipa::ToSchema;
@@ -133,6 +133,14 @@ pub fn pseudonymise(value: &str, key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pseudonymise_matches_an_independent_hmac_sha256_implementation() {
+        assert_eq!(
+            pseudonymise("alice@example.com", "pii-key"),
+            "ce6f36661d418606"
+        );
+    }
     use crate::entities::{EventStatus, SecurityEvent, SecurityEventType};
     use ferriskey_domain::realm::RealmId;
     use uuid::Uuid;
