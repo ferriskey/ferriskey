@@ -1,17 +1,15 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { useCreateIdentityProvider } from '@/api/identity-providers.api'
 import { createProviderSchema } from '@/pages/iam/identity-providers/schemas/create-provider.schema'
 import {
-  CUSTOM_PROVIDER_TEMPLATE,
-  PROVIDER_TEMPLATES,
+  ALL_TEMPLATES,
   getTemplateById,
   type ProviderTemplate,
 } from '@/constants/identity-provider-templates'
 import type { RouterParams } from '@/routes/router'
-import type { ProviderProtocol } from '../provider-status'
 import PageCreateProvider, {
   type CreateProviderErrors,
   type CreateProviderValues,
@@ -56,9 +54,6 @@ interface Draft extends CreateProviderValues {
 
 const EMPTY_DRAFT: Draft = { key: '', ...EMPTY_VALUES }
 
-const isProtocol = (value: string | null): value is ProviderProtocol =>
-  value === 'oidc' || value === 'oauth2' || value === 'saml' || value === 'ldap'
-
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -68,9 +63,8 @@ const slugify = (value: string) =>
     .replace(/^-+|-+$/g, '')
 
 /**
- * Hosts the identity provider creation wizard. The protocol and the chosen
- * template live in the URL (`?protocol=` / `?provider=`) so a reload keeps
- * the step; the draft resets whenever the template changes. On submit the
+ * Hosts the identity provider creation wizard. The chosen template lives in
+ * the URL (`?provider=`) so a reload keeps the step; the draft resets whenever the template changes. On submit the
  * form values are mapped to the broker config (`client_id`, `token_url`,
  * `use_pkce`…) expected by the API.
  */
@@ -85,8 +79,6 @@ export default function PageCreateProviderFeature() {
 
   const templateId = searchParams.get('provider')
   const template = templateId ? (getTemplateById(templateId) ?? null) : null
-  const protocolParam = searchParams.get('protocol')
-  const protocol = isProtocol(protocolParam) ? protocolParam : template?.provider_type
 
   const [step, setStep] = useState(template ? 2 : 1)
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
@@ -115,7 +107,7 @@ export default function PageCreateProviderFeature() {
 
   const parsed = configSchema.safeParse({
     ...values,
-    providerType: protocol ?? 'oidc',
+    providerType: template?.provider_type ?? 'oidc',
   })
 
   const errors: CreateProviderErrors = {}
@@ -130,19 +122,8 @@ export default function PageCreateProviderFeature() {
 
   const callbackUrl = `${window.apiUrl}/realms/${realm}/broker/${values.alias || 'provider'}/endpoint`
 
-  const templates = protocol
-    ? [
-        ...PROVIDER_TEMPLATES.filter((item) => item.provider_type === protocol),
-        CUSTOM_PROVIDER_TEMPLATE,
-      ]
-    : []
-
   const handleSelectTemplate = (next: ProviderTemplate) => {
     const params = new URLSearchParams(searchParams)
-    params.set(
-      'protocol',
-      next.id === 'custom' ? (protocol ?? next.provider_type) : next.provider_type
-    )
     params.set('provider', next.id)
     setSearchParams(params, { replace: true })
     setStep(2)
@@ -213,12 +194,9 @@ export default function PageCreateProviderFeature() {
     )
   }
 
-  if (!protocol) return <Navigate to={listUrl} replace />
-
   return (
     <PageCreateProvider
-      protocol={protocol}
-      templates={templates}
+      templates={ALL_TEMPLATES}
       template={template}
       step={step}
       values={values}

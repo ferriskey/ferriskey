@@ -132,19 +132,6 @@ list:
     label: 暂无身份提供商
     hint: 联合一个外部提供商，让账户可以使用已有的凭据登录。
     popular: 常用提供商
-  picker:
-    title: 添加身份提供商
-    description: 协议决定提供商必须声明哪些端点，因此需要在填写表单前先选定协议。
-    oidc:
-      description: 身份声明来自 ID 令牌，并以 userinfo 端点作为回退。
-    oauth2:
-      description: 普通的授权码流程；用户资料从 userinfo 端点读取。
-    saml:
-      description: 联合 SAML 身份提供商的功能尚未实现。
-      disabled_reason: FerrisKey 无法代理 SAML 提供商，身份代理仅支持 OAuth2 和 OIDC。
-    ldap:
-      description: 目录是用户联合源，而不是身份提供商。
-      disabled_reason: 目录在“用户联合”中配置，而不是在此处。
   delete:
     title: 删除提供商？
     description: '确定要删除“{{name}}”吗？'
@@ -154,8 +141,7 @@ list:
 create:
   back: 身份提供商
   title: 添加身份提供商
-  # "{{protocol}}" is an uppercased protocol acronym (OIDC, OAUTH2), taken from the URL.
-  description: '将外部 {{protocol}} 提供商连接到此域。'
+  description: 将外部提供商连接到此域。
   steps:
     provider: 提供商
     configuration: 配置
