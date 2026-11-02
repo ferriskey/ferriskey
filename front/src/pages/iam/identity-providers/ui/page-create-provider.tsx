@@ -19,7 +19,6 @@ import {
 } from '@/constants/identity-provider-templates'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/styles/style-tokens'
-import type { ProviderProtocol } from '../provider-status'
 import ProviderSetupRail from './provider-setup-rail'
 
 export interface CreateProviderValues {
@@ -37,7 +36,6 @@ export interface CreateProviderValues {
 export type CreateProviderErrors = Partial<Record<keyof CreateProviderValues, string>>
 
 export interface PageCreateProviderProps {
-  protocol: ProviderProtocol
   templates: ProviderTemplate[]
   template: ProviderTemplate | null
   step: number
@@ -128,7 +126,6 @@ function Stepper({ current }: { current: number }) {
  * owned by `PageCreateProviderFeature`.
  */
 export default function PageCreateProvider({
-  protocol,
   templates,
   template,
   step,
@@ -171,10 +168,11 @@ export default function PageCreateProvider({
 
   const isCustom = template?.id === CUSTOM_TEMPLATE_ID
   const providerLabel = template ? templateDisplayName(template) : ''
+  const protocol = template?.provider_type
 
   const reviewRows = [
     { key: 'create.review.template', value: providerLabel },
-    { key: 'create.review.protocol', value: protocol },
+    ...(protocol && !isCustom ? [{ key: 'create.review.protocol', value: protocol }] : []),
     { key: 'create.alias.label', value: values.alias },
     { key: 'create.display_name.label', value: values.displayName || providerLabel },
     { key: 'create.client_id.label', value: values.clientId },
@@ -205,7 +203,7 @@ export default function PageCreateProvider({
       <div className={tokens.header.spacing}>
         <h1 className={tokens.header.title}>{t('create.title')}</h1>
         <p className='mt-0.5 text-sm text-neutral-500 dark:text-neutral-400'>
-          {t('create.description', { protocol: protocol.toUpperCase() })}
+          {t('create.description')}
         </p>
       </div>
 

@@ -130,19 +130,6 @@ list:
     label: No identity provider
     hint: Federate an external provider so accounts can sign in with credentials they already have.
     popular: Popular providers
-  picker:
-    title: Add an identity provider
-    description: The protocol decides which endpoints the provider must declare, so it is chosen before the form.
-    oidc:
-      description: Identity claims come from the ID token, with a userinfo endpoint as a fallback.
-    oauth2:
-      description: Plain authorization code flow; the profile is read from a userinfo endpoint.
-    saml:
-      description: Federating a SAML identity provider is not implemented yet.
-      disabled_reason: FerrisKey cannot broker a SAML provider — the broker only speaks OAuth2 and OIDC.
-    ldap:
-      description: A directory is a user federation source, not an identity provider.
-      disabled_reason: A directory is configured under User Federation, not here.
   delete:
     title: Delete provider?
     description: Are you sure you want to delete "{{name}}"?
@@ -152,8 +139,7 @@ list:
 create:
   back: Identity Providers
   title: Add an identity provider
-  # "{{protocol}}" is an uppercased protocol acronym (OIDC, OAUTH2), taken from the URL.
-  description: Connecting an external {{protocol}} provider to this realm.
+  description: Connecting an external provider to this realm.
   steps:
     provider: Provider
     configuration: Configuration

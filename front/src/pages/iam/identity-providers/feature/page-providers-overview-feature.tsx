@@ -1,13 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { useDeleteIdentityProvider } from '@/api/identity-providers.api'
 import { useConfirmDeleteAlert } from '@/hooks/use-confirm-delete-alert'
-import { useCreatePicker } from '@/components/kit'
 import type { RouterParams } from '@/routes/router'
 import type { Schemas } from '@/api/api.client'
 import { getTemplateById } from '@/constants/identity-provider-templates'
-import { providerName, type ProviderProtocol } from '../provider-status'
+import { providerName } from '../provider-status'
 import PageProvidersOverview from '../ui/page-providers-overview'
 import { useProvidersOverview } from './use-providers-overview'
 
@@ -24,9 +23,11 @@ export default function PageProvidersOverviewFeature() {
   const overview = useProvidersOverview(realm)
   const { mutate: deleteProvider } = useDeleteIdentityProvider()
   const { confirm, ask, close } = useConfirmDeleteAlert()
-  const { open, setOpen } = useCreatePicker()
+  const [searchParams] = useSearchParams()
 
   const listUrl = identityProvidersBase
+
+  const createUrl = `${listUrl}/create`
 
   const handleDelete = (provider: IdentityProvider) => {
     const name = providerName(provider)
@@ -51,19 +52,17 @@ export default function PageProvidersOverviewFeature() {
     const template = getTemplateById(templateId)
     if (!template) return
 
-    navigate(
-      `${listUrl}/create?protocol=${template.provider_type}&provider=${encodeURIComponent(templateId)}`
-    )
+    navigate(`${createUrl}?provider=${encodeURIComponent(templateId)}`)
   }
+
+  if (searchParams.get('create') === '1') return <Navigate to={createUrl} replace />
 
   return (
     <PageProvidersOverview
       {...overview}
-      pickerOpen={open}
       confirm={confirm}
       providerHref={(provider) => `${listUrl}/${provider.alias}`}
-      createUrl={(protocol: ProviderProtocol) => `${listUrl}/create?protocol=${protocol}`}
-      onPickerOpenChange={setOpen}
+      onCreate={() => navigate(createUrl)}
       onQuickCreate={handleQuickCreate}
       onDelete={handleDelete}
       onConfirmClose={close}
