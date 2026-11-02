@@ -31,7 +31,7 @@ schemars = {version = "1.0.4", features = ["derive"]}
 serde_yaml = "0.9.34"
 kube-derive = "2.0.1"
 futures = "0.3.31"
-reqwest = "0.12.23"
+reqwest = "0.13.2"
 rand = "0.10.3"
 
 
