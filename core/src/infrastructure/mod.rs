@@ -22,6 +22,9 @@ pub mod recovery_code;
 pub mod repositories;
 pub mod retention;
 pub mod role;
+pub mod sealed_json;
+#[cfg(test)]
+pub mod sealed_secrets_testing;
 pub mod seawatch;
 pub mod secrets_backfill;
 pub mod token_state;

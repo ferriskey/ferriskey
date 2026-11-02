@@ -1,6 +1,9 @@
 mod common;
 
-use common::{ADMIN_CLIENT_ID, ClientSpec, TestApp, authorize, password_grant, rt, sealed_app};
+use common::{
+    ADMIN_CLIENT_ID, ClientSpec, SeededClient, TestApp, authorize, client_credentials,
+    password_grant, rt, sealed_app,
+};
 use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
 use sha1::Sha1;
@@ -185,5 +188,70 @@ fn an_enrolled_totp_seed_is_sealed_and_still_accepted_at_login() {
             "the unsealed seed must validate the code: {}",
             challenged.text()
         );
+    });
+}
+
+#[test]
+#[ignore = "requires PostgreSQL — run: cargo test -p ferriskey-api --test sealed_secrets_test -- --ignored"]
+fn a_client_secret_created_through_the_api_is_sealed_and_still_authenticates() {
+    let app = sealed_app();
+    rt().block_on(async {
+        let server = app.server();
+        let token = app.admin_token(&server).await;
+        let client_id = format!("sealed-{}", Uuid::new_v4().simple());
+
+        let created = server
+            .post(&app.path("/clients"))
+            .authorization_bearer(&token)
+            .json(&json!({
+                "client_id": client_id,
+                "name": "sealed",
+                "client_type": "confidential",
+                "protocol": "openid-connect",
+                "public_client": false,
+                "service_account_enabled": true,
+                "enabled": true,
+            }))
+            .await;
+        assert_eq!(created.status_code(), 201, "{}", created.text());
+        let body: Value = created.json();
+        let id: Uuid = body["id"]
+            .as_str()
+            .and_then(|id| id.parse().ok())
+            .expect("client id");
+        let secret = body["client_secret"]
+            .as_str()
+            .expect("creation hands back the secret")
+            .to_string();
+
+        let at_rest = stored(app, "SELECT secret FROM clients WHERE id = $1", id).await;
+        assert!(at_rest.starts_with("fk1:kid-a:"), "{at_rest}");
+        assert!(!at_rest.contains(&secret));
+
+        let revealed = server
+            .get(&app.path(&format!("/clients/{id}/client-secret")))
+            .authorization_bearer(&token)
+            .await;
+        assert_eq!(revealed.status_code(), 200, "{}", revealed.text());
+        assert_eq!(revealed.json::<Value>()["client_secret"], secret.as_str());
+
+        let client = SeededClient {
+            id,
+            client_id,
+            secret: Some(secret),
+        };
+        let granted = client_credentials(&server, app, &client).await;
+        assert_eq!(granted.status_code(), 200, "{}", granted.text());
+
+        let refused = client_credentials(
+            &server,
+            app,
+            &SeededClient {
+                secret: Some(at_rest),
+                ..client
+            },
+        )
+        .await;
+        assert_eq!(refused.status_code(), 401, "{}", refused.text());
     });
 }

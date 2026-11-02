@@ -232,7 +232,7 @@ pub async fn create_service_with_secrets(
         .map_err(|error| CoreError::Configuration(error.to_string()))?;
     if !secret_cipher.is_enabled() {
         tracing::warn!(
-            "SECRETS_ENCRYPTION_KEYS is not set: realm signing keys, TOTP seeds and SMTP passwords are stored in clear in the database"
+            "SECRETS_ENCRYPTION_KEYS is not set: realm signing keys, TOTP seeds, SMTP passwords, client secrets, identity provider secrets, LDAP bind passwords and webhook secrets are stored in clear in the database"
         );
     }
 
@@ -288,7 +288,7 @@ pub async fn create_service_with_secrets(
     let authz = Arc::new(PostgresAuthzRepository::new(postgres.get_db()));
     let client = Arc::new(InvalidatingClientRepository::new(
         CachedClientRepository::new(
-            PostgresClientRepository::new(postgres.get_db()),
+            PostgresClientRepository::with_cipher(postgres.get_db(), secret_cipher.clone()),
             config_cache_ttl,
         ),
         token_state.clone(),
@@ -345,9 +345,10 @@ pub async fn create_service_with_secrets(
             "WEBHOOK_ALLOW_PRIVATE_ENDPOINTS is on: webhooks may reach loopback and private addresses. Never enable this in production."
         );
     }
-    let webhook = Arc::new(PostgresWebhookRepository::new(
+    let webhook = Arc::new(PostgresWebhookRepository::with_cipher(
         postgres.get_db(),
         private_endpoints,
+        secret_cipher.clone(),
     ));
     let webhook_delivery = Arc::new(PostgresWebhookDeliveryRepository::new(postgres.get_db()));
     let mut stored_refresh_tokens = PostgresRefreshTokenRepository::new(postgres.get_db());
@@ -423,8 +424,14 @@ pub async fn create_service_with_secrets(
         realm.clone(),
         client.clone(),
     ));
-    let identity_provider = Arc::new(PostgresIdentityProviderRepository::new(postgres.get_db()));
-    let federation = Arc::new(FederationRepositoryImpl::new(postgres.get_db()));
+    let identity_provider = Arc::new(PostgresIdentityProviderRepository::with_cipher(
+        postgres.get_db(),
+        secret_cipher.clone(),
+    ));
+    let federation = Arc::new(FederationRepositoryImpl::with_cipher(
+        postgres.get_db(),
+        secret_cipher.clone(),
+    ));
     let broker_auth_session = Arc::new(PostgresBrokerAuthSessionRepository::new(postgres.get_db()));
     let identity_provider_link = Arc::new(PostgresIdentityProviderLinkRepository::new(
         postgres.get_db(),
