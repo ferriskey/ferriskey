@@ -29,7 +29,8 @@ impl TemplateRenderer for MjmlTemplateRenderer {
     fn render_to_html(&self, intermediate: &str) -> Result<String, CoreError> {
         let opts = mrml::prelude::render::RenderOptions::default();
         let parsed = mrml::parse(intermediate)
-            .map_err(|e| CoreError::EmailTemplateRenderError(format!("MJML parse error: {e}")))?;
+            .map_err(|e| CoreError::EmailTemplateRenderError(format!("MJML parse error: {e}")))?
+            .element;
         let html = parsed
             .render(&opts)
             .map_err(|e| CoreError::EmailTemplateRenderError(format!("MJML render error: {e}")))?;
@@ -52,7 +53,8 @@ fn mjml_to_json(mjml: &str) -> Result<serde_json::Value, CoreError> {
     // The markup is supplied by the caller, so a parse failure is bad input,
     // not a server fault — `InvalidEmailTemplateStructure` is the 4xx variant.
     let parsed = mrml::parse(mjml)
-        .map_err(|e| CoreError::InvalidEmailTemplateStructure(format!("MJML parse error: {e}")))?;
+        .map_err(|e| CoreError::InvalidEmailTemplateStructure(format!("MJML parse error: {e}")))?
+        .element;
 
     let document = serde_json::to_value(&parsed).map_err(|e| {
         CoreError::EmailTemplateRenderError(format!("MJML serialization error: {e}"))
