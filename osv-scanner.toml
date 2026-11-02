@@ -4,19 +4,7 @@ reason = "proc-macro-error2 is unmaintained, pulled at build time only by valida
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0449"
-reason = "unsafe-libyaml is unmaintained, pulled by serde_yaml through kube-client 2.x and the operator crdgen binary; kube 4 moves to serde-saphyr"
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0367"
-reason = "zip 3 is a build dependency of utoipa-swagger-ui, which only extracts the swagger-ui archive pinned by its own release; utoipa-swagger-ui 10 still resolves zip below 9"
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0368"
-reason = "same zip 3 build dependency of utoipa-swagger-ui, never given an archive we do not control"
-
-[[IgnoredVulns]]
-id = "RUSTSEC-2026-0369"
-reason = "same zip 3 build dependency of utoipa-swagger-ui, never given an archive we do not control"
+reason = "unsafe-libyaml is unmaintained, pulled only by serde_yaml in ferriskey-operator for the crdgen binary and the CRD tests; kube 4 moved to serde-saphyr"
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2023-0071"
